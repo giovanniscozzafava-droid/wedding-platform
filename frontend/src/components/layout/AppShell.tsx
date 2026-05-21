@@ -7,6 +7,7 @@ import {
   FileText,
   Palette,
   UserRound,
+  Users as UsersIcon,
   Sun,
   Moon,
   LogOut,
@@ -28,9 +29,16 @@ const ROLE_LABEL: Record<string, string> = {
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard }
 
-const NAV: NavItem[] = [
+const NAV_BASE: NavItem[] = [
   { to: '/',           label: 'Dashboard', icon: LayoutDashboard },
   { to: '/catalog',    label: 'Catalogo',  icon: PackageSearch },
+]
+
+const NAV_CAPOSTIPITE: NavItem[] = [
+  { to: '/suppliers',  label: 'Rete fornitori', icon: UsersIcon },
+]
+
+const NAV_TAIL: NavItem[] = [
   { to: '/calendar',   label: 'Calendario', icon: CalendarDays },
   { to: '/quotes',     label: 'Preventivi', icon: FileText },
   { to: '/settings/brand', label: 'Brand', icon: Palette },
@@ -42,6 +50,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
   const nav = useNavigate()
+
+  const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
+  const NAV = isCapostipite ? [...NAV_BASE, ...NAV_CAPOSTIPITE, ...NAV_TAIL] : [...NAV_BASE, ...NAV_TAIL]
 
   const initials =
     (profile?.full_name ?? user?.email ?? '?')

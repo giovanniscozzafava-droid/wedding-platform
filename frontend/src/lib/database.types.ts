@@ -354,6 +354,7 @@ export type Database = {
           modifiers_applied: Json
           name_snapshot: string
           quantity: number
+          quantity_basis: Database["public"]["Enums"]["quantity_basis"]
           quote_id: string
           service_id: string | null
           snapshot_price: number
@@ -372,6 +373,7 @@ export type Database = {
           modifiers_applied?: Json
           name_snapshot: string
           quantity?: number
+          quantity_basis?: Database["public"]["Enums"]["quantity_basis"]
           quote_id: string
           service_id?: string | null
           snapshot_price: number
@@ -390,6 +392,7 @@ export type Database = {
           modifiers_applied?: Json
           name_snapshot?: string
           quantity?: number
+          quantity_basis?: Database["public"]["Enums"]["quantity_basis"]
           quote_id?: string
           service_id?: string | null
           snapshot_price?: number
@@ -487,6 +490,7 @@ export type Database = {
           sent_at: string | null
           sent_email_log: Json
           status: Database["public"]["Enums"]["quote_status"]
+          table_count: number | null
           title: string
           total_client: number
           total_cost: number
@@ -514,6 +518,7 @@ export type Database = {
           sent_at?: string | null
           sent_email_log?: Json
           status?: Database["public"]["Enums"]["quote_status"]
+          table_count?: number | null
           title: string
           total_client?: number
           total_cost?: number
@@ -541,6 +546,7 @@ export type Database = {
           sent_at?: string | null
           sent_email_log?: Json
           status?: Database["public"]["Enums"]["quote_status"]
+          table_count?: number | null
           title?: string
           total_client?: number
           total_cost?: number
@@ -825,6 +831,7 @@ export type Database = {
       modifier_type: "PERCENT" | "FIXED"
       pdf_variant: "NEUTRA" | "PREMIUM"
       profile_visibility: "PRIVATE" | "PUBLIC"
+      quantity_basis: "FLAT" | "PER_GUEST" | "PER_TABLE" | "PER_HOUR"
       quote_status:
         | "BOZZA"
         | "INVIATO"
@@ -972,6 +979,7 @@ export const Constants = {
       modifier_type: ["PERCENT", "FIXED"],
       pdf_variant: ["NEUTRA", "PREMIUM"],
       profile_visibility: ["PRIVATE", "PUBLIC"],
+      quantity_basis: ["FLAT", "PER_GUEST", "PER_TABLE", "PER_HOUR"],
       quote_status: [
         "BOZZA",
         "INVIATO",

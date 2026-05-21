@@ -10,6 +10,8 @@ import OnboardingPage from '@/pages/auth/OnboardingPage'
 import ProfilePage from '@/pages/auth/ProfilePage'
 import CatalogPage from '@/pages/CatalogPage'
 import CalendarPage from '@/pages/CalendarPage'
+import SuppliersPage from '@/pages/SuppliersPage'
+import SupplierDetailPage from '@/pages/SupplierDetailPage'
 import QuotesPage from '@/pages/QuotesPage'
 import QuoteEditorPage from '@/pages/QuoteEditorPage'
 import BrandSettingsPage from '@/pages/BrandSettingsPage'
@@ -47,6 +49,22 @@ export default function App() {
             element={
               <RequireAuth>
                 <CatalogPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/suppliers"
+            element={
+              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+                <SuppliersPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/suppliers/:id"
+            element={
+              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+                <SupplierDetailPage />
               </RequireAuth>
             }
           />

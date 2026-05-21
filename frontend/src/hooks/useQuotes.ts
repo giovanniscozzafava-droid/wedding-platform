@@ -106,6 +106,21 @@ export function useAddQuoteItem() {
   })
 }
 
+export function useUpdateQuoteItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, quoteId, patch }: { id: string; quoteId: string; patch: Database['public']['Tables']['quote_items']['Update'] }) => {
+      const { data, error } = await supabase.from('quote_items').update(patch).eq('id', id).select().single()
+      if (error) throw error
+      return { data, quoteId }
+    },
+    onSuccess: ({ quoteId }) => {
+      qc.invalidateQueries({ queryKey: ['quote', quoteId] })
+      qc.invalidateQueries({ queryKey: ['quotes'] })
+    },
+  })
+}
+
 export function useRemoveQuoteItem() {
   const qc = useQueryClient()
   return useMutation({
