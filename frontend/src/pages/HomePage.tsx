@@ -26,6 +26,9 @@ export default function HomePage() {
               <Link to="/catalog">
                 <Button variant="default">Catalogo servizi</Button>
               </Link>
+              <Link to="/calendar">
+                <Button variant="default">Calendario</Button>
+              </Link>
               <Link to="/profile">
                 <Button variant="outline">Profilo</Button>
               </Link>
