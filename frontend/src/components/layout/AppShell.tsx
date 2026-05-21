@@ -8,6 +8,7 @@ import {
   Palette,
   UserRound,
   Users as UsersIcon,
+  Heart,
   Sun,
   Moon,
   LogOut,
@@ -35,6 +36,7 @@ const NAV_BASE: NavItem[] = [
 ]
 
 const NAV_CAPOSTIPITE: NavItem[] = [
+  { to: '/weddings',   label: 'Matrimoni', icon: Heart },
   { to: '/suppliers',  label: 'Rete fornitori', icon: UsersIcon },
 ]
 

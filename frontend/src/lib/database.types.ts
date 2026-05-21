@@ -9,6 +9,119 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      budget_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          entry_id: string
+          id: string
+          name: string
+          ord: number
+          planned_amount: number
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          name: string
+          ord?: number
+          planned_amount?: number
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          name?: string
+          ord?: number
+          planned_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_categories_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_categories_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_entries: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string
+          description: string
+          entry_id: string
+          id: string
+          paid: boolean
+          paid_at: string | null
+          receipt_url: string | null
+          supplier_id: string | null
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string
+          description: string
+          entry_id: string
+          id?: string
+          paid?: boolean
+          paid_at?: string | null
+          receipt_url?: string | null
+          supplier_id?: string | null
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          description?: string
+          entry_id?: string
+          id?: string
+          paid?: boolean
+          paid_at?: string | null
+          receipt_url?: string | null
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "budget_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_entries_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_entries_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_entries_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_entries: {
         Row: {
           client_email: string | null
@@ -210,6 +323,449 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          access_token: string | null
+          client_email: string | null
+          client_fiscal_code: string | null
+          client_name: string | null
+          created_at: string
+          entry_id: string | null
+          event_date: string | null
+          id: string
+          owner_id: string
+          pdf_url: string | null
+          quote_id: string | null
+          sections: Json
+          signature_data: Json | null
+          signed_at: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          title: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          client_email?: string | null
+          client_fiscal_code?: string | null
+          client_name?: string | null
+          created_at?: string
+          entry_id?: string | null
+          event_date?: string | null
+          id?: string
+          owner_id: string
+          pdf_url?: string | null
+          quote_id?: string | null
+          sections?: Json
+          signature_data?: Json | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          title: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          client_email?: string | null
+          client_fiscal_code?: string | null
+          client_name?: string | null
+          created_at?: string
+          entry_id?: string | null
+          event_date?: string | null
+          id?: string
+          owner_id?: string
+          pdf_url?: string | null
+          quote_id?: string | null
+          sections?: Json
+          signature_data?: Json | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          title?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_documents: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          kind: string
+          mime: string | null
+          name: string
+          size_bytes: number | null
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          kind?: string
+          mime?: string | null
+          name: string
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          kind?: string
+          mime?: string | null
+          name?: string
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_documents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_documents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_guests: {
+        Row: {
+          created_at: string
+          diet: string | null
+          email: string | null
+          entry_id: string
+          full_name: string
+          group_label: string | null
+          id: string
+          notes: string | null
+          party_size: number
+          phone: string | null
+          rsvp: Database["public"]["Enums"]["rsvp_status"]
+          seat_no: number | null
+          side: string | null
+          table_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          diet?: string | null
+          email?: string | null
+          entry_id: string
+          full_name: string
+          group_label?: string | null
+          id?: string
+          notes?: string | null
+          party_size?: number
+          phone?: string | null
+          rsvp?: Database["public"]["Enums"]["rsvp_status"]
+          seat_no?: number | null
+          side?: string | null
+          table_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          diet?: string | null
+          email?: string | null
+          entry_id?: string
+          full_name?: string
+          group_label?: string | null
+          id?: string
+          notes?: string | null
+          party_size?: number
+          phone?: string | null
+          rsvp?: Database["public"]["Enums"]["rsvp_status"]
+          seat_no?: number | null
+          side?: string | null
+          table_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_guests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guests_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "event_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_playlist: {
+        Row: {
+          artist: string | null
+          created_at: string
+          done: boolean
+          entry_id: string
+          id: string
+          moment: string
+          notes: string | null
+          ord: number
+          song_title: string
+        }
+        Insert: {
+          artist?: string | null
+          created_at?: string
+          done?: boolean
+          entry_id: string
+          id?: string
+          moment: string
+          notes?: string | null
+          ord?: number
+          song_title: string
+        }
+        Update: {
+          artist?: string | null
+          created_at?: string
+          done?: boolean
+          entry_id?: string
+          id?: string
+          moment?: string
+          notes?: string | null
+          ord?: number
+          song_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_playlist_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_playlist_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_tables: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          label: string | null
+          pos_x: number | null
+          pos_y: number | null
+          seats: number
+          shape: string
+          table_no: number
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          label?: string | null
+          pos_x?: number | null
+          pos_y?: number | null
+          seats?: number
+          shape?: string
+          table_no: number
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          label?: string | null
+          pos_x?: number | null
+          pos_y?: number | null
+          seats?: number
+          shape?: string
+          table_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_tables_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_tables_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_timeline: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration_min: number | null
+          entry_id: string
+          id: string
+          is_critical: boolean
+          location: string | null
+          ord: number
+          start_time: string | null
+          supplier_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration_min?: number | null
+          entry_id: string
+          id?: string
+          is_critical?: boolean
+          location?: string | null
+          ord?: number
+          start_time?: string | null
+          supplier_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration_min?: number | null
+          entry_id?: string
+          id?: string
+          is_critical?: boolean
+          location?: string | null
+          ord?: number
+          start_time?: string | null
+          supplier_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_timeline_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_timeline_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_timeline_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mood_images: {
+        Row: {
+          caption: string | null
+          created_at: string
+          entry_id: string
+          id: string
+          ord: number
+          source: string | null
+          tag: string | null
+          url: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          ord?: number
+          source?: string | null
+          tag?: string | null
+          url: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          ord?: number
+          source?: string | null
+          tag?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mood_images_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mood_images_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_queue: {
         Row: {
           attempts: number
@@ -345,9 +901,12 @@ export type Database = {
       }
       quote_items: {
         Row: {
+          alternative_group: string | null
+          client_selected_at: string | null
           created_at: string
           description_snapshot: string | null
           id: string
+          is_optional: boolean
           item_markup_percent: number | null
           line_client: number
           line_cost: number
@@ -356,6 +915,7 @@ export type Database = {
           quantity: number
           quantity_basis: Database["public"]["Enums"]["quantity_basis"]
           quote_id: string
+          selected_by_client: boolean | null
           service_id: string | null
           snapshot_price: number
           sort_order: number
@@ -364,9 +924,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          alternative_group?: string | null
+          client_selected_at?: string | null
           created_at?: string
           description_snapshot?: string | null
           id?: string
+          is_optional?: boolean
           item_markup_percent?: number | null
           line_client?: number
           line_cost?: number
@@ -375,6 +938,7 @@ export type Database = {
           quantity?: number
           quantity_basis?: Database["public"]["Enums"]["quantity_basis"]
           quote_id: string
+          selected_by_client?: boolean | null
           service_id?: string | null
           snapshot_price: number
           sort_order?: number
@@ -383,9 +947,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          alternative_group?: string | null
+          client_selected_at?: string | null
           created_at?: string
           description_snapshot?: string | null
           id?: string
+          is_optional?: boolean
           item_markup_percent?: number | null
           line_client?: number
           line_cost?: number
@@ -394,6 +961,7 @@ export type Database = {
           quantity?: number
           quantity_basis?: Database["public"]["Enums"]["quantity_basis"]
           quote_id?: string
+          selected_by_client?: boolean | null
           service_id?: string | null
           snapshot_price?: number
           sort_order?: number
@@ -463,6 +1031,44 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_views: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          ip_hash: string | null
+          payload: Json
+          quote_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_hash?: string | null
+          payload?: Json
+          quote_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_hash?: string | null
+          payload?: Json
+          quote_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_views_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
             referencedColumns: ["id"]
           },
         ]
@@ -733,6 +1339,73 @@ export type Database = {
           },
         ]
       }
+      wedding_tasks: {
+        Row: {
+          created_at: string
+          description: string | null
+          done: boolean
+          done_at: string | null
+          due_at: string | null
+          entry_id: string
+          id: string
+          ord: number
+          phase: string
+          supplier_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          done?: boolean
+          done_at?: string | null
+          due_at?: string | null
+          entry_id: string
+          id?: string
+          ord?: number
+          phase?: string
+          supplier_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          done?: boolean
+          done_at?: string | null
+          due_at?: string | null
+          entry_id?: string
+          id?: string
+          ord?: number
+          phase?: string
+          supplier_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wedding_tasks_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wedding_tasks_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wedding_tasks_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       calendar_entries_for_participants: {
@@ -796,6 +1469,15 @@ export type Database = {
         }
         Returns: number
       }
+      contract_get_by_token: { Args: { p_token: string }; Returns: Json }
+      contract_sign_by_token: {
+        Args: {
+          p_signer_fiscal: string
+          p_signer_name: string
+          p_token: string
+        }
+        Returns: boolean
+      }
       has_active_collab_with_supplier: {
         Args: { p_supplier: string }
         Returns: boolean
@@ -805,9 +1487,21 @@ export type Database = {
       is_quote_owner: { Args: { p_quote: string }; Returns: boolean }
       quote_accept_by_token: { Args: { p_token: string }; Returns: boolean }
       quote_get_by_token: { Args: { p_token: string }; Returns: Json }
+      quote_pick_alternative: {
+        Args: { p_item_id: string; p_token: string }
+        Returns: boolean
+      }
       quote_reject_by_token: {
         Args: { p_reason: string; p_token: string }
         Returns: boolean
+      }
+      quote_toggle_option: {
+        Args: { p_item_id: string; p_selected: boolean; p_token: string }
+        Returns: boolean
+      }
+      quote_track_event: {
+        Args: { p_event: string; p_payload?: Json; p_token: string }
+        Returns: undefined
       }
       quotes_recalc_totals: { Args: { p_quote_id: string }; Returns: undefined }
       seed_user: {
@@ -822,6 +1516,7 @@ export type Database = {
     }
     Enums: {
       collaboration_status: "PENDING" | "ACTIVE" | "REVOKED"
+      contract_status: "BOZZA" | "INVIATO" | "FIRMATO" | "ANNULLATO"
       entry_status:
         | "IN_TRATTATIVA"
         | "OPZIONATA"
@@ -838,6 +1533,7 @@ export type Database = {
         | "ACCETTATO"
         | "RIFIUTATO"
         | "CONVERTITO_IN_CONTRATTO"
+      rsvp_status: "PENDING" | "YES" | "NO" | "MAYBE"
       service_unit: "PEZZO" | "PERSONA" | "ORA" | "EVENTO"
       subscription_tier: "FREE" | "PREMIUM"
       user_role: "WEDDING_PLANNER" | "LOCATION" | "FORNITORE" | "ADMIN"
@@ -969,6 +1665,7 @@ export const Constants = {
   public: {
     Enums: {
       collaboration_status: ["PENDING", "ACTIVE", "REVOKED"],
+      contract_status: ["BOZZA", "INVIATO", "FIRMATO", "ANNULLATO"],
       entry_status: [
         "IN_TRATTATIVA",
         "OPZIONATA",
@@ -987,6 +1684,7 @@ export const Constants = {
         "RIFIUTATO",
         "CONVERTITO_IN_CONTRATTO",
       ],
+      rsvp_status: ["PENDING", "YES", "NO", "MAYBE"],
       service_unit: ["PEZZO", "PERSONA", "ORA", "EVENTO"],
       subscription_tier: ["FREE", "PREMIUM"],
       user_role: ["WEDDING_PLANNER", "LOCATION", "FORNITORE", "ADMIN"],
