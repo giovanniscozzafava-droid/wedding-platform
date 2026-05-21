@@ -61,12 +61,12 @@ declare v_id uuid;
 begin
   update quotes
      set status = 'ACCETTATO',
-         accepted_at = now(),
+         accepted_at = coalesce(accepted_at, now()),
          client_response_log = client_response_log || jsonb_build_object(
             'event','accepted','at',now()
          )
    where access_token = p_token
-     and status = 'INVIATO'
+     and status in ('INVIATO','ACCETTATO')
    returning id into v_id;
 
   return v_id is not null;
@@ -86,13 +86,13 @@ declare v_id uuid;
 begin
   update quotes
      set status = 'RIFIUTATO',
-         rejected_at = now(),
+         rejected_at = coalesce(rejected_at, now()),
          rejection_reason = coalesce(p_reason,''),
          client_response_log = client_response_log || jsonb_build_object(
             'event','rejected','at',now(),'reason',coalesce(p_reason,'')
          )
    where access_token = p_token
-     and status = 'INVIATO'
+     and status in ('INVIATO','RIFIUTATO')
    returning id into v_id;
 
   return v_id is not null;

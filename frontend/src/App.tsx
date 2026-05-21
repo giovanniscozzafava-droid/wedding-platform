@@ -10,6 +10,12 @@ import OnboardingPage from '@/pages/auth/OnboardingPage'
 import ProfilePage from '@/pages/auth/ProfilePage'
 import CatalogPage from '@/pages/CatalogPage'
 import CalendarPage from '@/pages/CalendarPage'
+import QuotesPage from '@/pages/QuotesPage'
+import QuoteEditorPage from '@/pages/QuoteEditorPage'
+import BrandSettingsPage from '@/pages/BrandSettingsPage'
+import QuotePreviewPage from '@/pages/public/QuotePreviewPage'
+import QuoteAcceptPage from '@/pages/public/QuoteAcceptPage'
+import QuoteRejectPage from '@/pages/public/QuoteRejectPage'
 
 export default function App() {
   return (
@@ -52,6 +58,33 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route
+            path="/quotes"
+            element={
+              <RequireAuth>
+                <QuotesPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/quotes/:id"
+            element={
+              <RequireAuth>
+                <QuoteEditorPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings/brand"
+            element={
+              <RequireAuth>
+                <BrandSettingsPage />
+              </RequireAuth>
+            }
+          />
+          <Route path="/p/preview/:token" element={<QuotePreviewPage />} />
+          <Route path="/p/accept/:token" element={<QuoteAcceptPage />} />
+          <Route path="/p/reject/:token" element={<QuoteRejectPage />} />
           <Route
             path="/"
             element={

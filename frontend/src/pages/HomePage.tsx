@@ -29,6 +29,12 @@ export default function HomePage() {
               <Link to="/calendar">
                 <Button variant="default">Calendario</Button>
               </Link>
+              <Link to="/quotes">
+                <Button variant="default">Preventivi</Button>
+              </Link>
+              <Link to="/settings/brand">
+                <Button variant="outline">Brand</Button>
+              </Link>
               <Link to="/profile">
                 <Button variant="outline">Profilo</Button>
               </Link>
