@@ -153,6 +153,65 @@ export const useMoodMutations = (entryId: string) => genericMutations('mood_imag
 export const usePlaylistMutations = (entryId: string) => genericMutations('event_playlist', 'playlist', entryId)
 export const useBudgetCatMutations = (entryId: string) => genericMutations('budget_categories', 'budget-cats', entryId)
 export const useBudgetEntryMutations = (entryId: string) => genericMutations('budget_entries', 'budget-entries', entryId)
+export const useAccommodationMutations = (entryId: string) => genericMutations('event_accommodations', 'accommodations', entryId)
+export const useTransportMutations = (entryId: string) => genericMutations('event_transport', 'transport', entryId)
+export const useGadgetMutations = (entryId: string) => genericMutations('event_gadgets', 'gadgets', entryId)
+export const useSubEventMutations = (entryId: string) => genericMutations('event_subevents', 'subevents', entryId)
+
+export function useAccommodations(entryId: string | null) {
+  return useQuery({
+    queryKey: ['accommodations', entryId],
+    enabled: !!entryId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('event_accommodations').select('*').eq('entry_id', entryId!).order('checkin_date')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+export function useTransport(entryId: string | null) {
+  return useQuery({
+    queryKey: ['transport', entryId],
+    enabled: !!entryId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('event_transport').select('*').eq('entry_id', entryId!).order('depart_at')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+export function useGadgets(entryId: string | null) {
+  return useQuery({
+    queryKey: ['gadgets', entryId],
+    enabled: !!entryId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('event_gadgets').select('*').eq('entry_id', entryId!).order('kind').order('updated_at', { ascending: false })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+export function useSubEvents(entryId: string | null) {
+  return useQuery({
+    queryKey: ['subevents', entryId],
+    enabled: !!entryId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('event_subevents').select('*').eq('entry_id', entryId!).order('date_at')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+export function useUpdateWedding(entryId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (patch: any) => {
+      const { error } = await supabase.from('calendar_entries').update(patch).eq('id', entryId)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['wedding', entryId] }),
+  })
+}
 
 export function useTasks(entryId: string | null) {
   return useQuery({

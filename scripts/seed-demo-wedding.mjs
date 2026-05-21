@@ -270,6 +270,78 @@ const contract = await sb.from('contracts').insert({
 }).select().single()
 console.log(`    ✓ contratto INVIATO`)
 
+// 10bis. Alloggi -----------------------------------------------------------
+const accommodations = [
+  { kind: 'HOTEL', name: 'Hotel Villa Cimbrone', city: 'Ravello', country: 'Italia', address: 'Via Santa Chiara, 26', url: 'https://example.com/villa-cimbrone', checkin_date: '2026-09-14', checkout_date: '2026-09-16', rate_per_night: 320, rooms_blocked: 15, rooms_used: 8, promo_code: 'DELUCA2026', distance_km: 0.8 },
+  { kind: 'BNB', name: 'B&B La Pergola', city: 'Ravello', country: 'Italia', address: 'Piazza Duomo 5', url: 'https://example.com/pergola', checkin_date: '2026-09-14', checkout_date: '2026-09-16', rate_per_night: 130, rooms_blocked: 6, rooms_used: 4, distance_km: 1.2 },
+  { kind: 'AIRBNB', name: 'Casa Limonata - Costiera', city: 'Amalfi', country: 'Italia', url: 'https://example.com/airbnb', checkin_date: '2026-09-13', checkout_date: '2026-09-17', rate_per_night: 220, rooms_blocked: 4, rooms_used: 4, distance_km: 6.5 },
+  { kind: 'RESORT', name: 'Belmond Caruso', city: 'Ravello', country: 'Italia', url: 'https://example.com/caruso', checkin_date: '2026-09-13', checkout_date: '2026-09-16', rate_per_night: 580, rooms_blocked: 10, rooms_used: 6, promo_code: 'DELUCA2026', distance_km: 0.4 },
+]
+await sb.from('event_accommodations').insert(accommodations.map((a) => ({ ...a, entry_id: eid })))
+console.log(`    ✓ ${accommodations.length} alloggi`)
+
+const transports = [
+  { kind: 'AUTO_SPOSI', label: 'Mercedes vintage sposi', provider: 'Auto Storiche Napoli', depart_at: '2026-09-15T10:30:00+02:00', depart_from: 'Casa sposa', arrive_to: 'Chiesa San Pietro', capacity: 4, passengers_count: 2, cost: 450 },
+  { kind: 'PULMINO_NAVETTA', label: 'Navetta Hotel Cimbrone → Villa Aurora', provider: 'NCC Costiera', depart_at: '2026-09-15T13:00:00+02:00', depart_from: 'Hotel Villa Cimbrone', arrive_to: 'Villa Aurora', capacity: 18, passengers_count: 16, cost: 280 },
+  { kind: 'AUTOBUS_GRUPPO', label: 'Bus ospiti centro Ravello', provider: 'SITA', depart_at: '2026-09-15T13:30:00+02:00', depart_from: 'Piazza Duomo Ravello', arrive_to: 'Villa Aurora', capacity: 50, passengers_count: 42, cost: 380 },
+  { kind: 'VOLO_GRUPPO', label: 'Volo MIL → NAP ospiti Nord Italia', provider: 'ITA Airways', flight_number: 'AZ1248', depart_at: '2026-09-14T07:30:00+02:00', depart_from: 'Milano Linate (LIN)', arrive_to: 'Napoli Capodichino (NAP)', capacity: 30, passengers_count: 22, cost: 4400 },
+  { kind: 'TAXI_NCC', label: 'NCC dedicato day-of', provider: 'NCC Premium', depart_at: '2026-09-15T16:00:00+02:00', capacity: 4, passengers_count: 4, cost: 180 },
+  { kind: 'BARCA', label: 'Escursione barca a Capri (giorno dopo)', provider: 'Capri Boat Tour', depart_at: '2026-09-16T10:00:00+02:00', depart_from: 'Amalfi marina', arrive_to: 'Capri', capacity: 25, passengers_count: 18, cost: 1800, route_notes: 'Pranzo a bordo incluso' },
+]
+await sb.from('event_transport').insert(transports.map((t) => ({ ...t, entry_id: eid })))
+console.log(`    ✓ ${transports.length} mezzi trasporto`)
+
+const gadgets = [
+  { kind: 'SAVE_THE_DATE', name: 'Save the date letterpress', supplier_external: 'Carta & Co', quantity: 120, quantity_basis: 'PER_GUEST', unit_cost: 3.5, status: 'CONSEGNATO' },
+  { kind: 'INVITO', name: 'Invito custom con sigillo ceralacca', supplier_external: 'Atelier Inviti', quantity: 120, quantity_basis: 'PER_GUEST', unit_cost: 8, status: 'ORDINATO' },
+  { kind: 'WELCOME_BAG', name: 'Welcome bag Costiera (limoncello + biscotti + mappa)', supplier_external: 'Sapori di Amalfi', quantity: 70, quantity_basis: 'FLAT', unit_cost: 22, status: 'APPROVATO' },
+  { kind: 'BOMBONIERA', name: 'Bomboniera ceramica Vietri (vasetto miele)', supplier_external: 'Ceramiche di Vietri', quantity: 120, quantity_basis: 'PER_GUEST', unit_cost: 14, status: 'ORDINATO' },
+  { kind: 'CONFETTI', name: 'Confetti Pelino classici 5 sfumature', supplier_external: 'Pelino Sulmona', quantity: 5, quantity_basis: 'FLAT', unit_cost: 28, status: 'APPROVATO' },
+  { kind: 'MENU_STAMPATO', name: 'Menù in calligrafia', supplier_external: 'Atelier Inviti', quantity: 120, quantity_basis: 'PER_GUEST', unit_cost: 4, status: 'IDEA' },
+  { kind: 'TABLEAU', name: 'Tableau de mariage con cornice oro', supplier_external: 'Atelier Inviti', quantity: 1, quantity_basis: 'FLAT', unit_cost: 280, status: 'IDEA' },
+  { kind: 'SEGNAPOSTO', name: 'Segnaposto ramoscello ulivo', supplier_external: 'Atelier Floreale', quantity: 120, quantity_basis: 'PER_GUEST', unit_cost: 2, status: 'IDEA' },
+  { kind: 'LIBRO_FIRME', name: 'Polaroid + libro firme custom', supplier_external: 'Print&Co', quantity: 1, quantity_basis: 'FLAT', unit_cost: 95, status: 'IDEA' },
+  { kind: 'RINGRAZIAMENTO', name: 'Thank you card post matrimonio', supplier_external: 'Atelier Inviti', quantity: 120, quantity_basis: 'PER_GUEST', unit_cost: 2.5, status: 'IDEA' },
+]
+await sb.from('event_gadgets').insert(gadgets.map((g) => ({ ...g, entry_id: eid })))
+console.log(`    ✓ ${gadgets.length} bomboniere/gadget`)
+
+const subevents = [
+  { kind: 'ADDIO_NUBILATO', title: 'Addio al nubilato a Mykonos', date_at: '2026-07-04T18:00:00+02:00', location: 'Mykonos, Grecia', budget: 1800, capacity: 12, status: 'COMPLETATO', organizer: 'Damigella Sara' },
+  { kind: 'ADDIO_CELIBATO', title: 'Weekend in Toscana', date_at: '2026-07-11T16:00:00+02:00', location: 'Chianti', budget: 1500, capacity: 10, status: 'COMPLETATO', organizer: 'Testimone Marco' },
+  { kind: 'PRE_WEDDING_SHOOT', title: 'Servizio engagement a Ravello', date_at: '2026-06-15T17:00:00+02:00', location: 'Ravello Belvedere', budget: 800, status: 'CONFERMATO', organizer: 'Mario Foto' },
+  { kind: 'CENA_PROVE', title: 'Cena prove menu degustazione', date_at: '2026-07-20T20:00:00+02:00', location: 'Villa Aurora', budget: 400, capacity: 4, status: 'COMPLETATO', organizer: 'Catering Sole' },
+  { kind: 'REHEARSAL', title: 'Prova cerimonia', date_at: '2026-09-14T17:00:00+02:00', location: 'Chiesa San Pietro Ravello', budget: 0, capacity: 12, status: 'PIANIFICATO' },
+  { kind: 'WELCOME_DINNER', title: 'Welcome dinner', date_at: '2026-09-14T20:00:00+02:00', location: 'Ristorante Cumpa Cosimo', budget: 2200, capacity: 50, status: 'CONFERMATO' },
+  { kind: 'BRUNCH_POST', title: 'Brunch domenica dopo le nozze', date_at: '2026-09-16T11:00:00+02:00', location: 'Villa Aurora · Giardino', budget: 1400, capacity: 60, status: 'PIANIFICATO' },
+  { kind: 'HONEYMOON_DEPART', title: 'Partenza luna di miele', date_at: '2026-09-17T08:00:00+02:00', location: 'Aeroporto Napoli', budget: 0, status: 'PIANIFICATO' },
+]
+await sb.from('event_subevents').insert(subevents.map((s) => ({ ...s, entry_id: eid })))
+console.log(`    ✓ ${subevents.length} sub-eventi`)
+
+await sb.from('calendar_entries').update({
+  is_destination: true,
+  destination_location: 'Ravello, Costiera Amalfitana',
+  destination_country: 'Italia',
+  destination_language: 'it',
+  wedding_website_slug: 'andrea-e-giulia-deluca',
+  wedding_website_published: true,
+  wedding_website_data: {
+    hashtag: '#DeLucaWedding2026',
+    story: 'Ci siamo conosciuti per caso a Ravello nel 2019, durante un viaggio con amici. Sei anni dopo, torniamo nello stesso luogo per dirvi di sì davanti a chi amiamo.',
+    dress_code: 'Formale · colori chiari, niente bianco · scarpe comode per la cerimonia in giardino',
+    gift_registry_url: 'https://www.amazon.it/wedding/registry/deluca',
+    map_url: '',
+    travel_info: 'Aeroporto consigliato: Napoli Capodichino (NAP). Da Napoli a Ravello: 1h30 in auto/navetta. Per ospiti extra-EU controllate i requisiti visto sul portale Schengen.',
+    things_to_do: 'Visita Amalfi e Positano · Tour in barca a Capri · Sentieri degli Dei · Cantine vino della Costiera · Limoncello experience',
+  },
+  honeymoon_destination: 'Bali e Gili Islands',
+  honeymoon_start: '2026-09-17',
+  honeymoon_end: '2026-10-05',
+  honeymoon_notes: 'Volo via Doha (Qatar Airways), 4 notti Ubud + 7 notti Gili Trawangan + 4 notti Sanur. Prenotato tramite Quality Travel.',
+}).eq('id', eid)
+console.log(`    ✓ destination wedding + website pubblicato /w/andrea-e-giulia-deluca + honeymoon`)
+
 // 10. Analytics views simulati --------------------------------------------
 const events = ['OPEN','SCROLL','SCROLL','ITEM_FOCUS','ITEM_FOCUS','OPTIONAL_TOGGLE','ALTERNATIVE_PICK','PDF_DOWNLOAD','OPEN','ACCEPT']
 for (const e of events) {

@@ -19,6 +19,7 @@ import QuotePreviewPage from '@/pages/public/QuotePreviewPage'
 import QuoteAcceptPage from '@/pages/public/QuoteAcceptPage'
 import QuoteRejectPage from '@/pages/public/QuoteRejectPage'
 import ContractSignPage from '@/pages/public/ContractSignPage'
+import WeddingSitePage from '@/pages/public/WeddingSitePage'
 import WeddingsPage from '@/pages/WeddingsPage'
 import WeddingDashboard from '@/pages/wedding/WeddingDashboard'
 
@@ -123,6 +124,7 @@ export default function App() {
           <Route path="/p/accept/:token" element={<QuoteAcceptPage />} />
           <Route path="/p/reject/:token" element={<QuoteRejectPage />} />
           <Route path="/p/contract/:token" element={<ContractSignPage />} />
+          <Route path="/w/:slug" element={<WeddingSitePage />} />
           <Route
             path="/"
             element={

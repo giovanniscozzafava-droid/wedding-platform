@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, CalendarClock, Table2, Users as UsersIcon, Wallet, ListChecks,
   Palette, Music, FileSignature, FolderOpen, BarChart3, FileText,
+  BedDouble, Bus, Gift, PartyPopper, Globe,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useWedding } from '@/hooks/useWedding'
@@ -18,21 +19,31 @@ import { PlaylistTab } from '@/components/wedding/PlaylistTab'
 import { ContractTab } from '@/components/wedding/ContractTab'
 import { DocumentsTab } from '@/components/wedding/DocumentsTab'
 import { AnalyticsTab } from '@/components/wedding/AnalyticsTab'
+import { AccommodationsTab } from '@/components/wedding/AccommodationsTab'
+import { TransportTab } from '@/components/wedding/TransportTab'
+import { GadgetsTab } from '@/components/wedding/GadgetsTab'
+import { SubEventsTab } from '@/components/wedding/SubEventsTab'
+import { WebsiteTab } from '@/components/wedding/WebsiteTab'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'overview' | 'timeline' | 'tables' | 'guests' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'docs' | 'analytics'
+type TabKey = 'overview' | 'timeline' | 'tables' | 'guests' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website'
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = [
-  { key: 'overview',  label: 'Overview',   icon: FileText },
-  { key: 'timeline',  label: 'Scaletta',   icon: CalendarClock },
-  { key: 'guests',    label: 'Invitati',   icon: UsersIcon },
-  { key: 'tables',    label: 'Tavoli',     icon: Table2 },
-  { key: 'budget',    label: 'Budget',     icon: Wallet },
-  { key: 'checklist', label: 'Checklist',  icon: ListChecks },
-  { key: 'mood',      label: 'Mood',       icon: Palette },
-  { key: 'playlist',  label: 'Playlist',   icon: Music },
-  { key: 'contract',  label: 'Contratto',  icon: FileSignature },
-  { key: 'docs',      label: 'Documenti',  icon: FolderOpen },
+  { key: 'overview',       label: 'Overview',     icon: FileText },
+  { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock },
+  { key: 'guests',         label: 'Invitati',     icon: UsersIcon },
+  { key: 'tables',         label: 'Tavoli',       icon: Table2 },
+  { key: 'accommodations', label: 'Alloggi',      icon: BedDouble },
+  { key: 'transport',      label: 'Trasporti',    icon: Bus },
+  { key: 'subevents',      label: 'Eventi',       icon: PartyPopper },
+  { key: 'gadgets',        label: 'Bomboniere',   icon: Gift },
+  { key: 'mood',           label: 'Mood',         icon: Palette },
+  { key: 'playlist',       label: 'Playlist',     icon: Music },
+  { key: 'budget',         label: 'Budget',       icon: Wallet },
+  { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
+  { key: 'contract',       label: 'Contratto',    icon: FileSignature },
+  { key: 'website',        label: 'Wedding site', icon: Globe },
+  { key: 'docs',           label: 'Documenti',    icon: FolderOpen },
   { key: 'analytics', label: 'Analytics',  icon: BarChart3 },
 ]
 
@@ -117,6 +128,11 @@ export default function WeddingDashboard() {
             {tab === 'contract' && <ContractTab wedding={wedding} />}
             {tab === 'docs' && <DocumentsTab entryId={wedding.id} />}
             {tab === 'analytics' && <AnalyticsTab quoteId={wedding.quote_id} />}
+            {tab === 'accommodations' && <AccommodationsTab entryId={wedding.id} />}
+            {tab === 'transport' && <TransportTab entryId={wedding.id} />}
+            {tab === 'gadgets' && <GadgetsTab entryId={wedding.id} />}
+            {tab === 'subevents' && <SubEventsTab entryId={wedding.id} />}
+            {tab === 'website' && <WebsiteTab wedding={wedding} />}
           </motion.div>
         </AnimatePresence>
       </div>

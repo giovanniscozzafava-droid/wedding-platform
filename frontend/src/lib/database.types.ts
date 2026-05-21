@@ -129,7 +129,15 @@ export type Database = {
           created_at: string
           date_from: string
           date_to: string
+          destination_country: string | null
+          destination_language: string | null
+          destination_location: string | null
+          honeymoon_destination: string | null
+          honeymoon_end: string | null
+          honeymoon_notes: string | null
+          honeymoon_start: string | null
           id: string
+          is_destination: boolean
           notes: string | null
           owner_id: string
           quote_id: string | null
@@ -137,6 +145,9 @@ export type Database = {
           title: string
           updated_at: string
           value_amount: number | null
+          wedding_website_data: Json
+          wedding_website_published: boolean
+          wedding_website_slug: string | null
         }
         Insert: {
           client_email?: string | null
@@ -144,7 +155,15 @@ export type Database = {
           created_at?: string
           date_from: string
           date_to: string
+          destination_country?: string | null
+          destination_language?: string | null
+          destination_location?: string | null
+          honeymoon_destination?: string | null
+          honeymoon_end?: string | null
+          honeymoon_notes?: string | null
+          honeymoon_start?: string | null
           id?: string
+          is_destination?: boolean
           notes?: string | null
           owner_id: string
           quote_id?: string | null
@@ -152,6 +171,9 @@ export type Database = {
           title: string
           updated_at?: string
           value_amount?: number | null
+          wedding_website_data?: Json
+          wedding_website_published?: boolean
+          wedding_website_slug?: string | null
         }
         Update: {
           client_email?: string | null
@@ -159,7 +181,15 @@ export type Database = {
           created_at?: string
           date_from?: string
           date_to?: string
+          destination_country?: string | null
+          destination_language?: string | null
+          destination_location?: string | null
+          honeymoon_destination?: string | null
+          honeymoon_end?: string | null
+          honeymoon_notes?: string | null
+          honeymoon_start?: string | null
           id?: string
+          is_destination?: boolean
           notes?: string | null
           owner_id?: string
           quote_id?: string | null
@@ -167,6 +197,9 @@ export type Database = {
           title?: string
           updated_at?: string
           value_amount?: number | null
+          wedding_website_data?: Json
+          wedding_website_published?: boolean
+          wedding_website_slug?: string | null
         }
         Relationships: [
           {
@@ -415,6 +448,96 @@ export type Database = {
           },
         ]
       }
+      event_accommodations: {
+        Row: {
+          address: string | null
+          checkin_date: string | null
+          checkout_date: string | null
+          city: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          country: string | null
+          cover_image_url: string | null
+          created_at: string
+          currency: string | null
+          distance_km: number | null
+          entry_id: string
+          id: string
+          kind: Database["public"]["Enums"]["accommodation_kind"]
+          name: string
+          notes: string | null
+          promo_code: string | null
+          rate_per_night: number | null
+          rooms_blocked: number | null
+          rooms_used: number | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          address?: string | null
+          checkin_date?: string | null
+          checkout_date?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          currency?: string | null
+          distance_km?: number | null
+          entry_id: string
+          id?: string
+          kind?: Database["public"]["Enums"]["accommodation_kind"]
+          name: string
+          notes?: string | null
+          promo_code?: string | null
+          rate_per_night?: number | null
+          rooms_blocked?: number | null
+          rooms_used?: number | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          address?: string | null
+          checkin_date?: string | null
+          checkout_date?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          currency?: string | null
+          distance_km?: number | null
+          entry_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["accommodation_kind"]
+          name?: string
+          notes?: string | null
+          promo_code?: string | null
+          rate_per_night?: number | null
+          rooms_blocked?: number | null
+          rooms_used?: number | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_accommodations_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_accommodations_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_documents: {
         Row: {
           created_at: string
@@ -473,59 +596,172 @@ export type Database = {
           },
         ]
       }
+      event_gadgets: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          due_at: string | null
+          entry_id: string
+          id: string
+          kind: Database["public"]["Enums"]["gadget_kind"]
+          name: string
+          notes: string | null
+          quantity: number
+          quantity_basis: Database["public"]["Enums"]["quantity_basis"]
+          status: string
+          supplier_external: string | null
+          supplier_id: string | null
+          total_cost: number | null
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          due_at?: string | null
+          entry_id: string
+          id?: string
+          kind?: Database["public"]["Enums"]["gadget_kind"]
+          name: string
+          notes?: string | null
+          quantity?: number
+          quantity_basis?: Database["public"]["Enums"]["quantity_basis"]
+          status?: string
+          supplier_external?: string | null
+          supplier_id?: string | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          due_at?: string | null
+          entry_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["gadget_kind"]
+          name?: string
+          notes?: string | null
+          quantity?: number
+          quantity_basis?: Database["public"]["Enums"]["quantity_basis"]
+          status?: string
+          supplier_external?: string | null
+          supplier_id?: string | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_gadgets_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_gadgets_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_gadgets_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_guests: {
         Row: {
+          accommodation_id: string | null
+          arrival_at: string | null
           created_at: string
+          departure_at: string | null
           diet: string | null
           email: string | null
           entry_id: string
           full_name: string
           group_label: string | null
           id: string
+          needs_transport: boolean
+          nights_count: number | null
           notes: string | null
           party_size: number
           phone: string | null
+          room_share_with: string | null
           rsvp: Database["public"]["Enums"]["rsvp_status"]
           seat_no: number | null
           side: string | null
           table_id: string | null
+          travel_origin: string | null
           updated_at: string
         }
         Insert: {
+          accommodation_id?: string | null
+          arrival_at?: string | null
           created_at?: string
+          departure_at?: string | null
           diet?: string | null
           email?: string | null
           entry_id: string
           full_name: string
           group_label?: string | null
           id?: string
+          needs_transport?: boolean
+          nights_count?: number | null
           notes?: string | null
           party_size?: number
           phone?: string | null
+          room_share_with?: string | null
           rsvp?: Database["public"]["Enums"]["rsvp_status"]
           seat_no?: number | null
           side?: string | null
           table_id?: string | null
+          travel_origin?: string | null
           updated_at?: string
         }
         Update: {
+          accommodation_id?: string | null
+          arrival_at?: string | null
           created_at?: string
+          departure_at?: string | null
           diet?: string | null
           email?: string | null
           entry_id?: string
           full_name?: string
           group_label?: string | null
           id?: string
+          needs_transport?: boolean
+          nights_count?: number | null
           notes?: string | null
           party_size?: number
           phone?: string | null
+          room_share_with?: string | null
           rsvp?: Database["public"]["Enums"]["rsvp_status"]
           seat_no?: number | null
           side?: string | null
           table_id?: string | null
+          travel_origin?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "event_guests_accommodation_id_fkey"
+            columns: ["accommodation_id"]
+            isOneToOne: false
+            referencedRelation: "event_accommodations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "event_guests_entry_id_fkey"
             columns: ["entry_id"]
@@ -593,6 +829,84 @@ export type Database = {
           },
           {
             foreignKeyName: "event_playlist_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_subevents: {
+        Row: {
+          attending_count: number | null
+          budget: number | null
+          capacity: number | null
+          contact_phone: string | null
+          cover_image_url: string | null
+          created_at: string
+          date_at: string | null
+          description: string | null
+          duration_min: number | null
+          entry_id: string
+          id: string
+          kind: Database["public"]["Enums"]["subevent_kind"]
+          location: string | null
+          notes: string | null
+          organizer: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attending_count?: number | null
+          budget?: number | null
+          capacity?: number | null
+          contact_phone?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          date_at?: string | null
+          description?: string | null
+          duration_min?: number | null
+          entry_id: string
+          id?: string
+          kind?: Database["public"]["Enums"]["subevent_kind"]
+          location?: string | null
+          notes?: string | null
+          organizer?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attending_count?: number | null
+          budget?: number | null
+          capacity?: number | null
+          contact_phone?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          date_at?: string | null
+          description?: string | null
+          duration_min?: number | null
+          entry_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["subevent_kind"]
+          location?: string | null
+          notes?: string | null
+          organizer?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_subevents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_subevents_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
@@ -714,6 +1028,132 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_transport: {
+        Row: {
+          arrive_at: string | null
+          arrive_to: string | null
+          capacity: number | null
+          contact_email: string | null
+          contact_phone: string | null
+          cost: number | null
+          created_at: string
+          currency: string | null
+          depart_at: string | null
+          depart_from: string | null
+          driver_name: string | null
+          entry_id: string
+          flight_number: string | null
+          id: string
+          kind: Database["public"]["Enums"]["transport_kind"]
+          label: string
+          notes: string | null
+          passengers_count: number | null
+          provider: string | null
+          route_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          arrive_at?: string | null
+          arrive_to?: string | null
+          capacity?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cost?: number | null
+          created_at?: string
+          currency?: string | null
+          depart_at?: string | null
+          depart_from?: string | null
+          driver_name?: string | null
+          entry_id: string
+          flight_number?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["transport_kind"]
+          label: string
+          notes?: string | null
+          passengers_count?: number | null
+          provider?: string | null
+          route_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          arrive_at?: string | null
+          arrive_to?: string | null
+          capacity?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cost?: number | null
+          created_at?: string
+          currency?: string | null
+          depart_at?: string | null
+          depart_from?: string | null
+          driver_name?: string | null
+          entry_id?: string
+          flight_number?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["transport_kind"]
+          label?: string
+          notes?: string | null
+          passengers_count?: number | null
+          provider?: string | null
+          route_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_transport_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_transport_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_transport_assignments: {
+        Row: {
+          guest_id: string
+          id: string
+          notes: string | null
+          seat: string | null
+          transport_id: string
+        }
+        Insert: {
+          guest_id: string
+          id?: string
+          notes?: string | null
+          seat?: string | null
+          transport_id: string
+        }
+        Update: {
+          guest_id?: string
+          id?: string
+          notes?: string | null
+          seat?: string | null
+          transport_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_transport_assignments_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "event_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_transport_assignments_transport_id_fkey"
+            columns: ["transport_id"]
+            isOneToOne: false
+            referencedRelation: "event_transport"
             referencedColumns: ["id"]
           },
         ]
@@ -1513,8 +1953,28 @@ export type Database = {
         }
         Returns: undefined
       }
+      wedding_site_get: { Args: { p_slug: string }; Returns: Json }
+      wedding_site_rsvp: {
+        Args: {
+          p_diet: string
+          p_email: string
+          p_full_name: string
+          p_notes: string
+          p_party: number
+          p_rsvp: string
+          p_slug: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      accommodation_kind:
+        | "HOTEL"
+        | "BNB"
+        | "AIRBNB"
+        | "VILLA_PRIVATA"
+        | "APPARTAMENTO"
+        | "RESORT"
       collaboration_status: "PENDING" | "ACTIVE" | "REVOKED"
       contract_status: "BOZZA" | "INVIATO" | "FIRMATO" | "ANNULLATO"
       entry_status:
@@ -1523,6 +1983,19 @@ export type Database = {
         | "CONFERMATA"
         | "RIFIUTATA"
         | "CANCELLATA"
+      gadget_kind:
+        | "BOMBONIERA"
+        | "CONFETTI"
+        | "WELCOME_BAG"
+        | "SAVE_THE_DATE"
+        | "INVITO"
+        | "MENU_STAMPATO"
+        | "TABLEAU"
+        | "SEGNAPOSTO"
+        | "LIBRO_FIRME"
+        | "RINGRAZIAMENTO"
+        | "GADGET"
+        | "ALTRO"
       modifier_type: "PERCENT" | "FIXED"
       pdf_variant: "NEUTRA" | "PREMIUM"
       profile_visibility: "PRIVATE" | "PUBLIC"
@@ -1535,7 +2008,29 @@ export type Database = {
         | "CONVERTITO_IN_CONTRATTO"
       rsvp_status: "PENDING" | "YES" | "NO" | "MAYBE"
       service_unit: "PEZZO" | "PERSONA" | "ORA" | "EVENTO"
+      subevent_kind:
+        | "ADDIO_NUBILATO"
+        | "ADDIO_CELIBATO"
+        | "PRE_WEDDING_SHOOT"
+        | "ENGAGEMENT_PARTY"
+        | "CENA_PROVE"
+        | "REHEARSAL"
+        | "WELCOME_DINNER"
+        | "BRUNCH_POST"
+        | "HONEYMOON_DEPART"
+        | "BABY_SHOWER"
+        | "ALTRO"
       subscription_tier: "FREE" | "PREMIUM"
+      transport_kind:
+        | "AUTO_SPOSI"
+        | "PULMINO_NAVETTA"
+        | "AUTOBUS_GRUPPO"
+        | "TRENO_GRUPPO"
+        | "VOLO_GRUPPO"
+        | "AUTO_NOLEGGIO"
+        | "TAXI_NCC"
+        | "BARCA"
+        | "ALTRO"
       user_role: "WEDDING_PLANNER" | "LOCATION" | "FORNITORE" | "ADMIN"
     }
     CompositeTypes: {
@@ -1664,6 +2159,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      accommodation_kind: [
+        "HOTEL",
+        "BNB",
+        "AIRBNB",
+        "VILLA_PRIVATA",
+        "APPARTAMENTO",
+        "RESORT",
+      ],
       collaboration_status: ["PENDING", "ACTIVE", "REVOKED"],
       contract_status: ["BOZZA", "INVIATO", "FIRMATO", "ANNULLATO"],
       entry_status: [
@@ -1672,6 +2175,20 @@ export const Constants = {
         "CONFERMATA",
         "RIFIUTATA",
         "CANCELLATA",
+      ],
+      gadget_kind: [
+        "BOMBONIERA",
+        "CONFETTI",
+        "WELCOME_BAG",
+        "SAVE_THE_DATE",
+        "INVITO",
+        "MENU_STAMPATO",
+        "TABLEAU",
+        "SEGNAPOSTO",
+        "LIBRO_FIRME",
+        "RINGRAZIAMENTO",
+        "GADGET",
+        "ALTRO",
       ],
       modifier_type: ["PERCENT", "FIXED"],
       pdf_variant: ["NEUTRA", "PREMIUM"],
@@ -1686,7 +2203,31 @@ export const Constants = {
       ],
       rsvp_status: ["PENDING", "YES", "NO", "MAYBE"],
       service_unit: ["PEZZO", "PERSONA", "ORA", "EVENTO"],
+      subevent_kind: [
+        "ADDIO_NUBILATO",
+        "ADDIO_CELIBATO",
+        "PRE_WEDDING_SHOOT",
+        "ENGAGEMENT_PARTY",
+        "CENA_PROVE",
+        "REHEARSAL",
+        "WELCOME_DINNER",
+        "BRUNCH_POST",
+        "HONEYMOON_DEPART",
+        "BABY_SHOWER",
+        "ALTRO",
+      ],
       subscription_tier: ["FREE", "PREMIUM"],
+      transport_kind: [
+        "AUTO_SPOSI",
+        "PULMINO_NAVETTA",
+        "AUTOBUS_GRUPPO",
+        "TRENO_GRUPPO",
+        "VOLO_GRUPPO",
+        "AUTO_NOLEGGIO",
+        "TAXI_NCC",
+        "BARCA",
+        "ALTRO",
+      ],
       user_role: ["WEDDING_PLANNER", "LOCATION", "FORNITORE", "ADMIN"],
     },
   },
