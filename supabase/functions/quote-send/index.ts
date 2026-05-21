@@ -66,15 +66,16 @@ Deno.serve(async (req) => {
     ],
   }).eq('id', body.quote_id)
 
-  // 4. crea calendar_entry IN_TRATTATIVA se non esiste
+  // 4. crea calendar_entry IN_TRATTATIVA se non esiste + agganci participants
   if (q.event_date) {
     const { data: existing } = await admin
       .from('calendar_entries')
       .select('id')
       .eq('quote_id', body.quote_id)
       .maybeSingle()
-    if (!existing) {
-      await admin.from('calendar_entries').insert({
+    let entryId = existing?.id as string | undefined
+    if (!entryId) {
+      const created = await admin.from('calendar_entries').insert({
         owner_id: q.owner_id,
         title: q.title,
         client_name: q.client_name,
@@ -84,7 +85,27 @@ Deno.serve(async (req) => {
         status: 'IN_TRATTATIVA',
         value_amount: q.total_client,
         quote_id: body.quote_id,
-      })
+      }).select('id').single()
+      entryId = created.data?.id
+    }
+    if (entryId) {
+      const { data: suppliers } = await admin
+        .from('quote_items')
+        .select('supplier_id')
+        .eq('quote_id', body.quote_id)
+        .not('supplier_id', 'is', null)
+      const uniq = new Set<string>()
+      for (const s of (suppliers ?? []) as any[]) {
+        if (s.supplier_id) uniq.add(s.supplier_id as string)
+      }
+      if (uniq.size > 0) {
+        const rows = Array.from(uniq).map((uid) => ({
+          entry_id: entryId!,
+          user_id: uid,
+          role_in_entry: 'fornitore',
+        }))
+        await admin.from('calendar_entry_participants').upsert(rows, { onConflict: 'entry_id,user_id' })
+      }
     }
   }
 

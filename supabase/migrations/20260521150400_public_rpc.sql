@@ -69,6 +69,13 @@ begin
      and status in ('INVIATO','ACCETTATO')
    returning id into v_id;
 
+  if v_id is not null then
+    update calendar_entries
+       set status = 'OPZIONATA', updated_at = now()
+     where quote_id = v_id
+       and status in ('IN_TRATTATIVA','OPZIONATA');
+  end if;
+
   return v_id is not null;
 end$$;
 
@@ -94,6 +101,12 @@ begin
    where access_token = p_token
      and status in ('INVIATO','RIFIUTATO')
    returning id into v_id;
+
+  if v_id is not null then
+    update calendar_entries
+       set status = 'CANCELLATA', updated_at = now()
+     where quote_id = v_id;
+  end if;
 
   return v_id is not null;
 end$$;
