@@ -1,0 +1,312 @@
+Wedding Platform
+Dossier di progetto
+PRD · Architettura · Database · API · Roadmap
+Versione 2.0 — stack su Supabase
+Aprile 2026
+
+Changelog v2.0
+Questa versione aggiorna il Dossier originale (v1.0) per riflettere la scelta di Supabase come piattaforma di backend. Le modifiche principali:
+	•	Il database PostgreSQL gestito interamente da Supabase (non più self-hosted Postgres su Railway).
+	•	L'autenticazione gestita da Supabase Auth (email/password, magic link, provider social) — elimina la necessità di scrivere un modulo auth custom.
+	•	Lo storage dei file (foto servizi, PDF preventivi) gestito da Supabase Storage (sostituisce Cloudflare R2 in v1).
+	•	Le API REST autogenerate da Supabase a partire dallo schema del database (PostgREST) — riducono drasticamente il codice backend da scrivere.
+	•	La sicurezza dei dati gestita tramite Row Level Security (RLS) di PostgreSQL — policy scritte direttamente a livello database.
+	•	Backend Node.js/Express mantenuto solo per logica business complessa (generazione PDF, invio email, webhook esterni) e non più per CRUD di base.
+	•	ORM Prisma sostituito dal client Supabase ufficiale (+ TypeScript types autogenerati).
+	•	Riduzione stimata del codice backend da scrivere: ~60% rispetto a v1.
+	•	Costo mensile v1 → 5-20€ · Costo v2 → 0€ nel tier gratuito Supabase fino a soglia di utenti significativa.
+
+Parte 1 — Product Requirements Document (PRD)
+1.1 Visione del prodotto
+Wedding Platform è un software gestionale per il settore wedding italiano basato su un modello architetturale a vasi comunicanti: le informazioni vengono inserite una sola volta dal professionista di riferimento (tipicamente il fornitore) e fluiscono automaticamente verso i capostipiti della filiera — Location e Wedding Planner — che le utilizzano per costruire preventivi, coordinare eventi e gestire l'intera relazione con il cliente finale (gli sposi).
+L'obiettivo non è costruire un gestionale isolato, ma un network interconnesso in cui la gerarchia di collaborazione del mondo reale (capostipite → fornitore → squadra operativa) è rispecchiata nella struttura del software.
+1.2 Problema che risolviamo
+Oggi le Wedding Planner e le Location italiane lavorano con strumenti scollegati: Excel per preventivi, WhatsApp per comunicare con i fornitori, agende cartacee per le date, moduli PDF per i contratti. Tre problemi concreti:
+	•	Dati duplicati e disallineati: se un fornitore aggiorna un prezzo, la Wedding Planner non lo sa finché non glielo chiede.
+	•	Nessuna visibilità sulle disponibilità: due capostipiti possono promettere la stessa data allo stesso fornitore senza saperlo.
+	•	Impossibilità di calcolare marginalità in tempo reale: il ricarico si fa a occhio, senza un sistema che aggiorna i margini al variare dei costi.
+1.3 Target e go-to-market
+Il lancio si concentra su due figure capostipite: Location e Wedding Planner. Sono loro a selezionare e coordinare tutti gli altri professionisti. Una volta acquisite, saranno loro a chiedere ai propri fornitori di registrarsi, trasformando il costo di acquisizione utenti in un effetto rete autoalimentato.
+I sotto-fornitori (fioristi, fotografi, catering, fuochisti) sono target di seconda ondata. Le loro squadre operative (camerieri, allestitori, assistenti) non sono utenti registrati del sistema in v1, ma destinatari di comunicazioni operative gestite dai fornitori.
+1.4 Ambito della versione 1 (MVP)
+Per arrivare a un prodotto utilizzabile dalla beta tester in 3-4 mesi, la v1 include tre funzionalità core:
+	•	Database Fornitori Autogestito — ogni fornitore gestisce in autonomia il proprio profilo e catalogo.
+	•	Generatore di Preventivi e Contratti — il capostipite spunta voci dai cataloghi, applica ricarichi, invia preventivi al cliente con link di accettazione.
+	•	Calendario Condiviso — gestione date, stati, condivisione controllata, esportazione .ics.
+Tutte le altre funzionalità del progetto originale (CRM, calcolatore marginalità, gestione squadre, marketplace) sono rimandate a v2-v3.
+1.5 Requisiti non funzionali
+Area
+Requisito
+Performance
+Caricamento pagina sotto i 2 secondi su 4G standard.
+Disponibilità
+Uptime target 99,5%. Supabase garantisce SLA contrattuale.
+Sicurezza
+Autenticazione gestita da Supabase Auth. Row Level Security su ogni tabella. HTTPS obbligatorio. Backup automatici giornalieri inclusi nel tier Supabase.
+Privacy
+Conformità GDPR. Esportazione dati utente on-demand. Cancellazione account con rimozione dati entro 30 giorni.
+Dispositivi
+Web responsive (desktop + mobile browser). App nativa in v2.
+Lingua
+Italiano per v1. Architettura predisposta per multi-lingua.
+1.6 Modello di business (freemium)
+	•	Tier gratuito: calendario condiviso completo, preventivi base (max 10 attivi), nessuna personalizzazione PDF.
+	•	Tier premium (abbonamento annuale): preventivi illimitati, PDF personalizzabili con logo e colori brand, supporto prioritario.
+	•	Marketplace (v2-v3): plugin, template, automazioni email marketing.
+
+Parte 2 — Architettura tecnica (v2 con Supabase)
+2.1 Principi architetturali
+	•	Modularità: ogni funzionalità è un modulo indipendente.
+	•	Thin backend: il backend Node.js gestisce solo logica business complessa. Il resto (CRUD, auth, storage, realtime) è delegato a Supabase.
+	•	Single source of truth: il database PostgreSQL di Supabase è l'unica fonte dati. Le API si autogenerano da lì.
+	•	Sicurezza nel database: Row Level Security (RLS) è la prima linea di difesa. Nessun dato è accessibile senza una policy esplicita che lo permetta.
+2.2 Stack tecnologico aggiornato
+Livello
+v1 (Prisma stack)
+v2 (Supabase stack)
+Database
+Postgres self-hosted
+Supabase (Postgres gestito, backup, replica, dashboard UI inclusa)
+Autenticazione
+JWT custom + bcrypt
+Supabase Auth (email/password, magic link, providers social già pronti)
+API CRUD
+Express + Prisma (scritti a mano)
+Autogenerate da Supabase (PostgREST) direttamente dallo schema
+Storage file
+Cloudflare R2
+Supabase Storage (integrato, stesso database di permessi)
+Sicurezza dati
+Check in codice Express
+Row Level Security a livello Postgres (policy SQL)
+Realtime (notifiche)
+Polling o websocket custom
+Supabase Realtime (websocket su cambiamenti DB, inclusi nel tier free)
+Backend custom
+Tutto
+Solo per: generazione PDF, invio email, webhook, logica business complessa
+Frontend
+React + TypeScript
+React + TypeScript + Vite (invariato)
+UI
+Tailwind + shadcn/ui
+Tailwind + shadcn/ui (invariato)
+Email transazionali
+Resend
+Resend (invariato)
+Hosting frontend
+Vercel
+Vercel (invariato)
+Hosting backend
+Railway/Render
+Railway o Vercel Serverless Functions (solo se esiste backend custom)
+2.3 Cosa significa Supabase in pratica
+Per semplificare: Supabase è una piattaforma che prende un database PostgreSQL e ti dà in più:
+	•	Un sistema di autenticazione già pronto (gli utenti si registrano, loggano, resettano password, tutto senza scrivere codice).
+	•	Le API REST generate automaticamente a partire dallo schema delle tabelle (crei una tabella 'services' → hai subito GET /services, POST /services, ecc. funzionanti).
+	•	Un sistema di file storage (come Dropbox, ma integrato con il DB).
+	•	Una dashboard web per vedere e modificare i dati a mano (utile per debug, supporto, admin operativi).
+	•	Un sistema di 'policy' di sicurezza che si scrivono direttamente nel database: 'questa riga è visibile solo se l'utente loggato è il proprietario'.
+	•	Un sistema realtime: il frontend riceve automaticamente gli aggiornamenti quando qualcuno cambia un dato nel DB, senza fare polling.
+2.4 Architettura a vasi comunicanti con Supabase
+I tre meccanismi dei vasi comunicanti del Dossier v1 restano validi, ma cambiano nell'implementazione:
+2.4.1 Referenze, non copie
+Nello schema del database, QuoteItem referenzia Service e PriceVersion. Il client Supabase permette query con join annidati semplicissime (tipo: SELECT * FROM quote_items JOIN services → in una sola chiamata). Il principio snapshot+riferimento resta identico a v1.
+2.4.2 Row Level Security (RLS) — cuore dei permessi
+Questo è il cambiamento più potente rispetto a v1. Le policy di sicurezza si scrivono in SQL direttamente sulle tabelle. Esempio concreto:
+-- Policy: un fornitore vede solo i propri servizi
+CREATE POLICY "fornitore_vede_suoi_servizi"
+  ON services FOR SELECT
+  USING (fornitore_id = auth.uid());
+ 
+-- Policy: un capostipite vede i servizi di fornitori
+-- con cui ha collaborazione attiva
+CREATE POLICY "capostipite_vede_servizi_collaboratori"
+  ON services FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM collaborations
+      WHERE capostipite_id = auth.uid()
+        AND fornitore_id = services.fornitore_id
+        AND status = 'ACTIVE'
+    )
+  );
+Con queste due policy, SENZA scrivere NULLA nel backend, quando un fornitore chiama GET /services vede solo i suoi e quando un capostipite chiama GET /services vede quelli dei fornitori collaboranti. Il database filtra automaticamente.
+2.4.3 Eventi realtime
+Supabase Realtime permette al frontend di ricevere notifiche automatiche quando una riga cambia. Esempio: quando il prezzo di un Service viene aggiornato, tutti i frontend dei capostipiti che stanno visualizzando quel catalogo ricevono l'aggiornamento in tempo reale, senza polling.
+2.5 Moduli del sistema (v2)
+Con Supabase che gestisce auth, users base, permissions via RLS e CRUD, la lista dei moduli backend da scrivere si riduce drasticamente:
+Modulo
+v1
+v2 (con Supabase)
+auth
+Da scrivere
+GESTITO DA SUPABASE AUTH
+users
+Da scrivere
+Base da Supabase + tabella profiles con campi custom
+permissions
+Da scrivere
+GESTITO TRAMITE RLS POLICY SQL
+catalog
+Da scrivere intero
+CRUD da Supabase automatico. Upload foto via Supabase Storage. Solo thumbnail generation sul backend (Edge Function)
+calendar
+Da scrivere intero
+CRUD da Supabase automatico. Export .ics tramite Edge Function. Notifiche email via Edge Function
+quotes
+Da scrivere intero
+CRUD base da Supabase. Logica custom (generazione PDF, endpoint pubblici accettazione, calcoli markup) in backend Node.js dedicato
+2.6 Cos'è un Edge Function
+Supabase offre le Edge Functions: piccole funzioni serverless TypeScript che girano su infrastruttura Supabase. Usate per logica che non si può esprimere solo con SQL/policy: invio email, generazione PDF, chiamate ad API esterne, webhook.
+Le Edge Functions sono il nostro 'backend custom' in v2. Riducono drasticamente la necessità di un server Node.js dedicato.
+
+Parte 3 — Schema del database
+Lo schema delle entità resta concettualmente identico a v1, ma viene implementato direttamente come tabelle PostgreSQL su Supabase (niente Prisma). Per ogni tabella definiremo policy RLS.
+Le tabelle principali sono le stesse del Dossier v1 + aggiustamenti della v1.0 delle spec. Di seguito il riassunto:
+3.1 Tabelle principali
+	•	profiles — estende auth.users di Supabase con i campi custom (role, subrole, business_name, phone, subscription_tier, brand_logo_url, ecc.).
+	•	collaborations — collegamento capostipite-fornitore.
+	•	service_categories — categorie standard + libere (is_standard flag).
+	•	services — servizi del fornitore.
+	•	price_versions — storico prezzi.
+	•	service_photos — foto (max 10 per servizio).
+	•	service_modifiers — modificatori tipizzati.
+	•	calendar_entries — voci di calendario.
+	•	calendar_entry_participants — aggancio fornitori a eventi.
+	•	quotes — preventivi.
+	•	quote_items — voci preventivo.
+	•	quote_supplier_markups — override markup per fornitore nel preventivo.
+3.2 Convenzioni Supabase vs Prisma
+	•	Nomi tabelle: snake_case (convenzione Postgres standard).
+	•	Primary key: sempre UUID generato da gen_random_uuid().
+	•	Timestamp: created_at + updated_at default now() con trigger di aggiornamento.
+	•	Foreign key: on delete restrict per default (soft delete preferito).
+	•	Enum: tipo ENUM di Postgres (più efficiente di varchar check).
+3.3 Esempio completo: tabella services con RLS
+-- 1. Tabella
+CREATE TABLE services (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  fornitore_id    uuid NOT NULL REFERENCES profiles(id),
+  category_id     uuid NOT NULL REFERENCES service_categories(id),
+  name            varchar NOT NULL,
+  description     text,
+  base_price      numeric(10,2) NOT NULL,
+  unit            text CHECK (unit IN ('PEZZO','PERSONA','ORA','EVENTO')),
+  is_active       boolean DEFAULT true,
+  created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now()
+);
+ 
+-- 2. Indici
+CREATE INDEX idx_services_fornitore
+  ON services(fornitore_id) WHERE is_active;
+ 
+-- 3. Abilita RLS
+ALTER TABLE services ENABLE ROW LEVEL SECURITY;
+ 
+-- 4. Policy SELECT
+CREATE POLICY "fornitore_vede_suoi_servizi"
+  ON services FOR SELECT
+  USING (fornitore_id = auth.uid());
+ 
+CREATE POLICY "capostipite_vede_servizi_collaboratori"
+  ON services FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM collaborations
+    WHERE capostipite_id = auth.uid()
+      AND fornitore_id = services.fornitore_id
+      AND status = 'ACTIVE'
+  ));
+ 
+-- 5. Policy INSERT/UPDATE/DELETE
+CREATE POLICY "fornitore_modifica_suoi_servizi"
+  ON services FOR ALL
+  USING (fornitore_id = auth.uid())
+  WITH CHECK (fornitore_id = auth.uid());
+
+Parte 4 — API (v2 mista Supabase + Edge Functions)
+4.1 API autogenerate da Supabase
+Per ogni tabella, Supabase genera automaticamente endpoint REST + SDK JavaScript/TypeScript. Esempio:
+// Invece di scrivere endpoint Express, nel frontend:
+const supabase = createClient(SUPABASE_URL, ANON_KEY);
+ 
+// GET dei servizi del fornitore corrente (RLS filtra)
+const { data, error } = await supabase
+  .from('services')
+  .select('*, service_photos(*), service_modifiers(*)')
+  .eq('is_active', true);
+ 
+// POST nuovo servizio
+const { data, error } = await supabase
+  .from('services')
+  .insert({ name: 'Bouquet', base_price: 180, unit: 'PEZZO' });
+Il codice RLS nella tabella garantisce che ogni utente veda solo ciò che deve vedere, senza logica applicativa lato client.
+4.2 Edge Functions custom da scrivere
+Solo per logica non esprimibile via SQL/RLS:
+Edge Function
+Scopo
+upload-photo
+Riceve immagine, genera thumbnail 400x400 con sharp, carica entrambe su Supabase Storage, crea record service_photos.
+calendar-export-ics
+Genera file .ics con le voci calendario dell'utente. Rilascia via URL autorizzato.
+calendar-notify
+Trigger su insert/update di calendar_entries o participants. Invia email via Resend secondo matrice notifiche.
+calendar-notify-batch
+Schedulata (cron ogni minuto): processa coda notifiche digest con coalescenza.
+calendar-notify-reminders
+Schedulata notturna: invia promemoria 7 giorni prima degli eventi confermati.
+quote-generate-pdf
+Genera PDF del preventivo (Puppeteer headless), carica su Supabase Storage, restituisce URL.
+quote-send
+Orchestrazione: chiama generate-pdf → aggiorna stato INVIATO → genera access_token → invia email cliente via Resend → crea calendar_entry IN_TRATTATIVA.
+quote-public-preview
+Endpoint pubblico (no auth): /p/preview/:token restituisce dati preventivo se token valido.
+quote-public-accept
+Endpoint pubblico: il cliente accetta. Aggiorna quote, crea calendar_entry OPZIONATA, email capostipite.
+quote-public-reject
+Endpoint pubblico: il cliente rifiuta con motivazione. Aggiorna quote, email capostipite.
+Totale Edge Functions da scrivere: 10. Ciascuna è un file TypeScript di 50-200 righe. Dispiegate con comando unico via Supabase CLI.
+
+Parte 5 — Roadmap di sviluppo (v2)
+La roadmap resta strutturata in fasi ma cambiano le attività della Fase 0-1 (semplificate da Supabase) e cambiano le tecniche di implementazione nelle fasi funzionali.
+5.1 Fasi aggiornate
+Fase 0 — Setup (giorni 1-3)
+	•	Creazione account Supabase + progetto (ambienti: sviluppo + staging + produzione).
+	•	Setup repository GitHub (monorepo: frontend + supabase + edge-functions).
+	•	Configurazione CI/CD (GitHub Actions) per deploy automatico su Vercel e Supabase Edge Functions.
+	•	Primo login di prova in Supabase Auth dal frontend.
+	•	Deliverable: entrambi gli sviluppatori possono fare commit, vedere il deploy su ambiente staging, accedere al DB Supabase.
+Fase 1 — Fondamenta (settimane 1-2)
+	•	Schema database completo: tutte le tabelle e relazioni su Supabase.
+	•	Tabella profiles estensione di auth.users.
+	•	Policy RLS base per ogni tabella (inizialmente restrittive, poi progressive).
+	•	Seed delle categorie standard via migrazione SQL.
+	•	Frontend: pagine login/registrazione integrate con Supabase Auth (signUp, signIn, resetPassword).
+	•	Frontend: pagina profilo utente con editing campi custom.
+	•	Sistema di inviti a fornitori (Edge Function invia email con link magic → Supabase Auth gestisce l'autenticazione da link).
+	•	Deliverable: utente si registra, logga, completa profilo, invia invito a un secondo utente che si registra tramite link.
+Fase 2 — Catalogo fornitori (settimana 3)
+	•	Tabelle services, service_categories, price_versions, service_photos, service_modifiers con RLS complete.
+	•	Edge Function upload-photo con generazione thumbnail.
+	•	Frontend: UI fornitore (gestione catalogo) + UI capostipite (visualizzazione).
+	•	Deliverable: fornitore carica 10 servizi con foto e modificatori; capostipite collaborante li vede.
+Fase 3 — Calendario (settimana 4)
+	•	Tabelle calendar_entries, calendar_entry_participants con RLS gerarchica (owner vede tutto, participant vede ridotto).
+	•	Edge Functions: notify, notify-batch, notify-reminders, export-ics.
+	•	Frontend: viste mensile + settimanale + modale evento + preferenze notifiche.
+	•	Realtime: frontend aggiornato live quando cambia stato evento.
+	•	Deliverable: capostipite crea evento, aggancia fornitori, fornitori ricevono email e vedono aggiornamenti live.
+Fase 4 — Generatore Preventivi (settimane 5-7)
+	•	Tabelle quotes, quote_items, quote_supplier_markups con RLS + trigger per calcolo totali automatico.
+	•	Edge Functions: generate-pdf, send, public-preview, public-accept, public-reject.
+	•	Frontend: editor preventivo 3 pannelli + dashboard + brand settings + pagine pubbliche.
+	•	Deliverable: capostipite crea preventivo, lo invia al cliente via email, cliente accetta da link, preventivo → ACCETTATO, evento calendario OPZIONATA creato automaticamente.
+Fase 5 — Beta test (settimane 8-11)
+	•	Onboarding wedding planner beta tester su ambiente produzione Supabase.
+	•	Raccolta feedback + bug fix iterativi.
+	•	Tuning RLS policy in base a casi d'uso reali.
+	•	Polish UX/UI.
+	•	Deliverable: prodotto stabile, usato da beta tester su matrimoni reali.
+5.2 Stima tempo totale
+Con Supabase: 11 settimane (2,5-3 mesi) con 2 sviluppatori in parallelo. Riduzione di 3-5 settimane rispetto a v1 per via del codice risparmiato su auth, CRUD, permessi.

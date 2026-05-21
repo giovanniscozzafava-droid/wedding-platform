@@ -1,0 +1,67 @@
+PRP · Calendario Condiviso
+v2.0 Supabase
+
+Contesto
+Il Calendario è il modulo dove Supabase Realtime brilla: permette aggiornamenti live tra capostipiti e fornitori senza polling.
+Riferimento spec
+/docs/specs/2026-04-calendario.md v1.0
+Work items (v2)
+WI-1 · Migrazione schema
+	•	Tabelle: calendar_entries, calendar_entry_participants, notification_queue (per batch coalescenza).
+	•	Colonna su profiles: notification_preferences (jsonb).
+	•	Indici: calendar_entries(owner_id, date_from), participants(user_id).
+	•	Stima: 3 ore.
+WI-2 · Policy RLS
+	•	Policy calendar_entries SELECT: owner vede tutto + participant vede con campo visibility=ridotta (implementato via view filtrata).
+	•	Policy INSERT solo capostipite.
+	•	Policy UPDATE solo owner.
+	•	Policy participants: gestibile solo da owner.
+	•	Stima: 4 ore.
+WI-3 · View per visibilità participant
+	•	Crea view calendar_entries_for_participants: esclude note, client_name, valore economico.
+	•	Participant frontend query questa view invece della tabella diretta.
+	•	Stima: 2 ore.
+WI-4 · Trigger notifiche
+	•	Trigger on INSERT/UPDATE calendar_entries → chiama Edge Function calendar-notify via pg_net.
+	•	Trigger on INSERT participants → chiama Edge Function calendar-notify.
+	•	Stima: 3 ore.
+WI-5 · Edge Function calendar-notify
+	•	Riceve webhook dal trigger DB.
+	•	Determina tipo evento (aggancio, cambio stato, cancellazione) secondo matrice notifiche spec sezione 3.1.
+	•	Per notifiche immediate: coalescenza con tabella notification_queue (se <2min da ultimo send utente → accoda).
+	•	Invio via Resend.
+	•	Template Handlebars per ogni tipo di email.
+	•	Stima: 6 ore.
+WI-6 · Edge Functions schedulate
+	•	calendar-notify-batch: ogni minuto processa notification_queue.
+	•	calendar-notify-reminders: notturna (3:00) per promemoria 7 giorni.
+	•	Schedulazione via Supabase Cron (feature integrata, extension pg_cron).
+	•	Stima: 4 ore.
+WI-7 · Edge Function export-ics
+	•	GET /calendar-export-ics con query param token.
+	•	Token in tabella calendar_export_tokens (scadenza 90gg).
+	•	Libreria 'ics' per generazione.
+	•	Stream response.
+	•	Stima: 3 ore.
+WI-8 · UI vista mensile
+	•	Componente CalendarMonthView.
+	•	Realtime subscription: aggiornamento live su changes delle voci visibili.
+	•	Palette WCAG AA da spec 8.1.
+	•	Eventi multi-giorno estesi su più celle.
+	•	Stima: 8 ore.
+WI-9 · UI vista settimanale
+	•	CalendarWeekView con slot orari.
+	•	Stima: 6 ore.
+WI-10 · UI modale evento
+	•	Form + aggancio participants con selettore collaboratori (query RPC su collaborations).
+	•	Vista differenziata owner/participant.
+	•	Stima: 6 ore.
+WI-11 · Preferenze notifiche
+	•	Pagina /settings/notifications.
+	•	UPDATE profiles.notification_preferences.
+	•	Stima: 2 ore.
+WI-12 · Test e2e
+	•	Playwright: capostipite crea, aggancia, cambia stato; fornitore riceve email e vede live.
+	•	Stima: 4 ore.
+Totale
+12 work items × ≈ 51 ore ≈ 6-7 giornate.

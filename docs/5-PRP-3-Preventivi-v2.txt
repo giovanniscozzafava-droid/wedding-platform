@@ -1,0 +1,67 @@
+PRP · Generatore Preventivi
+v2.0 Supabase
+
+Contesto
+Il modulo più complesso. La maggior parte del CRUD gestita via Supabase + policy. La logica custom (PDF, endpoint pubblici) tramite Edge Functions.
+Riferimento spec
+/docs/specs/2026-04-preventivi.md v1.0
+Work items (v2)
+WI-1 · Migrazione schema
+	•	Tabelle: quotes (con access_token, sent_email_log, client_response_log come jsonb), quote_items, quote_supplier_markups.
+	•	Colonne profiles: brand_logo_url, brand_primary_color, brand_secondary_color, default_markup_percent.
+	•	Enum quote_status: BOZZA, INVIATO, ACCETTATO, RIFIUTATO, CONVERTITO_IN_CONTRATTO.
+	•	Stima: 3 ore.
+WI-2 · Policy RLS
+	•	Policy quotes SELECT/UPDATE/DELETE solo capostipite owner.
+	•	Policy quote_items gestita tramite quotes (se vedi la quote, vedi i suoi items).
+	•	Policy public su quotes: accesso tramite access_token non richiede auth ma richiede token match (policy speciale "public read via token").
+	•	Stima: 3 ore.
+WI-3 · Trigger calcoli
+	•	Trigger on INSERT/UPDATE/DELETE quote_items → ricalcola totali Quote (total_cost, total_client, margin).
+	•	Funzione SQL calcola_markup_effettivo(quote_id, supplier_id, item_markup).
+	•	Stima: 4 ore.
+WI-4 · Enforcement limite 10 preventivi
+	•	Trigger BEFORE INSERT su quotes se owner tier=FREE: SELECT COUNT WHERE status IN (BOZZA,INVIATO,ACCETTATO). Se >= 10 → RAISE EXCEPTION.
+	•	Stima: 2 ore.
+WI-5 · Edge Function quote-generate-pdf
+	•	Riceve quote_id + variant (NEUTRA/PREMIUM).
+	•	Query quote completa con items, supplier info, profiles per brand.
+	•	Render HTML template Handlebars.
+	•	Puppeteer headless → PDF.
+	•	Upload su bucket 'quote-pdfs'. Path /{quote_id}/v{revision}.pdf.
+	•	Restituisce signed URL.
+	•	Stima: 8 ore.
+WI-6 · Edge Function quote-send
+	•	Orchestrazione: chiama generate-pdf, genera access_token, UPDATE quote status, invia email via Resend, INSERT calendar_entry IN_TRATTATIVA.
+	•	Transazione SQL atomica via RPC.
+	•	Stima: 5 ore.
+WI-7 · Edge Functions pubbliche
+	•	quote-public-preview: GET /p/preview/:token → restituisce dati preventivo se valid.
+	•	quote-public-accept: POST /p/accept/:token → UPDATE quote + crea calendar_entry OPZIONATA + email capostipite.
+	•	quote-public-reject: POST /p/reject/:token → UPDATE quote + email capostipite.
+	•	Rate limiting via Supabase (config auth rate limit su endpoint pubblici).
+	•	Stima: 6 ore.
+WI-8 · Frontend editor preventivo
+	•	Layout 3 pannelli.
+	•	Realtime: sul cambio di quote_items il frontend riceve update live.
+	•	Alert prezzi aggiornati: confronto snapshot_price vs current price_versions via RPC.
+	•	Stima: 12 ore.
+WI-9 · Frontend dashboard preventivi
+	•	Lista + filtri + azioni.
+	•	Stima: 4 ore.
+WI-10 · Frontend brand settings
+	•	Pagina /settings/brand.
+	•	Upload logo via Supabase Storage bucket 'brand-assets'.
+	•	Visibile solo PREMIUM.
+	•	Stima: 5 ore.
+WI-11 · Frontend pagine pubbliche
+	•	/p/preview/:token, /p/accept, /p/reject.
+	•	Routing separato senza auth wrapper.
+	•	Mobile-first.
+	•	Stima: 6 ore.
+WI-12 · Test e2e
+	•	Flusso completo creazione → invio → accettazione cliente → calendar entry.
+	•	Test negativo: limite 10 preventivi tier FREE.
+	•	Stima: 6 ore.
+Totale
+12 work items × ≈ 64 ore ≈ 8 giornate (ridotte rispetto a 11 di v1 grazie a Supabase).

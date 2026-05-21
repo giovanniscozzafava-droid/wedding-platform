@@ -1,0 +1,97 @@
+PRP · Database Fornitori
+Product Requirements Prompt · v2.0 Supabase
+
+Contesto tecnico Supabase
+Stack:
+	•	Supabase (Postgres + Auth + Storage + Realtime + Edge Functions).
+	•	Supabase CLI per migrazioni.
+	•	Client JS/TS @supabase/supabase-js nel frontend.
+	•	React 18 + TypeScript + Vite.
+	•	UI: Tailwind + shadcn/ui.
+	•	Test: Vitest, Playwright.
+Convenzioni di codice:
+	•	SQL: snake_case. File migrazioni: YYYYMMDDHHMMSS_nome.sql.
+	•	TypeScript: strict. Tipi DB autogenerati con `supabase gen types typescript`.
+	•	Componenti React: PascalCase. File: kebab-case.
+Riferimento spec
+/docs/specs/2026-04-database-fornitori.md v1.0
+Work items (v2)
+WI-1 · Migrazione schema base
+	•	File: supabase/migrations/YYYYMMDDHHMMSS_catalog_schema.sql
+	•	Crea tabelle: service_categories, services, price_versions, service_photos, service_modifiers.
+	•	Aggiorna tabella profiles con: profile_visibility (enum PRIVATE/PUBLIC default PRIVATE).
+	•	Indici secondo spec.
+	•	Trigger updated_at automatico.
+	•	Stima: 3 ore.
+WI-2 · Policy RLS
+	•	Abilita RLS su tutte le 5 nuove tabelle.
+	•	Policy service_categories: lettura categorie standard libera; lettura categorie libere solo se created_by=auth.uid(); INSERT solo utente loggato con subrole corrispondente.
+	•	Policy services: SELECT per proprietario + collaboratori attivi; INSERT/UPDATE/DELETE solo proprietario.
+	•	Policy price_versions: SELECT per chi vede il service collegato; INSERT automatico via trigger (non da client).
+	•	Policy service_photos: SELECT per chi vede il service; INSERT/DELETE solo proprietario service.
+	•	Policy service_modifiers: SELECT per chi vede il service; CRUD solo proprietario.
+	•	Ogni policy commentata in italiano.
+	•	Stima: 4 ore.
+WI-3 · Trigger automazioni
+	•	Trigger on INSERT services → crea price_versions iniziale.
+	•	Trigger on UPDATE services.base_price → chiude vecchia price_versions (valid_until=now) e crea nuova (valid_from=now, valid_until=null).
+	•	Trigger updated_at su tutte le tabelle.
+	•	Stima: 3 ore.
+WI-4 · Seed categorie standard
+	•	File: supabase/seed.sql
+	•	INSERT INTO service_categories delle categorie standard come da spec v1.0.
+	•	is_standard=true, created_by=null.
+	•	Stima: 1 ora.
+WI-5 · Storage bucket foto
+	•	Creazione bucket 'service-photos' su Supabase Storage.
+	•	Policy bucket: upload solo utente loggato; lettura pubblica con URL firmato (signed URL).
+	•	Naming convention: service-photos/{service_id}/{photo_id}.{ext} + service-photos/{service_id}/thumb/{photo_id}.jpg
+	•	Stima: 2 ore.
+WI-6 · Edge Function upload-photo
+	•	File: supabase/functions/upload-photo/index.ts
+	•	Riceve POST multipart con file image.
+	•	Valida: formato (jpg/png/webp), dimensione (max 2MB), limite 10 foto per servizio (query count).
+	•	Genera thumbnail 400x400 con sharp (import da npm).
+	•	Upload originale + thumbnail su bucket service-photos.
+	•	INSERT in service_photos con URL firmati.
+	•	Test: 3 unit (validazione, upload, limite).
+	•	Stima: 4 ore.
+WI-7 · Generazione tipi TypeScript
+	•	Script npm: `supabase gen types typescript --local > frontend/src/lib/database.types.ts`.
+	•	Documentare come rigenerare dopo ogni migrazione.
+	•	Stima: 1 ora.
+WI-8 · Frontend: SupabaseClient wrapper
+	•	frontend/src/lib/supabase.ts — client singleton con types.
+	•	Hooks custom: useServices(), useServiceDetails(id), useCategories(subrole).
+	•	Stima: 3 ore.
+WI-9 · UI fornitore: lista servizi
+	•	Pagina /catalog. Chiama hook useServices.
+	•	Realtime: subscribe a changes su services del fornitore per aggiornamento live.
+	•	Tabella con colonne da spec.
+	•	Filtro categoria + ricerca testuale.
+	•	Stima: 5 ore.
+WI-10 · UI fornitore: modale creazione/modifica
+	•	Modale a tab (Generale, Modificatori, Foto).
+	•	Tab Foto: drag-drop + chiama Edge Function upload-photo.
+	•	Tab Modificatori: gestione array tipizzato con insert/update/delete diretti via Supabase client.
+	•	Validazione inline con Zod.
+	•	Selettore categoria con autocomplete + "+ Crea categoria".
+	•	Stima: 8 ore.
+WI-11 · UI capostipite: visualizzazione catalogo
+	•	Pagina /suppliers/:id/catalog.
+	•	Query con join annidato services → service_photos + service_modifiers.
+	•	RLS fa il resto: se non c'è collaborazione, query ritorna vuoto.
+	•	Layout card + dettaglio modale.
+	•	Stima: 5 ore.
+WI-12 · UI admin
+	•	Pagina /admin/categories.
+	•	Policy admin: ruolo ADMIN definito in profiles.role, policy speciale 'admin_all_categories'.
+	•	Tabella con promozione a standard via UPDATE.
+	•	Stima: 3 ore.
+WI-13 · Test
+	•	Test policy RLS: script SQL che impersona utenti diversi e verifica accessibilità.
+	•	Test unit Edge Function upload-photo.
+	•	Test Playwright e2e: fornitore crea servizio con foto, capostipite collaboratore lo vede, non collaboratore non lo vede.
+	•	Stima: 5 ore.
+Totale
+13 work items × totale ≈ 47 ore ≈ 6 giornate (ridotte rispetto a 7 di v1 grazie a Supabase).
