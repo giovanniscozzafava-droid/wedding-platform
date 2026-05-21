@@ -1,29 +1,50 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
-
-function Home() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="max-w-xl text-center space-y-4">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          Wedding Platform
-        </h1>
-        <p className="text-slate-600">
-          MVP in costruzione &mdash; setup base attivo.
-        </p>
-        <p className="text-sm text-slate-400">
-          Vite + React 18 + TypeScript strict + Tailwind v4 + Supabase
-        </p>
-      </div>
-    </div>
-  )
-}
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from '@/lib/auth'
+import { RequireAuth } from '@/components/auth/RequireAuth'
+import HomePage from '@/pages/HomePage'
+import LoginPage from '@/pages/auth/LoginPage'
+import RegisterPage from '@/pages/auth/RegisterPage'
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
+import OnboardingPage from '@/pages/auth/OnboardingPage'
+import ProfilePage from '@/pages/auth/ProfilePage'
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route
+            path="/onboarding"
+            element={
+              <RequireAuth>
+                <OnboardingPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <RequireAuth>
+                <ProfilePage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <HomePage />
+              </RequireAuth>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

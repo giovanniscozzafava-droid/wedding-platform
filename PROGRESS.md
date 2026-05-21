@@ -38,7 +38,8 @@
 
 ### Fasi successive
 - Fase 2 (RLS tests): pending
-- Fase 3 (Auth): pending
+- Fase 2 (RLS tests): completata, 8/8 OK
+- Fase 3 (Auth): completata, 5/5 E2E Playwright OK (login KO/OK, logout, register, forgot-password con Mailpit)
 - Fase 4a PRP-1 Fornitori: pending
 - Fase 4b PRP-2 Calendario: pending
 - Fase 4c PRP-3 Preventivi: pending

@@ -16,7 +16,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:status": "supabase status",
-    "db:types": "supabase gen types typescript --local --schema public > frontend/src/lib/database.types.ts",
+    "db:types": "supabase gen types typescript --local --schema public 2>/dev/null | grep -vE '^Connecting to db|^A new version|^We recommend updating' > frontend/src/lib/database.types.ts",
     "db:diff": "supabase db diff",
     "scenario": "playwright test tests/e2e/realistic_scenario.spec.ts"
   },
