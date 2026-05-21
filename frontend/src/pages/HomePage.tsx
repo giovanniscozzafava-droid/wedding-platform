@@ -18,14 +18,18 @@ export default function HomePage() {
           <CardHeader>
             <CardTitle>Ciao {profile?.full_name ?? user?.email}</CardTitle>
             <CardDescription>
-              Sei dentro come <strong>{profile?.role}</strong>. Le prossime fasi (catalogo, calendario,
-              preventivi) compariranno qui.
+              Sei dentro come <strong>{profile?.role}</strong>. Naviga ai moduli.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-600">
-              In sviluppo: modulo Fornitori, Calendario, Preventivi.
-            </p>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-3">
+              <Link to="/catalog">
+                <Button variant="default">Catalogo servizi</Button>
+              </Link>
+              <Link to="/profile">
+                <Button variant="outline">Profilo</Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

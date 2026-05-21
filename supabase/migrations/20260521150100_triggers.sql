@@ -4,7 +4,7 @@
 
 -- 1. updated_at universale ----------------------------------------------------
 create or replace function set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   new.updated_at := now();
   return new;
@@ -28,7 +28,7 @@ end$$;
 
 -- 2. price_versions: snapshot iniziale + chiusura su update prezzo -----------
 create or replace function services_after_insert_price()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   insert into price_versions (service_id, price, valid_from, valid_until)
   values (new.id, new.base_price, now(), null);
@@ -40,7 +40,7 @@ create trigger trg_services_init_price
   for each row execute function services_after_insert_price();
 
 create or replace function services_after_update_price()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if new.base_price is distinct from old.base_price then
     update price_versions
@@ -92,7 +92,7 @@ end$$;
 -- Cost = snapshot_price * qty con modifiers applicati in ordine.
 -- Modifiers JSON shape: [{ "type":"PERCENT|FIXED", "value": <n> }, ...]
 create or replace function quote_items_recalc_lines()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare
   v_base       numeric;
   v_mod        jsonb;
@@ -128,7 +128,7 @@ create trigger trg_qitems_recalc_lines
 
 -- 5. Ricalcolo totali quote dopo qualsiasi cambio voci -----------------------
 create or replace function quotes_recalc_totals(p_quote_id uuid)
-returns void language plpgsql as $$
+returns void language plpgsql security definer set search_path = public as $$
 declare
   v_cost   numeric;
   v_client numeric;
@@ -148,7 +148,7 @@ begin
 end$$;
 
 create or replace function quote_items_after_change()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare v_quote uuid;
 begin
   v_quote := coalesce(new.quote_id, old.quote_id);
@@ -162,7 +162,7 @@ create trigger trg_qitems_totals_after
 
 -- Anche quando cambia il markup-per-supplier o il default sul quote, ricalcola.
 create or replace function quote_supplier_markup_after_change()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare v_quote uuid;
 begin
   v_quote := coalesce(new.quote_id, old.quote_id);
@@ -180,7 +180,7 @@ create trigger trg_qsm_after_change
   for each row execute function quote_supplier_markup_after_change();
 
 create or replace function quotes_default_markup_after_update()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if new.default_markup_percent is distinct from old.default_markup_percent then
     update quote_items set updated_at = now() where quote_id = new.id;
@@ -195,7 +195,7 @@ create trigger trg_quote_default_markup
 
 -- 6. Enforce limite 10 preventivi attivi per owner tier FREE -----------------
 create or replace function enforce_free_quote_limit()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare
   v_tier   subscription_tier;
   v_count  int;

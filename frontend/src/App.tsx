@@ -8,6 +8,7 @@ import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import OnboardingPage from '@/pages/auth/OnboardingPage'
 import ProfilePage from '@/pages/auth/ProfilePage'
+import CatalogPage from '@/pages/CatalogPage'
 
 export default function App() {
   return (
@@ -31,6 +32,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <ProfilePage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/catalog"
+            element={
+              <RequireAuth>
+                <CatalogPage />
               </RequireAuth>
             }
           />
