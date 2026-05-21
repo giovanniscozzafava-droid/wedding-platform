@@ -41,8 +41,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-5">
       {/* Brand panel */}
-      <div className="hidden lg:flex lg:col-span-3 aurora dotted relative overflow-hidden p-12">
-        <div className="absolute inset-0 dotted opacity-30" />
+      <div className="hidden lg:flex lg:col-span-3 relative overflow-hidden p-12 text-white"
+        style={{ background: 'rgb(var(--bg))' }}>
+        <img src="/hero/auth.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.6) 0%, rgba(126,102,51,0.4) 100%)' }} />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
           className="relative z-10 flex flex-col justify-between w-full">
           <Link to="/" className="inline-flex items-center gap-2">
@@ -53,23 +55,23 @@ export default function LoginPage() {
           </Link>
 
           <div className="max-w-md">
-            <p className="text-xs uppercase tracking-[0.2em] mb-3" style={{ color: 'rgb(var(--gold-700))' }}>
+            <p className="text-xs uppercase tracking-[0.2em] mb-3 text-white/80">
               Network &middot; Italia
             </p>
-            <h1 className="font-display text-4xl xl:text-5xl leading-tight mb-4">
+            <h1 className="font-display text-4xl xl:text-5xl leading-tight mb-4 text-white">
               Una piattaforma per&nbsp;chi orchestra matrimoni.
             </h1>
-            <p className="text-[rgb(var(--fg-muted))] text-base max-w-md">
+            <p className="text-white/85 text-base max-w-md">
               Catalogo fornitori, calendari sincronizzati, preventivi con un solo invio.
               Lavora come una squadra anche se sei un solo studio.
             </p>
           </div>
 
-          <ul className="grid grid-cols-2 gap-3 max-w-lg text-sm">
-            <li className="surface p-3"><strong>23</strong> servizi seed pronti per provare</li>
-            <li className="surface p-3"><strong>10+</strong> trigger DB testati in produzione</li>
-            <li className="surface p-3"><strong>PDF</strong> brandizzato per i tuoi clienti</li>
-            <li className="surface p-3"><strong>iCal</strong> per Apple, Google, Outlook</li>
+          <ul className="grid grid-cols-2 gap-3 max-w-lg text-sm text-white">
+            <li className="rounded-lg p-3 backdrop-blur" style={{ background: 'rgba(255,255,255,0.12)' }}><strong>23</strong> servizi seed pronti per provare</li>
+            <li className="rounded-lg p-3 backdrop-blur" style={{ background: 'rgba(255,255,255,0.12)' }}><strong>10+</strong> trigger DB testati in produzione</li>
+            <li className="rounded-lg p-3 backdrop-blur" style={{ background: 'rgba(255,255,255,0.12)' }}><strong>PDF</strong> brandizzato per i tuoi clienti</li>
+            <li className="rounded-lg p-3 backdrop-blur" style={{ background: 'rgba(255,255,255,0.12)' }}><strong>iCal</strong> per Apple, Google, Outlook</li>
           </ul>
         </motion.div>
       </div>

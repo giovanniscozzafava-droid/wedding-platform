@@ -42,9 +42,13 @@ export default function QuotePreviewPage() {
   const primary = data.owner?.brand_primary_color ?? '#1A2E4F'
 
   return (
-    <div className="min-h-screen aurora py-8 sm:py-14 px-4">
+    <div className="min-h-screen py-8 sm:py-14 px-4 relative" style={{ background: 'rgb(var(--bg))' }}>
+      <div className="absolute top-0 left-0 right-0 h-72 overflow-hidden">
+        <img src="/hero/preview.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(14,17,22,0.35) 0%, rgb(var(--bg)) 100%)' }} />
+      </div>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-        className="max-w-2xl mx-auto">
+        className="max-w-2xl mx-auto relative">
         <div className="surface surface-lift overflow-hidden">
           <div className="h-2" style={{ background: primary }} />
           <header className="px-6 sm:px-10 pt-8 pb-6 border-b" style={{ borderColor: 'rgb(var(--border))' }}>

@@ -27,9 +27,11 @@ export default function QuoteRejectPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center aurora px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 relative" style={{ background: 'rgb(var(--bg))' }}>
+      <img src="/hero/reject.jpg" alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+      <div className="absolute inset-0" style={{ background: 'rgba(14,17,22,0.55)' }} />
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="surface surface-lift w-full max-w-md p-8">
+        className="surface surface-lift w-full max-w-md p-8 relative z-10">
         {done ? (
           <div className="text-center">
             <span className="inline-flex h-14 w-14 items-center justify-center rounded-full mb-4"

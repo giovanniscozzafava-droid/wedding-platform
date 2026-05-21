@@ -20,9 +20,11 @@ export default function QuoteAcceptPage() {
   }, [token])
 
   return (
-    <div className="min-h-screen flex items-center justify-center aurora px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 relative" style={{ background: 'rgb(var(--bg))' }}>
+      <img src="/hero/success.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0" style={{ background: 'rgba(14,17,22,0.55)' }} />
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="surface surface-lift w-full max-w-md p-10 text-center">
+        className="surface surface-lift w-full max-w-md p-10 text-center relative z-10">
         {state === 'idle' && (
           <>
             <Loader2 className="mx-auto mb-4 animate-spin" style={{ color: 'rgb(var(--fg-muted))' }} />

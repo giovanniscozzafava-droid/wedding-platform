@@ -51,6 +51,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       .map((s) => s[0]!.toUpperCase())
       .join('') || '?'
 
+  const avatarUrl = user
+    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/brand-assets/${user.id}/avatar.jpg`
+    : null
+
   async function handleLogout() {
     await signOut()
     nav('/login', { replace: true })
@@ -90,9 +94,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg">
-            <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold"
+            <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0"
               style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-              {initials}
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="h-full w-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              ) : (
+                <span>{initials}</span>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate" style={{ color: 'rgb(var(--fg))' }}>
