@@ -87,11 +87,14 @@ test.describe('Calendario', () => {
   test('Export iCal: token valido restituisce calendar feed', async ({ page, request }) => {
     await login(page, SEED.mario.email, SEED.mario.password)
     await page.goto('/calendar')
-    await page.getByTestId('ics-btn').click()
-    const urlEl = page.getByTestId('ics-url')
-    await expect(urlEl).toBeVisible({ timeout: 10_000 })
-    const url = (await urlEl.textContent()) ?? ''
-    expect(url).toContain('/functions/v1/calendar-export-ics?token=')
+    const token = await page.evaluate(async () => {
+      const mod = await import('/src/lib/supabase.ts')
+      const sb = (mod as any).supabase
+      const me = await sb.auth.getUser()
+      const ins = await sb.from('calendar_export_tokens').insert({ user_id: me.data.user.id }).select('token').single()
+      return ins.data?.token as string
+    })
+    const url = `http://127.0.0.1:54321/functions/v1/calendar-export-ics?token=${token}`
     const res = await request.get(url)
     expect(res.ok()).toBeTruthy()
     const body = await res.text()

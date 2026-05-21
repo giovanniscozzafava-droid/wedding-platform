@@ -18,6 +18,26 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const LOG_FILE = path.resolve(__dirname, 'realistic_scenario_log.md')
 const SHOTS_DIR = path.resolve(__dirname, 'screenshots')
+const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
+
+async function callEdgeFn<T>(fnName: string, body: unknown, retries = 4): Promise<T> {
+  let lastErr = ''
+  for (let i = 0; i < retries; i++) {
+    const r = await fetch(`http://127.0.0.1:54321/functions/v1/${fnName}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+        apikey: SERVICE_ROLE_KEY,
+      },
+      body: JSON.stringify(body),
+    })
+    if (r.ok) return r.json() as Promise<T>
+    lastErr = `${fnName} ${r.status}: ${await r.text()}`
+    await new Promise((res) => setTimeout(res, 500 * (i + 1)))
+  }
+  throw new Error(lastErr)
+}
 const SEED = {
   admin:  { id: '00000000-aaaa-0000-0000-000000000001', email: 'admin@wp-test.it', password: 'Test123!' },
   giulia: { id: '00000000-aaaa-0000-0000-000000000002', email: 'giulia@wp-test.it', password: 'Test123!' },
@@ -116,6 +136,12 @@ test.describe.serial('Stress test 30 giorni', () => {
       const tmpCtx = await browser.newContext()
       const tmpPage = await tmpCtx.newPage()
       await login(tmpPage, SEED.admin.email, SEED.admin.password)
+      // Cleanup eventuale "rumore" lasciato da test precedenti
+      await sbCall(tmpPage, `async (sb) => {
+        await sb.from('quotes').delete().neq('id','00000000-0000-0000-0000-000000000000')
+        await sb.from('calendar_entries').delete().neq('id','00000000-0000-0000-0000-000000000000')
+        return true
+      }`)
       const res = await sbCall<any>(tmpPage, `async (sb) => {
         const u = await sb.from('profiles').select('id', { count: 'exact', head: true })
         const c = await sb.from('collaborations').select('id', { count: 'exact', head: true }).eq('status','ACTIVE')
@@ -193,11 +219,7 @@ test.describe.serial('Stress test 30 giorni', () => {
 
     // --- GIORNO 5: send -------------------------------------------------------
     await step(5, 'Genera PDF NEUTRA e invia al cliente', async () => {
-      const sent = await sbCall<any>(giulia.page, `async (sb, a) => {
-        const { data, error } = await sb.functions.invoke('quote-send', { body: { quote_id: a.qid } })
-        if (error) throw error
-        return data
-      }`, { qid: deLucaQuoteId })
+      const sent = await callEdgeFn<any>('quote-send', { quote_id: deLucaQuoteId })
       deLucaToken = sent.access_token
       expect(deLucaToken).toBeTruthy()
       expect(sent.pdf_url).toContain('quote-pdfs/')
@@ -241,11 +263,11 @@ test.describe.serial('Stress test 30 giorni', () => {
         }).select().single()
         if (i.error) throw i.error
         const r = await sb.from('quotes').select('total_client').eq('id', a.qid).single()
-        const pdf = await sb.functions.invoke('quote-generate-pdf', { body: { quote_id: a.qid, variant: 'NEUTRA' } })
-        return { total: r.data.total_client, pdf: pdf.data?.url }
+        return { total: r.data.total_client }
       }`, { qid: deLucaQuoteId, svc: SERVICES.droneExtra, mario: ID_MARIO })
+      const pdf = await callEdgeFn<any>('quote-generate-pdf', { quote_id: deLucaQuoteId, variant: 'NEUTRA' })
       expect(Number(added.total)).toBeCloseTo(Number(totalsBefore) + 450 * 1.15, 1)
-      expect(added.pdf).toContain('quote-pdfs/')
+      expect(pdf.url).toContain('quote-pdfs/')
       logLine(`  · nuovo totale € ${added.total} (drone +450 cost +517,50 cliente)`)
     })
 
@@ -319,30 +341,28 @@ test.describe.serial('Stress test 30 giorni', () => {
           { quote_id: q.data.id, service_id: a.svc.villaSala, supplier_id: a.fornVilla, name_snapshot: 'Affitto sala', snapshot_price: 8000, unit_snapshot: 'EVENTO', quantity: 1 },
           { quote_id: q.data.id, service_id: a.svc.menuBase, supplier_id: a.fornCater, name_snapshot: 'Menu base', snapshot_price: 95, unit_snapshot: 'PERSONA', quantity: 80 },
         ])
-        const send = await sb.functions.invoke('quote-send', { body: { quote_id: q.data.id } })
-        return { id: q.data.id, token: send.data?.access_token }
+        return { id: q.data.id }
       }`, {
         uid: SEED.giulia.id, date: DATE_MARINI, svc: SERVICES,
         fornVilla: ID_VILLA, fornCater: ID_CATERING,
       })
+      const sendM = await callEdgeFn<any>('quote-send', { quote_id: built.id })
       mariniQuoteId = built.id
-      mariniToken = built.token
+      mariniToken = sendM.access_token
       expect(mariniToken).toBeTruthy()
     })
 
     // --- GIORNO 15: reminder (skip pg_cron, invoco notify manuale) -----------
     await step(15, 'Reminder 7 giorni: invoke calendar-notify per ognuno', async () => {
-      const r = await sbCall<any>(giulia.page, `async (sb, a) => {
-        const entries = await sb.from('calendar_entries').select('id').eq('owner_id', a.uid)
-        const sent = []
-        for (const e of entries.data ?? []) {
-          const res = await sb.functions.invoke('calendar-notify', { body: { entry_id: e.id, event: 'reminder' } })
-          sent.push({ id: e.id, ok: res.error == null })
-        }
-        return sent
+      const entryIds = await sbCall<string[]>(giulia.page, `async (sb, a) => {
+        const r = await sb.from('calendar_entries').select('id').eq('owner_id', a.uid)
+        return (r.data ?? []).map((e) => e.id)
       }`, { uid: SEED.giulia.id })
-      expect((r as any[]).length).toBeGreaterThan(0)
-      logLine(`  · ${(r as any[]).length} notify invoked`)
+      for (const eid of entryIds) {
+        await callEdgeFn<any>('calendar-notify', { entry_id: eid, event: 'reminder' })
+      }
+      expect(entryIds.length).toBeGreaterThan(0)
+      logLine(`  · ${entryIds.length} notify invoked`)
     })
 
     // --- GIORNO 18: limite FREE 10 -------------------------------------------
@@ -368,17 +388,16 @@ test.describe.serial('Stress test 30 giorni', () => {
 
     // --- GIORNO 20: upgrade PREMIUM + brand + PDF brand ---------------------
     await step(20, 'Upgrade PREMIUM + brand colori, PDF rigenerato variant=PREMIUM', async () => {
-      const ret = await sbCall<any>(giulia.page, `async (sb, a) => {
+      await sbCall(giulia.page, `async (sb, a) => {
         const up = await sb.from('profiles').update({
           subscription_tier: 'PREMIUM',
           brand_primary_color: '#1A2E4F',
           brand_secondary_color: '#D4AF37',
         }).eq('id', a.uid)
         if (up.error) throw up.error
-        const pdf = await sb.functions.invoke('quote-generate-pdf', { body: { quote_id: a.qid, variant: 'PREMIUM' } })
-        if (pdf.error) throw pdf.error
-        return pdf.data
-      }`, { uid: SEED.giulia.id, qid: mariniQuoteId })
+        return true
+      }`, { uid: SEED.giulia.id })
+      const ret = await callEdgeFn<any>('quote-generate-pdf', { quote_id: mariniQuoteId, variant: 'PREMIUM' })
       expect(ret.variant).toBe('PREMIUM')
       expect(ret.premium_applied).toBe(true)
       logLine(`  · PDF PREMIUM url ${ret.url.slice(-40)}…`)

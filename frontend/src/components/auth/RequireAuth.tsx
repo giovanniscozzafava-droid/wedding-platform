@@ -1,20 +1,25 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth, type AppRole } from '@/lib/auth'
+import { AppShell } from '@/components/layout/AppShell'
 
 type Props = {
   children: ReactNode
   roles?: AppRole[]
+  bare?: boolean
 }
 
-export function RequireAuth({ children, roles }: Props) {
+export function RequireAuth({ children, roles, bare = false }: Props) {
   const { loading, session, profile } = useAuth()
   const location = useLocation()
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-500">
-        Caricamento sessione...
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'rgb(var(--bg))' }}>
+        <div className="space-y-3 text-center">
+          <div className="skeleton h-6 w-40 mx-auto" />
+          <div className="skeleton h-4 w-28 mx-auto" />
+        </div>
       </div>
     )
   }
@@ -23,10 +28,15 @@ export function RequireAuth({ children, roles }: Props) {
   }
   if (roles && profile && !roles.includes(profile.role)) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-700">
-        Accesso non consentito al tuo ruolo ({profile.role}).
-      </div>
+      <AppShell>
+        <div className="p-10 text-center">
+          <p className="text-lg" style={{ color: 'rgb(var(--fg-muted))' }}>
+            Accesso non consentito al tuo ruolo ({profile.role}).
+          </p>
+        </div>
+      </AppShell>
     )
   }
-  return <>{children}</>
+  if (bare) return <>{children}</>
+  return <AppShell>{children}</AppShell>
 }

@@ -4,22 +4,23 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'bg-slate-900 text-slate-50 hover:bg-slate-800',
-        destructive: 'bg-red-600 text-white hover:bg-red-700',
-        outline: 'border border-slate-200 bg-white hover:bg-slate-100 text-slate-900',
-        secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200',
-        ghost: 'hover:bg-slate-100 hover:text-slate-900',
-        link: 'text-slate-900 underline-offset-4 hover:underline',
+        default: 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] hover:opacity-90 active:scale-[.98]',
+        gold:    'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] hover:bg-[rgb(var(--gold-600))] active:scale-[.98] shadow-[0_1px_2px_rgba(170,140,60,.18),0_8px_24px_rgba(170,140,60,.18)]',
+        outline: 'border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] text-[rgb(var(--fg))] hover:bg-[rgb(var(--bg-sunken))] active:scale-[.98]',
+        ghost:   'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
+        destructive: 'bg-[rgb(var(--rose-500))] text-white hover:bg-[rgb(var(--rose-700))] active:scale-[.98]',
+        subtle:  'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg))] hover:bg-[rgb(var(--border))]',
+        link:    'text-[rgb(var(--fg))] underline-offset-4 hover:underline px-0',
       },
       size: {
         default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
-        icon: 'h-10 w-10',
+        sm: 'h-9 rounded-md px-3 text-xs',
+        lg: 'h-11 px-6 text-base',
+        icon: 'h-10 w-10 p-0',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },

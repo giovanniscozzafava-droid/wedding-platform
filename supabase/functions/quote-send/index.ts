@@ -35,10 +35,14 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
-  // 1. genera PDF (riusa Edge Function)
+  // 1. genera PDF (riusa Edge Function). Header apikey serve a Kong gateway.
   const pdfRes = await fetch(`${SUPABASE_URL}/functions/v1/quote-generate-pdf`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${SERVICE_KEY}` },
+    headers: {
+      'content-type': 'application/json',
+      Authorization: `Bearer ${SERVICE_KEY}`,
+      apikey: SERVICE_KEY,
+    },
     body: JSON.stringify({ quote_id: body.quote_id }),
   })
   if (!pdfRes.ok) {

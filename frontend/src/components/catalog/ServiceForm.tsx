@@ -1,8 +1,14 @@
 import { type FormEvent, useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Image as ImageIcon, X, Plus, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAddModifier, useCategories, useCreateService, useRemoveModifier, useUpdateService, useUploadPhoto, useDeletePhoto, type ServiceWithExtras } from '@/hooks/useCatalog'
+import {
+  useAddModifier, useCategories, useCreateService, useRemoveModifier, useUpdateService,
+  useUploadPhoto, useDeletePhoto, type ServiceWithExtras,
+} from '@/hooks/useCatalog'
 import type { Database } from '@/lib/database.types'
 
 type Unit = Database['public']['Enums']['service_unit']
@@ -32,7 +38,6 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     is_active: service?.is_active ?? true,
   })
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [savedId, setSavedId] = useState<string | null>(service?.id ?? null)
   const [newMod, setNewMod] = useState({ name: '', type: 'PERCENT' as ModType, value: '' })
 
@@ -44,7 +49,6 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
 
   async function handleSave(e: FormEvent) {
     e.preventDefault()
-    setError(null)
     setBusy(true)
     try {
       const payload = {
@@ -60,12 +64,14 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
       }
       if (savedId) {
         await update.mutateAsync({ id: savedId, patch: payload })
+        toast.success('Servizio aggiornato')
       } else {
         const created = await create.mutateAsync(payload)
         setSavedId(created.id)
+        toast.success('Servizio creato')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore inatteso')
+      toast.error(err instanceof Error ? err.message : 'Errore')
     } finally {
       setBusy(false)
     }
@@ -73,13 +79,14 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
 
   async function handleAddMod() {
     if (!savedId || !newMod.name.trim()) return
-    await addMod.mutateAsync({
-      service_id: savedId,
-      name: newMod.name.trim(),
-      modifier_type: newMod.type,
-      value: Number(newMod.value || 0),
-    })
-    setNewMod({ name: '', type: 'PERCENT', value: '' })
+    try {
+      await addMod.mutateAsync({
+        service_id: savedId, name: newMod.name.trim(),
+        modifier_type: newMod.type, value: Number(newMod.value || 0),
+      })
+      setNewMod({ name: '', type: 'PERCENT', value: '' })
+      toast.success('Modificatore aggiunto')
+    } catch (e) { toast.error((e as Error).message) }
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -87,111 +94,151 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     if (!f || !savedId) return
     try {
       await upPhoto.mutateAsync({ serviceId: savedId, file: f })
+      toast.success('Foto caricata')
       e.target.value = ''
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload fallito')
+      toast.error(err instanceof Error ? err.message : 'Upload fallito')
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog">
-      <div className="w-full max-w-2xl bg-white rounded-lg shadow-lg max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold">{savedId ? 'Modifica servizio' : 'Nuovo servizio'}</h2>
-          <Button variant="ghost" onClick={() => onClose(!!savedId)} data-testid="close-modal">Chiudi</Button>
-        </div>
-        <div className="p-6 space-y-6">
-          <form onSubmit={handleSave} className="space-y-4" data-testid="service-form">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input id="name" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        role="dialog">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => onClose(!!savedId)} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ type: 'spring', damping: 22, stiffness: 240 }}
+          className="relative w-full max-w-2xl max-h-[90vh] surface surface-lift overflow-hidden flex flex-col">
+          <header className="flex justify-between items-center px-6 py-4 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+            <div>
+              <h2 className="font-display text-xl">{savedId ? 'Modifica servizio' : 'Nuovo servizio'}</h2>
+              <p className="text-xs text-[rgb(var(--fg-subtle))]">{savedId ? 'Aggiorna i dettagli' : 'Compila i campi base, poi aggiungi modificatori e foto'}</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrizione</Label>
-              <textarea id="description" className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm" rows={3}
-                value={form.description ?? ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="price">Prezzo (€)</Label>
-                <Input id="price" type="number" min="0" step="0.01" required value={form.base_price}
-                  onChange={(e) => setForm((f) => ({ ...f, base_price: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="unit">Unità</Label>
-                <select id="unit" value={form.unit}
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                  onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value as Unit }))}>
-                  <option value="PEZZO">Pezzo</option>
-                  <option value="PERSONA">Persona</option>
-                  <option value="ORA">Ora</option>
-                  <option value="EVENTO">Evento</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cat">Categoria</Label>
-                <select id="cat" value={form.category_id} required
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                  onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
-                  {(cats ?? []).map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
-                </select>
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.is_active}
-                onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} />
-              Servizio attivo
-            </label>
-            {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
-            <Button type="submit" disabled={busy}>{busy ? 'Salvataggio...' : savedId ? 'Aggiorna' : 'Crea'}</Button>
-          </form>
+            <Button variant="ghost" size="icon" onClick={() => onClose(!!savedId)} data-testid="close-modal">
+              <X size={18} />
+            </Button>
+          </header>
 
-          {savedId && (
-            <>
-              <hr />
-              <div className="space-y-3">
-                <h3 className="font-medium">Modificatori</h3>
-                <ul className="space-y-1 text-sm">
-                  {(service?.service_modifiers ?? []).map((m) => (
-                    <li key={m.id} className="flex justify-between border border-slate-200 rounded px-3 py-2">
-                      <span>{m.name} ({m.modifier_type === 'PERCENT' ? `${m.value}%` : `€ ${m.value}`})</span>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => remMod.mutate(m.id)}>×</Button>
-                    </li>
-                  ))}
-                </ul>
-                <div className="grid grid-cols-4 gap-2">
-                  <Input placeholder="Nome modificatore" value={newMod.name}
-                    onChange={(e) => setNewMod((m) => ({ ...m, name: e.target.value }))} />
-                  <select className="rounded-md border border-slate-200 px-2 text-sm" value={newMod.type}
-                    onChange={(e) => setNewMod((m) => ({ ...m, type: e.target.value as ModType }))}>
-                    <option value="PERCENT">%</option>
-                    <option value="FIXED">€ fisso</option>
-                  </select>
-                  <Input type="number" step="0.01" placeholder="Valore" value={newMod.value}
-                    onChange={(e) => setNewMod((m) => ({ ...m, value: e.target.value }))} />
-                  <Button type="button" onClick={handleAddMod}>+ Aggiungi</Button>
+          <div className="overflow-y-auto px-6 py-5 space-y-6">
+            <form onSubmit={handleSave} className="space-y-4" data-testid="service-form">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2 space-y-1">
+                  <Label htmlFor="name">Nome</Label>
+                  <Input id="name" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="cat">Categoria</Label>
+                  <Select id="cat" value={form.category_id} required
+                    onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
+                    {(cats ?? []).map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                  </Select>
                 </div>
               </div>
-
-              <hr />
-              <div className="space-y-3">
-                <h3 className="font-medium">Foto (max 10)</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {(service?.service_photos ?? []).map((p) => (
-                    <div key={p.id} className="relative">
-                      <img src={p.thumbnail_url} alt="" className="w-full h-24 object-cover rounded-md" />
-                      <Button type="button" variant="destructive" size="sm" className="absolute top-1 right-1"
-                        onClick={() => delPhoto.mutate(p.id)}>×</Button>
-                    </div>
-                  ))}
-                </div>
-                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} data-testid="photo-upload" />
-                {upPhoto.isPending && <p className="text-sm text-slate-500">Caricamento in corso...</p>}
+              <div className="space-y-1">
+                <Label htmlFor="description">Descrizione</Label>
+                <Textarea id="description" rows={3}
+                  value={form.description ?? ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
               </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="price">Prezzo (€)</Label>
+                  <Input id="price" type="number" min="0" step="0.01" required value={form.base_price}
+                    onChange={(e) => setForm((f) => ({ ...f, base_price: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="unit">Unità</Label>
+                  <Select id="unit" value={form.unit}
+                    onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value as Unit }))}>
+                    <option value="PEZZO">Pezzo</option>
+                    <option value="PERSONA">Persona</option>
+                    <option value="ORA">Ora</option>
+                    <option value="EVENTO">Evento</option>
+                  </Select>
+                </div>
+                <label className="flex items-center gap-2 text-sm self-end pb-2.5">
+                  <input type="checkbox" className="size-4 accent-[rgb(var(--gold-500))]"
+                    checked={form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} />
+                  Attivo
+                </label>
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button type="submit" variant="gold" disabled={busy}>
+                  {busy ? 'Salvataggio...' : savedId ? 'Aggiorna' : 'Crea'}
+                </Button>
+              </div>
+            </form>
+
+            {savedId && (
+              <>
+                <div className="border-t pt-5" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <h3 className="font-medium text-sm mb-3">Modificatori prezzo</h3>
+                  <ul className="space-y-2 mb-4">
+                    {(service?.service_modifiers ?? []).map((m) => (
+                      <li key={m.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
+                        <div>
+                          <p className="font-medium">{m.name}</p>
+                          <p className="text-xs text-[rgb(var(--fg-subtle))]">
+                            {m.modifier_type === 'PERCENT' ? `${m.value}%` : `€ ${m.value}`}
+                          </p>
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remMod.mutate(m.id)}>
+                          <Trash2 size={14} />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="grid grid-cols-12 gap-2">
+                    <Input className="col-span-6" placeholder="Es. Tema bianco" value={newMod.name}
+                      onChange={(e) => setNewMod((m) => ({ ...m, name: e.target.value }))} />
+                    <Select className="col-span-3" value={newMod.type}
+                      onChange={(e) => setNewMod((m) => ({ ...m, type: e.target.value as ModType }))}>
+                      <option value="PERCENT">%</option>
+                      <option value="FIXED">€ fisso</option>
+                    </Select>
+                    <Input className="col-span-2" type="number" step="0.01" placeholder="Valore" value={newMod.value}
+                      onChange={(e) => setNewMod((m) => ({ ...m, value: e.target.value }))} />
+                    <Button type="button" variant="outline" size="icon" className="col-span-1" onClick={handleAddMod}>
+                      <Plus size={16} />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="border-t pt-5" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-sm">Foto (max 10)</h3>
+                    <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors border"
+                      style={{ borderColor: 'rgb(var(--border-strong))' }}>
+                      <Plus size={14} /> Carica
+                      <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp"
+                        onChange={handleFile} data-testid="photo-upload" />
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(service?.service_photos ?? []).map((p) => (
+                      <div key={p.id} className="relative aspect-square rounded-lg overflow-hidden group bg-[rgb(var(--bg-sunken))]">
+                        <img src={p.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                        <button type="button" onClick={() => delPhoto.mutate(p.id)}
+                          className="absolute top-1 right-1 h-7 w-7 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    {(service?.service_photos ?? []).length === 0 && (
+                      <div className="col-span-4 rounded-lg border border-dashed py-8 text-center" style={{ borderColor: 'rgb(var(--border))' }}>
+                        <ImageIcon size={20} className="mx-auto text-[rgb(var(--fg-subtle))]" />
+                        <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">Nessuna foto ancora</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }

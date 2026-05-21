@@ -4,6 +4,10 @@ const baseURL = process.env.APP_BASE_URL ?? 'http://localhost:5173'
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Stress test "realistic_scenario" girato esplicitamente via `npm run scenario`.
+  // E` sensibile al wall-clock limit degli isolate Edge in locale: stabile da solo,
+  // flaky se concatenato con tutta la suite.
+  testIgnore: process.env.RUN_STRESS ? [] : ['**/realistic_scenario.spec.ts'],
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

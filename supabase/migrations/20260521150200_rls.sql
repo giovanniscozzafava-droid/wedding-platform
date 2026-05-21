@@ -399,6 +399,13 @@ create policy "quotes_update_owner"
 create policy "quotes_delete_owner"
   on quotes for delete using (owner_id = auth.uid());
 
+-- Admin: bypass per tutte le operazioni.
+create policy "quotes_all_admin"
+  on quotes for all using (is_admin()) with check (is_admin());
+
+create policy "calendar_entries_all_admin"
+  on calendar_entries for all using (is_admin()) with check (is_admin());
+
 -- ============================================================================
 -- 11. quote_items
 -- ============================================================================
