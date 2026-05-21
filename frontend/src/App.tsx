@@ -18,6 +18,9 @@ import BrandSettingsPage from '@/pages/BrandSettingsPage'
 import QuotePreviewPage from '@/pages/public/QuotePreviewPage'
 import QuoteAcceptPage from '@/pages/public/QuoteAcceptPage'
 import QuoteRejectPage from '@/pages/public/QuoteRejectPage'
+import ContractSignPage from '@/pages/public/ContractSignPage'
+import WeddingsPage from '@/pages/WeddingsPage'
+import WeddingDashboard from '@/pages/wedding/WeddingDashboard'
 
 export default function App() {
   return (
@@ -100,9 +103,26 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route
+            path="/weddings"
+            element={
+              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+                <WeddingsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/weddings/:id"
+            element={
+              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+                <WeddingDashboard />
+              </RequireAuth>
+            }
+          />
           <Route path="/p/preview/:token" element={<QuotePreviewPage />} />
           <Route path="/p/accept/:token" element={<QuoteAcceptPage />} />
           <Route path="/p/reject/:token" element={<QuoteRejectPage />} />
+          <Route path="/p/contract/:token" element={<ContractSignPage />} />
           <Route
             path="/"
             element={
