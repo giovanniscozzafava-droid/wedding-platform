@@ -7,7 +7,7 @@
 ## Fasi
 
 ### Fase 0 &mdash; Setup ambiente
-**Stato:** in corso
+**Stato:** completata (commit `ec1374f`)
 - [x] Container runtime: OrbStack installato e attivo (docker context = orbstack)
 - [x] Repo creato: `/Users/giovanniscozzafava/Repository/wedding-platform/`
 - [x] Vite + React 18 + TS strict (downgrade da React 19 / Router 7 per allineare a stack briefing)
@@ -27,8 +27,16 @@
 - Stack briefing dice React 18 + Router v6 &mdash; downgrade fatto. Vite 8 + Tailwind v4 (latest stabili).
 - shadcn/ui: setup rinviato al primo componente UI in Fase 3 (login/register).
 
+### Fase 1 &mdash; Schema DB
+**Stato:** completata.
+- 4 migration applicate (schema, triggers, RLS, seed_helpers).
+- Seed: 6 utenti (admin + Giulia WP + Villa Aurora + 3 fornitori), 4 collab, 19 categorie standard, 23 servizi, 23 price_versions (auto via trigger), 5 modifiers, 10 photos.
+- Problemi risolti:
+  - Seed parser CLI spezza `$$` blocks &rarr; spostato `seed_user` in migration dedicata.
+  - `gen_salt`/`crypt` non risolti &rarr; aggiunto `extensions` al `search_path` + chiamate esplicite `extensions.gen_salt(...)`.
+  - Errore disco saturo a meta` Fase 1 (242MB libero) &rarr; utente ha liberato 79GB poi ripartito.
+
 ### Fasi successive
-- Fase 1 (schema + seed): pending
 - Fase 2 (RLS tests): pending
 - Fase 3 (Auth): pending
 - Fase 4a PRP-1 Fornitori: pending
