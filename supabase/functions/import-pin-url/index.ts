@@ -45,15 +45,17 @@ Deno.serve(async (req) => {
     return json({ error: 'unsupported protocol' }, 400)
   }
 
-  // Risolvi shortlink Pinterest (pin.it)
+  // Pinterest/Instagram servono og:image solo a crawler whitelisted.
+  // Usiamo facebookexternalhit che è universalmente accettato.
   let finalUrl = target.toString()
   let html = ''
   try {
     const r = await fetch(finalUrl, {
       redirect: 'follow',
       headers: {
-        'user-agent': 'Mozilla/5.0 (compatible; PlanfullyBot/1.0; +https://planfully.it)',
-        'accept': 'text/html,application/xhtml+xml',
+        'user-agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+        'accept-language': 'it-IT,it;q=0.9,en;q=0.8',
       },
     })
     if (!r.ok) return json({ error: `fetch failed ${r.status}` }, 502)

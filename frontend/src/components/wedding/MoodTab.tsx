@@ -40,10 +40,12 @@ export function MoodTab({ entryId }: { entryId: string }) {
   }
 
   async function importFromUrl() {
-    if (!pinUrl.trim()) return
+    const trimmed = pinUrl.trim()
+    if (!trimmed) return
+    if (!/^https?:\/\//i.test(trimmed)) { toast.error('URL deve iniziare con http:// o https://'); return }
     setPinBusy(true)
     try {
-      const { data, error } = await supabase.functions.invoke('import-pin-url', { body: { url: pinUrl } })
+      const { data, error } = await supabase.functions.invoke('import-pin-url', { body: { url: trimmed } })
       if (error) throw error
       const j = data as { image?: string; title?: string; source_url?: string; error?: string }
       if (j?.error || !j?.image) throw new Error(j?.error ?? 'Nessuna immagine trovata')

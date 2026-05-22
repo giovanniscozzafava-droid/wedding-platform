@@ -26,8 +26,14 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
   if (!session) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
+  // Onboarding gate: utente autenticato ma profile non completato → forza wizard
+  if (profile && !profile.onboarding_complete
+    && location.pathname !== '/onboarding'
+    && !location.pathname.startsWith('/couple/accept')) {
+    return <Navigate to="/onboarding" replace />
+  }
   // COUPLE: forziamo accesso a /couple (no sidebar capostipite, no /weddings, no /quotes)
-  if (profile?.role === 'COUPLE' && !location.pathname.startsWith('/couple') && location.pathname !== '/profile') {
+  if (profile?.role === 'COUPLE' && !location.pathname.startsWith('/couple') && location.pathname !== '/profile' && location.pathname !== '/onboarding') {
     return <Navigate to="/couple" replace />
   }
   if (roles && profile && !roles.includes(profile.role)) {

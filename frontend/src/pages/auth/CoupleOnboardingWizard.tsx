@@ -160,9 +160,12 @@ export function CoupleOnboardingWizard() {
       }
       const { error } = await supabase.from('couple_preferences').upsert(payload, { onConflict: 'entry_id' })
       if (error) throw error
+      // Non sovrascrivere full_name dell'auth user con il couple_name: full_name è il nome del singolo.
+      // Imposta full_name solo se ancora vuoto, usando bride_name o groom_name appropriato.
+      const myFirstName = form.bride_name || form.groom_name || null
       await supabase.from('profiles').update({
-        full_name: form.couple_name || `${form.bride_name} ${form.groom_name}`.trim() || null,
         onboarding_complete: true,
+        ...(myFirstName ? { full_name: myFirstName } : {}),
       }).eq('id', user.id)
       await refreshProfile()
       toast.success('Preferenze salvate — la wedding planner le vedrà subito')

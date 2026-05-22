@@ -75,7 +75,9 @@ Deno.serve(async (req) => {
     message: body.message ?? null,
   }).select().single()
   if (insErr) {
-    if (String(insErr.message).includes('duplicate')) {
+    const msg = String(insErr.message ?? '').toLowerCase()
+    const code = (insErr as { code?: string }).code
+    if (code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
       return json({ error: 'Hai già un invito in sospeso per questa email' }, 409)
     }
     return json({ error: insErr.message }, 500)

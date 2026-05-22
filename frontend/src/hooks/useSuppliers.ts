@@ -104,7 +104,15 @@ export function useInviteSupplier() {
   return useMutation({
     mutationFn: async (payload: { email: string; subrole?: string; message?: string }) => {
       const { data, error } = await supabase.functions.invoke('invite-supplier', { body: payload })
-      if (error) throw error
+      if (error) {
+        // FunctionsHttpError espone la Response in .context — estrai il body JSON per il messaggio chiaro
+        const ctx = (error as { context?: Response }).context
+        if (ctx && typeof ctx.json === 'function') {
+          const body = await ctx.json().catch(() => null) as { error?: string } | null
+          if (body?.error) throw new Error(body.error)
+        }
+        throw new Error(error.message ?? 'Errore invito fornitore')
+      }
       const r = data as InviteSupplierResult & { error?: string }
       if (r?.error) throw new Error(r.error)
       return r

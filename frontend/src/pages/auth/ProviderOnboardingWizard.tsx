@@ -134,6 +134,7 @@ export function ProviderOnboardingWizard() {
 
   function next() {
     if (step === 0 && !form.full_name.trim()) { toast.error('Nome obbligatorio'); return }
+    if (step === 0 && !form.subrole) { toast.error('Seleziona il tipo di servizio'); return }
     setStep((s) => Math.min(s + 1, totalSteps - 1))
   }
   function prev() { setStep((s) => Math.max(s - 1, 0)) }
