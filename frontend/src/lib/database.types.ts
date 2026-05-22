@@ -1913,6 +1913,59 @@ export type Database = {
           },
         ]
       }
+      supplier_invites: {
+        Row: {
+          accepted_at: string | null
+          capostipite_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_at: string
+          message: string | null
+          status: string
+          subrole_hint: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          capostipite_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_at?: string
+          message?: string | null
+          status?: string
+          subrole_hint?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          capostipite_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_at?: string
+          message?: string | null
+          status?: string
+          subrole_hint?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_invites_capostipite_id_fkey"
+            columns: ["capostipite_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wedding_couple_members: {
         Row: {
           accepted_at: string | null
@@ -2096,6 +2149,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_supplier_invite: { Args: { p_token: string }; Returns: boolean }
       calcola_markup_effettivo: {
         Args: {
           p_item_markup: number

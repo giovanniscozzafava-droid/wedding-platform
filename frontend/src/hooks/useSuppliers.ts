@@ -131,7 +131,8 @@ export function useSupplierInvites() {
   return useQuery<SupplierInvite[]>({
     queryKey: ['supplier-invites'],
     queryFn: async () => {
-      const { data, error } = await (supabase.from('supplier_invites' as any) as any)
+      const { data, error } = await supabase
+        .from('supplier_invites')
         .select('id, email, status, subrole_hint, message, invited_at, accepted_at, expires_at')
         .order('invited_at', { ascending: false })
       if (error) throw error
@@ -144,7 +145,7 @@ export function useCancelSupplierInvite() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from('supplier_invites' as any) as any).update({ status: 'CANCELED' }).eq('id', id)
+      const { error } = await supabase.from('supplier_invites').update({ status: 'CANCELED' }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['supplier-invites'] }),
