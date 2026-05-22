@@ -158,9 +158,9 @@ export function CoupleOnboardingWizard() {
         guests_estimate: form.guests_estimate === '' ? null : form.guests_estimate,
         budget_priority: form.budget_priority || null,
       }
-      const { error } = await (supabase.from('couple_preferences' as any) as any).upsert(payload, { onConflict: 'entry_id' })
+      const { error } = await supabase.from('couple_preferences').upsert(payload, { onConflict: 'entry_id' })
       if (error) throw error
-      await (supabase.from('profiles') as any).update({
+      await supabase.from('profiles').update({
         full_name: form.couple_name || `${form.bride_name} ${form.groom_name}`.trim() || null,
         onboarding_complete: true,
       }).eq('id', user.id)

@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       budget_categories: {
@@ -444,6 +449,84 @@ export type Database = {
             columns: ["quote_id"]
             isOneToOne: false
             referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      couple_preferences: {
+        Row: {
+          bride_name: string | null
+          budget_max: number | null
+          budget_min: number | null
+          budget_priority: string | null
+          couple_name: string | null
+          created_at: string
+          entry_id: string
+          groom_name: string | null
+          guests_estimate: number | null
+          id: string
+          location_kind: string | null
+          must_haves: string[] | null
+          no_thanks: string[] | null
+          preferred_palette: string[] | null
+          preferred_season: string | null
+          styles: Database["public"]["Enums"]["wedding_style"][] | null
+          updated_at: string
+          vision_note: string | null
+        }
+        Insert: {
+          bride_name?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
+          budget_priority?: string | null
+          couple_name?: string | null
+          created_at?: string
+          entry_id: string
+          groom_name?: string | null
+          guests_estimate?: number | null
+          id?: string
+          location_kind?: string | null
+          must_haves?: string[] | null
+          no_thanks?: string[] | null
+          preferred_palette?: string[] | null
+          preferred_season?: string | null
+          styles?: Database["public"]["Enums"]["wedding_style"][] | null
+          updated_at?: string
+          vision_note?: string | null
+        }
+        Update: {
+          bride_name?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
+          budget_priority?: string | null
+          couple_name?: string | null
+          created_at?: string
+          entry_id?: string
+          groom_name?: string | null
+          guests_estimate?: number | null
+          id?: string
+          location_kind?: string | null
+          must_haves?: string[] | null
+          no_thanks?: string[] | null
+          preferred_palette?: string[] | null
+          preferred_season?: string | null
+          styles?: Database["public"]["Enums"]["wedding_style"][] | null
+          updated_at?: string
+          vision_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "couple_preferences_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_preferences_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
         ]
@@ -1166,6 +1249,8 @@ export type Database = {
           id: string
           ord: number
           source: string | null
+          source_title: string | null
+          source_url: string | null
           tag: string | null
           url: string
         }
@@ -1176,6 +1261,8 @@ export type Database = {
           id?: string
           ord?: number
           source?: string | null
+          source_title?: string | null
+          source_url?: string | null
           tag?: string | null
           url: string
         }
@@ -1186,6 +1273,8 @@ export type Database = {
           id?: string
           ord?: number
           source?: string | null
+          source_title?: string | null
+          source_url?: string | null
           tag?: string | null
           url?: string
         }
@@ -1287,55 +1376,100 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
+          bio: string | null
           brand_logo_url: string | null
           brand_primary_color: string | null
           brand_secondary_color: string | null
           business_name: string | null
+          city: string | null
+          country: string | null
+          cover_image_url: string | null
           created_at: string
           default_markup_percent: number
+          facebook: string | null
+          fiscal_code: string | null
           full_name: string | null
           id: string
+          instagram: string | null
           notification_preferences: Json
+          onboarding_complete: boolean
           phone: string | null
           profile_visibility: Database["public"]["Enums"]["profile_visibility"]
           role: Database["public"]["Enums"]["user_role"]
+          service_radius_km: number | null
           subrole: string | null
           subscription_tier: Database["public"]["Enums"]["subscription_tier"]
+          tiktok: string | null
           updated_at: string
+          vat_number: string | null
+          website: string | null
+          years_active: number | null
+          zip: string | null
         }
         Insert: {
+          address?: string | null
+          bio?: string | null
           brand_logo_url?: string | null
           brand_primary_color?: string | null
           brand_secondary_color?: string | null
           business_name?: string | null
+          city?: string | null
+          country?: string | null
+          cover_image_url?: string | null
           created_at?: string
           default_markup_percent?: number
+          facebook?: string | null
+          fiscal_code?: string | null
           full_name?: string | null
           id: string
+          instagram?: string | null
           notification_preferences?: Json
+          onboarding_complete?: boolean
           phone?: string | null
           profile_visibility?: Database["public"]["Enums"]["profile_visibility"]
           role: Database["public"]["Enums"]["user_role"]
+          service_radius_km?: number | null
           subrole?: string | null
           subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
+          tiktok?: string | null
           updated_at?: string
+          vat_number?: string | null
+          website?: string | null
+          years_active?: number | null
+          zip?: string | null
         }
         Update: {
+          address?: string | null
+          bio?: string | null
           brand_logo_url?: string | null
           brand_primary_color?: string | null
           brand_secondary_color?: string | null
           business_name?: string | null
+          city?: string | null
+          country?: string | null
+          cover_image_url?: string | null
           created_at?: string
           default_markup_percent?: number
+          facebook?: string | null
+          fiscal_code?: string | null
           full_name?: string | null
           id?: string
+          instagram?: string | null
           notification_preferences?: Json
+          onboarding_complete?: boolean
           phone?: string | null
           profile_visibility?: Database["public"]["Enums"]["profile_visibility"]
           role?: Database["public"]["Enums"]["user_role"]
+          service_radius_km?: number | null
           subrole?: string | null
           subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
+          tiktok?: string | null
           updated_at?: string
+          vat_number?: string | null
+          website?: string | null
+          years_active?: number | null
+          zip?: string | null
         }
         Relationships: []
       }
@@ -2101,6 +2235,19 @@ export type Database = {
         | "FORNITORE"
         | "ADMIN"
         | "COUPLE"
+      wedding_style:
+        | "CLASSICO"
+        | "MODERNO"
+        | "BOHO"
+        | "RUSTICO"
+        | "GLAMOUR"
+        | "MINIMAL"
+        | "VINTAGE"
+        | "INDUSTRIALE"
+        | "BEACH"
+        | "MOUNTAIN"
+        | "GARDEN"
+        | "DESTINATION"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2305,7 +2452,20 @@ export const Constants = {
         "ADMIN",
         "COUPLE",
       ],
+      wedding_style: [
+        "CLASSICO",
+        "MODERNO",
+        "BOHO",
+        "RUSTICO",
+        "GLAMOUR",
+        "MINIMAL",
+        "VINTAGE",
+        "INDUSTRIALE",
+        "BEACH",
+        "MOUNTAIN",
+        "GARDEN",
+        "DESTINATION",
+      ],
     },
   },
 } as const
-

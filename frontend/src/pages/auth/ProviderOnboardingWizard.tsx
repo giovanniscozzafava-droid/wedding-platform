@@ -100,7 +100,7 @@ export function ProviderOnboardingWizard() {
       let coverUrl: string | undefined
       if (logoFile) { const u = await uploadAsset(logoFile, 'logo'); if (u) logoUrl = u }
       if (coverFile) { const u = await uploadAsset(coverFile, 'cover'); if (u) coverUrl = u }
-      const payload: Record<string, unknown> = {
+      const payload = {
         full_name: form.full_name,
         business_name: form.business_name || null,
         subrole: form.subrole || null,
@@ -118,11 +118,11 @@ export function ProviderOnboardingWizard() {
         bio: form.bio || null,
         service_radius_km: form.service_radius_km === '' ? null : form.service_radius_km,
         years_active: form.years_active === '' ? null : form.years_active,
+        ...(logoUrl ? { brand_logo_url: logoUrl } : {}),
+        ...(coverUrl ? { cover_image_url: coverUrl } : {}),
+        ...(complete ? { onboarding_complete: true } : {}),
       }
-      if (logoUrl) payload.brand_logo_url = logoUrl
-      if (coverUrl) payload.cover_image_url = coverUrl
-      if (complete) payload.onboarding_complete = true
-      const { error } = await (supabase.from('profiles') as any).update(payload).eq('id', user.id)
+      const { error } = await supabase.from('profiles').update(payload).eq('id', user.id)
       if (error) throw error
       await refreshProfile()
       if (complete) { toast.success('Profilo completato'); nav('/', { replace: true }) }
