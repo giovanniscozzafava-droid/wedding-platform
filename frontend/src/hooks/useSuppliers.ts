@@ -93,40 +93,61 @@ export function useSupplier(id: string | null) {
   })
 }
 
+export type InviteSupplierResult = {
+  ok: true
+  mode: 'collab_direct' | 'email_sent'
+  invite_id?: string
+}
+
 export function useInviteSupplier() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (email: string) => {
-      const { data: me } = await supabase.auth.getUser()
-      if (!me.user) throw new Error('Non autenticato')
-
-      // Cerca utente esistente per email (RLS: amministrazione lato server in v2)
-      // Per MVP: invio Resend tramite Edge Function (non implementata ora);
-      // qui creiamo collaboration in PENDING per email NON ancora in piattaforma:
-      // serve user lookup via funzione admin. Simulato cercando in profiles via RPC.
-      // In MVP demo: chiediamo che il fornitore sia gia registrato; se l'email
-      // corrisponde a un profilo, creiamo la collaboration.
-      const { data: found } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .ilike('full_name', `%${email.split('@')[0]}%`)
-        .maybeSingle()
-
-      if (!found) {
-        throw new Error('Fornitore non trovato. In v1 servono profili gia` registrati; v2 implementeremo invito via email magic link.')
-      }
-      if (found.role !== 'FORNITORE') {
-        throw new Error('Il profilo trovato non e\' un fornitore.')
-      }
-      const { data, error } = await supabase
-        .from('collaborations')
-        .insert({ capostipite_id: me.user.id, fornitore_id: found.id, status: 'PENDING' })
-        .select()
-        .single()
+    mutationFn: async (payload: { email: string; subrole?: string; message?: string }) => {
+      const { data, error } = await supabase.functions.invoke('invite-supplier', { body: payload })
       if (error) throw error
-      return data
+      const r = data as InviteSupplierResult & { error?: string }
+      if (r?.error) throw new Error(r.error)
+      return r
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['suppliers'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['suppliers'] })
+      qc.invalidateQueries({ queryKey: ['supplier-invites'] })
+    },
+  })
+}
+
+export type SupplierInvite = {
+  id: string
+  email: string
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'CANCELED'
+  subrole_hint: string | null
+  message: string | null
+  invited_at: string
+  accepted_at: string | null
+  expires_at: string
+}
+
+export function useSupplierInvites() {
+  return useQuery<SupplierInvite[]>({
+    queryKey: ['supplier-invites'],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('supplier_invites' as any) as any)
+        .select('id, email, status, subrole_hint, message, invited_at, accepted_at, expires_at')
+        .order('invited_at', { ascending: false })
+      if (error) throw error
+      return (data ?? []) as SupplierInvite[]
+    },
+  })
+}
+
+export function useCancelSupplierInvite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.from('supplier_invites' as any) as any).update({ status: 'CANCELED' }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['supplier-invites'] }),
   })
 }
 
