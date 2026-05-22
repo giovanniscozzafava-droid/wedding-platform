@@ -1,99 +1,17 @@
-import { type FormEvent, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { ProviderOnboardingWizard } from './ProviderOnboardingWizard'
+import { CoupleOnboardingWizard } from './CoupleOnboardingWizard'
+import { GenericOnboardingForm } from './GenericOnboardingForm'
 
 export default function OnboardingPage() {
-  const { user, profile, refreshProfile } = useAuth()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const nav = useNavigate()
-  const [form, setForm] = useState({
-    full_name: '', business_name: '', phone: '', subrole: '',
-  })
-
-  useEffect(() => {
-    if (profile) {
-      setForm({
-        full_name: profile.full_name ?? '',
-        business_name: profile.business_name ?? '',
-        phone: profile.phone ?? '',
-        subrole: profile.subrole ?? '',
-      })
-    }
-  }, [profile])
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    if (!user) return
-    setError(null); setBusy(true)
-    try {
-      const { error: err } = await supabase.from('profiles').update({
-        full_name: form.full_name,
-        business_name: form.business_name || null,
-        phone: form.phone || null,
-        subrole: form.subrole || null,
-      }).eq('id', user.id)
-      if (err) throw err
-      await refreshProfile()
-      nav('/', { replace: true })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore')
-    } finally { setBusy(false) }
+  const { profile } = useAuth()
+  if (!profile) return null
+  const role = profile.role
+  if (role === 'WEDDING_PLANNER' || role === 'LOCATION' || role === 'FORNITORE') {
+    return <ProviderOnboardingWizard />
   }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center aurora py-12 px-4">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="surface surface-lift w-full max-w-lg overflow-hidden">
-        <div className="px-8 pt-8 pb-6 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-              <Sparkles size={16} strokeWidth={2.5} />
-            </span>
-            <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">
-              Benvenut* {profile?.role && `· ${profile.role.toLowerCase()}`}
-            </span>
-          </div>
-          <h1 className="font-display text-3xl">Completa il tuo profilo</h1>
-          <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
-            Aggiungi i dati di base per iniziare. Potrai aggiornarli quando vorrai.
-          </p>
-        </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-4" data-testid="onboarding-form">
-          <div className="space-y-1">
-            <Label htmlFor="full_name">Nome e cognome</Label>
-            <Input id="full_name" required value={form.full_name}
-              onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="business_name">Ragione sociale</Label>
-            <Input id="business_name" value={form.business_name}
-              onChange={(e) => setForm((f) => ({ ...f, business_name: e.target.value }))} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="phone">Telefono</Label>
-            <Input id="phone" type="tel" value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-          </div>
-          {profile?.role === 'FORNITORE' && (
-            <div className="space-y-1">
-              <Label htmlFor="subrole">Tipo fornitore</Label>
-              <Input id="subrole" value={form.subrole} placeholder="fioraio / fotografo / catering / ..."
-                onChange={(e) => setForm((f) => ({ ...f, subrole: e.target.value }))} />
-            </div>
-          )}
-          {error && <p className="text-sm text-[rgb(var(--rose-500))]" role="alert">{error}</p>}
-          <Button type="submit" variant="gold" className="w-full" disabled={busy}>
-            {busy ? 'Salvataggio...' : 'Salva e prosegui'}
-          </Button>
-        </form>
-      </motion.div>
-    </div>
-  )
+  if (role === 'COUPLE') {
+    return <CoupleOnboardingWizard />
+  }
+  return <GenericOnboardingForm />
 }

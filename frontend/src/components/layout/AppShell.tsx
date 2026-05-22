@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
             <Sparkles size={16} strokeWidth={2.5} />
           </span>
-          <span className="font-display text-lg tracking-tight" style={{ color: 'rgb(var(--fg))' }}>Wedding</span>
+          <span className="font-display text-lg tracking-tight" style={{ color: 'rgb(var(--fg))' }}>Planfully</span>
         </Link>
 
         <nav className="flex-1 px-3 py-2 space-y-0.5">
@@ -155,7 +155,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="relative w-72 flex flex-col"
               style={{ background: 'rgb(var(--bg-elev))', borderRight: '1px solid rgb(var(--border))' }}>
               <div className="px-6 pt-6 pb-4 flex items-center justify-between">
-                <span className="font-display text-lg">Wedding</span>
+                <span className="font-display text-lg">Planfully</span>
                 <button onClick={() => setMobileOpen(false)} aria-label="Chiudi">
                   <X size={20} />
                 </button>
@@ -187,7 +187,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button onClick={() => setMobileOpen(true)} aria-label="Menu">
             <Menu size={20} />
           </button>
-          <Link to="/" className="font-display text-base">Wedding</Link>
+          <Link to="/" className="font-display text-base">Planfully</Link>
           <button onClick={toggle} aria-label="Toggle theme">
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>

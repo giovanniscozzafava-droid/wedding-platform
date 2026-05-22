@@ -5,9 +5,12 @@ import {
   Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
   Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper,
 } from 'lucide-react'
+import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input, Select } from '@/components/ui/input'
+import { supabase } from '@/lib/supabase'
 import { useMyWeddings } from '@/hooks/useCouple'
 import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTables, useTimeline, useTransport, useMoodMutations, usePlaylistMutations } from '@/hooks/useWedding'
 import { useAuth } from '@/lib/auth'
@@ -73,7 +76,7 @@ export default function CoupleDashboard() {
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
               <Heart size={16} strokeWidth={2.5} fill="currentColor" />
             </span>
-            <span className="font-display text-base">Wedding</span>
+            <span className="font-display text-base">Planfully</span>
           </Link>
           <div className="text-sm text-[rgb(var(--fg-muted))]">
             {profile?.full_name ?? user?.email}
@@ -342,25 +345,77 @@ function TavoliCouple({ entryId }: { entryId: string }) {
 
 function MoodCouple({ entryId }: { entryId: string }) {
   const { data } = useMood(entryId)
-  const { remove } = useMoodMutations(entryId)
+  const { add, remove } = useMoodMutations(entryId)
+  const [pinUrl, setPinUrl] = useState('')
+  const [tag, setTag] = useState('fiori')
+  const [busy, setBusy] = useState(false)
+  const TAGS = ['vestito', 'fiori', 'location', 'torta', 'allestimento', 'altro']
+
+  async function importFromUrl() {
+    if (!pinUrl.trim()) return
+    setBusy(true)
+    try {
+      const { data: r, error } = await supabase.functions.invoke('import-pin-url', { body: { url: pinUrl } })
+      if (error) throw error
+      const j = r as { image?: string; title?: string; source_url?: string; error?: string }
+      if (j?.error || !j?.image) throw new Error(j?.error ?? 'Nessuna immagine')
+      await add.mutateAsync({
+        url: j.image, source: 'pinterest', tag,
+        source_url: j.source_url ?? pinUrl, source_title: j.title ?? null,
+        caption: j.title ?? null, ord: (data?.length ?? 0),
+      })
+      setPinUrl('')
+      toast.success('Aggiunto al mood')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setBusy(false) }
+  }
+
   return (
     <div>
-      <h2 className="font-display text-2xl mb-4">Mood board</h2>
+      <h2 className="font-display text-2xl mb-2">Mood board</h2>
       <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
-        Le ispirazioni raccolte dal vostro wedding planner. Potete aggiungere le vostre.
+        Le ispirazioni raccolte dal vostro wedding planner. Aggiungete le vostre da Pinterest, Instagram o qualsiasi pagina web.
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {(data ?? []).map((m: any) => (
-          <Card key={m.id} className="relative overflow-hidden group">
-            <img src={m.url} alt={m.caption ?? ''} className="aspect-square w-full object-cover" />
-            <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/60 text-white">{m.tag}</span>
-            <button onClick={() => remove.mutate(m.id)}
-              className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center">
-              ×
-            </button>
-          </Card>
-        ))}
-      </div>
+
+      <Card className="p-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <div className="sm:col-span-2 relative">
+            <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--fg-subtle))]" />
+            <Input className="pl-8" placeholder="Incolla URL Pinterest / Instagram / blog..."
+              value={pinUrl} onChange={(e) => setPinUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && importFromUrl()} />
+          </div>
+          <Select value={tag} onChange={(e) => setTag(e.target.value)}>
+            {TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </Select>
+          <Button variant="gold" onClick={importFromUrl} disabled={busy}>
+            {busy ? 'Importo...' : 'Aggiungi'}
+          </Button>
+        </div>
+        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">
+          Su Pinterest: Condividi → Copia link → incolla qui.
+        </p>
+      </Card>
+
+      {(data ?? []).length === 0 ? (
+        <Card className="p-10 text-center"><p className="text-[rgb(var(--fg-muted))]">Ancora vuoto. Incollate il primo URL!</p></Card>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {(data ?? []).map((m: any) => (
+            <Card key={m.id} className="relative overflow-hidden group">
+              <img src={m.url} alt={m.caption ?? ''} className="aspect-square w-full object-cover" />
+              <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/60 text-white">{m.tag}</span>
+              {m.source === 'pinterest' && (
+                <span className="absolute bottom-2 left-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[rgb(var(--rose-500))] text-white">Pin</span>
+              )}
+              <button onClick={() => remove.mutate(m.id)}
+                className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center">
+                ×
+              </button>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

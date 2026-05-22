@@ -132,7 +132,7 @@ export default function QuotePreviewPage() {
         </div>
 
         <p className="text-center text-xs text-[rgb(var(--fg-subtle))] mt-6">
-          Powered by Wedding Platform &middot; Documento riservato, condividere solo con persone autorizzate.
+          Powered by Planfully &middot; Documento riservato, condividere solo con persone autorizzate.
         </p>
       </motion.div>
     </div>

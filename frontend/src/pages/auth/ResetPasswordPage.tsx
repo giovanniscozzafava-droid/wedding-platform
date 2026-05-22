@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
             <Sparkles size={16} strokeWidth={2.5} />
           </span>
-          <span className="font-display text-lg">Wedding</span>
+          <span className="font-display text-lg">Planfully</span>
         </div>
         <h1 className="font-display text-2xl">Nuova password</h1>
         <p className="text-sm text-[rgb(var(--fg-muted))] mt-1 mb-5">

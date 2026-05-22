@@ -243,7 +243,7 @@ export default function WeddingSitePage() {
       </main>
 
       <footer className="border-t mt-12 py-8 text-center text-xs text-[rgb(var(--fg-subtle))]" style={{ borderColor: 'rgb(var(--border))' }}>
-        Wedding Platform · Sito personalizzato per il nostro grande giorno.
+        Planfully · Sito personalizzato per il nostro grande giorno.
       </footer>
     </div>
   )

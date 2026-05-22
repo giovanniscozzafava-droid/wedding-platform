@@ -6,6 +6,7 @@ import { Sparkles, Heart, Building2, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { GoogleButton } from '@/components/auth/GoogleButton'
 import { supabase } from '@/lib/supabase'
 import type { AppRole } from '@/lib/auth'
 import { cn } from '@/lib/utils'
@@ -77,7 +78,7 @@ export default function RegisterPage() {
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
               <Sparkles size={16} strokeWidth={2.5} />
             </span>
-            <span className="font-display text-lg">Wedding</span>
+            <span className="font-display text-lg">Planfully</span>
           </div>
           <h1 className="font-display text-3xl tracking-tight">Crea il tuo studio</h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">Scegli il tuo ruolo per personalizzare l'esperienza.</p>
@@ -149,6 +150,12 @@ export default function RegisterPage() {
           <Button type="submit" variant="gold" className="w-full" disabled={busy}>
             {busy ? 'Creazione...' : 'Crea account'}
           </Button>
+          <div className="flex items-center gap-2 my-2">
+            <div className="flex-1 h-px bg-[rgb(var(--border))]" />
+            <span className="text-xs text-[rgb(var(--fg-subtle))]">oppure</span>
+            <div className="flex-1 h-px bg-[rgb(var(--border))]" />
+          </div>
+          <GoogleButton label="Registrati con Google" />
           <p className="text-sm text-center text-[rgb(var(--fg-muted))]">
             Hai già un account? <Link to="/login" className="font-medium text-[rgb(var(--fg))] hover:underline">Accedi</Link>
           </p>

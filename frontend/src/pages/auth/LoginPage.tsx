@@ -5,6 +5,7 @@ import { Sparkles, Mail, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { GoogleButton } from '@/components/auth/GoogleButton'
 import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
@@ -51,7 +52,7 @@ export default function LoginPage() {
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))' }}>
               <Sparkles size={18} className="text-[rgb(var(--bg))]" strokeWidth={2.5} />
             </span>
-            <span className="font-display text-xl">Wedding</span>
+            <span className="font-display text-xl">Planfully</span>
           </Link>
 
           <div className="max-w-md">
@@ -84,7 +85,7 @@ export default function LoginPage() {
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
               <Sparkles size={18} strokeWidth={2.5} />
             </span>
-            <span className="font-display text-xl">Wedding</span>
+            <span className="font-display text-xl">Planfully</span>
           </div>
           <div>
             <h2 className="font-display text-3xl tracking-tight">Bentornat*</h2>
@@ -115,6 +116,12 @@ export default function LoginPage() {
             <Button type="submit" variant="gold" className="w-full" disabled={busy}>
               {busy ? 'Attendi...' : magicMode ? 'Invia magic link' : 'Accedi'}
             </Button>
+            <div className="flex items-center gap-2 my-2">
+              <div className="flex-1 h-px bg-[rgb(var(--border))]" />
+              <span className="text-xs text-[rgb(var(--fg-subtle))]">oppure</span>
+              <div className="flex-1 h-px bg-[rgb(var(--border))]" />
+            </div>
+            <GoogleButton />
             <div className="flex justify-between text-sm">
               <button type="button" className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:underline"
                 onClick={() => { setMagicMode((m) => !m); setError(null); setInfo(null) }}>

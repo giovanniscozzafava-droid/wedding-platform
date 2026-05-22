@@ -50,3 +50,4 @@ supabase/.env
 
 # Vercel
 .vercel
+.env*.local

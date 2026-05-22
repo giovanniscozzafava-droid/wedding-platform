@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Trash2, Search } from 'lucide-react'
+import { Trash2, Search, Link as LinkIcon, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
+import { supabase } from '@/lib/supabase'
 import { useMood, useMoodMutations } from '@/hooks/useWedding'
 
 const TAGS = ['vestito', 'fiori', 'location', 'torta', 'allestimento', 'altro']
@@ -15,6 +16,9 @@ export function MoodTab({ entryId }: { entryId: string }) {
   const [tag, setTag] = useState('fiori')
   const [results, setResults] = useState<Array<{ src: { medium: string; large: string } }>>([])
   const [busy, setBusy] = useState(false)
+  const [pinUrl, setPinUrl] = useState('')
+  const [pinBusy, setPinBusy] = useState(false)
+  const [mode, setMode] = useState<'pexels' | 'pinterest'>('pexels')
 
   async function searchPexels() {
     if (!search.trim()) return
@@ -35,53 +39,120 @@ export function MoodTab({ entryId }: { entryId: string }) {
     catch (e) { toast.error((e as Error).message) }
   }
 
+  async function importFromUrl() {
+    if (!pinUrl.trim()) return
+    setPinBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('import-pin-url', { body: { url: pinUrl } })
+      if (error) throw error
+      const j = data as { image?: string; title?: string; source_url?: string; error?: string }
+      if (j?.error || !j?.image) throw new Error(j?.error ?? 'Nessuna immagine trovata')
+      await add.mutateAsync({
+        url: j.image, source: 'pinterest', tag,
+        source_url: j.source_url ?? pinUrl,
+        source_title: j.title ?? null,
+        caption: j.title ?? null,
+        ord: (images?.length ?? 0),
+      })
+      setPinUrl('')
+      toast.success('Importato da Pinterest')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setPinBusy(false) }
+  }
+
   return (
     <div>
       <header className="mb-6">
         <h2 className="font-display text-2xl">Mood board</h2>
-        <p className="text-sm text-[rgb(var(--fg-muted))]">Cerca su Pexels e aggiungi reference per ispirazione cliente/fornitori.</p>
+        <p className="text-sm text-[rgb(var(--fg-muted))]">Pexels per stock, oppure incolla qualsiasi URL (Pinterest, Instagram, blog) per importare l'immagine.</p>
       </header>
 
+      <div className="flex gap-2 mb-3">
+        <button onClick={() => setMode('pexels')}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${mode === 'pexels' ? 'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))]' : 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]'}`}>
+          <ImageIcon size={12} className="inline mr-1" /> Pexels
+        </button>
+        <button onClick={() => setMode('pinterest')}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${mode === 'pinterest' ? 'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))]' : 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]'}`}>
+          <LinkIcon size={12} className="inline mr-1" /> Importa da URL
+        </button>
+      </div>
+
       <Card className="p-4 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-          <div className="sm:col-span-2 relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--fg-subtle))]" />
-            <Input className="pl-8" placeholder="Es. peonie bianche bouquet..."
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && searchPexels()} />
-          </div>
-          <Select value={tag} onChange={(e) => setTag(e.target.value)}>
-            {TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
-          </Select>
-          <Button variant="gold" onClick={searchPexels} disabled={busy}>
-            {busy ? 'Cerco...' : 'Cerca su Pexels'}
-          </Button>
-        </div>
-        {results.length > 0 && (
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-4">
-            {results.map((p, i) => (
-              <button key={i} onClick={() => pickPhoto(p.src.large)}
-                className="aspect-square rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] hover:ring-2 hover:ring-[rgb(var(--gold-500))]">
-                <img src={p.src.medium} alt="" className="h-full w-full object-cover" />
-              </button>
-            ))}
-          </div>
+        {mode === 'pexels' ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <div className="sm:col-span-2 relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--fg-subtle))]" />
+                <Input className="pl-8" placeholder="Es. peonie bianche bouquet..."
+                  value={search} onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && searchPexels()} />
+              </div>
+              <Select value={tag} onChange={(e) => setTag(e.target.value)}>
+                {TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </Select>
+              <Button variant="gold" onClick={searchPexels} disabled={busy}>
+                {busy ? 'Cerco...' : 'Cerca su Pexels'}
+              </Button>
+            </div>
+            {results.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-4">
+                {results.map((p, i) => (
+                  <button key={i} onClick={() => pickPhoto(p.src.large)}
+                    className="aspect-square rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] hover:ring-2 hover:ring-[rgb(var(--gold-500))]">
+                    <img src={p.src.medium} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <div className="sm:col-span-2 relative">
+                <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--fg-subtle))]" />
+                <Input className="pl-8" placeholder="https://pinterest.com/pin/... o pin.it/..."
+                  value={pinUrl} onChange={(e) => setPinUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && importFromUrl()} />
+              </div>
+              <Select value={tag} onChange={(e) => setTag(e.target.value)}>
+                {TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </Select>
+              <Button variant="gold" onClick={importFromUrl} disabled={pinBusy}>
+                {pinBusy ? 'Importo...' : 'Importa'}
+              </Button>
+            </div>
+            <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">
+              Suggerimento: apri il pin su Pinterest, clicca "Condividi → Copia link", poi incolla qui.
+              Funziona anche con link diretti a immagini.
+            </p>
+          </>
         )}
       </Card>
 
       <h3 className="font-display text-lg mb-3">Board ({images?.length ?? 0})</h3>
       {(images ?? []).length === 0 ? (
-        <Card className="p-10 text-center"><p className="text-[rgb(var(--fg-muted))]">Mood board vuoto. Cerca su Pexels per iniziare.</p></Card>
+        <Card className="p-10 text-center"><p className="text-[rgb(var(--fg-muted))]">Mood board vuoto. Cerca su Pexels o incolla un URL per iniziare.</p></Card>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {(images ?? []).map((m: any) => (
             <Card key={m.id} className="relative overflow-hidden group">
               <img src={m.url} alt={m.caption ?? ''} className="aspect-square w-full object-cover" />
               <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/60 text-white">{m.tag}</span>
+              {m.source === 'pinterest' && (
+                <span className="absolute bottom-2 left-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[rgb(var(--rose-500))] text-white">Pin</span>
+              )}
               <button onClick={() => remove.mutate(m.id)}
                 className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center">
                 <Trash2 size={12} />
               </button>
+              {m.source_url && (
+                <a href={m.source_url} target="_blank" rel="noreferrer"
+                  className="absolute bottom-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center"
+                  title="Apri sorgente">
+                  <LinkIcon size={12} />
+                </a>
+              )}
             </Card>
           ))}
         </div>

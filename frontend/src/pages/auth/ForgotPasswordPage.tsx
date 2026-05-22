@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
             <Sparkles size={16} strokeWidth={2.5} />
           </span>
-          <span className="font-display text-lg">Wedding</span>
+          <span className="font-display text-lg">Planfully</span>
         </Link>
         {sent ? (
           <div className="text-center" data-testid="forgot-sent">

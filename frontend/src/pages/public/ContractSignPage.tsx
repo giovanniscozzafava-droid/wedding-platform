@@ -131,7 +131,7 @@ export default function ContractSignPage() {
           <div className="h-2" style={{ background: primary }} />
         </div>
         <p className="text-center text-xs text-[rgb(var(--fg-subtle))] mt-6">
-          Documento legale · powered by Wedding Platform.
+          Documento legale · powered by Planfully.
         </p>
       </motion.div>
     </div>
