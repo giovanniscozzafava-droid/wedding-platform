@@ -26,6 +26,10 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
   if (!session) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
+  // COUPLE: forziamo accesso a /couple (no sidebar capostipite, no /weddings, no /quotes)
+  if (profile?.role === 'COUPLE' && !location.pathname.startsWith('/couple') && location.pathname !== '/profile') {
+    return <Navigate to="/couple" replace />
+  }
   if (roles && profile && !roles.includes(profile.role)) {
     return (
       <AppShell>

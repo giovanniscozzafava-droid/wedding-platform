@@ -22,6 +22,8 @@ import ContractSignPage from '@/pages/public/ContractSignPage'
 import WeddingSitePage from '@/pages/public/WeddingSitePage'
 import WeddingsPage from '@/pages/WeddingsPage'
 import WeddingDashboard from '@/pages/wedding/WeddingDashboard'
+import CoupleDashboard from '@/pages/couple/CoupleDashboard'
+import CoupleAcceptPage from '@/pages/couple/CoupleAcceptPage'
 
 export default function App() {
   return (
@@ -125,6 +127,12 @@ export default function App() {
           <Route path="/p/reject/:token" element={<QuoteRejectPage />} />
           <Route path="/p/contract/:token" element={<ContractSignPage />} />
           <Route path="/w/:slug" element={<WeddingSitePage />} />
+          <Route path="/couple/accept/:token" element={
+            <RequireAuth bare><CoupleAcceptPage /></RequireAuth>
+          } />
+          <Route path="/couple" element={
+            <RequireAuth bare roles={['COUPLE', 'ADMIN']}><CoupleDashboard /></RequireAuth>
+          } />
           <Route
             path="/"
             element={

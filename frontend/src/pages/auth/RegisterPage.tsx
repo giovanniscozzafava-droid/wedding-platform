@@ -17,7 +17,7 @@ const ROLES: Array<{ value: AppRole; label: string; description: string; icon: t
 ]
 
 const SUBROLE_BY_ROLE: Record<AppRole, string[]> = {
-  WEDDING_PLANNER: [], LOCATION: [], ADMIN: [],
+  WEDDING_PLANNER: [], LOCATION: [], ADMIN: [], COUPLE: [],
   FORNITORE: ['fioraio', 'fotografo', 'catering', 'musicisti', 'altro'],
 }
 

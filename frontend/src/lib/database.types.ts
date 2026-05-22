@@ -1779,6 +1779,67 @@ export type Database = {
           },
         ]
       }
+      wedding_couple_members: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          entry_id: string
+          full_name: string | null
+          id: string
+          invite_token: string
+          invited_at: string
+          role: Database["public"]["Enums"]["couple_role"]
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          entry_id: string
+          full_name?: string | null
+          id?: string
+          invite_token?: string
+          invited_at?: string
+          role?: Database["public"]["Enums"]["couple_role"]
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          entry_id?: string
+          full_name?: string | null
+          id?: string
+          invite_token?: string
+          invited_at?: string
+          role?: Database["public"]["Enums"]["couple_role"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wedding_couple_members_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wedding_couple_members_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wedding_couple_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wedding_tasks: {
         Row: {
           created_at: string
@@ -1918,6 +1979,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      couple_accept_invite: { Args: { p_token: string }; Returns: boolean }
       has_active_collab_with_supplier: {
         Args: { p_supplier: string }
         Returns: boolean
@@ -1925,6 +1987,7 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_entry_participant: { Args: { p_entry: string }; Returns: boolean }
       is_quote_owner: { Args: { p_quote: string }; Returns: boolean }
+      is_wedding_couple: { Args: { p_entry: string }; Returns: boolean }
       quote_accept_by_token: { Args: { p_token: string }; Returns: boolean }
       quote_get_by_token: { Args: { p_token: string }; Returns: Json }
       quote_pick_alternative: {
@@ -1977,6 +2040,7 @@ export type Database = {
         | "RESORT"
       collaboration_status: "PENDING" | "ACTIVE" | "REVOKED"
       contract_status: "BOZZA" | "INVIATO" | "FIRMATO" | "ANNULLATO"
+      couple_role: "SPOSO" | "SPOSA" | "PARTNER" | "PERSONA_DI_FIDUCIA"
       entry_status:
         | "IN_TRATTATIVA"
         | "OPZIONATA"
@@ -2031,7 +2095,12 @@ export type Database = {
         | "TAXI_NCC"
         | "BARCA"
         | "ALTRO"
-      user_role: "WEDDING_PLANNER" | "LOCATION" | "FORNITORE" | "ADMIN"
+      user_role:
+        | "WEDDING_PLANNER"
+        | "LOCATION"
+        | "FORNITORE"
+        | "ADMIN"
+        | "COUPLE"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2169,6 +2238,7 @@ export const Constants = {
       ],
       collaboration_status: ["PENDING", "ACTIVE", "REVOKED"],
       contract_status: ["BOZZA", "INVIATO", "FIRMATO", "ANNULLATO"],
+      couple_role: ["SPOSO", "SPOSA", "PARTNER", "PERSONA_DI_FIDUCIA"],
       entry_status: [
         "IN_TRATTATIVA",
         "OPZIONATA",
@@ -2228,7 +2298,13 @@ export const Constants = {
         "BARCA",
         "ALTRO",
       ],
-      user_role: ["WEDDING_PLANNER", "LOCATION", "FORNITORE", "ADMIN"],
+      user_role: [
+        "WEDDING_PLANNER",
+        "LOCATION",
+        "FORNITORE",
+        "ADMIN",
+        "COUPLE",
+      ],
     },
   },
 } as const
