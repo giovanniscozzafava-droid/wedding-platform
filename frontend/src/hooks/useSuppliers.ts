@@ -95,14 +95,17 @@ export function useSupplier(id: string | null) {
 
 export type InviteSupplierResult = {
   ok: true
-  mode: 'collab_direct' | 'email_sent'
+  mode: 'collab_direct' | 'email_sent' | 'link_only' | 'email_failed_link_fallback'
   invite_id?: string
+  accept_url?: string
+  token?: string
+  email_error?: string
 }
 
 export function useInviteSupplier() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (payload: { email: string; subrole?: string; message?: string }) => {
+    mutationFn: async (payload: { email: string; subrole?: string; message?: string; skip_email?: boolean }) => {
       const { data, error } = await supabase.functions.invoke('invite-supplier', { body: payload })
       if (error) {
         // FunctionsHttpError espone la Response in .context — estrai il body JSON per il messaggio chiaro
@@ -127,6 +130,7 @@ export function useInviteSupplier() {
 export type SupplierInvite = {
   id: string
   email: string
+  token: string
   status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'CANCELED'
   subrole_hint: string | null
   message: string | null
@@ -141,7 +145,7 @@ export function useSupplierInvites() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('supplier_invites')
-        .select('id, email, status, subrole_hint, message, invited_at, accepted_at, expires_at')
+        .select('id, email, token, status, subrole_hint, message, invited_at, accepted_at, expires_at')
         .order('invited_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as SupplierInvite[]

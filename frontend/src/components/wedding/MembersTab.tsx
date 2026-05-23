@@ -66,7 +66,8 @@ export function MembersTab({ entryId }: { entryId: string }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(members ?? []).map((m) => {
-          const inviteUrl = `${window.location.origin}/couple/accept/${m.invite_token}`
+          const inviteUrl = `${window.location.origin}/invito-coppia/${m.invite_token}`
+          const waText = `Ciao ${m.full_name ?? ''}! Ti invito al vostro matrimonio su Planfully. Apri questo link e crea il tuo account: ${inviteUrl}`
           return (
             <Card key={m.id} className="p-5">
               <div className="flex items-start justify-between gap-3 mb-3">
@@ -84,23 +85,35 @@ export function MembersTab({ entryId }: { entryId: string }) {
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => remove.mutate(m.id)}><Trash2 size={14} /></Button>
               </div>
-              <div className="pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-                <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-muted))] mb-1">Link invito</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs bg-[rgb(var(--bg-sunken))] px-2 py-1 rounded truncate">
-                    {inviteUrl}
-                  </code>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    navigator.clipboard.writeText(inviteUrl)
-                    toast.success('Link copiato')
-                  }}>
-                    <Copy size={12} />
-                  </Button>
+              {!m.accepted_at && (
+                <div className="pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-muted))] mb-1">Link invito</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs bg-[rgb(var(--bg-sunken))] px-2 py-1 rounded truncate">
+                      {inviteUrl}
+                    </code>
+                    <Button variant="outline" size="sm" onClick={() => {
+                      navigator.clipboard.writeText(inviteUrl)
+                      toast.success('Link copiato')
+                    }}>
+                      <Copy size={12} />
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <a href={`https://wa.me/?text=${encodeURIComponent(waText)}`} target="_blank" rel="noreferrer"
+                      className="flex-1 text-xs text-center rounded-md border border-[rgb(var(--border))] px-2 py-1.5 hover:bg-[rgb(var(--bg-sunken))]">
+                      WhatsApp
+                    </a>
+                    <a href={`mailto:${m.email}?subject=${encodeURIComponent('Il vostro matrimonio su Planfully')}&body=${encodeURIComponent(waText)}`}
+                      className="flex-1 text-xs text-center rounded-md border border-[rgb(var(--border))] px-2 py-1.5 hover:bg-[rgb(var(--bg-sunken))]">
+                      Email
+                    </a>
+                  </div>
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
+                    Aprendolo, la sposa/sposo crea l'account (o accede se ne ha già uno) e viene collegata al matrimonio.
+                  </p>
                 </div>
-                <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
-                  Lo sposo deve registrarsi su /register con questa email e poi cliccare il link.
-                </p>
-              </div>
+              )}
             </Card>
           )
         })}

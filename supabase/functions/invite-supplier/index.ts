@@ -44,23 +44,22 @@ Deno.serve(async (req) => {
   const callerId = me.user.id
 
   const body = (await req.json().catch(() => ({}))) as {
-    email?: string; subrole?: string; message?: string
+    email?: string; subrole?: string; message?: string; skip_email?: boolean
   }
   const email = (body.email ?? '').trim().toLowerCase()
   if (!email || !email.includes('@')) return json({ error: 'invalid email' }, 400)
+  const skipEmail = body.skip_email === true
 
   // 1. Cerca user esistente per email
   const { data: existing } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
   const found = existing?.users?.find((u: any) => u.email?.toLowerCase() === email)
 
   if (found) {
-    // verifica che sia FORNITORE
     const { data: prof } = await admin.from('profiles').select('id, role').eq('id', found.id).maybeSingle()
     if (!prof) return json({ error: 'profilo non trovato per utente' }, 404)
     if (prof.role !== 'FORNITORE') {
       return json({ error: `utente esiste ma il suo ruolo è ${prof.role}, non FORNITORE` }, 409)
     }
-    // crea collaboration PENDING
     const { error: e } = await admin.from('collaborations')
       .insert({ capostipite_id: callerId, fornitore_id: prof.id, status: 'PENDING' })
     if (e && !String(e.message).includes('duplicate')) return json({ error: e.message }, 500)
@@ -83,8 +82,14 @@ Deno.serve(async (req) => {
     return json({ error: insErr.message }, 500)
   }
 
-  // 3. Manda email Supabase nativa con metadata + redirect a onboarding
-  const redirectTo = `${APP_BASE}/onboarding?invite=${invite.token}`
+  const acceptUrl = `${APP_BASE}/invito-fornitore/${invite.token}`
+
+  if (skipEmail) {
+    // Solo link, no email send (WP copia + manda manualmente via WhatsApp/etc)
+    return json({ ok: true, mode: 'link_only', invite_id: invite.id, accept_url: acceptUrl, token: invite.token })
+  }
+
+  // 3. Manda email Supabase nativa con metadata + redirect a /invito-fornitore
   const { error: invErr } = await admin.auth.admin.inviteUserByEmail(email, {
     data: {
       role: 'FORNITORE',
@@ -92,13 +97,16 @@ Deno.serve(async (req) => {
       invite_token: invite.token,
       invited_by: callerId,
     },
-    redirectTo,
+    redirectTo: acceptUrl,
   })
   if (invErr) {
-    // rollback record invito
-    await admin.from('supplier_invites').delete().eq('id', invite.id)
-    return json({ error: 'invio email fallito: ' + invErr.message }, 500)
+    // Email fallita ma record c'e': ritorna link comunque
+    return json({
+      ok: true, mode: 'email_failed_link_fallback', invite_id: invite.id,
+      accept_url: acceptUrl, token: invite.token,
+      email_error: invErr.message,
+    })
   }
 
-  return json({ ok: true, mode: 'email_sent', invite_id: invite.id })
+  return json({ ok: true, mode: 'email_sent', invite_id: invite.id, accept_url: acceptUrl, token: invite.token })
 })

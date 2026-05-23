@@ -24,6 +24,8 @@ import WeddingsPage from '@/pages/WeddingsPage'
 import WeddingDashboard from '@/pages/wedding/WeddingDashboard'
 import CoupleDashboard from '@/pages/couple/CoupleDashboard'
 import CoupleAcceptPage from '@/pages/couple/CoupleAcceptPage'
+import SupplierInviteAcceptPage from '@/pages/public/SupplierInviteAcceptPage'
+import CoupleInviteAcceptPage from '@/pages/public/CoupleInviteAcceptPage'
 
 export default function App() {
   return (
@@ -130,6 +132,8 @@ export default function App() {
           <Route path="/couple/accept/:token" element={
             <RequireAuth bare><CoupleAcceptPage /></RequireAuth>
           } />
+          <Route path="/invito-fornitore/:token" element={<SupplierInviteAcceptPage />} />
+          <Route path="/invito-coppia/:token" element={<CoupleInviteAcceptPage />} />
           <Route path="/couple" element={
             <RequireAuth bare roles={['COUPLE', 'ADMIN']}><CoupleDashboard /></RequireAuth>
           } />

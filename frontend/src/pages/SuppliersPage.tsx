@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, UserPlus, Mail, PackageSearch, ImageIcon, ArrowUpRight, Clock, X } from 'lucide-react'
+import { Plus, UserPlus, Mail, PackageSearch, ImageIcon, ArrowUpRight, Clock, X, Link2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -46,15 +46,36 @@ export default function SuppliersPage() {
   const [email, setEmail] = useState('')
   const [subrole, setSubrole] = useState('')
   const [message, setMessage] = useState('')
+  const [linkResult, setLinkResult] = useState<{ url: string; email: string } | null>(null)
 
-  async function submitInvite() {
+  async function submitInvite(opts: { skipEmail?: boolean } = {}) {
     try {
-      const r = await invite.mutateAsync({ email, subrole: subrole || undefined, message: message || undefined })
-      if (r.mode === 'email_sent') toast.success(`Invito inviato a ${email}. Riceverà email da Supabase.`)
-      else toast.success(`${email} è già su Planfully — collaboration creata in PENDING.`)
-      setInviteOpen(false); setEmail(''); setSubrole(''); setMessage('')
+      const r = await invite.mutateAsync({
+        email, subrole: subrole || undefined, message: message || undefined,
+        skip_email: opts.skipEmail,
+      })
+      if (r.mode === 'collab_direct') {
+        toast.success(`${email} è già su Planfully — collaboration creata in PENDING.`)
+        setInviteOpen(false); setEmail(''); setSubrole(''); setMessage('')
+      } else if (r.accept_url) {
+        // link-only o email_sent: in entrambi i casi mostra il link copiabile
+        setLinkResult({ url: r.accept_url, email })
+        if (r.mode === 'email_sent') toast.success(`Email inviata a ${email}.`)
+        else if (r.mode === 'email_failed_link_fallback') toast.message('Email non inviata, usa il link sotto.')
+        else toast.success('Link invito generato.')
+        setInviteOpen(false); setEmail(''); setSubrole(''); setMessage('')
+      }
     } catch (e) {
       toast.error((e as Error).message)
+    }
+  }
+
+  async function copyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Link copiato')
+    } catch {
+      toast.error('Copia manuale: ' + url)
     }
   }
 
@@ -92,6 +113,13 @@ export default function SuppliersPage() {
                       {p.subrole_hint && <Badge tone={SUBROLE_TONE[p.subrole_hint] ?? 'neutral'}>{p.subrole_hint}</Badge>}
                     </div>
                   </div>
+                  <button onClick={() => {
+                    void copyLink(`${window.location.origin}/invito-fornitore/${p.token}`)
+                  }}
+                    className="h-7 w-7 rounded-full hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center text-[rgb(var(--fg-muted))]"
+                    title="Copia link invito">
+                    <Copy size={12} />
+                  </button>
                   <button onClick={() => {
                     if (!confirm(`Annullare invito a ${p.email}?`)) return
                     cancelInvite.mutate(p.id, {
@@ -190,8 +218,8 @@ export default function SuppliersPage() {
           <div className="surface surface-lift w-full max-w-md p-6">
             <h2 className="font-display text-xl mb-1">Invita un fornitore</h2>
             <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
-              Riceverà un'email con magic link per registrarsi e completare il profilo.
-              Se è già su Planfully, creiamo direttamente la collaborazione.
+              Genera un link da mandare via WhatsApp/email, oppure invia mail automatica.
+              Se l'email è già su Planfully, creiamo subito la collaborazione.
             </p>
             <div className="space-y-3">
               <div className="space-y-1">
@@ -210,12 +238,43 @@ export default function SuppliersPage() {
                 <Textarea id="invite-msg" rows={3} value={message} onChange={(e) => setMessage(e.target.value)}
                   placeholder="Es. Ciao Anna, vorrei collegarti come fioraia di fiducia su Planfully." />
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setInviteOpen(false)}>Annulla</Button>
-                <Button variant="gold" onClick={submitInvite} disabled={!email || invite.isPending}>
-                  {invite.isPending ? 'Invio...' : 'Invita'}
+              <div className="flex flex-col gap-2 pt-2">
+                <Button variant="gold" onClick={() => submitInvite({ skipEmail: true })} disabled={!email || invite.isPending}>
+                  <Link2 size={14} /> {invite.isPending ? '…' : 'Genera link (no email)'}
                 </Button>
+                <Button variant="outline" onClick={() => submitInvite({ skipEmail: false })} disabled={!email || invite.isPending}>
+                  <Mail size={14} /> Invia email + link
+                </Button>
+                <Button variant="ghost" onClick={() => setInviteOpen(false)}>Annulla</Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {linkResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="surface surface-lift w-full max-w-lg p-6">
+            <h2 className="font-display text-xl mb-1">Link invito pronto</h2>
+            <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
+              Mandalo a <strong>{linkResult.email}</strong> via WhatsApp, email, SMS o come preferisci.
+              Cliccandolo arriverà sulla pagina per creare l'account.
+            </p>
+            <div className="rounded-lg border p-3 bg-[rgb(var(--bg-sunken))] break-all text-xs font-mono"
+              style={{ borderColor: 'rgb(var(--border))' }}>
+              {linkResult.url}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
+              <Button variant="gold" className="flex-1" onClick={() => copyLink(linkResult.url)}>
+                <Copy size={14} /> Copia link
+              </Button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Ciao! Ti ho invitato come fornitore su Planfully. Crea il tuo account qui: ${linkResult.url}`)}`}
+                target="_blank" rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgb(var(--border))] px-3 py-2 text-sm hover:bg-[rgb(var(--bg-sunken))]">
+                WhatsApp
+              </a>
+              <Button variant="outline" onClick={() => setLinkResult(null)}>Chiudi</Button>
             </div>
           </div>
         </div>
