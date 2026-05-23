@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import {  ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
@@ -142,10 +142,8 @@ export function ProviderOnboardingWizard() {
   return (
     <div className="min-h-screen aurora py-10 px-4">
       <div className="max-w-2xl mx-auto">
-        <header className="mb-6 flex items-center gap-3">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-            <Sparkles size={18} strokeWidth={2.5} />
-          </span>
+        <header className="mb-6 flex items-center gap-3" style={{ color: 'rgb(var(--fg))' }}>
+          <img src="/brand/planfully-symbol.svg" alt="" className="h-9 w-9" />
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Onboarding fornitore</p>
             <h1 className="font-display text-2xl">Costruiamo il tuo profilo</h1>

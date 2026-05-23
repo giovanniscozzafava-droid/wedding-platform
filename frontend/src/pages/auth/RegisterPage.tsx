@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { z } from 'zod'
-import { Sparkles, Heart, Building2, Camera } from 'lucide-react'
+import {  Heart, Building2, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -75,9 +75,7 @@ export default function RegisterPage() {
         className="w-full max-w-xl surface surface-lift overflow-hidden">
         <div className="px-8 pt-8 pb-6 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-              <Sparkles size={16} strokeWidth={2.5} />
-            </span>
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" style={{ color: 'rgb(var(--fg))' }} />
             <span className="font-display text-lg">Planfully</span>
           </div>
           <h1 className="font-display text-3xl tracking-tight">Crea il tuo studio</h1>

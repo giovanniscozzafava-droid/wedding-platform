@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles, Mail, Lock } from 'lucide-react'
+import {  Mail, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -48,10 +48,8 @@ export default function LoginPage() {
         <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.6) 0%, rgba(126,102,51,0.4) 100%)' }} />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
           className="relative z-10 flex flex-col justify-between w-full">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))' }}>
-              <Sparkles size={18} className="text-[rgb(var(--bg))]" strokeWidth={2.5} />
-            </span>
+          <Link to="/" className="inline-flex items-center gap-2 text-white">
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-9 w-9 invert" />
             <span className="font-display text-xl">Planfully</span>
           </Link>
 
@@ -81,10 +79,8 @@ export default function LoginPage() {
       <div className="lg:col-span-2 flex items-center justify-center p-6 sm:p-10" style={{ background: 'rgb(var(--bg-elev))' }}>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
           className="w-full max-w-sm space-y-6">
-          <div className="lg:hidden flex items-center gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-              <Sparkles size={18} strokeWidth={2.5} />
-            </span>
+          <div className="lg:hidden flex items-center gap-2" style={{ color: 'rgb(var(--fg))' }}>
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-9 w-9" />
             <span className="font-display text-xl">Planfully</span>
           </div>
           <div>

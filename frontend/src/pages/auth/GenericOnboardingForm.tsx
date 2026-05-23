@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
+import {} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,9 +43,7 @@ export function GenericOnboardingForm() {
         className="surface surface-lift w-full max-w-lg overflow-hidden">
         <div className="px-8 pt-8 pb-6 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-              <Sparkles size={16} strokeWidth={2.5} />
-            </span>
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" style={{ color: 'rgb(var(--fg))' }} />
             <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Benvenut*</span>
           </div>
           <h1 className="font-display text-3xl">Completa il tuo profilo</h1>

@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles, Mail, CheckCircle2 } from 'lucide-react'
+import {  Mail, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,10 +31,8 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center aurora px-4">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="surface surface-lift w-full max-w-md p-8">
-        <Link to="/login" className="inline-flex items-center gap-2 mb-6">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-            <Sparkles size={16} strokeWidth={2.5} />
-          </span>
+        <Link to="/login" className="inline-flex items-center gap-2 mb-6" style={{ color: 'rgb(var(--fg))' }}>
+          <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" />
           <span className="font-display text-lg">Planfully</span>
         </Link>
         {sent ? (
