@@ -75,14 +75,26 @@ export default function LoginPage() {
         </motion.div>
       </div>
 
+      {/* Hero mobile (foto + titolo) */}
+      <div className="lg:hidden relative h-[40vh] min-h-[260px] overflow-hidden text-white">
+        <img src="/hero/auth.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.55) 0%, rgba(126,102,51,0.45) 100%)' }} />
+        <div className="relative z-10 h-full flex flex-col justify-between p-6">
+          <Link to="/" className="inline-flex items-center gap-2 text-white">
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8 invert" />
+            <span className="font-display text-lg">Planfully</span>
+          </Link>
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] mb-2 text-white/80">Network · Italia</p>
+            <h1 className="font-display text-2xl leading-tight">Una piattaforma per chi orchestra matrimoni.</h1>
+          </div>
+        </div>
+      </div>
+
       {/* Form panel */}
       <div className="lg:col-span-2 flex items-center justify-center p-6 sm:p-10" style={{ background: 'rgb(var(--bg-elev))' }}>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
           className="w-full max-w-sm space-y-6">
-          <div className="lg:hidden flex items-center gap-2" style={{ color: 'rgb(var(--fg))' }}>
-            <img src="/brand/planfully-symbol.svg" alt="" className="h-9 w-9" />
-            <span className="font-display text-xl">Planfully</span>
-          </div>
           <div>
             <h2 className="font-display text-3xl tracking-tight">Bentornat*</h2>
             <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">Accedi con le tue credenziali o un magic link.</p>

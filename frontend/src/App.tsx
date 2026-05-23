@@ -26,6 +26,10 @@ import CoupleDashboard from '@/pages/couple/CoupleDashboard'
 import CoupleAcceptPage from '@/pages/couple/CoupleAcceptPage'
 import SupplierInviteAcceptPage from '@/pages/public/SupplierInviteAcceptPage'
 import CoupleInviteAcceptPage from '@/pages/public/CoupleInviteAcceptPage'
+import PrivacyPage from '@/pages/public/PrivacyPage'
+import CookiePage from '@/pages/public/CookiePage'
+import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
+import { CookieBanner } from '@/components/CookieBanner'
 
 export default function App() {
   return (
@@ -134,6 +138,9 @@ export default function App() {
           } />
           <Route path="/invito-fornitore/:token" element={<SupplierInviteAcceptPage />} />
           <Route path="/invito-coppia/:token" element={<CoupleInviteAcceptPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/cookie" element={<CookiePage />} />
+          <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
           <Route path="/couple" element={
             <RequireAuth bare roles={['COUPLE', 'ADMIN']}><CoupleDashboard /></RequireAuth>
           } />
@@ -147,6 +154,7 @@ export default function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <CookieBanner />
       </AuthProvider>
     </BrowserRouter>
   )

@@ -14,7 +14,7 @@ import {
   LogOut,
   Menu,
   X,
-  
+  Calculator,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth'
@@ -47,6 +47,10 @@ const NAV_TAIL: NavItem[] = [
   { to: '/profile',    label: 'Profilo',  icon: UserRound },
 ]
 
+const NAV_FORN: NavItem[] = [
+  { to: '/calcolatore', label: 'Calcolatore', icon: Calculator },
+]
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile, user, signOut } = useAuth()
   const { theme, toggle } = useTheme()
@@ -54,7 +58,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nav = useNavigate()
 
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
-  const NAV = isCapostipite ? [...NAV_BASE, ...NAV_CAPOSTIPITE, ...NAV_TAIL] : [...NAV_BASE, ...NAV_TAIL]
+  const isFornitore = profile?.role === 'FORNITORE'
+  const NAV = isCapostipite
+    ? [...NAV_BASE, ...NAV_CAPOSTIPITE, ...NAV_TAIL]
+    : isFornitore
+    ? [...NAV_BASE, ...NAV_FORN, ...NAV_TAIL]
+    : [...NAV_BASE, ...NAV_TAIL]
 
   const initials =
     (profile?.full_name ?? user?.email ?? '?')
