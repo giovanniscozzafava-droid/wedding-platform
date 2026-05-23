@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Plus, Trash2, CheckSquare } from 'lucide-react'
+import { Plus, Trash2, CheckSquare, Download } from 'lucide-react'
+import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -37,6 +38,29 @@ export function ChecklistTab({ entryId }: { entryId: string }) {
   const tot = tasks?.length ?? 0
   const pct = tot > 0 ? Math.round((done / tot) * 100) : 0
 
+  function exportPdf() {
+    const rows: any[] = []
+    for (const p of PHASES) {
+      const items = tasksByPhase(p.key)
+      if (items.length === 0) continue
+      rows.push({ phase: p.label, title: `── ${items.length} task ──`, done: '' })
+      for (const t of items as any[]) {
+        rows.push({ phase: '', title: t.title, done: t.done ? '✓' : '☐', due: t.due_at ?? '' })
+      }
+    }
+    exportTableToPdf({
+      title: 'Checklist matrimonio',
+      subtitle: `${done}/${tot} completati (${pct}%)`,
+      filename: 'checklist.pdf',
+      columns: [
+        { header: 'Fase', key: 'phase', width: 35 },
+        { header: 'Task', key: 'title', width: 110 },
+        { header: 'Stato', key: 'done' },
+      ],
+      rows,
+    })
+  }
+
   return (
     <div>
       <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
@@ -44,6 +68,7 @@ export function ChecklistTab({ entryId }: { entryId: string }) {
           <h2 className="font-display text-2xl">Checklist matrimonio</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Task organizzati per fase. {done}/{tot} completati ({pct}%).</p>
         </div>
+        <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
         <div className="flex-1 max-w-md">
           <div className="h-2 rounded-full bg-[rgb(var(--bg-sunken))] overflow-hidden">
             <div className="h-full bg-[rgb(var(--emerald-500))]" style={{ width: `${pct}%` }} />

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Plus, Trash2, Gift, Package } from 'lucide-react'
+import { Plus, Trash2, Gift, Package, Download } from 'lucide-react'
+import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -54,6 +55,30 @@ export function GadgetsTab({ entryId }: { entryId: string }) {
   const totalCost = (data ?? []).reduce((s: number, g: any) => s + Number(g.total_cost ?? 0), 0)
   const ordered = (data ?? []).filter((g: any) => g.status === 'ORDINATO' || g.status === 'RICEVUTO' || g.status === 'CONSEGNATO').length
 
+  function exportPdf() {
+    exportTableToPdf({
+      title: 'Bomboniere & gadget',
+      subtitle: `${data?.length ?? 0} voci · €${totalCost.toLocaleString('it-IT', { maximumFractionDigits: 0 })}`,
+      filename: 'bomboniere-gadget.pdf',
+      landscape: true,
+      columns: [
+        { header: 'Tipo', key: 'kind', width: 28 },
+        { header: 'Nome', key: 'name', width: 65 },
+        { header: 'Quantità', key: 'quantity', width: 25 },
+        { header: 'Costo unit. €', key: 'unit_cost', width: 28 },
+        { header: 'Totale €', key: 'total_cost', width: 25 },
+        { header: 'Status', key: 'status' },
+      ],
+      rows: (data ?? []).map((g: any) => ({
+        ...g,
+        quantity: g.quantity ?? '',
+        unit_cost: g.unit_cost ?? '',
+        total_cost: g.total_cost ?? '',
+        status: g.status ?? '',
+      })),
+    })
+  }
+
   return (
     <div>
       <header className="mb-6 flex items-end justify-between flex-wrap gap-3">
@@ -61,10 +86,11 @@ export function GadgetsTab({ entryId }: { entryId: string }) {
           <h2 className="font-display text-2xl">Bomboniere · Gadget · Inviti</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Tutto il "merchandising" del matrimonio: bomboniere, confetti, welcome bag, save the date, inviti, tableau, segnaposto.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           <Stat label="Voci" value={data?.length ?? 0} />
           <Stat label="Ordinate" value={ordered} />
           <Stat label="Spesa totale" value={`€ ${totalCost.toLocaleString('it-IT', { maximumFractionDigits: 0 })}`} />
+          <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
         </div>
       </header>
 

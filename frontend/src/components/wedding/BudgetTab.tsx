@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { useBudget, useBudgetCatMutations, useBudgetEntryMutations } from '@/hooks/useWedding'
+import { exportTableToPdf } from '@/lib/pdf-export'
 
 export function BudgetTab({ entryId }: { entryId: string }) {
   const { data } = useBudget(entryId)
@@ -27,11 +28,39 @@ export function BudgetTab({ entryId }: { entryId: string }) {
   const totalSpent = entries.reduce((s: number, e: any) => s + Number(e.amount), 0)
   const totalPaid = entries.filter((e: any) => e.paid).reduce((s: number, e: any) => s + Number(e.amount), 0)
 
+  function exportPdf() {
+    const rows: any[] = []
+    for (const c of cats as any[]) {
+      const spent = spentOf(c.id)
+      rows.push({ desc: `── ${c.name} ──`, amount: `Pianificato €${c.planned_amount} · Speso €${spent}`, paid: '' })
+      for (const e of entriesOf(c.id) as any[]) {
+        rows.push({ desc: '  ' + e.description, amount: `€${e.amount}`, paid: e.paid ? 'PAGATO' : '' })
+      }
+    }
+    rows.push({ desc: '', amount: '', paid: '' })
+    rows.push({ desc: 'TOTALE PIANIFICATO', amount: `€${totalPlanned}`, paid: '' })
+    rows.push({ desc: 'TOTALE SPESO', amount: `€${totalSpent}`, paid: '' })
+    rows.push({ desc: 'TOTALE PAGATO', amount: `€${totalPaid}`, paid: '' })
+    exportTableToPdf({
+      title: 'Budget matrimonio',
+      filename: 'budget.pdf',
+      columns: [
+        { header: 'Voce', key: 'desc', width: 100 },
+        { header: 'Importo', key: 'amount', width: 50 },
+        { header: 'Stato', key: 'paid' },
+      ],
+      rows,
+    })
+  }
+
   return (
     <div>
-      <header className="mb-6">
-        <h2 className="font-display text-2xl">Budget</h2>
-        <p className="text-sm text-[rgb(var(--fg-muted))]">Categorie pianificate vs spese reali.</p>
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 className="font-display text-2xl">Budget</h2>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Categorie pianificate vs spese reali.</p>
+        </div>
+        <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
       </header>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

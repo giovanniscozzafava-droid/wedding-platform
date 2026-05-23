@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, Clock, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, Clock, AlertTriangle, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useTimeline, useTimelineMutations } from '@/hooks/useWedding'
+import { exportTableToPdf } from '@/lib/pdf-export'
 
 export function TimelineTab({ entryId }: { entryId: string }) {
   const { data, isLoading } = useTimeline(entryId)
@@ -31,16 +32,41 @@ export function TimelineTab({ entryId }: { entryId: string }) {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  function exportPdf() {
+    exportTableToPdf({
+      title: 'Scaletta evento',
+      subtitle: `${(data ?? []).length} momenti`,
+      filename: 'scaletta-evento.pdf',
+      columns: [
+        { header: 'Ora', key: 'start_time', width: 22 },
+        { header: 'Durata (min)', key: 'duration_min', width: 25 },
+        { header: 'Step', key: 'title', width: 80 },
+        { header: 'Luogo', key: 'location', width: 40 },
+        { header: 'Critico', key: 'critico' },
+      ],
+      rows: (data ?? []).map((s: any) => ({
+        ...s,
+        start_time: s.start_time ?? '—',
+        duration_min: s.duration_min ?? '',
+        location: s.location ?? '',
+        critico: s.is_critical ? 'SI' : '',
+      })),
+    })
+  }
+
   return (
     <div>
-      <header className="flex items-center justify-between mb-6">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="font-display text-2xl">Scaletta evento</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Timeline minuto per minuto. Marca i momenti critici.</p>
         </div>
-        <Button variant="gold" onClick={() => setOpenNew(true)}>
-          <Plus /> Nuovo step
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
+          <Button variant="gold" onClick={() => setOpenNew(true)}>
+            <Plus /> Nuovo step
+          </Button>
+        </div>
       </header>
 
       {openNew && (

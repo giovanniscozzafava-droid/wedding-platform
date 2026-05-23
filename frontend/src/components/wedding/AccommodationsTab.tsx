@@ -1,17 +1,38 @@
 import { useState } from 'react'
-import { Plus, Trash2, BedDouble, MapPin, ExternalLink } from 'lucide-react'
+import { Plus, Trash2, BedDouble, MapPin, ExternalLink, Download } from 'lucide-react'
+import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useAccommodations, useAccommodationMutations } from '@/hooks/useWedding'
+import { EditRowModal, type Field as ModalField } from './EditRowModal'
 
 const KINDS = ['HOTEL', 'BNB', 'AIRBNB', 'VILLA_PRIVATA', 'APPARTAMENTO', 'RESORT']
+
+const ACC_FIELDS: ModalField[] = [
+  { type: 'select', key: 'kind', label: 'Tipo', options: KINDS.map((k) => ({ v: k, l: k })) },
+  { type: 'text', key: 'name', label: 'Nome struttura' },
+  { type: 'text', key: 'city', label: 'Città' },
+  { type: 'text', key: 'address', label: 'Indirizzo' },
+  { type: 'text', key: 'country', label: 'Nazione' },
+  { type: 'url', key: 'url', label: 'Sito web' },
+  { type: 'date', key: 'checkin_date', label: 'Check-in' },
+  { type: 'date', key: 'checkout_date', label: 'Check-out' },
+  { type: 'number', key: 'rate_per_night', label: 'Tariffa per notte (€)' },
+  { type: 'number', key: 'rooms_blocked', label: 'Camere bloccate' },
+  { type: 'number', key: 'rooms_used', label: 'Camere usate' },
+  { type: 'text', key: 'promo_code', label: 'Codice promo' },
+  { type: 'tel', key: 'contact_phone', label: 'Telefono contatto' },
+  { type: 'email', key: 'contact_email', label: 'Email contatto' },
+  { type: 'textarea', key: 'notes', label: 'Note' },
+]
 
 export function AccommodationsTab({ entryId }: { entryId: string }) {
   const { data } = useAccommodations(entryId)
   const { add, update, remove } = useAccommodationMutations(entryId)
+  const [editAcc, setEditAcc] = useState<any | null>(null)
   const [draft, setDraft] = useState({
     kind: 'HOTEL', name: '', city: '', address: '', url: '',
     checkin_date: '', checkout_date: '', rate_per_night: '', rooms_blocked: '',
@@ -35,6 +56,31 @@ export function AccommodationsTab({ entryId }: { entryId: string }) {
   const totalRooms = (data ?? []).reduce((s: number, a: any) => s + (a.rooms_blocked ?? 0), 0)
   const totalUsed = (data ?? []).reduce((s: number, a: any) => s + (a.rooms_used ?? 0), 0)
 
+  function exportPdf() {
+    exportTableToPdf({
+      title: 'Alloggi ospiti',
+      subtitle: `${data?.length ?? 0} strutture · ${totalRooms} camere`,
+      filename: 'alloggi.pdf',
+      landscape: true,
+      columns: [
+        { header: 'Tipo', key: 'kind', width: 25 },
+        { header: 'Nome', key: 'name', width: 60 },
+        { header: 'Città', key: 'city', width: 35 },
+        { header: 'Check-in', key: 'checkin_date', width: 28 },
+        { header: 'Check-out', key: 'checkout_date', width: 28 },
+        { header: 'Camere', key: 'rooms_blocked', width: 20 },
+        { header: 'Tariffa €', key: 'rate_per_night' },
+      ],
+      rows: (data ?? []).map((a: any) => ({
+        ...a,
+        city: a.city ?? '',
+        checkin_date: a.checkin_date ?? '',
+        checkout_date: a.checkout_date ?? '',
+        rate_per_night: a.rate_per_night ?? '—',
+      })),
+    })
+  }
+
   return (
     <div>
       <header className="mb-6 flex items-end justify-between flex-wrap gap-3">
@@ -42,10 +88,11 @@ export function AccommodationsTab({ entryId }: { entryId: string }) {
           <h2 className="font-display text-2xl">Alloggi ospiti</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Hotel, B&B, ville o appartamenti per chi viene da fuori. Specialmente utile per destination wedding.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           <Stat label="Strutture" value={data?.length ?? 0} />
           <Stat label="Camere bloccate" value={totalRooms} />
           <Stat label="Occupate" value={totalUsed} />
+          <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
         </div>
       </header>
 
@@ -79,7 +126,8 @@ export function AccommodationsTab({ entryId }: { entryId: string }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(data ?? []).map((a: any) => (
-          <Card key={a.id} className="p-5 relative overflow-hidden">
+          <Card key={a.id} className="p-5 relative overflow-hidden cursor-pointer hover:shadow-[var(--shadow-lift)] transition-shadow"
+            onClick={() => setEditAcc(a)}>
             <div className="flex items-start justify-between mb-3 gap-2">
               <div className="flex-1 min-w-0">
                 <Badge tone="sage">{a.kind}</Badge>
@@ -91,7 +139,7 @@ export function AccommodationsTab({ entryId }: { entryId: string }) {
                   </p>
                 )}
               </div>
-              <Button variant="ghost" size="icon" onClick={() => remove.mutate(a.id)}><Trash2 size={14} /></Button>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); remove.mutate(a.id) }}><Trash2 size={14} /></Button>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
               {a.rate_per_night && <Field k="Tariffa" v={`€ ${a.rate_per_night}/notte`} />}
@@ -106,12 +154,22 @@ export function AccommodationsTab({ entryId }: { entryId: string }) {
                   Sito <ExternalLink size={12} />
                 </a>
               )}
-              <Input type="number" defaultValue={a.rooms_used ?? 0} className="h-8 w-24 text-xs"
+              <Input type="number" defaultValue={a.rooms_used ?? 0} className="h-8 w-24 text-xs" onClick={(e) => e.stopPropagation()}
                 onBlur={(e) => { const n = Number(e.target.value); if (n !== a.rooms_used) update.mutate({ id: a.id, patch: { rooms_used: n } }) }} />
             </div>
           </Card>
         ))}
       </div>
+
+      <EditRowModal
+        open={!!editAcc}
+        onClose={() => setEditAcc(null)}
+        title={editAcc?.name ?? 'Modifica alloggio'}
+        row={editAcc ?? {}}
+        fields={ACC_FIELDS}
+        onSave={async (patch) => { if (editAcc) await update.mutateAsync({ id: editAcc.id, patch }) }}
+        onDelete={async () => { if (editAcc) await remove.mutateAsync(editAcc.id) }}
+      />
     </div>
   )
 }
