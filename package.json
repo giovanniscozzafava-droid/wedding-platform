@@ -18,11 +18,14 @@
     "db:status": "supabase status",
     "db:types": "supabase gen types typescript --local --schema public 2>/dev/null | grep -vE '^Connecting to db|^A new version|^We recommend updating' > frontend/src/lib/database.types.ts",
     "db:diff": "supabase db diff",
-    "scenario": "RUN_STRESS=1 playwright test tests/e2e/realistic_scenario.spec.ts"
+    "scenario": "RUN_STRESS=1 playwright test tests/e2e/realistic_scenario.spec.ts",
+    "agent": "tsx tests/agent/runner.ts"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.4.0",
     "@playwright/test": "^1.49.0",
     "@supabase/supabase-js": "^2.106.1",
-    "dotenv": "^16.6.1"
+    "dotenv": "^16.6.1",
+    "tsx": "^4.22.3"
   }
 }

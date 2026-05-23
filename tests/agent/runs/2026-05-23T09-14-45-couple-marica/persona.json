@@ -1,0 +1,21 @@
+{
+  "role": "COUPLE",
+  "firstName": "Marica",
+  "lastName": "Poggio",
+  "fullName": "Marica Poggio",
+  "email": "marica.poggio.mpi4u61n.xvp8@planfully-agent.test",
+  "password": "Agent2026!",
+  "phone": "+699213400807",
+  "city": "Margherita salentino",
+  "zip": "25794",
+  "address": "Piazza Fumagalli, 134",
+  "partnerName": "Neopolo",
+  "weddingStyle": [
+    "MODERNO",
+    "GLAMOUR",
+    "CLASSICO"
+  ],
+  "budgetMin": 27910,
+  "budgetMax": 69421,
+  "guestsEstimate": 180
+}

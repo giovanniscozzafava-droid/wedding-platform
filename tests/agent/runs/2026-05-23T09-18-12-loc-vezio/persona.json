@@ -1,0 +1,21 @@
+{
+  "role": "LOC",
+  "firstName": "Vezio",
+  "lastName": "Filice",
+  "fullName": "Vezio Filice",
+  "email": "vezio.filice.mpi4ylix.mdwn@planfully-agent.test",
+  "password": "Agent2026!",
+  "phone": "+39074070538",
+  "city": "Sesto Auberto",
+  "zip": "73613",
+  "address": "Piazza Rino, 189",
+  "businessName": "Villa Marchetti calabro",
+  "vatNumber": "78960292167",
+  "fiscalCode": "FILVEZ95E05D864R",
+  "website": "https://veziofilice.it",
+  "instagram": "@veziofilice",
+  "bio": "Vinco demum aegre creator vomito decens. Recusandae beatus curriculum caveo angelus creta cavus defetiscor.",
+  "yearsActive": 15,
+  "serviceRadiusKm": 88,
+  "subrole": "location"
+}

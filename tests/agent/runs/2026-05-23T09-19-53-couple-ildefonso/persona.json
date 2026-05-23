@@ -1,0 +1,22 @@
+{
+  "role": "COUPLE",
+  "firstName": "Ildefonso",
+  "lastName": "Cozzolino",
+  "fullName": "Ildefonso Cozzolino",
+  "email": "ildefonso.cozzolino.mpi50rn4.aefq@planfully-agent.test",
+  "password": "Agent2026!",
+  "phone": "+419256974653",
+  "city": "Quarto Clemente",
+  "zip": "20448",
+  "address": "Borgo Asterio, 56",
+  "partnerName": "Romola",
+  "weddingStyle": [
+    "GLAMOUR",
+    "RUSTICO",
+    "BOHO",
+    "MINIMAL"
+  ],
+  "budgetMin": 19717,
+  "budgetMax": 72864,
+  "guestsEstimate": 228
+}

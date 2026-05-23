@@ -1,0 +1,21 @@
+{
+  "role": "COUPLE",
+  "firstName": "Marita",
+  "lastName": "Schifano",
+  "fullName": "Marita Schifano",
+  "email": "marita.schifano.mpi4pwem.npho@planfully-agent.test",
+  "password": "Agent2026!",
+  "phone": "+39082166740",
+  "city": "Concamarise",
+  "zip": "62634",
+  "address": "Borgo Ippolito, 56",
+  "partnerName": "Domenico",
+  "weddingStyle": [
+    "GARDEN",
+    "GLAMOUR",
+    "MODERNO"
+  ],
+  "budgetMin": 29543,
+  "budgetMax": 40480,
+  "guestsEstimate": 244
+}

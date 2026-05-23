@@ -1,0 +1,21 @@
+{
+  "role": "LOC",
+  "firstName": "Fabiola",
+  "lastName": "Bosi",
+  "fullName": "Fabiola Bosi",
+  "email": "fabiola.bosi.mpi4s05i.4wsu@planfully-agent.test",
+  "password": "Agent2026!",
+  "phone": "+39042715571",
+  "city": "Gaudino salentino",
+  "zip": "58722",
+  "address": "Incrocio Rocco, 22",
+  "businessName": "Villa Sesto Rainelda lido",
+  "vatNumber": "93077010546",
+  "fiscalCode": "BOSFAB35S69Q426D",
+  "website": "https://fabiolabosi.it",
+  "instagram": "@fabiolabosi",
+  "bio": "Ascisco curtus tardus cenaculum suffragium torqueo. Comparo uxor comes sopor concido ascit sublime cultura.",
+  "yearsActive": 24,
+  "serviceRadiusKm": 134,
+  "subrole": "location"
+}
