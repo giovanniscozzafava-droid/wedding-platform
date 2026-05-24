@@ -111,22 +111,46 @@ export function ContractTab({ wedding }: { wedding: any }) {
                 Per legge non è più modificabile. In caso di modifiche, crea un addendum o un nuovo contratto.
               </div>
             )}
-            {(editing.sections ?? []).map((sec: any, i: number) => (
-              <div key={i} className="mb-4 border-b pb-4" style={{ borderColor: 'rgb(var(--border))' }}>
-                <Input value={sec.heading} className="mb-2 font-medium"
-                  disabled={editing.status === 'FIRMATO'}
-                  onChange={(e) => {
-                    const ns = [...editing.sections]; ns[i] = { ...sec, heading: e.target.value }
-                    setEditing({ ...editing, sections: ns })
-                  }} />
-                <Textarea rows={3} value={sec.body}
-                  disabled={editing.status === 'FIRMATO'}
-                  onChange={(e) => {
-                    const ns = [...editing.sections]; ns[i] = { ...sec, body: e.target.value }
-                    setEditing({ ...editing, sections: ns })
-                  }} />
+            {editing.status === 'FIRMATO' ? (
+              // Vista prosa pulita: titoli + paragrafi formattati
+              <div className="space-y-5 mb-4">
+                <div className="rounded-lg p-5 border" style={{ background: '#FDFBF6', borderColor: 'rgb(var(--border))', color: '#1A1714' }}>
+                  <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'rgb(var(--gold-600))' }}>Contratto</p>
+                  <h2 className="font-display text-xl mb-1">{editing.title}</h2>
+                  <p className="text-xs" style={{ color: '#6E6E6E' }}>
+                    {editing.client_name ?? '—'} · € {Number(editing.total_amount).toLocaleString('it-IT')}
+                    {editing.event_date && ` · evento ${new Date(editing.event_date).toLocaleDateString('it-IT')}`}
+                  </p>
+                  <div className="my-4 h-px" style={{ background: 'rgb(var(--border))' }} />
+                  {(editing.sections ?? []).map((sec: any, i: number) => (
+                    <div key={i} className="mb-5">
+                      <h3 className="font-display text-base mb-1.5" style={{ color: '#1A1714' }}>{sec.heading}</h3>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: '#3a3530' }}>{sec.body}</p>
+                    </div>
+                  ))}
+                  <div className="mt-6 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                    <p className="text-xs" style={{ color: '#6E6E6E' }}>
+                      <strong>Firmato</strong> il {new Date(editing.signed_at).toLocaleString('it-IT')}
+                    </p>
+                  </div>
+                </div>
               </div>
-            ))}
+            ) : (
+              (editing.sections ?? []).map((sec: any, i: number) => (
+                <div key={i} className="mb-4 border-b pb-4" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <Input value={sec.heading} className="mb-2 font-medium"
+                    onChange={(e) => {
+                      const ns = [...editing.sections]; ns[i] = { ...sec, heading: e.target.value }
+                      setEditing({ ...editing, sections: ns })
+                    }} />
+                  <Textarea rows={3} value={sec.body}
+                    onChange={(e) => {
+                      const ns = [...editing.sections]; ns[i] = { ...sec, body: e.target.value }
+                      setEditing({ ...editing, sections: ns })
+                    }} />
+                </div>
+              ))
+            )}
             <div className="flex justify-between">
               {editing.status !== 'FIRMATO' && (
                 <Button variant="ghost" onClick={() => {
@@ -135,6 +159,11 @@ export function ContractTab({ wedding }: { wedding: any }) {
                 }}><Plus size={14} /> Aggiungi clausola</Button>
               )}
               <div className="flex gap-2 ml-auto">
+                {editing.status === 'FIRMATO' && editing.pdf_url && (
+                  <a href={editing.pdf_url} target="_blank" rel="noreferrer">
+                    <Button variant="outline">Scarica PDF</Button>
+                  </a>
+                )}
                 <Button variant="outline" onClick={() => setEditing(null)}>Chiudi</Button>
                 {editing.status !== 'FIRMATO' && (
                   <Button variant="gold" onClick={async () => {
