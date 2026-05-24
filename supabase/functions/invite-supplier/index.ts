@@ -16,6 +16,68 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
+const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Planfully <onboarding@resend.dev>'
+
+async function sendInviteEmail(
+  to: string,
+  acceptUrl: string,
+  inviterName: string,
+  customMessage: string | null,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  if (!RESEND_API_KEY) return { ok: false, error: 'RESEND_API_KEY not set' }
+  const html = `<!doctype html>
+<html lang="it"><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f6f4ef;margin:0;padding:32px;color:#1A2E4F">
+<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.06)">
+  <div style="background:linear-gradient(135deg,#1A2E4F 0%,#C49A5C 100%);padding:32px;text-align:center;color:#fff">
+    <h1 style="margin:0;font-size:28px;font-weight:600;letter-spacing:-0.02em">Planfully</h1>
+    <p style="margin:8px 0 0;opacity:0.9;font-size:13px">Network indipendente per il wedding italiano</p>
+  </div>
+  <div style="padding:32px">
+    <h2 style="margin:0 0 16px;font-size:20px">Sei stato invitato come fornitore</h2>
+    <p style="line-height:1.6;font-size:15px;color:#4a5568">
+      <strong>${escapeHtml(inviterName)}</strong> ti ha invitato a far parte del suo network professionale su Planfully.
+      Accetta l'invito per popolare il tuo catalogo servizi, gestire la tua disponibilità e ricevere preventivi.
+    </p>
+    ${customMessage ? `<div style="margin:20px 0;padding:16px;background:#f6f4ef;border-left:3px solid #C49A5C;border-radius:6px;font-style:italic;color:#4a5568">${escapeHtml(customMessage)}</div>` : ''}
+    <div style="margin:28px 0;text-align:center">
+      <a href="${acceptUrl}" style="display:inline-block;background:#C49A5C;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">Accetta l'invito</a>
+    </div>
+    <p style="font-size:12px;color:#a0aec0;text-align:center;margin:24px 0 0">
+      Se il pulsante non funziona, copia questo link nel browser:<br>
+      <a href="${acceptUrl}" style="color:#1A2E4F;word-break:break-all">${acceptUrl}</a>
+    </p>
+  </div>
+  <div style="background:#f6f4ef;padding:20px;text-align:center;font-size:11px;color:#a0aec0;border-top:1px solid #e2e8f0">
+    Un progetto Fuyue Srl · planfully.it
+  </div>
+</div>
+</body></html>`
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
+      body: JSON.stringify({
+        from: RESEND_FROM,
+        to: [to],
+        subject: `${inviterName} ti ha invitato su Planfully`,
+        html,
+      }),
+    })
+    if (!r.ok) {
+      const t = await r.text()
+      return { ok: false, error: `Resend HTTP ${r.status}: ${t.slice(0, 300)}` }
+    }
+    const j = await r.json()
+    return { ok: true, id: j.id }
+  } catch (e) {
+    return { ok: false, error: (e as Error).message }
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -89,24 +151,23 @@ Deno.serve(async (req) => {
     return json({ ok: true, mode: 'link_only', invite_id: invite.id, accept_url: acceptUrl, token: invite.token })
   }
 
-  // 3. Manda email Supabase nativa con metadata + redirect a /invito-fornitore
-  const { error: invErr } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: {
-      role: 'FORNITORE',
-      subrole: body.subrole ?? null,
-      invite_token: invite.token,
-      invited_by: callerId,
-    },
-    redirectTo: acceptUrl,
-  })
-  if (invErr) {
-    // Email fallita ma record c'e': ritorna link comunque
+  // 3. Email via Resend (NON Supabase auth, perché SES è in sandbox)
+  // Recupera nome del WP per personalizzare l'email
+  const { data: inviterProf } = await admin.from('profiles')
+    .select('business_name, full_name').eq('id', callerId).maybeSingle()
+  const inviterName = inviterProf?.business_name ?? inviterProf?.full_name ?? 'Un wedding planner'
+
+  const send = await sendInviteEmail(email, acceptUrl, inviterName, body.message ?? null)
+  if (!send.ok) {
     return json({
       ok: true, mode: 'email_failed_link_fallback', invite_id: invite.id,
       accept_url: acceptUrl, token: invite.token,
-      email_error: invErr.message,
+      email_error: send.error,
     })
   }
 
-  return json({ ok: true, mode: 'email_sent', invite_id: invite.id, accept_url: acceptUrl, token: invite.token })
+  return json({
+    ok: true, mode: 'email_sent', invite_id: invite.id,
+    accept_url: acceptUrl, token: invite.token, email_id: send.id,
+  })
 })
