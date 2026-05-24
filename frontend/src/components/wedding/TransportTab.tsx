@@ -1,13 +1,15 @@
-import { useState } from 'react'
-import { Plus, Trash2, Bus, Car, Plane, Train, Ship, MapPin, Download } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Trash2, Bus, Car, Plane, Train, Ship, MapPin, Download, Users } from 'lucide-react'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { useTransport, useTransportMutations } from '@/hooks/useWedding'
+import { useTransport, useTransportMutations, useGuests } from '@/hooks/useWedding'
+import { useGuestTransportLinks, useTransportAssignMutations } from '@/hooks/useGuestAssignments'
 import { EditRowModal, type Field as ModalField } from './EditRowModal'
+import { GuestAssignModal } from './GuestAssignModal'
 
 const KINDS: Array<{ key: string; label: string; icon: typeof Bus }> = [
   { key: 'AUTO_SPOSI',       label: 'Auto sposi',     icon: Car },
@@ -39,7 +41,20 @@ const TRANSPORT_FIELDS: ModalField[] = [
 export function TransportTab({ entryId }: { entryId: string }) {
   const { data } = useTransport(entryId)
   const { add, update, remove } = useTransportMutations(entryId)
+  const { data: guests } = useGuests(entryId)
+  const { data: links } = useGuestTransportLinks(entryId)
+  const assign = useTransportAssignMutations(entryId)
   const [editT, setEditT] = useState<any | null>(null)
+  const [assignT, setAssignT] = useState<any | null>(null)
+
+  const assignedByTransport = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const l of (links ?? [])) {
+      if (!map.has(l.transport_id)) map.set(l.transport_id, new Set())
+      map.get(l.transport_id)!.add(l.guest_id)
+    }
+    return map
+  }, [links])
   const [draft, setDraft] = useState({
     kind: 'PULMINO_NAVETTA', label: '', provider: '',
     capacity: '', depart_at: '', depart_from: '', arrive_to: '', cost: '',
@@ -163,13 +178,37 @@ export function TransportTab({ entryId }: { entryId: string }) {
                 </p>
               )}
               <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
-                {t.capacity && <span className="text-[rgb(var(--fg-muted))]">Posti: <strong>{t.passengers_count ?? 0}/{t.capacity}</strong></span>}
+                {t.capacity && <span className="text-[rgb(var(--fg-muted))]">Posti: <strong>{(assignedByTransport.get(t.id)?.size ?? 0)}/{t.capacity}</strong></span>}
                 {t.cost && <span className="font-display tabular-nums">€ {Number(t.cost).toLocaleString('it-IT')}</span>}
               </div>
+              <Button variant="outline" size="sm" className="w-full mt-3"
+                onClick={(e) => { e.stopPropagation(); setAssignT(t) }}>
+                <Users size={13} /> Assegna ospiti ({assignedByTransport.get(t.id)?.size ?? 0})
+              </Button>
             </Card>
           )
         })}
       </div>
+
+      {assignT && (
+        <GuestAssignModal
+          open={!!assignT}
+          onClose={() => setAssignT(null)}
+          title={assignT.label}
+          subtitle={`Trasporto · ${assignT.kind.replace(/_/g, ' ')}`}
+          guests={(guests ?? []) as any}
+          assignedIds={assignedByTransport.get(assignT.id) ?? new Set()}
+          capacity={assignT.capacity}
+          onConfirm={async (ids) => {
+            await assign.link.mutateAsync({ transport_id: assignT.id, guest_ids: ids })
+            toast.success(`${ids.length} ospiti assegnati`)
+          }}
+          onUnassign={async (guest_id) => {
+            await assign.unlink.mutateAsync({ transport_id: assignT.id, guest_id })
+            toast.success('Ospite rimosso')
+          }}
+        />
+      )}
 
       <EditRowModal
         open={!!editT}

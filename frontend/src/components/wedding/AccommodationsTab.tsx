@@ -1,13 +1,15 @@
-import { useState } from 'react'
-import { Plus, Trash2, BedDouble, MapPin, ExternalLink, Download } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Trash2, BedDouble, MapPin, ExternalLink, Download, Users } from 'lucide-react'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { useAccommodations, useAccommodationMutations } from '@/hooks/useWedding'
+import { useAccommodations, useAccommodationMutations, useGuests } from '@/hooks/useWedding'
+import { useGuestAccommodationLinks, useAccommodationAssignMutations } from '@/hooks/useGuestAssignments'
 import { EditRowModal, type Field as ModalField } from './EditRowModal'
+import { GuestAssignModal } from './GuestAssignModal'
 
 const KINDS = ['HOTEL', 'BNB', 'AIRBNB', 'VILLA_PRIVATA', 'APPARTAMENTO', 'RESORT']
 
@@ -32,7 +34,22 @@ const ACC_FIELDS: ModalField[] = [
 export function AccommodationsTab({ entryId }: { entryId: string }) {
   const { data } = useAccommodations(entryId)
   const { add, update, remove } = useAccommodationMutations(entryId)
+  const { data: guests } = useGuests(entryId)
+  const { data: links } = useGuestAccommodationLinks(entryId)
+  const assign = useAccommodationAssignMutations(entryId)
   const [editAcc, setEditAcc] = useState<any | null>(null)
+  const [assignAcc, setAssignAcc] = useState<any | null>(null)
+
+  const assignedByAcc = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    const linkById = new Map<string, string>()
+    for (const l of (links ?? [])) {
+      if (!map.has(l.accommodation_id)) map.set(l.accommodation_id, new Set())
+      map.get(l.accommodation_id)!.add(l.guest_id)
+      linkById.set(`${l.accommodation_id}::${l.guest_id}`, l.id)
+    }
+    return { map, linkById }
+  }, [links])
   const [draft, setDraft] = useState({
     kind: 'HOTEL', name: '', city: '', address: '', url: '',
     checkin_date: '', checkout_date: '', rate_per_night: '', rooms_blocked: '',
@@ -157,9 +174,41 @@ export function AccommodationsTab({ entryId }: { entryId: string }) {
               <Input type="number" defaultValue={a.rooms_used ?? 0} className="h-8 w-24 text-xs" onClick={(e) => e.stopPropagation()}
                 onBlur={(e) => { const n = Number(e.target.value); if (n !== a.rooms_used) update.mutate({ id: a.id, patch: { rooms_used: n } }) }} />
             </div>
+            <Button variant="outline" size="sm" className="w-full mt-3"
+              onClick={(e) => { e.stopPropagation(); setAssignAcc(a) }}>
+              <Users size={13} /> Ospiti assegnati ({assignedByAcc.map.get(a.id)?.size ?? 0})
+            </Button>
           </Card>
         ))}
       </div>
+
+      {assignAcc && (
+        <GuestAssignModal
+          open={!!assignAcc}
+          onClose={() => setAssignAcc(null)}
+          title={assignAcc.name}
+          subtitle={`${assignAcc.kind} · ${assignAcc.city ?? ''}`}
+          guests={(guests ?? []) as any}
+          assignedIds={assignedByAcc.map.get(assignAcc.id) ?? new Set()}
+          capacity={assignAcc.total_beds ?? assignAcc.rooms_blocked ?? null}
+          onConfirm={async (ids) => {
+            await assign.link.mutateAsync({
+              accommodation_id: assignAcc.id,
+              guest_ids: ids,
+              check_in: assignAcc.checkin_date ?? null,
+              check_out: assignAcc.checkout_date ?? null,
+            })
+            toast.success(`${ids.length} ospiti assegnati`)
+          }}
+          onUnassign={async (guest_id) => {
+            const linkId = assignedByAcc.linkById.get(`${assignAcc.id}::${guest_id}`)
+            if (linkId) {
+              await assign.unlink.mutateAsync({ id: linkId })
+              toast.success('Ospite rimosso')
+            }
+          }}
+        />
+      )}
 
       <EditRowModal
         open={!!editAcc}
