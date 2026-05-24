@@ -18,6 +18,7 @@ import {
   CalendarCheck,
   Wallet,
   ShieldCheck,
+  FileSignature,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth'
@@ -47,6 +48,7 @@ const NAV_CAPOSTIPITE: NavItem[] = [
 const NAV_TAIL_COMMON: NavItem[] = [
   { to: '/calendar',   label: 'Calendario', icon: CalendarDays },
   { to: '/quotes',     label: 'Preventivi', icon: FileText },
+  { to: '/contracts',  label: 'Contratti',  icon: FileSignature },
   { to: '/settings/brand', label: 'Brand', icon: Palette },
   { to: '/profile',    label: 'Profilo',  icon: UserRound },
 ]
@@ -123,10 +125,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg">
-            <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0"
-              style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+            <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0 p-0.5"
+              style={{ background: avatarUrl ? 'white' : 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
               {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="h-full w-full object-cover"
+                <img src={avatarUrl} alt="" className="max-h-full max-w-full object-contain"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
               ) : (
                 <span>{initials}</span>
@@ -196,10 +198,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               {/* Mobile drawer footer: user + logout */}
               <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
                 <div className="flex items-center gap-3 px-2 py-2 mb-2">
-                  <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0"
-                    style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                  <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0 p-0.5"
+                    style={{ background: avatarUrl ? 'white' : 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt="" className="h-full w-full object-cover"
+                      <img src={avatarUrl} alt="" className="max-h-full max-w-full object-contain"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                     ) : (<span>{initials}</span>)}
                   </div>

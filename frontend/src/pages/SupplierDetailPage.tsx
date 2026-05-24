@@ -51,9 +51,9 @@ export default function SupplierDetailPage() {
             <ArrowLeft size={14} /> Tutti i fornitori
           </Link>
           <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-            <div className="h-24 w-24 rounded-full overflow-hidden ring-4 ring-white/30 shrink-0 bg-white/10">
+            <div className="h-24 w-24 rounded-full overflow-hidden ring-4 ring-white/30 shrink-0 bg-white flex items-center justify-center p-2">
               <img src={supplier.avatar_url} alt=""
-                className="h-full w-full object-cover"
+                className="max-h-full max-w-full object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.2' }} />
             </div>
             <div className="flex-1 text-white">

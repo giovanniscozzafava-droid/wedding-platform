@@ -131,9 +131,16 @@ export default function QuoteAcceptPage() {
   const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(quote.total_client)
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:py-12" style={{ background: 'rgb(var(--bg))' }}>
+    <div className="min-h-screen px-4 py-6 sm:py-12" style={{ background: '#FDFBF6', color: '#1A1714', colorScheme: 'light' }}>
+      <style>{`
+        .legal-doc { color: #1A1714; }
+        .legal-doc input, .legal-doc textarea, .legal-doc select { color: #1A1714 !important; background: #fff !important; border-color: #E4DED2 !important; }
+        .legal-doc label, .legal-doc p, .legal-doc h1, .legal-doc h2, .legal-doc h3, .legal-doc span, .legal-doc strong { color: #1A1714 }
+        .legal-doc .surface { background: #fff !important; border: 1px solid #E4DED2 !important; box-shadow: 0 2px 14px rgba(26,23,20,0.06) !important; }
+        .legal-doc .text-muted-legal { color: #6E6E6E !important; }
+      `}</style>
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="max-w-xl mx-auto">
+        className="max-w-xl mx-auto legal-doc">
 
         {/* Header preventivo */}
         <div className="surface surface-lift p-5 mb-4">

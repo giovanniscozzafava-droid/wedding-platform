@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
-  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper,
+  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink,
 } from 'lucide-react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -20,10 +20,11 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 
-type Tab = 'overview' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'mood' | 'playlist' | 'gadgets' | 'website'
+type Tab = 'overview' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
 const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'overview',  label: 'Overview',     icon: Heart },
+  { key: 'documenti', label: 'Documenti',    icon: FileText },
   { key: 'programma', label: 'Programma',    icon: CalendarClock },
   { key: 'alloggi',   label: 'Alloggi',      icon: BedDouble },
   { key: 'trasporti', label: 'Trasporti',    icon: Bus },
@@ -164,6 +165,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewCouple wedding={wedding} entryId={entryId} memberRole={memberRole} />}
+            {tab === 'documenti' && <DocumentiCouple wedding={wedding} entryId={entryId} />}
             {tab === 'programma' && <ProgrammaCouple entryId={entryId} />}
             {tab === 'alloggi' && <AlloggiCouple entryId={entryId} />}
             {tab === 'trasporti' && <TrasportiCouple entryId={entryId} />}
@@ -548,6 +550,123 @@ function WebsiteCouple({ wedding }: { wedding: any }) {
           <p className="text-sm text-[rgb(var(--fg-muted))]">Il sito ospiti non e&apos; ancora pubblicato. Chiedi al tuo wedding planner.</p>
         )}
       </Card>
+    </div>
+  )
+}
+
+function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }) {
+  const [quote, setQuote] = useState<any | null>(null)
+  const [contracts, setContracts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        if (wedding.quote_id) {
+          const { data } = await supabase.from('quotes').select('id, title, status, revision, total_client, sent_at, accepted_at, pdf_url, access_token').eq('id', wedding.quote_id).maybeSingle()
+          setQuote(data)
+        }
+        const { data: cs } = await (supabase.from('contracts' as any) as any)
+          .select('id, title, status, total_amount, signed_at, pdf_url, access_token')
+          .eq('entry_id', entryId)
+          .order('created_at', { ascending: false })
+        setContracts((cs ?? []) as any[])
+      } finally { setLoading(false) }
+    })()
+  }, [wedding.quote_id, entryId])
+
+  const fmtEUR = (n: any) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n ?? 0))
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-2xl mb-1">Documenti</h2>
+        <p className="text-sm text-[rgb(var(--fg-muted))]">Il preventivo e il contratto del vostro matrimonio.</p>
+      </div>
+
+      {loading && <p className="text-sm text-[rgb(var(--fg-subtle))]">Carico...</p>}
+
+      {/* PREVENTIVO */}
+      {!loading && (
+        <Card className="p-6">
+          <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Preventivo</p>
+              <h3 className="font-display text-xl mt-1">{quote?.title ?? 'Nessun preventivo'}</h3>
+              {quote && (
+                <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
+                  Revisione v{quote.revision} · {fmtEUR(quote.total_client)}
+                  {quote.accepted_at && ' · accettato'}
+                </p>
+              )}
+            </div>
+            {quote && <Badge status={quote.status} />}
+          </div>
+          {quote ? (
+            <div className="flex flex-wrap gap-2">
+              {quote.pdf_url && (
+                <a href={quote.pdf_url} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm"><FileText size={13} /> Scarica PDF</Button>
+                </a>
+              )}
+              {quote.access_token && (
+                <a href={`/p/preview/${quote.access_token}`} target="_blank" rel="noreferrer">
+                  <Button variant="ghost" size="sm">Apri online <ExternalLink size={13} /></Button>
+                </a>
+              )}
+              {quote.status === 'INVIATO' && quote.access_token && (
+                <a href={`/p/accept/${quote.access_token}`} target="_blank" rel="noreferrer">
+                  <Button variant="gold" size="sm">Vai alla firma</Button>
+                </a>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-[rgb(var(--fg-subtle))]">Il preventivo non è ancora stato emesso dal wedding planner.</p>
+          )}
+        </Card>
+      )}
+
+      {/* CONTRATTO */}
+      {!loading && (
+        <Card className="p-6">
+          <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Contratto</p>
+              <h3 className="font-display text-xl mt-1">
+                {contracts.length === 0 ? 'Nessun contratto' : contracts[0].title}
+              </h3>
+              {contracts.length > 0 && (
+                <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
+                  {fmtEUR(contracts[0].total_amount)}
+                  {contracts[0].signed_at && ` · firmato il ${new Date(contracts[0].signed_at).toLocaleDateString('it-IT')}`}
+                </p>
+              )}
+            </div>
+            {contracts[0] && <Badge tone={contracts[0].status === 'FIRMATO' ? 'emerald' : contracts[0].status === 'INVIATO' ? 'amber' : 'neutral'}>{contracts[0].status}</Badge>}
+          </div>
+          {contracts.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {contracts[0].pdf_url && (
+                <a href={contracts[0].pdf_url} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm"><FileSignature size={13} /> Scarica PDF</Button>
+                </a>
+              )}
+              {contracts[0].access_token && contracts[0].status !== 'FIRMATO' && (
+                <a href={`/p/contract/${contracts[0].access_token}`} target="_blank" rel="noreferrer">
+                  <Button variant="gold" size="sm">Vai alla firma</Button>
+                </a>
+              )}
+              {contracts[0].access_token && contracts[0].status === 'FIRMATO' && (
+                <a href={`/p/contract/${contracts[0].access_token}`} target="_blank" rel="noreferrer">
+                  <Button variant="ghost" size="sm">Visualizza online <ExternalLink size={13} /></Button>
+                </a>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-[rgb(var(--fg-subtle))]">Il contratto non è ancora stato preparato dal wedding planner.</p>
+          )}
+        </Card>
+      )}
     </div>
   )
 }

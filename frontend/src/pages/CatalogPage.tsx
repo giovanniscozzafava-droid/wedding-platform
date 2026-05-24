@@ -185,9 +185,10 @@ export default function CatalogPage() {
               return (
                 <section key={supId}>
                   <Link to={`/suppliers/${supId}`} className="flex items-center gap-3 mb-4 group">
-                    <div className="h-10 w-10 rounded-full overflow-hidden bg-[rgb(var(--bg-sunken))]">
+                    <div className="h-10 w-10 rounded-full overflow-hidden bg-white border flex items-center justify-center p-0.5"
+                      style={{ borderColor: 'rgb(var(--border))' }}>
                       <img src={sup?.avatar_url ?? ''} alt=""
-                        className="h-full w-full object-cover"
+                        className="max-h-full max-w-full object-contain"
                         onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.2' }} />
                     </div>
                     <div className="flex-1">

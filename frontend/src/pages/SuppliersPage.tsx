@@ -151,9 +151,10 @@ export default function SuppliersPage() {
               <Card className="hover:shadow-[var(--shadow-lift)] transition-shadow overflow-hidden">
                 <Link to={`/suppliers/${s.id}`} className="block p-5">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="h-14 w-14 rounded-full overflow-hidden shrink-0 bg-[rgb(var(--bg-sunken))]">
+                    <div className="h-14 w-14 rounded-full overflow-hidden shrink-0 bg-white border flex items-center justify-center p-1"
+                      style={{ borderColor: 'rgb(var(--border))' }}>
                       <img src={s.avatar_url} alt=""
-                        className="h-full w-full object-cover"
+                        className="max-h-full max-w-full object-contain"
                         onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.2' }} />
                     </div>
                     <div className="flex-1 min-w-0">

@@ -65,7 +65,13 @@ export default function ContractSignPage() {
   const primary = data.owner?.brand_primary_color ?? '#1A2E4F'
 
   return (
-    <div className="min-h-screen py-10 px-4" style={{ background: 'rgb(var(--bg))' }}>
+    <div className="min-h-screen py-10 px-4" style={{ background: '#FDFBF6', color: '#1A1714', colorScheme: 'light' }}>
+      <style>{`
+        .legal-doc, .legal-doc * { color: #1A1714 }
+        .legal-doc input, .legal-doc textarea, .legal-doc select { color: #1A1714 !important; background: #fff !important; border-color: #E4DED2 !important; }
+        .legal-doc .surface, .legal-doc .surface-lift { background: #fff !important; border: 1px solid #E4DED2 !important; }
+      `}</style>
+      <div className="legal-doc">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto">
         <div className="surface surface-lift overflow-hidden">
           <div className="h-2" style={{ background: primary }} />
@@ -134,6 +140,7 @@ export default function ContractSignPage() {
           Documento legale · powered by Planfully.
         </p>
       </motion.div>
+      </div>
     </div>
   )
 }

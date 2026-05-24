@@ -14,6 +14,7 @@ import SuppliersPage from '@/pages/SuppliersPage'
 import SupplierDetailPage from '@/pages/SupplierDetailPage'
 import QuotesPage from '@/pages/QuotesPage'
 import QuoteEditorPage from '@/pages/QuoteEditorPage'
+import ContractsPage from '@/pages/ContractsPage'
 import FinancePage from '@/pages/FinancePage'
 import InsurancePage from '@/pages/InsurancePage'
 import BrandSettingsPage from '@/pages/BrandSettingsPage'
@@ -104,6 +105,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <QuoteEditorPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/contracts"
+            element={
+              <RequireAuth>
+                <ContractsPage />
               </RequireAuth>
             }
           />

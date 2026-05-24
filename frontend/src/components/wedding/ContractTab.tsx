@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileSignature, Send, Plus } from 'lucide-react'
+import { FileSignature, Send, Plus, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -73,12 +73,21 @@ export function ContractTab({ wedding }: { wedding: any }) {
               </div>
               <Badge tone={c.status === 'FIRMATO' ? 'emerald' : c.status === 'INVIATO' ? 'amber' : 'neutral'}>{c.status}</Badge>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEditing(c)}>Modifica sezioni</Button>
+            <div className="flex flex-wrap gap-2 items-center">
+              {c.status === 'FIRMATO' ? (
+                <Button variant="outline" size="sm" onClick={() => setEditing(c)}><Lock size={13} /> Visualizza (immutabile)</Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setEditing(c)}>Modifica sezioni</Button>
+              )}
               {c.status === 'BOZZA' && <Button variant="gold" size="sm" onClick={() => sendContract(c.id)}><Send /> Invia per firma</Button>}
               {c.access_token && (
                 <a href={`/p/contract/${c.access_token}`} target="_blank" rel="noreferrer"
                   className="text-sm self-center text-[rgb(var(--fg-muted))] hover:underline">link firma cliente</a>
+              )}
+              {c.status === 'FIRMATO' && (
+                <span className="inline-flex items-center gap-1 text-xs text-[rgb(var(--fg-subtle))]" title="Un contratto firmato non puo essere modificato">
+                  <Lock size={11} /> firmato e bloccato
+                </span>
               )}
             </div>
           </Card>
@@ -88,15 +97,30 @@ export function ContractTab({ wedding }: { wedding: any }) {
       {editing && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
-            <h3 className="font-display text-xl mb-4">Sezioni contratto</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-xl">Sezioni contratto</h3>
+              {editing.status === 'FIRMATO' && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]">
+                  <Lock size={11} /> Firmato — sola lettura
+                </span>
+              )}
+            </div>
+            {editing.status === 'FIRMATO' && (
+              <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: 'rgb(var(--bg-sunken))', borderLeft: '3px solid rgb(var(--gold-500))' }}>
+                Questo contratto è stato firmato dal cliente il <strong>{new Date(editing.signed_at).toLocaleString('it-IT')}</strong>.
+                Per legge non è più modificabile. In caso di modifiche, crea un addendum o un nuovo contratto.
+              </div>
+            )}
             {(editing.sections ?? []).map((sec: any, i: number) => (
               <div key={i} className="mb-4 border-b pb-4" style={{ borderColor: 'rgb(var(--border))' }}>
                 <Input value={sec.heading} className="mb-2 font-medium"
+                  disabled={editing.status === 'FIRMATO'}
                   onChange={(e) => {
                     const ns = [...editing.sections]; ns[i] = { ...sec, heading: e.target.value }
                     setEditing({ ...editing, sections: ns })
                   }} />
                 <Textarea rows={3} value={sec.body}
+                  disabled={editing.status === 'FIRMATO'}
                   onChange={(e) => {
                     const ns = [...editing.sections]; ns[i] = { ...sec, body: e.target.value }
                     setEditing({ ...editing, sections: ns })
@@ -104,19 +128,23 @@ export function ContractTab({ wedding }: { wedding: any }) {
               </div>
             ))}
             <div className="flex justify-between">
-              <Button variant="ghost" onClick={() => {
-                const ns = [...(editing.sections ?? []), { heading: 'Nuova clausola', body: '', type: 'CLAUSULE' }]
-                setEditing({ ...editing, sections: ns })
-              }}><Plus size={14} /> Aggiungi clausola</Button>
-              <div className="flex gap-2">
+              {editing.status !== 'FIRMATO' && (
+                <Button variant="ghost" onClick={() => {
+                  const ns = [...(editing.sections ?? []), { heading: 'Nuova clausola', body: '', type: 'CLAUSULE' }]
+                  setEditing({ ...editing, sections: ns })
+                }}><Plus size={14} /> Aggiungi clausola</Button>
+              )}
+              <div className="flex gap-2 ml-auto">
                 <Button variant="outline" onClick={() => setEditing(null)}>Chiudi</Button>
-                <Button variant="gold" onClick={async () => {
-                  try {
-                    await update.mutateAsync({ id: editing.id, patch: { sections: editing.sections } })
-                    toast.success('Salvato')
-                    setEditing(null)
-                  } catch (e) { toast.error((e as Error).message) }
-                }}>Salva</Button>
+                {editing.status !== 'FIRMATO' && (
+                  <Button variant="gold" onClick={async () => {
+                    try {
+                      await update.mutateAsync({ id: editing.id, patch: { sections: editing.sections } })
+                      toast.success('Salvato')
+                      setEditing(null)
+                    } catch (e) { toast.error((e as Error).message) }
+                  }}>Salva</Button>
+                )}
               </div>
             </div>
           </Card>
