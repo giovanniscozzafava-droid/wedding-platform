@@ -30,6 +30,20 @@ async function sendResend(to: string, subject: string, html: string) {
   return r.ok ? { ok: true as const } : { error: await r.text() }
 }
 
+async function sendResendCustom(opts: { from: string; to: string; subject: string; html: string; replyTo?: string }) {
+  if (!RESEND_API_KEY) return { skipped: true as const }
+  const body: Record<string, unknown> = { from: opts.from, to: [opts.to], subject: opts.subject, html: opts.html }
+  if (opts.replyTo) body.reply_to = opts.replyTo
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
+    body: JSON.stringify(body),
+  })
+  if (!r.ok) return { error: await r.text() }
+  const j = await r.json()
+  return { ok: true as const, id: j.id }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
@@ -131,40 +145,170 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 5. invia email cliente
+  // 5. invia email cliente — branded WP, Pinterest aesthetic
   let emailResult: any = { skipped: true }
   if (q.client_email) {
-    const link = `${APP_BASE}/p/preview/${accessToken}`
+    // Recupera info WP per personalizzazione email
+    const { data: owner } = await admin.from('profiles')
+      .select('full_name, business_name, brand_logo_url, brand_primary_color, brand_secondary_color, phone, city, bio, subscription_tier')
+      .eq('id', q.owner_id).maybeSingle()
+    const { data: ownerAuth } = await admin.auth.admin.getUserById(q.owner_id)
+    const ownerEmail = ownerAuth?.user?.email ?? null
+    const isPremium = owner?.subscription_tier === 'PREMIUM'
+
+    const wpName = owner?.full_name ?? 'Il tuo wedding planner'
+    const wpBiz = owner?.business_name ?? null
+    const primaryColor = isPremium && owner?.brand_primary_color ? owner.brand_primary_color : '#1A2E4F'
+    const accentColor = isPremium && owner?.brand_secondary_color ? owner.brand_secondary_color : '#C49A5C'
+    const logoUrl = isPremium && owner?.brand_logo_url ? owner.brand_logo_url : 'https://planfully.it/brand/planfully-symbol.png'
+
+    const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(q.total_client))
+    const eventDateFmt = q.event_date ? new Date(q.event_date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : null
     const isOverride = !!body.override_reason
+
+    const link = `${APP_BASE}/p/preview/${accessToken}`
+
     const subject = isOverride
-      ? `⚠️ Modifica al preventivo già accettato · ${q.title}`
-      : `Preventivo ${q.title}`
-    const html = isOverride
-      ? `<!doctype html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f6f4ef;padding:24px;color:#1A2E4F">
-<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.06)">
-  <div style="background:linear-gradient(135deg,#1A1714 0%,#7E6633 100%);padding:28px;text-align:center;color:#F3EEE4">
-    <h1 style="margin:0;font-size:22px">Modifica al preventivo</h1>
-    <p style="margin:6px 0 0;opacity:0.85;font-size:13px">${escapeHtml(q.title)} · revisione v${q.revision}</p>
-  </div>
-  <div style="padding:28px">
-    <p style="line-height:1.6;font-size:15px;color:#4a5568;margin:0 0 14px">
-      Buongiorno, il wedding planner ha apportato delle modifiche al preventivo che avevi <strong>già accettato</strong>. Trovi qui di seguito la motivazione.
-    </p>
-    <div style="margin:18px 0;padding:14px;background:#f6f4ef;border-left:3px solid #C49A5C;border-radius:6px;color:#4a5568;line-height:1.5">
-      <strong style="display:block;font-size:11px;color:#1A2E4F;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Motivo della modifica</strong>
-      ${escapeHtml(body.override_reason ?? '')}
-    </div>
-    <p style="line-height:1.6;font-size:14px;color:#4a5568">
-      Ti chiediamo di rivedere il preventivo aggiornato cliccando il pulsante qui sotto. Se hai dubbi, rispondi a questa email per parlare direttamente col tuo wedding planner.
-    </p>
-    <div style="margin:24px 0;text-align:center">
-      <a href="${link}" style="display:inline-block;background:#C49A5C;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Apri preventivo aggiornato</a>
-    </div>
-  </div>
-  <div style="background:#f6f4ef;padding:16px;text-align:center;font-size:11px;color:#a0aec0;border-top:1px solid #e2e8f0">Un progetto Fuyue Srl · planfully.it</div>
-</div></body>`
-      : `<p>Buongiorno,</p><p>il preventivo per <strong>${escapeHtml(q.title)}</strong> e' pronto.</p><p><a href="${link}">Visualizza preventivo</a></p>`
-    emailResult = await sendResend(q.client_email, subject, html)
+      ? `Modifica al preventivo · ${q.title}`
+      : `Il vostro preventivo per ${q.title} · da ${wpName}`
+
+    // Items preview: prime 5 voci
+    const { data: itemsPreview } = await admin.from('quote_items').select('name_snapshot, line_client').eq('quote_id', body.quote_id).order('sort_order').limit(5)
+    const itemsHtml = (itemsPreview ?? []).map((it: any) => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #EFEAE0;color:#1A1714;font-size:14px">${escapeHtml(it.name_snapshot)}</td>
+        <td style="padding:10px 0;border-bottom:1px solid #EFEAE0;color:#1A1714;font-size:14px;text-align:right;font-weight:600">${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(it.line_client))}</td>
+      </tr>`).join('')
+
+    const customNote = isOverride ? body.override_reason ?? '' : ''
+
+    const html = `<!doctype html>
+<html lang="it">
+<body style="font-family:Georgia,'Times New Roman',serif;background:#F8F5EE;margin:0;padding:0;color:#1A1714">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F8F5EE;padding:32px 16px">
+  <tr><td align="center">
+
+    <!-- MAIN CARD -->
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;background:#FDFBF6;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(26,23,20,0.08)">
+
+      <!-- TOP ACCENT BAR -->
+      <tr><td style="background:${accentColor};height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+      <tr><td style="background:${primaryColor};height:1px;font-size:0;line-height:0">&nbsp;</td></tr>
+
+      <!-- HEADER: logo + WP name -->
+      <tr><td style="padding:36px 40px 24px 40px">
+        <table role="presentation" width="100%"><tr>
+          <td style="vertical-align:middle">
+            <img src="${logoUrl}" alt="${escapeHtml(wpBiz ?? wpName)}" width="56" height="56" style="display:block;border-radius:8px;border:0" />
+          </td>
+          <td style="vertical-align:middle;padding-left:14px">
+            <div style="font-family:Georgia,serif;font-size:18px;color:#1A1714;font-weight:700;letter-spacing:-0.02em">${escapeHtml(wpBiz ?? wpName)}</div>
+            ${owner?.city ? `<div style="font-family:Arial,sans-serif;font-size:11px;color:#A59C8E;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">${escapeHtml(owner.city)}</div>` : ''}
+          </td>
+          <td style="vertical-align:middle;text-align:right">
+            <div style="font-family:Arial,sans-serif;font-size:10px;color:#A59C8E;letter-spacing:1.5px;text-transform:uppercase">Revisione</div>
+            <div style="font-family:Georgia,serif;font-size:16px;color:#1A1714;font-weight:700">v${q.revision}</div>
+          </td>
+        </tr></table>
+      </td></tr>
+
+      <!-- DIVIDER ORNAMENT -->
+      <tr><td style="padding:0 40px 28px 40px;text-align:center">
+        <table role="presentation" width="100%"><tr>
+          <td style="border-bottom:1px solid #E4DED2;height:0;line-height:0">&nbsp;</td>
+          <td style="width:24px;text-align:center;padding:0 8px">
+            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${accentColor}"></span>
+          </td>
+          <td style="border-bottom:1px solid #E4DED2;height:0;line-height:0">&nbsp;</td>
+        </tr></table>
+      </td></tr>
+
+      ${isOverride ? `
+      <!-- OVERRIDE BANNER -->
+      <tr><td style="padding:0 40px 24px 40px">
+        <div style="background:#FFF8EB;border-left:3px solid ${accentColor};border-radius:6px;padding:14px 16px">
+          <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px">Modifica al preventivo già accettato</div>
+          <div style="font-family:Georgia,serif;font-size:14px;color:#1A1714;line-height:1.5;font-style:italic">"${escapeHtml(customNote)}"</div>
+        </div>
+      </td></tr>` : ''}
+
+      <!-- EYEBROW + TITLE -->
+      <tr><td style="padding:0 40px 8px 40px;text-align:center">
+        <div style="font-family:Arial,sans-serif;font-size:11px;color:${accentColor};letter-spacing:3px;text-transform:uppercase;font-weight:600">${isOverride ? 'Preventivo aggiornato per' : 'Preventivo per'}</div>
+      </td></tr>
+      <tr><td style="padding:8px 40px 0 40px;text-align:center">
+        <h1 style="font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:36px;line-height:1.15;color:#1A1714;margin:0;letter-spacing:-0.02em">${escapeHtml(q.title)}</h1>
+      </td></tr>
+      ${eventDateFmt ? `
+      <tr><td style="padding:14px 40px 0 40px;text-align:center">
+        <div style="font-family:Georgia,serif;font-style:italic;font-size:14px;color:#787164">${escapeHtml(eventDateFmt)}</div>
+      </td></tr>` : ''}
+
+      <!-- TOTALE HERO -->
+      <tr><td style="padding:36px 40px 32px 40px;text-align:center">
+        <div style="font-family:Arial,sans-serif;font-size:10px;color:#A59C8E;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:10px">Investimento totale</div>
+        <div style="font-family:Georgia,serif;font-size:42px;font-weight:700;color:${primaryColor};letter-spacing:-0.02em">${totFmt}</div>
+        <div style="font-family:Arial,sans-serif;font-size:11px;color:#A59C8E;margin-top:6px;font-style:italic">IVA inclusa salvo diversa indicazione</div>
+      </td></tr>
+
+      ${itemsHtml ? `
+      <!-- ITEMS PREVIEW -->
+      <tr><td style="padding:0 40px 16px 40px">
+        <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:2.5px;text-transform:uppercase;font-weight:600;margin-bottom:14px">Cosa è incluso</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${itemsHtml}</table>
+        ${(itemsPreview?.length ?? 0) >= 5 ? `<div style="text-align:center;padding-top:14px;font-family:Georgia,serif;font-size:12px;color:#A59C8E;font-style:italic">...e altre voci nel dettaglio</div>` : ''}
+      </td></tr>` : ''}
+
+      <!-- CTA -->
+      <tr><td style="padding:32px 40px;text-align:center">
+        <a href="${link}" style="display:inline-block;background:${primaryColor};color:#FDFBF6;padding:16px 40px;border-radius:50px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px;letter-spacing:1.5px;text-transform:uppercase">Apri il preventivo</a>
+        <div style="margin-top:16px;font-family:Arial,sans-serif;font-size:11px;color:#A59C8E">Potrai accettarlo digitalmente con firma sicura</div>
+      </td></tr>
+
+      <!-- PERSONAL SIGNATURE WP -->
+      <tr><td style="padding:0 40px 36px 40px;text-align:center">
+        <table role="presentation" width="100%"><tr>
+          <td style="border-bottom:1px solid #E4DED2">&nbsp;</td>
+        </tr></table>
+        <div style="margin-top:24px;font-family:Georgia,serif;font-style:italic;font-size:13px;color:#787164;line-height:1.6">
+          ${owner?.bio ? escapeHtml(owner.bio).slice(0, 280) + (owner.bio.length > 280 ? '…' : '') : 'A presto, per il tuo giorno più importante.'}
+        </div>
+        <div style="margin-top:18px;font-family:Georgia,serif;font-size:14px;color:#1A1714;font-weight:700">— ${escapeHtml(wpName)}</div>
+        <div style="font-family:Arial,sans-serif;font-size:11px;color:#A59C8E;letter-spacing:1px;text-transform:uppercase;margin-top:4px">${escapeHtml(wpBiz ?? 'Wedding planner')}</div>
+        ${ownerEmail || owner?.phone ? `
+        <div style="margin-top:14px;font-family:Arial,sans-serif;font-size:12px;color:#787164">
+          ${ownerEmail ? `<a href="mailto:${escapeHtml(ownerEmail)}" style="color:#787164;text-decoration:none">${escapeHtml(ownerEmail)}</a>` : ''}
+          ${ownerEmail && owner?.phone ? '  ·  ' : ''}
+          ${owner?.phone ? escapeHtml(owner.phone) : ''}
+        </div>` : ''}
+      </td></tr>
+
+      <!-- BOTTOM ACCENT -->
+      <tr><td style="background:${accentColor};height:3px;font-size:0;line-height:0">&nbsp;</td></tr>
+    </table>
+
+    <!-- POWERED BY -->
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;margin-top:20px">
+      <tr><td style="text-align:center;font-family:Arial,sans-serif;font-size:10px;color:#A59C8E;letter-spacing:1.5px">
+        <a href="https://planfully.it" style="color:#A59C8E;text-decoration:none">Powered by Planfully · Un progetto Fuyue Srl</a>
+      </td></tr>
+    </table>
+
+  </td></tr>
+</table>
+</body></html>`
+
+    const fromName = wpBiz ? `${wpName} · ${wpBiz}` : wpName
+    const fromAddr = (FROM.match(/<(.+)>/)?.[1]) ?? FROM
+    const fromHeader = `${fromName} via Planfully <${fromAddr}>`
+
+    emailResult = await sendResendCustom({
+      from: fromHeader,
+      to: q.client_email,
+      subject,
+      html,
+      replyTo: ownerEmail ?? undefined,
+    })
   }
 
   return json({
