@@ -14,6 +14,34 @@ type Comp = { id?: string; name: string; unit_price: number; quantity: number; u
 
 const UNITS = ['pz', 'gambo', 'mazzo', 'kg', 'g', 'l', 'ml', 'h', 'm', 'altro']
 
+// Catalogo NOMI servizi tipici per settore — il fornitore sceglie da qui
+const SERVICE_NAMES_BY_SUBROLE: Record<string, string[]> = {
+  fotografo: ['Servizio matrimonio full day', 'Servizio cerimonia 4h', 'Pre-wedding shoot', 'Album premium 30x30', 'Album standard', 'Box stampe fine art', 'Riprese drone', 'Foto group corporate', 'Galleria online consegna', 'Editing 300 foto'],
+  videomaker: ['Video matrimonio full day', 'Highlights 3 min', 'Film completo 30 min', 'Reel social verticale', 'Same Day Edit (SDE)', 'Riprese drone aeree', 'Aftermovie', 'Trailer cinematografico'],
+  fioraio: ['Bouquet sposa', 'Bouquet damigella', 'Boutonnière sposo', 'Centrotavola tondo', 'Centrotavola lungo', 'Allestimento cerimonia chiesa', 'Allestimento gazebo/arco', 'Composizione tableau', 'Petali per uscita', 'Fiori per torta', 'Corona fiori sposa', 'Composizione altare'],
+  catering: ['Menu base', 'Menu deluxe', 'Menu vegetariano', 'Menu kids', 'Open bar 4h', 'Open bar premium', 'Aperitivo finger food', 'Buffet di dolci', 'Service camerieri', 'Bartender dedicato', 'Welcome drink', 'Late night snack'],
+  pasticcere: ['Torta nuziale 1 piano', 'Torta nuziale 2 piani', 'Torta nuziale 3 piani', 'Confetti personalizzati', 'Confettata mignon', 'Cake topper personalizzato', 'Sweet table', 'Mini cake ospiti'],
+  musica: ['DJ set 5 ore', 'DJ set + Live PA', 'Band live cerimonia', 'Band live ricevimento', 'Trio acustico', 'Quartetto archi cerimonia', 'Cantante solista', 'Service audio cerimonia', 'Service luci dance floor'],
+  allestimenti: [
+    'Sedie chiavarine dorate', 'Sedie chiavarine bianche', 'Sedie cross-back legno', 'Sedie ghost trasparenti',
+    'Poltrone vintage lounge', 'Divani chesterfield', 'Pouf colorati',
+    'Tavoli imperiali 4m', 'Tavoli rotondi 1.5m', 'Tavoli quadrati 2m',
+    'Tovagliato lino naturale', 'Tovagliato organza ricamata', 'Runner velluto', 'Mise en place oro/rame',
+    'Piatti porcellana bianca', 'Charger plates oro', 'Bicchieri cristallo', 'Posateria oro',
+    'Arco floreale matrimonio', 'Gazebo bianco 6x6', 'Tunnel di fiori', 'Lounge area chill-out',
+    'Lighting design ambient', 'Catene luminose patio', 'Spot dance floor', 'Faretti architetturali',
+    'Sound system audio', 'Pista da ballo', 'Welcome corner', 'Photo booth + props',
+  ],
+  make_up: ['Make-up sposa con prova', 'Make-up sposa giorno', 'Acconciatura sposa', 'Make-up testimoni', 'Make-up mamme', 'Trial styling', 'Touch-up presente in location'],
+  abiti: ['Abito sposa atelier su misura', 'Abito sposa ready-to-wear', 'Velo / coprispalle', 'Accessori sposa', 'Abito sposo', 'Cravatta / papillon set', 'Scarpe sposa'],
+  location: ['Pacchetto location + menu', 'Affitto sala matrimonio', 'Affitto giardino', 'Affitto piscina', 'Cerimonia civile in struttura', 'Pernotto suite sposi'],
+  auto: ['Auto sposi vintage Fiat 500', 'Auto sposi Mercedes', 'Auto sposi Rolls Royce', 'Limousine 8 posti', 'Pulmino navetta'],
+  animazione: ['Mago / illusionista', 'Animazione bambini', 'Statua vivente', 'Fuochi pirotecnici', 'Spettacolo fuoco'],
+  celebrante: ['Cerimonia simbolica', 'Officiante laico', 'Cerimonia delle alleanze'],
+  wedding_planner: ['Pianificazione completa', 'Day coordinator', 'Mood board + concept', 'Wedding designer', 'Destination wedding'],
+  altro: ['Servizio personalizzato'],
+}
+
 const PRESETS_BY_SUBROLE: Record<string, { label: string; items: Comp[] }[]> = {
   fioraio: [
     { label: 'Bouquet sposa romantico', items: [
@@ -78,6 +106,34 @@ const PRESETS_BY_SUBROLE: Record<string, { label: string; items: Comp[] }[]> = {
       { name: 'Sedie chiavarine bianche', unit_price: 3, quantity: 80, unit: 'pz' },
       { name: 'Tappeto fiori petali', unit_price: 220, quantity: 1, unit: 'pz' },
       { name: 'Trasporto + montaggio', unit_price: 280, quantity: 1, unit: 'pz' },
+    ] },
+    { label: 'Pacchetto sedute + tavoli', items: [
+      { name: 'Sedie chiavarine dorate (noleggio)', unit_price: 4.5, quantity: 100, unit: 'pz' },
+      { name: 'Tavoli imperiali 4m', unit_price: 85, quantity: 3, unit: 'pz' },
+      { name: 'Tavoli rotondi 1.5m', unit_price: 35, quantity: 8, unit: 'pz' },
+      { name: 'Trasporto + montaggio + smontaggio', unit_price: 450, quantity: 1, unit: 'pz' },
+    ] },
+    { label: 'Tovagliato + mise en place premium', items: [
+      { name: 'Tovagliato lino naturale (a tavolo)', unit_price: 22, quantity: 11, unit: 'pz' },
+      { name: 'Runner velluto bordeaux', unit_price: 18, quantity: 11, unit: 'pz' },
+      { name: 'Piatti porcellana bianca (set 6 pz)', unit_price: 12, quantity: 100, unit: 'pz' },
+      { name: 'Charger plates oro', unit_price: 4.5, quantity: 100, unit: 'pz' },
+      { name: 'Bicchieri cristallo (set 4)', unit_price: 5, quantity: 100, unit: 'pz' },
+      { name: 'Posateria oro (set)', unit_price: 8, quantity: 100, unit: 'pz' },
+    ] },
+    { label: 'Lounge + chill-out', items: [
+      { name: 'Divani chesterfield velluto', unit_price: 180, quantity: 3, unit: 'pz' },
+      { name: 'Poltrone vintage spaiate', unit_price: 65, quantity: 6, unit: 'pz' },
+      { name: 'Pouf colorati', unit_price: 25, quantity: 12, unit: 'pz' },
+      { name: 'Tappeto persiano vintage', unit_price: 95, quantity: 2, unit: 'pz' },
+      { name: 'Tavolini caffè bassi', unit_price: 35, quantity: 3, unit: 'pz' },
+    ] },
+    { label: 'Lighting design completo', items: [
+      { name: 'Catene luminose 50m', unit_price: 220, quantity: 1, unit: 'pz' },
+      { name: 'Spot dance floor LED', unit_price: 95, quantity: 6, unit: 'pz' },
+      { name: 'Faretti architetturali warm', unit_price: 45, quantity: 12, unit: 'pz' },
+      { name: 'Macchina del fumo + neon', unit_price: 280, quantity: 1, unit: 'pz' },
+      { name: 'Service tecnico operatore', unit_price: 380, quantity: 1, unit: 'pz' },
     ] },
   ],
   make_up: [
@@ -206,8 +262,22 @@ export default function CompositionCalculatorPage() {
         <Card className="p-4 sm:p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <div className="space-y-1">
-              <Label htmlFor="comp-name">Nome composizione</Label>
-              <Input id="comp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Bouquet sposa peonie" />
+              <Label htmlFor="comp-name">Nome servizio</Label>
+              {SERVICE_NAMES_BY_SUBROLE[profile?.subrole ?? '']?.length ? (
+                <Select id="comp-name" value={name} onChange={(e) => setName(e.target.value)}>
+                  <option value="">— Scegli dal tuo catalogo —</option>
+                  {(SERVICE_NAMES_BY_SUBROLE[profile?.subrole ?? ''] ?? []).map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                  <option value="__custom__">+ Personalizzato (digita sotto)</option>
+                </Select>
+              ) : (
+                <Input id="comp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Bouquet sposa peonie" />
+              )}
+              {name === '__custom__' && (
+                <Input className="mt-2" placeholder="Digita il nome personalizzato"
+                  value="" onChange={(e) => setName(e.target.value)} />
+              )}
             </div>
             <div className="space-y-1">
               <Label htmlFor="markup">Markup %</Label>
