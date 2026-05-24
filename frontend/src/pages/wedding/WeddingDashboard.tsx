@@ -7,7 +7,8 @@ import {
   BedDouble, Bus, Gift, PartyPopper, Globe, Heart,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { useWedding } from '@/hooks/useWedding'
+import { toast } from 'sonner'
+import { useWedding, useUpdateWedding } from '@/hooks/useWedding'
 import { OverviewTab } from '@/components/wedding/OverviewTab'
 import { TimelineTab } from '@/components/wedding/TimelineTab'
 import { TablesTab } from '@/components/wedding/TablesTab'
@@ -77,8 +78,9 @@ export default function WeddingDashboard() {
                 {new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge status={wedding.status} />
+              <BusinessModelToggle wedding={wedding} />
               {wedding.value_amount && (
                 <span className="font-display text-2xl tabular-nums" style={{ color: 'rgb(var(--gold-700))' }}>
                   € {Number(wedding.value_amount).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
@@ -140,5 +142,51 @@ export default function WeddingDashboard() {
         </AnimatePresence>
       </div>
     </div>
+  )
+}
+
+function BusinessModelToggle({ wedding }: { wedding: any }) {
+  const update = useUpdateWedding(wedding.id)
+  const [open, setOpen] = useState(false)
+  const current = (wedding.business_model ?? 'GLOBAL') as 'GLOBAL' | 'BROKER'
+
+  async function set(value: 'GLOBAL' | 'BROKER') {
+    if (value === current) { setOpen(false); return }
+    try {
+      await update.mutateAsync({ business_model: value } as any)
+      toast.success(value === 'GLOBAL' ? 'Modello: WP gestisce tutto' : 'Modello: sposi firmano coi fornitori')
+      setOpen(false)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border hover:bg-[rgb(var(--bg-sunken))] transition-colors"
+        style={{ borderColor: 'rgb(var(--border-strong))' }}
+        title="Cambia modello di business">
+        {current === 'GLOBAL' ? '🏛 Tutto WP' : '🤝 Sposi diretti'}
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)}>
+          <div className="bg-[rgb(var(--bg-elev))] w-full max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl border p-5" style={{ borderColor: 'rgb(var(--border))' }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg mb-1">Modello di business</h3>
+            <p className="text-xs text-[rgb(var(--fg-muted))] mb-4">Come gestirai questo matrimonio dal punto di vista commerciale.</p>
+            <div className="space-y-2">
+              <button onClick={() => set('GLOBAL')}
+                className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${current === 'GLOBAL' ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--bg-sunken))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                <p className="font-medium">🏛 Tutto a carico WP</p>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">Tu firmi un contratto unico con gli sposi. Sub-contrattualizzi tu i fornitori. Gli sposi pagano solo a te.</p>
+              </button>
+              <button onClick={() => set('BROKER')}
+                className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${current === 'BROKER' ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--bg-sunken))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                <p className="font-medium">🤝 Sposi firmano coi fornitori</p>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">Tu organizzi e coordini. Gli sposi firmano contratti diretti con ogni fornitore e pagano direttamente loro. Tu emetti eventuale fee organizzativa separata.</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

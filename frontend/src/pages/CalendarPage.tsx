@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { EntryForm } from '@/components/calendar/EntryForm'
 import { useCalendarEntries, useEnsureExportToken, type EntryWithParticipants } from '@/hooks/useCalendar'
+import { useSupplierEarnings } from '@/hooks/useSupplierEarnings'
 import { PageHeader } from '@/components/layout/PageHeader'
 
 const WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
@@ -50,6 +51,9 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   const canCreate = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
+  const isSupplier = profile?.role === 'FORNITORE'
+  const entryIds = useMemo(() => (data ?? []).map((e: any) => e.id), [data])
+  const { data: earnings } = useSupplierEarnings(entryIds)
   const monthLabel = cursor.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 
   const grid = useMemo(() => monthGrid(cursor), [cursor])
@@ -192,8 +196,29 @@ export default function CalendarPage() {
                         {e.client_name && (
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">Cliente: {e.client_name}</p>
                         )}
-                        {e.value_amount && (
-                          <p className="text-sm font-medium mt-1 tabular-nums">€ {Number(e.value_amount).toLocaleString('it-IT')}</p>
+                        {isSupplier ? (
+                          (() => {
+                            const ag = earnings?.get(e.id)
+                            if (!ag) return null
+                            const fmt = (n: number) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+                            return (
+                              <div className="mt-2 p-2 rounded-md text-xs space-y-0.5" style={{ background: 'rgb(var(--bg-sunken))' }}>
+                                <div className="flex justify-between font-medium">
+                                  <span className="text-[rgb(var(--fg-muted))]">Tuo guadagno</span>
+                                  <span className="tabular-nums">{fmt(ag.total)}</span>
+                                </div>
+                                <div className="flex justify-between text-[10px]">
+                                  <span className="text-[rgb(var(--emerald-500))]">incassato {fmt(ag.paid)}</span>
+                                  <span className="text-[rgb(var(--rose-500))]">da incassare {fmt(ag.pending)}</span>
+                                </div>
+                                <div className="text-[10px] text-[rgb(var(--fg-subtle))]">{ag.items} voci</div>
+                              </div>
+                            )
+                          })()
+                        ) : (
+                          e.value_amount && (
+                            <p className="text-sm font-medium mt-1 tabular-nums">€ {Number(e.value_amount).toLocaleString('it-IT')}</p>
+                          )
                         )}
                         {e.calendar_entry_participants?.length > 0 && (
                           <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">
