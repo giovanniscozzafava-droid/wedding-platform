@@ -171,6 +171,17 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
               </div>
             </form>
 
+            {!savedId && (
+              <div className="border-t pt-5 mt-4" style={{ borderColor: 'rgb(var(--border))' }}>
+                <div className="rounded-lg p-4 text-sm" style={{ background: 'rgb(var(--bg-sunken))', border: '1px dashed rgb(var(--border-strong))' }}>
+                  <p className="font-medium mb-1">📸 Foto e modificatori di prezzo</p>
+                  <p className="text-[rgb(var(--fg-muted))] text-xs leading-relaxed">
+                    Compila i campi qui sopra e clicca <strong>"Salva"</strong>. Subito dopo apparirà la sezione per caricare fino a <strong>10 foto</strong> e aggiungere modificatori di prezzo (sconti / supplementi).
+                  </p>
+                </div>
+              </div>
+            )}
+
             {savedId && (
               <>
                 <div className="border-t pt-5" style={{ borderColor: 'rgb(var(--border))' }}>
