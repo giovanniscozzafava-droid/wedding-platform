@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Image as ImageIcon, X, Plus, Trash2, Sparkles } from 'lucide-react'
+import { Image as ImageIcon, X, Plus, Trash2, Sparkles, Link as LinkIcon, Loader2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -88,6 +89,36 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
       setNewMod({ name: '', type: 'PERCENT', value: '' })
       toast.success('Modificatore aggiunto')
     } catch (e) { toast.error((e as Error).message) }
+  }
+
+  const [importUrl, setImportUrl] = useState('')
+  const [importing, setImporting] = useState(false)
+
+  async function handleImportUrl() {
+    if (!savedId) { toast.error('Salva prima il servizio'); return }
+    const url = importUrl.trim()
+    if (!url || !/^https?:\/\//.test(url)) { toast.error('Incolla un URL valido (Instagram, Pinterest, qualsiasi blog)'); return }
+    setImporting(true)
+    try {
+      // 1. Estrai og:image via edge function
+      const { data: meta, error } = await supabase.functions.invoke('import-pin-url', { body: { url } })
+      if (error) throw error
+      const imgUrl = (meta as any)?.image
+      if (!imgUrl) throw new Error('Nessuna immagine trovata in quella pagina')
+
+      // 2. Scarica l'immagine come blob via fetch
+      const r = await fetch(imgUrl)
+      if (!r.ok) throw new Error(`Impossibile scaricare immagine (HTTP ${r.status})`)
+      const blob = await r.blob()
+      const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg'
+      const file = new File([blob], `import-${Date.now()}.${ext}`, { type: blob.type || 'image/jpeg' })
+
+      // 3. Riutilizza useUploadPhoto (gestisce resize browser-side + upload bucket + insert riga)
+      await upPhoto.mutateAsync({ serviceId: savedId, file })
+      toast.success('Foto importata')
+      setImportUrl('')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setImporting(false) }
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -252,14 +283,36 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                 </div>
 
                 <div className="border-t pt-5" style={{ borderColor: 'rgb(var(--border))' }}>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h3 className="font-medium text-sm">Foto (max 10)</h3>
                     <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors border"
                       style={{ borderColor: 'rgb(var(--border-strong))' }}>
-                      <Plus size={14} /> Carica
+                      <Plus size={14} /> Carica file
                       <input type="file" className="hidden" accept="image/*,.heic,.heif"
                         onChange={handleFile} data-testid="photo-upload" />
                     </label>
+                  </div>
+
+                  {/* Import da URL Instagram/Pinterest/blog */}
+                  <div className="rounded-lg border-2 border-dashed p-3 mb-3"
+                    style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <LinkIcon size={13} className="text-[rgb(var(--gold-600))]" />
+                      <p className="text-xs font-medium">Oppure incolla URL da Instagram, Pinterest, blog</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input value={importUrl} onChange={(e) => setImportUrl(e.target.value)}
+                        placeholder="https://www.instagram.com/p/..."
+                        className="flex-1 text-xs h-8"
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleImportUrl() } }} />
+                      <Button type="button" variant="outline" size="sm" onClick={handleImportUrl} disabled={importing || !importUrl.trim()}>
+                        {importing ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                        {importing ? 'Importo' : 'Importa'}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1.5">
+                      Estraggo l'immagine principale del post (og:image). Funziona su qualsiasi pagina pubblica.
+                    </p>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
                     {(service?.service_photos ?? []).map((p) => (
