@@ -183,12 +183,15 @@ async function sendInviteEmail(args: {
     .map((s, i) => `<li style="margin:0 0 8px;padding-left:8px"><span style="color:#C49A5C;font-weight:600">${i + 1}.</span> ${escapeHtml(s)}</li>`)
     .join('')
 
+  const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64" style="display:block;margin:0 auto"><path d="M77.9 54.4 A28 28 0 1 1 66.06 29.06" fill="none" stroke="#F3EEE4" stroke-width="10" stroke-linecap="round"/><circle cx="75.4" cy="40.2" r="9" fill="#C49A5C"/></svg>`
+
   const html = `<!doctype html>
 <html lang="it"><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f6f4ef;margin:0;padding:32px;color:#1A2E4F">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.06)">
-  <div style="background:linear-gradient(135deg,#1A2E4F 0%,#C49A5C 100%);padding:32px;text-align:center;color:#fff">
-    <h1 style="margin:0;font-size:28px;font-weight:600;letter-spacing:-0.02em">Planfully</h1>
-    <p style="margin:8px 0 0;opacity:0.9;font-size:13px">Network indipendente per il wedding italiano</p>
+  <div style="background:linear-gradient(135deg,#1A1714 0%,#3a2f24 60%,#7E6633 100%);padding:32px;text-align:center;color:#fff">
+    ${logoSvg}
+    <h1 style="margin:14px 0 0;font-size:26px;font-weight:600;letter-spacing:-0.02em;color:#F3EEE4">Planfully</h1>
+    <p style="margin:6px 0 0;opacity:0.75;font-size:12px;letter-spacing:0.5px;color:#F3EEE4">Network indipendente per il wedding italiano</p>
   </div>
   <div style="padding:32px">
     <p style="margin:0 0 4px;font-size:13px;color:#a0aec0;text-transform:uppercase;letter-spacing:1px">Invito personale</p>
