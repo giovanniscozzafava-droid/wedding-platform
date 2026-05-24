@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Plus, Trash2, Music } from 'lucide-react'
+import { Plus, Trash2, Music, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { usePlaylist, usePlaylistMutations } from '@/hooks/useWedding'
+import { PLAYLIST_PRESETS } from '@/lib/wedding-presets'
 
 const MOMENTS = [
   { key: 'CERIMONIA',    label: 'Cerimonia' },
@@ -32,12 +33,45 @@ export function PlaylistTab({ entryId }: { entryId: string }) {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  async function addPresetGroup(groupName: string) {
+    const presets = PLAYLIST_PRESETS[groupName] ?? []
+    if (!presets.length) return
+    try {
+      for (const p of presets) {
+        const exists = (songs ?? []).some((s: any) => s.song_title === p.song_title && s.moment === p.moment)
+        if (!exists) await add.mutateAsync(p)
+      }
+      toast.success(`${presets.length} brani aggiunti da preset "${groupName}"`)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
   return (
     <div>
       <header className="mb-6">
         <h2 className="font-display text-2xl">Playlist musica</h2>
         <p className="text-sm text-[rgb(var(--fg-muted))]">Brani per ogni momento, condivisi con il musicista/DJ.</p>
       </header>
+
+      {/* Preset banner */}
+      <Card className="p-4 mb-4" style={{ background: 'rgb(var(--bg-sunken))', borderColor: 'rgb(var(--gold-500))' }}>
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles size={14} className="text-[rgb(var(--gold-600))]" />
+          <p className="text-sm font-medium">Playlist rapide</p>
+        </div>
+        <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
+          Aggiungi un set predefinito di brani per ogni momento. Sono solo suggerimenti — modifica e riordina come preferisci.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {Object.keys(PLAYLIST_PRESETS).map((name) => (
+            <button key={name} onClick={() => addPresetGroup(name)}
+              className="rounded-full px-2.5 py-1 text-xs font-medium border bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--gold-500))] hover:text-[rgb(var(--bg))] hover:border-transparent transition-colors"
+              style={{ borderColor: 'rgb(var(--border))' }}
+              title={`${(PLAYLIST_PRESETS[name] ?? []).length} brani`}>
+              + {name} ({(PLAYLIST_PRESETS[name] ?? []).length})
+            </button>
+          ))}
+        </div>
+      </Card>
 
       <Card className="p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">

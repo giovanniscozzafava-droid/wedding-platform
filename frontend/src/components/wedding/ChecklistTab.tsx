@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Plus, Trash2, CheckSquare, Download } from 'lucide-react'
+import { Plus, Trash2, CheckSquare, Download, Sparkles } from 'lucide-react'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { useTasks, useTaskMutations } from '@/hooks/useWedding'
+import { CHECKLIST_PRESETS, PHASE_LABEL } from '@/lib/wedding-presets'
 
 const PHASES = [
   { key: '12_MESI',    label: '12 mesi prima' },
@@ -31,6 +32,31 @@ export function ChecklistTab({ entryId }: { entryId: string }) {
     try {
       await add.mutateAsync({ title: draft.title.trim(), phase: draft.phase, due_at: draft.due_at || null })
       setDraft({ title: '', phase: draft.phase, due_at: '' })
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  async function importAllPresets() {
+    if (!confirm(`Importi ${CHECKLIST_PRESETS.length} task standard? Salterò quelli già presenti.`)) return
+    let n = 0
+    try {
+      for (const p of CHECKLIST_PRESETS) {
+        const exists = (tasks ?? []).some((t: any) => t.title === p.title && t.phase === p.phase)
+        if (!exists) { await add.mutateAsync({ title: p.title, phase: p.phase, description: p.description ?? null, due_at: null }); n++ }
+      }
+      toast.success(`${n} task aggiunte dal preset standard`)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  async function importPhasePresets(phaseKey: any) {
+    const presets = CHECKLIST_PRESETS.filter(p => p.phase === phaseKey)
+    if (!presets.length) return
+    let n = 0
+    try {
+      for (const p of presets) {
+        const exists = (tasks ?? []).some((t: any) => t.title === p.title && t.phase === p.phase)
+        if (!exists) { await add.mutateAsync({ title: p.title, phase: p.phase, description: p.description ?? null, due_at: null }); n++ }
+      }
+      toast.success(`${n}/${presets.length} task aggiunte per ${PHASE_LABEL[phaseKey as keyof typeof PHASE_LABEL]}`)
     } catch (e) { toast.error((e as Error).message) }
   }
 
@@ -75,6 +101,34 @@ export function ChecklistTab({ entryId }: { entryId: string }) {
           </div>
         </div>
       </header>
+
+      {/* Preset banner */}
+      {(tasks?.length ?? 0) < 5 && (
+        <Card className="p-4 mb-4" style={{ background: 'rgb(var(--bg-sunken))', borderColor: 'rgb(var(--gold-500))' }}>
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles size={14} className="text-[rgb(var(--gold-600))]" />
+            <p className="text-sm font-medium">Inizia da una checklist standard</p>
+          </div>
+          <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
+            Importa {CHECKLIST_PRESETS.length} task organizzati per fase (12 mesi → giorno-X). Modificali e cancella quello che non ti serve.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <Button variant="gold" size="sm" onClick={importAllPresets}>
+              <Sparkles size={12} /> Importa checklist completa
+            </Button>
+            {(['12_MESI','6_MESI','3_MESI','1_MESE','1_SETTIMANA','DAY_OF'] as const).map((ph) => {
+              const n = CHECKLIST_PRESETS.filter(p => p.phase === ph).length
+              return (
+                <button key={ph} onClick={() => importPhasePresets(ph)}
+                  className="rounded-full px-2.5 py-1 text-xs font-medium border bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--gold-500))] hover:text-[rgb(var(--bg))] hover:border-transparent transition-colors"
+                  style={{ borderColor: 'rgb(var(--border))' }}>
+                  {PHASE_LABEL[ph]} ({n})
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
