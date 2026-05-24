@@ -83,6 +83,9 @@ export default function CoupleDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggle}>{theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}</Button>
+            <Link to="/profile" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Profilo / Privacy">
+              <Sparkles size={14} />
+            </Link>
             <Button variant="ghost" size="icon" onClick={logout}><LogOut size={14} /></Button>
           </div>
         </div>

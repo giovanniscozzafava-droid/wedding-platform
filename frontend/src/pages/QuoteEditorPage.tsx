@@ -8,6 +8,7 @@ import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { supabase } from '@/lib/supabase'
 import { useServices } from '@/hooks/useCatalog'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import {
@@ -90,6 +91,20 @@ export default function QuoteEditorPage() {
     if (!id) return
     const svc = services?.find((s) => s.id === serviceId)
     if (!svc || !quote) return
+
+    // Check fornitore disponibile in event_date
+    if (quote.event_date) {
+      try {
+        const { data: avail } = await (supabase.rpc as any)('check_supplier_available', {
+          p_supplier: supplierId,
+          p_date: quote.event_date,
+        })
+        if (avail === false) {
+          if (!confirm(`⚠️ Il fornitore ha segnato il ${quote.event_date} come OCCUPATO nel suo calendario.\n\nProcedere comunque?`)) return
+        }
+      } catch { /* check soft, prosegui */ }
+    }
+
     const basis = defaultBasisFor(svc.unit)
     const qty = quantityFor(basis, quote.guest_count, (quote as any).table_count)
     try {
@@ -100,7 +115,14 @@ export default function QuoteEditorPage() {
         quantity_basis: basis,
       })
       toast.success(`Voce aggiunta · ${qty} ${svc.unit.toLowerCase()}`)
-    } catch (e) { toast.error((e as Error).message) }
+    } catch (e) {
+      const msg = (e as Error).message
+      if (msg.includes('non disponibile')) {
+        toast.error(msg, { duration: 6000 })
+      } else {
+        toast.error(msg)
+      }
+    }
   }
 
   async function handleHeaderUpdate() {

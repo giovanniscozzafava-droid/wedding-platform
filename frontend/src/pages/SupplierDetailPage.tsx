@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Phone, FileText, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Phone, FileText, ImageIcon, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,8 @@ export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: supplier, isLoading: lsup } = useSupplier(id ?? null)
   const { data: services, isLoading: lsvc } = useServicesBySupplier(id ?? null)
+  const [openSvc, setOpenSvc] = useState<any | null>(null)
+  const [photoIdx, setPhotoIdx] = useState(0)
 
   const grouped = useMemo(() => {
     const out = new Map<string, NonNullable<typeof services>>()
@@ -128,7 +130,8 @@ export default function SupplierDetailPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {items.map((s) => (
-                    <Card key={s.id} className="overflow-hidden hover:shadow-[var(--shadow-lift)] transition-shadow">
+                    <Card key={s.id} onClick={() => { setOpenSvc(s); setPhotoIdx(0) }}
+                      className="overflow-hidden hover:shadow-[var(--shadow-lift)] transition-shadow cursor-pointer">
                       <div className="aspect-[16/10] bg-[rgb(var(--bg-sunken))] overflow-hidden relative">
                         {s.service_photos[0] ? (
                           <img src={s.service_photos[0].thumbnail_url} alt={s.name}
@@ -137,6 +140,11 @@ export default function SupplierDetailPage() {
                           <div className="h-full w-full flex items-center justify-center text-[rgb(var(--fg-subtle))]">
                             <ImageIcon size={28} />
                           </div>
+                        )}
+                        {s.service_photos.length > 1 && (
+                          <span className="absolute bottom-2 right-2 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white">
+                            +{s.service_photos.length - 1}
+                          </span>
                         )}
                       </div>
                       <div className="p-4 space-y-2">
@@ -166,6 +174,95 @@ export default function SupplierDetailPage() {
           </div>
         </section>
       </div>
+
+      {/* Service detail modal/lightbox */}
+      {openSvc && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setOpenSvc(null)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="surface surface-lift w-full sm:max-w-3xl max-h-[95vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-[rgb(var(--bg-elev))]" style={{ borderColor: 'rgb(var(--border))' }}>
+              <div className="min-w-0">
+                <Badge tone="gold">{openSvc.service_categories?.name ?? 'Servizio'}</Badge>
+                <h2 className="font-display text-xl mt-1 truncate">{openSvc.name}</h2>
+              </div>
+              <button onClick={() => setOpenSvc(null)} aria-label="Chiudi"
+                className="h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center shrink-0">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Carosello foto */}
+            {openSvc.service_photos.length > 0 && (
+              <div className="relative bg-black aspect-[16/10] overflow-hidden">
+                <img src={openSvc.service_photos[photoIdx]?.original_url ?? openSvc.service_photos[photoIdx]?.thumbnail_url}
+                  alt="" className="h-full w-full object-cover" />
+                {openSvc.service_photos.length > 1 && (
+                  <>
+                    <button onClick={() => setPhotoIdx((i) => (i - 1 + openSvc.service_photos.length) % openSvc.service_photos.length)}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70">
+                      <ChevronLeft size={18} />
+                    </button>
+                    <button onClick={() => setPhotoIdx((i) => (i + 1) % openSvc.service_photos.length)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70">
+                      <ChevronRight size={18} />
+                    </button>
+                    <span className="absolute bottom-2 right-2 text-xs px-2 py-0.5 rounded bg-black/60 text-white">
+                      {photoIdx + 1} / {openSvc.service_photos.length}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-baseline gap-3">
+                <span className="font-display text-3xl tabular-nums">€ {Number(openSvc.base_price).toLocaleString('it-IT')}</span>
+                <span className="text-sm text-[rgb(var(--fg-subtle))] uppercase tracking-wide">/{openSvc.unit.toLowerCase()}</span>
+              </div>
+
+              {openSvc.description && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Descrizione</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{openSvc.description}</p>
+                </div>
+              )}
+
+              {openSvc.service_modifiers.length > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Modificatori applicabili</p>
+                  <div className="space-y-2">
+                    {openSvc.service_modifiers.map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm"
+                        style={{ borderColor: 'rgb(var(--border))' }}>
+                        <span>{m.name}</span>
+                        <Badge tone={Number(m.value) < 0 ? 'emerald' : 'amber'}>
+                          {m.modifier_type === 'PERCENT' ? `${m.value}%` : `${m.value} €`}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Thumbnails strip */}
+              {openSvc.service_photos.length > 1 && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Galleria</p>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {openSvc.service_photos.map((p: any, i: number) => (
+                      <button key={p.id} onClick={() => setPhotoIdx(i)}
+                        className={`aspect-square rounded-md overflow-hidden ${i === photoIdx ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`}>
+                        <img src={p.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

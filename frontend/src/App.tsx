@@ -29,6 +29,7 @@ import CoupleInviteAcceptPage from '@/pages/public/CoupleInviteAcceptPage'
 import PrivacyPage from '@/pages/public/PrivacyPage'
 import CookiePage from '@/pages/public/CookiePage'
 import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
+import SupplierAvailabilityPage from '@/pages/SupplierAvailabilityPage'
 import { CookieBanner } from '@/components/CookieBanner'
 
 export default function App() {
@@ -141,6 +142,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookie" element={<CookiePage />} />
           <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
+          <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
           <Route path="/couple" element={
             <RequireAuth bare roles={['COUPLE', 'ADMIN']}><CoupleDashboard /></RequireAuth>
           } />

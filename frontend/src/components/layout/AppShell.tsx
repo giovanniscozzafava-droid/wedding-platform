@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Calculator,
+  CalendarCheck,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth'
@@ -48,6 +49,7 @@ const NAV_TAIL: NavItem[] = [
 ]
 
 const NAV_FORN: NavItem[] = [
+  { to: '/disponibilita', label: 'Disponibilità', icon: CalendarCheck },
   { to: '/calcolatore', label: 'Calcolatore', icon: Calculator },
 ]
 
@@ -184,6 +186,32 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </NavLink>
                 ))}
               </nav>
+              {/* Mobile drawer footer: user + logout */}
+              <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                <div className="flex items-center gap-3 px-2 py-2 mb-2">
+                  <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0"
+                    style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="" className="h-full w-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                    ) : (<span>{initials}</span>)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate" style={{ color: 'rgb(var(--fg))' }}>
+                      {profile?.full_name ?? user?.email}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'rgb(var(--fg-subtle))' }}>
+                      {ROLE_LABEL[profile?.role ?? ''] ?? '...'}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => { setMobileOpen(false); void handleLogout() }} data-testid="mobile-logout-btn"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium hover:bg-[rgb(var(--rose-100))]"
+                  style={{ color: 'rgb(var(--rose-500))' }}>
+                  <LogOut size={14} />
+                  <span>Esci</span>
+                </button>
+              </div>
             </motion.aside>
           </motion.div>
         )}

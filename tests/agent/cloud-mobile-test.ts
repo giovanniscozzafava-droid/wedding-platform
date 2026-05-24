@@ -18,14 +18,17 @@ async function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)) 
 async function main() {
   const browser = await chromium.launch({ headless: true })
 
-  // === iPhone 14 viewport ===
-  const phone = await browser.newContext({ ...devices['iPhone 14'] })
+  // === iPhone 14 Pro Max ===
+  const phone = await browser.newContext({ ...(devices['iPhone 14 Pro Max'] ?? devices['iPhone 14']) })
   const page = await phone.newPage()
 
   log('## iPhone 14 viewport (390x844)\n')
 
   await page.goto(`${BASE}/login`)
   await page.waitForLoadState('networkidle').catch(() => {})
+  // Dismiss cookie banner
+  await page.locator('button:has-text("Accetta tutto")').click({ timeout: 4000 }).catch(() => {})
+  await sleep(400)
   await shot(page, '01-login')
   log('  · login page')
 
@@ -88,6 +91,9 @@ async function main() {
   log('\n## Desktop 1440x900\n')
 
   await dp.goto(`${BASE}/login`)
+  await dp.waitForLoadState('networkidle').catch(() => {})
+  await dp.locator('button:has-text("Accetta tutto")').click({ timeout: 4000 }).catch(() => {})
+  await sleep(400)
   await dp.getByLabel('Email').fill('wp.viliana.pession@planfully-demo.it')
   await dp.getByLabel('Password').fill(PASSWORD)
   await dp.getByRole('button', { name: /^Accedi$/i }).click()

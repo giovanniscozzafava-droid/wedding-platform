@@ -14,13 +14,89 @@ type Comp = { id?: string; name: string; unit_price: number; quantity: number; u
 
 const UNITS = ['pz', 'gambo', 'mazzo', 'kg', 'g', 'l', 'ml', 'h', 'm', 'altro']
 
-const PRESET_FLORAL: Comp[] = [
-  { name: 'Rosa David Austin', unit_price: 4.5, quantity: 5, unit: 'gambo' },
-  { name: 'Eucalipto verde', unit_price: 2, quantity: 3, unit: 'gambo' },
-  { name: 'Peonia bianca', unit_price: 8, quantity: 3, unit: 'gambo' },
-  { name: "Mano d'opera", unit_price: 25, quantity: 1, unit: 'h' },
-  { name: 'Confezione + nastro', unit_price: 4, quantity: 1, unit: 'pz' },
-]
+const PRESETS_BY_SUBROLE: Record<string, { label: string; items: Comp[] }[]> = {
+  fioraio: [
+    { label: 'Bouquet sposa romantico', items: [
+      { name: 'Rosa David Austin', unit_price: 4.5, quantity: 5, unit: 'gambo' },
+      { name: 'Eucalipto verde', unit_price: 2, quantity: 3, unit: 'gambo' },
+      { name: 'Peonia bianca', unit_price: 8, quantity: 3, unit: 'gambo' },
+      { name: "Mano d'opera", unit_price: 25, quantity: 1, unit: 'h' },
+      { name: 'Confezione + nastro', unit_price: 4, quantity: 1, unit: 'pz' },
+    ] },
+    { label: 'Centrotavola tondo', items: [
+      { name: 'Rosa garden', unit_price: 3.5, quantity: 6, unit: 'gambo' },
+      { name: 'Eucalipto', unit_price: 1.5, quantity: 4, unit: 'gambo' },
+      { name: 'Vaso vetro trasparente', unit_price: 8, quantity: 1, unit: 'pz' },
+      { name: "Mano d'opera", unit_price: 25, quantity: 0.5, unit: 'h' },
+    ] },
+  ],
+  fotografo: [
+    { label: 'Pacchetto full day', items: [
+      { name: 'Servizio 8h matrimonio', unit_price: 1500, quantity: 1, unit: 'pz' },
+      { name: 'Pre-wedding shoot', unit_price: 400, quantity: 1, unit: 'pz' },
+      { name: 'Album premium 30x30', unit_price: 480, quantity: 1, unit: 'pz' },
+      { name: 'Galleria online consegna', unit_price: 80, quantity: 1, unit: 'pz' },
+      { name: 'Editing 300 foto', unit_price: 350, quantity: 1, unit: 'pz' },
+    ] },
+  ],
+  videomaker: [
+    { label: 'Pacchetto video full day', items: [
+      { name: 'Riprese 10h con 2 operatori', unit_price: 2000, quantity: 1, unit: 'pz' },
+      { name: 'Highlights 3 min', unit_price: 350, quantity: 1, unit: 'pz' },
+      { name: 'Film completo 30 min', unit_price: 600, quantity: 1, unit: 'pz' },
+      { name: 'Reel social verticale', unit_price: 250, quantity: 1, unit: 'pz' },
+    ] },
+  ],
+  catering: [
+    { label: 'Menu base x 100 ospiti', items: [
+      { name: 'Aperitivo + finger food (a persona)', unit_price: 18, quantity: 100, unit: 'pz' },
+      { name: 'Antipasto', unit_price: 12, quantity: 100, unit: 'pz' },
+      { name: 'Primo piatto', unit_price: 15, quantity: 100, unit: 'pz' },
+      { name: 'Secondo + contorno', unit_price: 22, quantity: 100, unit: 'pz' },
+      { name: 'Dessert + torta', unit_price: 14, quantity: 100, unit: 'pz' },
+      { name: 'Beverage open bar 4h', unit_price: 28, quantity: 100, unit: 'pz' },
+      { name: 'Service camerieri (a 10 ospiti)', unit_price: 180, quantity: 10, unit: 'pz' },
+    ] },
+  ],
+  pasticcere: [
+    { label: 'Torta nuziale 3 piani', items: [
+      { name: 'Base sponge + crema (per kg)', unit_price: 35, quantity: 6, unit: 'kg' },
+      { name: 'Decorazione zucchero/fondant', unit_price: 120, quantity: 1, unit: 'pz' },
+      { name: 'Trasporto', unit_price: 60, quantity: 1, unit: 'pz' },
+    ] },
+  ],
+  musica: [
+    { label: 'DJ set + service', items: [
+      { name: 'DJ 5 ore', unit_price: 800, quantity: 1, unit: 'pz' },
+      { name: 'Service audio (mixer, casse, microfoni)', unit_price: 350, quantity: 1, unit: 'pz' },
+      { name: 'Luci dance floor', unit_price: 250, quantity: 1, unit: 'pz' },
+    ] },
+  ],
+  allestimenti: [
+    { label: 'Allestimento cerimonia outdoor', items: [
+      { name: 'Arco bianco con drappi', unit_price: 350, quantity: 1, unit: 'pz' },
+      { name: 'Sedie chiavarine bianche', unit_price: 3, quantity: 80, unit: 'pz' },
+      { name: 'Tappeto fiori petali', unit_price: 220, quantity: 1, unit: 'pz' },
+      { name: 'Trasporto + montaggio', unit_price: 280, quantity: 1, unit: 'pz' },
+    ] },
+  ],
+  make_up: [
+    { label: 'Beauty sposa + accompagnatori', items: [
+      { name: 'Prova make-up sposa', unit_price: 80, quantity: 1, unit: 'pz' },
+      { name: 'Make-up sposa giorno', unit_price: 220, quantity: 1, unit: 'pz' },
+      { name: 'Acconciatura sposa', unit_price: 180, quantity: 1, unit: 'pz' },
+      { name: 'Make-up testimoni (a persona)', unit_price: 90, quantity: 3, unit: 'pz' },
+    ] },
+  ],
+  location: [
+    { label: 'Pacchetto location + menu (Sud Italia)', items: [
+      { name: 'Affitto sala/spazio esterno', unit_price: 3500, quantity: 1, unit: 'pz' },
+      { name: 'Menu base (a persona)', unit_price: 95, quantity: 100, unit: 'pz' },
+      { name: 'Service camerieri/cuochi', unit_price: 1200, quantity: 1, unit: 'pz' },
+      { name: 'Tavoli + mise en place', unit_price: 600, quantity: 1, unit: 'pz' },
+    ] },
+  ],
+}
 
 export default function CompositionCalculatorPage() {
   const { user, profile } = useAuth()
@@ -43,6 +119,8 @@ export default function CompositionCalculatorPage() {
     })()
   }, [profile?.subrole])
 
+  const presets = PRESETS_BY_SUBROLE[profile?.subrole ?? ''] ?? []
+
   function addComp() {
     setComponents((c) => [...c, { name: '', unit_price: 0, quantity: 1, unit: 'pz' }])
   }
@@ -52,9 +130,11 @@ export default function CompositionCalculatorPage() {
   function removeComp(i: number) {
     setComponents((c) => c.filter((_, j) => j !== i))
   }
-  function loadFloralPreset() {
-    setComponents(PRESET_FLORAL.map((p) => ({ ...p })))
-    if (!name) setName('Bouquet sposa romantico')
+  function loadPreset(idx: number) {
+    const p = presets[idx]
+    if (!p) return
+    setComponents(p.items.map((it) => ({ ...it })))
+    if (!name) setName(p.label)
   }
 
   async function saveAsService() {
@@ -135,10 +215,19 @@ export default function CompositionCalculatorPage() {
             </div>
           </div>
 
-          {profile?.subrole === 'fioraio' && components.length === 0 && (
-            <Button variant="outline" onClick={loadFloralPreset} className="mb-3">
-              <Plus size={14} /> Carica esempio bouquet
-            </Button>
+          {presets.length > 0 && components.length === 0 && (
+            <div className="mb-3 p-3 rounded-lg border" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-muted))] mb-2">
+                Modelli pronti — categoria {profile?.subrole}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {presets.map((p, i) => (
+                  <Button key={i} variant="outline" size="sm" onClick={() => loadPreset(i)}>
+                    <Plus size={12} /> {p.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           )}
 
           <div className="space-y-2">

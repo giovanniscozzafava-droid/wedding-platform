@@ -9,13 +9,17 @@ import { useGuests, useTables, useTableMutations } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { EditRowModal, type Field } from './EditRowModal'
 
-const SHAPES = ['ROUND', 'SQUARE', 'RECT', 'HEAD']
+const SHAPES = ['ROUND', 'SQUARE', 'RECT', 'HEAD', 'IMPERIALE']
+const SHAPE_LABEL: Record<string, string> = {
+  ROUND: 'Rotondo', SQUARE: 'Quadrato', RECT: 'Rettangolare',
+  HEAD: 'Tavolo sposi (testa)', IMPERIALE: 'Imperiale (lungo)',
+}
 
 const TABLE_FIELDS: Field[] = [
   { type: 'number', key: 'table_no', label: 'Numero tavolo' },
   { type: 'text', key: 'label', label: 'Etichetta', placeholder: 'Es. Tavolo sposi, Famiglia, ...' },
   { type: 'number', key: 'seats', label: 'Posti' },
-  { type: 'select', key: 'shape', label: 'Forma', options: SHAPES.map((s) => ({ v: s, l: s })) },
+  { type: 'select', key: 'shape', label: 'Forma', options: SHAPES.map((s) => ({ v: s, l: SHAPE_LABEL[s] ?? s })) },
 ]
 
 export function TablesTab({ entryId }: { entryId: string }) {
