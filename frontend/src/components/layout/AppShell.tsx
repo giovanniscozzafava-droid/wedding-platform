@@ -43,13 +43,18 @@ const NAV_CAPOSTIPITE: NavItem[] = [
   { to: '/suppliers',  label: 'Rete fornitori', icon: UsersIcon },
 ]
 
-const NAV_TAIL: NavItem[] = [
+// Voci di coda comuni a tutti i ruoli
+const NAV_TAIL_COMMON: NavItem[] = [
   { to: '/calendar',   label: 'Calendario', icon: CalendarDays },
   { to: '/quotes',     label: 'Preventivi', icon: FileText },
-  { to: '/finanziamento', label: 'Finanziamento', icon: Wallet },
-  { to: '/assicurazione', label: 'Assicurazione', icon: ShieldCheck },
   { to: '/settings/brand', label: 'Brand', icon: Palette },
   { to: '/profile',    label: 'Profilo',  icon: UserRound },
+]
+
+// Voci esclusive WP/LOCATION (riservate al cliente finale, non ai fornitori)
+const NAV_TAIL_CLIENT_PRODUCTS: NavItem[] = [
+  { to: '/finanziamento', label: 'Finanziamento', icon: Wallet },
+  { to: '/assicurazione', label: 'Assicurazione', icon: ShieldCheck },
 ]
 
 const NAV_FORN: NavItem[] = [
@@ -66,10 +71,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isFornitore = profile?.role === 'FORNITORE'
   const NAV = isCapostipite
-    ? [...NAV_BASE, ...NAV_CAPOSTIPITE, ...NAV_TAIL]
+    ? [...NAV_BASE, ...NAV_CAPOSTIPITE, ...NAV_TAIL_COMMON, ...NAV_TAIL_CLIENT_PRODUCTS]
     : isFornitore
-    ? [...NAV_BASE, ...NAV_FORN, ...NAV_TAIL]
-    : [...NAV_BASE, ...NAV_TAIL]
+    ? [...NAV_BASE, ...NAV_FORN, ...NAV_TAIL_COMMON]
+    : [...NAV_BASE, ...NAV_TAIL_COMMON]
 
   const initials =
     (profile?.full_name ?? user?.email ?? '?')

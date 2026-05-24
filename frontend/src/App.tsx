@@ -145,8 +145,8 @@ export default function App() {
           <Route path="/cookie" element={<CookiePage />} />
           <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
           <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
-          <Route path="/finanziamento" element={<RequireAuth><FinancePage /></RequireAuth>} />
-          <Route path="/assicurazione" element={<RequireAuth><InsurancePage /></RequireAuth>} />
+          <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />
+          <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />
           <Route path="/couple" element={
             <RequireAuth bare roles={['COUPLE', 'ADMIN']}><CoupleDashboard /></RequireAuth>
           } />

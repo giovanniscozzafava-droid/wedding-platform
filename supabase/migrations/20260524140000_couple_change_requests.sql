@@ -39,16 +39,16 @@ alter table couple_change_requests enable row level security;
 -- Sposi (partecipanti del wedding) possono leggere/creare le proprie richieste
 create policy ccr_couple_read on couple_change_requests for select
   using (
-    is_entry_participant(wedding_id, auth.uid())
+    is_entry_participant(wedding_id)
     or exists (select 1 from calendar_entries ce where ce.id = wedding_id and ce.owner_id = auth.uid())
-    or is_admin(auth.uid())
+    or is_admin()
   );
 
 create policy ccr_couple_insert on couple_change_requests for insert
   with check (
     requested_by = auth.uid()
     and (
-      is_entry_participant(wedding_id, auth.uid())
+      is_entry_participant(wedding_id)
       or exists (select 1 from calendar_entries ce where ce.id = wedding_id and ce.owner_id = auth.uid())
     )
   );
@@ -57,14 +57,14 @@ create policy ccr_couple_insert on couple_change_requests for insert
 create policy ccr_owner_update on couple_change_requests for update
   using (
     exists (select 1 from calendar_entries ce where ce.id = wedding_id and ce.owner_id = auth.uid())
-    or is_admin(auth.uid())
+    or is_admin()
   );
 
 create policy ccr_owner_delete on couple_change_requests for delete
   using (
     requested_by = auth.uid()
     or exists (select 1 from calendar_entries ce where ce.id = wedding_id and ce.owner_id = auth.uid())
-    or is_admin(auth.uid())
+    or is_admin()
   );
 
 comment on table couple_change_requests is 'Richieste di modifica inviate dagli sposi al WP per invitati/tavoli/alloggi/trasporti/etc.';
