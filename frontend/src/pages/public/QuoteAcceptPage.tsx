@@ -1,65 +1,267 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
-import { publicQuoteAccept } from '@/hooks/useQuotes'
+import { CheckCircle2, AlertCircle, Loader2, Shield, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/input'
+import { supabase } from '@/lib/supabase'
+import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
+
+type DocType = 'CARTA_IDENTITA' | 'PASSAPORTO' | 'PATENTE'
+
+type QuoteInfo = {
+  id: string
+  title: string
+  client_name: string | null
+  client_email: string | null
+  total_client: number
+  status: string
+  revision: number
+  event_date: string | null
+}
 
 export default function QuoteAcceptPage() {
   const { token } = useParams<{ token: string }>()
-  const [state, setState] = useState<'idle' | 'ok' | 'err'>('idle')
-  const [msg, setMsg] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [quote, setQuote] = useState<QuoteInfo | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [done, setDone] = useState<{ acceptance_pdf_url?: string | null } | null>(null)
+
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [signerName, setSignerName] = useState('')
+  const [signerPhone, setSignerPhone] = useState('')
+  const [docType, setDocType] = useState<DocType>('CARTA_IDENTITA')
+  const [docNumber, setDocNumber] = useState('')
+  const [docIssuedBy, setDocIssuedBy] = useState('')
+  const [signature, setSignature] = useState<string | null>(null)
+  const [consentTerms, setConsentTerms] = useState(false)
+  const [consentPrivacy, setConsentPrivacy] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!token) return
-    publicQuoteAccept(token)
-      .then((ok) => {
-        if (ok) setState('ok')
-        else { setState('err'); setMsg('Preventivo non trovato o già gestito.') }
-      })
-      .catch((e) => { setState('err'); setMsg(e?.message ?? 'Errore') })
+    void (async () => {
+      try {
+        const { data, error } = await supabase.rpc('quote_get_by_token', { p_token: token })
+        if (error) throw error
+        if (!data) { setErr('Preventivo non trovato o link scaduto'); return }
+        const q = (data as any).quote ?? data
+        setQuote({
+          id: q.id, title: q.title,
+          client_name: q.client_name, client_email: q.client_email,
+          total_client: Number(q.total_client ?? 0),
+          status: q.status, revision: q.revision,
+          event_date: q.event_date,
+        })
+        if (q.client_name && !signerName) setSignerName(q.client_name)
+      } catch (e) { setErr((e as Error).message) }
+      finally { setLoading(false) }
+    })()
   }, [token])
 
+  async function submit() {
+    if (!token) return
+    if (!signerName.trim()) return toast.error('Inserisci nome e cognome')
+    if (!docNumber.trim()) return toast.error('Inserisci numero documento')
+    if (!signature) return toast.error('Firma sul riquadro')
+    if (!consentTerms || !consentPrivacy) return toast.error('Devi accettare termini e privacy')
+    setBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('quote-accept-sign', {
+        body: {
+          token,
+          signer_name: signerName.trim(),
+          signer_phone: signerPhone.trim() || null,
+          doc_type: docType,
+          doc_number: docNumber.trim(),
+          doc_issued_by: docIssuedBy.trim() || null,
+          signature_data_url: signature,
+          consent_terms: consentTerms,
+          consent_privacy: consentPrivacy,
+        },
+      })
+      if (error) throw error
+      setDone({ acceptance_pdf_url: (data as any)?.acceptance_pdf_url })
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally { setBusy(false) }
+  }
+
+  if (loading) return (
+    <Centered><Loader2 className="animate-spin" /></Centered>
+  )
+
+  if (err) return (
+    <Centered>
+      <span className="inline-flex h-14 w-14 items-center justify-center rounded-full mb-4"
+        style={{ background: 'rgb(var(--rose-100))', color: 'rgb(var(--rose-500))' }}>
+        <AlertCircle size={28} />
+      </span>
+      <h1 className="font-display text-2xl">Link non valido</h1>
+      <p className="text-sm text-[rgb(var(--rose-500))] mt-2">{err}</p>
+    </Centered>
+  )
+
+  if (done) return (
+    <Centered>
+      <span className="inline-flex h-14 w-14 items-center justify-center rounded-full mb-4"
+        style={{ background: 'rgb(var(--emerald-100))', color: 'rgb(var(--emerald-500))' }}>
+        <CheckCircle2 size={28} />
+      </span>
+      <h1 className="font-display text-3xl tracking-tight mb-2">Preventivo accettato</h1>
+      <p className="text-sm text-[rgb(var(--fg-muted))] mb-6">
+        L'atto di accettazione è stato registrato. Ti abbiamo inviato una copia firmata via email.
+      </p>
+      {done.acceptance_pdf_url && (
+        <a href={done.acceptance_pdf_url} target="_blank" rel="noreferrer" className="block mb-4">
+          <Button variant="gold" className="w-full"><FileText size={14} /> Scarica atto firmato</Button>
+        </a>
+      )}
+      <Link to={`/p/preview/${token}`} className="text-sm text-[rgb(var(--fg-muted))] hover:underline">
+        Torna al preventivo
+      </Link>
+    </Centered>
+  )
+
+  if (!quote) return null
+
+  const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(quote.total_client)
+
+  return (
+    <div className="min-h-screen px-4 py-6 sm:py-12" style={{ background: 'rgb(var(--bg))' }}>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        className="max-w-xl mx-auto">
+
+        {/* Header preventivo */}
+        <div className="surface surface-lift p-5 mb-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--gold-600))]">Stai accettando il preventivo</p>
+          <h1 className="font-display text-2xl sm:text-3xl mt-1">{quote.title}</h1>
+          <div className="flex items-center justify-between mt-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+            <span className="text-sm text-[rgb(var(--fg-muted))]">Importo totale</span>
+            <span className="font-display text-2xl">{totFmt}</span>
+          </div>
+        </div>
+
+        {/* Steps progress */}
+        <div className="flex items-center gap-1 mb-4 px-2">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex-1 h-1.5 rounded-full transition-colors"
+              style={{ background: step >= (n as 1 | 2 | 3) ? 'rgb(var(--gold-500))' : 'rgb(var(--bg-sunken))' }} />
+          ))}
+        </div>
+
+        {/* STEP 1: Dati firmatario */}
+        {step === 1 && (
+          <div className="surface surface-lift p-5 sm:p-6 space-y-4">
+            <div>
+              <h2 className="font-display text-xl">I tuoi dati</h2>
+              <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">Servono per identificarti come parte contraente.</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Nome e cognome</Label>
+              <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} placeholder="Mario Rossi" />
+            </div>
+            <div className="space-y-1">
+              <Label>Telefono (opzionale)</Label>
+              <Input type="tel" value={signerPhone} onChange={(e) => setSignerPhone(e.target.value)} placeholder="+39 333 1234567" />
+            </div>
+            <Button variant="gold" className="w-full" onClick={() => setStep(2)} disabled={!signerName.trim()}>
+              Continua <ChevronRight size={14} />
+            </Button>
+          </div>
+        )}
+
+        {/* STEP 2: Documento identità */}
+        {step === 2 && (
+          <div className="surface surface-lift p-5 sm:p-6 space-y-4">
+            <div>
+              <h2 className="font-display text-xl flex items-center gap-2"><Shield size={18} /> Documento</h2>
+              <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
+                Identificazione FES (firma elettronica semplice). I dati non vengono pubblicati.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label>Tipo documento</Label>
+              <Select value={docType} onChange={(e) => setDocType(e.target.value as DocType)}>
+                <option value="CARTA_IDENTITA">Carta d'identità</option>
+                <option value="PASSAPORTO">Passaporto</option>
+                <option value="PATENTE">Patente di guida</option>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Numero documento</Label>
+              <Input value={docNumber} onChange={(e) => setDocNumber(e.target.value.toUpperCase())} placeholder="CA1234567" />
+            </div>
+            <div className="space-y-1">
+              <Label>Rilasciato da (opzionale)</Label>
+              <Input value={docIssuedBy} onChange={(e) => setDocIssuedBy(e.target.value)} placeholder="Comune di Cosenza" />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setStep(1)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
+              <Button variant="gold" onClick={() => setStep(3)} disabled={!docNumber.trim()} className="flex-1">
+                Continua <ChevronRight size={14} />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Firma + conferma */}
+        {step === 3 && (
+          <div className="surface surface-lift p-5 sm:p-6 space-y-4">
+            <div>
+              <h2 className="font-display text-xl">Firma</h2>
+              <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
+                Firma con il dito (smartphone) o col mouse (desktop).
+              </p>
+            </div>
+            <QuoteSignaturePad onChange={setSignature} height={180} />
+
+            <div className="space-y-2 pt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input type="checkbox" className="mt-0.5 size-4 accent-[rgb(var(--gold-500))]"
+                  checked={consentTerms} onChange={(e) => setConsentTerms(e.target.checked)} />
+                <span className="leading-snug">
+                  Confermo di aver letto e accettato integralmente il <strong>preventivo v{quote.revision}</strong> per
+                  un importo di <strong>{totFmt}</strong>.
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input type="checkbox" className="mt-0.5 size-4 accent-[rgb(var(--gold-500))]"
+                  checked={consentPrivacy} onChange={(e) => setConsentPrivacy(e.target.checked)} />
+                <span className="leading-snug">
+                  Accetto il trattamento dei dati di identificazione ai fini contrattuali (
+                  <Link to="/privacy" target="_blank" className="underline">privacy</Link>) e dichiaro che i dati forniti sono veritieri.
+                </span>
+              </label>
+            </div>
+
+            <div className="text-[11px] text-[rgb(var(--fg-subtle))] p-3 rounded-lg" style={{ background: 'rgb(var(--bg-sunken))' }}>
+              <strong>Validità legale</strong>: firma elettronica semplice ai sensi dell'art. 20 CAD (D.Lgs. 82/2005) +
+              accettazione contrattuale ex art. 1326 c.c. Verranno registrati: timestamp, IP, user-agent, hash del PDF.
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setStep(2)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
+              <Button variant="gold" onClick={submit} disabled={busy || !signature || !consentTerms || !consentPrivacy} className="flex-1">
+                {busy ? 'Invio...' : 'Conferma e firma'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
+function Centered({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative" style={{ background: 'rgb(var(--bg))' }}>
       <img src="/hero/success.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0" style={{ background: 'rgba(14,17,22,0.55)' }} />
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="surface surface-lift w-full max-w-md p-10 text-center relative z-10">
-        {state === 'idle' && (
-          <>
-            <Loader2 className="mx-auto mb-4 animate-spin" style={{ color: 'rgb(var(--fg-muted))' }} />
-            <h1 className="font-display text-2xl">Confermo...</h1>
-          </>
-        )}
-        {state === 'ok' && (
-          <>
-            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full mb-4"
-              style={{ background: 'rgb(var(--emerald-100))', color: 'rgb(var(--emerald-500))' }}>
-              <CheckCircle2 size={28} />
-            </span>
-            <h1 className="font-display text-3xl tracking-tight">Grazie!</h1>
-            <p className="text-sm text-[rgb(var(--fg-muted))] mt-2 mb-6" data-testid="accept-ok">
-              Hai accettato il preventivo. Il wedding planner riceverà una notifica e ti contatterà a breve.
-            </p>
-            <Link to={`/p/preview/${token}`} className="text-sm text-[rgb(var(--fg-muted))] hover:underline">
-              Torna al preventivo
-            </Link>
-          </>
-        )}
-        {state === 'err' && (
-          <>
-            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full mb-4"
-              style={{ background: 'rgb(var(--rose-100))', color: 'rgb(var(--rose-500))' }}>
-              <AlertCircle size={28} />
-            </span>
-            <h1 className="font-display text-2xl">Non è andata</h1>
-            <p className="text-sm text-[rgb(var(--rose-500))] mt-2 mb-6">{msg}</p>
-            <Link to={`/p/preview/${token}`} className="text-sm text-[rgb(var(--fg-muted))] hover:underline">
-              Torna al preventivo
-            </Link>
-          </>
-        )}
-      </motion.div>
+      <div className="surface surface-lift w-full max-w-md p-10 text-center relative z-10">{children}</div>
     </div>
   )
 }
