@@ -41,6 +41,9 @@ Deno.serve(async (req) => {
   }
   if (!body.quote_id) return json({ error: 'quote_id required' }, 400)
 
+  // Propaga JWT user del caller (quote-generate-pdf richiede JWT user, non SERVICE_KEY)
+  const callerAuth = req.headers.get('Authorization') ?? `Bearer ${SERVICE_KEY}`
+
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
   // 1. genera PDF (riusa Edge Function). Header apikey serve a Kong gateway.
@@ -48,7 +51,7 @@ Deno.serve(async (req) => {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      Authorization: `Bearer ${SERVICE_KEY}`,
+      Authorization: callerAuth,
       apikey: SERVICE_KEY,
     },
     body: JSON.stringify({ quote_id: body.quote_id }),
