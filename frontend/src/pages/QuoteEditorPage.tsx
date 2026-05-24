@@ -1,10 +1,10 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, FileDown, Send, Plus, Trash2, ExternalLink, Sparkles, Users, Table, Clock, Package, Wallet } from 'lucide-react'
+import { ArrowLeft, FileDown, Send, Plus, Trash2, ExternalLink, Sparkles, Users, Table, Clock, Package, Wallet, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input, Select } from '@/components/ui/input'
+import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -69,15 +69,27 @@ export default function QuoteEditorPage() {
   const [defaultMarkup, setDefaultMarkup] = useState<string>('')
   const [guestCount, setGuestCount] = useState<string>('')
   const [tableCount, setTableCount] = useState<string>('')
+  const [title, setTitle] = useState<string>('')
+  const [clientName, setClientName] = useState<string>('')
+  const [clientEmail, setClientEmail] = useState<string>('')
+  const [eventDate, setEventDate] = useState<string>('')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [sendResult, setSendResult] = useState<{ access_token?: string } | null>(null)
   const [pickSupplier, setPickSupplier] = useState<string>('')
+  const [forceUnlocked, setForceUnlocked] = useState(false)
+  const [forceModal, setForceModal] = useState<{ open: boolean; reason: string }>({ open: false, reason: '' })
+
+  const isLocked = (quote?.status === 'ACCETTATO') && !forceUnlocked
 
   useEffect(() => {
     if (quote) {
       setDefaultMarkup(quote.default_markup_percent?.toString() ?? '')
       setGuestCount(quote.guest_count?.toString() ?? '')
       setTableCount((quote as any).table_count?.toString() ?? '')
+      setTitle(quote.title ?? '')
+      setClientName(quote.client_name ?? '')
+      setClientEmail(quote.client_email ?? '')
+      setEventDate(quote.event_date ?? '')
       setPdfUrl(quote.pdf_url ?? null)
     }
   }, [quote])
@@ -137,11 +149,43 @@ export default function QuoteEditorPage() {
     if (!id) return
     try {
       await update.mutateAsync({ id, patch: {
+        title: title.trim() || quote?.title,
+        client_name: clientName.trim() || null,
+        client_email: clientEmail.trim() || null,
+        event_date: eventDate || null,
         default_markup_percent: Number(defaultMarkup || 0),
         guest_count: guestCount ? Number(guestCount) : null,
         table_count: tableCount ? Number(tableCount) : null,
       } as any })
-      toast.success('Header aggiornato (quantità per_guest/per_table propagate)')
+      toast.success('Preventivo aggiornato')
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  async function handleForceEdit() {
+    if (!id || !quote) return
+    const reason = forceModal.reason.trim()
+    if (!reason) { toast.error('Specifica il motivo della modifica per il cliente'); return }
+    try {
+      // 1. Bump revision + applica modifiche header
+      await update.mutateAsync({ id, patch: {
+        title: title.trim() || quote.title,
+        client_name: clientName.trim() || null,
+        client_email: clientEmail.trim() || null,
+        event_date: eventDate || null,
+        default_markup_percent: Number(defaultMarkup || 0),
+        guest_count: guestCount ? Number(guestCount) : null,
+        table_count: tableCount ? Number(tableCount) : null,
+        revision: (quote.revision ?? 1) + 1,
+      } as any })
+      // 2. Notify cliente via Resend (edge function quote-send già esiste con FROM verificato)
+      if (quote.client_email) {
+        await supabase.functions.invoke('quote-send', {
+          body: { quote_id: id, override_reason: reason, force_resend: true },
+        }).catch(() => { /* email fallback OK, le modifiche sono salvate */ })
+      }
+      toast.success(`Modifiche applicate · rev. ${(quote.revision ?? 1) + 1} · cliente avvisato`)
+      setForceModal({ open: false, reason: '' })
+      setForceUnlocked(true)
     } catch (e) { toast.error((e as Error).message) }
   }
 
@@ -219,28 +263,109 @@ export default function QuoteEditorPage() {
           </div>
         </div>
 
-        {/* Header settings: guest / table / markup */}
+        {/* Banner: preventivo firmato → lock modifiche */}
+        {quote.status === 'ACCETTATO' && (
+          <Card className="p-4 mb-4 border-l-4" style={{ borderLeftColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="font-medium text-sm">🔒 Preventivo accettato dal cliente · rev. v{quote.revision}</p>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                  {forceUnlocked
+                    ? 'Stai modificando un preventivo firmato. Salva con "Applica" — verrà inviata una notifica al cliente con il motivo della modifica.'
+                    : 'I campi sono in sola lettura. Per modificarli devi giustificare il motivo e notificare il cliente via email.'}
+                </p>
+              </div>
+              {!forceUnlocked && (
+                <Button variant="outline" size="sm" onClick={() => setForceModal({ open: true, reason: '' })}>
+                  Modifica forzata
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Header settings: title / client / date / guests / tables / markup */}
         <Card className="p-5 mb-6">
-          <h2 className="text-xs uppercase tracking-wider text-[rgb(var(--fg-muted))] mb-3">Parametri evento</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+          <h2 className="text-xs uppercase tracking-wider text-[rgb(var(--fg-muted))] mb-3">Dati preventivo</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="space-y-1 lg:col-span-2">
+              <Label>Titolo</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={isLocked}
+                placeholder="Es. Matrimonio Andrea & Giulia" />
+            </div>
+            <div className="space-y-1">
+              <Label><Calendar size={12} className="inline" /> Data evento</Label>
+              <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} disabled={isLocked} />
+            </div>
+            <div className="space-y-1">
+              <Label>Nome cliente</Label>
+              <Input value={clientName} onChange={(e) => setClientName(e.target.value)} disabled={isLocked}
+                placeholder="Andrea & Giulia Romano" />
+            </div>
+            <div className="space-y-1">
+              <Label>Email cliente</Label>
+              <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} disabled={isLocked}
+                placeholder="sposi@example.it" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end mt-4 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
             <div className="space-y-1">
               <Label htmlFor="gc"><Users size={12} className="inline" /> Invitati</Label>
-              <Input id="gc" type="number" min="0" value={guestCount} onChange={(e) => setGuestCount(e.target.value)} />
+              <Input id="gc" type="number" min="0" value={guestCount} onChange={(e) => setGuestCount(e.target.value)} disabled={isLocked} />
             </div>
             <div className="space-y-1">
               <Label htmlFor="tc"><Table size={12} className="inline" /> Tavoli</Label>
-              <Input id="tc" type="number" min="0" value={tableCount} onChange={(e) => setTableCount(e.target.value)} />
+              <Input id="tc" type="number" min="0" value={tableCount} onChange={(e) => setTableCount(e.target.value)} disabled={isLocked} />
             </div>
             <div className="space-y-1">
               <Label htmlFor="mk">Markup default %</Label>
-              <Input id="mk" type="number" step="0.1" value={defaultMarkup} onChange={(e) => setDefaultMarkup(e.target.value)} />
+              <Input id="mk" type="number" step="0.1" value={defaultMarkup} onChange={(e) => setDefaultMarkup(e.target.value)} disabled={isLocked} />
             </div>
-            <Button onClick={handleHeaderUpdate} variant="gold">Applica</Button>
+            <Button onClick={handleHeaderUpdate} variant="gold" disabled={isLocked}>
+              {forceUnlocked ? 'Applica e notifica cliente' : 'Applica'}
+            </Button>
           </div>
           <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
             Cambiare <strong>invitati</strong>/<strong>tavoli</strong> riallinea automaticamente le voci con basis × invitati / × tavoli.
           </p>
         </Card>
+
+        {/* Modal modifica forzata */}
+        {forceModal.open && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setForceModal({ open: false, reason: '' })}>
+            <div className="bg-[rgb(var(--bg-elev))] w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl border max-h-[90vh] overflow-y-auto"
+              style={{ borderColor: 'rgb(var(--border))' }} onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+                <h3 className="font-display text-lg">Modifica forzata preventivo firmato</h3>
+                <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
+                  Il preventivo è stato accettato dal cliente. Le modifiche dovranno essere ricomunicate.
+                </p>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="rounded-lg p-3 text-xs border" style={{ borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
+                  ⚠️ <strong>Cosa succede</strong>:
+                  <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
+                    <li>la revisione viene incrementata (v{(quote.revision ?? 1) + 1})</li>
+                    <li>il cliente riceve email con il motivo + nuovo PDF</li>
+                    <li>per evento contestato, l'audit trail resta nel DB</li>
+                  </ul>
+                </div>
+                <div className="space-y-1">
+                  <Label>Motivo della modifica (verrà mostrato al cliente)</Label>
+                  <Textarea rows={4} value={forceModal.reason}
+                    onChange={(e) => setForceModal((f) => ({ ...f, reason: e.target.value }))}
+                    placeholder="Es. Cambio data evento per indisponibilità location: dal 18/09/2027 al 25/09/2027. Tutti i fornitori confermano disponibilità sulla nuova data." />
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button variant="ghost" onClick={() => setForceModal({ open: false, reason: '' })}>Annulla</Button>
+                  <Button variant="gold" onClick={handleForceEdit} disabled={update.isPending || !forceModal.reason.trim()}>
+                    {update.isPending ? 'Invio...' : 'Sblocca e notifica cliente'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Voci */}

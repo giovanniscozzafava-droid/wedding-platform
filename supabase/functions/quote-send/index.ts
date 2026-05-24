@@ -16,6 +16,10 @@ function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json', ...cors } })
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+}
+
 async function sendResend(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) return { skipped: true as const }
   const r = await fetch('https://api.resend.com/emails', {
@@ -30,7 +34,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
-  const body = (await req.json().catch(() => ({}))) as { quote_id?: string }
+  const body = (await req.json().catch(() => ({}))) as {
+    quote_id?: string
+    override_reason?: string  // motivo modifica forzata post-firma
+    force_resend?: boolean    // se true, non cambia status (resta ACCETTATO)
+  }
   if (!body.quote_id) return json({ error: 'quote_id required' }, 400)
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
@@ -60,15 +68,22 @@ Deno.serve(async (req) => {
   }
 
   // 3. update status + access_token
-  await admin.from('quotes').update({
-    status: 'INVIATO',
+  // Se force_resend (modifica forzata post-firma), NON cambia status
+  const updatePayload: Record<string, unknown> = {
     access_token: accessToken,
     sent_at: new Date().toISOString(),
     sent_email_log: [
       ...((q.sent_email_log ?? []) as any[]),
-      { at: new Date().toISOString(), to: q.client_email, revision: q.revision },
+      {
+        at: new Date().toISOString(),
+        to: q.client_email,
+        revision: q.revision,
+        ...(body.override_reason ? { override_reason: body.override_reason } : {}),
+      },
     ],
-  }).eq('id', body.quote_id)
+  }
+  if (!body.force_resend) updatePayload.status = 'INVIATO'
+  await admin.from('quotes').update(updatePayload).eq('id', body.quote_id)
 
   // 4. crea calendar_entry IN_TRATTATIVA se non esiste + agganci participants
   if (q.event_date) {
@@ -117,11 +132,36 @@ Deno.serve(async (req) => {
   let emailResult: any = { skipped: true }
   if (q.client_email) {
     const link = `${APP_BASE}/p/preview/${accessToken}`
-    emailResult = await sendResend(
-      q.client_email,
-      `Preventivo ${q.title}`,
-      `<p>Buongiorno,</p><p>il preventivo per <strong>${q.title}</strong> e' pronto.</p><p><a href="${link}">Visualizza preventivo</a></p>`,
-    )
+    const isOverride = !!body.override_reason
+    const subject = isOverride
+      ? `⚠️ Modifica al preventivo già accettato · ${q.title}`
+      : `Preventivo ${q.title}`
+    const html = isOverride
+      ? `<!doctype html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f6f4ef;padding:24px;color:#1A2E4F">
+<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.06)">
+  <div style="background:linear-gradient(135deg,#1A1714 0%,#7E6633 100%);padding:28px;text-align:center;color:#F3EEE4">
+    <h1 style="margin:0;font-size:22px">Modifica al preventivo</h1>
+    <p style="margin:6px 0 0;opacity:0.85;font-size:13px">${escapeHtml(q.title)} · revisione v${q.revision}</p>
+  </div>
+  <div style="padding:28px">
+    <p style="line-height:1.6;font-size:15px;color:#4a5568;margin:0 0 14px">
+      Buongiorno, il wedding planner ha apportato delle modifiche al preventivo che avevi <strong>già accettato</strong>. Trovi qui di seguito la motivazione.
+    </p>
+    <div style="margin:18px 0;padding:14px;background:#f6f4ef;border-left:3px solid #C49A5C;border-radius:6px;color:#4a5568;line-height:1.5">
+      <strong style="display:block;font-size:11px;color:#1A2E4F;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Motivo della modifica</strong>
+      ${escapeHtml(body.override_reason ?? '')}
+    </div>
+    <p style="line-height:1.6;font-size:14px;color:#4a5568">
+      Ti chiediamo di rivedere il preventivo aggiornato cliccando il pulsante qui sotto. Se hai dubbi, rispondi a questa email per parlare direttamente col tuo wedding planner.
+    </p>
+    <div style="margin:24px 0;text-align:center">
+      <a href="${link}" style="display:inline-block;background:#C49A5C;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Apri preventivo aggiornato</a>
+    </div>
+  </div>
+  <div style="background:#f6f4ef;padding:16px;text-align:center;font-size:11px;color:#a0aec0;border-top:1px solid #e2e8f0">Un progetto Fuyue Srl · planfully.it</div>
+</div></body>`
+      : `<p>Buongiorno,</p><p>il preventivo per <strong>${escapeHtml(q.title)}</strong> e' pronto.</p><p><a href="${link}">Visualizza preventivo</a></p>`
+    emailResult = await sendResend(q.client_email, subject, html)
   }
 
   return json({
