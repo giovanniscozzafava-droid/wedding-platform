@@ -15,8 +15,19 @@ export type SupplierSummary = {
   avatar_url: string
 }
 
-function avatarUrlFor(uid: string) {
-  return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/brand-assets/${uid}/avatar.jpg`
+// Fallback DiceBear se profile.brand_logo_url e' null. Stesso seed = stesso colore stabile.
+function dicebearFor(name: string | null | undefined): string {
+  const seed = (name ?? 'Fornitore').slice(0, 30)
+  const colors = ['C49A5C', '1A2E4F', '7E6633', 'D4A5A5', '9CAF88', '8B4513', 'B19CD9', '1F3A5F']
+  let h = 0
+  for (const c of seed) h = ((h << 5) - h + c.charCodeAt(0)) | 0
+  const color = colors[Math.abs(h) % colors.length]
+  return `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${color}&fontWeight=700&fontSize=42&textColor=ffffff`
+}
+
+function avatarUrlFrom(profile: { brand_logo_url?: string | null; business_name?: string | null; full_name?: string | null }): string {
+  if (profile.brand_logo_url && profile.brand_logo_url.trim()) return profile.brand_logo_url
+  return dicebearFor(profile.business_name ?? profile.full_name)
 }
 
 export function useSuppliers() {
@@ -26,7 +37,7 @@ export function useSuppliers() {
       const { data, error } = await supabase
         .from('collaborations')
         .select(
-          'id, status, accepted_at, fornitore_id, supplier:profiles!collaborations_fornitore_id_fkey(id, full_name, business_name, subrole, phone)',
+          'id, status, accepted_at, fornitore_id, supplier:profiles!collaborations_fornitore_id_fkey(id, full_name, business_name, subrole, phone, brand_logo_url)',
         )
         .order('accepted_at', { ascending: false, nullsFirst: false })
       if (error) throw error
@@ -36,9 +47,7 @@ export function useSuppliers() {
         status: string
         accepted_at: string | null
         fornitore_id: string
-        supplier: SupplierSummary['business_name'] extends string
-          ? Pick<SupplierSummary, 'id' | 'full_name' | 'business_name' | 'subrole' | 'phone'>
-          : { id: string; full_name: string | null; business_name: string | null; subrole: string | null; phone: string | null } | null
+        supplier: { id: string; full_name: string | null; business_name: string | null; subrole: string | null; phone: string | null; brand_logo_url: string | null } | null
       }>
 
       const supplierIds = rows.map((r) => r.fornitore_id)
@@ -70,7 +79,7 @@ export function useSuppliers() {
           accepted_at: r.accepted_at,
           service_count: serviceCount.get(r.fornitore_id) ?? 0,
           photo_count: photoCount.get(r.fornitore_id) ?? 0,
-          avatar_url: avatarUrlFor(r.fornitore_id),
+          avatar_url: avatarUrlFrom(r.supplier!),
         }))
     },
   })
@@ -83,12 +92,12 @@ export function useSupplier(id: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, business_name, subrole, phone, brand_primary_color, brand_secondary_color')
+        .select('id, full_name, business_name, subrole, phone, brand_primary_color, brand_secondary_color, brand_logo_url')
         .eq('id', id!)
         .maybeSingle()
       if (error) throw error
       if (!data) return null
-      return { ...data, avatar_url: avatarUrlFor(data.id) }
+      return { ...data, avatar_url: avatarUrlFrom(data) }
     },
   })
 }
