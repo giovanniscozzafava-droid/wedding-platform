@@ -257,7 +257,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                     <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors border"
                       style={{ borderColor: 'rgb(var(--border-strong))' }}>
                       <Plus size={14} /> Carica
-                      <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp"
+                      <input type="file" className="hidden" accept="image/*,.heic,.heif"
                         onChange={handleFile} data-testid="photo-upload" />
                     </label>
                   </div>

@@ -198,18 +198,25 @@ export function useUploadPhoto() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ serviceId, file }: { serviceId: string; file: File }) => {
-      // Validazione mime
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        throw new Error('Formato non supportato. Usa JPG, PNG o WEBP.')
-      }
       // Limite foto: max 10 per servizio
       const { count } = await supabase.from('service_photos')
         .select('id', { count: 'exact', head: true })
         .eq('service_id', serviceId)
       if ((count ?? 0) >= 10) throw new Error('Limite raggiunto (max 10 foto per servizio)')
 
-      // Resize → blob (webp se supportato, altrimenti jpeg)
-      const resized = await resizeImage(file)
+      // Resize: il canvas accetta qualsiasi formato che il browser decodifica.
+      // HEIC dell'iPhone viene decodificato da Safari/iOS ma NON da Chrome desktop.
+      // Se decodifica fallisce, mostra messaggio chiaro.
+      let resized
+      try {
+        resized = await resizeImage(file)
+      } catch (e) {
+        const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name)
+        if (isHeic) {
+          throw new Error('Foto in formato HEIC (iPhone) non supportato su questo browser. Vai in Impostazioni iPhone → Fotocamera → Formati → "Più compatibile" (JPEG), oppure converti la foto in JPEG prima di caricarla.')
+        }
+        throw new Error('Impossibile leggere la foto. Verifica che sia un\'immagine valida (JPG/PNG/WEBP).')
+      }
       const photoId = crypto.randomUUID()
       const path = `${serviceId}/${photoId}.${resized.ext}`
 
