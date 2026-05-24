@@ -275,6 +275,25 @@ Deno.serve(async (req) => {
         <div style="font-family:Georgia,serif;font-style:italic;font-size:14px;color:#787164">${escapeHtml(eventDateFmt)}</div>
       </td></tr>` : ''}
 
+      ${isNewCouple ? `
+      <!-- INVITO REGISTRAZIONE: niente totale, niente voci. Solo invito a creare account -->
+      <tr><td style="padding:24px 40px 8px 40px;text-align:center">
+        <p style="font-family:Georgia,serif;font-size:15px;color:#4a5568;line-height:1.7;margin:0">
+          Il tuo preventivo personalizzato è pronto.<br>
+          Crea il tuo account riservato per visualizzarlo nel dettaglio,<br>
+          accettarlo digitalmente e seguire l'organizzazione del giorno-X.
+        </p>
+      </td></tr>
+      <tr><td style="padding:18px 40px 0 40px;text-align:center">
+        <div style="display:inline-block;padding:14px 22px;border-radius:10px;background:#F8F5EE;border:1px solid #E4DED2">
+          <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:6px">Cosa trovi nella tua area</div>
+          <div style="font-family:Georgia,serif;font-size:13px;color:#1A1714;line-height:1.7">
+            Preventivo dettagliato · Firma sicura · Programma e scaletta<br>
+            Tavoli e invitati · Alloggi e trasporti · Mood board
+          </div>
+        </div>
+      </td></tr>
+      ` : `
       <!-- TOTALE HERO -->
       <tr><td style="padding:36px 40px 32px 40px;text-align:center">
         <div style="font-family:Arial,sans-serif;font-size:10px;color:#A59C8E;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:10px">Investimento totale</div>
@@ -289,6 +308,7 @@ Deno.serve(async (req) => {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${itemsHtml}</table>
         ${(itemsPreview?.length ?? 0) >= 5 ? `<div style="text-align:center;padding-top:14px;font-family:Georgia,serif;font-size:12px;color:#A59C8E;font-style:italic">...e altre voci nel dettaglio</div>` : ''}
       </td></tr>` : ''}
+      `}
 
       <!-- CTA -->
       <tr><td style="padding:32px 40px;text-align:center">
