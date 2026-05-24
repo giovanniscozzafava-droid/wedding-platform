@@ -32,7 +32,7 @@ const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Admin',
 }
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard }
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: string }
 
 const NAV_BASE: NavItem[] = [
   { to: '/',           label: 'Dashboard', icon: LayoutDashboard },
@@ -55,8 +55,8 @@ const NAV_TAIL_COMMON: NavItem[] = [
 
 // Voci esclusive WP/LOCATION (riservate al cliente finale, non ai fornitori)
 const NAV_TAIL_CLIENT_PRODUCTS: NavItem[] = [
-  { to: '/finanziamento', label: 'Finanziamento', icon: Wallet },
-  { to: '/assicurazione', label: 'Assicurazione', icon: ShieldCheck },
+  { to: '/finanziamento', label: 'Finanziamento', icon: Wallet, badge: 'SOON' },
+  { to: '/assicurazione', label: 'Assicurazione', icon: ShieldCheck, badge: 'SOON' },
 ]
 
 const NAV_FORN: NavItem[] = [
@@ -118,7 +118,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               }
             >
               <n.icon size={18} strokeWidth={1.8} />
-              <span>{n.label}</span>
+              <span className="flex-1">{n.label}</span>
+              {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
             </NavLink>
           ))}
         </nav>
@@ -191,7 +192,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                       )
                     }>
                     <n.icon size={18} strokeWidth={1.8} />
-                    <span>{n.label}</span>
+                    <span className="flex-1">{n.label}</span>
+                    {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
                   </NavLink>
                 ))}
               </nav>

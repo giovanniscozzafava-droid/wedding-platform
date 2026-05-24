@@ -25,7 +25,11 @@ export function QuoteSignaturePad({ onChange, height = 200 }: Props) {
     canvas.height = height * ratio
     const ctx = canvas.getContext('2d')!
     ctx.scale(ratio, ratio)
-    ctx.strokeStyle = '#1A1714'
+    // Sfondo bianco SOLIDO (atto legale, no trasparenza nel PNG esportato)
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, cssW, height)
+    // Tratto firma nero
+    ctx.strokeStyle = '#000000'
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
@@ -75,8 +79,13 @@ export function QuoteSignaturePad({ onChange, height = 200 }: Props) {
 
   function reset() {
     const canvas = canvasRef.current!
+    const ratio = window.devicePixelRatio || 1
     const ctx = canvas.getContext('2d')!
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+    // Riempi nuovamente di bianco
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width / ratio, canvas.height / ratio)
+    ctx.strokeStyle = '#000000'
     hasInkRef.current = false
     setEmpty(true)
     onChange(null)
@@ -84,20 +93,20 @@ export function QuoteSignaturePad({ onChange, height = 200 }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="relative rounded-lg border-2 border-dashed touch-none"
-        style={{ borderColor: 'rgb(var(--border-strong))', background: 'rgb(var(--bg-elev))' }}>
+      <div className="relative rounded-lg border-2 border-dashed touch-none overflow-hidden"
+        style={{ borderColor: '#C49A5C', background: '#FFFFFF' }}>
         <canvas ref={canvasRef}
-          style={{ width: '100%', height: `${height}px`, display: 'block', cursor: 'crosshair' }}
+          style={{ width: '100%', height: `${height}px`, display: 'block', cursor: 'crosshair', background: '#FFFFFF' }}
           onMouseDown={start as any} onMouseMove={move as any} onMouseUp={end} onMouseLeave={end}
           onTouchStart={start as any} onTouchMove={move as any} onTouchEnd={end} />
         {empty && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-[rgb(var(--fg-subtle))] italic">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm italic" style={{ color: '#A59C8E' }}>
             Firma qui col dito o col mouse
           </div>
         )}
       </div>
       <div className="flex items-center justify-between">
-        <p className="text-xs text-[rgb(var(--fg-subtle))]">La tua firma sarà allegata all'atto di accettazione.</p>
+        <p className="text-xs" style={{ color: '#6E6E6E' }}>La tua firma sarà allegata all'atto di accettazione.</p>
         {!empty && (
           <Button type="button" variant="ghost" size="sm" onClick={reset}>
             <Trash2 size={13} /> Cancella

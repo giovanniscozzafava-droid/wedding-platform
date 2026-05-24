@@ -166,7 +166,38 @@ Deno.serve(async (req) => {
     const eventDateFmt = q.event_date ? new Date(q.event_date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : null
     const isOverride = !!body.override_reason
 
-    const link = `${APP_BASE}/p/preview/${accessToken}`
+    // Determina link:
+    // - Se client_email NON e' un utente registrato → invito coppia con registrazione
+    //   (crea wedding_couple_members con token; dopo signup li trova nella loro dashboard)
+    // - Se utente esiste → link preview pubblico standard
+    let link = `${APP_BASE}/p/preview/${accessToken}`
+    let isNewCouple = false
+    try {
+      const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
+      const userExists = allUsers?.some((u: any) => u.email?.toLowerCase() === q.client_email!.toLowerCase())
+      if (!userExists && q.event_date) {
+        // Trova/crea calendar_entry per il quote
+        const { data: entry } = await admin.from('calendar_entries').select('id').eq('quote_id', q.id).maybeSingle()
+        if (entry?.id) {
+          // Crea membro coppia con invite_token (idempotente su (entry_id, email))
+          const { data: existing } = await admin.from('wedding_couple_members')
+            .select('invite_token').eq('entry_id', entry.id).eq('email', q.client_email).maybeSingle()
+          let inviteToken = existing?.invite_token
+          if (!inviteToken) {
+            const ins = await admin.from('wedding_couple_members').insert({
+              entry_id: entry.id, email: q.client_email,
+              full_name: q.client_name ?? q.client_email.split('@')[0],
+              role: 'SPOSA',
+            }).select('invite_token').single()
+            inviteToken = ins.data?.invite_token
+          }
+          if (inviteToken) {
+            link = `${APP_BASE}/invito-coppia/${inviteToken}`
+            isNewCouple = true
+          }
+        }
+      }
+    } catch { /* fallback al link preview standard */ }
 
     const subject = isOverride
       ? `Modifica al preventivo · ${q.title}`
@@ -261,8 +292,8 @@ Deno.serve(async (req) => {
 
       <!-- CTA -->
       <tr><td style="padding:32px 40px;text-align:center">
-        <a href="${link}" style="display:inline-block;background:${primaryColor};color:#FDFBF6;padding:16px 40px;border-radius:50px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px;letter-spacing:1.5px;text-transform:uppercase">Apri il preventivo</a>
-        <div style="margin-top:16px;font-family:Arial,sans-serif;font-size:11px;color:#A59C8E">Potrai accettarlo digitalmente con firma sicura</div>
+        <a href="${link}" style="display:inline-block;background:${primaryColor};color:#FDFBF6;padding:16px 40px;border-radius:50px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px;letter-spacing:1.5px;text-transform:uppercase">${isNewCouple ? 'Crea il tuo account · vedi il preventivo' : 'Apri il preventivo'}</a>
+        <div style="margin-top:16px;font-family:Arial,sans-serif;font-size:11px;color:#A59C8E">${isNewCouple ? 'Crea un account in 30 secondi → troverai il preventivo nella tua area personale, potrai accettarlo con firma sicura' : 'Potrai accettarlo digitalmente con firma sicura'}</div>
       </td></tr>
 
       <!-- PERSONAL SIGNATURE WP -->
