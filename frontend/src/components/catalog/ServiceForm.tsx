@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Image as ImageIcon, X, Plus, Trash2 } from 'lucide-react'
+import { Image as ImageIcon, X, Plus, Trash2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import {
   useAddModifier, useCategories, useCreateService, useRemoveModifier, useUpdateService,
   useUploadPhoto, useDeletePhoto, type ServiceWithExtras,
 } from '@/hooks/useCatalog'
+import { presetsFor, type ServicePreset } from '@/lib/service-presets'
 import type { Database } from '@/lib/database.types'
 
 type Unit = Database['public']['Enums']['service_unit']
@@ -123,6 +124,39 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
           </header>
 
           <div className="overflow-y-auto px-6 py-5 space-y-6">
+            {!savedId && presetsFor(subrole).length > 0 && (
+              <div className="rounded-xl p-4 border" style={{ borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles size={14} className="text-[rgb(var(--gold-600))]" />
+                  <p className="text-sm font-medium">Servizi rapidi per {subrole}</p>
+                </div>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
+                  Clicca un preset per compilare automaticamente i campi. Puoi modificare tutto prima di salvare.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {presetsFor(subrole).map((p: ServicePreset) => (
+                    <button key={p.name} type="button"
+                      onClick={() => {
+                        setForm((f) => ({
+                          ...f,
+                          name: p.name,
+                          description: p.description,
+                          base_price: p.base_price.toString(),
+                          unit: p.unit,
+                        }))
+                      }}
+                      className="rounded-full px-2.5 py-1 text-xs font-medium border bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--gold-500))] hover:text-[rgb(var(--bg))] hover:border-transparent transition-colors"
+                      style={{ borderColor: 'rgb(var(--border))' }}
+                      title={`€ ${p.base_price} / ${p.unit.toLowerCase()}`}>
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-2.5">
+                  Oppure compila i campi qui sotto da zero per un servizio personalizzato.
+                </p>
+              </div>
+            )}
             <form onSubmit={handleSave} className="space-y-4" data-testid="service-form">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2 space-y-1">

@@ -163,9 +163,10 @@ export function useRemoveModifier() {
   })
 }
 
-// Resize lato browser: max 1600px lato lungo, jpeg quality 0.82.
-// Riduce tipica foto 5MB → ~300KB e bypassa il file_size_limit 2MB.
-async function resizeImage(file: File, maxDim = 1600, quality = 0.82): Promise<Blob> {
+// Resize lato browser: max 1400px lato lungo, prima webp q=0.78, fallback jpeg q=0.78.
+// WebP ha ~30% bytes in meno a parita di qualita visiva → ottimizza storage cloud.
+// Riduce tipica foto 5MB → ~200KB e bypassa il file_size_limit 2MB.
+async function resizeImage(file: File, maxDim = 1400, quality = 0.78): Promise<{ blob: Blob; ext: 'webp' | 'jpg'; contentType: string }> {
   const dataUrl = await new Promise<string>((res, rej) => {
     const r = new FileReader()
     r.onload = () => res(r.result as string)
@@ -185,9 +186,12 @@ async function resizeImage(file: File, maxDim = 1600, quality = 0.82): Promise<B
   canvas.width = w; canvas.height = h
   const ctx = canvas.getContext('2d')!
   ctx.drawImage(img, 0, 0, w, h)
-  return new Promise<Blob>((res, rej) => {
-    canvas.toBlob((b) => b ? res(b) : rej(new Error('toBlob fallito')), 'image/jpeg', quality)
-  })
+  // prova webp, fallback jpeg
+  const webp = await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), 'image/webp', quality))
+  if (webp && webp.size > 0) return { blob: webp, ext: 'webp', contentType: 'image/webp' }
+  const jpeg = await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), 'image/jpeg', quality))
+  if (!jpeg) throw new Error('Impossibile generare immagine compressa')
+  return { blob: jpeg, ext: 'jpg', contentType: 'image/jpeg' }
 }
 
 export function useUploadPhoto() {
@@ -204,13 +208,13 @@ export function useUploadPhoto() {
         .eq('service_id', serviceId)
       if ((count ?? 0) >= 10) throw new Error('Limite raggiunto (max 10 foto per servizio)')
 
-      // Resize → blob jpeg
+      // Resize → blob (webp se supportato, altrimenti jpeg)
       const resized = await resizeImage(file)
       const photoId = crypto.randomUUID()
-      const path = `${serviceId}/${photoId}.jpg`
+      const path = `${serviceId}/${photoId}.${resized.ext}`
 
-      const up = await supabase.storage.from('service-photos').upload(path, resized, {
-        contentType: 'image/jpeg', cacheControl: '3600', upsert: false,
+      const up = await supabase.storage.from('service-photos').upload(path, resized.blob, {
+        contentType: resized.contentType, cacheControl: '3600', upsert: false,
       })
       if (up.error) throw new Error(up.error.message)
 
