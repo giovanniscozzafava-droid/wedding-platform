@@ -82,7 +82,7 @@ export const SERVICE_PRESETS: Record<string, ServicePreset[]> = {
     { name: 'Accessori sposa', description: 'Velo, scarpe, gioielli, jarretiera coordinati.', base_price: 350, unit: 'PEZZO' },
   ],
   location: [
-    { name: 'Pacchetto location + menu Sud Italia', description: 'Uso esclusivo della location + ristorazione interna, fino a 120 ospiti.', base_price: 130, unit: 'PERSONA' },
+    { name: 'Affitto sala + menu', description: 'Uso esclusivo della location + ristorazione interna, fino a 120 ospiti.', base_price: 130, unit: 'PERSONA' },
     { name: 'Uso esclusivo location (no catering)', description: 'Solo struttura + servizi base, catering esterno consentito.', base_price: 3500, unit: 'EVENTO' },
     { name: 'Pernottamento sposi suite', description: 'Suite nuziale notte del matrimonio + colazione.', base_price: 350, unit: 'PEZZO' },
     { name: 'Pacchetto destination weekend', description: 'Uso esclusivo + ristorazione 3 giorni (welcome + matrimonio + brunch).', base_price: 280, unit: 'PERSONA' },

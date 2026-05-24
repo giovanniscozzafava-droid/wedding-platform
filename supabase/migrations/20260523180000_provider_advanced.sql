@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Provider advanced:
 -- - profiles.work_style (descrizione modo di lavorare)
--- - profiles.offers_full_dining (location con ristorazione interna - Sud Italia)
+-- - profiles.offers_full_dining (location con ristorazione interna: affitto sala + menu inclusi)
 -- - profiles.privacy_consent_at (GDPR)
 -- - profiles.deletion_requested_at (richiesta cancellazione GDPR)
 -- - market_prices: borsino di mercato per categoria/tipo (mediana, p25, p75)
@@ -59,7 +59,7 @@ insert into market_prices (subrole, service_kind, unit, price_p25, price_median,
   ('make_up', 'Acconciatura sposa', 'EVENTO', 150, 220, 320, 200, 'Studio bouquet'),
   ('make_up', 'Make-up testimoni/mamme', 'PERSONA', 70, 110, 170, 150, 'Prezzo a testa'),
   ('location', 'Affitto sala matrimonio', 'EVENTO', 4000, 8000, 15000, 80, 'Solo location senza ristorazione, fascia premium'),
-  ('location', 'Pacchetto location + menu', 'PERSONA', 80, 130, 200, 60, 'Tutto compreso per persona (Sud Italia)'),
+  ('location', 'Affitto sala + menu', 'PERSONA', 80, 130, 200, 60, 'Affitto sala + ristorazione tutto compreso per persona'),
   ('auto', 'Auto sposi vintage', 'EVENTO', 250, 400, 650, 70, 'Mercedes/Fiat 500 4-5h'),
   ('animazione', 'Mago / Illusionista', 'EVENTO', 400, 700, 1100, 40, 'Show 1-2h durante aperitivo'),
   ('animazione', 'Animazione bambini', 'EVENTO', 250, 450, 700, 60, 'Truccabimbi + giochi 3h'),

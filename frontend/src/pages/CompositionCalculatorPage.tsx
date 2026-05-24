@@ -145,7 +145,7 @@ const PRESETS_BY_SUBROLE: Record<string, { label: string; items: Comp[] }[]> = {
     ] },
   ],
   location: [
-    { label: 'Pacchetto location + menu (Sud Italia)', items: [
+    { label: 'Affitto sala + menu', items: [
       { name: 'Affitto sala/spazio esterno', unit_price: 3500, quantity: 1, unit: 'pz' },
       { name: 'Menu base (a persona)', unit_price: 95, quantity: 100, unit: 'pz' },
       { name: 'Service camerieri/cuochi', unit_price: 1200, quantity: 1, unit: 'pz' },

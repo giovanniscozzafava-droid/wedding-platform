@@ -82,7 +82,7 @@ async function main() {
     pasticcere: [['Torta nuziale 3 piani', 480, 'PEZZO'], ['Confettata', 130, 'PEZZO']],
     musica:     [['DJ set 5h', 1100, 'EVENTO'], ['Band cerimonia', 1600, 'EVENTO']],
     make_up:    [['Beauty sposa prova+giorno', 350, 'EVENTO']],
-    location:   [['Pacchetto location + menu Sud Italia', 130, 'PERSONA']],
+    location:   [['Affitto sala + menu', 130, 'PERSONA']],
   }
 
   for (const f of FORNS) {
@@ -91,7 +91,7 @@ async function main() {
       role: f.sub === 'location' ? 'LOCATION' : 'FORNITORE',
       full_name: f.name, business_name: f.biz, subrole: f.sub,
       city: 'Cosenza', country: 'Italia', onboarding_complete: true,
-      bio: `${f.biz} — partner di fiducia per beta test. Sud Italia.`,
+      bio: `${f.biz} — partner di fiducia per beta test.`,
       work_style: `Approccio professionale e calibrato sullo stile della coppia. ${f.sub === 'location' ? 'Ristorazione interna premium.' : ''}`,
       offers_full_dining: !!f.dining,
     }).eq('id', u.id)
@@ -115,7 +115,7 @@ async function main() {
     for (const [name, price, unit] of svcList) {
       const { data: svc } = await sb.from('services').insert({
         fornitore_id: u.id, category_id: cat.id, name, base_price: price, unit, is_active: true,
-        description: `${name}. Offerto da ${f.biz}. Sud Italia / destination wedding.`,
+        description: `${name}. Offerto da ${f.biz}. Destination wedding.`,
       }).select().single()
       if (svc) {
         const photos = pexels.map((p, i) => ({ service_id: svc.id, original_url: `${p}?auto=compress&w=1600`, thumbnail_url: `${p}?auto=compress&w=400`, sort_order: i }))

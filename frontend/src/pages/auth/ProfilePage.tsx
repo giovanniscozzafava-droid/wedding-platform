@@ -130,7 +130,7 @@ export default function ProfilePage() {
                   <div className="text-sm">
                     <p className="font-medium">Ristorazione interna</p>
                     <p className="text-xs text-[rgb(var(--fg-muted))]">
-                      Spunta se la location offre il servizio di ristorazione direttamente (tipico al Sud Italia: location + menu inclusi, no catering esterno).
+                      Spunta se la location offre il servizio di ristorazione direttamente (affitto sala + menu inclusi, no catering esterno).
                     </p>
                   </div>
                 </label>

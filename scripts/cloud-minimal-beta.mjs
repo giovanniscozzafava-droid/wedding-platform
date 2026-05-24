@@ -91,7 +91,7 @@ async function main() {
     country: 'Italia',
     onboarding_complete: true,
     subscription_tier: 'PREMIUM',
-    bio: 'Wedding planner per la coppia beta minimal. Studio specializzato in matrimoni di fascia alta in Sud Italia.',
+    bio: 'Wedding planner per la coppia beta minimal. Studio specializzato in matrimoni di fascia alta.',
     work_style: 'Pianificazione completa A-Z, coordinamento giorno-X, gestione fornitori e ospiti.',
     brand_primary_color: '#1A2E4F',
     brand_secondary_color: '#C49A5C',
@@ -109,7 +109,7 @@ async function main() {
       city: 'Cosenza',
       country: 'Italia',
       onboarding_complete: true,
-      bio: `${f.biz} — partner di fiducia. Sud Italia, destination wedding.`,
+      bio: `${f.biz} — partner di fiducia. Destination wedding.`,
       work_style: 'Approccio professionale, attento ai dettagli, calibrato sullo stile della coppia.',
       brand_primary_color: f.sub === 'fotografo' ? '#1F3A5F' : '#7E6633',
     }).eq('id', u.id)
