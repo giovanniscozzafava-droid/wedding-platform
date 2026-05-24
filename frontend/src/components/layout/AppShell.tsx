@@ -21,6 +21,7 @@ import {
   FileSignature,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { AppFooter } from '@/components/layout/AppFooter'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -245,8 +246,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </header>
 
-        <main className="flex-1 min-w-0">
-          {children}
+        <main className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1">
+            {children}
+          </div>
+          <AppFooter />
         </main>
       </div>
     </div>

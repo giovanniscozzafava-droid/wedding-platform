@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
+import { AppFooter } from '@/components/layout/AppFooter'
 
 type Tab = 'overview' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
@@ -75,9 +76,7 @@ export default function CoupleDashboard() {
       <header className="sticky top-0 z-30 backdrop-blur border-b" style={{ background: 'rgb(var(--bg-elev) / 0.85)', borderColor: 'rgb(var(--border))' }}>
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <Link to="/couple" className="inline-flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-              <Heart size={16} strokeWidth={2.5} fill="currentColor" />
-            </span>
+            <img src="/brand/planfully-symbol.svg" alt="Planfully" className="h-8 w-8" />
             <span className="font-display text-base">Planfully</span>
           </Link>
           <div className="text-sm text-[rgb(var(--fg-muted))]">
@@ -106,6 +105,7 @@ export default function CoupleDashboard() {
       )}
 
       {selected && wid && <WeddingView wedding={selected.entry} memberRole={selected.role} entryId={wid} tab={tab} setTab={setTab} />}
+      <AppFooter />
     </div>
   )
 }

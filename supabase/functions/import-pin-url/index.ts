@@ -49,20 +49,26 @@ Deno.serve(async (req) => {
   // Usiamo facebookexternalhit che è universalmente accettato.
   let finalUrl = target.toString()
   let html = ''
+  const htmlAc = new AbortController()
+  const htmlTimeout = setTimeout(() => htmlAc.abort(), 8000)
   try {
     const r = await fetch(finalUrl, {
       redirect: 'follow',
+      signal: htmlAc.signal,
       headers: {
         'user-agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
         'accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
         'accept-language': 'it-IT,it;q=0.9,en;q=0.8',
       },
     })
-    if (!r.ok) return json({ error: `fetch failed ${r.status}` }, 502)
+    clearTimeout(htmlTimeout)
+    if (!r.ok) return json({ error: `Pagina non raggiungibile (HTTP ${r.status})` }, 502)
     finalUrl = r.url
     html = await r.text()
   } catch (e: any) {
-    return json({ error: 'fetch error', detail: e?.message }, 502)
+    clearTimeout(htmlTimeout)
+    const msg = e?.name === 'AbortError' ? 'timeout caricamento pagina (8s)' : (e?.message ?? 'fetch error')
+    return json({ error: `Impossibile leggere la pagina: ${msg}` }, 502)
   }
 
   const image = pickMeta(html, 'og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src')
@@ -81,14 +87,19 @@ Deno.serve(async (req) => {
 
   if (body.fetch_image) {
     const userAgents = [
-      'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-      'Mozilla/5.0 (compatible; WhatsApp/2.23.20.0; +https://www.whatsapp.com/)',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      // Bot whitelist Instagram/Meta (servono og:image direttamente al CDN)
+      ['fb', 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'],
+      // Browser desktop (per Pinterest/blog)
+      ['chrome', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'],
+      ['wa', 'WhatsApp/2.23.20.0 A'],
     ]
-    for (const ua of userAgents) {
+    for (const [tag, ua] of userAgents) {
+      const ac = new AbortController()
+      const timeout = setTimeout(() => ac.abort(), 6000) // 6s max per tentativo
       try {
         const ir = await fetch(image, {
           redirect: 'follow',
+          signal: ac.signal,
           headers: {
             'user-agent': ua,
             'referer': finalUrl,
@@ -96,28 +107,29 @@ Deno.serve(async (req) => {
             'accept-language': 'it-IT,it;q=0.9,en;q=0.8',
           },
         })
+        clearTimeout(timeout)
         if (!ir.ok) {
-          imageFetchError = `${ua.split('/')[0]}: HTTP ${ir.status}`
+          imageFetchError = `${tag}:HTTP_${ir.status}`
           continue
         }
         const ab = await ir.arrayBuffer()
         if (ab.byteLength < 200) {
-          imageFetchError = `${ua.split('/')[0]}: empty body`
+          imageFetchError = `${tag}:empty`
           continue
         }
         const u8 = new Uint8Array(ab)
-        // base64 senza dipendenze: chunked per evitare stack overflow su file grandi
         let bin = ''
-        const chunk = 0x8000
-        for (let i = 0; i < u8.length; i += chunk) {
-          bin += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + chunk)))
+        const chunkSize = 0x8000
+        for (let i = 0; i < u8.length; i += chunkSize) {
+          bin += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + chunkSize)))
         }
         imageBase64 = btoa(bin)
         imageContentType = ir.headers.get('content-type') ?? 'image/jpeg'
         imageFetchError = null
         break
       } catch (e: any) {
-        imageFetchError = `${ua.split('/')[0]}: ${e?.message ?? 'fetch error'}`
+        clearTimeout(timeout)
+        imageFetchError = `${tag}:${e?.name === 'AbortError' ? 'timeout' : (e?.message ?? 'fetch_error').slice(0, 40)}`
       }
     }
   }
