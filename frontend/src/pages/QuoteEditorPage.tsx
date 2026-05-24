@@ -222,6 +222,23 @@ export default function QuoteEditorPage() {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  async function handleSendQuestionnaire() {
+    if (!quote?.client_email) { toast.error('Inserisci prima l\'email della coppia nel preventivo'); return }
+    if (!id) return
+    const entryRes = await supabase.from('calendar_entries').select('id').eq('quote_id', id as string).maybeSingle()
+    if (!entryRes.data?.id) { toast.error('Devi prima inviare il preventivo una volta (anche in BOZZA) per generare l\'entry'); return }
+    try {
+      const { data, error } = await supabase.functions.invoke('send-questionnaire', {
+        body: { entry_id: entryRes.data.id, couple_email: quote.client_email, couple_name: quote.client_name },
+      })
+      if (error) throw error
+      const result = data as any
+      if (result?.mode === 'sent') toast.success('Questionario inviato alla coppia. Riceveranno email per registrarsi e rispondere.')
+      else if (result?.mode === 'email_failed') toast.error(`Email fallita: ${result.email_error?.slice(0,80)}`)
+      else toast.success(`Link generato (Resend non attivo): ${result?.link}`)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
   async function handleSend() {
     if (!id) return
     try {
@@ -256,6 +273,9 @@ export default function QuoteEditorPage() {
             </Button>
             <Button variant="outline" onClick={() => handlePdf('PREMIUM')} disabled={genPdf.isPending} data-testid="pdf-premium">
               <Sparkles /> PDF Premium
+            </Button>
+            <Button variant="outline" onClick={handleSendQuestionnaire}>
+              📋 Invia questionario
             </Button>
             <Button variant="gold" onClick={handleSend} disabled={sendQ.isPending} data-testid="send-quote-btn">
               <Send /> {sendQ.isPending ? 'Invio...' : 'Invia al cliente'}

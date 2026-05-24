@@ -107,7 +107,13 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
       if (!m?.image) throw new Error('Nessuna immagine trovata in quella pagina')
 
       // 2. Ricostruisci Blob da base64 (il server l'ha gia scaricato per noi)
-      if (!m.image_base64) throw new Error('Impossibile scaricare l\'immagine dalla pagina')
+      if (!m.image_base64) {
+        const detail = m.image_fetch_error ? ` (${m.image_fetch_error})` : ''
+        throw new Error(
+          'Impossibile scaricare l\'immagine dalla pagina' + detail +
+          '. Suggerimento: con Instagram caroselli, prova ad aprire la SINGOLA foto (link al post specifico, non al carosello).'
+        )
+      }
       const ct = m.image_content_type ?? 'image/jpeg'
       const bin = atob(m.image_base64)
       const arr = new Uint8Array(bin.length)

@@ -73,34 +73,60 @@ Deno.serve(async (req) => {
 
   // Se richiesto, scarica l'immagine lato server (bypassa CORS browser) e
   // ritorna in base64 + content-type. Il client puo' poi ricostruire un Blob/File.
+  // Per Instagram carosello og:image punta a scontent-*.cdninstagram.com che a volte
+  // rifiuta facebookexternalhit. Provo piu' user-agent prima di arrendermi.
   let imageBase64: string | null = null
   let imageContentType: string | null = null
+  let imageFetchError: string | null = null
+
   if (body.fetch_image) {
-    try {
-      const ir = await fetch(image, {
-        redirect: 'follow',
-        headers: {
-          'user-agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-          'referer': finalUrl,
-          'accept': 'image/*',
-        },
-      })
-      if (ir.ok) {
+    const userAgents = [
+      'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+      'Mozilla/5.0 (compatible; WhatsApp/2.23.20.0; +https://www.whatsapp.com/)',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    ]
+    for (const ua of userAgents) {
+      try {
+        const ir = await fetch(image, {
+          redirect: 'follow',
+          headers: {
+            'user-agent': ua,
+            'referer': finalUrl,
+            'accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+            'accept-language': 'it-IT,it;q=0.9,en;q=0.8',
+          },
+        })
+        if (!ir.ok) {
+          imageFetchError = `${ua.split('/')[0]}: HTTP ${ir.status}`
+          continue
+        }
         const ab = await ir.arrayBuffer()
+        if (ab.byteLength < 200) {
+          imageFetchError = `${ua.split('/')[0]}: empty body`
+          continue
+        }
         const u8 = new Uint8Array(ab)
-        // base64 senza dipendenze: usa btoa con string accumulata
+        // base64 senza dipendenze: chunked per evitare stack overflow su file grandi
         let bin = ''
-        for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i])
+        const chunk = 0x8000
+        for (let i = 0; i < u8.length; i += chunk) {
+          bin += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + chunk)))
+        }
         imageBase64 = btoa(bin)
         imageContentType = ir.headers.get('content-type') ?? 'image/jpeg'
+        imageFetchError = null
+        break
+      } catch (e: any) {
+        imageFetchError = `${ua.split('/')[0]}: ${e?.message ?? 'fetch error'}`
       }
-    } catch { /* fallthrough: ritorna solo URL */ }
+    }
   }
 
   return json({
     image,
     image_base64: imageBase64,
     image_content_type: imageContentType,
+    image_fetch_error: imageFetchError,
     title: title.slice(0, 200),
     description: desc.slice(0, 500),
     source_url: finalUrl,
