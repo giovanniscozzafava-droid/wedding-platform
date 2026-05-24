@@ -100,20 +100,22 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     if (!url || !/^https?:\/\//.test(url)) { toast.error('Incolla un URL valido (Instagram, Pinterest, qualsiasi blog)'); return }
     setImporting(true)
     try {
-      // 1. Estrai og:image via edge function
-      const { data: meta, error } = await supabase.functions.invoke('import-pin-url', { body: { url } })
+      // 1. Estrai og:image + scarica byte lato server (bypass CORS browser)
+      const { data: meta, error } = await supabase.functions.invoke('import-pin-url', { body: { url, fetch_image: true } })
       if (error) throw error
-      const imgUrl = (meta as any)?.image
-      if (!imgUrl) throw new Error('Nessuna immagine trovata in quella pagina')
+      const m = meta as any
+      if (!m?.image) throw new Error('Nessuna immagine trovata in quella pagina')
 
-      // 2. Scarica l'immagine come blob via fetch
-      const r = await fetch(imgUrl)
-      if (!r.ok) throw new Error(`Impossibile scaricare immagine (HTTP ${r.status})`)
-      const blob = await r.blob()
-      const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg'
-      const file = new File([blob], `import-${Date.now()}.${ext}`, { type: blob.type || 'image/jpeg' })
+      // 2. Ricostruisci Blob da base64 (il server l'ha gia scaricato per noi)
+      if (!m.image_base64) throw new Error('Impossibile scaricare l\'immagine dalla pagina')
+      const ct = m.image_content_type ?? 'image/jpeg'
+      const bin = atob(m.image_base64)
+      const arr = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+      const ext = ct.includes('png') ? 'png' : ct.includes('webp') ? 'webp' : 'jpg'
+      const file = new File([arr], `import-${Date.now()}.${ext}`, { type: ct })
 
-      // 3. Riutilizza useUploadPhoto (gestisce resize browser-side + upload bucket + insert riga)
+      // 3. Riutilizza useUploadPhoto (resize browser-side WebP + upload bucket + insert riga)
       await upPhoto.mutateAsync({ serviceId: savedId, file })
       toast.success('Foto importata')
       setImportUrl('')

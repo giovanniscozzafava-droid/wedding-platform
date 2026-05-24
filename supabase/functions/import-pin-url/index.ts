@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
-  const body = (await req.json().catch(() => ({}))) as { url?: string }
+  const body = (await req.json().catch(() => ({}))) as { url?: string; fetch_image?: boolean }
   if (!body.url) return json({ error: 'url required' }, 400)
 
   let target: URL
@@ -70,8 +70,37 @@ Deno.serve(async (req) => {
   const desc = pickMeta(html, 'og:description', 'description', 'twitter:description') || ''
 
   if (!image) return json({ error: 'no og:image found' }, 422)
+
+  // Se richiesto, scarica l'immagine lato server (bypassa CORS browser) e
+  // ritorna in base64 + content-type. Il client puo' poi ricostruire un Blob/File.
+  let imageBase64: string | null = null
+  let imageContentType: string | null = null
+  if (body.fetch_image) {
+    try {
+      const ir = await fetch(image, {
+        redirect: 'follow',
+        headers: {
+          'user-agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+          'referer': finalUrl,
+          'accept': 'image/*',
+        },
+      })
+      if (ir.ok) {
+        const ab = await ir.arrayBuffer()
+        const u8 = new Uint8Array(ab)
+        // base64 senza dipendenze: usa btoa con string accumulata
+        let bin = ''
+        for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i])
+        imageBase64 = btoa(bin)
+        imageContentType = ir.headers.get('content-type') ?? 'image/jpeg'
+      }
+    } catch { /* fallthrough: ritorna solo URL */ }
+  }
+
   return json({
     image,
+    image_base64: imageBase64,
+    image_content_type: imageContentType,
     title: title.slice(0, 200),
     description: desc.slice(0, 500),
     source_url: finalUrl,
