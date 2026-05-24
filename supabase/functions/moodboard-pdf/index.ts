@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
-// Genera PDF moodboard editoriale magazine-style.
-// Layout collage masonry, gruppi per tag, palette colori estratta, frasi mood,
-// brand WP. Salva su quote-pdfs/moodboard/<entry>/v<n>.pdf signed URL.
+// Moodboard PDF editoriale magazine-style.
+// Cover hero + capitoli "racconto" per tag con narrazione + masonry 4-col dense.
+// Idempotente: ogni call genera key univoco con timestamp+random.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { jsPDF } from 'npm:jspdf@2.5.2'
@@ -38,28 +38,76 @@ async function fetchImage(url: string): Promise<{ data: Uint8Array; format: 'PNG
 
 const safeText = (s: any) => String(s ?? '').trim()
 
-const TAG_LABELS: Record<string, string> = {
-  vestito: 'Abito',
-  fiori: 'Fiori',
-  location: 'Location',
-  torta: 'Wedding cake',
-  allestimento: 'Allestimenti',
-  altro: 'Dettagli',
-  bouquet: 'Bouquet',
-  trucco: 'Beauty',
+// Catalogo capitoli — testi narrativi (editorial / wedding manual)
+type Chapter = { label: string; eyebrow: string; title: string; intro: string; closing: string }
+
+const CHAPTERS: Record<string, Chapter> = {
+  vestito: {
+    label: 'Abito',
+    eyebrow: 'C A P I T O L O   U N O',
+    title: 'L\'abito che racconta chi sei',
+    intro: 'Più di una scelta estetica: l\'abito è la prima cosa che gli ospiti vedono e l\'ultima che la sposa dimenticherà. Ogni linea ha un significato — sirena per chi sceglie sicurezza, principessa per chi sogna fiabe, slip dress per chi cerca ricerca contemporanea.',
+    closing: 'Un abito sceglie te, non il contrario.',
+  },
+  abito: {
+    label: 'Abito',
+    eyebrow: 'C A P I T O L O   U N O',
+    title: 'L\'abito che racconta chi sei',
+    intro: 'Più di una scelta estetica: l\'abito è la prima cosa che gli ospiti vedono e l\'ultima che la sposa dimenticherà. Ogni linea ha un significato.',
+    closing: 'Un abito sceglie te, non il contrario.',
+  },
+  fiori: {
+    label: 'Fiori & botanica',
+    eyebrow: 'C A P I T O L O   D U E',
+    title: 'Una sinfonia botanica',
+    intro: 'Il fiore non è decorazione: è atmosfera. Stagionalità, palette, formato delle composizioni — tutto contribuisce a quel "wow" silenzioso quando gli ospiti entrano. Dalla peonia primaverile alla protea autunnale, ogni stelo è una scelta.',
+    closing: 'I fiori parlano una lingua che tutti capiscono.',
+  },
+  bouquet: {
+    label: 'Bouquet',
+    eyebrow: 'D E T T A G L I O',
+    title: 'Tra le mani della sposa',
+    intro: 'Il bouquet è il dettaglio più fotografato del matrimonio. Tondo classico, cascata romantica, naked stem moderno — la forma riflette lo stile dell\'abito e il temperamento di chi lo porta.',
+    closing: 'Un piccolo giardino tutto tuo.',
+  },
+  location: {
+    label: 'Location',
+    eyebrow: 'C A P I T O L O   T R E',
+    title: 'Il palcoscenico del vostro sì',
+    intro: 'La location dà il tono. Villa con vista mare, palazzo storico in città, agriturismo nelle colline — ogni spazio racconta una storia diversa. La scelta della cornice influenza il dress code, lo stile floreale, persino il menu.',
+    closing: 'Lo spazio che vi ospita diventa parte della vostra storia.',
+  },
+  torta: {
+    label: 'Wedding cake',
+    eyebrow: 'C A P I T O L O   Q U A T T R O',
+    title: 'Dolce architettura',
+    intro: 'La torta nuziale è scultura commestibile. Naked cake rustic, drip cake contemporanea, classica a tre piani con fiori freschi. Il momento del taglio è uno dei più attesi e fotografati della giornata.',
+    closing: 'Un brindisi addolcito.',
+  },
+  allestimento: {
+    label: 'Allestimenti',
+    eyebrow: 'C A P I T O L O   C I N Q U E',
+    title: 'Atmosfere e dettagli',
+    intro: 'Sedie Chiavarine o Tiffany, tovagliato lino o velluto, candele e lighting design — sono le piccole scelte invisibili che fanno la differenza tra "bello" e "indimenticabile". Ogni elemento è coerente con il mood complessivo.',
+    closing: 'I dettagli sono l\'arma segreta.',
+  },
+  trucco: {
+    label: 'Beauty',
+    eyebrow: 'D E T T A G L I O',
+    title: 'Bellezza che resta',
+    intro: 'Make-up natural radiance per look nude, smoky elegante per cerimonie serali. La beauty è la cura che la sposa dedica a sé stessa nel mattino più importante. Prova prima, sempre.',
+    closing: 'Sei radiosa perché sei felice.',
+  },
+  altro: {
+    label: 'Dettagli',
+    eyebrow: 'I N S P I R A Z I O N I',
+    title: 'I dettagli che fanno la differenza',
+    intro: 'Bomboniere, segnaposto, photo corner, libro degli ospiti, scelte sonore — le rifiniture che gli ospiti notano e ricordano.',
+    closing: 'Tutto è racconto.',
+  },
 }
 
-// Phrases ispirazione per ogni tag (editorial fillers)
-const TAG_PHRASES: Record<string, string> = {
-  vestito: 'L\'abito che racconta chi sei',
-  fiori: 'Una sinfonia botanica',
-  location: 'Il palcoscenico del vostro sì',
-  torta: 'Dolce architettura',
-  allestimento: 'Atmosfere e dettagli',
-  bouquet: 'Tra le mani della sposa',
-  trucco: 'Bellezza che resta',
-  altro: 'Ispirazioni',
-}
+const CHAPTER_ORDER = ['vestito', 'abito', 'bouquet', 'fiori', 'allestimento', 'location', 'torta', 'trucco', 'altro']
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
@@ -89,13 +137,12 @@ Deno.serve(async (req) => {
   const INK = [26, 23, 20] as [number, number, number]
   const MUTED = [120, 113, 100] as [number, number, number]
   const SUBTLE = [165, 156, 142] as [number, number, number]
-  const BORDER = [228, 222, 210] as [number, number, number]
   const PAPER = [253, 251, 246] as [number, number, number]
 
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const W = doc.internal.pageSize.getWidth()
   const H = doc.internal.pageSize.getHeight()
-  const M = 40
+  const M = 36                // margine più stretto per dare spazio
   const CONTENT_W = W - M * 2
 
   // Logo
@@ -105,80 +152,110 @@ Deno.serve(async (req) => {
   const brandName = isPremium && owner?.business_name ? owner.business_name : (owner?.full_name ?? 'Planfully')
   const title = safeText(entry.title || 'Matrimonio')
 
+  // ── Helpers stile ─────────────────────────────────────────
   function paperBg() {
     doc.setFillColor(...PAPER); doc.rect(0, 0, W, H, 'F')
   }
 
-  function pageStripes() {
-    doc.setFillColor(...ACCENT); doc.rect(0, 0, W, 4, 'F')
-    doc.setFillColor(...PRIMARY); doc.rect(0, 4, W, 1, 'F')
-    doc.setFillColor(...ACCENT); doc.rect(0, H - 4, W, 4, 'F')
+  function topBottomStripes() {
+    doc.setFillColor(...ACCENT); doc.rect(0, 0, W, 3, 'F')
+    doc.setFillColor(...ACCENT); doc.rect(0, H - 3, W, 3, 'F')
   }
 
-  function ornament(yPos: number, width = 90) {
-    const cx = W / 2
-    doc.setDrawColor(...ACCENT)
-    doc.setLineWidth(0.6)
-    doc.line(cx - width / 2, yPos, cx - 6, yPos)
-    doc.line(cx + 6, yPos, cx + width / 2, yPos)
+  function ornament(cx: number, yPos: number, width = 80) {
+    doc.setDrawColor(...ACCENT); doc.setLineWidth(0.6)
+    doc.line(cx - width / 2, yPos, cx - 5, yPos)
+    doc.line(cx + 5, yPos, cx + width / 2, yPos)
     doc.setFillColor(...ACCENT)
-    doc.circle(cx, yPos, 1.6, 'F')
+    doc.circle(cx, yPos, 1.5, 'F')
+  }
+
+  function miniHeader(chapterLabel?: string) {
+    if (logoImg) {
+      try { doc.addImage(logoImg.data, logoImg.format, M, 18, 20, 20, undefined, 'FAST') } catch {}
+      doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
+      doc.text(safeText(brandName), M + 26, 32)
+    } else {
+      doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
+      doc.text(safeText(brandName), M, 32)
+    }
+    doc.setFontSize(7); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
+    const right = chapterLabel ? `${safeText(title).slice(0, 30)} · ${chapterLabel}` : safeText(title)
+    doc.text(right, W - M, 32, { align: 'right' })
+  }
+
+  function pageFooter(pageNum: number, totalPages: number, chapterLabel?: string) {
+    doc.setFontSize(8); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
+    doc.text(chapterLabel ?? safeText(brandName), M, H - 18)
+    doc.text(`${pageNum} / ${totalPages}`, W - M, H - 18, { align: 'right' })
   }
 
   // ╔════ COVER ═══════════════════════════════════════════╗
-  paperBg()
-  pageStripes()
+  paperBg(); topBottomStripes()
 
-  // Logo
+  // Brand top
   if (logoImg) {
-    try { doc.addImage(logoImg.data, logoImg.format, M, 32, 36, 36, undefined, 'FAST') } catch {}
+    try { doc.addImage(logoImg.data, logoImg.format, M, 22, 32, 32, undefined, 'FAST') } catch {}
     doc.setFontSize(11); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(safeText(brandName), M + 46, 48)
+    doc.text(safeText(brandName), M + 40, 38)
     doc.setFontSize(8); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
-    doc.text(safeText(owner?.city ?? 'Wedding planner'), M + 46, 60)
+    doc.text(safeText(owner?.city ?? 'Wedding planner'), M + 40, 50)
   } else {
     doc.setFontSize(12); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(safeText(brandName), M, 44)
+    doc.text(safeText(brandName), M, 36)
     doc.setFontSize(8); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
-    doc.text(safeText(owner?.city ?? 'Wedding planner'), M, 56)
+    doc.text(safeText(owner?.city ?? 'Wedding planner'), M, 48)
   }
 
-  doc.setFontSize(8)
-  doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-  doc.text(new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }), W - M, 44, { align: 'right' })
-  doc.text(`${images.length} ispirazioni`, W - M, 56, { align: 'right' })
+  doc.setFontSize(8); doc.setTextColor(...SUBTLE)
+  doc.text(new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }), W - M, 38, { align: 'right' })
+  doc.text(`${images.length} ispirazioni curate`, W - M, 50, { align: 'right' })
 
-  // Hero text editorial
-  const heroCy = 260
+  // Hero centrato verticalmente
+  const heroCy = H / 2 - 20
+  const cx = W / 2
+
   doc.setFontSize(10); doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'normal')
-  doc.text('M O O D B O A R D', W / 2, heroCy - 90, { align: 'center', charSpace: 3 })
-  ornament(heroCy - 70)
+  doc.text('M O O D B O A R D', cx, heroCy - 96, { align: 'center', charSpace: 4 })
 
-  doc.setFontSize(48); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
+  ornament(cx, heroCy - 76, 90)
+
+  // Title - sposi names XL centered
+  doc.setFontSize(46); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
   const titleLines = doc.splitTextToSize(title, CONTENT_W - 40)
-  doc.text(titleLines, W / 2, heroCy, { align: 'center' })
+  let titleY = heroCy - 30
+  for (const line of titleLines) {
+    doc.text(line, cx, titleY, { align: 'center' })
+    titleY += 50
+  }
 
   if (entry.date_from) {
-    doc.setFontSize(12); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'italic')
+    doc.setFontSize(13); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'italic')
     try {
       const dt = new Date(entry.date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
-      doc.text(dt, W / 2, heroCy + 36, { align: 'center' })
+      doc.text(dt, cx, titleY + 4, { align: 'center' })
     } catch {}
   }
 
-  ornament(heroCy + 64)
+  ornament(cx, titleY + 36, 90)
 
-  doc.setFontSize(10); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'italic')
-  const subtitle = 'Una raccolta visiva di ispirazioni curate per il vostro giorno più importante'
-  doc.text(subtitle, W / 2, heroCy + 100, { align: 'center', maxWidth: 380 })
+  doc.setFontSize(11); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'italic')
+  const subtitle = 'Un viaggio visivo attraverso le scelte che renderanno unico\nil vostro giorno più importante.'
+  const subLines = subtitle.split('\n')
+  let subY = titleY + 70
+  for (const l of subLines) { doc.text(l, cx, subY, { align: 'center' }); subY += 16 }
 
-  // Bottom signature
+  // Cover bottom signature
   doc.setFontSize(9); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
-  doc.text('C U R A T A   D A', W / 2, H - 110, { align: 'center', charSpace: 2 })
-  doc.setFontSize(16); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-  doc.text(safeText(brandName), W / 2, H - 86, { align: 'center' })
+  doc.text('C U R A T A   D A', cx, H - 92, { align: 'center', charSpace: 3 })
+  doc.setFontSize(14); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
+  doc.text(safeText(brandName), cx, H - 72, { align: 'center' })
+  if (owner?.city) {
+    doc.setFontSize(9); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'italic')
+    doc.text(safeText(owner.city), cx, H - 56, { align: 'center' })
+  }
 
-  // ╔════ Group per tag ═══════════════════════════════════╗
+  // ╔════ Group by tag ═══════════════════════════════════╗
   const byTag = new Map<string, any[]>()
   for (const img of images) {
     const t = img.tag ?? 'altro'
@@ -186,191 +263,199 @@ Deno.serve(async (req) => {
     byTag.get(t)!.push(img)
   }
 
-  // Pre-fetch tutte le immagini (parallelo, max 30 concorrenti)
-  async function fetchAllImages(imgs: any[]) {
-    const results: Record<string, { data: Uint8Array; format: 'PNG' | 'JPEG' } | null> = {}
-    const batchSize = 8
-    for (let i = 0; i < imgs.length; i += batchSize) {
-      const batch = imgs.slice(i, i + batchSize)
-      const promises = batch.map((it) => fetchImage(it.url).then(r => ({ id: it.id, r })))
-      const settled = await Promise.all(promises)
-      for (const { id, r } of settled) results[id] = r
-    }
-    return results
+  // Pre-fetch in parallelo
+  const allFetched: Record<string, { data: Uint8Array; format: 'PNG' | 'JPEG' } | null> = {}
+  const concurrent = 10
+  for (let i = 0; i < images.length; i += concurrent) {
+    const batch = images.slice(i, i + concurrent)
+    const settled = await Promise.all(batch.map((it) => fetchImage(it.url).then(r => ({ id: it.id, r }))))
+    for (const { id, r } of settled) allFetched[id] = r
   }
 
-  const allFetched = await fetchAllImages(images)
+  // Ordine capitoli: prima i tag in CHAPTER_ORDER, poi gli altri alfabetici
+  const sortedTags = Array.from(byTag.keys()).sort((a, b) => {
+    const ai = CHAPTER_ORDER.indexOf(a)
+    const bi = CHAPTER_ORDER.indexOf(b)
+    if (ai === -1 && bi === -1) return a.localeCompare(b)
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
 
-  // ╔════ TAG PAGES ═══════════════════════════════════════╗
-  for (const [tag, imgs] of byTag) {
-    doc.addPage()
-    paperBg()
-    pageStripes()
+  // ╔════ CHAPTERS ═══════════════════════════════════════╗
+  // Strategia: pagina prima del capitolo è "title page" con narrazione editorial.
+  // Poi pagine grid 4-col dense fino a esaurimento immagini.
 
-    // Page header mini
-    if (logoImg) {
-      try { doc.addImage(logoImg.data, logoImg.format, M, 32, 22, 22, undefined, 'FAST') } catch {}
-      doc.setFontSize(10); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-      doc.text(safeText(brandName), M + 30, 48)
-    } else {
-      doc.setFontSize(10); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-      doc.text(safeText(brandName), M, 48)
-    }
-    doc.setFontSize(8); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-    doc.text(`${title} · moodboard`, W - M, 48, { align: 'right' })
+  const GAP = 6
+  const COLS = 4
+  const colW = (CONTENT_W - GAP * (COLS - 1)) / COLS
 
-    let y = 110
+  function gridPage(chapter: Chapter, imgs: any[], imgIdx: number): number {
+    // imgIdx = puntatore corrente nella lista imgs. Ritorna nuovo puntatore.
+    doc.addPage(); paperBg(); topBottomStripes()
+    miniHeader(chapter.label)
 
-    // Section title editorial
-    doc.setFontSize(10); doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'normal')
-    doc.text((TAG_LABELS[tag] ?? tag).toUpperCase(), M, y, { charSpace: 2.5 })
-    y += 12
-    doc.setFontSize(28); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(TAG_PHRASES[tag] ?? 'Ispirazioni', M, y + 22)
-    y += 38
+    const startY = 64
+    const bottomLimit = H - 50
+    const colHeights = new Array(COLS).fill(startY)
 
-    doc.setDrawColor(...ACCENT); doc.setLineWidth(1)
-    doc.line(M, y, M + 50, y); y += 28
-
-    // Layout: griglia masonry semplice. Le righe alternano formati.
-    // Per A4 con M=40, CONTENT_W = 515. Uso 2-3 cols variabili.
-    const GAP = 12
-    const colN = 3
-    const colW = (CONTENT_W - GAP * (colN - 1)) / colN
-
-    // Calcola colonna heights
-    const colHeights = new Array(colN).fill(y)
-    const PAGE_BOTTOM = H - 60
-
-    function addImageBlock(img: any, col: number, x: number, yy: number, h: number) {
-      const fetched = allFetched[img.id]
-      doc.setFillColor(235, 230, 220)
-      doc.rect(x, yy, colW, h, 'F')
-      if (fetched) {
-        try { doc.addImage(fetched.data, fetched.format, x, yy, colW, h, undefined, 'FAST') }
-        catch { /* placeholder lascia bg color */ }
-      }
-      // Caption opzionale
-      if (img.caption) {
-        doc.setFontSize(7.5); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'italic')
-        const lines = doc.splitTextToSize(safeText(img.caption).slice(0, 60), colW)
-        doc.text(lines[0], x, yy + h + 10)
-      }
-    }
-
-    let imgIdx = 0
     while (imgIdx < imgs.length) {
-      // pick shortest column
-      let minH = Math.min(...colHeights)
-      let col = colHeights.indexOf(minH)
-      if (minH > PAGE_BOTTOM - 80) break  // pagina piena → next page
-
       const img = imgs[imgIdx]
-      // varia altezze per masonry: aspect 4:5 / 3:4 / 1:1 / 2:3
-      const aspects = [1.25, 1.33, 1.0, 1.5]
+      // Aspect compatto: mix 1.0, 1.2, 1.33, 0.85
+      const aspects = [1.0, 1.2, 1.33, 0.85, 1.1]
       const aspect = aspects[imgIdx % aspects.length]
       const h = Math.round(colW * aspect)
+      const captionH = img.caption ? 14 : 0
+      const totalH = h + GAP + captionH
+
+      // Trova colonna più corta
+      let minH = Math.min(...colHeights)
+      let col = colHeights.indexOf(minH)
+
+      // Se la più corta è già oltre il limite di pagina, esci (continua next page)
+      if (colHeights[col] + totalH > bottomLimit) break
 
       const x = M + col * (colW + GAP)
-      addImageBlock(img, col, x, colHeights[col], h)
-      colHeights[col] = colHeights[col] + h + GAP + (img.caption ? 14 : 0)
+      const y = colHeights[col]
+
+      // Background placeholder + immagine
+      doc.setFillColor(238, 232, 222)
+      doc.rect(x, y, colW, h, 'F')
+      const fetched = allFetched[img.id]
+      if (fetched) {
+        try { doc.addImage(fetched.data, fetched.format, x, y, colW, h, undefined, 'FAST') } catch {}
+      }
+
+      if (img.caption) {
+        doc.setFontSize(6.5); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'italic')
+        const cap = safeText(img.caption).slice(0, 50)
+        doc.text(cap, x + colW / 2, y + h + 9, { align: 'center' })
+      }
+
+      colHeights[col] = y + totalH
       imgIdx++
     }
 
-    // Se rimangono immagini per questo tag, sovrappagina
-    if (imgIdx < imgs.length) {
-      const remaining = imgs.slice(imgIdx)
-      // Sposta tutto su nuova pagina con stesso layout — semplificato: aggiungo nuova pagina e richiamo logica
-      doc.addPage()
-      paperBg()
-      pageStripes()
-      doc.setFontSize(10); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-      doc.text(safeText(brandName), M, 48)
-      doc.setFontSize(8); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-      doc.text(`${title} · ${TAG_LABELS[tag] ?? tag} (continua)`, W - M, 48, { align: 'right' })
+    return imgIdx
+  }
 
-      let yy = 100
-      const ch = [yy, yy, yy]
-      for (const img of remaining) {
-        let minH = Math.min(...ch)
-        let col = ch.indexOf(minH)
-        if (minH > H - 80) break
-        const aspect = [1.25, 1.33, 1.0, 1.5][remaining.indexOf(img) % 4]
-        const h = Math.round(colW * aspect)
-        const x = M + col * (colW + GAP)
-        addImageBlock(img, col, x, ch[col], h)
-        ch[col] = ch[col] + h + GAP + (img.caption ? 14 : 0)
-      }
+  function chapterTitlePage(chapter: Chapter, count: number) {
+    doc.addPage(); paperBg(); topBottomStripes()
+    miniHeader(chapter.label)
+
+    const cy = H / 2 - 30
+
+    doc.setFontSize(10); doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'normal')
+    doc.text(chapter.eyebrow, cx, cy - 70, { align: 'center', charSpace: 3 })
+    ornament(cx, cy - 50, 80)
+
+    doc.setFontSize(36); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
+    const tLines = doc.splitTextToSize(chapter.title, CONTENT_W - 60)
+    let ty = cy - 8
+    for (const l of tLines) { doc.text(l, cx, ty, { align: 'center' }); ty += 40 }
+
+    ornament(cx, ty + 8, 80)
+
+    doc.setFontSize(11); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
+    const introLines = doc.splitTextToSize(chapter.intro, CONTENT_W - 80)
+    let iy = ty + 36
+    for (const l of introLines) { doc.text(l, cx, iy, { align: 'center' }); iy += 16 }
+
+    // Bottom: closing italic
+    doc.setFontSize(13); doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'italic')
+    doc.text(`"${chapter.closing}"`, cx, H - 90, { align: 'center' })
+
+    doc.setFontSize(9); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
+    doc.text(`${count} ${count === 1 ? 'ispirazione' : 'ispirazioni'} a seguire`, cx, H - 64, { align: 'center', charSpace: 1.5 })
+  }
+
+  for (const tag of sortedTags) {
+    const imgs = byTag.get(tag)!
+    const chapter = CHAPTERS[tag] ?? {
+      label: tag,
+      eyebrow: 'C A P I T O L O',
+      title: tag.charAt(0).toUpperCase() + tag.slice(1),
+      intro: 'Una selezione di ispirazioni per questo aspetto del matrimonio.',
+      closing: 'Ogni dettaglio conta.',
+    }
+    // Title page del capitolo
+    chapterTitlePage(chapter, imgs.length)
+    // Pagine grid dense
+    let idx = 0
+    while (idx < imgs.length) {
+      const prev = idx
+      idx = gridPage(chapter, imgs, idx)
+      if (idx === prev) break  // safety: nessun progress
     }
   }
 
-  // ╔════ Final page — palette + signature ════════════════╗
-  doc.addPage()
-  paperBg()
-  pageStripes()
+  // ╔════ Closing page: palette + signature ═════════════╗
+  doc.addPage(); paperBg(); topBottomStripes()
+  miniHeader()
 
-  doc.setFontSize(10); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-  doc.text(safeText(brandName), M, 48)
-
-  let y = 140
   doc.setFontSize(10); doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'normal')
-  doc.text('P A L E T T E   E   T O N I', M, y, { charSpace: 2.5 })
-  y += 12
-  doc.setFontSize(28); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-  doc.text('I colori del giorno', M, y + 22)
-  y += 60
+  doc.text('E P I L O G O', cx, 110, { align: 'center', charSpace: 4 })
+  ornament(cx, 128, 70)
 
-  // 5 swatch — palette pseudo dal brand WP + complementari
-  const swatches: [number[], string][] = [
-    [PRIMARY as any, 'Profondo'],
-    [ACCENT as any, 'Oro'],
-    [[200, 190, 175], 'Sabbia'],
-    [[230, 222, 210], 'Cipria'],
-    [[140, 138, 128], 'Salvia'],
+  doc.setFontSize(36); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
+  doc.text('I colori del giorno', cx, 180, { align: 'center' })
+
+  // Palette 5 swatch centered
+  const swatches: { color: number[]; name: string }[] = [
+    { color: PRIMARY as any, name: 'Profondo' },
+    { color: ACCENT as any, name: 'Oro' },
+    { color: [200, 190, 175], name: 'Sabbia' },
+    { color: [230, 222, 210], name: 'Cipria' },
+    { color: [140, 138, 128], name: 'Salvia' },
   ]
-  const sw = (CONTENT_W - 16 * 4) / 5
+  const sw = 70
+  const gapSw = 16
+  const totalSwW = sw * swatches.length + gapSw * (swatches.length - 1)
+  const sxStart = (W - totalSwW) / 2
+  const syStart = 220
+
   for (let i = 0; i < swatches.length; i++) {
-    const [c, name] = swatches[i]
-    const x = M + i * (sw + 16)
-    doc.setFillColor(c[0], c[1], c[2])
-    doc.roundedRect(x, y, sw, sw, 4, 4, 'F')
+    const { color, name } = swatches[i]
+    const x = sxStart + i * (sw + gapSw)
+    doc.setFillColor(color[0], color[1], color[2])
+    doc.roundedRect(x, syStart, sw, sw, 4, 4, 'F')
     doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(name, x, y + sw + 18)
-    const hex = '#' + c.map((v: number) => v.toString(16).padStart(2, '0')).join('').toUpperCase()
+    doc.text(name, x + sw / 2, syStart + sw + 14, { align: 'center' })
+    const hex = '#' + color.map((v: number) => v.toString(16).padStart(2, '0')).join('').toUpperCase()
     doc.setFontSize(7); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-    doc.text(hex, x, y + sw + 30)
+    doc.text(hex, x + sw / 2, syStart + sw + 26, { align: 'center' })
   }
-  y += sw + 70
 
-  // Closing quote
-  doc.setFontSize(11); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'italic')
-  const quote = '"Ogni matrimonio è una storia unica. Queste pagine sono il primo capitolo della vostra."'
-  const qLines = doc.splitTextToSize(quote, CONTENT_W - 40)
-  for (const l of qLines) { doc.text(l, W / 2, y, { align: 'center' }); y += 16 }
-  y += 16
+  // Quote chiusura
+  const qy = syStart + sw + 80
+  doc.setFontSize(13); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'italic')
+  const closingQuote = '"Ogni matrimonio è una storia unica.\nQueste pagine sono il primo capitolo della vostra."'
+  for (const l of closingQuote.split('\n')) {
+    doc.text(l, cx, qy + closingQuote.split('\n').indexOf(l) * 18, { align: 'center' })
+  }
 
-  // Signature
-  ornament(y + 4); y += 28
+  // Signature centered
+  const sigY = qy + 80
+  ornament(cx, sigY, 70)
   doc.setFontSize(9); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-  doc.text('C O N   A F F E T T O   D A', W / 2, y, { align: 'center', charSpace: 2 })
-  y += 22
+  doc.text('C O N   A F F E T T O   D A', cx, sigY + 22, { align: 'center', charSpace: 3 })
   doc.setFontSize(20); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-  doc.text(safeText(brandName), W / 2, y, { align: 'center' })
-  y += 22
-  doc.setFontSize(10); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
+  doc.text(safeText(brandName), cx, sigY + 46, { align: 'center' })
+  doc.setFontSize(9); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
   const contact = [ownerEmail, owner?.phone, owner?.city].filter(Boolean).join('  ·  ')
-  if (contact) doc.text(contact, W / 2, y, { align: 'center' })
+  if (contact) doc.text(contact, cx, sigY + 64, { align: 'center' })
 
-  // Upload
+  // ── Upload (idempotente con timestamp+random) ────────────
   const pdfBytes = new Uint8Array(doc.output('arraybuffer'))
-  const key = `moodboard/${entry.id}/v${Date.now()}.pdf`
+  const rand = Math.random().toString(36).slice(2, 8)
+  const key = `moodboard/${entry.id}/${Date.now()}-${rand}.pdf`
   const up = await admin.storage.from('quote-pdfs').upload(key, pdfBytes, {
-    contentType: 'application/pdf', upsert: false,
+    contentType: 'application/pdf', upsert: true,
   })
   if (up.error) return json({ error: 'upload failed', detail: up.error.message }, 500)
 
   const signed = await admin.storage.from('quote-pdfs').createSignedUrl(key, 60 * 60 * 24 * 30)
   if (signed.error) return json({ error: 'signed url failed', detail: signed.error.message }, 500)
 
-  return json({ ok: true, url: signed.data.signedUrl, count: images.length })
+  return json({ ok: true, url: signed.data.signedUrl, count: images.length, chapters: sortedTags.length })
 })
