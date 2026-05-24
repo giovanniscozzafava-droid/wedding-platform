@@ -84,9 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       .map((s) => s[0]!.toUpperCase())
       .join('') || '?'
 
-  const avatarUrl = user
-    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/brand-assets/${user.id}/avatar.jpg`
-    : null
+  const avatarUrl = profile?.brand_logo_url ?? null
 
   async function handleLogout() {
     await signOut()
