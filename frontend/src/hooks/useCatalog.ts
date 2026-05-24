@@ -163,18 +163,71 @@ export function useRemoveModifier() {
   })
 }
 
+// Resize lato browser: max 1600px lato lungo, jpeg quality 0.82.
+// Riduce tipica foto 5MB → ~300KB e bypassa il file_size_limit 2MB.
+async function resizeImage(file: File, maxDim = 1600, quality = 0.82): Promise<Blob> {
+  const dataUrl = await new Promise<string>((res, rej) => {
+    const r = new FileReader()
+    r.onload = () => res(r.result as string)
+    r.onerror = rej
+    r.readAsDataURL(file)
+  })
+  const img = await new Promise<HTMLImageElement>((res, rej) => {
+    const i = new Image()
+    i.onload = () => res(i)
+    i.onerror = rej
+    i.src = dataUrl
+  })
+  const ratio = Math.min(1, maxDim / Math.max(img.width, img.height))
+  const w = Math.round(img.width * ratio)
+  const h = Math.round(img.height * ratio)
+  const canvas = document.createElement('canvas')
+  canvas.width = w; canvas.height = h
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(img, 0, 0, w, h)
+  return new Promise<Blob>((res, rej) => {
+    canvas.toBlob((b) => b ? res(b) : rej(new Error('toBlob fallito')), 'image/jpeg', quality)
+  })
+}
+
 export function useUploadPhoto() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ serviceId, file }: { serviceId: string; file: File }) => {
-      const form = new FormData()
-      form.append('service_id', serviceId)
-      form.append('file', file)
-      const { data, error } = await supabase.functions.invoke<{ photo: PhotoRow }>('upload-photo', {
-        body: form,
+      // Validazione mime
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        throw new Error('Formato non supportato. Usa JPG, PNG o WEBP.')
+      }
+      // Limite foto: max 10 per servizio
+      const { count } = await supabase.from('service_photos')
+        .select('id', { count: 'exact', head: true })
+        .eq('service_id', serviceId)
+      if ((count ?? 0) >= 10) throw new Error('Limite raggiunto (max 10 foto per servizio)')
+
+      // Resize → blob jpeg
+      const resized = await resizeImage(file)
+      const photoId = crypto.randomUUID()
+      const path = `${serviceId}/${photoId}.jpg`
+
+      const up = await supabase.storage.from('service-photos').upload(path, resized, {
+        contentType: 'image/jpeg', cacheControl: '3600', upsert: false,
       })
-      if (error) throw error
-      return data
+      if (up.error) throw new Error(up.error.message)
+
+      const { data: pub } = supabase.storage.from('service-photos').getPublicUrl(path)
+      // thumbnail = stesso URL (CSS gestisce la dimensione visibile)
+      const ins = await supabase.from('service_photos').insert({
+        id: photoId,
+        service_id: serviceId,
+        original_url: pub.publicUrl,
+        thumbnail_url: pub.publicUrl,
+        sort_order: count ?? 0,
+      }).select().single()
+      if (ins.error) {
+        await supabase.storage.from('service-photos').remove([path])
+        throw new Error(ins.error.message)
+      }
+      return { photo: ins.data as PhotoRow }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
   })
