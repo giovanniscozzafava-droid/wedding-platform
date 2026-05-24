@@ -18,6 +18,7 @@ import { useTheme } from '@/lib/theme'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 
 type Tab = 'overview' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
@@ -258,11 +259,18 @@ function AlloggiCouple({ entryId }: { entryId: string }) {
   const { data } = useAccommodations(entryId)
   return (
     <div>
-      <h2 className="font-display text-2xl mb-4">Dove dormire</h2>
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
+        <h2 className="font-display text-2xl">Dove dormire</h2>
+        <ChangeRequestModal weddingId={entryId} entityType="ACCOMMODATION" defaultAction="CREATE" prefillTitle="" />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(data ?? []).map((a: any) => (
           <Card key={a.id} className="p-5">
-            <Badge tone="sage">{a.kind}</Badge>
+            <div className="flex items-start justify-between gap-2">
+              <Badge tone="sage">{a.kind}</Badge>
+              <ChangeRequestModal weddingId={entryId} entityType="ACCOMMODATION" entityId={a.id}
+                prefillTitle={`Alloggio: ${a.name}`} trigger="icon" />
+            </div>
             <h3 className="font-display text-lg mt-2">{a.name}</h3>
             <p className="text-sm text-[rgb(var(--fg-muted))]">{a.city}{a.country ? `, ${a.country}` : ''}</p>
             {a.rate_per_night && <p className="text-sm mt-1">Da € {a.rate_per_night}/notte</p>}
@@ -279,7 +287,10 @@ function TrasportiCouple({ entryId }: { entryId: string }) {
   const { data } = useTransport(entryId)
   return (
     <div>
-      <h2 className="font-display text-2xl mb-4">Trasporti</h2>
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
+        <h2 className="font-display text-2xl">Trasporti</h2>
+        <ChangeRequestModal weddingId={entryId} entityType="TRANSPORT" defaultAction="CREATE" />
+      </div>
       <ul className="space-y-2">
         {(data ?? []).map((t: any) => (
           <Card key={t.id} className="p-4 flex items-center gap-3">
@@ -289,6 +300,8 @@ function TrasportiCouple({ entryId }: { entryId: string }) {
               {t.depart_at && <p className="text-sm text-[rgb(var(--fg-muted))]">{new Date(t.depart_at).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
               {(t.depart_from || t.arrive_to) && <p className="text-xs text-[rgb(var(--fg-subtle))]">{t.depart_from} → {t.arrive_to}</p>}
             </div>
+            <ChangeRequestModal weddingId={entryId} entityType="TRANSPORT" entityId={t.id}
+              prefillTitle={`Trasporto: ${t.label}`} trigger="icon" />
           </Card>
         ))}
       </ul>
@@ -301,7 +314,10 @@ function InvitatiCouple({ entryId }: { entryId: string }) {
   const stats = (data ?? []).reduce((acc: any, g: any) => { acc[g.rsvp] = (acc[g.rsvp] ?? 0) + 1; return acc }, {})
   return (
     <div>
-      <h2 className="font-display text-2xl mb-4">Invitati</h2>
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
+        <h2 className="font-display text-2xl">Invitati</h2>
+        <ChangeRequestModal weddingId={entryId} entityType="GUEST" defaultAction="CREATE" prefillTitle="Aggiungere invitato:" />
+      </div>
       <div className="grid grid-cols-4 gap-3 mb-5">
         <Stat label="Totale" v={data?.length ?? 0} />
         <Stat label="Sì" v={stats.YES ?? 0} tone="emerald" />
@@ -311,9 +327,11 @@ function InvitatiCouple({ entryId }: { entryId: string }) {
       <Card>
         <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
           {(data ?? []).map((g: any) => (
-            <li key={g.id} className="px-4 py-2 flex items-center justify-between text-sm">
-              <span>{g.full_name}</span>
+            <li key={g.id} className="px-4 py-2 flex items-center justify-between text-sm gap-2">
+              <span className="flex-1 truncate">{g.full_name}</span>
               <Badge status={g.rsvp} />
+              <ChangeRequestModal weddingId={entryId} entityType="GUEST" entityId={g.id}
+                prefillTitle={`Invitato: ${g.full_name}`} trigger="icon" />
             </li>
           ))}
         </ul>
@@ -327,13 +345,21 @@ function TavoliCouple({ entryId }: { entryId: string }) {
   const { data: guests } = useGuests(entryId)
   return (
     <div>
-      <h2 className="font-display text-2xl mb-4">Tavoli</h2>
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
+        <h2 className="font-display text-2xl">Tavoli</h2>
+        <ChangeRequestModal weddingId={entryId} entityType="TABLE" defaultAction="CREATE" prefillTitle="Modifica disposizione tavoli" />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {(tables ?? []).map((t: any) => {
           const seated = (guests ?? []).filter((g: any) => g.table_id === t.id)
+          const label = t.label ?? `Tavolo ${t.table_no}`
           return (
             <Card key={t.id} className="p-4">
-              <h3 className="font-display text-lg">{t.label ?? `Tavolo ${t.table_no}`}</h3>
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-display text-lg">{label}</h3>
+                <ChangeRequestModal weddingId={entryId} entityType="TABLE" entityId={t.id}
+                  prefillTitle={`Tavolo: ${label}`} trigger="icon" />
+              </div>
               <p className="text-xs text-[rgb(var(--fg-subtle))]">{seated.length}/{t.seats} posti</p>
               <ul className="mt-2 text-sm space-y-0.5">
                 {seated.map((g: any) => <li key={g.id}>{g.full_name}</li>)}

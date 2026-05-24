@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom'
-import { CalendarClock, Table2, Users, Wallet, ListChecks, Palette, Music, FileSignature, FolderOpen } from 'lucide-react'
+import { CalendarClock, Table2, Users, Wallet, ListChecks, Palette, Music, FileSignature, FolderOpen, MessageSquare, Check, X as XIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
 import { useBudget, useGuests, useMood, usePlaylist, useTables, useTasks, useTimeline } from '@/hooks/useWedding'
+import { useChangeRequests, useReviewChangeRequest, entityLabel } from '@/hooks/useChangeRequests'
 
 export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: string) => void }) {
   const eid = wedding.id
@@ -26,6 +30,16 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
   ]
 
   const participants = (wedding.calendar_entry_participants ?? []) as any[]
+  const requests = useChangeRequests(eid)
+  const review = useReviewChangeRequest(eid)
+  const pendingReqs = (requests.data ?? []).filter((r) => r.status === 'PENDING')
+
+  async function reviewReq(id: string, status: 'APPROVED' | 'REJECTED') {
+    try {
+      await review.mutateAsync({ id, status })
+      toast.success(status === 'APPROVED' ? 'Richiesta approvata' : 'Richiesta rifiutata')
+    } catch (e) { toast.error((e as Error).message) }
+  }
 
   return (
     <div className="space-y-8">
@@ -43,6 +57,46 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
           )
         })}
       </div>
+
+      {(pendingReqs.length > 0 || (requests.data ?? []).length > 0) && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display text-lg flex items-center gap-2">
+              <MessageSquare size={16} /> Richieste degli sposi
+              {pendingReqs.length > 0 && <Badge tone="amber">{pendingReqs.length} da gestire</Badge>}
+            </h2>
+          </div>
+          {pendingReqs.length === 0 ? (
+            <p className="text-sm text-[rgb(var(--fg-subtle))]">Nessuna richiesta in attesa.</p>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+              {pendingReqs.map((r) => (
+                <li key={r.id} className="py-3 flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge tone="sage">{entityLabel(r.entity_type)}</Badge>
+                      <Badge tone="neutral">{r.action}</Badge>
+                      <span className="text-xs text-[rgb(var(--fg-subtle))]">
+                        {r.requester?.full_name ?? 'Sposi'} · {new Date(r.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="font-medium mt-1">{r.title}</p>
+                    {r.description && <p className="text-sm text-[rgb(var(--fg-muted))] mt-0.5 whitespace-pre-wrap">{r.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => reviewReq(r.id, 'REJECTED')} disabled={review.isPending}>
+                      <XIcon size={13} /> Rifiuta
+                    </Button>
+                    <Button variant="gold" size="sm" onClick={() => reviewReq(r.id, 'APPROVED')} disabled={review.isPending}>
+                      <Check size={13} /> Approva
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">

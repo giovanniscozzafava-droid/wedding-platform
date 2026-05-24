@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Globe, ExternalLink, Eye, EyeOff, Plane, Sparkles } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Globe, ExternalLink, Eye, EyeOff, Plane, Sparkles, ImagePlus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,9 +7,14 @@ import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { useUpdateWedding } from '@/hooks/useWedding'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
 
 export function WebsiteTab({ wedding }: { wedding: any }) {
   const update = useUpdateWedding(wedding.id)
+  const { user } = useAuth()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
   const [slug, setSlug] = useState(wedding.wedding_website_slug ?? '')
   const [published, setPublished] = useState(wedding.wedding_website_published ?? false)
   const [isDest, setIsDest] = useState(wedding.is_destination ?? false)
@@ -57,6 +62,21 @@ export function WebsiteTab({ wedding }: { wedding: any }) {
 
   const publicUrl = slug && published ? `${window.location.origin}/w/${slug}` : null
 
+  async function uploadCouplePhoto(file: File) {
+    if (!user) return
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const path = `${user.id}/couple-${wedding.id}-${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true, cacheControl: '3600' })
+      if (error) throw error
+      const { data: pub } = supabase.storage.from('brand-assets').getPublicUrl(path)
+      setData({ ...data, couple_photo_url: pub.publicUrl, couple_photo_focal_y: data.couple_photo_focal_y ?? 30 })
+      toast.success('Foto caricata. Ricordati di salvare.')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setUploading(false) }
+  }
+
   return (
     <div>
       <header className="mb-6 flex items-end justify-between flex-wrap gap-3">
@@ -94,6 +114,40 @@ export function WebsiteTab({ wedding }: { wedding: any }) {
                 <Input placeholder="Paese" value={destCountry} onChange={(e) => setDestCountry(e.target.value)} />
                 <Input placeholder="Lingua principale (it/en)" value={destLang} onChange={(e) => setDestLang(e.target.value)} />
               </div>
+            )}
+          </div>
+
+          <div className="pt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+            <h4 className="font-medium mb-2 flex items-center gap-1"><ImagePlus size={14} /> Foto sposi (hero)</h4>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCouplePhoto(f); e.target.value = '' }} />
+            {data.couple_photo_url ? (
+              <div className="space-y-2">
+                <div className="relative aspect-[16/9] overflow-hidden rounded-lg border" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <img src={data.couple_photo_url} alt="Foto sposi"
+                    className="w-full h-full object-cover"
+                    style={{ objectPosition: `center ${data.couple_photo_focal_y ?? 30}%` }} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Centratura verticale ({data.couple_photo_focal_y ?? 30}%) — sposta per centrare i visi</Label>
+                  <input type="range" min={0} max={100} step={5}
+                    value={data.couple_photo_focal_y ?? 30}
+                    onChange={(e) => setData({ ...data, couple_photo_focal_y: Number(e.target.value) })}
+                    className="w-full accent-[rgb(var(--gold-500))]" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                    {uploading ? 'Caricamento...' : 'Sostituisci foto'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setData({ ...data, couple_photo_url: null, couple_photo_focal_y: null })}>
+                    <Trash2 size={14} /> Rimuovi
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                <ImagePlus size={14} /> {uploading ? 'Caricamento...' : 'Carica foto sposi'}
+              </Button>
             )}
           </div>
 

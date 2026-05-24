@@ -16,6 +16,8 @@ import {
   X,
   Calculator,
   CalendarCheck,
+  Wallet,
+  ShieldCheck,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth'
@@ -44,6 +46,8 @@ const NAV_CAPOSTIPITE: NavItem[] = [
 const NAV_TAIL: NavItem[] = [
   { to: '/calendar',   label: 'Calendario', icon: CalendarDays },
   { to: '/quotes',     label: 'Preventivi', icon: FileText },
+  { to: '/finanziamento', label: 'Finanziamento', icon: Wallet },
+  { to: '/assicurazione', label: 'Assicurazione', icon: ShieldCheck },
   { to: '/settings/brand', label: 'Brand', icon: Palette },
   { to: '/profile',    label: 'Profilo',  icon: UserRound },
 ]

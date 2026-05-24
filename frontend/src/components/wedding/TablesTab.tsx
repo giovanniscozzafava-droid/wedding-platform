@@ -1,13 +1,31 @@
 import { useState } from 'react'
-import { Plus, Trash2, Users, Download } from 'lucide-react'
+import { Plus, Trash2, Users, Download, Sparkles, Palette } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useGuests, useTables, useTableMutations } from '@/hooks/useWedding'
+import { useGuests, useTables, useTableMutations, useUpdateWedding, useWedding } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { EditRowModal, type Field } from './EditRowModal'
+
+const TABLE_NAMING_PRESETS: Record<string, string[]> = {
+  Mare:    ['Tirreno', 'Ionio', 'Adriatico', 'Egeo', 'Atlantico', 'Pacifico', 'Caraibi', 'Mar Rosso', 'Mediterraneo', 'Mar Baltico', 'Mar Nero', 'Mar Caspio'],
+  Città:   ['Roma', 'Parigi', 'Tokyo', 'New York', 'Londra', 'Barcellona', 'Lisbona', 'Vienna', 'Praga', 'Berlino', 'Marrakech', 'Bangkok'],
+  Stelle:  ['Vega', 'Sirio', 'Antares', 'Andromeda', 'Cassiopea', 'Orione', 'Pegaso', 'Lyra', 'Polare', 'Aldebaran', 'Rigel', 'Capella'],
+  Fiori:   ['Rosa', 'Peonia', 'Glicine', 'Lavanda', 'Ortensia', 'Magnolia', 'Tulipano', 'Gardenia', 'Bouganville', 'Iris', 'Mimosa', 'Calle'],
+  Vini:    ['Brunello', 'Amarone', 'Barolo', 'Sassicaia', 'Tignanello', 'Chianti', 'Falanghina', 'Greco', 'Aglianico', 'Cirò', 'Negroamaro', 'Primitivo'],
+  Musica:  ['Mozart', 'Verdi', 'Bach', 'Chopin', 'Beethoven', 'Vivaldi', 'Puccini', 'Brahms', 'Schubert', 'Wagner', 'Rossini', 'Bellini'],
+  Libri:   ['Calvino', 'Pavese', 'Eco', 'Pasolini', 'Ferrante', 'Sciascia', 'Morante', 'Levi', 'Saba', 'Magris', 'Tabucchi', 'Ammaniti'],
+  Colori:  ['Oro', 'Rame', 'Argento', 'Avorio', 'Salvia', 'Pesca', 'Rosa cipria', 'Blu notte', 'Verde bosco', 'Sabbia', 'Bordeaux', 'Lavanda'],
+}
+const NAMING_STYLES = Object.keys(TABLE_NAMING_PRESETS)
+
+const THEME_PRESETS = [
+  'Boho chic', 'Classic elegance', 'Rustic country', 'Coastal Mediterranean',
+  'Black-tie gala', 'Garden & botanical', 'Vintage 50s', 'Minimal Scandi',
+  'Sicilian heritage', 'Dolce vita', 'Tropical', 'Industrial loft',
+]
 
 const SHAPES = ['ROUND', 'SQUARE', 'RECT', 'HEAD', 'IMPERIALE']
 const SHAPE_LABEL: Record<string, string> = {
@@ -25,9 +43,34 @@ const TABLE_FIELDS: Field[] = [
 export function TablesTab({ entryId }: { entryId: string }) {
   const { data: tables } = useTables(entryId)
   const { data: guests } = useGuests(entryId)
+  const { data: wedding } = useWedding(entryId)
+  const updateWedding = useUpdateWedding(entryId)
   const { add, update, remove } = useTableMutations(entryId)
   const [draft, setDraft] = useState({ table_no: '', label: '', seats: '8', shape: 'ROUND' })
   const [editTable, setEditTable] = useState<any | null>(null)
+  const currentTheme = (wedding as any)?.theme ?? ''
+  const currentStyle = (wedding as any)?.tables_naming_style ?? ''
+
+  async function applyNamingPreset(style: string) {
+    const names = TABLE_NAMING_PRESETS[style] ?? []
+    if (!names.length) return
+    const list = (tables ?? []) as any[]
+    try {
+      await updateWedding.mutateAsync({ tables_naming_style: style } as any)
+      for (let i = 0; i < list.length; i++) {
+        const nameForTable = names[i % names.length]
+        await update.mutateAsync({ id: list[i].id, patch: { label: nameForTable } } as any)
+      }
+      toast.success(`Tema "${style}" applicato a ${list.length} tavoli`)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  async function setTheme(theme: string) {
+    try {
+      await updateWedding.mutateAsync({ theme } as any)
+      toast.success(`Tema matrimonio: ${theme}`)
+    } catch (e) { toast.error((e as Error).message) }
+  }
 
   async function handleAdd() {
     try {
@@ -78,6 +121,50 @@ export function TablesTab({ entryId }: { entryId: string }) {
         </div>
         <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
       </header>
+
+      <Card className="p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Palette size={14} className="text-[rgb(var(--gold-600))]" />
+          <h3 className="font-medium">Tema matrimonio & nomi tavoli</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider">Tema matrimonio</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {THEME_PRESETS.map((t) => {
+                const active = currentTheme === t
+                return (
+                  <button key={t} onClick={() => setTheme(t)}
+                    className={`rounded-full px-2.5 py-1 text-xs border transition-colors ${active ? 'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] border-transparent' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}
+                    style={!active ? { borderColor: 'rgb(var(--border))' } : undefined}>
+                    {t}
+                  </button>
+                )
+              })}
+            </div>
+            {currentTheme && <p className="text-xs text-[rgb(var(--fg-subtle))]">Attivo: <strong>{currentTheme}</strong></p>}
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider">Nomi tavoli (preset)</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {NAMING_STYLES.map((s) => {
+                const active = currentStyle === s
+                return (
+                  <button key={s} onClick={() => applyNamingPreset(s)}
+                    disabled={(tables ?? []).length === 0}
+                    className={`rounded-full px-2.5 py-1 text-xs border transition-colors disabled:opacity-50 ${active ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}
+                    style={!active ? { borderColor: 'rgb(var(--border))' } : undefined}>
+                    <Sparkles size={10} className="inline mr-1" /> {s}
+                  </button>
+                )
+              })}
+            </div>
+            {(tables ?? []).length === 0
+              ? <p className="text-xs text-[rgb(var(--fg-subtle))]">Aggiungi prima dei tavoli, poi applica un preset di nomi.</p>
+              : currentStyle && <p className="text-xs text-[rgb(var(--fg-subtle))]">Stile attivo: <strong>{currentStyle}</strong></p>}
+          </div>
+        </div>
+      </Card>
 
       <Card className="p-4 mb-6">
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">

@@ -14,6 +14,8 @@ import SuppliersPage from '@/pages/SuppliersPage'
 import SupplierDetailPage from '@/pages/SupplierDetailPage'
 import QuotesPage from '@/pages/QuotesPage'
 import QuoteEditorPage from '@/pages/QuoteEditorPage'
+import FinancePage from '@/pages/FinancePage'
+import InsurancePage from '@/pages/InsurancePage'
 import BrandSettingsPage from '@/pages/BrandSettingsPage'
 import QuotePreviewPage from '@/pages/public/QuotePreviewPage'
 import QuoteAcceptPage from '@/pages/public/QuoteAcceptPage'
@@ -143,6 +145,8 @@ export default function App() {
           <Route path="/cookie" element={<CookiePage />} />
           <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
           <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
+          <Route path="/finanziamento" element={<RequireAuth><FinancePage /></RequireAuth>} />
+          <Route path="/assicurazione" element={<RequireAuth><InsurancePage /></RequireAuth>} />
           <Route path="/couple" element={
             <RequireAuth bare roles={['COUPLE', 'ADMIN']}><CoupleDashboard /></RequireAuth>
           } />

@@ -69,7 +69,9 @@ export default function WeddingSitePage() {
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
       {/* Hero */}
       <header className="relative overflow-hidden" style={{ background: primary }}>
-        <img src="/hero/preview.jpg" alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        <img src={w.data?.couple_photo_url ?? '/hero/preview.jpg'} alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-40"
+          style={{ objectPosition: `center ${w.data?.couple_photo_focal_y ?? 30}%` }} />
         <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primary}EE 0%, ${secondary}88 100%)` }} />
         <div className="relative max-w-4xl mx-auto px-6 sm:px-10 py-24 sm:py-32 text-center text-white">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
