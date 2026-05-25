@@ -232,40 +232,70 @@ function ProgrammaCouple({ entryId }: { entryId: string }) {
   const timeline = useTimeline(entryId)
   const subevents = useSubEvents(entryId)
 
+  const hasSubevents = (subevents.data ?? []).length > 0
+  const hasTimeline = (timeline.data ?? []).length > 0
   return (
     <div className="space-y-6">
       <section>
-        <h2 className="font-display text-2xl mb-3">Eventi del weekend</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {(subevents.data ?? []).map((s: any) => (
-            <Card key={s.id} className="p-4">
-              <Badge tone="sage">{s.kind.replace(/_/g, ' ')}</Badge>
-              <h3 className="font-display text-lg mt-2">{s.title}</h3>
-              {s.date_at && <p className="text-sm text-[rgb(var(--fg-muted))]">
-                {new Date(s.date_at).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' })}
-              </p>}
-              {s.location && <p className="text-xs text-[rgb(var(--fg-subtle))]"><MapPin size={11} className="inline" /> {s.location}</p>}
-            </Card>
-          ))}
+        <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
+          <h2 className="font-display text-2xl">Eventi del weekend</h2>
+          <ChangeRequestModal weddingId={entryId} entityType="SUBEVENT" defaultAction="CREATE" prefillTitle="" />
         </div>
+        {hasSubevents ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {(subevents.data ?? []).map((s: any) => (
+              <Card key={s.id} className="p-4">
+                <Badge tone="sage">{s.kind.replace(/_/g, ' ')}</Badge>
+                <h3 className="font-display text-lg mt-2">{s.title}</h3>
+                {s.date_at && <p className="text-sm text-[rgb(var(--fg-muted))]">
+                  {new Date(s.date_at).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' })}
+                </p>}
+                {s.location && <p className="text-xs text-[rgb(var(--fg-subtle))]"><MapPin size={11} className="inline" /> {s.location}</p>}
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="p-6 text-center">
+            <p className="text-sm text-[rgb(var(--fg-muted))]">
+              Il/la tuo/a wedding planner non ha ancora aggiunto eventi pre o post matrimonio (es. rinfresco serale, brunch del giorno dopo).
+            </p>
+            <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
+              Usa il bottone qui sopra per suggerire un evento extra.
+            </p>
+          </Card>
+        )}
       </section>
       <section>
-        <h2 className="font-display text-2xl mb-3">Scaletta giorno-X</h2>
-        <Card>
-          <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
-            {(timeline.data ?? []).map((t: any) => (
-              <li key={t.id} className="px-4 py-3 flex items-baseline gap-3">
-                <span className="font-display text-lg tabular-nums w-16 shrink-0" style={{ color: 'rgb(var(--gold-700))' }}>
-                  {t.start_time?.slice(0, 5) ?? '—'}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium">{t.title}</p>
-                  {t.location && <p className="text-xs text-[rgb(var(--fg-subtle))]">{t.location}</p>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
+          <h2 className="font-display text-2xl">Scaletta giorno-X</h2>
+          <ChangeRequestModal weddingId={entryId} entityType="TIMELINE" defaultAction="UPDATE" prefillTitle="Modifica scaletta giorno matrimonio" />
+        </div>
+        {hasTimeline ? (
+          <Card>
+            <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+              {(timeline.data ?? []).map((t: any) => (
+                <li key={t.id} className="px-4 py-3 flex items-baseline gap-3">
+                  <span className="font-display text-lg tabular-nums w-16 shrink-0" style={{ color: 'rgb(var(--gold-700))' }}>
+                    {t.start_time?.slice(0, 5) ?? '—'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium">{t.title}</p>
+                    {t.location && <p className="text-xs text-[rgb(var(--fg-subtle))]">{t.location}</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : (
+          <Card className="p-6 text-center">
+            <p className="text-sm text-[rgb(var(--fg-muted))]">
+              La scaletta del giorno-matrimonio non è ancora stata definita dal/la wedding planner.
+            </p>
+            <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
+              Vedrai qui i momenti chiave (cerimonia, aperitivo, cena, danze) appena saranno pronti. Puoi suggerire orari/cambiamenti col bottone qui sopra.
+            </p>
+          </Card>
+        )}
       </section>
     </div>
   )
