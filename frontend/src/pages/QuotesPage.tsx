@@ -18,7 +18,7 @@ export default function QuotesPage() {
   const nav = useNavigate()
   const [openNew, setOpenNew] = useState(false)
   const [form, setForm] = useState({
-    title: '', client_name: '', client_email: '', event_date: '', guest_count: '',
+    title: '', client_name: '', client_email: '', event_date: '', guest_count: '', event_location: '',
   })
   const [createErr, setCreateErr] = useState<string | null>(null)
 
@@ -32,7 +32,8 @@ export default function QuotesPage() {
         client_email: form.client_email || null,
         event_date: form.event_date || null,
         guest_count: form.guest_count ? Number(form.guest_count) : null,
-      })
+        event_location: form.event_location || null,
+      } as never)
       toast.success('Preventivo creato')
       nav(`/quotes/${q.id}`)
     } catch (err) {
@@ -163,6 +164,10 @@ export default function QuotesPage() {
                     <Label htmlFor="gc">Invitati</Label>
                     <Input id="gc" type="number" value={form.guest_count} onChange={(e) => setForm((f) => ({ ...f, guest_count: e.target.value }))} />
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="eloc">Location evento</Label>
+                  <Input id="eloc" value={form.event_location} onChange={(e) => setForm((f) => ({ ...f, event_location: e.target.value }))} placeholder="Es. Villa Rosa - Tropea" />
                 </div>
                 {createErr && <p className="text-sm text-[rgb(var(--rose-500))]" role="alert" data-testid="quote-create-error">{createErr}</p>}
                 <div className="flex justify-end gap-2 pt-2">

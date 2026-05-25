@@ -16,6 +16,7 @@ import {
   type SupplierClientWithStats,
 } from '@/hooks/useSupplierClients'
 import { useCreateQuote } from '@/hooks/useQuotes'
+import { supabase } from '@/lib/supabase'
 
 const STATUS_TONE: Record<string, string> = {
   LEAD: 'rgb(var(--gold-100))',
@@ -134,11 +135,15 @@ export default function SupplierClientsPage() {
 
   async function handleNewQuoteFor(c: SupplierClientWithStats) {
     try {
+      // Re-fetch cliente per avere location_text (la view non lo espone)
+      const { data: full } = await supabase
+        .from('supplier_clients').select('location_text').eq('id', c.id).maybeSingle()
       const q = await createQuote.mutateAsync({
         title: `Preventivo ${c.full_name}${c.partner_name ? ' & ' + c.partner_name : ''}`,
         client_name: [c.full_name, c.partner_name].filter(Boolean).join(' & '),
         client_email: c.email ?? null,
         event_date: c.event_date ?? null,
+        event_location: (full as { location_text?: string | null } | null)?.location_text ?? null,
         direct_client_id: c.id,
       } as never)
       toast.success('Preventivo creato')

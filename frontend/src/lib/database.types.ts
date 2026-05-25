@@ -2294,6 +2294,7 @@ export type Database = {
           default_markup_percent: number
           direct_client_id: string | null
           event_date: string | null
+          event_location: string | null
           guest_count: number | null
           id: string
           margin_amount: number
@@ -2323,6 +2324,7 @@ export type Database = {
           default_markup_percent?: number
           direct_client_id?: string | null
           event_date?: string | null
+          event_location?: string | null
           guest_count?: number | null
           id?: string
           margin_amount?: number
@@ -2352,6 +2354,7 @@ export type Database = {
           default_markup_percent?: number
           direct_client_id?: string | null
           event_date?: string | null
+          event_location?: string | null
           guest_count?: number | null
           id?: string
           margin_amount?: number
