@@ -1,0 +1,134 @@
+{
+  "runId": "wave2-J-mobile-2026-05-25T21-00-44",
+  "base": "https://planfully.it",
+  "timestamp": "2026-05-25T21:04:30.676Z",
+  "totals": {
+    "pass": 1,
+    "bug": 11,
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 8,
+    "LOW": 3
+  },
+  "byViewport": {
+    "mobile": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 8,
+      "LOW": 1
+    },
+    "tablet": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "desktop": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    }
+  },
+  "bugs": [
+    {
+      "viewport": "mobile",
+      "role": "sposi",
+      "page": "couple-overview",
+      "severity": "MEDIUM",
+      "msg": "Nessun trigger menu mobile visibile su couple-overview",
+      "detail": null,
+      "ts": 1779742922371
+    },
+    {
+      "viewport": "mobile",
+      "role": "sposi",
+      "page": "couple-documenti",
+      "severity": "MEDIUM",
+      "msg": "Nessun trigger menu mobile visibile su couple-documenti",
+      "detail": null,
+      "ts": 1779742924140
+    },
+    {
+      "viewport": "mobile",
+      "role": "sposi",
+      "page": "couple-programma",
+      "severity": "MEDIUM",
+      "msg": "Nessun trigger menu mobile visibile su couple-programma",
+      "detail": null,
+      "ts": 1779742925879
+    },
+    {
+      "viewport": "mobile",
+      "role": "sposi",
+      "page": "couple-invitati",
+      "severity": "MEDIUM",
+      "msg": "Nessun trigger menu mobile visibile su couple-invitati",
+      "detail": null,
+      "ts": 1779742927629
+    },
+    {
+      "viewport": "mobile",
+      "role": "sposi",
+      "page": "couple-tavoli",
+      "severity": "MEDIUM",
+      "msg": "Nessun trigger menu mobile visibile su couple-tavoli",
+      "detail": null,
+      "ts": 1779742929381
+    },
+    {
+      "viewport": "mobile",
+      "role": "sposi",
+      "page": "couple-mood",
+      "severity": "MEDIUM",
+      "msg": "Nessun trigger menu mobile visibile su couple-mood",
+      "detail": null,
+      "ts": 1779742931171
+    },
+    {
+      "viewport": "mobile",
+      "role": "sposi",
+      "page": "couple-playlist",
+      "severity": "MEDIUM",
+      "msg": "Nessun trigger menu mobile visibile su couple-playlist",
+      "detail": null,
+      "ts": 1779742932924
+    },
+    {
+      "viewport": "mobile",
+      "role": "sposi",
+      "page": "couple-sito",
+      "severity": "MEDIUM",
+      "msg": "Nessun trigger menu mobile visibile su couple-sito",
+      "detail": null,
+      "ts": 1779742934702
+    },
+    {
+      "viewport": "mobile",
+      "role": "public",
+      "page": "quote-accept",
+      "severity": "LOW",
+      "msg": "Nessun quote con accept_token in DB per testare /p/accept",
+      "detail": null,
+      "ts": 1779742943704
+    },
+    {
+      "viewport": "tablet",
+      "role": "public",
+      "page": "quote-accept",
+      "severity": "LOW",
+      "msg": "Nessun quote con accept_token in DB per testare /p/accept",
+      "detail": null,
+      "ts": 1779743010384
+    },
+    {
+      "viewport": "desktop",
+      "role": "public",
+      "page": "quote-accept",
+      "severity": "LOW",
+      "msg": "Nessun quote con accept_token in DB per testare /p/accept",
+      "detail": null,
+      "ts": 1779743070440
+    }
+  ]
+}

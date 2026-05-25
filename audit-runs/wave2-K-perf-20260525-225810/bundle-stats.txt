@@ -30,3 +30,13 @@ date-fns: ~0 refs
 @tanstack/react-query: ~0 refs
 radix-ui: ~1 refs
 lucide-react: ~0 refs
+html2canvas: 4504KB
+jspdf: 29524KB
+framer-motion: 5684KB
+@supabase: 8384KB
+react-dom: 4488KB
+react-router-dom: 932KB
+date-fns: 42772KB
+lucide-react: 39448KB
+@tanstack/react-query: 1744KB
+zustand: 252KB

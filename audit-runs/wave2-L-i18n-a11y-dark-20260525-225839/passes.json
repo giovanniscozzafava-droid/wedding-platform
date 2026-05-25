@@ -1,0 +1,94 @@
+[
+  {
+    "page": "DARK:persistence",
+    "msg": "dark persists across reload"
+  },
+  {
+    "page": "wp:home",
+    "msg": "no i18n anomalies detected (text length 1164)"
+  },
+  {
+    "page": "wp:home",
+    "msg": "headings ok (3 total)"
+  },
+  {
+    "page": "wp:home",
+    "msg": "dark mode toggled"
+  },
+  {
+    "page": "wp:catalog",
+    "msg": "no i18n anomalies detected (text length 3323)"
+  },
+  {
+    "page": "wp:catalog",
+    "msg": "dark mode toggled"
+  },
+  {
+    "page": "wp:weddings",
+    "msg": "dark mode toggled"
+  },
+  {
+    "page": "wp:suppliers",
+    "msg": "no i18n anomalies detected (text length 1322)"
+  },
+  {
+    "page": "wp:suppliers",
+    "msg": "dark mode toggled"
+  },
+  {
+    "page": "wp:calendar",
+    "msg": "no i18n anomalies detected (text length 849)"
+  },
+  {
+    "page": "wp:calendar",
+    "msg": "headings ok (2 total)"
+  },
+  {
+    "page": "wp:calendar",
+    "msg": "dark mode toggled"
+  },
+  {
+    "page": "wp:quotes",
+    "msg": "no i18n anomalies detected (text length 1008)"
+  },
+  {
+    "page": "wp:quotes",
+    "msg": "headings ok (1 total)"
+  },
+  {
+    "page": "wp:quotes",
+    "msg": "dark mode toggled"
+  },
+  {
+    "page": "wp:finance",
+    "msg": "no i18n anomalies detected (text length 1164)"
+  },
+  {
+    "page": "wp:finance",
+    "msg": "headings ok (3 total)"
+  },
+  {
+    "page": "wp:finance",
+    "msg": "dark mode toggled"
+  },
+  {
+    "page": "wp:brand",
+    "msg": "no i18n anomalies detected (text length 1164)"
+  },
+  {
+    "page": "wp:brand",
+    "msg": "headings ok (3 total)"
+  },
+  {
+    "page": "wp:brand",
+    "msg": "dark mode toggled"
+  },
+  {
+    "page": "wp:profile",
+    "msg": "no i18n anomalies detected (text length 852)"
+  },
+  {
+    "page": "wp:profile",
+    "msg": "dark mode toggled"
+  }
+]

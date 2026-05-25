@@ -19,3 +19,8 @@ rest/v1/weddings?select=id&limit=5,2,404,111.8
 rest/v1/weddings?select=id&limit=5,3,404,121.7
 rest/v1/weddings?select=id&limit=5,4,404,116.7
 rest/v1/weddings?select=id&limit=5,5,404,117.3
+rpc/my_quote_conflict_alerts,1,200,122.5
+rpc/my_quote_conflict_alerts,2,200,129.3
+rpc/my_quote_conflict_alerts,3,200,140.8
+rpc/my_quote_conflict_alerts,4,200,126.1
+rpc/my_quote_conflict_alerts,5,200,113.7

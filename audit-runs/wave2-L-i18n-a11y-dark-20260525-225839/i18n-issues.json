@@ -1,0 +1,32 @@
+[
+  {
+    "type": "english_leak",
+    "match": "Wedding",
+    "context": "serve — niente di più, niente di meno. Wedding planner / Location Orchestri l'evento, scegli i for",
+    "page": "PUBLIC:login"
+  },
+  {
+    "type": "plural_mismatch",
+    "match": "625\n\nPREVENTIVO",
+    "context": "1 giugno 2026 CONFERMATA VALORE € 31.625 PREVENTIVO ACCETTATO REVISION v1 Apri dashboard Gin",
+    "page": "wp:weddings"
+  },
+  {
+    "type": "plural_mismatch",
+    "match": "414\n\nPREVENTIVO",
+    "context": "17 giugno 2026 OPZIONATA VALORE € 23.414 PREVENTIVO INVIATO REVISION v1 Apri dashboard Giova",
+    "page": "wp:weddings"
+  },
+  {
+    "type": "plural_mismatch",
+    "match": "000\n\nPREVENTIVO",
+    "context": "ettembre 2027 CONFERMATA VALORE € 28.000 PREVENTIVO — REVISION v1 Apri dashboard Andrea e So",
+    "page": "wp:weddings"
+  },
+  {
+    "type": "plural_mismatch",
+    "match": "000\n\nPREVENTIVO",
+    "context": "ettembre 2027 CONFERMATA VALORE € 32.000 PREVENTIVO ACCETTATO REVISION v1 Apri dashboard Pla",
+    "page": "wp:weddings"
+  }
+]

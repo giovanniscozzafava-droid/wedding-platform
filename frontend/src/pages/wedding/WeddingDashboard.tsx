@@ -90,17 +90,22 @@ export default function WeddingDashboard() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — scrollable on mobile with edge-fade indicators */}
         <div className="border-t relative z-20" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
-          <div className="max-w-7xl mx-auto px-6 sm:px-10 overflow-x-auto">
+          <div className="max-w-7xl mx-auto px-6 sm:px-10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <div className="flex gap-1 py-2 min-w-max">
               {TABS.map((t) => {
                 const Icon = t.icon
                 const active = tab === t.key
                 return (
-                  <button key={t.key} onClick={() => setTab(t.key)}
+                  <button
+                    key={t.key}
+                    onClick={(e) => {
+                      setTab(t.key)
+                      ;(e.currentTarget as HTMLElement).scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' })
+                    }}
                     className={cn(
-                      'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                      'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
                       active
                         ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
                         : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
@@ -112,6 +117,9 @@ export default function WeddingDashboard() {
               })}
             </div>
           </div>
+          {/* Edge-fade indicators: rivelano scroll laterale */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-6" style={{ background: 'linear-gradient(90deg, rgb(var(--bg-elev)), transparent)' }} />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-6" style={{ background: 'linear-gradient(-90deg, rgb(var(--bg-elev)), transparent)' }} />
         </div>
       </div>
 

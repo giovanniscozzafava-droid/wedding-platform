@@ -1,0 +1,1241 @@
+[
+  {
+    "page": "PUBLIC:login",
+    "severity": "LOW",
+    "msg": "[public] english_leak: Wedding",
+    "detail": "serve — niente di più, niente di meno. Wedding planner / Location Orchestri l'evento, scegli i for",
+    "ts": 1779742988609
+  },
+  {
+    "page": "PUBLIC:login",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779742989159
+  },
+  {
+    "page": "PUBLIC:login",
+    "severity": "LOW",
+    "msg": "axe heading-order",
+    "detail": "Heading levels should only increase by one",
+    "ts": 1779742989159
+  },
+  {
+    "page": "PUBLIC:login",
+    "severity": "LOW",
+    "msg": "axe landmark-one-main",
+    "detail": "Document should have one main landmark",
+    "ts": 1779742989160
+  },
+  {
+    "page": "PUBLIC:login",
+    "severity": "LOW",
+    "msg": "axe region",
+    "detail": "All page content should be contained by landmarks",
+    "ts": 1779742989160
+  },
+  {
+    "page": "PUBLIC:login",
+    "severity": "MEDIUM",
+    "msg": "public /login has no skip-to-content link",
+    "detail": null,
+    "ts": 1779742989169
+  },
+  {
+    "page": "PUBLIC:login",
+    "severity": "LOW",
+    "msg": "public login ignores prefers-color-scheme dark",
+    "detail": "data-theme=light",
+    "ts": 1779742990911
+  },
+  {
+    "page": "wp:home",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 25 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779742998988
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 1.89:1 (need 4.5:1)",
+    "detail": "rgb(221,161,47) on rgb(253,231,195) -- \"INVIATO\"",
+    "ts": 1779742998997
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779742998997
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"Nuovo preventivo\"",
+    "ts": 1779742998997
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.39:1 (need 4.5:1)",
+    "detail": "rgb(93,154,196) on rgb(214,230,240) -- \"OPZIONATA\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.64:1 (need 4.5:1)",
+    "detail": "rgb(64,156,110) on rgb(211,232,219) -- \"ACCETTATO\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"SERVIZI ATTIVI\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"COLLABORATORI\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"EVENTI (60 GG)\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"MARGINE GENERATO\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"25 mag 2026, 22:42\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"25 mag 2026, 09:47\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"24 mag 2026, 23:29\"",
+    "ts": 1779742998998
+  },
+  {
+    "page": "wp:home",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779742999012
+  },
+  {
+    "page": "wp:home",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779742999702
+  },
+  {
+    "page": "wp:home",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"SERVIZI ATTIVI\"",
+    "ts": 1779742999702
+  },
+  {
+    "page": "wp:home",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"COLLABORATORI\"",
+    "ts": 1779742999702
+  },
+  {
+    "page": "wp:home",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"EVENTI (60 GG)\"",
+    "ts": 1779742999702
+  },
+  {
+    "page": "wp:home",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"MARGINE GENERATO\"",
+    "ts": 1779742999702
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 39 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779743002949
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "LOW",
+    "msg": "axe heading-order (moderate, 1 nodes)",
+    "detail": "Heading levels should only increase by one",
+    "ts": 1779743002950
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779743002959
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "HIGH",
+    "msg": "contrast 2.79:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(248,245,240) -- \"catering · 2 voci\"",
+    "ts": 1779743002959
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"/PERSONA\"",
+    "ts": 1779743002959
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "MEDIUM",
+    "msg": "contrast 3.02:1 (need 4.5:1)",
+    "detail": "rgb(168,138,75) on rgb(248,245,240) -- \"CATALOGO\"",
+    "ts": 1779743002959
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "LOW",
+    "msg": "Heading skip h1->h3",
+    "detail": "Ricci Banqueting",
+    "ts": 1779743002964
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "MEDIUM",
+    "msg": "Form input missing label",
+    "detail": "input[type=] name= placeholder=\"Cerca per nome, categoria o descrizione...\"",
+    "ts": 1779743002966
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779743002969
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779743003628
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"/EVENTO\"",
+    "ts": 1779743003628
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"/PEZZO\"",
+    "ts": 1779743003628
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"NETWORK INDIPENDENTE\"",
+    "ts": 1779743003628
+  },
+  {
+    "page": "wp:catalog",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Privacy\"",
+    "ts": 1779743003628
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "LOW",
+    "msg": "Plural mismatch: 625\n\nPREVENTIVO",
+    "detail": "1 giugno 2026 CONFERMATA VALORE € 31.625 PREVENTIVO ACCETTATO REVISION v1 Apri dashboard Gin",
+    "ts": 1779743005974
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "LOW",
+    "msg": "Plural mismatch: 414\n\nPREVENTIVO",
+    "detail": "17 giugno 2026 OPZIONATA VALORE € 23.414 PREVENTIVO INVIATO REVISION v1 Apri dashboard Giova",
+    "ts": 1779743005974
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "LOW",
+    "msg": "Plural mismatch: 000\n\nPREVENTIVO",
+    "detail": "ettembre 2027 CONFERMATA VALORE € 28.000 PREVENTIVO — REVISION v1 Apri dashboard Andrea e So",
+    "ts": 1779743005974
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "LOW",
+    "msg": "Plural mismatch: 000\n\nPREVENTIVO",
+    "detail": "ettembre 2027 CONFERMATA VALORE € 32.000 PREVENTIVO ACCETTATO REVISION v1 Apri dashboard Pla",
+    "ts": 1779743005974
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 23 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779743006275
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "LOW",
+    "msg": "axe heading-order (moderate, 1 nodes)",
+    "detail": "Heading levels should only increase by one",
+    "ts": 1779743006276
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779743006282
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "HIGH",
+    "msg": "contrast 2.39:1 (need 4.5:1)",
+    "detail": "rgb(93,154,196) on rgb(214,230,240) -- \"OPZIONATA\"",
+    "ts": 1779743006282
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"VALORE\"",
+    "ts": 1779743006282
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"PREVENTIVO\"",
+    "ts": 1779743006282
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"REVISION\"",
+    "ts": 1779743006282
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "MEDIUM",
+    "msg": "contrast 3.02:1 (need 4.5:1)",
+    "detail": "rgb(168,138,75) on rgb(248,245,240) -- \"HUB EVENTI\"",
+    "ts": 1779743006282
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "LOW",
+    "msg": "Heading skip h1->h3",
+    "detail": "Paolo e Francesca",
+    "ts": 1779743006285
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779743006289
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779743006934
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"VALORE\"",
+    "ts": 1779743006934
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"PREVENTIVO\"",
+    "ts": 1779743006934
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"REVISION\"",
+    "ts": 1779743006934
+  },
+  {
+    "page": "wp:weddings",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"NETWORK INDIPENDENTE\"",
+    "ts": 1779743006934
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 34 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779743009659
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "LOW",
+    "msg": "axe heading-order (moderate, 1 nodes)",
+    "detail": "Heading levels should only increase by one",
+    "ts": 1779743009659
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 1.89:1 (need 4.5:1)",
+    "detail": "rgb(221,161,47) on rgb(253,231,195) -- \"catering\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"Invita fornitore\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.39:1 (need 4.5:1)",
+    "detail": "rgb(93,154,196) on rgb(214,230,240) -- \"fotografo\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.64:1 (need 4.5:1)",
+    "detail": "rgb(64,156,110) on rgb(211,232,219) -- \"ACTIVE\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"Marco Ricci\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"Chiara Bellini\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"Luca Marchetti\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"Tenuta delle Grazie\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"giovanni.scozzafava+fornitore@gmail\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"ritogew506@marineso.com\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"Sofia Verdi\"",
+    "ts": 1779743009670
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "LOW",
+    "msg": "Heading skip h1->h3",
+    "detail": "Ricci Banqueting",
+    "ts": 1779743009675
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779743009680
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779743010303
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Tenuta delle Grazie\"",
+    "ts": 1779743010303
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"giovanni.scozzafava+fornitore@gmail\"",
+    "ts": 1779743010303
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"ritogew506@marineso.com\"",
+    "ts": 1779743010303
+  },
+  {
+    "page": "wp:suppliers",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Sofia Verdi\"",
+    "ts": 1779743010303
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "axe button-name (critical, 2 nodes)",
+    "detail": "Buttons must have discernible text",
+    "ts": 1779743012961
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 17 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779743012961
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"Nuovo evento\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"26\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"L\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"M\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"G\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"V\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"S\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"D\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"Seleziona un giorno nella griglia\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"—\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "contrast 3.02:1 (need 4.5:1)",
+    "detail": "rgb(168,138,75) on rgb(248,245,240) -- \"CALENDARIO\"",
+    "ts": 1779743012969
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "Icon-only button missing aria-label",
+    "detail": "<button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-event",
+    "ts": 1779743012974
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "Icon-only button missing aria-label",
+    "detail": "<button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-event",
+    "ts": 1779743012974
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779743012976
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779743013577
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"—\"",
+    "ts": 1779743013577
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"NETWORK INDIPENDENTE\"",
+    "ts": 1779743013577
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Privacy\"",
+    "ts": 1779743013577
+  },
+  {
+    "page": "wp:calendar",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Cookie\"",
+    "ts": 1779743013577
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "axe button-name (critical, 3 nodes)",
+    "detail": "Buttons must have discernible text",
+    "ts": 1779743016207
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 23 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779743016208
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 1.89:1 (need 4.5:1)",
+    "detail": "rgb(221,161,47) on rgb(253,231,195) -- \"INVIATO\"",
+    "ts": 1779743016217
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779743016217
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"Nuovo preventivo\"",
+    "ts": 1779743016217
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.64:1 (need 4.5:1)",
+    "detail": "rgb(64,156,110) on rgb(211,232,219) -- \"ACCETTATO\"",
+    "ts": 1779743016217
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"v1 · Test Night H · 2026-06-17\"",
+    "ts": 1779743016217
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"CLIENTE\"",
+    "ts": 1779743016217
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"MARGINE\"",
+    "ts": 1779743016217
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"%\"",
+    "ts": 1779743016217
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"v1 · Andrea Rinaldi & Sofia Conti · 2027-09-25\"",
+    "ts": 1779743016218
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"v1 · Paolo Pappo · 2026-06-01\"",
+    "ts": 1779743016218
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "contrast 3.02:1 (need 4.5:1)",
+    "detail": "rgb(168,138,75) on rgb(248,245,240) -- \"PREVENTIVI\"",
+    "ts": 1779743016218
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "Icon-only button missing aria-label",
+    "detail": "<button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-event",
+    "ts": 1779743016230
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "Icon-only button missing aria-label",
+    "detail": "<button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-event",
+    "ts": 1779743016230
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "Icon-only button missing aria-label",
+    "detail": "<button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-event",
+    "ts": 1779743016230
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779743016231
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779743016838
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"v1 · Test Night H · 2026-06-17\"",
+    "ts": 1779743016839
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"CLIENTE\"",
+    "ts": 1779743016839
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"MARGINE\"",
+    "ts": 1779743016839
+  },
+  {
+    "page": "wp:quotes",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"%\"",
+    "ts": 1779743016839
+  },
+  {
+    "page": "wp:finance",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 25 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779743019448
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 1.89:1 (need 4.5:1)",
+    "detail": "rgb(221,161,47) on rgb(253,231,195) -- \"INVIATO\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"Nuovo preventivo\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.39:1 (need 4.5:1)",
+    "detail": "rgb(93,154,196) on rgb(214,230,240) -- \"OPZIONATA\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.64:1 (need 4.5:1)",
+    "detail": "rgb(64,156,110) on rgb(211,232,219) -- \"ACCETTATO\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"SERVIZI ATTIVI\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"COLLABORATORI\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"EVENTI (60 GG)\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"MARGINE GENERATO\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"25 mag 2026, 22:42\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"25 mag 2026, 09:47\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"24 mag 2026, 23:29\"",
+    "ts": 1779743019453
+  },
+  {
+    "page": "wp:finance",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779743019458
+  },
+  {
+    "page": "wp:finance",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779743020124
+  },
+  {
+    "page": "wp:finance",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"SERVIZI ATTIVI\"",
+    "ts": 1779743020124
+  },
+  {
+    "page": "wp:finance",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"COLLABORATORI\"",
+    "ts": 1779743020124
+  },
+  {
+    "page": "wp:finance",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"EVENTI (60 GG)\"",
+    "ts": 1779743020124
+  },
+  {
+    "page": "wp:finance",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"MARGINE GENERATO\"",
+    "ts": 1779743020124
+  },
+  {
+    "page": "wp:brand",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 25 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779743022875
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 1.89:1 (need 4.5:1)",
+    "detail": "rgb(221,161,47) on rgb(253,231,195) -- \"INVIATO\"",
+    "ts": 1779743022880
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"Nuovo preventivo\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.39:1 (need 4.5:1)",
+    "detail": "rgb(93,154,196) on rgb(214,230,240) -- \"OPZIONATA\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.64:1 (need 4.5:1)",
+    "detail": "rgb(64,156,110) on rgb(211,232,219) -- \"ACCETTATO\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"SERVIZI ATTIVI\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"COLLABORATORI\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"EVENTI (60 GG)\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"MARGINE GENERATO\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"25 mag 2026, 22:42\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"25 mag 2026, 09:47\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "HIGH",
+    "msg": "contrast 2.99:1 (need 4.5:1)",
+    "detail": "rgb(148,148,148) on rgb(255,253,250) -- \"24 mag 2026, 23:29\"",
+    "ts": 1779743022881
+  },
+  {
+    "page": "wp:brand",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779743022885
+  },
+  {
+    "page": "wp:brand",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779743023552
+  },
+  {
+    "page": "wp:brand",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"SERVIZI ATTIVI\"",
+    "ts": 1779743023552
+  },
+  {
+    "page": "wp:brand",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"COLLABORATORI\"",
+    "ts": 1779743023552
+  },
+  {
+    "page": "wp:brand",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"EVENTI (60 GG)\"",
+    "ts": 1779743023552
+  },
+  {
+    "page": "wp:brand",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"MARGINE GENERATO\"",
+    "ts": 1779743023552
+  },
+  {
+    "page": "wp:profile",
+    "severity": "MEDIUM",
+    "msg": "axe color-contrast (serious, 12 nodes)",
+    "detail": "Elements must meet minimum color contrast ratio thresholds",
+    "ts": 1779743026269
+  },
+  {
+    "page": "wp:profile",
+    "severity": "LOW",
+    "msg": "axe heading-order (moderate, 1 nodes)",
+    "detail": "Heading levels should only increase by one",
+    "ts": 1779743026269
+  },
+  {
+    "page": "wp:profile",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"SOON\"",
+    "ts": 1779743026273
+  },
+  {
+    "page": "wp:profile",
+    "severity": "HIGH",
+    "msg": "contrast 2.38:1 (need 4.5:1)",
+    "detail": "rgb(248,245,240) on rgb(196,154,92) -- \"Salva modifiche\"",
+    "ts": 1779743026273
+  },
+  {
+    "page": "wp:profile",
+    "severity": "HIGH",
+    "msg": "contrast 2.76:1 (need 4.5:1)",
+    "detail": "rgb(210,134,134) on rgb(255,253,250) -- \"Richiedi cancellazione account\"",
+    "ts": 1779743026273
+  },
+  {
+    "page": "wp:profile",
+    "severity": "MEDIUM",
+    "msg": "contrast 3.02:1 (need 4.5:1)",
+    "detail": "rgb(168,138,75) on rgb(248,245,240) -- \"PROFILO\"",
+    "ts": 1779743026273
+  },
+  {
+    "page": "wp:profile",
+    "severity": "LOW",
+    "msg": "Heading skip h1->h3",
+    "detail": "Dati personali e privacy",
+    "ts": 1779743026275
+  },
+  {
+    "page": "wp:profile",
+    "severity": "LOW",
+    "msg": "No skip-to-content link",
+    "detail": null,
+    "ts": 1779743026279
+  },
+  {
+    "page": "wp:profile",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Wedding Planner\"",
+    "ts": 1779743026903
+  },
+  {
+    "page": "wp:profile",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"NETWORK INDIPENDENTE\"",
+    "ts": 1779743026903
+  },
+  {
+    "page": "wp:profile",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Privacy\"",
+    "ts": 1779743026903
+  },
+  {
+    "page": "wp:profile",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Cookie\"",
+    "ts": 1779743026903
+  },
+  {
+    "page": "wp:profile",
+    "severity": "MEDIUM",
+    "msg": "contrast DARK 3.44:1",
+    "detail": "rgb(110,108,102) on rgb(24,22,20) -- \"Contatti\"",
+    "ts": 1779743026903
+  },
+  {
+    "page": "wp:profile",
+    "severity": "HIGH",
+    "msg": "login failed for forn-mini-foto@planfully-demo.it",
+    "detail": "https://planfully.it/login",
+    "ts": 1779743140331
+  },
+  {
+    "page": "wp:profile",
+    "severity": "HIGH",
+    "msg": "login failed for giovanni.scozzafava+sposo@gmail.com",
+    "detail": "https://planfully.it/login",
+    "ts": 1779743253101
+  }
+]

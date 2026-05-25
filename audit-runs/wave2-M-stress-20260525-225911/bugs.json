@@ -1,0 +1,12 @@
+[
+  {
+    "scenario": "B",
+    "severity": "CRITICAL",
+    "msg": "Double-firm: 5 quote_acceptances per stessa quote — idempotency broken"
+  },
+  {
+    "scenario": "extra",
+    "severity": "MEDIUM",
+    "msg": "Email log ha 6 entries da 10 chiamate parallele — log duplicato"
+  }
+]

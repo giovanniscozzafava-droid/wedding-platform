@@ -1,19 +1,33 @@
 {
-  "started_at": "2026-05-25T21:01:00.375Z",
+  "started_at": "2026-05-25T21:04:28.145Z",
   "tests": [
     {
       "id": "HOTFIX-1",
       "title": "couple INSERT couple_change_requests",
-      "verdict": "SKIP",
-      "details": {},
-      "note": "missing sposo/wedding"
+      "verdict": "PASS",
+      "details": {
+        "inserted_id": "2bd0d425-84cb-4834-8c0d-a0fc7d007c96"
+      }
     },
     {
       "id": "HOTFIX-2",
       "title": "is_collab_supplier_of_entry scope tight",
-      "verdict": "SKIP",
-      "details": {},
-      "note": "missing fiori or andrea wedding"
+      "verdict": "PASS",
+      "details": {
+        "pre_isolation": {
+          "fioriIsParticipant": false,
+          "isQiInvolved": false,
+          "fioriInTimeline": false
+        },
+        "leak_counts": {
+          "calendar_entries": 0,
+          "event_guests": 0,
+          "event_tables": 0,
+          "event_transport": 0,
+          "event_accommodations": 0,
+          "event_subevents": 0
+        }
+      }
     },
     {
       "id": "HOTFIX-3a",
@@ -24,12 +38,12 @@
         "status": 200,
         "body": {
           "photo": {
-            "id": "9c0d0049-07a8-4b1c-9fab-e69299438807",
+            "id": "6f272813-c39e-43a4-a6cd-b4bb9b49a5a1",
             "service_id": "1324114d-a900-4219-ac0c-ca69176319c4",
-            "original_url": "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/public/service-photos/1324114d-a900-4219-ac0c-ca69176319c4/9c0d0049-07a8-4b1c-9fab-e69299438807.png",
-            "thumbnail_url": "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/render/image/public/service-photos/1324114d-a900-4219-ac0c-ca69176319c4/9c0d0049-07a8-4b1c-9fab-e69299438807.png?width=400&height=400&resize=cover&quality=78",
+            "original_url": "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/public/service-photos/1324114d-a900-4219-ac0c-ca69176319c4/6f272813-c39e-43a4-a6cd-b4bb9b49a5a1.png",
+            "thumbnail_url": "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/render/image/public/service-photos/1324114d-a900-4219-ac0c-ca69176319c4/6f272813-c39e-43a4-a6cd-b4bb9b49a5a1.png?width=400&height=400&resize=cover&quality=78",
             "sort_order": 4,
-            "created_at": "2026-05-25T21:01:02.641585+00:00"
+            "created_at": "2026-05-25T21:04:30.26263+00:00"
           }
         }
       }
@@ -44,31 +58,35 @@
     {
       "id": "HOTFIX-4",
       "title": "auto_block_availability cast trigger",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "details": {
-        "create_err": "Could not find the 'currency' column of 'quotes' in the schema cache",
-        "code": "PGRST204"
-      }
+        "quote_id": "d89eee71-b875-4f67-b917-5ca9f232b5a1",
+        "after_inviato": [],
+        "after_accettato": []
+      },
+      "note": "INSERT + UPDATE both succeeded without 42804"
     },
     {
       "id": "HOTFIX-5",
       "title": "RLS quotes insert FORNITORE direct quote",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "details": {
-        "client_err": "Could not find the 'owner_id' column of 'supplier_clients' in the schema cache",
-        "code": "PGRST204"
+        "client_id": "d17d2be2-a31c-4919-8a10-b59c364e5a59",
+        "quote_id": "8ec3cbbd-4774-4adb-9ec7-9c6b64e75fe9",
+        "visible_in_select": true
       }
     },
     {
       "id": "HOTFIX-6a",
       "title": "import-pin-url Pinterest 422 user-friendly",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "details": {
         "status": 422,
         "body": {
           "error": "no og:image found"
         }
-      }
+      },
+      "note": "multi-UA bypass loaded Pinterest HTML but URL had no og:image — fix prevented 5xx crash"
     },
     {
       "id": "HOTFIX-6b",
@@ -101,11 +119,11 @@
   ],
   "context": {
     "sposo_id": "6e61b300-66f5-4ddb-9fc0-b0d3351a63b7",
-    "sposo_wedding_id": null,
+    "sposo_wedding_id": "7a19a8a2-75a8-4ffe-8eb5-f155785e9dea",
     "forn_fiori_id": "a0262dd1-f07c-4359-a9c0-1186e98971a3",
     "forn_foto_id": "747707fe-03be-4bb8-95b8-17b43b465526",
     "wp_mini_id": "712baed0-3957-4452-8aab-ab4eeebb2697",
-    "andrea_wedding_id": null
+    "andrea_wedding_id": "c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60"
   },
-  "finished_at": "2026-05-25T21:01:04.891Z"
+  "finished_at": "2026-05-25T21:04:33.170Z"
 }

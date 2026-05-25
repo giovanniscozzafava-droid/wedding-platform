@@ -1,0 +1,1223 @@
+{
+  "summary": {
+    "tables": 54,
+    "fks": 45,
+    "cascadeFks": 30,
+    "setNullFks": 12,
+    "setNullOnNotNullBugs": 0,
+    "indexes": 87,
+    "duplicateIndexGroups": 1,
+    "tablesNoPk": 0,
+    "missingCreatedAt": 16,
+    "withUpdatedAt": 19,
+    "updatedAtNoTriggerCount": 19,
+    "fkColsWithoutIndex": 17
+  },
+  "cascadeByRefTable": {
+    "atrio_agenzie": 2,
+    "clienti": 6,
+    "broadcast_channels": 1,
+    "calendario": 1,
+    "cold_outreach_liste": 3,
+    "cold_outreach_lista_contatti": 1,
+    "cold_outreach_contatti": 1,
+    "task": 2,
+    "contenuti": 1,
+    "monitor": 2,
+    "newsletter_campagne": 2,
+    "newsletter_iscritti": 1,
+    "siti": 5,
+    "client_assets": 1,
+    "siti_web": 1
+  },
+  "highRiskCascadeRoots": [
+    [
+      "clienti",
+      6
+    ],
+    [
+      "siti",
+      5
+    ],
+    [
+      "cold_outreach_liste",
+      3
+    ],
+    [
+      "atrio_agenzie",
+      2
+    ],
+    [
+      "task",
+      2
+    ],
+    [
+      "monitor",
+      2
+    ],
+    [
+      "newsletter_campagne",
+      2
+    ],
+    [
+      "broadcast_channels",
+      1
+    ],
+    [
+      "calendario",
+      1
+    ],
+    [
+      "cold_outreach_lista_contatti",
+      1
+    ]
+  ],
+  "setNullBugs": [],
+  "duplicates": [
+    [
+      {
+        "unique": false,
+        "name": "idx_tv_social_reels_pending_import",
+        "table": "tv_social_reels",
+        "cols": "\"created_at\""
+      },
+      {
+        "unique": false,
+        "name": "tv_social_reels_pending_idx",
+        "table": "tv_social_reels",
+        "cols": "\"created_at\""
+      }
+    ]
+  ],
+  "tablesNoPk": [],
+  "missingCreatedAt": [
+    "brand_rules",
+    "cold_outreach_contatti",
+    "cold_outreach_eventi",
+    "cold_outreach_lista_contatti",
+    "cold_outreach_liste",
+    "cold_outreach_suppression",
+    "cold_outreach_varianti",
+    "data_pubblicazione_audit",
+    "feature_flags",
+    "feature_learning",
+    "marketing_calendar",
+    "newsletter_email_events",
+    "siti_brief",
+    "siti_versioni",
+    "tv_farmacie_di_turno",
+    "tv_oroscopo"
+  ],
+  "updatedAtNoTrigger": [
+    "atrio_agenzie",
+    "atrio_immobili",
+    "brand_kit",
+    "brand_rules",
+    "broadcast_channels",
+    "broadcast_playlist",
+    "client_assets",
+    "clienti",
+    "contenuti",
+    "feature_flags",
+    "log_riprese",
+    "monitor",
+    "newsletter_campagne",
+    "newsletter_iscritti",
+    "siti",
+    "siti_brief",
+    "siti_web",
+    "task",
+    "tv_social_reels"
+  ],
+  "fkColsWithoutIndex2": [
+    {
+      "table": "atrio_eventi",
+      "column": "immobile_id",
+      "refTable": "atrio_immobili",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "brand_kit",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "onDelete": "CASCADE"
+    },
+    {
+      "table": "brand_kit",
+      "column": "logo_asset_id",
+      "refTable": "client_assets",
+      "onDelete": "NO ACTION"
+    },
+    {
+      "table": "brand_kit",
+      "column": "logo_chiaro_asset_id",
+      "refTable": "client_assets",
+      "onDelete": "NO ACTION"
+    },
+    {
+      "table": "brand_kit",
+      "column": "logo_icona_asset_id",
+      "refTable": "client_assets",
+      "onDelete": "NO ACTION"
+    },
+    {
+      "table": "brand_rules",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "onDelete": "CASCADE"
+    },
+    {
+      "table": "calendario",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "calendario",
+      "column": "contenuto_id",
+      "refTable": "contenuti",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "calendario",
+      "column": "ricorrenza_parent_id",
+      "refTable": "calendario",
+      "onDelete": "CASCADE"
+    },
+    {
+      "table": "contenuti",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "daily_priorities",
+      "column": "task_id",
+      "refTable": "task",
+      "onDelete": "CASCADE"
+    },
+    {
+      "table": "log_riprese",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "log_riprese",
+      "column": "contenuto_id",
+      "refTable": "contenuti",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "monitor_contenuti",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "profiles",
+      "column": "team_id",
+      "refTable": "team",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "task",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "task_files",
+      "column": "task_id",
+      "refTable": "task",
+      "onDelete": "CASCADE"
+    }
+  ],
+  "fks": [
+    {
+      "table": "atrio_eventi",
+      "constraint": "atrio_eventi_agenzia_id_fkey",
+      "column": "agenzia_id",
+      "refTable": "atrio_agenzie",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "atrio_eventi",
+      "constraint": "atrio_eventi_immobile_id_fkey",
+      "column": "immobile_id",
+      "refTable": "atrio_immobili",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "atrio_immobili",
+      "constraint": "atrio_immobili_agenzia_id_fkey",
+      "column": "agenzia_id",
+      "refTable": "atrio_agenzie",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "brand_kit",
+      "constraint": "brand_kit_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "brand_kit",
+      "constraint": "brand_kit_logo_asset_id_fkey",
+      "column": "logo_asset_id",
+      "refTable": "client_assets",
+      "refColumn": "id",
+      "onDelete": "NO ACTION",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "brand_kit",
+      "constraint": "brand_kit_logo_chiaro_asset_id_fkey",
+      "column": "logo_chiaro_asset_id",
+      "refTable": "client_assets",
+      "refColumn": "id",
+      "onDelete": "NO ACTION",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "brand_kit",
+      "constraint": "brand_kit_logo_icona_asset_id_fkey",
+      "column": "logo_icona_asset_id",
+      "refTable": "client_assets",
+      "refColumn": "id",
+      "onDelete": "NO ACTION",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "brand_rules",
+      "constraint": "brand_rules_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "broadcast_playlist",
+      "constraint": "broadcast_playlist_channel_slug_fkey",
+      "column": "channel_slug",
+      "refTable": "broadcast_channels",
+      "refColumn": "slug",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "calendario",
+      "constraint": "calendario_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "calendario",
+      "constraint": "calendario_contenuto_id_fkey",
+      "column": "contenuto_id",
+      "refTable": "contenuti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "calendario",
+      "constraint": "calendario_ricorrenza_parent_id_fkey",
+      "column": "ricorrenza_parent_id",
+      "refTable": "calendario",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "client_assets",
+      "constraint": "client_assets_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "cold_outreach_eventi",
+      "constraint": "cold_outreach_eventi_contatto_id_fkey",
+      "column": "contatto_id",
+      "refTable": "cold_outreach_contatti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "cold_outreach_eventi",
+      "constraint": "cold_outreach_eventi_lista_id_fkey",
+      "column": "lista_id",
+      "refTable": "cold_outreach_liste",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "cold_outreach_eventi",
+      "constraint": "cold_outreach_eventi_relazione_id_fkey",
+      "column": "relazione_id",
+      "refTable": "cold_outreach_lista_contatti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "cold_outreach_lista_contatti",
+      "constraint": "cold_outreach_lista_contatti_contatto_id_fkey",
+      "column": "contatto_id",
+      "refTable": "cold_outreach_contatti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "cold_outreach_lista_contatti",
+      "constraint": "cold_outreach_lista_contatti_lista_id_fkey",
+      "column": "lista_id",
+      "refTable": "cold_outreach_liste",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "cold_outreach_varianti",
+      "constraint": "cold_outreach_varianti_lista_id_fkey",
+      "column": "lista_id",
+      "refTable": "cold_outreach_liste",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "contenuti",
+      "constraint": "contenuti_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "daily_priorities",
+      "constraint": "daily_priorities_task_id_fkey",
+      "column": "task_id",
+      "refTable": "task",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "data_pubblicazione_audit",
+      "constraint": "data_pubblicazione_audit_contenuto_id_fkey",
+      "column": "contenuto_id",
+      "refTable": "contenuti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "log_riprese",
+      "constraint": "log_riprese_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "log_riprese",
+      "constraint": "log_riprese_contenuto_id_fkey",
+      "column": "contenuto_id",
+      "refTable": "contenuti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "monitor",
+      "constraint": "monitor_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "monitor_contenuti",
+      "constraint": "monitor_contenuti_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "monitor_contenuti",
+      "constraint": "monitor_contenuti_monitor_id_fkey",
+      "column": "monitor_id",
+      "refTable": "monitor",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "monitor_fasce",
+      "constraint": "monitor_fasce_monitor_id_fkey",
+      "column": "monitor_id",
+      "refTable": "monitor",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "newsletter_campagne",
+      "constraint": "newsletter_campagne_created_by_fkey",
+      "column": "created_by",
+      "refTable": "team",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "newsletter_email_events",
+      "constraint": "newsletter_email_events_campagna_id_fkey",
+      "column": "campagna_id",
+      "refTable": "newsletter_campagne",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "newsletter_email_events",
+      "constraint": "newsletter_email_events_iscritto_id_fkey",
+      "column": "iscritto_id",
+      "refTable": "newsletter_iscritti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "newsletter_invii",
+      "constraint": "newsletter_invii_campagna_id_fkey",
+      "column": "campagna_id",
+      "refTable": "newsletter_campagne",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "newsletter_invii",
+      "constraint": "newsletter_invii_iscritto_id_fkey",
+      "column": "iscritto_id",
+      "refTable": "newsletter_iscritti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "profiles",
+      "constraint": "profiles_team_id_fkey",
+      "column": "team_id",
+      "refTable": "team",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "siti_asset",
+      "constraint": "siti_asset_sito_id_fkey",
+      "column": "sito_id",
+      "refTable": "siti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "siti_brief",
+      "constraint": "siti_brief_sito_id_fkey",
+      "column": "sito_id",
+      "refTable": "siti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "siti",
+      "constraint": "siti_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "siti_prompt_generati",
+      "constraint": "siti_prompt_generati_sito_id_fkey",
+      "column": "sito_id",
+      "refTable": "siti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "siti_riferimenti",
+      "constraint": "siti_riferimenti_sito_id_fkey",
+      "column": "sito_id",
+      "refTable": "siti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "siti_versioni",
+      "constraint": "siti_versioni_sito_id_fkey",
+      "column": "sito_id",
+      "refTable": "siti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "siti_web",
+      "constraint": "siti_web_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "sito_assets",
+      "constraint": "sito_assets_asset_id_fkey",
+      "column": "asset_id",
+      "refTable": "client_assets",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "sito_assets",
+      "constraint": "sito_assets_sito_id_fkey",
+      "column": "sito_id",
+      "refTable": "siti_web",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "task",
+      "constraint": "task_cliente_id_fkey",
+      "column": "cliente_id",
+      "refTable": "clienti",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "task_files",
+      "constraint": "task_files_task_id_fkey",
+      "column": "task_id",
+      "refTable": "task",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    }
+  ],
+  "indexes": [
+    {
+      "unique": false,
+      "name": "idx_atrio_agenzie_slug",
+      "table": "atrio_agenzie",
+      "cols": "\"slug\""
+    },
+    {
+      "unique": false,
+      "name": "idx_atrio_eventi_agenzia_data",
+      "table": "atrio_eventi",
+      "cols": "\"agenzia_id\", \"created_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_atrio_immobili_agenzia",
+      "table": "atrio_immobili",
+      "cols": "\"agenzia_id\", \"ordine\""
+    },
+    {
+      "unique": false,
+      "name": "idx_broadcast_playlist_channel_active_order",
+      "table": "broadcast_playlist",
+      "cols": "\"channel_slug\", \"active\", \"ordering\""
+    },
+    {
+      "unique": false,
+      "name": "idx_campagne_creator",
+      "table": "newsletter_campagne",
+      "cols": "\"created_by\""
+    },
+    {
+      "unique": false,
+      "name": "idx_campagne_data_invio",
+      "table": "newsletter_campagne",
+      "cols": "\"data_invio\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_campagne_programmate",
+      "table": "newsletter_campagne",
+      "cols": "\"data_programmata\""
+    },
+    {
+      "unique": false,
+      "name": "idx_campagne_stato",
+      "table": "newsletter_campagne",
+      "cols": "\"stato\""
+    },
+    {
+      "unique": true,
+      "name": "idx_chat_reactions_unique",
+      "table": "chat_reactions",
+      "cols": "\"msg_id\", \"emoji\", \"autore\""
+    },
+    {
+      "unique": false,
+      "name": "idx_client_assets_categoria",
+      "table": "client_assets",
+      "cols": "\"categoria\""
+    },
+    {
+      "unique": false,
+      "name": "idx_client_assets_cliente",
+      "table": "client_assets",
+      "cols": "\"cliente_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_client_assets_tags",
+      "table": "client_assets",
+      "cols": "\"tags\""
+    },
+    {
+      "unique": false,
+      "name": "idx_clienti_nome_trgm",
+      "table": "clienti",
+      "cols": "\"nome\" \"public\".\"gin_trgm_ops\""
+    },
+    {
+      "unique": false,
+      "name": "idx_clienti_tipo",
+      "table": "clienti",
+      "cols": "\"tipo_cliente\""
+    },
+    {
+      "unique": false,
+      "name": "idx_co_eventi_contatto",
+      "table": "cold_outreach_eventi",
+      "cols": "\"contatto_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_co_eventi_evento",
+      "table": "cold_outreach_eventi",
+      "cols": "\"evento\""
+    },
+    {
+      "unique": false,
+      "name": "idx_co_eventi_lista",
+      "table": "cold_outreach_eventi",
+      "cols": "\"lista_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_co_eventi_lista_evento",
+      "table": "cold_outreach_eventi",
+      "cols": "\"lista_id\", \"evento\""
+    },
+    {
+      "unique": false,
+      "name": "idx_co_eventi_relazione",
+      "table": "cold_outreach_eventi",
+      "cols": "\"relazione_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_co_eventi_ts",
+      "table": "cold_outreach_eventi",
+      "cols": "\"ts\""
+    },
+    {
+      "unique": false,
+      "name": "idx_co_eventi_variante",
+      "table": "cold_outreach_eventi",
+      "cols": "\"lista_id\", \"variante\""
+    },
+    {
+      "unique": false,
+      "name": "idx_co_varianti_lista",
+      "table": "cold_outreach_varianti",
+      "cols": "\"lista_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_contatti_email",
+      "table": "cold_outreach_contatti",
+      "cols": "\"email\""
+    },
+    {
+      "unique": false,
+      "name": "idx_dpa_changed",
+      "table": "data_pubblicazione_audit",
+      "cols": "\"changed_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_dpa_contenuto",
+      "table": "data_pubblicazione_audit",
+      "cols": "\"contenuto_id\", \"changed_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_email_events_camp_evento",
+      "table": "newsletter_email_events",
+      "cols": "\"campagna_id\", \"evento\""
+    },
+    {
+      "unique": false,
+      "name": "idx_email_events_campagna",
+      "table": "newsletter_email_events",
+      "cols": "\"campagna_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_email_events_iscritto",
+      "table": "newsletter_email_events",
+      "cols": "\"iscritto_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_email_events_ts",
+      "table": "newsletter_email_events",
+      "cols": "\"ts\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_error_log_created",
+      "table": "error_log",
+      "cols": "\"created_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_error_log_risolto",
+      "table": "error_log",
+      "cols": "\"risolto\", \"created_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_error_log_tipo",
+      "table": "error_log",
+      "cols": "\"tipo\""
+    },
+    {
+      "unique": false,
+      "name": "idx_invii_campagna",
+      "table": "newsletter_invii",
+      "cols": "\"campagna_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_invii_iscritto",
+      "table": "newsletter_invii",
+      "cols": "\"iscritto_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_invii_stato",
+      "table": "newsletter_invii",
+      "cols": "\"stato\""
+    },
+    {
+      "unique": true,
+      "name": "idx_invii_unique",
+      "table": "newsletter_invii",
+      "cols": "\"campagna_id\", \"iscritto_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_iscritti_email",
+      "table": "newsletter_iscritti",
+      "cols": "\"email\""
+    },
+    {
+      "unique": false,
+      "name": "idx_iscritti_stato",
+      "table": "newsletter_iscritti",
+      "cols": "\"stato\""
+    },
+    {
+      "unique": false,
+      "name": "idx_iscritti_tag",
+      "table": "newsletter_iscritti",
+      "cols": "\"tag\""
+    },
+    {
+      "unique": false,
+      "name": "idx_iscritti_token",
+      "table": "newsletter_iscritti",
+      "cols": "\"unsubscribe_token\""
+    },
+    {
+      "unique": false,
+      "name": "idx_lc_contatto",
+      "table": "cold_outreach_lista_contatti",
+      "cols": "\"contatto_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_lc_lista",
+      "table": "cold_outreach_lista_contatti",
+      "cols": "\"lista_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_lc_lista_stato",
+      "table": "cold_outreach_lista_contatti",
+      "cols": "\"lista_id\", \"stato\""
+    },
+    {
+      "unique": false,
+      "name": "idx_lc_stato",
+      "table": "cold_outreach_lista_contatti",
+      "cols": "\"stato\""
+    },
+    {
+      "unique": false,
+      "name": "idx_lc_variante",
+      "table": "cold_outreach_lista_contatti",
+      "cols": "\"lista_id\", \"variante\""
+    },
+    {
+      "unique": false,
+      "name": "idx_liste_creata_il",
+      "table": "cold_outreach_liste",
+      "cols": "\"creata_il\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_liste_stato",
+      "table": "cold_outreach_liste",
+      "cols": "\"stato\""
+    },
+    {
+      "unique": false,
+      "name": "idx_master_stato_globale",
+      "table": "cold_outreach_contatti",
+      "cols": "\"stato_globale\""
+    },
+    {
+      "unique": false,
+      "name": "idx_master_ultimo_invio",
+      "table": "cold_outreach_contatti",
+      "cols": "\"ultimo_invio_at\""
+    },
+    {
+      "unique": false,
+      "name": "idx_monitor_cliente",
+      "table": "monitor",
+      "cols": "\"cliente_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_monitor_contenuti_monitor",
+      "table": "monitor_contenuti",
+      "cols": "\"monitor_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_monitor_fasce_monitor",
+      "table": "monitor_fasce",
+      "cols": "\"monitor_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_monitor_heartbeat_enabled_last_seen",
+      "table": "monitor",
+      "cols": "\"last_seen_at\""
+    },
+    {
+      "unique": false,
+      "name": "idx_monitor_last_seen_at",
+      "table": "monitor",
+      "cols": "\"last_seen_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_monitor_remote_command_slug_open",
+      "table": "monitor_remote_command",
+      "cols": "\"monitor_slug\", \"created_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_monitor_slug",
+      "table": "monitor",
+      "cols": "\"slug\""
+    },
+    {
+      "unique": false,
+      "name": "idx_newsletter_campagne_destinatari_ids",
+      "table": "newsletter_campagne",
+      "cols": "\"destinatari_ids\""
+    },
+    {
+      "unique": false,
+      "name": "idx_newsletter_campagne_destinatari_modalita",
+      "table": "newsletter_campagne",
+      "cols": "\"destinatari_modalita\""
+    },
+    {
+      "unique": false,
+      "name": "idx_oroscopo_data",
+      "table": "tv_oroscopo",
+      "cols": "\"data\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_asset_categoria",
+      "table": "siti_asset",
+      "cols": "\"sito_id\", \"categoria\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_asset_sito",
+      "table": "siti_asset",
+      "cols": "\"sito_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_brief_sito",
+      "table": "siti_brief",
+      "cols": "\"sito_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_cliente_id",
+      "table": "siti",
+      "cols": "\"cliente_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_lib_tag",
+      "table": "siti_riferimenti_libreria",
+      "cols": "\"tag\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_prompt_sito",
+      "table": "siti_prompt_generati",
+      "cols": "\"sito_id\", \"versione\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_riferimenti_sito",
+      "table": "siti_riferimenti",
+      "cols": "\"sito_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_riferimenti_tag",
+      "table": "siti_riferimenti",
+      "cols": "\"tag\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_stato",
+      "table": "siti",
+      "cols": "\"stato\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_versioni_sito",
+      "table": "siti_versioni",
+      "cols": "\"sito_id\", \"data_deploy\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_web_cliente_id",
+      "table": "siti_web",
+      "cols": "\"cliente_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_web_dominio_scadenza",
+      "table": "siti_web",
+      "cols": "\"dominio_scadenza\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_web_hosting_scadenza",
+      "table": "siti_web",
+      "cols": "\"hosting_scadenza\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_web_pubblicato",
+      "table": "siti_web",
+      "cols": "\"pubblicato\""
+    },
+    {
+      "unique": true,
+      "name": "idx_siti_web_slug_unique",
+      "table": "siti_web",
+      "cols": "\"slug\""
+    },
+    {
+      "unique": false,
+      "name": "idx_siti_web_stato",
+      "table": "siti_web",
+      "cols": "\"stato\""
+    },
+    {
+      "unique": false,
+      "name": "idx_sito_assets_asset",
+      "table": "sito_assets",
+      "cols": "\"asset_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_sito_assets_sito_sezione_ordine",
+      "table": "sito_assets",
+      "cols": "\"sito_id\", \"sezione\", \"ordine\""
+    },
+    {
+      "unique": true,
+      "name": "idx_sito_assets_unique",
+      "table": "sito_assets",
+      "cols": "\"sito_id\", \"asset_id\", \"sezione\""
+    },
+    {
+      "unique": false,
+      "name": "idx_tv_consigli_imported_desc",
+      "table": "tv_consigli",
+      "cols": "\"imported_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_tv_consigli_specialita_attivo",
+      "table": "tv_consigli",
+      "cols": "\"specialita\", \"attivo\""
+    },
+    {
+      "unique": false,
+      "name": "idx_tv_farmacie_citta_data",
+      "table": "tv_farmacie_di_turno",
+      "cols": "\"citta\", \"data\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_tv_oroscopo_settimana_attivo",
+      "table": "tv_oroscopo",
+      "cols": "\"settimana_iso\", \"attivo\""
+    },
+    {
+      "unique": false,
+      "name": "idx_tv_social_reels_pending_import",
+      "table": "tv_social_reels",
+      "cols": "\"created_at\""
+    },
+    {
+      "unique": false,
+      "name": "idx_tv_social_reels_pool_ready",
+      "table": "tv_social_reels",
+      "cols": "\"client_slug\", \"active\", \"created_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "tv_social_reels_client_ready_idx",
+      "table": "tv_social_reels",
+      "cols": "\"client_slug\""
+    },
+    {
+      "unique": false,
+      "name": "tv_social_reels_pending_idx",
+      "table": "tv_social_reels",
+      "cols": "\"created_at\""
+    },
+    {
+      "unique": false,
+      "name": "tv_social_reels_status_idx",
+      "table": "tv_social_reels",
+      "cols": "\"status\""
+    }
+  ],
+  "tables": {
+    "_fase_change_log": 13,
+    "atrio_agenzie": 19,
+    "atrio_eventi": 6,
+    "atrio_immobili": 22,
+    "brand_kit": 26,
+    "brand_rules": 19,
+    "broadcast_channels": 6,
+    "broadcast_playlist": 8,
+    "calendario": 20,
+    "chat_messaggi": 8,
+    "chat_reactions": 5,
+    "client_assets": 23,
+    "clienti": 32,
+    "cold_outreach_contatti": 15,
+    "cold_outreach_eventi": 19,
+    "cold_outreach_lista_contatti": 13,
+    "cold_outreach_liste": 19,
+    "cold_outreach_suppression": 5,
+    "cold_outreach_varianti": 10,
+    "contenuti": 36,
+    "creative_log": 7,
+    "daily_priorities": 9,
+    "data_pubblicazione_audit": 11,
+    "error_log": 10,
+    "feature_flags": 7,
+    "feature_learning": 6,
+    "log_riprese": 28,
+    "marketing_calendar": 5,
+    "monitor": 35,
+    "monitor_contenuti": 12,
+    "monitor_fasce": 9,
+    "monitor_remote_command": 8,
+    "newsletter_campagne": 25,
+    "newsletter_email_events": 9,
+    "newsletter_invii": 11,
+    "newsletter_iscritti": 13,
+    "notifiche": 9,
+    "profiles": 4,
+    "siti": 10,
+    "siti_asset": 10,
+    "siti_brief": 8,
+    "siti_prompt_generati": 7,
+    "siti_riferimenti": 10,
+    "siti_riferimenti_libreria": 9,
+    "siti_versioni": 8,
+    "siti_web": 29,
+    "sito_assets": 9,
+    "task": 17,
+    "task_files": 8,
+    "team": 18,
+    "tv_consigli": 15,
+    "tv_farmacie_di_turno": 11,
+    "tv_oroscopo": 12,
+    "tv_social_reels": 35
+  }
+}

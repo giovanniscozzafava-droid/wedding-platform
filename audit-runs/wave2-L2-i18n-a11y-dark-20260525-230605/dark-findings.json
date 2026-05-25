@@ -1,0 +1,162 @@
+[
+  {
+    "page": "wp:DARK-persist",
+    "ok": "persistence ok",
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "wp:home",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "wp:weddings",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "wp:suppliers",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "wp:quotes",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "wp:profile",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "fornitore:DARK-persist",
+    "ok": "persistence ok",
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "fornitore:home",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "fornitore:calendar",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "fornitore:quotes",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "fornitore:profile",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "sposo:DARK-persist",
+    "ok": "persistence ok",
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "sposo:home",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "sposo:invitati",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "sposo:budget",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  },
+  {
+    "page": "sposo:profile",
+    "ok": true,
+    "after": {
+      "dataTheme": "dark",
+      "hasDarkClass": false,
+      "bg": "rgb(14, 13, 12)",
+      "lum": 0.05153098039215686
+    }
+  }
+]

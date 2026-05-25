@@ -1,0 +1,35 @@
+[
+  {
+    "url": "https://planfully.it/login",
+    "ttfb": 36,
+    "domContentLoaded": 444,
+    "loadComplete": 445,
+    "fcp": 572,
+    "resourceCount": 6,
+    "totalTransferKB": 761,
+    "lcp": 644,
+    "cls": 0
+  },
+  {
+    "url": "https://planfully.it/w/giovanni-e-pingu",
+    "ttfb": 39,
+    "domContentLoaded": 425,
+    "loadComplete": 426,
+    "fcp": 464,
+    "resourceCount": 6,
+    "totalTransferKB": 699,
+    "lcp": 896,
+    "cls": 0
+  },
+  {
+    "url": "https://planfully.it/privacy",
+    "ttfb": 37,
+    "domContentLoaded": 394,
+    "loadComplete": 395,
+    "fcp": 508,
+    "resourceCount": 4,
+    "totalTransferKB": 575,
+    "lcp": 508,
+    "cls": 0.0001
+  }
+]

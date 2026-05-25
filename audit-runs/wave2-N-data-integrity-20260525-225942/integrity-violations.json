@@ -1,37 +1,48 @@
 {
   "stats": {
-    "startedAt": "2026-05-25T21:02:13.543Z",
-    "calendarValueNoQuote": "column_missing_or_renamed",
+    "startedAt": "2026-05-25T21:15:24.200Z",
+    "quotesScanned": 24,
+    "quotesNegMargin": 0,
+    "quotesZero": 1,
+    "quoteItemsScanned": 271,
+    "quoteItemsCostMismatch": 0,
+    "quoteItemsClientLossMargin": 0,
+    "calendarValueNoQuote": 1,
     "couplesAcceptedNoUser": 4,
-    "supplierInvitesStaleP": 0,
-    "quoteAcceptedNoTs": "err",
+    "supplierInvitesStalePending": 0,
+    "guestsOrphanTable": 0,
+    "guestsScanned": 1000,
+    "supplierAvailOldCount": 0,
+    "quoteAcceptedNoTs": 8,
     "contractsSignedNoData": 10,
-    "fkIntrospection": "no_rpc",
-    "indexIntrospection": "no_rpc",
-    "timestampsIntrospection": "no_rpc",
-    "endedAt": "2026-05-25T21:02:20.201Z"
+    "contractsFirmatoTotal": 11,
+    "quoteItemsOrphans": 0,
+    "contractsOrphanQuoteRef": 0,
+    "endedAt": "2026-05-25T21:15:33.099Z"
   },
   "violations": [
     {
-      "area": "integrity",
-      "severity": "HIGH",
-      "msg": "quotes select error: column quotes.event_id does not exist",
+      "area": "storage",
+      "severity": "LOW",
+      "msg": "quote-pdfs has 9 orphan files",
       "sample": null,
-      "ts": "2026-05-25T21:02:18.171Z"
+      "ts": "2026-05-25T21:15:30.278Z"
     },
     {
       "area": "integrity",
-      "severity": "HIGH",
-      "msg": "quote_items select error: column quote_items.unit_client does not exist",
-      "sample": null,
-      "ts": "2026-05-25T21:02:18.225Z"
-    },
-    {
-      "area": "integrity",
-      "severity": "MEDIUM",
-      "msg": "calendar_entries scan error: column calendar_entries.entry_type does not exist; fallback: column calendar_entries.entry_type does not exist",
-      "sample": null,
-      "ts": "2026-05-25T21:02:18.319Z"
+      "severity": "LOW",
+      "msg": "calendar_entries with value_amount but no quote_id: 1",
+      "sample": [
+        {
+          "id": "7a19a8a2-75a8-4ffe-8eb5-f155785e9dea",
+          "title": "Giovanni e Pingu",
+          "value_amount": 28000,
+          "quote_id": null,
+          "owner_id": "712baed0-3957-4452-8aab-ab4eeebb2697",
+          "status": "CONFERMATA"
+        }
+      ],
+      "ts": "2026-05-25T21:15:30.451Z"
     },
     {
       "area": "integrity",
@@ -67,21 +78,50 @@
           "entry_id": "19b1d956-9353-4192-93ff-aad09715f8cf"
         }
       ],
-      "ts": "2026-05-25T21:02:18.372Z"
+      "ts": "2026-05-25T21:15:30.503Z"
     },
     {
       "area": "integrity",
       "severity": "MEDIUM",
-      "msg": "event_guests scan err: column event_guests.event_id does not exist",
-      "sample": null,
-      "ts": "2026-05-25T21:02:18.491Z"
-    },
-    {
-      "area": "integrity",
-      "severity": "LOW",
-      "msg": "supplier_availability scan err: column supplier_availability.provider_id does not exist",
-      "sample": null,
-      "ts": "2026-05-25T21:02:18.538Z"
+      "msg": "quotes ACCETTATO but accepted_at NULL: 8",
+      "sample": [
+        {
+          "id": "8a7c1965-ae51-4962-8c08-c06f39ea269b",
+          "status": "ACCETTATO",
+          "accepted_at": null,
+          "owner_id": "79ddaae6-a8f0-4578-9c7a-9bc295a0742a",
+          "title": "Matrimonio Floriana & Endrigo Buccheri"
+        },
+        {
+          "id": "25db5602-1e01-44cc-b349-0ffdc8f68ac5",
+          "status": "ACCETTATO",
+          "accepted_at": null,
+          "owner_id": "ebae0f18-4cc8-40fe-ae40-f6a5757f1726",
+          "title": "Matrimonio Cornelia & Afro Lolli"
+        },
+        {
+          "id": "33c6065c-6ecf-46cb-982a-38a7318bda1b",
+          "status": "ACCETTATO",
+          "accepted_at": null,
+          "owner_id": "06fc2fb3-3697-4fe7-81da-297da25a1191",
+          "title": "Matrimonio Azzurra & Francesco Staffieri"
+        },
+        {
+          "id": "f0d30cdc-67ad-4dea-b746-853271904e56",
+          "status": "ACCETTATO",
+          "accepted_at": null,
+          "owner_id": "bf3dd2e5-6467-4771-ac48-406dd0296b5b",
+          "title": "Matrimonio Venere & Gallicano Gualtieri"
+        },
+        {
+          "id": "a6f92032-ebfa-4911-9e65-72acfdf9c230",
+          "status": "ACCETTATO",
+          "accepted_at": null,
+          "owner_id": "a1057a10-e1fb-4565-ae65-3a17bb2a270d",
+          "title": "Matrimonio Diamante & Alfio Degrassi"
+        }
+      ],
+      "ts": "2026-05-25T21:15:30.804Z"
     },
     {
       "area": "integrity",
@@ -92,62 +132,86 @@
           "id": "7a880237-1b9f-4c0e-8b50-b268a2bed96e",
           "status": "FIRMATO",
           "signed_at": "2026-05-23T14:42:25.608+00:00",
-          "signature_data": null
+          "signature_data": null,
+          "owner_id": "79ddaae6-a8f0-4578-9c7a-9bc295a0742a",
+          "title": "Contratto matrimonio Floriana & Endrigo"
         },
         {
           "id": "f9a9361b-72e6-4940-a276-47e926421e8f",
           "status": "FIRMATO",
           "signed_at": null,
-          "signature_data": null
+          "signature_data": null,
+          "owner_id": "ebae0f18-4cc8-40fe-ae40-f6a5757f1726",
+          "title": "Contratto matrimonio Cornelia & Afro"
         },
         {
           "id": "7655f239-1299-4c7f-81d1-d6224c9a1f55",
           "status": "FIRMATO",
           "signed_at": "2026-05-23T14:42:25.76+00:00",
-          "signature_data": null
+          "signature_data": null,
+          "owner_id": "06fc2fb3-3697-4fe7-81da-297da25a1191",
+          "title": "Contratto matrimonio Azzurra & Francesco"
         },
         {
           "id": "2f7b149d-2c98-47b2-89fc-50ba9ccda42a",
           "status": "FIRMATO",
           "signed_at": "2026-05-23T14:42:25.9+00:00",
-          "signature_data": null
+          "signature_data": null,
+          "owner_id": "a1057a10-e1fb-4565-ae65-3a17bb2a270d",
+          "title": "Contratto matrimonio Diamante & Alfio"
         },
         {
           "id": "6894966c-bfbb-4d87-b6a1-99da4e9bf85a",
           "status": "FIRMATO",
           "signed_at": null,
-          "signature_data": null
+          "signature_data": null,
+          "owner_id": "79ddaae6-a8f0-4578-9c7a-9bc295a0742a",
+          "title": "Contratto matrimonio Maida & Asimodeo"
         }
       ],
-      "ts": "2026-05-25T21:02:18.701Z"
-    },
-    {
-      "area": "fk",
-      "severity": "LOW",
-      "msg": "No exec_sql RPC available; FK introspection skipped (run via psql instead).",
-      "sample": null,
-      "ts": "2026-05-25T21:02:18.857Z"
-    },
-    {
-      "area": "index",
-      "severity": "LOW",
-      "msg": "pg_stat_user_indexes unreachable via RPC",
-      "sample": null,
-      "ts": "2026-05-25T21:02:19.002Z"
+      "ts": "2026-05-25T21:15:30.852Z"
     },
     {
       "area": "audit",
       "severity": "LOW",
-      "msg": "No exec_sql RPC; timestamp introspection skipped",
-      "sample": null,
-      "ts": "2026-05-25T21:02:19.147Z"
+      "msg": "Tables without created_at: 4",
+      "sample": [
+        "event_transport_assignments",
+        "market_prices",
+        "beta_status",
+        "quote_acceptances_audit"
+      ],
+      "ts": "2026-05-25T21:15:31.097Z"
+    },
+    {
+      "area": "audit",
+      "severity": "MEDIUM",
+      "msg": "Tables with updated_at but NO set_updated_at trigger (from migrations): 15",
+      "sample": [
+        "profiles",
+        "collaborations",
+        "service_categories",
+        "services",
+        "service_modifiers",
+        "calendar_entries",
+        "quotes",
+        "quote_items",
+        "quote_supplier_markups",
+        "market_prices",
+        "service_presets",
+        "finance_offers",
+        "finance_applications",
+        "insurance_offers",
+        "insurance_policies"
+      ],
+      "ts": "2026-05-25T21:15:31.097Z"
     },
     {
       "area": "cleanup",
       "severity": "LOW",
-      "msg": "Test/demo residue patterns: 1",
+      "msg": "Test/demo residue patterns: 3",
       "sample": null,
-      "ts": "2026-05-25T21:02:20.200Z"
+      "ts": "2026-05-25T21:15:33.099Z"
     }
   ]
 }

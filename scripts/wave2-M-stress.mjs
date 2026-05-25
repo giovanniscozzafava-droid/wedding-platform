@@ -84,13 +84,26 @@ async function bootstrap() {
   if (!idx[FORN_EMAIL]) throw new Error('FORN_EMAIL non trovato')
 
   // Wedding di prova del WP esistente (qualunque)
-  const { data: weds } = await admin
+  const { data: weds, error: wErr } = await admin
     .from('calendar_entries')
-    .select('id, owner_id, title, event_date')
+    .select('id, owner_id, title, date_from')
     .eq('owner_id', idx[WP_EMAIL])
     .limit(5)
-  const wedding = weds?.[0]
-  if (!wedding) throw new Error('Nessun wedding del WP trovato')
+  if (wErr) console.log('  bootstrap weds err:', wErr.message)
+  let wedding = weds?.[0]
+  if (!wedding) {
+    // crea un wedding di test del WP
+    const { data: created, error: cErr } = await admin.from('calendar_entries').insert({
+      owner_id: idx[WP_EMAIL],
+      title: PREFIX + 'wedding-test',
+      date_from: '2027-09-15',
+      date_to: '2027-09-15',
+    }).select().single()
+    if (cErr) throw new Error('Cannot create test wedding: ' + cErr.message)
+    wedding = created
+    created.weddings = (created.weddings || [])
+    console.log('  Created test wedding:', wedding.id.slice(0, 8))
+  }
 
   console.log('  Bootstrap OK', {
     wp: idx[WP_EMAIL].slice(0, 8),
@@ -225,11 +238,17 @@ async function scenB({ wpId }) {
   }
 
   // Verifica DB: numero di quote_acceptances per quote
-  const { data: acc } = await admin
+  const { data: acc, error: accErr } = await admin
     .from('quote_acceptances')
-    .select('id, signed_at, status')
+    .select('id, accepted_at, signer_name')
     .eq('quote_id', q.id)
   const accCount = acc?.length || 0
+  if (accErr) console.log('  accErr:', accErr.message)
+  const acceptanceIds = acc?.map(a => a.id) || []
+  // dump esiti HTTP per debug
+  const httpSummary = results.map((r, i) => r.status === 'fulfilled'
+    ? { i, http: r.value.status, acc_id: r.value.body?.acceptance_id }
+    : { i, error: String(r.reason).slice(0, 150) })
 
   const { data: qNow } = await admin.from('quotes').select('status').eq('id', q.id).single()
   const finalStatus = qNow?.status
@@ -254,9 +273,12 @@ async function scenB({ wpId }) {
     `- 5 POST paralleli stesso token`,
     `- HTTP 200: ${ok.length}, errors: ${reject.length}`,
     `- quote_acceptances rows: ${accCount} (atteso <= 1)`,
+    `- acceptance_ids in DB: ${acceptanceIds.join(', ')}`,
     `- final quote status: ${finalStatus}`,
     `- p99: ${pct(lat, 99)}ms`,
     reject.length ? `- Sample reject: ${reject[0]}` : '',
+    '',
+    `**Repro**: \`POST /functions/v1/quote-accept-sign\` 5 chiamate parallele stesso token. Atteso: 1 success + 4 rejected con 409. Trovato: ${accCount} righe DB + ${ok.length} HTTP 200.`,
   ])
 
   if (accCount > 1) {
@@ -431,9 +453,10 @@ async function scenE({ wedding, wpId }) {
       const t0 = performance.now()
       const { data, error } = await admin.from('couple_change_requests').insert({
         wedding_id: wedding.id,
-        created_by: wedding.owner_id,
+        requested_by: wedding.owner_id,
+        entity_type: 'OTHER',
+        action: 'UPDATE',
         title: `${PREFIX}ccr-${i}-${Date.now()}`,
-        kind: 'GENERIC',
         description: `change ${i}`,
       }).select('id').single()
       const dt = performance.now() - t0

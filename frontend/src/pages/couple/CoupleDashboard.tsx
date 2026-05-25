@@ -74,20 +74,26 @@ export default function CoupleDashboard() {
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
       {/* Top bar */}
       <header className="sticky top-0 z-30 backdrop-blur border-b" style={{ background: 'rgb(var(--bg-elev) / 0.85)', borderColor: 'rgb(var(--border))' }}>
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-          <Link to="/couple" className="inline-flex items-center gap-2">
-            <img src="/brand/planfully-symbol.svg" alt="Planfully" className="h-8 w-8" />
-            <span className="font-display text-base">Planfully</span>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-4">
+          <Link to="/couple" className="inline-flex items-center gap-2 min-w-0 shrink">
+            <img src="/brand/planfully-symbol.svg" alt="Planfully" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" />
+            <span className="font-display text-sm sm:text-base hidden xs:inline">Planfully</span>
           </Link>
-          <div className="text-sm text-[rgb(var(--fg-muted))]">
+          {/* User name: visibile da sm+ in chiaro, su mobile solo iniziali in cerchio */}
+          <div className="hidden sm:block text-sm text-[rgb(var(--fg-muted))] truncate min-w-0 flex-1 text-center">
             {profile?.full_name ?? user?.email}
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggle}>{theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}</Button>
-            <Link to="/profile" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Profilo / Privacy">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <span className="sm:hidden inline-flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-semibold"
+              style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}
+              title={profile?.full_name ?? user?.email ?? undefined}>
+              {(profile?.full_name ?? user?.email ?? '?').split(/\s+|@/).filter(Boolean).slice(0, 2).map((s) => s[0]!.toUpperCase()).join('')}
+            </span>
+            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Cambia tema">{theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}</Button>
+            <Link to="/profile" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Profilo / Privacy" aria-label="Profilo">
               <Sparkles size={14} />
             </Link>
-            <Button variant="ghost" size="icon" onClick={logout}><LogOut size={14} /></Button>
+            <Button variant="ghost" size="icon" onClick={logout} aria-label="Esci"><LogOut size={14} /></Button>
           </div>
         </div>
       </header>
@@ -137,17 +143,22 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
         </div>
       </section>
 
-      {/* Tabs */}
-      <nav className="sticky top-[57px] z-20 border-b" style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
-        <div className="max-w-6xl mx-auto px-6 overflow-x-auto">
+      {/* Tabs — scrollable on mobile with edge-fade indicators */}
+      <nav className="sticky top-[57px] z-20 border-b relative" style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
+        <div className="max-w-6xl mx-auto px-6 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <div className="flex gap-1 py-2 min-w-max">
             {TABS.map((t) => {
               const Icon = t.icon
               const active = tab === t.key
               return (
-                <button key={t.key} onClick={() => setTab(t.key)}
+                <button
+                  key={t.key}
+                  onClick={(e) => {
+                    setTab(t.key)
+                    ;(e.currentTarget as HTMLElement).scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' })
+                  }}
                   className={cn(
-                    'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
                     active
                       ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
                       : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]',
@@ -158,6 +169,9 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             })}
           </div>
         </div>
+        {/* Edge-fade indicators: comunica visivamente che ci sono altre tab fuori viewport */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-6" style={{ background: 'linear-gradient(90deg, rgb(var(--bg-elev)), transparent)' }} />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-6" style={{ background: 'linear-gradient(-90deg, rgb(var(--bg-elev)), transparent)' }} />
       </nav>
 
       <div className="max-w-6xl mx-auto px-6 py-8">

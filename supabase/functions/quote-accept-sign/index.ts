@@ -69,13 +69,37 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
-  // 1. Recupera quote dal token
+  // 1. Recupera quote dal token (read-only, prima del gate atomico)
   const { data: quote } = await admin.from('quotes').select('*').eq('access_token', body.token).maybeSingle()
   if (!quote) return json({ error: 'token non valido' }, 404)
   if (quote.status === 'RIFIUTATO' || quote.status === 'SCADUTO') {
     return json({ error: `Preventivo in stato ${quote.status}, non più accettabile` }, 409)
   }
+  if (quote.status === 'ACCETTATO' || quote.status === 'CONVERTITO_IN_CONTRATTO') {
+    return json({ error: 'Preventivo già accettato. Non è possibile firmarlo una seconda volta.' }, 409)
+  }
   if (!quote.client_email) return json({ error: 'preventivo senza email cliente' }, 400)
+
+  // 1b. ATOMIC GATE: tenta di transitare quote a ACCETTATO solo se ancora INVIATO/BOZZA.
+  // Se un'altra request concorrente l'ha gia' fatto, qui non trova righe -> 409.
+  // Questo elimina la race condition che permetteva 5 firme parallele.
+  const { data: claimed, error: claimErr } = await admin
+    .from('quotes')
+    .update({
+      status: 'ACCETTATO',
+      accepted_at: new Date().toISOString(),
+    })
+    .eq('id', quote.id)
+    .in('status', ['INVIATO', 'BOZZA'])
+    .select('id')
+    .maybeSingle()
+  if (claimErr) {
+    return json({ error: 'db error', detail: claimErr.message }, 500)
+  }
+  if (!claimed) {
+    // Qualcun altro ha gia' completato la firma (race) — rifiutiamo come 409.
+    return json({ error: 'Preventivo già firmato da un\'altra sessione. Ricarica la pagina.' }, 409)
+  }
 
   // 2. Hash del PDF preventivo corrente (per integrità)
   let pdfHash: string | null = null
@@ -123,10 +147,9 @@ Deno.serve(async (req) => {
   }).select().single()
   if (insErr) return json({ error: 'insert acceptance failed', detail: insErr.message }, 500)
 
-  // 6. Aggiorna quote → ACCETTATO + log
+  // 6. Aggiorna quote log (status già transitato atomicamente nello step 1b).
+  // Append-only sul client_response_log: best-effort, race accettabile sul log.
   await admin.from('quotes').update({
-    status: 'ACCETTATO',
-    accepted_at: quote.accepted_at ?? new Date().toISOString(),
     client_response_log: [
       ...((quote.client_response_log ?? []) as any[]),
       { event: 'accepted_signed', at: new Date().toISOString(), acceptance_id: acceptance.id, ip, signer: body.signer_name },

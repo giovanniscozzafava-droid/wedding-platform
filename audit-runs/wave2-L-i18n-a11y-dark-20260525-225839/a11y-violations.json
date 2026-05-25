@@ -1,0 +1,500 @@
+[
+  {
+    "page": "PUBLIC:login",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<button class=\"inline-flex items-ce...\" type=\"submit\">",
+        "target": [
+          "button[type=\"submit\"]"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 10.5pt (14px), font weight: normal). Expected contrast rat"
+      },
+      {
+        "html": "<span class=\"text-xs text-[rgb(var(--fg-subtle))]\">oppure</span>",
+        "target": [
+          ".my-2 > .text-\\[rgb\\(var\\(--fg-subtle\\)\\)\\].text-xs"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      },
+      {
+        "html": "<a href=\"#scopri\" class=\"text-xs text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--fg))] inline-flex items-center gap-1\">",
+        "target": [
+          ".gap-1"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 9
+  },
+  {
+    "page": "PUBLIC:login",
+    "id": "heading-order",
+    "impact": "moderate",
+    "help": "Heading levels should only increase by one",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/heading-order?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<h4 class=\"font-medium text-sm mb-1\">Invitati &amp; RSVP</h4>",
+        "target": [
+          ".rounded-xl.p-4.border:nth-child(1) > h4"
+        ],
+        "summary": "Fix any of the following:\n  Heading order invalid"
+      }
+    ],
+    "count": 1
+  },
+  {
+    "page": "PUBLIC:login",
+    "id": "landmark-one-main",
+    "impact": "moderate",
+    "help": "Document should have one main landmark",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/landmark-one-main?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<html lang=\"it\" data-theme=\"light\">",
+        "target": [
+          "html"
+        ],
+        "summary": "Fix all of the following:\n  Document does not have a main landmark"
+      }
+    ],
+    "count": 1
+  },
+  {
+    "page": "PUBLIC:login",
+    "id": "region",
+    "impact": "moderate",
+    "help": "All page content should be contained by landmarks",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/region?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<div class=\"hidden lg:flex lg:col-span-3 relative overflow-hidden p-12 text-white\" style=\"background: rgb(var(--bg));\">",
+        "target": [
+          ".hidden"
+        ],
+        "summary": "Fix any of the following:\n  Some page content is not contained by landmarks"
+      },
+      {
+        "html": "<div><h2 class=\"font-display text-3xl tracking-tight\">Bentornat*</h2><p class=\"text-sm text-[rgb(var(--fg-muted))] mt-1\">Accedi con le tue credenziali o un magic link.</p></div>",
+        "target": [
+          ".max-w-sm > div:nth-child(1)"
+        ],
+        "summary": "Fix any of the following:\n  Some page content is not contained by landmarks"
+      },
+      {
+        "html": "<label class=\"text-xs font-medium uppercase tracking-wider text-[rgb(var(--fg-muted))]\" for=\"email\">Email</label>",
+        "target": [
+          "label[for=\"email\"]"
+        ],
+        "summary": "Fix any of the following:\n  Some page content is not contained by landmarks"
+      }
+    ],
+    "count": 44
+  },
+  {
+    "page": "wp:home",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".truncate.text-xs"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 25
+  },
+  {
+    "page": "wp:catalog",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".truncate:nth-child(2)"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 39
+  },
+  {
+    "page": "wp:catalog",
+    "id": "heading-order",
+    "impact": "moderate",
+    "help": "Heading levels should only increase by one",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/heading-order?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<h3 class=\"font-display text-lg group-hover:underline\">Ricci Banqueting</h3>",
+        "target": [
+          "section:nth-child(1) > .mb-4.gap-3 > .flex-1 > .group-hover\\:underline.text-lg"
+        ],
+        "summary": "Fix any of the following:\n  Heading order invalid"
+      }
+    ],
+    "count": 1
+  },
+  {
+    "page": "wp:weddings",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".truncate.text-xs"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 23
+  },
+  {
+    "page": "wp:weddings",
+    "id": "heading-order",
+    "impact": "moderate",
+    "help": "Heading levels should only increase by one",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/heading-order?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<h3 class=\"font-display text-xl truncate\">Paolo e Francesca</h3>",
+        "target": [
+          "div:nth-child(1) > a > .surface.surface-elev.hover\\:shadow-\\[var\\(--shadow-lift\\)\\] > .p-6.flex-col.gap-3 > .items-start.justify-between.gap-3 > .min-w-0 > h3"
+        ],
+        "summary": "Fix any of the following:\n  Heading order invalid"
+      }
+    ],
+    "count": 1
+  },
+  {
+    "page": "wp:suppliers",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".px-2 > .min-w-0.flex-1 > p:nth-child(2)"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 34
+  },
+  {
+    "page": "wp:suppliers",
+    "id": "heading-order",
+    "impact": "moderate",
+    "help": "Heading levels should only increase by one",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/heading-order?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<h3 class=\"font-medium leading-snug truncate\">Ricci Banqueting</h3>",
+        "target": [
+          "div:nth-child(1) > .surface.surface-elev.hover\\:shadow-\\[var\\(--shadow-lift\\)\\] > .block.p-5 > .mb-4.items-start.gap-4 > .min-w-0.flex-1 > h3"
+        ],
+        "summary": "Fix any of the following:\n  Heading order invalid"
+      }
+    ],
+    "count": 1
+  },
+  {
+    "page": "wp:calendar",
+    "id": "button-name",
+    "impact": "critical",
+    "help": "Buttons must have discernible text",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/button-name?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<button class=\"inline-flex items-ce...\">",
+        "target": [
+          ".w-10.p-0.whitespace-nowrap:nth-child(1)"
+        ],
+        "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references "
+      },
+      {
+        "html": "<button class=\"inline-flex items-ce...\">",
+        "target": [
+          ".w-10.p-0.whitespace-nowrap:nth-child(3)"
+        ],
+        "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references "
+      }
+    ],
+    "count": 2
+  },
+  {
+    "page": "wp:calendar",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".truncate:nth-child(2)"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 17
+  },
+  {
+    "page": "wp:quotes",
+    "id": "button-name",
+    "impact": "critical",
+    "help": "Buttons must have discernible text",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/button-name?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<button class=\"inline-flex items-ce...\">",
+        "target": [
+          "div:nth-child(1) > .surface.surface-elev.hover\\:shadow-\\[var\\(--shadow-lift\\)\\] > .p-5.gap-4.flex-col > .justify-end.gap-2.flex > .w-10.p-0.h-10"
+        ],
+        "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references "
+      },
+      {
+        "html": "<button class=\"inline-flex items-ce...\">",
+        "target": [
+          "div:nth-child(2) > .surface.surface-elev.hover\\:shadow-\\[var\\(--shadow-lift\\)\\] > .p-5.gap-4.flex-col > .justify-end.gap-2.flex > .w-10.p-0.h-10"
+        ],
+        "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references "
+      },
+      {
+        "html": "<button class=\"inline-flex items-ce...\">",
+        "target": [
+          "div:nth-child(3) > .surface.surface-elev.hover\\:shadow-\\[var\\(--shadow-lift\\)\\] > .p-5.gap-4.flex-col > .justify-end.gap-2.flex > .w-10.p-0.h-10"
+        ],
+        "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references "
+      }
+    ],
+    "count": 3
+  },
+  {
+    "page": "wp:quotes",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".truncate.text-xs"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 23
+  },
+  {
+    "page": "wp:finance",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".truncate.text-xs"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 25
+  },
+  {
+    "page": "wp:brand",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".truncate.text-xs"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 25
+  },
+  {
+    "page": "wp:profile",
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"finanziamento\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<span class=\"text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest\">SOON</span>",
+        "target": [
+          "a[href$=\"assicurazione\"] > .text-\\[8px\\].font-bold.px-1\\.5"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.37 (foreground color: #f8f5f0, background color: #c49a5c, font size: 6.0pt (8px), font weight: bold). Expected contrast ratio o"
+      },
+      {
+        "html": "<p class=\"text-xs truncate\" style=\"color: rgb(var(--fg-subtle));\">Wedding Planner</p>",
+        "target": [
+          ".truncate:nth-child(2)"
+        ],
+        "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.98 (foreground color: #949494, background color: #fffdfa, font size: 9.0pt (12px), font weight: normal). Expected contrast rati"
+      }
+    ],
+    "count": 12
+  },
+  {
+    "page": "wp:profile",
+    "id": "heading-order",
+    "impact": "moderate",
+    "help": "Heading levels should only increase by one",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/heading-order?application=axeAPI",
+    "nodes": [
+      {
+        "html": "<h3 class=\"font-display text-lg\">Dati personali e privacy</h3>",
+        "target": [
+          "h3"
+        ],
+        "summary": "Fix any of the following:\n  Heading order invalid"
+      }
+    ],
+    "count": 1
+  }
+]

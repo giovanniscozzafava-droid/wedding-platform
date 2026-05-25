@@ -10,5 +10,29 @@
         "full_name": "Demo Planner"
       }
     ]
+  },
+  {
+    "table": "quotes",
+    "column": "client_name",
+    "pattern": "Test %",
+    "count": 1,
+    "sample": [
+      {
+        "id": "c18cd9c5-3328-47bc-afd5-cab5adc2499a",
+        "client_name": "Test Night H"
+      }
+    ]
+  },
+  {
+    "table": "quotes",
+    "column": "client_name",
+    "pattern": "TEST %",
+    "count": 1,
+    "sample": [
+      {
+        "id": "c18cd9c5-3328-47bc-afd5-cab5adc2499a",
+        "client_name": "Test Night H"
+      }
+    ]
   }
 ]

@@ -1,4 +1,52 @@
 {
+  "bucketsMeta": [
+    {
+      "name": "service-photos",
+      "public": true,
+      "file_size_limit": 2097152,
+      "allowed_mime_types": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    },
+    {
+      "name": "quote-pdfs",
+      "public": false,
+      "file_size_limit": 10485760,
+      "allowed_mime_types": [
+        "application/pdf"
+      ]
+    },
+    {
+      "name": "brand-assets",
+      "public": true,
+      "file_size_limit": 1048576,
+      "allowed_mime_types": [
+        "image/jpeg",
+        "image/png",
+        "image/svg+xml",
+        "image/webp"
+      ]
+    },
+    {
+      "name": "event-documents",
+      "public": false,
+      "file_size_limit": 20971520,
+      "allowed_mime_types": null
+    },
+    {
+      "name": "quote-signatures",
+      "public": false,
+      "file_size_limit": 2097152,
+      "allowed_mime_types": [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "application/pdf"
+      ]
+    }
+  ],
   "discoveredBuckets": [
     "service-photos",
     "quote-pdfs",
@@ -8,11 +56,10 @@
   ],
   "service-photos": {
     "exists": true,
-    "files": 8,
-    "totalSizeBytes": 844436,
+    "files": 7,
+    "totalSizeBytes": 844368,
     "mimeTypes": {
       "image/webp": 6,
-      "image/png": 1,
       "image/jpeg": 1
     },
     "errors": [],
@@ -21,11 +68,6 @@
         "path": "10e9ffae-df38-4ecd-8100-bfed307f7ca7/304094b7-6b28-40d8-a92a-f01f25fafa0e.webp",
         "size": 11994,
         "mime": "image/webp"
-      },
-      {
-        "path": "1324114d-a900-4219-ac0c-ca69176319c4/9c0d0049-07a8-4b1c-9fab-e69299438807.png",
-        "size": 68,
-        "mime": "image/png"
       },
       {
         "path": "3d17c869-e55b-4eb7-b3e2-99b7579853bd/2d82dfe1-70a3-4f11-83b8-20f59ebcb8f7.webp",
@@ -41,7 +83,21 @@
         "path": "47a54ee7-ca21-4a8d-ae6f-6010d189d874/test-1779633789259.jpg",
         "size": 10,
         "mime": "image/jpeg"
+      },
+      {
+        "path": "a3e729d0-b305-49fb-a4f7-367a4d170f93/5ffb61f0-167f-4f07-8e2c-304a32ccb0a7.webp",
+        "size": 186076,
+        "mime": "image/webp"
       }
+    ],
+    "paths": [
+      "10e9ffae-df38-4ecd-8100-bfed307f7ca7/304094b7-6b28-40d8-a92a-f01f25fafa0e.webp",
+      "3d17c869-e55b-4eb7-b3e2-99b7579853bd/2d82dfe1-70a3-4f11-83b8-20f59ebcb8f7.webp",
+      "47a54ee7-ca21-4a8d-ae6f-6010d189d874/9e843db2-eab9-4390-a0d5-e9e0da67e2a4.webp",
+      "47a54ee7-ca21-4a8d-ae6f-6010d189d874/test-1779633789259.jpg",
+      "a3e729d0-b305-49fb-a4f7-367a4d170f93/5ffb61f0-167f-4f07-8e2c-304a32ccb0a7.webp",
+      "ce700ee4-081f-4355-a361-e2eecdc0e6d2/33c5862f-1917-45dc-b05e-88e0042761ce.webp",
+      "d42953a0-5f64-461b-8427-2cbb41fdd5dd/4eff1d32-30e7-48e5-8e22-938d81db507c.webp"
     ],
     "totalSizeMB": 0.81
   },
@@ -82,20 +138,37 @@
         "mime": "image/svg+xml"
       }
     ],
+    "paths": [
+      "1d0177ba-bfd9-4e2e-a997-7201f9273d55/logo-1779641463989.png",
+      "1d0177ba-bfd9-4e2e-a997-7201f9273d55/logo.png",
+      "46277b31-100a-4852-972a-81699d37222e/logo.png",
+      "712baed0-3957-4452-8aab-ab4eeebb2697/couple-73a5bc44-bf6e-4f68-9f30-7beff54073f2-1779640727900.jpeg",
+      "a4e292d2-10ad-4960-b9dd-ddd1198a85a9/logo.svg",
+      "b0285aaf-941d-4c40-9422-dfe2526e4e49/logo.png",
+      "bf3dd2e5-6467-4771-ac48-406dd0296b5b/logo.svg",
+      "bfca21ff-3654-4826-bfb5-5e248d5dee34/cover.jpeg",
+      "bfca21ff-3654-4826-bfb5-5e248d5dee34/logo.jpg",
+      "f0052ddb-edae-4839-a54b-a64dd95c9ca9/logo.png"
+    ],
     "totalSizeMB": 0.94
   },
   "quote-pdfs": {
     "exists": true,
-    "files": 27,
-    "totalSizeBytes": 12290932,
+    "files": 30,
+    "totalSizeBytes": 12326647,
     "mimeTypes": {
-      "application/pdf": 27
+      "application/pdf": 30
     },
     "errors": [],
     "sample": [
       {
         "path": "1977cf74-2df3-403e-8ac7-4aea3029fb45/v1.pdf",
         "size": 12858,
+        "mime": "application/pdf"
+      },
+      {
+        "path": "3c73946d-8b90-4a27-8f4b-458fdecf5cca/v1.pdf",
+        "size": 11905,
         "mime": "application/pdf"
       },
       {
@@ -112,22 +185,49 @@
         "path": "5eb2c784-a8e6-43c2-b681-f5e6c29f477f/v1.pdf",
         "size": 12898,
         "mime": "application/pdf"
-      },
-      {
-        "path": "77cf10af-249a-496c-b120-2dd10cd408b3/v1.pdf",
-        "size": 19422,
-        "mime": "application/pdf"
       }
     ],
-    "totalSizeMB": 11.72
+    "paths": [
+      "1977cf74-2df3-403e-8ac7-4aea3029fb45/v1.pdf",
+      "3c73946d-8b90-4a27-8f4b-458fdecf5cca/v1.pdf",
+      "4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v1.pdf",
+      "4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v2.pdf",
+      "5eb2c784-a8e6-43c2-b681-f5e6c29f477f/v1.pdf",
+      "77cf10af-249a-496c-b120-2dd10cd408b3/v1.pdf",
+      "7b29c724-504d-43cf-a4bf-0f7a194b38f3/v1.pdf",
+      "889bb470-e31b-46ac-8231-861d1fa9384f/v1.pdf",
+      "99a8a4a0-b545-4fb3-aa38-8e46726c37e9/v1.pdf",
+      "a1eddb87-8d18-460d-95d9-671e1f9527c8/v1.pdf",
+      "a33297e2-c663-49d5-bfc6-ac14102717d3/v1.pdf",
+      "a534b680-9fc1-451a-89ed-d85b59e29a3d/v1.pdf",
+      "a6f92032-ebfa-4911-9e65-72acfdf9c230/v1.pdf",
+      "adde1aae-170d-49e4-978d-1ac6b6f9aa51/v1.pdf",
+      "b2a7b43c-6f9b-40bf-abcf-4c858a548249/v1.pdf",
+      "b40a663c-4de8-4db2-8a49-a27ddbc81c3c/v1.pdf",
+      "bacd6621-adeb-4348-83ac-74132dce6a86/v1.pdf",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1.pdf",
+      "ca4c46e4-2757-47b8-8854-d294e64f5158/v1.pdf",
+      "de516480-2a4c-404f-a2c0-f3ebd27f9c12/v1.pdf",
+      "f1499ea9-4f3e-4002-9530-414c049be368/v1.pdf",
+      "f57ce843-6c5c-412b-b8f6-4cc79ce93f77/v1.pdf",
+      "moodboard/4660bc99-c1bb-498c-8df5-ff778817d9f4/1779693890160-rpmrge.pdf",
+      "moodboard/73a5bc44-bf6e-4f68-9f30-7beff54073f2/v1779643403937.pdf",
+      "moodboard/73a5bc44-bf6e-4f68-9f30-7beff54073f2/v1779644159180.pdf",
+      "moodboard/c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60/1779695228415-4fr7ii.pdf",
+      "moodboard/c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60/1779741430347-c5g0e9.pdf",
+      "moodboard/c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60/1779741767283-cct4sn.pdf",
+      "moodboard/ec78a479-32ba-4d33-a1a3-a43f6e2550af/1779644244533-ovhihx.pdf",
+      "moodboard/ec78a479-32ba-4d33-a1a3-a43f6e2550af/1779644246536-v0yubs.pdf"
+    ],
+    "totalSizeMB": 11.76
   },
   "quote-signatures": {
     "exists": true,
-    "files": 20,
-    "totalSizeBytes": 205947,
+    "files": 49,
+    "totalSizeBytes": 314911,
     "mimeTypes": {
-      "application/pdf": 9,
-      "image/png": 11
+      "application/pdf": 24,
+      "image/png": 25
     },
     "errors": [],
     "sample": [
@@ -142,22 +242,73 @@
         "mime": "image/png"
       },
       {
-        "path": "77cf10af-249a-496c-b120-2dd10cd408b3/v1/audit-sig-1779693884544.png",
-        "size": 70,
-        "mime": "image/png"
+        "path": "5d112f78-262a-4e58-a7ce-700ed008978b/v1/acceptance-1779743147464.pdf",
+        "size": 7199,
+        "mime": "application/pdf"
       },
       {
-        "path": "b40a663c-4de8-4db2-8a49-a27ddbc81c3c/v1/audit-sig-1779695223520.png",
-        "size": 70,
-        "mime": "image/png"
+        "path": "5d112f78-262a-4e58-a7ce-700ed008978b/v1/acceptance-1779743147534.pdf",
+        "size": 7199,
+        "mime": "application/pdf"
       },
       {
-        "path": "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/acceptance-1779656543661.pdf",
-        "size": 22790,
+        "path": "5d112f78-262a-4e58-a7ce-700ed008978b/v1/acceptance-1779743147543.pdf",
+        "size": 7199,
         "mime": "application/pdf"
       }
     ],
-    "totalSizeMB": 0.2
+    "paths": [
+      "4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v1/acceptance-1779640429271.pdf",
+      "4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v1/signature-1779640428829.png",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/acceptance-1779743147464.pdf",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/acceptance-1779743147534.pdf",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/acceptance-1779743147543.pdf",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/acceptance-1779743147609.pdf",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/acceptance-1779743147659.pdf",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/signature-1779743147190.png",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/signature-1779743147194.png",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/signature-1779743147228.png",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/signature-1779743147263.png",
+      "5d112f78-262a-4e58-a7ce-700ed008978b/v1/signature-1779743147318.png",
+      "77cf10af-249a-496c-b120-2dd10cd408b3/v1/audit-sig-1779693884544.png",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/acceptance-1779743295268.pdf",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/acceptance-1779743295425.pdf",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/acceptance-1779743295455.pdf",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/acceptance-1779743295532.pdf",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/acceptance-1779743295680.pdf",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/signature-1779743295002.png",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/signature-1779743295111.png",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/signature-1779743295144.png",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/signature-1779743295155.png",
+      "7c0bca98-6fa5-4f88-adfa-ca8c5ac5919c/v1/signature-1779743295165.png",
+      "b40a663c-4de8-4db2-8a49-a27ddbc81c3c/v1/audit-sig-1779695223520.png",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/acceptance-1779656543661.pdf",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/acceptance-1779741427592.pdf",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/acceptance-1779741428985.pdf",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/acceptance-1779741764633.pdf",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/acceptance-1779741766008.pdf",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/signature-1779656543285.png",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/signature-1779741427239.png",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/signature-1779741428694.png",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/signature-1779741764315.png",
+      "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/signature-1779741765730.png",
+      "ca4c46e4-2757-47b8-8854-d294e64f5158/v1/acceptance-1779742151489.pdf",
+      "ca4c46e4-2757-47b8-8854-d294e64f5158/v1/acceptance-1779742153069.pdf",
+      "ca4c46e4-2757-47b8-8854-d294e64f5158/v1/signature-1779742151202.png",
+      "ca4c46e4-2757-47b8-8854-d294e64f5158/v1/signature-1779742152814.png",
+      "de516480-2a4c-404f-a2c0-f3ebd27f9c12/v1/acceptance-1779658158440.pdf",
+      "de516480-2a4c-404f-a2c0-f3ebd27f9c12/v1/signature-1779658158072.png",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/acceptance-1779743240908.pdf",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/acceptance-1779743240916.pdf",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/acceptance-1779743240920.pdf",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/acceptance-1779743241193.pdf",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/acceptance-1779743241205.pdf",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/signature-1779743240630.png",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/signature-1779743240633.png",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/signature-1779743240635.png",
+      "deb6fc0d-da0e-4bd2-8dab-ca6ba9b7eb9e/v1/signature-1779743240658.png"
+    ],
+    "totalSizeMB": 0.3
   },
   "event-documents": {
     "exists": true,
@@ -166,26 +317,132 @@
     "mimeTypes": {},
     "errors": [],
     "sample": [],
+    "paths": [],
     "totalSizeMB": 0
   },
   "dbRefs": {
-    "providers.logo_url": {
-      "error": "Could not find the table 'public.providers' in the schema cache"
+    "quotes.pdf_url": {
+      "count": 5,
+      "urls": [
+        "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/sign/quote-pdfs/a6f92032-ebfa-4911-9e65-72acfdf9c230/v1.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9kZmM5YzFhZC01YTZjLTQ3ZTUtYTMzYS1mOWQyNDhkZGY4MTEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJxdW90ZS1wZGZzL2E2ZjkyMDMyLWViZmEtNDkxMS05ZTY1LTcyYWNmZGY5YzIzMC92MS5wZGYiLCJpYXQiOjE3Nzk1NTYyODgsImV4cCI6MTc4MDE2MTA4OH0.3TWfbxb2_O-hf4PK98H-RK-AczqUhuwxjExquUy3GFs",
+        "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/sign/quote-pdfs/adde1aae-170d-49e4-978d-1ac6b6f9aa51/v1.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9kZmM5YzFhZC01YTZjLTQ3ZTUtYTMzYS1mOWQyNDhkZGY4MTEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJxdW90ZS1wZGZzL2FkZGUxYWFlLTE3MGQtNDllNC05NzhkLTFhYzZiNmY5YWE1MS92MS5wZGYiLCJpYXQiOjE3Nzk1NTY2OTIsImV4cCI6MTc4MDE2MTQ5Mn0.5RlSY40OBmDX-6hZ1CKyjJKxLxfnKpPa4BP7NwT52fE",
+        "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/sign/quote-pdfs/de516480-2a4c-404f-a2c0-f3ebd27f9c12/v1.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9kZmM5YzFhZC01YTZjLTQ3ZTUtYTMzYS1mOWQyNDhkZGY4MTEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJxdW90ZS1wZGZzL2RlNTE2NDgwLTJhNGMtNDA0Zi1hMmMwLWYzZWJkMjdmOWMxMi92MS5wZGYiLCJpYXQiOjE3Nzk2NTc4NDgsImV4cCI6MTc4MDI2MjY0OH0.CK7yDuA7pErBWeGrJgzFWNpCksnbeNjCIe48KfwTzIk",
+        "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/sign/quote-pdfs/c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9kZmM5YzFhZC01YTZjLTQ3ZTUtYTMzYS1mOWQyNDhkZGY4MTEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJxdW90ZS1wZGZzL2MxOGNkOWM1LTMzMjgtNDdiYy1hZmQ1LWNhYjVhZGMyNDk5YS92MS5wZGYiLCJpYXQiOjE3Nzk3NDE3NjAsImV4cCI6MTc4MDM0NjU2MH0.01bMVISvgSNXm8iTNGOPUA-o7oGNalRQ2jOYeAVuMkY",
+        "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/sign/quote-pdfs/b40a663c-4de8-4db2-8a49-a27ddbc81c3c/v1.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9kZmM5YzFhZC01YTZjLTQ3ZTUtYTMzYS1mOWQyNDhkZGY4MTEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJxdW90ZS1wZGZzL2I0MGE2NjNjLTRkZTgtNGRiMi04YTQ5LWEyN2RkYmM4MWMzYy92MS5wZGYiLCJpYXQiOjE3Nzk2OTUyMjksImV4cCI6MTc4MDMwMDAyOX0.yLg6ki6YB6q89w_Z5kODAxFVu_6TY6JAgMaJ_8Wzj4A"
+      ]
     },
-    "providers.cover_url": {
-      "error": "Could not find the table 'public.providers' in the schema cache"
+    "contracts.pdf_url": {
+      "count": 0,
+      "urls": []
+    },
+    "profiles.logo_url": {
+      "count": null,
+      "sample": []
+    },
+    "profiles.cover_url": {
+      "count": null,
+      "sample": []
+    },
+    "profiles.avatar_url": {
+      "count": null,
+      "sample": []
     },
     "service_photos.url": {
-      "error": "column service_photos.url does not exist"
+      "count": null,
+      "sample": []
     },
-    "brand_assets.url": {
-      "error": "Could not find the table 'public.brand_assets' in the schema cache"
+    "service_photos.photo_url": {
+      "count": null,
+      "sample": []
     },
-    "quote_pdfs.url": {
-      "error": "Could not find the table 'public.quote_pdfs' in the schema cache"
+    "service_photos.photos": {
+      "count": null,
+      "sample": []
+    },
+    "services.url": {
+      "count": null,
+      "sample": []
+    },
+    "services.photo_url": {
+      "count": null,
+      "sample": []
+    },
+    "services.photos": {
+      "count": null,
+      "sample": []
     },
     "event_documents.url": {
-      "error": "column event_documents.url does not exist"
+      "count": null,
+      "sample": []
+    },
+    "event_documents.file_url": {
+      "count": null,
+      "sample": []
+    },
+    "event_documents.document_url": {
+      "count": null,
+      "sample": []
     }
+  },
+  "orphanReport": {
+    "quote-pdfs": {
+      "orphansInStorage": 9,
+      "sampleOrphans": [
+        "quote-pdfs/4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v2.pdf",
+        "quote-pdfs/moodboard/4660bc99-c1bb-498c-8df5-ff778817d9f4/1779693890160-rpmrge.pdf",
+        "quote-pdfs/moodboard/73a5bc44-bf6e-4f68-9f30-7beff54073f2/v1779643403937.pdf",
+        "quote-pdfs/moodboard/73a5bc44-bf6e-4f68-9f30-7beff54073f2/v1779644159180.pdf",
+        "quote-pdfs/moodboard/c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60/1779695228415-4fr7ii.pdf",
+        "quote-pdfs/moodboard/c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60/1779741430347-c5g0e9.pdf",
+        "quote-pdfs/moodboard/c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60/1779741767283-cct4sn.pdf",
+        "quote-pdfs/moodboard/ec78a479-32ba-4d33-a1a3-a43f6e2550af/1779644244533-ovhihx.pdf",
+        "quote-pdfs/moodboard/ec78a479-32ba-4d33-a1a3-a43f6e2550af/1779644246536-v0yubs.pdf"
+      ],
+      "missingInStorage": 0,
+      "sampleMissing": []
+    }
+  },
+  "timestamps": {
+    "tables": 48,
+    "missingCreatedAt": [
+      "event_transport_assignments",
+      "market_prices",
+      "beta_status",
+      "quote_acceptances_audit"
+    ],
+    "withUpdatedAt": 29,
+    "tablesWithUpdatedAtTrigger": [
+      "contracts",
+      "event_timeline",
+      "event_guests",
+      "wedding_tasks",
+      "event_accommodations",
+      "event_transport",
+      "event_gadgets",
+      "event_subevents",
+      "couple_preferences",
+      "supplier_invites",
+      "supplier_availability",
+      "couple_change_requests",
+      "supplier_clients",
+      "beta_status"
+    ],
+    "tablesUpdatedAtNoTrigger": [
+      "profiles",
+      "collaborations",
+      "service_categories",
+      "services",
+      "service_modifiers",
+      "calendar_entries",
+      "quotes",
+      "quote_items",
+      "quote_supplier_markups",
+      "market_prices",
+      "service_presets",
+      "finance_offers",
+      "finance_applications",
+      "insurance_offers",
+      "insurance_policies"
+    ]
   }
 }

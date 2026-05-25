@@ -1,0 +1,6 @@
+endpoint	n	p50	p95	avg	status
+rest/v1/quotes?select=id&limit=5	5	128	132	127.9
+rest/v1/calendar_entries?select=id&limit=5	5	123	139	125.9
+rest/v1/suppliers_visible?select=id&limit=5	5	110	125	111.1
+rest/v1/weddings?select=id&limit=5	5	117	127	119.0
+rpc/my_quote_conflict_alerts	5	126	141	126.5
