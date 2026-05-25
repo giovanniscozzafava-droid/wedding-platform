@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      beta_status: {
+        Row: {
+          free_until: string | null
+          is_beta: boolean
+          message_long: string | null
+          message_short: string | null
+          planned_currency: string | null
+          planned_period: string | null
+          planned_price: number | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          free_until?: string | null
+          is_beta?: boolean
+          message_long?: string | null
+          message_short?: string | null
+          planned_currency?: string | null
+          planned_period?: string | null
+          planned_price?: number | null
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          free_until?: string | null
+          is_beta?: boolean
+          message_long?: string | null
+          message_short?: string | null
+          planned_currency?: string | null
+          planned_period?: string | null
+          planned_price?: number | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       budget_categories: {
         Row: {
           color: string | null
@@ -129,6 +165,7 @@ export type Database = {
       }
       calendar_entries: {
         Row: {
+          business_model: string
           client_email: string | null
           client_name: string | null
           created_at: string
@@ -147,6 +184,8 @@ export type Database = {
           owner_id: string
           quote_id: string | null
           status: Database["public"]["Enums"]["entry_status"]
+          tables_naming_style: string | null
+          theme: string | null
           title: string
           updated_at: string
           value_amount: number | null
@@ -155,6 +194,7 @@ export type Database = {
           wedding_website_slug: string | null
         }
         Insert: {
+          business_model?: string
           client_email?: string | null
           client_name?: string | null
           created_at?: string
@@ -173,6 +213,8 @@ export type Database = {
           owner_id: string
           quote_id?: string | null
           status?: Database["public"]["Enums"]["entry_status"]
+          tables_naming_style?: string | null
+          theme?: string | null
           title: string
           updated_at?: string
           value_amount?: number | null
@@ -181,6 +223,7 @@ export type Database = {
           wedding_website_slug?: string | null
         }
         Update: {
+          business_model?: string
           client_email?: string | null
           client_name?: string | null
           created_at?: string
@@ -199,6 +242,8 @@ export type Database = {
           owner_id?: string
           quote_id?: string | null
           status?: Database["public"]["Enums"]["entry_status"]
+          tables_naming_style?: string | null
+          theme?: string | null
           title?: string
           updated_at?: string
           value_amount?: number | null
@@ -368,6 +413,7 @@ export type Database = {
           client_fiscal_code: string | null
           client_name: string | null
           created_at: string
+          direct_client_id: string | null
           entry_id: string | null
           event_date: string | null
           id: string
@@ -388,6 +434,7 @@ export type Database = {
           client_fiscal_code?: string | null
           client_name?: string | null
           created_at?: string
+          direct_client_id?: string | null
           entry_id?: string | null
           event_date?: string | null
           id?: string
@@ -408,6 +455,7 @@ export type Database = {
           client_fiscal_code?: string | null
           client_name?: string | null
           created_at?: string
+          direct_client_id?: string | null
           entry_id?: string | null
           event_date?: string | null
           id?: string
@@ -423,6 +471,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "contracts_direct_client_id_fkey"
+            columns: ["direct_client_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_direct_client_id_fkey"
+            columns: ["direct_client_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_clients_dashboard"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contracts_entry_id_fkey"
             columns: ["entry_id"]
@@ -449,6 +511,89 @@ export type Database = {
             columns: ["quote_id"]
             isOneToOne: false
             referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      couple_change_requests: {
+        Row: {
+          action: Database["public"]["Enums"]["change_request_action"]
+          created_at: string
+          description: string | null
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["change_request_entity"]
+          id: string
+          payload: Json
+          requested_by: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["change_request_status"]
+          title: string
+          updated_at: string
+          wedding_id: string
+        }
+        Insert: {
+          action?: Database["public"]["Enums"]["change_request_action"]
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type: Database["public"]["Enums"]["change_request_entity"]
+          id?: string
+          payload?: Json
+          requested_by: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["change_request_status"]
+          title: string
+          updated_at?: string
+          wedding_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["change_request_action"]
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["change_request_entity"]
+          id?: string
+          payload?: Json
+          requested_by?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["change_request_status"]
+          title?: string
+          updated_at?: string
+          wedding_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "couple_change_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_change_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_change_requests_wedding_id_fkey"
+            columns: ["wedding_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_change_requests_wedding_id_fkey"
+            columns: ["wedding_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
         ]
@@ -534,6 +679,8 @@ export type Database = {
       event_accommodations: {
         Row: {
           address: string | null
+          check_in: string | null
+          check_out: string | null
           checkin_date: string | null
           checkout_date: string | null
           city: string | null
@@ -553,11 +700,15 @@ export type Database = {
           rate_per_night: number | null
           rooms_blocked: number | null
           rooms_used: number | null
+          total_beds: number | null
+          total_rooms: number | null
           updated_at: string
           url: string | null
         }
         Insert: {
           address?: string | null
+          check_in?: string | null
+          check_out?: string | null
           checkin_date?: string | null
           checkout_date?: string | null
           city?: string | null
@@ -577,11 +728,15 @@ export type Database = {
           rate_per_night?: number | null
           rooms_blocked?: number | null
           rooms_used?: number | null
+          total_beds?: number | null
+          total_rooms?: number | null
           updated_at?: string
           url?: string | null
         }
         Update: {
           address?: string | null
+          check_in?: string | null
+          check_out?: string | null
           checkin_date?: string | null
           checkout_date?: string | null
           city?: string | null
@@ -601,6 +756,8 @@ export type Database = {
           rate_per_night?: number | null
           rooms_blocked?: number | null
           rooms_used?: number | null
+          total_beds?: number | null
+          total_rooms?: number | null
           updated_at?: string
           url?: string | null
         }
@@ -760,6 +917,127 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_guest_accommodation: {
+        Row: {
+          accommodation_id: string
+          check_in: string | null
+          check_out: string | null
+          created_at: string
+          entry_id: string
+          guest_id: string
+          id: string
+          notes: string | null
+          room_label: string | null
+        }
+        Insert: {
+          accommodation_id: string
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          entry_id: string
+          guest_id: string
+          id?: string
+          notes?: string | null
+          room_label?: string | null
+        }
+        Update: {
+          accommodation_id?: string
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          entry_id?: string
+          guest_id?: string
+          id?: string
+          notes?: string | null
+          room_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_guest_accommodation_accommodation_id_fkey"
+            columns: ["accommodation_id"]
+            isOneToOne: false
+            referencedRelation: "event_accommodations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guest_accommodation_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guest_accommodation_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guest_accommodation_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "event_guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_guest_transport: {
+        Row: {
+          created_at: string
+          entry_id: string
+          guest_id: string
+          id: string
+          notes: string | null
+          transport_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          guest_id: string
+          id?: string
+          notes?: string | null
+          transport_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          guest_id?: string
+          id?: string
+          notes?: string | null
+          transport_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_guest_transport_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guest_transport_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guest_transport_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "event_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guest_transport_transport_id_fkey"
+            columns: ["transport_id"]
+            isOneToOne: false
+            referencedRelation: "event_transport"
             referencedColumns: ["id"]
           },
         ]
@@ -1241,6 +1519,263 @@ export type Database = {
           },
         ]
       }
+      finance_applications: {
+        Row: {
+          amount: number
+          applicant_id: string
+          created_at: string
+          id: string
+          months: number
+          notes: string | null
+          offer_id: string | null
+          quote_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          applicant_id: string
+          created_at?: string
+          id?: string
+          months: number
+          notes?: string | null
+          offer_id?: string | null
+          quote_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          applicant_id?: string
+          created_at?: string
+          id?: string
+          months?: number
+          notes?: string | null
+          offer_id?: string | null
+          quote_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_applications_applicant_id_fkey"
+            columns: ["applicant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_applications_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "finance_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_applications_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_offers: {
+        Row: {
+          apr_percent: number | null
+          contract_terms: string | null
+          created_at: string
+          description: string | null
+          exclusive_until: string | null
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          max_months: number | null
+          partner_logo_url: string | null
+          partner_name: string
+          updated_at: string
+        }
+        Insert: {
+          apr_percent?: number | null
+          contract_terms?: string | null
+          created_at?: string
+          description?: string | null
+          exclusive_until?: string | null
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          max_months?: number | null
+          partner_logo_url?: string | null
+          partner_name: string
+          updated_at?: string
+        }
+        Update: {
+          apr_percent?: number | null
+          contract_terms?: string | null
+          created_at?: string
+          description?: string | null
+          exclusive_until?: string | null
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          max_months?: number | null
+          partner_logo_url?: string | null
+          partner_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      insurance_offers: {
+        Row: {
+          base_price: number | null
+          contract_terms: string | null
+          coverage_type: string | null
+          created_at: string
+          description: string | null
+          exclusive_until: string | null
+          id: string
+          is_active: boolean
+          partner_logo_url: string | null
+          partner_name: string
+          product_name: string
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number | null
+          contract_terms?: string | null
+          coverage_type?: string | null
+          created_at?: string
+          description?: string | null
+          exclusive_until?: string | null
+          id?: string
+          is_active?: boolean
+          partner_logo_url?: string | null
+          partner_name: string
+          product_name: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number | null
+          contract_terms?: string | null
+          coverage_type?: string | null
+          created_at?: string
+          description?: string | null
+          exclusive_until?: string | null
+          id?: string
+          is_active?: boolean
+          partner_logo_url?: string | null
+          partner_name?: string
+          product_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      insurance_policies: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          entry_id: string
+          id: string
+          notes: string | null
+          offer_id: string | null
+          policy_number: string | null
+          premium: number | null
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          entry_id: string
+          id?: string
+          notes?: string | null
+          offer_id?: string | null
+          policy_number?: string | null
+          premium?: number | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          entry_id?: string
+          id?: string
+          notes?: string | null
+          offer_id?: string | null
+          policy_number?: string | null
+          premium?: number | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insurance_policies_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "insurance_policies_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "insurance_policies_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "insurance_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_prices: {
+        Row: {
+          id: string
+          notes: string | null
+          price_median: number
+          price_p25: number
+          price_p75: number
+          region: string | null
+          sample_size: number
+          service_kind: string
+          subrole: string
+          unit: Database["public"]["Enums"]["service_unit"]
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          price_median: number
+          price_p25: number
+          price_p75: number
+          region?: string | null
+          sample_size?: number
+          service_kind: string
+          subrole: string
+          unit?: Database["public"]["Enums"]["service_unit"]
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          price_median?: number
+          price_p25?: number
+          price_p75?: number
+          region?: string | null
+          sample_size?: number
+          service_kind?: string
+          subrole?: string
+          unit?: Database["public"]["Enums"]["service_unit"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mood_images: {
         Row: {
           caption: string | null
@@ -1387,14 +1922,18 @@ export type Database = {
           cover_image_url: string | null
           created_at: string
           default_markup_percent: number
+          deletion_requested_at: string | null
           facebook: string | null
           fiscal_code: string | null
           full_name: string | null
           id: string
           instagram: string | null
+          marketing_consent_at: string | null
           notification_preferences: Json
+          offers_full_dining: boolean
           onboarding_complete: boolean
           phone: string | null
+          privacy_consent_at: string | null
           profile_visibility: Database["public"]["Enums"]["profile_visibility"]
           role: Database["public"]["Enums"]["user_role"]
           service_radius_km: number | null
@@ -1404,6 +1943,7 @@ export type Database = {
           updated_at: string
           vat_number: string | null
           website: string | null
+          work_style: string | null
           years_active: number | null
           zip: string | null
         }
@@ -1419,14 +1959,18 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string
           default_markup_percent?: number
+          deletion_requested_at?: string | null
           facebook?: string | null
           fiscal_code?: string | null
           full_name?: string | null
           id: string
           instagram?: string | null
+          marketing_consent_at?: string | null
           notification_preferences?: Json
+          offers_full_dining?: boolean
           onboarding_complete?: boolean
           phone?: string | null
+          privacy_consent_at?: string | null
           profile_visibility?: Database["public"]["Enums"]["profile_visibility"]
           role: Database["public"]["Enums"]["user_role"]
           service_radius_km?: number | null
@@ -1436,6 +1980,7 @@ export type Database = {
           updated_at?: string
           vat_number?: string | null
           website?: string | null
+          work_style?: string | null
           years_active?: number | null
           zip?: string | null
         }
@@ -1451,14 +1996,18 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string
           default_markup_percent?: number
+          deletion_requested_at?: string | null
           facebook?: string | null
           fiscal_code?: string | null
           full_name?: string | null
           id?: string
           instagram?: string | null
+          marketing_consent_at?: string | null
           notification_preferences?: Json
+          offers_full_dining?: boolean
           onboarding_complete?: boolean
           phone?: string | null
+          privacy_consent_at?: string | null
           profile_visibility?: Database["public"]["Enums"]["profile_visibility"]
           role?: Database["public"]["Enums"]["user_role"]
           service_radius_km?: number | null
@@ -1468,10 +2017,85 @@ export type Database = {
           updated_at?: string
           vat_number?: string | null
           website?: string | null
+          work_style?: string | null
           years_active?: number | null
           zip?: string | null
         }
         Relationships: []
+      }
+      quote_acceptances: {
+        Row: {
+          acceptance_pdf_url: string | null
+          accepted_at: string
+          access_token: string
+          consent_privacy: boolean
+          consent_terms: boolean
+          created_at: string
+          doc_issued_by: string | null
+          doc_number: string
+          doc_type: string
+          id: string
+          ip_address: string | null
+          quote_id: string
+          quote_pdf_hash: string | null
+          quote_revision: number
+          signature_url: string
+          signer_email: string
+          signer_name: string
+          signer_phone: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          acceptance_pdf_url?: string | null
+          accepted_at?: string
+          access_token: string
+          consent_privacy?: boolean
+          consent_terms?: boolean
+          created_at?: string
+          doc_issued_by?: string | null
+          doc_number: string
+          doc_type: string
+          id?: string
+          ip_address?: string | null
+          quote_id: string
+          quote_pdf_hash?: string | null
+          quote_revision: number
+          signature_url: string
+          signer_email: string
+          signer_name: string
+          signer_phone?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          acceptance_pdf_url?: string | null
+          accepted_at?: string
+          access_token?: string
+          consent_privacy?: boolean
+          consent_terms?: boolean
+          created_at?: string
+          doc_issued_by?: string | null
+          doc_number?: string
+          doc_type?: string
+          id?: string
+          ip_address?: string | null
+          quote_id?: string
+          quote_pdf_hash?: string | null
+          quote_revision?: number
+          signature_url?: string
+          signer_email?: string
+          signer_name?: string
+          signer_phone?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_acceptances_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quote_items: {
         Row: {
@@ -1486,6 +2110,10 @@ export type Database = {
           line_cost: number
           modifiers_applied: Json
           name_snapshot: string
+          paid_amount: number
+          paid_at: string | null
+          payment_method: string | null
+          payment_status: string
           quantity: number
           quantity_basis: Database["public"]["Enums"]["quantity_basis"]
           quote_id: string
@@ -1509,6 +2137,10 @@ export type Database = {
           line_cost?: number
           modifiers_applied?: Json
           name_snapshot: string
+          paid_amount?: number
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_status?: string
           quantity?: number
           quantity_basis?: Database["public"]["Enums"]["quantity_basis"]
           quote_id: string
@@ -1532,6 +2164,10 @@ export type Database = {
           line_cost?: number
           modifiers_applied?: Json
           name_snapshot?: string
+          paid_amount?: number
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_status?: string
           quantity?: number
           quantity_basis?: Database["public"]["Enums"]["quantity_basis"]
           quote_id?: string
@@ -1656,6 +2292,7 @@ export type Database = {
           client_response_log: Json
           created_at: string
           default_markup_percent: number
+          direct_client_id: string | null
           event_date: string | null
           guest_count: number | null
           id: string
@@ -1684,6 +2321,7 @@ export type Database = {
           client_response_log?: Json
           created_at?: string
           default_markup_percent?: number
+          direct_client_id?: string | null
           event_date?: string | null
           guest_count?: number | null
           id?: string
@@ -1712,6 +2350,7 @@ export type Database = {
           client_response_log?: Json
           created_at?: string
           default_markup_percent?: number
+          direct_client_id?: string | null
           event_date?: string | null
           guest_count?: number | null
           id?: string
@@ -1733,6 +2372,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "quotes_direct_client_id_fkey"
+            columns: ["direct_client_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_direct_client_id_fkey"
+            columns: ["direct_client_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_clients_dashboard"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotes_owner_id_fkey"
             columns: ["owner_id"]
@@ -1779,6 +2432,50 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_components: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          ord: number
+          quantity: number
+          service_id: string
+          unit: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          ord?: number
+          quantity?: number
+          service_id: string
+          unit?: string | null
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          ord?: number
+          quantity?: number
+          service_id?: string
+          unit?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_components_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
@@ -1859,6 +2556,63 @@ export type Database = {
           },
         ]
       }
+      service_presets: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          default_price: number | null
+          default_unit: Database["public"]["Enums"]["service_unit"] | null
+          description: string | null
+          fornitore_id: string
+          id: string
+          is_template: boolean
+          items: Json
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          default_price?: number | null
+          default_unit?: Database["public"]["Enums"]["service_unit"] | null
+          description?: string | null
+          fornitore_id: string
+          id?: string
+          is_template?: boolean
+          items?: Json
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          default_price?: number | null
+          default_unit?: Database["public"]["Enums"]["service_unit"] | null
+          description?: string | null
+          fornitore_id?: string
+          id?: string
+          is_template?: boolean
+          items?: Json
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_presets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_presets_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           base_price: number
@@ -1907,6 +2661,118 @@ export type Database = {
           {
             foreignKeyName: "services_fornitore_id_fkey"
             columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_availability: {
+        Row: {
+          created_at: string
+          date: string
+          fornitore_id: string
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["supplier_avail_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          fornitore_id: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["supplier_avail_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          fornitore_id?: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["supplier_avail_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_availability_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_clients: {
+        Row: {
+          budget_max: number | null
+          budget_min: number | null
+          created_at: string
+          email: string | null
+          event_date: string | null
+          event_kind: string | null
+          fiscal_code: string | null
+          full_name: string
+          guest_estimate: number | null
+          id: string
+          location_text: string | null
+          notes: string | null
+          partner_name: string | null
+          phone: string | null
+          source: string | null
+          status: string
+          supplier_id: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          budget_max?: number | null
+          budget_min?: number | null
+          created_at?: string
+          email?: string | null
+          event_date?: string | null
+          event_kind?: string | null
+          fiscal_code?: string | null
+          full_name: string
+          guest_estimate?: number | null
+          id?: string
+          location_text?: string | null
+          notes?: string | null
+          partner_name?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          supplier_id: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          budget_max?: number | null
+          budget_min?: number | null
+          created_at?: string
+          email?: string | null
+          event_date?: string | null
+          event_kind?: string | null
+          fiscal_code?: string | null
+          full_name?: string
+          guest_estimate?: number | null
+          id?: string
+          location_text?: string | null
+          notes?: string | null
+          partner_name?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          supplier_id?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_clients_supplier_id_fkey"
+            columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2147,9 +3013,69 @@ export type Database = {
           },
         ]
       }
+      supplier_clients_dashboard: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          event_date: string | null
+          event_kind: string | null
+          full_name: string | null
+          id: string | null
+          partner_name: string | null
+          phone: string | null
+          quote_count: number | null
+          quoted_amount: number | null
+          signed_contracts: number | null
+          status: string | null
+          supplier_id: string | null
+          tags: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          event_date?: string | null
+          event_kind?: string | null
+          full_name?: string | null
+          id?: string | null
+          partner_name?: string | null
+          phone?: string | null
+          quote_count?: never
+          quoted_amount?: never
+          signed_contracts?: never
+          status?: string | null
+          supplier_id?: string | null
+          tags?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          event_date?: string | null
+          event_kind?: string | null
+          full_name?: string | null
+          id?: string | null
+          partner_name?: string | null
+          phone?: string | null
+          quote_count?: never
+          quoted_amount?: never
+          signed_contracts?: never
+          status?: string | null
+          supplier_id?: string | null
+          tags?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_clients_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_supplier_invite: { Args: { p_token: string }; Returns: boolean }
+      admin_purge_deletion_requests: { Args: never; Returns: number }
       calcola_markup_effettivo: {
         Args: {
           p_item_markup: number
@@ -2158,6 +3084,11 @@ export type Database = {
         }
         Returns: number
       }
+      check_supplier_available: {
+        Args: { p_date: string; p_supplier: string }
+        Returns: boolean
+      }
+      claim_supplier_invite: { Args: { p_token: string }; Returns: boolean }
       contract_get_by_token: { Args: { p_token: string }; Returns: Json }
       contract_sign_by_token: {
         Args: {
@@ -2173,8 +3104,13 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_collab_supplier_of_entry: {
+        Args: { p_entry: string }
+        Returns: boolean
+      }
       is_entry_participant: { Args: { p_entry: string }; Returns: boolean }
       is_quote_owner: { Args: { p_quote: string }; Returns: boolean }
+      is_service_owner: { Args: { p_service_id: string }; Returns: boolean }
       is_wedding_couple: { Args: { p_entry: string }; Returns: boolean }
       quote_accept_by_token: { Args: { p_token: string }; Returns: boolean }
       quote_get_by_token: { Args: { p_token: string }; Returns: Json }
@@ -2195,6 +3131,9 @@ export type Database = {
         Returns: undefined
       }
       quotes_recalc_totals: { Args: { p_quote_id: string }; Returns: undefined }
+      request_account_deletion: { Args: never; Returns: boolean }
+      resolve_couple_invite: { Args: { p_token: string }; Returns: Json }
+      resolve_supplier_invite: { Args: { p_token: string }; Returns: Json }
       seed_user: {
         Args: {
           p_email: string
@@ -2226,6 +3165,17 @@ export type Database = {
         | "VILLA_PRIVATA"
         | "APPARTAMENTO"
         | "RESORT"
+      change_request_action: "CREATE" | "UPDATE" | "DELETE"
+      change_request_entity:
+        | "GUEST"
+        | "TABLE"
+        | "ACCOMMODATION"
+        | "TRANSPORT"
+        | "TIMELINE"
+        | "SUBEVENT"
+        | "WEBSITE"
+        | "OTHER"
+      change_request_status: "PENDING" | "APPROVED" | "REJECTED" | "APPLIED"
       collaboration_status: "PENDING" | "ACTIVE" | "REVOKED"
       contract_status: "BOZZA" | "INVIATO" | "FIRMATO" | "ANNULLATO"
       couple_role: "SPOSO" | "SPOSA" | "PARTNER" | "PERSONA_DI_FIDUCIA"
@@ -2273,6 +3223,7 @@ export type Database = {
         | "BABY_SHOWER"
         | "ALTRO"
       subscription_tier: "FREE" | "PREMIUM"
+      supplier_avail_status: "AVAILABLE" | "BUSY" | "TENTATIVE"
       transport_kind:
         | "AUTO_SPOSI"
         | "PULMINO_NAVETTA"
@@ -2437,6 +3388,18 @@ export const Constants = {
         "APPARTAMENTO",
         "RESORT",
       ],
+      change_request_action: ["CREATE", "UPDATE", "DELETE"],
+      change_request_entity: [
+        "GUEST",
+        "TABLE",
+        "ACCOMMODATION",
+        "TRANSPORT",
+        "TIMELINE",
+        "SUBEVENT",
+        "WEBSITE",
+        "OTHER",
+      ],
+      change_request_status: ["PENDING", "APPROVED", "REJECTED", "APPLIED"],
       collaboration_status: ["PENDING", "ACTIVE", "REVOKED"],
       contract_status: ["BOZZA", "INVIATO", "FIRMATO", "ANNULLATO"],
       couple_role: ["SPOSO", "SPOSA", "PARTNER", "PERSONA_DI_FIDUCIA"],
@@ -2488,6 +3451,7 @@ export const Constants = {
         "ALTRO",
       ],
       subscription_tier: ["FREE", "PREMIUM"],
+      supplier_avail_status: ["AVAILABLE", "BUSY", "TENTATIVE"],
       transport_kind: [
         "AUTO_SPOSI",
         "PULMINO_NAVETTA",

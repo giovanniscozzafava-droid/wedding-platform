@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
+import { BetaBanner } from '@/components/BetaBanner'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -247,6 +248,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="flex-1 min-w-0 flex flex-col">
+          <BetaBanner />
           <div className="flex-1">
             {children}
           </div>
