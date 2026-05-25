@@ -1,0 +1,355 @@
+{
+  "started_at": "2026-05-25T23:35:19.277Z",
+  "ended_at": "2026-05-25T23:35:29.295Z",
+  "base_url": "https://planfully.it",
+  "deploy": "33i3yksb1",
+  "tests": [
+    {
+      "id": "S1",
+      "title": "State machine quote_status (BOZZA→INVIATO→ACCETTATO→CONVERTITO + block invalid)",
+      "verdict": "PASS",
+      "details": {
+        "steps": [
+          {
+            "step": "create_BOZZA",
+            "status": "BOZZA",
+            "ok": true
+          },
+          {
+            "step": "BOZZA->INVIATO",
+            "status": "INVIATO",
+            "ok": true
+          },
+          {
+            "step": "INVIATO->ACCETTATO",
+            "status": "ACCETTATO",
+            "ok": true
+          },
+          {
+            "step": "ACCETTATO->RIFIUTATO (must BLOCK)",
+            "err": "Transizione status preventivo non valida: ACCETTATO -> RIFIUTATO",
+            "err_code": "P0001",
+            "blocked": true,
+            "ok": true
+          },
+          {
+            "step": "ACCETTATO->CONVERTITO_IN_CONTRATTO",
+            "status": "CONVERTITO_IN_CONTRATTO",
+            "ok": true
+          },
+          {
+            "step": "CONVERTITO->INVIATO (must BLOCK)",
+            "err": "Transizione status preventivo non valida: CONVERTITO_IN_CONTRATTO -> INVIATO",
+            "err_code": "P0001",
+            "blocked": true,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "S2",
+      "title": "CHECK constraints quote_items (label_not_empty, quantity_range)",
+      "verdict": "PASS",
+      "details": {
+        "steps": [
+          {
+            "step": "name_snapshot=\"\" → must BLOCK",
+            "err": "new row for relation \"quote_items\" violates check constraint \"qitems_label_not_empty\"",
+            "err_code": "23514",
+            "blocked": true,
+            "ok": true
+          },
+          {
+            "step": "quantity=100000 → must BLOCK",
+            "err": "new row for relation \"quote_items\" violates check constraint \"qitems_quantity_range\"",
+            "err_code": "23514",
+            "blocked": true,
+            "ok": true
+          },
+          {
+            "step": "quantity=-1 → must BLOCK",
+            "err": "new row for relation \"quote_items\" violates check constraint \"qitems_quantity_range\"",
+            "err_code": "23514",
+            "blocked": true,
+            "ok": true
+          },
+          {
+            "step": "name=\"Catering\" qty=50 → OK",
+            "id": "5a5b2521-bf28-40b7-9f76-6b6aeda92d28",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "S3",
+      "title": "tab Programma empty state + ChangeRequestModal trigger",
+      "verdict": "PASS",
+      "details": {
+        "checks": {
+          "hasEmptyScaletta": true,
+          "hasModalTimeline": true,
+          "hasModalSubevent": true,
+          "hasEmptyEventi": true
+        },
+        "ccr_inserted": "0dd640bb-4acc-46aa-9fa3-7d4f91de147d",
+        "ccr_err": null
+      }
+    },
+    {
+      "id": "F01",
+      "title": "RLS couple_change_requests sposo INSERT",
+      "verdict": "PASS",
+      "details": {}
+    },
+    {
+      "id": "F02",
+      "title": "RLS collab supplier scope (no leak)",
+      "verdict": "PASS",
+      "details": {
+        "leak_count": 0
+      }
+    },
+    {
+      "id": "F03",
+      "title": "upload-photo PNG → 200",
+      "verdict": "PASS",
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "id": "F04",
+      "title": "import-pin-url Pinterest 422 italiano/no og:image",
+      "verdict": "PASS",
+      "details": {
+        "status": 422,
+        "error_body": "no og:image found"
+      }
+    },
+    {
+      "id": "F05",
+      "title": "quotes BOZZA→INVIATO→ACCETTATO trigger avail OK",
+      "verdict": "PASS",
+      "details": {
+        "u1_status": "INVIATO",
+        "u2_status": "ACCETTATO"
+      }
+    },
+    {
+      "id": "F06",
+      "title": "RLS quotes INSERT fornitore OK",
+      "verdict": "PASS",
+      "details": {}
+    },
+    {
+      "id": "F07",
+      "title": "CookieBanner z-40 / pointer-events-none",
+      "verdict": "PASS",
+      "details": {
+        "checks": {
+          "hasZ40": false,
+          "hasPointerNone": true,
+          "files": 1
+        }
+      }
+    },
+    {
+      "id": "F08",
+      "title": "PDF brand_primary_color usato anche FREE",
+      "verdict": "PASS",
+      "details": {
+        "readsBrand": true,
+        "tierGate": false
+      }
+    },
+    {
+      "id": "F09",
+      "title": "quote-accept-sign 5x parallel idempotency",
+      "verdict": "PASS",
+      "details": {
+        "statuses": [
+          200,
+          409,
+          409,
+          409,
+          409
+        ],
+        "c200": 1,
+        "c409": 4,
+        "db_acceptances": 1
+      }
+    },
+    {
+      "id": "F10",
+      "title": "tab strip edge-fade gradient",
+      "verdict": "PASS",
+      "details": {
+        "files": 2,
+        "hits": 2
+      }
+    },
+    {
+      "id": "F11",
+      "title": "header sposi 375px chip iniziali",
+      "verdict": "PASS",
+      "details": {
+        "candidates": 1,
+        "foundChip": true
+      }
+    },
+    {
+      "id": "F12",
+      "title": "bundle index<600KB + vendor chunks",
+      "verdict": "PASS",
+      "details": {
+        "chunks": [
+          "assets/index-D7DsjqvX.js",
+          "assets/vendor-pdf-DvHkrW-m.js",
+          "assets/vendor-motion-BnPlfCCY.js",
+          "assets/vendor-react-DyTvu2tV.js",
+          "assets/vendor-supabase-BDjhuu4N.js",
+          "assets/vendor-query-tqMhkkzg.js",
+          "assets/vendor-ui-NSTwVXc9.js"
+        ],
+        "missing": [],
+        "index_kb": "554.0"
+      }
+    },
+    {
+      "id": "F13",
+      "title": "contracts FIRMATO ha signed_at popolato + CHECK",
+      "verdict": "PASS",
+      "details": {
+        "legacy_bad": 0,
+        "blocked": true
+      }
+    },
+    {
+      "id": "F14",
+      "title": "quotes ACCETTATO ha accepted_at popolato",
+      "verdict": "PASS",
+      "details": {
+        "legacy_bad": 0,
+        "blocked": true
+      }
+    },
+    {
+      "id": "F15",
+      "title": "trigger set_updated_at su market_prices",
+      "verdict": "PASS",
+      "details": {
+        "before": "2026-05-23T17:58:59.564686+00:00",
+        "after": "2026-05-25T23:35:26.94595+00:00",
+        "changed": true
+      }
+    },
+    {
+      "id": "F16",
+      "title": "QuoteEditor banner ACCETTATO ha \"Genera contratto\"",
+      "verdict": "PASS",
+      "details": {
+        "files": 1,
+        "found": true
+      }
+    },
+    {
+      "id": "F17",
+      "title": "wedding_site_rsvp idempotente per email",
+      "verdict": "PASS",
+      "details": {
+        "rows": 1
+      }
+    },
+    {
+      "id": "F18",
+      "title": "contract_sign_by_token BOZZA → FIRMATO",
+      "verdict": "PASS",
+      "details": {
+        "rpc": true,
+        "status": "FIRMATO",
+        "signed_at": "2026-05-25T23:35:27.240252+00:00"
+      }
+    },
+    {
+      "id": "S5",
+      "title": "performance regression (TTFB + bundle + 5xx)",
+      "verdict": "PASS",
+      "details": {
+        "ttfb_runs": [
+          {
+            "ms": 48,
+            "status": 200,
+            "size": 1951
+          },
+          {
+            "ms": 43,
+            "status": 200,
+            "size": 1951
+          },
+          {
+            "ms": 43,
+            "status": 200,
+            "size": 1951
+          }
+        ],
+        "min_ttfb_ms": 43,
+        "bundle": {
+          "chunks": 7,
+          "index_kb": "554.0",
+          "has_vendor_pdf": true
+        },
+        "endpoint_statuses": [
+          {
+            "url": "https://planfully.it/",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/login",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/signup",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/clienti",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/about",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/privacy",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/terms",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/sito/andrea-e-sofia-audit",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/couple",
+            "status": 200
+          },
+          {
+            "url": "https://planfully.it/wedding",
+            "status": 200
+          }
+        ],
+        "five_xx_count": 0,
+        "checks": {
+          "ttfbOk": true,
+          "bundleOk": true,
+          "hasVendorPdf": true,
+          "fiveXxOk": true
+        }
+      }
+    }
+  ]
+}

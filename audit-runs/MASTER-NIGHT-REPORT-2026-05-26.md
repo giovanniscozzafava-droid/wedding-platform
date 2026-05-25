@@ -69,6 +69,16 @@ Lanciati **21 sub-agent** in 5 wave parallele su https://planfully.it (Vite + Re
 |---|---|---|
 | U | Regression finale 18 hotfix | **18/18 PASS** ✅ |
 
+### Wave 6 (01:30 → 02:00) — hardening + smoke test
+
+| Modifica | Tipo | Risultato |
+|---|---|---|
+| State machine quote_status (trigger BEFORE UPDATE) | Migration v1+v2+v3 | Applicato |
+| CHECK qitems_label_not_empty + quantity_range | Migration | Applicato |
+| Tab Programma coppia: empty state + CR modal | Frontend | Deploy 33i3yksb1 |
+| A11y dev warning su Button icon | Frontend | Deploy |
+| Agent V smoke test 22 check | Verification | **22/22 PASS** ✅ |
+
 ---
 
 ## 2. Hotfix applicati durante la notte
@@ -241,14 +251,17 @@ e2e-ui-audit.mjs
 Resta una piccola lista di hardening (state machine validation, modale UX, PDF download click) che NON impedisce ai tester WP di portare un matrimonio dall'invito al contratto firmato.
 
 ### Wave 5 verdetto regression finale: **18/18 PASS — TUTTI I FIX REGGONO** ✅
+### Wave 6 verdetto smoke finale: **22/22 PASS — Production-ready** ✅
 
-Verificato con setup live in produzione su `https://planfully.it` (deploy `hfgggx8hf`) — ogni hotfix testato individualmente:
+Verificato con setup live in produzione su `https://planfully.it` (deploy `33i3yksb1`) — ogni hotfix testato individualmente:
 - 5 CRITICAL: tutti chiusi e regression-tested
 - 11 HIGH: tutti chiusi e regression-tested
+- 3 MEDIUM Wave 6 (state machine quote, CHECK quote_items, Programma empty state): tutti applicati e smoke-tested
 - 2 bug Wave 4 (Genera contratto + RSVP idempotente + contract sign BOZZA): tutti chiusi
 - Zero regressioni introdotte dai fix
-- Zero CRITICAL/HIGH residui aperti
+- **Zero CRITICAL/HIGH residui aperti**
+- TTFB 43ms, bundle main 554KB (-66%), 0 errori 5xx
 
-**18 hotfix critici applicati e verificati. 21 agent autonomi. ~10 ore overnight. Production stable.**
+**18 hotfix critici + 4 hardening MEDIUM applicati e verificati. 23 agent autonomi. ~10 ore overnight. Production stable.**
 
-*Master report finalizzato 2026-05-26 01:25.*
+*Master report finalizzato 2026-05-26 02:00.*
