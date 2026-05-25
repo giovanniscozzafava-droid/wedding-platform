@@ -238,13 +238,15 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# AWS SES SMTP (eu-west-1)
+# Resend SMTP gateway (planfully.it dominio già verificato in Resend)
+# Sostituisce AWS SES che non aveva credenziali AWS_SES_SMTP_* impostate
+# come env vars cloud, causando 500 unexpected_failure su recovery email.
 [auth.email.smtp]
 enabled = true
-host = "email-smtp.eu-west-1.amazonaws.com"
+host = "smtp.resend.com"
 port = 587
-user = "env(AWS_SES_SMTP_USERNAME)"
-pass = "env(AWS_SES_SMTP_PASSWORD)"
+user = "resend"
+pass = "env(RESEND_API_KEY)"
 admin_email = "noreply@planfully.it"
 sender_name = "Planfully"
 

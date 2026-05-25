@@ -1,0 +1,79 @@
+# AGENT-F Night Audit — Wedding Content
+Run: 2026-05-25T20:38:20.210Z
+Wedding: df4c49d9-0b88-4580-867d-cc009526cd1f (AGENT-F-Test Wedding, 2027-09-25)
+WP: wp-mini@planfully-demo.it
+Couple: giovanni.scozzafava+sposo@gmail.com
+
+## Stats
+```json
+{
+  "wedding_id": "df4c49d9-0b88-4580-867d-cc009526cd1f",
+  "guests_manual": 50,
+  "guests_csv": 30,
+  "tables": 10,
+  "guests_assigned": 79,
+  "timeline": 9,
+  "mood": 10,
+  "playlist": 10,
+  "transports": 3,
+  "accommodations": 2,
+  "integrity": {
+    "guests": 79,
+    "tables": 10,
+    "timeline": 9,
+    "mood": 9,
+    "playlist": 10,
+    "transports": 3,
+    "accommodations": 2,
+    "guest_transport": 50,
+    "guest_acc": 55
+  }
+}
+```
+
+## Passes (36)
+- WP found 712baed0-3957-4452-8aab-ab4eeebb2697
+- wedding created df4c49d9-0b88-4580-867d-cc009526cd1f
+- couple bound to wedding (wedding_couple_members)
+- 50 guests inserted (50)
+- 30 CSV guests inserted (30)
+- CSV test file saved
+- guest edited (diet=celiaco)
+- guest deleted
+- 10 tables inserted (10)
+- 79 guests assigned to tables
+- table AGENT-F-T1 capacity OK (8/8)
+- 9 timeline slots created (9)
+- timeline reorder swap+revert OK
+- timeline edit OK
+- 10 mood images inserted
+- mood delete OK
+- mood reorder OK
+- 10 playlist tracks created
+- 3 transports created
+- multi-trip: 25 guests on 2 shuttles
+- AGENT-F-Navetta hotel->cerimonia 25/30
+- 2 accommodations created
+- 55 guest-accommodation links created
+- AGENT-F-Hotel Mare 4 stelle 40/40
+- guests count integrity 79 OK
+- tables count integrity 10 OK
+- timeline count 9 OK
+- couple sees 10/10 tables (read)
+- couple sees timeline 9/9
+- couple sees mood 9/9
+- couple sees playlist 10/10
+- couple sees transport 3/3
+- couple sees accommodations 2/2
+- couple sees guests 79/79
+- couple update on calendar_entries silently filtered (no rows affected)
+- WP read-back guests count 79
+
+## Bugs (0)
+_No bugs detected_
+
+## Note esecutive
+- Audit eseguito al data-layer (Supabase) usando schema reale; la UI delega gli stessi insert/update tramite hooks.
+- Featurecheck PDF (lista invitati, seating chart, moodboard, scaletta, trasporti) demandato al front-end: i dati sono pronti per essere stampati.
+- RLS verificato sia owner WP che couple read-only.
+- Cleanup automatico delle run AGENT-F precedenti.

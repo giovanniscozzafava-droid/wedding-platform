@@ -1,0 +1,45 @@
+{"t":"2026-05-25T20:39:44.114Z","level":"INFO","msg":"Inizio audit auth","ts":1779741584018,"prod":"https://planfully.it","anon_len":208}
+{"t":"2026-05-25T20:39:44.411Z","level":"PASS","msg":"1.signup-wp-public-endpoint","http":200,"needs_confirm":false,"user_id":"6e8798dc-f6bf-4bef-91b7-2526b470d084"}
+{"t":"2026-05-25T20:39:44.473Z","level":"PASS","msg":"1.signup-wp-confirm-email","already_confirmed":true}
+{"t":"2026-05-25T20:39:44.527Z","level":"PASS","msg":"1.signup-wp-profile-row","profile":{"id":"6e8798dc-f6bf-4bef-91b7-2526b470d084","full_name":"Giulia Conti","role":"WEDDING_PLANNER","subrole":null}}
+{"t":"2026-05-25T20:39:44.668Z","level":"PASS","msg":"1.signup-wp-login-after-confirm","http":200}
+{"t":"2026-05-25T20:39:44.808Z","level":"PASS","msg":"2.signup-fornitore-endpoint","http":200}
+{"t":"2026-05-25T20:39:44.923Z","level":"PASS","msg":"2.signup-fornitore-profile","profile":{"id":"578bfef7-f610-4151-919f-b93c45984925","full_name":"Marco Bianchi","role":"FORNITORE","subrole":"fotografo","business_name":null}}
+{"t":"2026-05-25T20:39:45.110Z","level":"PASS","msg":"3.signup-location-endpoint","http":200}
+{"t":"2026-05-25T20:39:45.317Z","level":"PASS","msg":"3.signup-location-profile","profile":{"id":"c78509c0-712c-4018-a108-ddcfb958b315","role":"LOCATION","business_name":null}}
+{"t":"2026-05-25T20:39:45.459Z","level":"PASS","msg":"4.login-wp-mini"}
+{"t":"2026-05-25T20:39:45.948Z","level":"PASS","msg":"4.invite-supplier-fn","http":200,"body":{"ok":true,"mode":"email_sent","invite_id":"326147a3-6065-4f07-ae41-6ccedf5450a7","accept_url":"https://planfully.it/invito-fornitore/a652bc85-2ee5-4c9c-95c5-baf8ce0372a9","token":"a652bc85-2ee5-4c9c-95c5-baf8ce0372a9","email_id":"2c06640b-c856-4ded-816e-5e18a140e11d"}}
+{"t":"2026-05-25T20:39:46.001Z","level":"PASS","msg":"4.invite-row-db","invite_id":"326147a3-6065-4f07-ae41-6ccedf5450a7","token_len":36}
+{"t":"2026-05-25T20:39:46.124Z","level":"PASS","msg":"4.invite-landing-200","http":200}
+{"t":"2026-05-25T20:39:46.268Z","level":"PASS","msg":"4.invite-signup-accept","http":200}
+{"t":"2026-05-25T20:39:46.371Z","level":"PASS","msg":"4.collab-active-created","count":1,"active":true}
+{"t":"2026-05-25T20:39:46.425Z","level":"PASS","msg":"4.invite-status-accepted","status":"ACCEPTED","accepted_at":"2026-05-25T20:39:46.315014+00:00"}
+{"t":"2026-05-25T20:39:46.682Z","level":"PASS","msg":"5.create-wedding","id":"34f914e8-66a5-496d-ba58-4e03efa72af9","title":"AGENT-D Wedding test beht"}
+{"t":"2026-05-25T20:39:46.739Z","level":"PASS","msg":"5.couple-member-insert","member_id":"f3141035-af57-4190-8e66-d878567234ac","token_len":36}
+{"t":"2026-05-25T20:39:46.786Z","level":"PASS","msg":"5.couple-landing-200","http":200}
+{"t":"2026-05-25T20:39:46.928Z","level":"PASS","msg":"5.couple-signup","http":200}
+{"t":"2026-05-25T20:39:47.114Z","level":"PASS","msg":"5.couple-login"}
+{"t":"2026-05-25T20:39:47.171Z","level":"PASS","msg":"5.couple-accept-rpc","http":200,"body":"true"}
+{"t":"2026-05-25T20:39:47.229Z","level":"PASS","msg":"5.couple-member-linked","user_id":"674d6a18-7fa5-4dc7-a454-f63ecde8d212","accepted_at":"2026-05-25T20:39:47.228314+00:00"}
+{"t":"2026-05-25T20:39:47.284Z","level":"PASS","msg":"5.couple-profile-role","role":"COUPLE"}
+{"t":"2026-05-25T20:39:47.340Z","level":"PASS","msg":"5.couple-sees-wedding","rows":1}
+{"t":"2026-05-25T20:39:47.471Z","level":"PASS","msg":"6.reset-create-user","user_id":"1e6a8e78-e8aa-4c41-8261-3eb48f6aafff"}
+{"t":"2026-05-25T20:39:47.865Z","level":"FAIL","msg":"6.recover-trigger","http":500,"body":"{\"code\":500,\"error_code\":\"unexpected_failure\",\"msg\":\"Error sending recovery email\",\"error_id\":\"019e60dd-7876-7165-bcb9-b2e1cf3f3a47\"}"}
+{"t":"2026-05-25T20:39:47.865Z","level":"BUG","msg":"CRITICAL [password-reset] POST /auth/v1/recover risponde 500 — flusso /forgot-password BLOCCATO in prod (utenti non possono resettare la password via UI)","evidence":"{\"code\":500,\"error_code\":\"unexpected_failure\",\"msg\":\"Error sending recovery email\",\"error_id\":\"019e60dd-7876-7165-bcb9-b2e1cf3f3a47\"}"}
+{"t":"2026-05-25T20:39:48.248Z","level":"FAIL","msg":"6.recover-trigger-real-user","http":500,"body":"{\"code\":500,\"error_code\":\"unexpected_failure\",\"msg\":\"Error sending recovery email\",\"error_id\":\"019e60dd-7a00-7b36-9328-6d4f9e68d80b\"}"}
+{"t":"2026-05-25T20:39:48.248Z","level":"BUG","msg":"CRITICAL [password-reset] Recovery fallisce anche per utente reale \"wp-mini\" → conferma rottura sistemica","evidence":"{\"code\":500,\"error_code\":\"unexpected_failure\",\"msg\":\"Error sending recovery email\",\"error_id\":\"019e60dd-7a00-7b36-9328-6d4f9e68d80b\"}"}
+{"t":"2026-05-25T20:39:48.306Z","level":"PASS","msg":"6.generate-recovery-link","has_link":true}
+{"t":"2026-05-25T20:39:48.436Z","level":"PASS","msg":"6.update-password"}
+{"t":"2026-05-25T20:39:48.573Z","level":"PASS","msg":"6.login-with-new-password","http":200}
+{"t":"2026-05-25T20:39:48.700Z","level":"PASS","msg":"6.old-password-rejected","http":400}
+{"t":"2026-05-25T20:39:48.755Z","level":"PASS","msg":"7.login-empty-email","http":400}
+{"t":"2026-05-25T20:39:48.891Z","level":"PASS","msg":"Invalid login credentials","http":400,"err_code":"invalid_credentials"}
+{"t":"2026-05-25T20:39:48.947Z","level":"PASS","msg":"Invalid login credentials","http":400,"err_code":"invalid_credentials"}
+{"t":"2026-05-25T20:39:48.947Z","level":"PASS","msg":"7.no-email-enumeration","wrong_pw_code":"invalid_credentials","unknown_email_code":"invalid_credentials"}
+{"t":"2026-05-25T20:39:48.949Z","level":"PASS","msg":"7.google-oauth-button-source","has_component":true,"used_on_login":true}
+{"t":"2026-05-25T20:39:49.011Z","level":"PASS","msg":"8.rls-wp-isolation","rows":0,"only_own_or_zero":true}
+{"t":"2026-05-25T20:39:49.212Z","level":"PASS","msg":"8.rls-fornitore-services","rows":0,"http":200}
+{"t":"2026-05-25T20:39:49.285Z","level":"PASS","msg":"8.rls-fornitore-weddings","rows":0}
+{"t":"2026-05-25T20:39:49.286Z","level":"INFO","msg":"Cleanup: rimozione utenti agent-d-%@planfully-demo.it"}
+{"t":"2026-05-25T20:39:49.349Z","level":"INFO","msg":"Trovati 6 utenti da pulire"}
+{"t":"2026-05-25T20:39:52.243Z","level":"PASS","msg":"cleanup","removed":6,"failed":0}

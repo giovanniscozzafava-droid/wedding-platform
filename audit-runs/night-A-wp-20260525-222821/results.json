@@ -1,0 +1,149 @@
+{
+  "runId": "night-A-wp-20260525-222821",
+  "base": "https://planfully.it",
+  "user": "wp-mini@planfully-demo.it",
+  "timestamp": "2026-05-25T20:33:11.720Z",
+  "totals": {
+    "pass": 33,
+    "bug": 8,
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 2,
+    "LOW": 6
+  },
+  "pages": [
+    {
+      "pass": 1,
+      "bug": 0,
+      "name": "LOGIN"
+    },
+    {
+      "pass": 3,
+      "bug": 0,
+      "name": "HOME"
+    },
+    {
+      "pass": 1,
+      "bug": 1,
+      "name": "CATALOG"
+    },
+    {
+      "pass": 1,
+      "bug": 1,
+      "name": "WEDDINGS_LIST"
+    },
+    {
+      "pass": 13,
+      "bug": 4,
+      "name": "WEDDING_DETAIL"
+    },
+    {
+      "pass": 2,
+      "bug": 0,
+      "name": "SUPPLIERS"
+    },
+    {
+      "pass": 1,
+      "bug": 1,
+      "name": "SUPPLIER_DETAIL"
+    },
+    {
+      "pass": 1,
+      "bug": 0,
+      "name": "CALENDAR"
+    },
+    {
+      "pass": 1,
+      "bug": 0,
+      "name": "QUOTES_LIST"
+    },
+    {
+      "pass": 2,
+      "bug": 0,
+      "name": "QUOTE_EDITOR"
+    },
+    {
+      "pass": 1,
+      "bug": 0,
+      "name": "CONTRACTS"
+    },
+    {
+      "pass": 1,
+      "bug": 0,
+      "name": "FINANCE"
+    },
+    {
+      "pass": 1,
+      "bug": 0,
+      "name": "INSURANCE"
+    },
+    {
+      "pass": 2,
+      "bug": 0,
+      "name": "BRAND"
+    },
+    {
+      "pass": 2,
+      "bug": 1,
+      "name": "PROFILE"
+    }
+  ],
+  "bugs": [
+    {
+      "page": "CATALOG",
+      "severity": "MEDIUM",
+      "msg": "Bottone \"Nuovo servizio\" non trovato in Catalog",
+      "detail": null,
+      "ts": 1779741142669
+    },
+    {
+      "page": "WEDDINGS_LIST",
+      "severity": "MEDIUM",
+      "msg": "Bottone crea matrimonio non trovato",
+      "detail": null,
+      "ts": 1779741145112
+    },
+    {
+      "page": "WEDDING_DETAIL",
+      "severity": "LOW",
+      "msg": "Tab \"Programma\" non trovato",
+      "detail": null,
+      "ts": 1779741152671
+    },
+    {
+      "page": "WEDDING_DETAIL",
+      "severity": "LOW",
+      "msg": "Tab mood senza upload",
+      "detail": null,
+      "ts": 1779741157091
+    },
+    {
+      "page": "WEDDING_DETAIL",
+      "severity": "LOW",
+      "msg": "Tab \"Sito\" non trovato",
+      "detail": null,
+      "ts": 1779741158582
+    },
+    {
+      "page": "WEDDING_DETAIL",
+      "severity": "LOW",
+      "msg": "Tab contratto senza pulsante scarica",
+      "detail": null,
+      "ts": 1779741160042
+    },
+    {
+      "page": "SUPPLIER_DETAIL",
+      "severity": "LOW",
+      "msg": "Bottone Invita a wedding mancante in dettaglio fornitore",
+      "detail": null,
+      "ts": 1779741171980
+    },
+    {
+      "page": "PROFILE",
+      "severity": "LOW",
+      "msg": "Profile senza textarea bio",
+      "detail": null,
+      "ts": 1779741191435
+    }
+  ]
+}
