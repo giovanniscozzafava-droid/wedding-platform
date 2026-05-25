@@ -425,9 +425,7 @@
       "supplier_availability",
       "couple_change_requests",
       "supplier_clients",
-      "beta_status"
-    ],
-    "tablesUpdatedAtNoTrigger": [
+      "beta_status",
       "profiles",
       "collaborations",
       "service_categories",
@@ -436,7 +434,9 @@
       "calendar_entries",
       "quotes",
       "quote_items",
-      "quote_supplier_markups",
+      "quote_supplier_markups"
+    ],
+    "tablesUpdatedAtNoTrigger": [
       "market_prices",
       "service_presets",
       "finance_offers",

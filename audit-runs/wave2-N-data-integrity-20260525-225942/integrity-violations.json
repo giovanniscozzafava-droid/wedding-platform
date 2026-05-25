@@ -1,6 +1,6 @@
 {
   "stats": {
-    "startedAt": "2026-05-25T21:15:24.200Z",
+    "startedAt": "2026-05-25T21:17:07.374Z",
     "quotesScanned": 24,
     "quotesNegMargin": 0,
     "quotesZero": 1,
@@ -18,7 +18,7 @@
     "contractsFirmatoTotal": 11,
     "quoteItemsOrphans": 0,
     "contractsOrphanQuoteRef": 0,
-    "endedAt": "2026-05-25T21:15:33.099Z"
+    "endedAt": "2026-05-25T21:17:15.580Z"
   },
   "violations": [
     {
@@ -26,7 +26,7 @@
       "severity": "LOW",
       "msg": "quote-pdfs has 9 orphan files",
       "sample": null,
-      "ts": "2026-05-25T21:15:30.278Z"
+      "ts": "2026-05-25T21:17:12.570Z"
     },
     {
       "area": "integrity",
@@ -42,7 +42,7 @@
           "status": "CONFERMATA"
         }
       ],
-      "ts": "2026-05-25T21:15:30.451Z"
+      "ts": "2026-05-25T21:17:12.728Z"
     },
     {
       "area": "integrity",
@@ -78,7 +78,7 @@
           "entry_id": "19b1d956-9353-4192-93ff-aad09715f8cf"
         }
       ],
-      "ts": "2026-05-25T21:15:30.503Z"
+      "ts": "2026-05-25T21:17:12.776Z"
     },
     {
       "area": "integrity",
@@ -121,7 +121,7 @@
           "title": "Matrimonio Diamante & Alfio Degrassi"
         }
       ],
-      "ts": "2026-05-25T21:15:30.804Z"
+      "ts": "2026-05-25T21:17:13.102Z"
     },
     {
       "area": "integrity",
@@ -169,7 +169,7 @@
           "title": "Contratto matrimonio Maida & Asimodeo"
         }
       ],
-      "ts": "2026-05-25T21:15:30.852Z"
+      "ts": "2026-05-25T21:17:13.150Z"
     },
     {
       "area": "audit",
@@ -181,22 +181,13 @@
         "beta_status",
         "quote_acceptances_audit"
       ],
-      "ts": "2026-05-25T21:15:31.097Z"
+      "ts": "2026-05-25T21:17:13.362Z"
     },
     {
       "area": "audit",
       "severity": "MEDIUM",
-      "msg": "Tables with updated_at but NO set_updated_at trigger (from migrations): 15",
+      "msg": "Tables with updated_at but NO set_updated_at trigger (from migrations): 6",
       "sample": [
-        "profiles",
-        "collaborations",
-        "service_categories",
-        "services",
-        "service_modifiers",
-        "calendar_entries",
-        "quotes",
-        "quote_items",
-        "quote_supplier_markups",
         "market_prices",
         "service_presets",
         "finance_offers",
@@ -204,14 +195,14 @@
         "insurance_offers",
         "insurance_policies"
       ],
-      "ts": "2026-05-25T21:15:31.097Z"
+      "ts": "2026-05-25T21:17:13.362Z"
     },
     {
       "area": "cleanup",
       "severity": "LOW",
       "msg": "Test/demo residue patterns: 3",
       "sample": null,
-      "ts": "2026-05-25T21:15:33.099Z"
+      "ts": "2026-05-25T21:17:15.580Z"
     }
   ]
 }

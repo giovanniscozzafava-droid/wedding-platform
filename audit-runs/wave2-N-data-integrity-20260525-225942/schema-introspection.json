@@ -1,1223 +1,1406 @@
 {
   "summary": {
-    "tables": 54,
-    "fks": 45,
-    "cascadeFks": 30,
-    "setNullFks": 12,
+    "tables": 48,
+    "fks": 73,
+    "cascadeFks": 52,
+    "setNullFks": 19,
     "setNullOnNotNullBugs": 0,
-    "indexes": 87,
-    "duplicateIndexGroups": 1,
+    "indexes": 81,
+    "duplicateIndexGroups": 0,
     "tablesNoPk": 0,
-    "missingCreatedAt": 16,
-    "withUpdatedAt": 19,
-    "updatedAtNoTriggerCount": 19,
-    "fkColsWithoutIndex": 17
+    "missingCreatedAt": 3,
+    "withUpdatedAt": 29,
+    "updatedAtNoTriggerCount": 29,
+    "fkColsWithoutIndex": 18
   },
   "cascadeByRefTable": {
-    "atrio_agenzie": 2,
-    "clienti": 6,
-    "broadcast_channels": 1,
-    "calendario": 1,
-    "cold_outreach_liste": 3,
-    "cold_outreach_lista_contatti": 1,
-    "cold_outreach_contatti": 1,
-    "task": 2,
-    "contenuti": 1,
-    "monitor": 2,
-    "newsletter_campagne": 2,
-    "newsletter_iscritti": 1,
-    "siti": 5,
-    "client_assets": 1,
-    "siti_web": 1
+    "calendar_entries": 20,
+    "budget_categories": 1,
+    "profiles": 16,
+    "event_accommodations": 1,
+    "event_guests": 3,
+    "event_transport": 2,
+    "quotes": 5,
+    "services": 4
   },
   "highRiskCascadeRoots": [
     [
-      "clienti",
-      6
+      "calendar_entries",
+      20
     ],
     [
-      "siti",
+      "profiles",
+      16
+    ],
+    [
+      "quotes",
       5
     ],
     [
-      "cold_outreach_liste",
+      "services",
+      4
+    ],
+    [
+      "event_guests",
       3
     ],
     [
-      "atrio_agenzie",
+      "event_transport",
       2
     ],
     [
-      "task",
-      2
-    ],
-    [
-      "monitor",
-      2
-    ],
-    [
-      "newsletter_campagne",
-      2
-    ],
-    [
-      "broadcast_channels",
+      "budget_categories",
       1
     ],
     [
-      "calendario",
-      1
-    ],
-    [
-      "cold_outreach_lista_contatti",
+      "event_accommodations",
       1
     ]
   ],
   "setNullBugs": [],
-  "duplicates": [
-    [
-      {
-        "unique": false,
-        "name": "idx_tv_social_reels_pending_import",
-        "table": "tv_social_reels",
-        "cols": "\"created_at\""
-      },
-      {
-        "unique": false,
-        "name": "tv_social_reels_pending_idx",
-        "table": "tv_social_reels",
-        "cols": "\"created_at\""
-      }
-    ]
-  ],
+  "duplicates": [],
   "tablesNoPk": [],
   "missingCreatedAt": [
-    "brand_rules",
-    "cold_outreach_contatti",
-    "cold_outreach_eventi",
-    "cold_outreach_lista_contatti",
-    "cold_outreach_liste",
-    "cold_outreach_suppression",
-    "cold_outreach_varianti",
-    "data_pubblicazione_audit",
-    "feature_flags",
-    "feature_learning",
-    "marketing_calendar",
-    "newsletter_email_events",
-    "siti_brief",
-    "siti_versioni",
-    "tv_farmacie_di_turno",
-    "tv_oroscopo"
+    "beta_status",
+    "event_transport_assignments",
+    "market_prices"
   ],
   "updatedAtNoTrigger": [
-    "atrio_agenzie",
-    "atrio_immobili",
-    "brand_kit",
-    "brand_rules",
-    "broadcast_channels",
-    "broadcast_playlist",
-    "client_assets",
-    "clienti",
-    "contenuti",
-    "feature_flags",
-    "log_riprese",
-    "monitor",
-    "newsletter_campagne",
-    "newsletter_iscritti",
-    "siti",
-    "siti_brief",
-    "siti_web",
-    "task",
-    "tv_social_reels"
+    "beta_status",
+    "calendar_entries",
+    "collaborations",
+    "contracts",
+    "couple_change_requests",
+    "couple_preferences",
+    "event_accommodations",
+    "event_gadgets",
+    "event_guests",
+    "event_subevents",
+    "event_timeline",
+    "event_transport",
+    "finance_applications",
+    "finance_offers",
+    "insurance_offers",
+    "insurance_policies",
+    "market_prices",
+    "profiles",
+    "quote_items",
+    "quote_supplier_markups",
+    "quotes",
+    "service_categories",
+    "service_modifiers",
+    "service_presets",
+    "services",
+    "supplier_availability",
+    "supplier_clients",
+    "supplier_invites",
+    "wedding_tasks"
   ],
   "fkColsWithoutIndex2": [
     {
-      "table": "atrio_eventi",
-      "column": "immobile_id",
-      "refTable": "atrio_immobili",
+      "table": "budget_entries",
+      "column": "supplier_id",
+      "refTable": "profiles",
       "onDelete": "SET NULL"
     },
     {
-      "table": "brand_kit",
-      "column": "cliente_id",
-      "refTable": "clienti",
-      "onDelete": "CASCADE"
+      "table": "calendar_entries",
+      "column": "quote_id",
+      "refTable": "quotes",
+      "onDelete": "SET NULL"
     },
     {
-      "table": "brand_kit",
-      "column": "logo_asset_id",
-      "refTable": "client_assets",
+      "table": "contracts",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "contracts",
+      "column": "quote_id",
+      "refTable": "quotes",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "couple_change_requests",
+      "column": "reviewed_by",
+      "refTable": "profiles",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "event_documents",
+      "column": "uploaded_by",
+      "refTable": "profiles",
       "onDelete": "NO ACTION"
     },
     {
-      "table": "brand_kit",
-      "column": "logo_chiaro_asset_id",
-      "refTable": "client_assets",
-      "onDelete": "NO ACTION"
+      "table": "event_gadgets",
+      "column": "supplier_id",
+      "refTable": "profiles",
+      "onDelete": "SET NULL"
     },
     {
-      "table": "brand_kit",
-      "column": "logo_icona_asset_id",
-      "refTable": "client_assets",
-      "onDelete": "NO ACTION"
+      "table": "event_guests",
+      "column": "accommodation_id",
+      "refTable": "event_accommodations",
+      "onDelete": "SET NULL"
     },
     {
-      "table": "brand_rules",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "event_timeline",
+      "column": "supplier_id",
+      "refTable": "profiles",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "finance_applications",
+      "column": "applicant_id",
+      "refTable": "profiles",
       "onDelete": "CASCADE"
     },
     {
-      "table": "calendario",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "finance_applications",
+      "column": "offer_id",
+      "refTable": "finance_offers",
       "onDelete": "SET NULL"
     },
     {
-      "table": "calendario",
-      "column": "contenuto_id",
-      "refTable": "contenuti",
-      "onDelete": "SET NULL"
-    },
-    {
-      "table": "calendario",
-      "column": "ricorrenza_parent_id",
-      "refTable": "calendario",
+      "table": "finance_applications",
+      "column": "quote_id",
+      "refTable": "quotes",
       "onDelete": "CASCADE"
     },
     {
-      "table": "contenuti",
-      "column": "cliente_id",
-      "refTable": "clienti",
-      "onDelete": "SET NULL"
-    },
-    {
-      "table": "daily_priorities",
-      "column": "task_id",
-      "refTable": "task",
+      "table": "insurance_policies",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "onDelete": "CASCADE"
     },
     {
-      "table": "log_riprese",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "insurance_policies",
+      "column": "offer_id",
+      "refTable": "insurance_offers",
       "onDelete": "SET NULL"
     },
     {
-      "table": "log_riprese",
-      "column": "contenuto_id",
-      "refTable": "contenuti",
-      "onDelete": "SET NULL"
-    },
-    {
-      "table": "monitor_contenuti",
-      "column": "cliente_id",
-      "refTable": "clienti",
-      "onDelete": "SET NULL"
-    },
-    {
-      "table": "profiles",
-      "column": "team_id",
-      "refTable": "team",
-      "onDelete": "SET NULL"
-    },
-    {
-      "table": "task",
-      "column": "cliente_id",
-      "refTable": "clienti",
-      "onDelete": "SET NULL"
-    },
-    {
-      "table": "task_files",
-      "column": "task_id",
-      "refTable": "task",
+      "table": "quote_supplier_markups",
+      "column": "supplier_id",
+      "refTable": "profiles",
       "onDelete": "CASCADE"
+    },
+    {
+      "table": "service_categories",
+      "column": "created_by",
+      "refTable": "profiles",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "service_presets",
+      "column": "category_id",
+      "refTable": "service_categories",
+      "onDelete": "SET NULL"
+    },
+    {
+      "table": "wedding_tasks",
+      "column": "supplier_id",
+      "refTable": "profiles",
+      "onDelete": "SET NULL"
     }
   ],
   "fks": [
     {
-      "table": "atrio_eventi",
-      "constraint": "atrio_eventi_agenzia_id_fkey",
-      "column": "agenzia_id",
-      "refTable": "atrio_agenzie",
+      "table": "budget_categories",
+      "constraint": "budget_categories_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "atrio_eventi",
-      "constraint": "atrio_eventi_immobile_id_fkey",
-      "column": "immobile_id",
-      "refTable": "atrio_immobili",
+      "table": "budget_entries",
+      "constraint": "budget_entries_category_id_fkey",
+      "column": "category_id",
+      "refTable": "budget_categories",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "budget_entries",
+      "constraint": "budget_entries_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "budget_entries",
+      "constraint": "budget_entries_supplier_id_fkey",
+      "column": "supplier_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "atrio_immobili",
-      "constraint": "atrio_immobili_agenzia_id_fkey",
-      "column": "agenzia_id",
-      "refTable": "atrio_agenzie",
+      "table": "calendar_entries",
+      "constraint": "calendar_entries_owner_id_fkey",
+      "column": "owner_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "brand_kit",
-      "constraint": "brand_kit_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "calendar_entries",
+      "constraint": "calendar_entries_quote_fk",
+      "column": "quote_id",
+      "refTable": "quotes",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "calendar_entry_participants",
+      "constraint": "calendar_entry_participants_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "brand_kit",
-      "constraint": "brand_kit_logo_asset_id_fkey",
-      "column": "logo_asset_id",
-      "refTable": "client_assets",
+      "table": "calendar_entry_participants",
+      "constraint": "calendar_entry_participants_user_id_fkey",
+      "column": "user_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "calendar_export_tokens",
+      "constraint": "calendar_export_tokens_user_id_fkey",
+      "column": "user_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "collaborations",
+      "constraint": "collaborations_capostipite_id_fkey",
+      "column": "capostipite_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "collaborations",
+      "constraint": "collaborations_fornitore_id_fkey",
+      "column": "fornitore_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "contracts",
+      "constraint": "contracts_direct_client_id_fkey",
+      "column": "direct_client_id",
+      "refTable": "supplier_clients",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "contracts",
+      "constraint": "contracts_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "contracts",
+      "constraint": "contracts_owner_id_fkey",
+      "column": "owner_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "contracts",
+      "constraint": "contracts_quote_id_fkey",
+      "column": "quote_id",
+      "refTable": "quotes",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "couple_change_requests",
+      "constraint": "couple_change_requests_requested_by_fkey",
+      "column": "requested_by",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "couple_change_requests",
+      "constraint": "couple_change_requests_reviewed_by_fkey",
+      "column": "reviewed_by",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "couple_change_requests",
+      "constraint": "couple_change_requests_wedding_id_fkey",
+      "column": "wedding_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "couple_preferences",
+      "constraint": "couple_preferences_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_accommodations",
+      "constraint": "event_accommodations_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_documents",
+      "constraint": "event_documents_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_documents",
+      "constraint": "event_documents_uploaded_by_fkey",
+      "column": "uploaded_by",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "NO ACTION",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "brand_kit",
-      "constraint": "brand_kit_logo_chiaro_asset_id_fkey",
-      "column": "logo_chiaro_asset_id",
-      "refTable": "client_assets",
-      "refColumn": "id",
-      "onDelete": "NO ACTION",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "brand_kit",
-      "constraint": "brand_kit_logo_icona_asset_id_fkey",
-      "column": "logo_icona_asset_id",
-      "refTable": "client_assets",
-      "refColumn": "id",
-      "onDelete": "NO ACTION",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "brand_rules",
-      "constraint": "brand_rules_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "event_gadgets",
+      "constraint": "event_gadgets_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "broadcast_playlist",
-      "constraint": "broadcast_playlist_channel_slug_fkey",
-      "column": "channel_slug",
-      "refTable": "broadcast_channels",
-      "refColumn": "slug",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "calendario",
-      "constraint": "calendario_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "event_gadgets",
+      "constraint": "event_gadgets_supplier_id_fkey",
+      "column": "supplier_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "calendario",
-      "constraint": "calendario_contenuto_id_fkey",
-      "column": "contenuto_id",
-      "refTable": "contenuti",
+      "table": "event_guest_accommodation",
+      "constraint": "event_guest_accommodation_accommodation_id_fkey",
+      "column": "accommodation_id",
+      "refTable": "event_accommodations",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_guest_accommodation",
+      "constraint": "event_guest_accommodation_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_guest_accommodation",
+      "constraint": "event_guest_accommodation_guest_id_fkey",
+      "column": "guest_id",
+      "refTable": "event_guests",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_guest_transport",
+      "constraint": "event_guest_transport_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_guest_transport",
+      "constraint": "event_guest_transport_guest_id_fkey",
+      "column": "guest_id",
+      "refTable": "event_guests",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_guest_transport",
+      "constraint": "event_guest_transport_transport_id_fkey",
+      "column": "transport_id",
+      "refTable": "event_transport",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "event_guests",
+      "constraint": "event_guests_accommodation_id_fkey",
+      "column": "accommodation_id",
+      "refTable": "event_accommodations",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "calendario",
-      "constraint": "calendario_ricorrenza_parent_id_fkey",
-      "column": "ricorrenza_parent_id",
-      "refTable": "calendario",
+      "table": "event_guests",
+      "constraint": "event_guests_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "client_assets",
-      "constraint": "client_assets_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "cold_outreach_eventi",
-      "constraint": "cold_outreach_eventi_contatto_id_fkey",
-      "column": "contatto_id",
-      "refTable": "cold_outreach_contatti",
+      "table": "event_guests",
+      "constraint": "event_guests_table_id_fkey",
+      "column": "table_id",
+      "refTable": "event_tables",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "cold_outreach_eventi",
-      "constraint": "cold_outreach_eventi_lista_id_fkey",
-      "column": "lista_id",
-      "refTable": "cold_outreach_liste",
+      "table": "event_playlist",
+      "constraint": "event_playlist_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "cold_outreach_eventi",
-      "constraint": "cold_outreach_eventi_relazione_id_fkey",
-      "column": "relazione_id",
-      "refTable": "cold_outreach_lista_contatti",
+      "table": "event_subevents",
+      "constraint": "event_subevents_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "cold_outreach_lista_contatti",
-      "constraint": "cold_outreach_lista_contatti_contatto_id_fkey",
-      "column": "contatto_id",
-      "refTable": "cold_outreach_contatti",
+      "table": "event_tables",
+      "constraint": "event_tables_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "cold_outreach_lista_contatti",
-      "constraint": "cold_outreach_lista_contatti_lista_id_fkey",
-      "column": "lista_id",
-      "refTable": "cold_outreach_liste",
+      "table": "event_timeline",
+      "constraint": "event_timeline_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "cold_outreach_varianti",
-      "constraint": "cold_outreach_varianti_lista_id_fkey",
-      "column": "lista_id",
-      "refTable": "cold_outreach_liste",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "contenuti",
-      "constraint": "contenuti_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "event_timeline",
+      "constraint": "event_timeline_supplier_id_fkey",
+      "column": "supplier_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "daily_priorities",
-      "constraint": "daily_priorities_task_id_fkey",
-      "column": "task_id",
-      "refTable": "task",
+      "table": "event_transport_assignments",
+      "constraint": "event_transport_assignments_guest_id_fkey",
+      "column": "guest_id",
+      "refTable": "event_guests",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "data_pubblicazione_audit",
-      "constraint": "data_pubblicazione_audit_contenuto_id_fkey",
-      "column": "contenuto_id",
-      "refTable": "contenuti",
+      "table": "event_transport_assignments",
+      "constraint": "event_transport_assignments_transport_id_fkey",
+      "column": "transport_id",
+      "refTable": "event_transport",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "log_riprese",
-      "constraint": "log_riprese_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "event_transport",
+      "constraint": "event_transport_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "finance_applications",
+      "constraint": "finance_applications_applicant_id_fkey",
+      "column": "applicant_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "finance_applications",
+      "constraint": "finance_applications_offer_id_fkey",
+      "column": "offer_id",
+      "refTable": "finance_offers",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "log_riprese",
-      "constraint": "log_riprese_contenuto_id_fkey",
-      "column": "contenuto_id",
-      "refTable": "contenuti",
+      "table": "finance_applications",
+      "constraint": "finance_applications_quote_id_fkey",
+      "column": "quote_id",
+      "refTable": "quotes",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "insurance_policies",
+      "constraint": "insurance_policies_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "insurance_policies",
+      "constraint": "insurance_policies_offer_id_fkey",
+      "column": "offer_id",
+      "refTable": "insurance_offers",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "monitor",
-      "constraint": "monitor_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "mood_images",
+      "constraint": "mood_images_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "monitor_contenuti",
-      "constraint": "monitor_contenuti_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "notification_queue",
+      "constraint": "notification_queue_user_id_fkey",
+      "column": "user_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "price_versions",
+      "constraint": "price_versions_service_id_fkey",
+      "column": "service_id",
+      "refTable": "services",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "quote_acceptances",
+      "constraint": "quote_acceptances_quote_id_fkey",
+      "column": "quote_id",
+      "refTable": "quotes",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "quote_items",
+      "constraint": "quote_items_quote_id_fkey",
+      "column": "quote_id",
+      "refTable": "quotes",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "quote_items",
+      "constraint": "quote_items_service_id_fkey",
+      "column": "service_id",
+      "refTable": "services",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "monitor_contenuti",
-      "constraint": "monitor_contenuti_monitor_id_fkey",
-      "column": "monitor_id",
-      "refTable": "monitor",
+      "table": "quote_items",
+      "constraint": "quote_items_supplier_id_fkey",
+      "column": "supplier_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "quote_supplier_markups",
+      "constraint": "quote_supplier_markups_quote_id_fkey",
+      "column": "quote_id",
+      "refTable": "quotes",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "monitor_fasce",
-      "constraint": "monitor_fasce_monitor_id_fkey",
-      "column": "monitor_id",
-      "refTable": "monitor",
+      "table": "quote_supplier_markups",
+      "constraint": "quote_supplier_markups_supplier_id_fkey",
+      "column": "supplier_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "newsletter_campagne",
-      "constraint": "newsletter_campagne_created_by_fkey",
+      "table": "quote_views",
+      "constraint": "quote_views_quote_id_fkey",
+      "column": "quote_id",
+      "refTable": "quotes",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "quotes",
+      "constraint": "quotes_direct_client_id_fkey",
+      "column": "direct_client_id",
+      "refTable": "supplier_clients",
+      "refColumn": "id",
+      "onDelete": "SET NULL",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "quotes",
+      "constraint": "quotes_owner_id_fkey",
+      "column": "owner_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "service_categories",
+      "constraint": "service_categories_created_by_fkey",
       "column": "created_by",
-      "refTable": "team",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "newsletter_email_events",
-      "constraint": "newsletter_email_events_campagna_id_fkey",
-      "column": "campagna_id",
-      "refTable": "newsletter_campagne",
+      "table": "service_components",
+      "constraint": "service_components_service_id_fkey",
+      "column": "service_id",
+      "refTable": "services",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "newsletter_email_events",
-      "constraint": "newsletter_email_events_iscritto_id_fkey",
-      "column": "iscritto_id",
-      "refTable": "newsletter_iscritti",
+      "table": "service_modifiers",
+      "constraint": "service_modifiers_service_id_fkey",
+      "column": "service_id",
+      "refTable": "services",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "service_photos",
+      "constraint": "service_photos_service_id_fkey",
+      "column": "service_id",
+      "refTable": "services",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "service_presets",
+      "constraint": "service_presets_category_id_fkey",
+      "column": "category_id",
+      "refTable": "service_categories",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "newsletter_invii",
-      "constraint": "newsletter_invii_campagna_id_fkey",
-      "column": "campagna_id",
-      "refTable": "newsletter_campagne",
+      "table": "service_presets",
+      "constraint": "service_presets_fornitore_id_fkey",
+      "column": "fornitore_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "newsletter_invii",
-      "constraint": "newsletter_invii_iscritto_id_fkey",
-      "column": "iscritto_id",
-      "refTable": "newsletter_iscritti",
+      "table": "services",
+      "constraint": "services_category_id_fkey",
+      "column": "category_id",
+      "refTable": "service_categories",
+      "refColumn": "id",
+      "onDelete": "RESTRICT",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "services",
+      "constraint": "services_fornitore_id_fkey",
+      "column": "fornitore_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "profiles",
-      "constraint": "profiles_team_id_fkey",
-      "column": "team_id",
-      "refTable": "team",
+      "table": "supplier_availability",
+      "constraint": "supplier_availability_fornitore_id_fkey",
+      "column": "fornitore_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "supplier_clients",
+      "constraint": "supplier_clients_supplier_id_fkey",
+      "column": "supplier_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "supplier_invites",
+      "constraint": "supplier_invites_capostipite_id_fkey",
+      "column": "capostipite_id",
+      "refTable": "profiles",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "wedding_couple_members",
+      "constraint": "wedding_couple_members_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
+      "refColumn": "id",
+      "onDelete": "CASCADE",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "table": "wedding_couple_members",
+      "constraint": "wedding_couple_members_user_id_fkey",
+      "column": "user_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "SET NULL",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "siti_asset",
-      "constraint": "siti_asset_sito_id_fkey",
-      "column": "sito_id",
-      "refTable": "siti",
+      "table": "wedding_tasks",
+      "constraint": "wedding_tasks_entry_id_fkey",
+      "column": "entry_id",
+      "refTable": "calendar_entries",
       "refColumn": "id",
       "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     },
     {
-      "table": "siti_brief",
-      "constraint": "siti_brief_sito_id_fkey",
-      "column": "sito_id",
-      "refTable": "siti",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "siti",
-      "constraint": "siti_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "siti_prompt_generati",
-      "constraint": "siti_prompt_generati_sito_id_fkey",
-      "column": "sito_id",
-      "refTable": "siti",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "siti_riferimenti",
-      "constraint": "siti_riferimenti_sito_id_fkey",
-      "column": "sito_id",
-      "refTable": "siti",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "siti_versioni",
-      "constraint": "siti_versioni_sito_id_fkey",
-      "column": "sito_id",
-      "refTable": "siti",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "siti_web",
-      "constraint": "siti_web_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "sito_assets",
-      "constraint": "sito_assets_asset_id_fkey",
-      "column": "asset_id",
-      "refTable": "client_assets",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "sito_assets",
-      "constraint": "sito_assets_sito_id_fkey",
-      "column": "sito_id",
-      "refTable": "siti_web",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "task",
-      "constraint": "task_cliente_id_fkey",
-      "column": "cliente_id",
-      "refTable": "clienti",
+      "table": "wedding_tasks",
+      "constraint": "wedding_tasks_supplier_id_fkey",
+      "column": "supplier_id",
+      "refTable": "profiles",
       "refColumn": "id",
       "onDelete": "SET NULL",
-      "onUpdate": "NO ACTION"
-    },
-    {
-      "table": "task_files",
-      "constraint": "task_files_task_id_fkey",
-      "column": "task_id",
-      "refTable": "task",
-      "refColumn": "id",
-      "onDelete": "CASCADE",
       "onUpdate": "NO ACTION"
     }
   ],
   "indexes": [
     {
       "unique": false,
-      "name": "idx_atrio_agenzie_slug",
-      "table": "atrio_agenzie",
-      "cols": "\"slug\""
+      "name": "idx_acc_entry",
+      "table": "event_accommodations",
+      "cols": "\"entry_id\""
     },
     {
       "unique": false,
-      "name": "idx_atrio_eventi_agenzia_data",
-      "table": "atrio_eventi",
-      "cols": "\"agenzia_id\", \"created_at\" DESC"
+      "name": "idx_avail_forn_date",
+      "table": "supplier_availability",
+      "cols": "\"fornitore_id\", \"date\""
     },
     {
       "unique": false,
-      "name": "idx_atrio_immobili_agenzia",
-      "table": "atrio_immobili",
-      "cols": "\"agenzia_id\", \"ordine\""
+      "name": "idx_budget_cat_entry",
+      "table": "budget_categories",
+      "cols": "\"entry_id\", \"ord\""
     },
     {
       "unique": false,
-      "name": "idx_broadcast_playlist_channel_active_order",
-      "table": "broadcast_playlist",
-      "cols": "\"channel_slug\", \"active\", \"ordering\""
+      "name": "idx_budget_e_cat",
+      "table": "budget_entries",
+      "cols": "\"category_id\""
     },
     {
       "unique": false,
-      "name": "idx_campagne_creator",
-      "table": "newsletter_campagne",
-      "cols": "\"created_by\""
+      "name": "idx_budget_e_entry",
+      "table": "budget_entries",
+      "cols": "\"entry_id\""
     },
     {
       "unique": false,
-      "name": "idx_campagne_data_invio",
-      "table": "newsletter_campagne",
-      "cols": "\"data_invio\" DESC"
+      "name": "idx_calentry_date",
+      "table": "calendar_entries",
+      "cols": "\"date_from\", \"date_to\""
     },
     {
       "unique": false,
-      "name": "idx_campagne_programmate",
-      "table": "newsletter_campagne",
-      "cols": "\"data_programmata\""
+      "name": "idx_calentry_owner_date",
+      "table": "calendar_entries",
+      "cols": "\"owner_id\", \"date_from\""
     },
     {
       "unique": false,
-      "name": "idx_campagne_stato",
-      "table": "newsletter_campagne",
-      "cols": "\"stato\""
+      "name": "idx_calentry_slug",
+      "table": "calendar_entries",
+      "cols": "\"wedding_website_slug\""
     },
     {
-      "unique": true,
-      "name": "idx_chat_reactions_unique",
-      "table": "chat_reactions",
-      "cols": "\"msg_id\", \"emoji\", \"autore\""
-    },
-    {
-      "unique": false,
-      "name": "idx_client_assets_categoria",
-      "table": "client_assets",
-      "cols": "\"categoria\""
-    },
-    {
-      "unique": false,
-      "name": "idx_client_assets_cliente",
-      "table": "client_assets",
-      "cols": "\"cliente_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_client_assets_tags",
-      "table": "client_assets",
-      "cols": "\"tags\""
-    },
-    {
-      "unique": false,
-      "name": "idx_clienti_nome_trgm",
-      "table": "clienti",
-      "cols": "\"nome\" \"public\".\"gin_trgm_ops\""
-    },
-    {
-      "unique": false,
-      "name": "idx_clienti_tipo",
-      "table": "clienti",
-      "cols": "\"tipo_cliente\""
-    },
-    {
-      "unique": false,
-      "name": "idx_co_eventi_contatto",
-      "table": "cold_outreach_eventi",
-      "cols": "\"contatto_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_co_eventi_evento",
-      "table": "cold_outreach_eventi",
-      "cols": "\"evento\""
-    },
-    {
-      "unique": false,
-      "name": "idx_co_eventi_lista",
-      "table": "cold_outreach_eventi",
-      "cols": "\"lista_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_co_eventi_lista_evento",
-      "table": "cold_outreach_eventi",
-      "cols": "\"lista_id\", \"evento\""
-    },
-    {
-      "unique": false,
-      "name": "idx_co_eventi_relazione",
-      "table": "cold_outreach_eventi",
-      "cols": "\"relazione_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_co_eventi_ts",
-      "table": "cold_outreach_eventi",
-      "cols": "\"ts\""
-    },
-    {
-      "unique": false,
-      "name": "idx_co_eventi_variante",
-      "table": "cold_outreach_eventi",
-      "cols": "\"lista_id\", \"variante\""
-    },
-    {
-      "unique": false,
-      "name": "idx_co_varianti_lista",
-      "table": "cold_outreach_varianti",
-      "cols": "\"lista_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_contatti_email",
-      "table": "cold_outreach_contatti",
-      "cols": "\"email\""
-    },
-    {
-      "unique": false,
-      "name": "idx_dpa_changed",
-      "table": "data_pubblicazione_audit",
-      "cols": "\"changed_at\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_dpa_contenuto",
-      "table": "data_pubblicazione_audit",
-      "cols": "\"contenuto_id\", \"changed_at\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_email_events_camp_evento",
-      "table": "newsletter_email_events",
-      "cols": "\"campagna_id\", \"evento\""
-    },
-    {
-      "unique": false,
-      "name": "idx_email_events_campagna",
-      "table": "newsletter_email_events",
-      "cols": "\"campagna_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_email_events_iscritto",
-      "table": "newsletter_email_events",
-      "cols": "\"iscritto_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_email_events_ts",
-      "table": "newsletter_email_events",
-      "cols": "\"ts\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_error_log_created",
-      "table": "error_log",
-      "cols": "\"created_at\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_error_log_risolto",
-      "table": "error_log",
-      "cols": "\"risolto\", \"created_at\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_error_log_tipo",
-      "table": "error_log",
-      "cols": "\"tipo\""
-    },
-    {
-      "unique": false,
-      "name": "idx_invii_campagna",
-      "table": "newsletter_invii",
-      "cols": "\"campagna_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_invii_iscritto",
-      "table": "newsletter_invii",
-      "cols": "\"iscritto_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_invii_stato",
-      "table": "newsletter_invii",
-      "cols": "\"stato\""
-    },
-    {
-      "unique": true,
-      "name": "idx_invii_unique",
-      "table": "newsletter_invii",
-      "cols": "\"campagna_id\", \"iscritto_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_iscritti_email",
-      "table": "newsletter_iscritti",
-      "cols": "\"email\""
-    },
-    {
-      "unique": false,
-      "name": "idx_iscritti_stato",
-      "table": "newsletter_iscritti",
-      "cols": "\"stato\""
-    },
-    {
-      "unique": false,
-      "name": "idx_iscritti_tag",
-      "table": "newsletter_iscritti",
-      "cols": "\"tag\""
-    },
-    {
-      "unique": false,
-      "name": "idx_iscritti_token",
-      "table": "newsletter_iscritti",
-      "cols": "\"unsubscribe_token\""
-    },
-    {
-      "unique": false,
-      "name": "idx_lc_contatto",
-      "table": "cold_outreach_lista_contatti",
-      "cols": "\"contatto_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_lc_lista",
-      "table": "cold_outreach_lista_contatti",
-      "cols": "\"lista_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_lc_lista_stato",
-      "table": "cold_outreach_lista_contatti",
-      "cols": "\"lista_id\", \"stato\""
-    },
-    {
-      "unique": false,
-      "name": "idx_lc_stato",
-      "table": "cold_outreach_lista_contatti",
-      "cols": "\"stato\""
-    },
-    {
-      "unique": false,
-      "name": "idx_lc_variante",
-      "table": "cold_outreach_lista_contatti",
-      "cols": "\"lista_id\", \"variante\""
-    },
-    {
-      "unique": false,
-      "name": "idx_liste_creata_il",
-      "table": "cold_outreach_liste",
-      "cols": "\"creata_il\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_liste_stato",
-      "table": "cold_outreach_liste",
-      "cols": "\"stato\""
-    },
-    {
-      "unique": false,
-      "name": "idx_master_stato_globale",
-      "table": "cold_outreach_contatti",
-      "cols": "\"stato_globale\""
-    },
-    {
-      "unique": false,
-      "name": "idx_master_ultimo_invio",
-      "table": "cold_outreach_contatti",
-      "cols": "\"ultimo_invio_at\""
-    },
-    {
-      "unique": false,
-      "name": "idx_monitor_cliente",
-      "table": "monitor",
-      "cols": "\"cliente_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_monitor_contenuti_monitor",
-      "table": "monitor_contenuti",
-      "cols": "\"monitor_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_monitor_fasce_monitor",
-      "table": "monitor_fasce",
-      "cols": "\"monitor_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_monitor_heartbeat_enabled_last_seen",
-      "table": "monitor",
-      "cols": "\"last_seen_at\""
-    },
-    {
-      "unique": false,
-      "name": "idx_monitor_last_seen_at",
-      "table": "monitor",
-      "cols": "\"last_seen_at\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_monitor_remote_command_slug_open",
-      "table": "monitor_remote_command",
-      "cols": "\"monitor_slug\", \"created_at\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_monitor_slug",
-      "table": "monitor",
-      "cols": "\"slug\""
-    },
-    {
-      "unique": false,
-      "name": "idx_newsletter_campagne_destinatari_ids",
-      "table": "newsletter_campagne",
-      "cols": "\"destinatari_ids\""
-    },
-    {
-      "unique": false,
-      "name": "idx_newsletter_campagne_destinatari_modalita",
-      "table": "newsletter_campagne",
-      "cols": "\"destinatari_modalita\""
-    },
-    {
-      "unique": false,
-      "name": "idx_oroscopo_data",
-      "table": "tv_oroscopo",
-      "cols": "\"data\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_asset_categoria",
-      "table": "siti_asset",
-      "cols": "\"sito_id\", \"categoria\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_asset_sito",
-      "table": "siti_asset",
-      "cols": "\"sito_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_brief_sito",
-      "table": "siti_brief",
-      "cols": "\"sito_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_cliente_id",
-      "table": "siti",
-      "cols": "\"cliente_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_lib_tag",
-      "table": "siti_riferimenti_libreria",
-      "cols": "\"tag\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_prompt_sito",
-      "table": "siti_prompt_generati",
-      "cols": "\"sito_id\", \"versione\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_riferimenti_sito",
-      "table": "siti_riferimenti",
-      "cols": "\"sito_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_riferimenti_tag",
-      "table": "siti_riferimenti",
-      "cols": "\"tag\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_stato",
-      "table": "siti",
-      "cols": "\"stato\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_versioni_sito",
-      "table": "siti_versioni",
-      "cols": "\"sito_id\", \"data_deploy\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_web_cliente_id",
-      "table": "siti_web",
-      "cols": "\"cliente_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_web_dominio_scadenza",
-      "table": "siti_web",
-      "cols": "\"dominio_scadenza\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_web_hosting_scadenza",
-      "table": "siti_web",
-      "cols": "\"hosting_scadenza\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_web_pubblicato",
-      "table": "siti_web",
-      "cols": "\"pubblicato\""
-    },
-    {
-      "unique": true,
-      "name": "idx_siti_web_slug_unique",
-      "table": "siti_web",
-      "cols": "\"slug\""
-    },
-    {
-      "unique": false,
-      "name": "idx_siti_web_stato",
-      "table": "siti_web",
-      "cols": "\"stato\""
-    },
-    {
-      "unique": false,
-      "name": "idx_sito_assets_asset",
-      "table": "sito_assets",
-      "cols": "\"asset_id\""
-    },
-    {
-      "unique": false,
-      "name": "idx_sito_assets_sito_sezione_ordine",
-      "table": "sito_assets",
-      "cols": "\"sito_id\", \"sezione\", \"ordine\""
-    },
-    {
-      "unique": true,
-      "name": "idx_sito_assets_unique",
-      "table": "sito_assets",
-      "cols": "\"sito_id\", \"asset_id\", \"sezione\""
-    },
-    {
-      "unique": false,
-      "name": "idx_tv_consigli_imported_desc",
-      "table": "tv_consigli",
-      "cols": "\"imported_at\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_tv_consigli_specialita_attivo",
-      "table": "tv_consigli",
-      "cols": "\"specialita\", \"attivo\""
-    },
-    {
-      "unique": false,
-      "name": "idx_tv_farmacie_citta_data",
-      "table": "tv_farmacie_di_turno",
-      "cols": "\"citta\", \"data\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "idx_tv_oroscopo_settimana_attivo",
-      "table": "tv_oroscopo",
-      "cols": "\"settimana_iso\", \"attivo\""
-    },
-    {
-      "unique": false,
-      "name": "idx_tv_social_reels_pending_import",
-      "table": "tv_social_reels",
-      "cols": "\"created_at\""
-    },
-    {
-      "unique": false,
-      "name": "idx_tv_social_reels_pool_ready",
-      "table": "tv_social_reels",
-      "cols": "\"client_slug\", \"active\", \"created_at\" DESC"
-    },
-    {
-      "unique": false,
-      "name": "tv_social_reels_client_ready_idx",
-      "table": "tv_social_reels",
-      "cols": "\"client_slug\""
-    },
-    {
-      "unique": false,
-      "name": "tv_social_reels_pending_idx",
-      "table": "tv_social_reels",
-      "cols": "\"created_at\""
-    },
-    {
       "unique": false,
-      "name": "tv_social_reels_status_idx",
-      "table": "tv_social_reels",
+      "name": "idx_calentry_status",
+      "table": "calendar_entries",
       "cols": "\"status\""
+    },
+    {
+      "unique": false,
+      "name": "idx_cat_standard",
+      "table": "service_categories",
+      "cols": "\"is_standard\""
+    },
+    {
+      "unique": false,
+      "name": "idx_cat_subrole",
+      "table": "service_categories",
+      "cols": "\"subrole\""
+    },
+    {
+      "unique": false,
+      "name": "idx_ccr_requester",
+      "table": "couple_change_requests",
+      "cols": "\"requested_by\""
+    },
+    {
+      "unique": false,
+      "name": "idx_ccr_wedding",
+      "table": "couple_change_requests",
+      "cols": "\"wedding_id\", \"status\", \"created_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_collab_capo_active",
+      "table": "collaborations",
+      "cols": "\"capostipite_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_collab_forn_active",
+      "table": "collaborations",
+      "cols": "\"fornitore_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_collab_token",
+      "table": "collaborations",
+      "cols": "\"invite_token\""
+    },
+    {
+      "unique": false,
+      "name": "idx_components_service",
+      "table": "service_components",
+      "cols": "\"service_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_contracts_direct_client",
+      "table": "contracts",
+      "cols": "\"direct_client_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_contracts_owner",
+      "table": "contracts",
+      "cols": "\"owner_id\", \"status\""
+    },
+    {
+      "unique": false,
+      "name": "idx_contracts_token",
+      "table": "contracts",
+      "cols": "\"access_token\""
+    },
+    {
+      "unique": false,
+      "name": "idx_couple_entry",
+      "table": "wedding_couple_members",
+      "cols": "\"entry_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_couple_token",
+      "table": "wedding_couple_members",
+      "cols": "\"invite_token\""
+    },
+    {
+      "unique": false,
+      "name": "idx_couple_user",
+      "table": "wedding_couple_members",
+      "cols": "\"user_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_docs_entry",
+      "table": "event_documents",
+      "cols": "\"entry_id\", \"kind\""
+    },
+    {
+      "unique": false,
+      "name": "idx_ega_acc",
+      "table": "event_guest_accommodation",
+      "cols": "\"accommodation_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_ega_entry",
+      "table": "event_guest_accommodation",
+      "cols": "\"entry_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_ega_guest",
+      "table": "event_guest_accommodation",
+      "cols": "\"guest_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_egt_entry",
+      "table": "event_guest_transport",
+      "cols": "\"entry_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_egt_guest",
+      "table": "event_guest_transport",
+      "cols": "\"guest_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_egt_transport",
+      "table": "event_guest_transport",
+      "cols": "\"transport_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_export_tokens_user",
+      "table": "calendar_export_tokens",
+      "cols": "\"user_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_gadgets_entry",
+      "table": "event_gadgets",
+      "cols": "\"entry_id\", \"kind\""
+    },
+    {
+      "unique": false,
+      "name": "idx_guests_entry",
+      "table": "event_guests",
+      "cols": "\"entry_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_guests_table",
+      "table": "event_guests",
+      "cols": "\"table_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_modifiers_service",
+      "table": "service_modifiers",
+      "cols": "\"service_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_mood_entry",
+      "table": "mood_images",
+      "cols": "\"entry_id\", \"ord\""
+    },
+    {
+      "unique": false,
+      "name": "idx_notif_pending",
+      "table": "notification_queue",
+      "cols": "\"scheduled_for\""
+    },
+    {
+      "unique": false,
+      "name": "idx_notif_user",
+      "table": "notification_queue",
+      "cols": "\"user_id\", \"created_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_partic_entry",
+      "table": "calendar_entry_participants",
+      "cols": "\"entry_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_partic_user",
+      "table": "calendar_entry_participants",
+      "cols": "\"user_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_photos_service",
+      "table": "service_photos",
+      "cols": "\"service_id\", \"sort_order\""
+    },
+    {
+      "unique": false,
+      "name": "idx_playlist_entry",
+      "table": "event_playlist",
+      "cols": "\"entry_id\", \"moment\", \"ord\""
+    },
+    {
+      "unique": false,
+      "name": "idx_presets_forn",
+      "table": "service_presets",
+      "cols": "\"fornitore_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_price_versions_service_current",
+      "table": "price_versions",
+      "cols": "\"service_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_price_versions_service_history",
+      "table": "price_versions",
+      "cols": "\"service_id\", \"valid_from\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_profiles_role",
+      "table": "profiles",
+      "cols": "\"role\""
+    },
+    {
+      "unique": false,
+      "name": "idx_profiles_subrole",
+      "table": "profiles",
+      "cols": "\"subrole\""
+    },
+    {
+      "unique": false,
+      "name": "idx_profiles_tier",
+      "table": "profiles",
+      "cols": "\"subscription_tier\""
+    },
+    {
+      "unique": false,
+      "name": "idx_qa_email",
+      "table": "quote_acceptances",
+      "cols": "\"signer_email\""
+    },
+    {
+      "unique": false,
+      "name": "idx_qa_quote",
+      "table": "quote_acceptances",
+      "cols": "\"quote_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_qitems_payment",
+      "table": "quote_items",
+      "cols": "\"payment_status\""
+    },
+    {
+      "unique": false,
+      "name": "idx_qitems_quote",
+      "table": "quote_items",
+      "cols": "\"quote_id\", \"sort_order\""
+    },
+    {
+      "unique": false,
+      "name": "idx_qitems_service",
+      "table": "quote_items",
+      "cols": "\"service_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_qitems_supplier",
+      "table": "quote_items",
+      "cols": "\"supplier_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_qsm_quote",
+      "table": "quote_supplier_markups",
+      "cols": "\"quote_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_quotes_direct_client",
+      "table": "quotes",
+      "cols": "\"direct_client_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_quotes_event_date",
+      "table": "quotes",
+      "cols": "\"event_date\""
+    },
+    {
+      "unique": false,
+      "name": "idx_quotes_event_location_date",
+      "table": "quotes",
+      "cols": "\"lower\"((\"event_location\""
+    },
+    {
+      "unique": false,
+      "name": "idx_quotes_owner_status",
+      "table": "quotes",
+      "cols": "\"owner_id\", \"status\""
+    },
+    {
+      "unique": false,
+      "name": "idx_quotes_token",
+      "table": "quotes",
+      "cols": "\"access_token\""
+    },
+    {
+      "unique": false,
+      "name": "idx_qviews_quote",
+      "table": "quote_views",
+      "cols": "\"quote_id\", \"created_at\" DESC"
+    },
+    {
+      "unique": false,
+      "name": "idx_sclients_event_date",
+      "table": "supplier_clients",
+      "cols": "\"event_date\""
+    },
+    {
+      "unique": false,
+      "name": "idx_sclients_supplier",
+      "table": "supplier_clients",
+      "cols": "\"supplier_id\", \"status\""
+    },
+    {
+      "unique": false,
+      "name": "idx_services_category",
+      "table": "services",
+      "cols": "\"category_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_services_fornitore",
+      "table": "services",
+      "cols": "\"fornitore_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_sub_entry",
+      "table": "event_subevents",
+      "cols": "\"entry_id\", \"date_at\""
+    },
+    {
+      "unique": false,
+      "name": "idx_supplier_invites_capo",
+      "table": "supplier_invites",
+      "cols": "\"capostipite_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_supplier_invites_email",
+      "table": "supplier_invites",
+      "cols": "\"email\""
+    },
+    {
+      "unique": false,
+      "name": "idx_supplier_invites_token",
+      "table": "supplier_invites",
+      "cols": "\"token\""
+    },
+    {
+      "unique": false,
+      "name": "idx_ta_guest",
+      "table": "event_transport_assignments",
+      "cols": "\"guest_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_ta_trans",
+      "table": "event_transport_assignments",
+      "cols": "\"transport_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_tables_entry",
+      "table": "event_tables",
+      "cols": "\"entry_id\""
+    },
+    {
+      "unique": false,
+      "name": "idx_tasks_entry",
+      "table": "wedding_tasks",
+      "cols": "\"entry_id\", \"phase\", \"ord\""
+    },
+    {
+      "unique": false,
+      "name": "idx_timeline_entry",
+      "table": "event_timeline",
+      "cols": "\"entry_id\", \"ord\""
+    },
+    {
+      "unique": false,
+      "name": "idx_transport_entry",
+      "table": "event_transport",
+      "cols": "\"entry_id\", \"depart_at\""
+    },
+    {
+      "unique": false,
+      "name": "quote_acceptances_audit_quote_id_idx",
+      "table": "quote_acceptances_audit",
+      "cols": "\"quote_id\""
+    },
+    {
+      "unique": false,
+      "name": "quote_acceptances_audit_signer_email_idx",
+      "table": "quote_acceptances_audit",
+      "cols": "\"signer_email\""
+    },
+    {
+      "unique": true,
+      "name": "uq_couple_email",
+      "table": "wedding_couple_members",
+      "cols": "\"entry_id\", \"email\""
+    },
+    {
+      "unique": true,
+      "name": "uq_couple_pref_entry",
+      "table": "couple_preferences",
+      "cols": "\"entry_id\""
+    },
+    {
+      "unique": true,
+      "name": "uq_qa_quote_revision",
+      "table": "quote_acceptances",
+      "cols": "\"quote_id\", \"quote_revision\""
+    },
+    {
+      "unique": true,
+      "name": "uq_supplier_invites_pending",
+      "table": "supplier_invites",
+      "cols": "\"lower\"((\"email\""
     }
   ],
   "tables": {
-    "_fase_change_log": 13,
-    "atrio_agenzie": 19,
-    "atrio_eventi": 6,
-    "atrio_immobili": 22,
-    "brand_kit": 26,
-    "brand_rules": 19,
-    "broadcast_channels": 6,
-    "broadcast_playlist": 8,
-    "calendario": 20,
-    "chat_messaggi": 8,
-    "chat_reactions": 5,
-    "client_assets": 23,
-    "clienti": 32,
-    "cold_outreach_contatti": 15,
-    "cold_outreach_eventi": 19,
-    "cold_outreach_lista_contatti": 13,
-    "cold_outreach_liste": 19,
-    "cold_outreach_suppression": 5,
-    "cold_outreach_varianti": 10,
-    "contenuti": 36,
-    "creative_log": 7,
-    "daily_priorities": 9,
-    "data_pubblicazione_audit": 11,
-    "error_log": 10,
-    "feature_flags": 7,
-    "feature_learning": 6,
-    "log_riprese": 28,
-    "marketing_calendar": 5,
-    "monitor": 35,
-    "monitor_contenuti": 12,
-    "monitor_fasce": 9,
-    "monitor_remote_command": 8,
-    "newsletter_campagne": 25,
-    "newsletter_email_events": 9,
-    "newsletter_invii": 11,
-    "newsletter_iscritti": 13,
-    "notifiche": 9,
-    "profiles": 4,
-    "siti": 10,
-    "siti_asset": 10,
-    "siti_brief": 8,
-    "siti_prompt_generati": 7,
-    "siti_riferimenti": 10,
-    "siti_riferimenti_libreria": 9,
-    "siti_versioni": 8,
-    "siti_web": 29,
-    "sito_assets": 9,
-    "task": 17,
-    "task_files": 8,
-    "team": 18,
-    "tv_consigli": 15,
-    "tv_farmacie_di_turno": 11,
-    "tv_oroscopo": 12,
-    "tv_social_reels": 35
+    "beta_status": 8,
+    "budget_categories": 6,
+    "budget_entries": 9,
+    "calendar_entries": 26,
+    "calendar_entry_participants": 6,
+    "calendar_export_tokens": 6,
+    "collaborations": 10,
+    "contracts": 18,
+    "couple_change_requests": 15,
+    "couple_preferences": 16,
+    "event_accommodations": 24,
+    "event_documents": 9,
+    "event_gadgets": 16,
+    "event_guest_accommodation": 9,
+    "event_guest_transport": 6,
+    "event_guests": 22,
+    "event_playlist": 9,
+    "event_subevents": 17,
+    "event_tables": 9,
+    "event_timeline": 12,
+    "event_transport": 20,
+    "event_transport_assignments": 5,
+    "finance_applications": 9,
+    "finance_offers": 10,
+    "insurance_offers": 11,
+    "insurance_policies": 10,
+    "market_prices": 8,
+    "mood_images": 10,
+    "notification_queue": 9,
+    "price_versions": 5,
+    "profiles": 33,
+    "quote_acceptances": 19,
+    "quote_acceptances_audit": 21,
+    "quote_items": 19,
+    "quote_supplier_markups": 5,
+    "quote_views": 7,
+    "quotes": 23,
+    "service_categories": 8,
+    "service_components": 7,
+    "service_modifiers": 7,
+    "service_photos": 6,
+    "service_presets": 10,
+    "services": 9,
+    "supplier_availability": 7,
+    "supplier_clients": 17,
+    "supplier_invites": 12,
+    "wedding_couple_members": 10,
+    "wedding_tasks": 12
   }
 }
