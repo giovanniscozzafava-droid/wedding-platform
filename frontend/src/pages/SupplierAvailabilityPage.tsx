@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, X, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Clock, Unlock, Calendar as CalendarIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -67,6 +67,32 @@ export default function SupplierAvailabilityPage() {
     } catch (e) { toast.error((e as Error).message) }
     finally { setBusy(false) }
   }
+
+  async function unblock(id: string) {
+    setBusy(true)
+    try {
+      const { error } = await (supabase.from('supplier_availability' as any) as any).delete().eq('id', id)
+      if (error) throw error
+      toast.success('Data sbloccata')
+      await load()
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  const autoBlocked = useMemo(() => {
+    const today = ymd(new Date())
+    const out: Array<{ id: string; date: string; status: Status; notes: string; kind: 'quote' | 'contract' | 'manual' }> = []
+    for (const [date, slot] of busyMap.entries()) {
+      if (date < today) continue
+      const n = (slot.notes ?? '').toLowerCase()
+      const kind: 'quote' | 'contract' | 'manual' =
+        n.includes('contratto firmato') || n.startsWith('contratto') ? 'contract'
+        : n.includes('preventivo') ? 'quote'
+        : 'manual'
+      out.push({ id: slot.id, date, status: slot.status, notes: slot.notes ?? '', kind })
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 12)
+  }, [busyMap])
 
   const days = useMemo(() => {
     const first = startOfMonth(cursor)
@@ -160,6 +186,55 @@ export default function SupplierAvailabilityPage() {
             Click su un giorno per ciclare: <strong>Disponibile</strong> → <strong>Occupato</strong> → <strong>Tentativo</strong> → Disponibile.
           </p>
         </Card>
+
+        {autoBlocked.length > 0 && (
+          <Card className="p-4 sm:p-6 mt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarIcon size={16} style={{ color: 'rgb(var(--gold-700))' }} />
+              <h3 className="font-display text-lg">Prossime date bloccate</h3>
+            </div>
+            <p className="text-xs text-[rgb(var(--fg-muted))] mb-4">
+              Date bloccate dal sistema (preventivi accettati, contratti firmati) o manualmente. Sblocca quando una trattativa salta o riprogrammi l'evento.
+            </p>
+            <div className="space-y-2">
+              {autoBlocked.map((b) => (
+                <div key={b.id} className="flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
+                  <span
+                    className="shrink-0 inline-flex items-center justify-center px-2 py-1 rounded text-xs font-medium tabular-nums"
+                    style={{
+                      background: b.status === 'BUSY' ? 'rgb(var(--rose-500))' : 'rgb(var(--amber-500))',
+                      color: 'white',
+                      minWidth: 92,
+                    }}
+                  >
+                    {new Date(b.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: 'rgb(var(--fg))' }}>
+                      {b.kind === 'contract' ? 'Contratto firmato' : b.kind === 'quote' ? 'Preventivo' : 'Bloccato manualmente'}
+                    </p>
+                    {b.notes && <p className="text-xs truncate" style={{ color: 'rgb(var(--fg-muted))' }}>{b.notes}</p>}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      if (b.kind === 'contract') {
+                        if (!confirm('Questo blocco proviene da un contratto FIRMATO. Sbloccare la data NON annulla il contratto. Continuare?')) return
+                      } else if (b.kind === 'quote') {
+                        if (!confirm('Questo blocco proviene da un preventivo. Sblocca solo se la trattativa è effettivamente saltata.')) return
+                      }
+                      void unblock(b.id)
+                    }}
+                  >
+                    <Unlock size={14} /> Sblocca
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   )

@@ -3112,6 +3112,24 @@ export type Database = {
       is_quote_owner: { Args: { p_quote: string }; Returns: boolean }
       is_service_owner: { Args: { p_service_id: string }; Returns: boolean }
       is_wedding_couple: { Args: { p_entry: string }; Returns: boolean }
+      my_quote_conflict_alerts: {
+        Args: never
+        Returns: {
+          conflict_severity: string
+          match_signals: string[]
+          my_quote_id: string
+          my_quote_status: string
+          my_quote_title: string
+          my_quote_total: number
+          my_role: string
+          other_owner_name: string
+          other_owner_role: string
+          other_quote_event_date: string
+          other_quote_id: string
+          other_quote_status: string
+          other_quote_total: number
+        }[]
+      }
       quote_accept_by_token: { Args: { p_token: string }; Returns: boolean }
       quote_get_by_token: { Args: { p_token: string }; Returns: Json }
       quote_pick_alternative: {
