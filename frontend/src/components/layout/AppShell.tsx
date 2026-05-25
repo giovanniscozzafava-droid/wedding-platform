@@ -19,6 +19,7 @@ import {
   Wallet,
   ShieldCheck,
   FileSignature,
+  Contact,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -62,6 +63,7 @@ const NAV_TAIL_CLIENT_PRODUCTS: NavItem[] = [
 ]
 
 const NAV_FORN: NavItem[] = [
+  { to: '/clienti', label: 'Clienti', icon: Contact },
   { to: '/disponibilita', label: 'Disponibilità', icon: CalendarCheck },
   { to: '/calcolatore', label: 'Calcolatore', icon: Calculator },
 ]
