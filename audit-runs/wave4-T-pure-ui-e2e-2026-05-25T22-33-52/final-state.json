@@ -1,0 +1,31 @@
+{
+  "uiOnlyOk": {
+    "wpOnboarding": true,
+    "brandLogo": true,
+    "supplierInvite": true,
+    "quoteCreate": true,
+    "quoteSend": true,
+    "quoteSign": true,
+    "bannerAcceptedVisible": true,
+    "generateContractBtn": true,
+    "contractGenerated": true,
+    "contractSign": false,
+    "coupleSignup": true,
+    "tables": true,
+    "guests": false,
+    "mood": false,
+    "playlist": false,
+    "timeline": false
+  },
+  "dbForced": [],
+  "wpUserId": "57be1ed0-4506-4e8a-8a6c-efe7deb9eef5",
+  "fotoUserId": "2b1e645f-522f-4446-8025-5c3342d9689d",
+  "quoteId": "fa89746d-c2db-4373-8edd-10cfe63a31bd",
+  "quoteToken": "f5cad93e-05b8-4d8f-ae75-a2759d2c1a25",
+  "quoteTotal": 2880,
+  "quoteAcceptedAt": "2026-05-25T22:47:27.556+00:00",
+  "contractId": "d5607c2d-2009-496f-b434-b319bdcf42a7",
+  "contractToken": "949fce74-6c4d-440a-88a4-0f232458c00b",
+  "weddingId": "a532ff22-814b-45c9-987f-940e0a4992d1",
+  "coupleUserId": "b9e4ab80-8d66-424d-a159-041f3da40e6d"
+}

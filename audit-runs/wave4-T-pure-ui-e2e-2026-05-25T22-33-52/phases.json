@@ -1,0 +1,440 @@
+{
+  "1": {
+    "name": "WP registration (UI register + onboarding wizard + brand upload)",
+    "started": "2026-05-25T22:33:53.210Z",
+    "steps": [
+      {
+        "name": "WP registered via UI → onboarding",
+        "ok": true,
+        "detail": "https://planfully.it/onboarding",
+        "ts": "2026-05-25T22:33:57.187Z"
+      },
+      {
+        "name": "Onboarding wizard completato via UI",
+        "ok": true,
+        "detail": "https://planfully.it/",
+        "ts": "2026-05-25T22:36:03.536Z"
+      },
+      {
+        "name": "Brand logo uploaded via UI input[type=file]",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:36:14.182Z"
+      },
+      {
+        "name": "Brand colors set via UI: #C49A5C / #1A2E4F (color inputs found: 2)",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:36:14.194Z"
+      },
+      {
+        "name": "WP profile in DB",
+        "ok": true,
+        "detail": "{\"onboarding_complete\":true,\"city\":null,\"has_logo\":true,\"primary\":\"#c49a5c\",\"secondary\":\"#1a2e4f\",\"subrole\":\"wedding_planner\"}",
+        "ts": "2026-05-25T22:36:17.024Z"
+      }
+    ],
+    "screenshots": [
+      "phase1-01-register-page.png",
+      "phase1-02-register-filled.png",
+      "phase1-03-onboarding-step0.png",
+      "phase1-04-onboarding-step1.png",
+      "phase1-05-onboarding-step2.png",
+      "phase1-06-onboarding-step3.png",
+      "phase1-07-onboarding-step4.png",
+      "phase1-08-wp-home.png",
+      "phase1-09-brand-page.png",
+      "phase1-10-brand-saved.png"
+    ],
+    "bugs": [],
+    "notes": [],
+    "finished": "2026-05-25T22:36:17.025Z",
+    "ok": true,
+    "durationSec": 143.815
+  },
+  "2": {
+    "name": "WP invites foto supplier via UI + supplier accepts via UI",
+    "started": "2026-05-25T22:36:17.025Z",
+    "steps": [
+      {
+        "name": "Invite modal opened via UI",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:36:23.978Z"
+      },
+      {
+        "name": "Invite link generato via UI",
+        "ok": true,
+        "detail": "e6be2ed5-4ba",
+        "ts": "2026-05-25T22:36:27.477Z"
+      },
+      {
+        "name": "Foto supplier registered via /invito-fornitore UI",
+        "ok": true,
+        "detail": "2b1e645f-522f-4446-8025-5c3342d9689d",
+        "ts": "2026-05-25T22:36:39.052Z"
+      },
+      {
+        "name": "Active collaboration foto: 1/1",
+        "ok": true,
+        "detail": "[\"2b1e645f\"]",
+        "ts": "2026-05-25T22:45:55.300Z"
+      }
+    ],
+    "screenshots": [
+      "phase2-01-suppliers-page.png",
+      "phase2-02-invite-foto-form.png",
+      "phase2-03-invite-link.png",
+      "phase2-04-foto-invite-page.png",
+      "phase2-04b-foto-invite-filled.png",
+      "phase2-05-foto-after-signup.png",
+      "phase2-06-foto-after-onboarding.png",
+      "phase2-07-foto-brand-saved.png",
+      "phase2-08-wp-suppliers-list.png"
+    ],
+    "bugs": [
+      {
+        "severity": "MEDIUM",
+        "area": "FOTO_BRAND_FILE",
+        "msg": "Nessun input file per logo fornitore"
+      }
+    ],
+    "notes": [],
+    "finished": "2026-05-25T22:45:55.300Z",
+    "ok": true,
+    "durationSec": 578.275
+  },
+  "3": {
+    "name": "WP creates quote via UI + adds items from catalog + send to client",
+    "started": "2026-05-25T22:46:18.910Z",
+    "steps": [
+      {
+        "name": "Quote created via UI form (Crea e apri)",
+        "ok": true,
+        "detail": "fa89746d-c2db-4373-8edd-10cfe63a31bd",
+        "ts": "2026-05-25T22:46:36.422Z"
+      },
+      {
+        "name": "Catalog cards visible for foto supplier: 1",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:46:43.138Z"
+      },
+      {
+        "name": "Items added via UI from catalog: 1/2",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T22:46:44.953Z"
+      },
+      {
+        "name": "PDF NEUTRA generato (URL DB): false",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T22:47:04.174Z"
+      },
+      {
+        "name": "Quote send-quote-btn clicked",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:47:14.386Z"
+      },
+      {
+        "name": "Quote DB stato post-send: status=INVIATO, total=2880, markup=20, tables=10",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:47:14.632Z"
+      },
+      {
+        "name": "Quote items in DB: 1",
+        "ok": true,
+        "detail": "[\"Servizio fotografico full day\"]",
+        "ts": "2026-05-25T22:47:14.683Z"
+      }
+    ],
+    "screenshots": [
+      "phase3-01-quotes-list.png",
+      "phase3-02-new-quote-modal.png",
+      "phase3-03-quote-form-filled.png",
+      "phase3-04-quote-editor.png",
+      "phase3-05-after-items-added.png",
+      "phase3-06-after-pdf.png",
+      "phase3-07-quote-sent.png"
+    ],
+    "bugs": [
+      {
+        "severity": "MEDIUM",
+        "area": "PDF_NO_DOWNLOAD",
+        "msg": "Download event non scattato e nessun pdf_url in DB"
+      }
+    ],
+    "notes": [],
+    "finished": "2026-05-25T22:47:14.683Z",
+    "ok": true,
+    "durationSec": 55.773
+  },
+  "4": {
+    "name": "Couple signs quote via /p/accept/:token UI multi-step",
+    "started": "2026-05-25T22:47:14.683Z",
+    "steps": [
+      {
+        "name": "Canvas firma disegnato via page.mouse.down/move/up",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:47:26.185Z"
+      },
+      {
+        "name": "Consents checked: 2",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:47:26.701Z"
+      },
+      {
+        "name": "Quote firma: status=ACCETTATO, accepted_at=2026-05-25T22:47:27.556+00:00, audit_rows=0, pdf=no",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:47:42.366Z"
+      }
+    ],
+    "screenshots": [
+      "phase4-01-accept-step1.png",
+      "phase4-02-accept-step2.png",
+      "phase4-03-accept-step3.png",
+      "phase4-04-signature-drawn.png",
+      "phase4-05-after-accept.png"
+    ],
+    "bugs": [],
+    "notes": [],
+    "finished": "2026-05-25T22:47:42.371Z",
+    "ok": true,
+    "durationSec": 27.688
+  },
+  "5": {
+    "name": "WP clicks \"Genera contratto\" button (Wave 4 fix) → contract row created",
+    "started": "2026-05-25T22:47:42.371Z",
+    "steps": [
+      {
+        "name": "Banner ACCETTATO visibile in editor",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:47:51.349Z"
+      },
+      {
+        "name": "Pulsante \"Genera contratto\" presente (Wave 4 fix)",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:47:51.351Z"
+      },
+      {
+        "name": "Contract creato in DB via UI: id=d5607c2d-2009-496f-b434-b319bdcf42a7, status=BOZZA, token=949fce74",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:47:57.606Z"
+      },
+      {
+        "name": "Contract dopo send UI: status=BOZZA, token=949fce74",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:48:03.849Z"
+      }
+    ],
+    "screenshots": [
+      "phase5-01-quote-detail-after-accept.png",
+      "phase5-02-after-generate-contract-click.png",
+      "phase5-03-contracts-list.png",
+      "phase5-04-contract-detail.png",
+      "phase5-06-contract-after-send.png"
+    ],
+    "bugs": [],
+    "notes": [
+      "Nessuna textarea sezione in /contracts/:id (UI minimale)"
+    ],
+    "finished": "2026-05-25T22:48:03.849Z",
+    "ok": true,
+    "durationSec": 21.478
+  },
+  "6": {
+    "name": "Couple signs contract via /p/contract/:token UI",
+    "started": "2026-05-25T22:48:03.849Z",
+    "steps": [
+      {
+        "name": "Canvas firma contratto NON presente (UI text-only)",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:48:10.313Z"
+      },
+      {
+        "name": "Contract DB: status=undefined, signed_at=undefined, signature=false, signed_pdf=no",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T22:48:20.561Z"
+      }
+    ],
+    "screenshots": [
+      "phase6-01-contract-sign-page.png",
+      "phase6-02-contract-form-filled.png",
+      "phase6-04-after-contract-sign.png"
+    ],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "CONTRACT_SIGN_UI",
+        "msg": "Contract NON firmato dopo submit UI"
+      }
+    ],
+    "notes": [],
+    "finished": "2026-05-25T22:48:20.565Z",
+    "ok": false,
+    "durationSec": 16.716
+  },
+  "7": {
+    "name": "Couple signs up via /invito-coppia/:token + explores dashboard tabs (mood, programma)",
+    "started": "2026-05-25T22:48:20.565Z",
+    "steps": [
+      {
+        "name": "Wedding entry collegata a quote",
+        "ok": true,
+        "detail": "a532ff22-814b-45c9-987f-940e0a4992d1",
+        "ts": "2026-05-25T22:48:20.628Z"
+      },
+      {
+        "name": "Couple invite token",
+        "ok": true,
+        "detail": "7add8d74-5ff",
+        "ts": "2026-05-25T22:48:20.741Z"
+      },
+      {
+        "name": "Couple registered via UI",
+        "ok": true,
+        "detail": "b9e4ab80-8d66-424d-a159-041f3da40e6d",
+        "ts": "2026-05-25T22:48:33.932Z"
+      }
+    ],
+    "screenshots": [
+      "phase7-01-couple-invite.png",
+      "phase7-02-couple-signup-filled.png",
+      "phase7-03-couple-after-signup.png",
+      "phase7-04-couple-dashboard.png"
+    ],
+    "bugs": [],
+    "notes": [
+      "Input Pinterest non trovato in Mood tab coppia",
+      "Pulsante change-request non visibile in tab Programma coppia"
+    ],
+    "finished": "2026-05-25T22:48:37.212Z",
+    "ok": true,
+    "durationSec": 16.647
+  },
+  "8": {
+    "name": "WP populates wedding tabs (tables, guests, mood, playlist, timeline) via UI clicks",
+    "started": "2026-05-25T22:48:37.212Z",
+    "steps": [
+      {
+        "name": "Tables created via UI clicks: 10 attempted → DB 10",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:48:52.089Z"
+      },
+      {
+        "name": "Guests created via UI clicks: 30 attempted → DB 0",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T22:49:09.079Z"
+      },
+      {
+        "name": "Mood images uploaded via UI: 0 attempted → DB 0",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T22:49:11.421Z"
+      },
+      {
+        "name": "Playlist songs added via UI: 10 attempted → DB 0",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T22:49:20.998Z"
+      },
+      {
+        "name": "Timeline moments added via UI: 0 attempted → DB 0",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T22:49:23.368Z"
+      }
+    ],
+    "screenshots": [
+      "phase8-01-wedding-dashboard.png",
+      "phase8-02-tables-tab.png",
+      "phase8-03-tables-added.png",
+      "phase8-04-guests-tab.png",
+      "phase8-05-guests-added.png",
+      "phase8-06-mood-tab.png",
+      "phase8-07-mood-uploaded.png",
+      "phase8-08-playlist-tab.png",
+      "phase8-09-playlist-added.png",
+      "phase8-10-timeline-tab.png",
+      "phase8-11-timeline-added.png"
+    ],
+    "bugs": [],
+    "notes": [],
+    "finished": "2026-05-25T22:49:23.475Z",
+    "ok": true,
+    "durationSec": 46.263
+  },
+  "9": {
+    "name": "Cleanup all agent-t-% users + derived data via service-role",
+    "started": "2026-05-25T22:49:23.475Z",
+    "steps": [
+      {
+        "name": "Deleted 3 auth users",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:49:25.060Z"
+      },
+      {
+        "name": "Quote cleaned",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:49:25.236Z"
+      },
+      {
+        "name": "Wedding cleaned",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:49:25.236Z"
+      }
+    ],
+    "screenshots": [],
+    "bugs": [],
+    "notes": [],
+    "finished": "2026-05-25T22:49:25.236Z",
+    "ok": true,
+    "durationSec": 1.761
+  },
+  "25": {
+    "name": "Foto supplier creates 2 catalog services via UI (preparation for quote items)",
+    "started": "2026-05-25T22:45:55.300Z",
+    "steps": [
+      {
+        "name": "Service created via UI: Servizio fotografico full day",
+        "ok": true,
+        "detail": "9b5ecbc4-a301-45d5-b780-6ff17b57a849",
+        "ts": "2026-05-25T22:46:14.292Z"
+      }
+    ],
+    "screenshots": [
+      "phase25-01-catalog-empty.png",
+      "phase25-02-svc-0-filled.png",
+      "phase25-03-svc-0-after-save.png",
+      "phase25-99-error.png"
+    ],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "PHASE25",
+        "msg": "locator.click: Timeout 4000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"new-service-btn\"]').first()\n    - locator resolved to <button data-testid=\"new-service-btn\" class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] hover:bg-[rgb(var(--gold-600))] active:scale-[.98] shadow-[0_1px_2px_rgba(170,140,60,.18),0_8px_24px_rgba(170,140,60,.18)] h-10 px-4 py-2\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"absolute inset-0 bg-black/40 backdrop-blur-sm\"></div> from <div role=\"dialog\" class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"absolute inset-0 bg-black/40 backdrop-blur-sm\"></div> from <div role=\"dialog\" class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    7 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"absolute inset-0 bg-black/40 backdrop-blur-sm\"></div> from <div role=\"dialog\" class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+      }
+    ],
+    "notes": [],
+    "finished": "2026-05-25T22:46:18.910Z",
+    "ok": false,
+    "durationSec": 23.61
+  }
+}
