@@ -86,37 +86,43 @@ Deno.serve(async (req) => {
   let imageFetchError: string | null = null
 
   if (body.fetch_image) {
-    const userAgents = [
-      // Bot whitelist Instagram/Meta (servono og:image direttamente al CDN)
-      ['fb', 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'],
-      // Browser desktop (per Pinterest/blog)
-      ['chrome', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'],
-      ['wa', 'WhatsApp/2.23.20.0 A'],
+    // Tentativi in ordine: direct (FB UA), direct (Chrome UA), proxy wsrv.nl
+    // (wsrv.nl e' un image proxy CDN gratuito Cloudflare che funziona anche
+    //  quando Instagram blocca tutti i bot).
+    const attempts: { tag: string; url: string; headers: Record<string, string> }[] = [
+      {
+        tag: 'fb',
+        url: image,
+        headers: {
+          'user-agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+          'referer': finalUrl,
+          'accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        },
+      },
+      {
+        tag: 'chrome',
+        url: image,
+        headers: {
+          'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'referer': finalUrl,
+          'accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        },
+      },
+      {
+        tag: 'wsrv',
+        url: `https://wsrv.nl/?url=${encodeURIComponent(image)}&output=jpg&q=85`,
+        headers: { 'user-agent': 'Planfully/1.0' },
+      },
     ]
-    for (const [tag, ua] of userAgents) {
+    for (const att of attempts) {
       const ac = new AbortController()
-      const timeout = setTimeout(() => ac.abort(), 6000) // 6s max per tentativo
+      const timeout = setTimeout(() => ac.abort(), 8000)
       try {
-        const ir = await fetch(image, {
-          redirect: 'follow',
-          signal: ac.signal,
-          headers: {
-            'user-agent': ua,
-            'referer': finalUrl,
-            'accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-            'accept-language': 'it-IT,it;q=0.9,en;q=0.8',
-          },
-        })
+        const ir = await fetch(att.url, { redirect: 'follow', signal: ac.signal, headers: att.headers })
         clearTimeout(timeout)
-        if (!ir.ok) {
-          imageFetchError = `${tag}:HTTP_${ir.status}`
-          continue
-        }
+        if (!ir.ok) { imageFetchError = `${att.tag}:HTTP_${ir.status}`; continue }
         const ab = await ir.arrayBuffer()
-        if (ab.byteLength < 200) {
-          imageFetchError = `${tag}:empty`
-          continue
-        }
+        if (ab.byteLength < 200) { imageFetchError = `${att.tag}:empty`; continue }
         const u8 = new Uint8Array(ab)
         let bin = ''
         const chunkSize = 0x8000
@@ -129,7 +135,7 @@ Deno.serve(async (req) => {
         break
       } catch (e: any) {
         clearTimeout(timeout)
-        imageFetchError = `${tag}:${e?.name === 'AbortError' ? 'timeout' : (e?.message ?? 'fetch_error').slice(0, 40)}`
+        imageFetchError = `${att.tag}:${e?.name === 'AbortError' ? 'timeout' : (e?.message ?? 'fetch_error').slice(0, 40)}`
       }
     }
   }

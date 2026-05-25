@@ -51,3 +51,7 @@ supabase/.env
 # Vercel
 .vercel
 .env*.local
+
+# Audit run artifacts (screenshots, raw report per-run) — il summary finale è in audit-runs/FINAL-REPORT.md
+audit-runs/2*/
+audit-runs/ui-*/
