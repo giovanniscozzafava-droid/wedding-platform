@@ -26,7 +26,12 @@ export function DocumentsTab({ entryId }: { entryId: string }) {
     if (!f) return
     setBusy(true)
     try {
-      const path = `${entryId}/${Date.now()}-${f.name}`
+      // Storage key: ASCII-only per evitare "Invalid key" su nomi con accenti/spazi
+      // (Supabase Storage rifiuta caratteri non-ASCII). Manteniamo l'extension
+      // originale e il `name` reale del file nella row DB per la UI.
+      const dot = f.name.lastIndexOf('.')
+      const ext = dot >= 0 ? f.name.slice(dot + 1).replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : 'bin'
+      const path = `${entryId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext || 'bin'}`
       const up = await supabase.storage.from('event-documents').upload(path, f)
       if (up.error) throw up.error
       const { data: me } = await supabase.auth.getUser()
