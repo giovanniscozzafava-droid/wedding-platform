@@ -36,6 +36,12 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button'
+    // A11y: icon-only buttons devono avere aria-label O title O aria-labelledby.
+    // In dev mostra warning per aiutare a coprire i WCAG 2.1 violations.
+    if (import.meta.env.DEV && size === 'icon' && !props['aria-label'] && !props.title && !props['aria-labelledby']) {
+      // eslint-disable-next-line no-console
+      console.warn('[A11y] Button size="icon" senza aria-label/title — aggiungi attributo descrittivo')
+    }
     return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
   },
 )
