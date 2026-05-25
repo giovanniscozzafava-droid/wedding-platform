@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, FileDown, Send, Plus, Trash2, ExternalLink, Sparkles, Users, Table, Clock, Package, Wallet, Calendar } from 'lucide-react'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Sparkles, Users, Table, Clock, Package, Wallet, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -56,7 +56,10 @@ const PAY_STATUSES: { key: PayStatus; label: string; tone: string; dot: string }
 
 export default function QuoteEditorPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { data: quote, isLoading } = useQuote(id ?? null)
+  const [contractInfo, setContractInfo] = useState<{ id: string; status: string } | null>(null)
+  const [creatingContract, setCreatingContract] = useState(false)
   const update = useUpdateQuote()
   const addItem = useAddQuoteItem()
   const remItem = useRemoveQuoteItem()
@@ -80,6 +83,53 @@ export default function QuoteEditorPage() {
   const [forceModal, setForceModal] = useState<{ open: boolean; reason: string }>({ open: false, reason: '' })
 
   const isLocked = (quote?.status === 'ACCETTATO') && !forceUnlocked
+
+  // Fetch eventuale contratto già collegato a questo preventivo
+  useEffect(() => {
+    if (!id) return
+    void (async () => {
+      const { data } = await (supabase.from('contracts' as any) as any)
+        .select('id, status')
+        .eq('quote_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (data) setContractInfo(data as { id: string; status: string })
+    })()
+  }, [id, quote?.status])
+
+  async function handleCreateContract() {
+    if (!quote || !id) return
+    setCreatingContract(true)
+    try {
+      const { data: me } = await supabase.auth.getUser()
+      if (!me.user) throw new Error('Non autenticato')
+      const { data, error } = await (supabase.from('contracts' as any) as any)
+        .insert({
+          owner_id: me.user.id,
+          quote_id: id,
+          title: `Contratto · ${quote.title ?? 'preventivo'}`,
+          client_name: quote.client_name,
+          client_email: quote.client_email,
+          event_date: quote.event_date,
+          total_amount: quote.total_client,
+          status: 'BOZZA',
+          access_token: crypto.randomUUID(),
+        })
+        .select('id, status')
+        .single()
+      if (error) throw error
+      // Aggiorna anche quote → CONVERTITO_IN_CONTRATTO
+      await (supabase.from('quotes' as any) as any).update({ status: 'CONVERTITO_IN_CONTRATTO' }).eq('id', id)
+      toast.success('Contratto generato')
+      setContractInfo(data as { id: string; status: string })
+      navigate('/contracts')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore generazione contratto')
+    } finally {
+      setCreatingContract(false)
+    }
+  }
 
   useEffect(() => {
     if (quote) {
@@ -283,23 +333,37 @@ export default function QuoteEditorPage() {
           </div>
         </div>
 
-        {/* Banner: preventivo firmato → lock modifiche */}
-        {quote.status === 'ACCETTATO' && (
+        {/* Banner: preventivo firmato → lock modifiche + convert-to-contract */}
+        {(quote.status === 'ACCETTATO' || quote.status === 'CONVERTITO_IN_CONTRATTO') && (
           <Card className="p-4 mb-4 border-l-4" style={{ borderLeftColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="font-medium text-sm">🔒 Preventivo accettato dal cliente · rev. v{quote.revision}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">🔒 Preventivo {quote.status === 'CONVERTITO_IN_CONTRATTO' ? 'convertito in contratto' : 'accettato dal cliente'} · rev. v{quote.revision}</p>
                 <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
-                  {forceUnlocked
-                    ? 'Stai modificando un preventivo firmato. Salva con "Applica" — verrà inviata una notifica al cliente con il motivo della modifica.'
-                    : 'I campi sono in sola lettura. Per modificarli devi giustificare il motivo e notificare il cliente via email.'}
+                  {contractInfo
+                    ? `Contratto collegato (stato ${contractInfo.status}). Apri Contratti per gestirlo.`
+                    : forceUnlocked
+                      ? 'Stai modificando un preventivo firmato. Salva con "Applica" — verrà inviata una notifica al cliente con il motivo della modifica.'
+                      : 'I campi sono in sola lettura. Per modificarli devi giustificare il motivo e notificare il cliente via email.'}
                 </p>
               </div>
-              {!forceUnlocked && (
-                <Button variant="outline" size="sm" onClick={() => setForceModal({ open: true, reason: '' })}>
-                  Modifica forzata
-                </Button>
-              )}
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {!contractInfo && quote.status === 'ACCETTATO' && (
+                  <Button variant="gold" size="sm" onClick={handleCreateContract} disabled={creatingContract} data-testid="generate-contract-btn">
+                    <FileSignature size={14} /> {creatingContract ? 'Genero…' : 'Genera contratto'}
+                  </Button>
+                )}
+                {contractInfo && (
+                  <Button variant="outline" size="sm" onClick={() => navigate('/contracts')}>
+                    <FileSignature size={14} /> Apri contratto
+                  </Button>
+                )}
+                {!forceUnlocked && !contractInfo && (
+                  <Button variant="outline" size="sm" onClick={() => setForceModal({ open: true, reason: '' })}>
+                    Modifica forzata
+                  </Button>
+                )}
+              </div>
             </div>
           </Card>
         )}

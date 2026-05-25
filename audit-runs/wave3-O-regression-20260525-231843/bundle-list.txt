@@ -1,0 +1,15 @@
+# Bundle chunks served by https://planfully.it (deploy gygrx4er4)
+
+CHUNK                                         RAW (B)      GZ (B)      
+-----                                         -------      ------      
+assets/index-B0O5cRfz.js                      564394       136134      
+assets/vendor-motion-BnPlfCCY.js              132135       43287       
+assets/vendor-pdf-DvHkrW-m.js                 624441       184567      
+assets/vendor-query-tqMhkkzg.js               35370        10435       
+assets/vendor-react-DyTvu2tV.js               156232       51234       
+assets/vendor-supabase-BDjhuu4N.js            199502       51291       
+assets/vendor-ui-NSTwVXc9.js                  55636        16754       
+
+INITIAL (excluding vendor-pdf): index + vendor-react + vendor-supabase + vendor-motion + vendor-query + vendor-ui
+Threshold: < 350KB gz
+Measured: ~302KB gz -> PASS

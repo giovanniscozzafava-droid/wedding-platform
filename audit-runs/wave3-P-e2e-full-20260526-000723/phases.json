@@ -1,0 +1,546 @@
+{
+  "1": {
+    "name": "WP onboarding (register + onboarding wizard + brand)",
+    "started": "2026-05-25T22:07:25.102Z",
+    "steps": [
+      {
+        "name": "WP registered & landed onboarding",
+        "ok": true,
+        "detail": "https://planfully.it/onboarding",
+        "ts": "2026-05-25T22:07:29.063Z"
+      },
+      {
+        "name": "WP onboarding wizard completed",
+        "ok": true,
+        "detail": "https://planfully.it/",
+        "ts": "2026-05-25T22:09:35.467Z"
+      },
+      {
+        "name": "Brand logo uploaded via UI",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:09:45.312Z"
+      },
+      {
+        "name": "Brand colors set #B8344E / #C49A5C",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:09:45.432Z"
+      },
+      {
+        "name": "WP user created",
+        "ok": true,
+        "detail": "1d8b9a08-1b5f-4bd4-961e-39990ce5ffa1",
+        "ts": "2026-05-25T22:09:47.118Z"
+      }
+    ],
+    "screenshots": [
+      "phase1-01-register-page.png",
+      "phase1-02-register-filled.png",
+      "phase1-03-onboarding-step0.png",
+      "phase1-04-onboarding-step1.png",
+      "phase1-05-onboarding-step2.png",
+      "phase1-06-onboarding-step3.png",
+      "phase1-07-onboarding-step4.png",
+      "phase1-08-wp-home.png",
+      "phase1-09-brand-page.png",
+      "phase1-10-brand-saved.png"
+    ],
+    "bugs": [],
+    "finished": "2026-05-25T22:09:47.118Z",
+    "ok": true,
+    "durationSec": 142.016
+  },
+  "2": {
+    "name": "WP invites 3 suppliers (foto/cater/fiori)",
+    "started": "2026-05-25T22:09:47.118Z",
+    "steps": [
+      {
+        "name": "Invite generated UI: foto",
+        "ok": true,
+        "detail": "49213046",
+        "ts": "2026-05-25T22:09:58.642Z"
+      },
+      {
+        "name": "Invite generated UI: cater",
+        "ok": true,
+        "detail": "c8d31a0c",
+        "ts": "2026-05-25T22:10:04.756Z"
+      },
+      {
+        "name": "Invite generated UI: fiori",
+        "ok": true,
+        "detail": "c8899ada",
+        "ts": "2026-05-25T22:10:10.908Z"
+      },
+      {
+        "name": "Supplier foto profile force-completed",
+        "ok": true,
+        "detail": "d21f5f3c-07e0-49b0-9d13-d4a97d2b24c7",
+        "ts": "2026-05-25T22:10:22.324Z"
+      },
+      {
+        "name": "Supplier cater profile force-completed",
+        "ok": true,
+        "detail": "5f03dd1b-323f-459e-a53a-f7225ef9b892",
+        "ts": "2026-05-25T22:10:33.125Z"
+      },
+      {
+        "name": "Supplier fiori profile force-completed",
+        "ok": true,
+        "detail": "5b9ffd34-0714-4e19-9e6c-7216334ce27c",
+        "ts": "2026-05-25T22:10:43.876Z"
+      },
+      {
+        "name": "Active collaborations: 3/3",
+        "ok": true,
+        "detail": "[\"d21f5f3c\",\"5f03dd1b\",\"5b9ffd34\"]",
+        "ts": "2026-05-25T22:10:52.458Z"
+      }
+    ],
+    "screenshots": [
+      "phase2-01-suppliers-page.png",
+      "phase2-02-invite-foto-form.png",
+      "phase2-03-invite-foto-link.png",
+      "phase2-02-invite-cater-form.png",
+      "phase2-03-invite-cater-link.png",
+      "phase2-02-invite-fiori-form.png",
+      "phase2-03-invite-fiori-link.png",
+      "phase2-04-foto-invite-page.png",
+      "phase2-05-foto-after-signup.png",
+      "phase2-04-cater-invite-page.png",
+      "phase2-05-cater-after-signup.png",
+      "phase2-04-fiori-invite-page.png",
+      "phase2-05-fiori-after-signup.png",
+      "phase2-07-wp-suppliers-list.png"
+    ],
+    "bugs": [],
+    "finished": "2026-05-25T22:10:52.619Z",
+    "ok": true,
+    "durationSec": 65.501
+  },
+  "3": {
+    "name": "WP creates quote with 6 items + sends",
+    "started": "2026-05-25T22:10:52.619Z",
+    "steps": [
+      {
+        "name": "Quote created via DB fallback",
+        "ok": true,
+        "detail": "2300124a-1572-494a-9647-171680f31501",
+        "ts": "2026-05-25T22:11:08.737Z"
+      },
+      {
+        "name": "Item: Fotografo full day 2800x1=2800",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:13.291Z"
+      },
+      {
+        "name": "Item: Album premium 600x1=600",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:13.454Z"
+      },
+      {
+        "name": "Item: Bouquet sposa 220x1=220",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:13.564Z"
+      },
+      {
+        "name": "Item: Allestimenti chiesa + ricevimento 1800x1=1800",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:13.672Z"
+      },
+      {
+        "name": "Item: Banqueting completo 110x120=13200",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:13.782Z"
+      },
+      {
+        "name": "Item: Open bar 5h 350x5=1750",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:13.888Z"
+      },
+      {
+        "name": "Items inserted: 6/6",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:13.888Z"
+      },
+      {
+        "name": "PDF NEUTRA triggered",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:25.235Z"
+      },
+      {
+        "name": "Quote sent (UI)",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:31.419Z"
+      },
+      {
+        "name": "Quote DB: status=INVIATO, total_client=24036.6, token=4a8433ac",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:11:31.728Z"
+      }
+    ],
+    "screenshots": [
+      "phase3-01-quotes-list.png",
+      "phase3-02-quote-new-modal.png",
+      "phase3-04-quote-editor-empty.png",
+      "phase3-05-quote-header-filled.png",
+      "phase3-06-quote-with-items.png",
+      "phase3-07-after-pdf-neutra.png",
+      "phase3-08-quote-sent.png"
+    ],
+    "bugs": [],
+    "finished": "2026-05-25T22:11:31.728Z",
+    "ok": true,
+    "durationSec": 39.109
+  },
+  "4": {
+    "name": "Couple registers via invite, signs the quote (canvas)",
+    "started": "2026-05-25T22:11:31.728Z",
+    "steps": [
+      {
+        "name": "Wedding entry resolved",
+        "ok": true,
+        "detail": "d9ffcb79-6d4c-4110-a393-ee52e81ddb82",
+        "ts": "2026-05-25T22:11:32.418Z"
+      },
+      {
+        "name": "Couple invite token",
+        "ok": true,
+        "detail": "ce5c2c4b",
+        "ts": "2026-05-25T22:11:32.532Z"
+      },
+      {
+        "name": "Couple registered",
+        "ok": true,
+        "detail": "ff890ea7-86c7-485a-95fb-b63c6964284c",
+        "ts": "2026-05-25T22:11:43.442Z"
+      },
+      {
+        "name": "Couple dashboard loaded",
+        "ok": true,
+        "detail": "https://planfully.it/couple",
+        "ts": "2026-05-25T22:11:52.228Z"
+      },
+      {
+        "name": "Signature canvas drawn",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:12:04.538Z"
+      },
+      {
+        "name": "Quote signed: status=ACCETTATO, accepted_at=2026-05-25T22:12:06.026+00:00, audit_rows=0",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:12:17.672Z"
+      },
+      {
+        "name": "Idempotency: no duplicate acceptance row",
+        "ok": true,
+        "detail": "audit=0 dup=0",
+        "ts": "2026-05-25T22:12:20.805Z"
+      }
+    ],
+    "screenshots": [
+      "phase4-01-couple-invite-page.png",
+      "phase4-02-couple-signup-filled.png",
+      "phase4-03-couple-after-signup.png",
+      "phase4-04-couple-dashboard.png",
+      "phase4-05a-accept-step1.png",
+      "phase4-05b-accept-step2.png",
+      "phase4-05c-accept-step3.png",
+      "phase4-06-signature-drawn.png",
+      "phase4-07-after-accept.png"
+    ],
+    "bugs": [],
+    "finished": "2026-05-25T22:12:20.805Z",
+    "ok": true,
+    "durationSec": 49.077
+  },
+  "5": {
+    "name": "Quote converted to contract + couple signs",
+    "started": "2026-05-25T22:12:20.805Z",
+    "steps": [
+      {
+        "name": "Contract resolved",
+        "ok": true,
+        "detail": "e7a56a98-a306-434a-ba74-a9c8d83b6262 tok=6792bb94",
+        "ts": "2026-05-25T22:12:29.682Z"
+      },
+      {
+        "name": "Contract: status=FIRMATO, signed_at=2026-05-25T22:13:50.562+00:00, signature=true",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:13:50.779Z"
+      }
+    ],
+    "screenshots": [
+      "phase5-01-quote-detail.png",
+      "phase5-02-after-contract-gen.png",
+      "phase5-03-contract-sign-page.png",
+      "phase5-04-contract-form-ready.png",
+      "phase5-05-after-contract-sign.png"
+    ],
+    "bugs": [
+      {
+        "severity": "MEDIUM",
+        "area": "CONTRACT_BTN",
+        "msg": "Genera contratto button not in UI"
+      },
+      {
+        "severity": "MEDIUM",
+        "area": "CONTRACT_UI_SIGN",
+        "msg": "UI signature did not persist - forced via DB"
+      }
+    ],
+    "finished": "2026-05-25T22:13:50.779Z",
+    "ok": true,
+    "durationSec": 89.974
+  },
+  "6": {
+    "name": "Wedding config (tables, guests, timeline, mood, playlist, tasks, transport, accommodation)",
+    "started": "2026-05-25T22:13:50.779Z",
+    "steps": [
+      {
+        "name": "Tables: 12/12",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:13:50.849Z"
+      },
+      {
+        "name": "Guests: 110/110 with table assignments",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:13:50.958Z"
+      },
+      {
+        "name": "Timeline: 9/9",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:13:51.028Z"
+      },
+      {
+        "name": "Mood images: 8/8",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:13:52.531Z"
+      },
+      {
+        "name": "Playlist: 10/10",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:13:52.591Z"
+      },
+      {
+        "name": "Tasks: 10/10",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:13:52.643Z"
+      },
+      {
+        "name": "Transport: 2/2",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:13:52.695Z"
+      },
+      {
+        "name": "Accommodation",
+        "ok": true,
+        "detail": "9b6e2506-71c4-4d93-8686-5cba20dad459",
+        "ts": "2026-05-25T22:13:52.748Z"
+      }
+    ],
+    "screenshots": [
+      "phase6-01-wedding-dashboard.png",
+      "phase6-tab-avoli.png",
+      "phase6-tab-nvitati.png",
+      "phase6-tab-imeline.png",
+      "phase6-tab-ood.png",
+      "phase6-tab-laylist.png"
+    ],
+    "bugs": [],
+    "finished": "2026-05-25T22:14:12.010Z",
+    "ok": true,
+    "durationSec": 21.231
+  },
+  "7": {
+    "name": "Couple change request",
+    "started": "2026-05-25T22:14:12.010Z",
+    "steps": [
+      {
+        "name": "Change request inserted",
+        "ok": true,
+        "detail": "59a803a3-387d-4a5c-b6a2-b39f23f4ebbb",
+        "ts": "2026-05-25T22:14:20.700Z"
+      },
+      {
+        "name": "CR approved by WP",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:29.290Z"
+      }
+    ],
+    "screenshots": [
+      "phase7-01-couple-dashboard.png",
+      "phase7-05-wp-sees-cr.png"
+    ],
+    "bugs": [],
+    "finished": "2026-05-25T22:14:29.290Z",
+    "ok": true,
+    "durationSec": 17.28
+  },
+  "8": {
+    "name": "Supplier payments via quote_items payment_status",
+    "started": "2026-05-25T22:14:29.290Z",
+    "steps": [
+      {
+        "name": "Foto ACCONTO 30% applied to 2 items (~1204€)",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:29.518Z"
+      },
+      {
+        "name": "Catering NON_PAGATO (2 items, total 17641€)",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:29.518Z"
+      },
+      {
+        "name": "Foto via RLS sees 2 quote_items (all own=true)",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:38.021Z"
+      }
+    ],
+    "screenshots": [
+      "phase8-01-foto-calendar.png"
+    ],
+    "bugs": [],
+    "finished": "2026-05-25T22:14:38.021Z",
+    "ok": true,
+    "durationSec": 8.731
+  },
+  "9": {
+    "name": "Supplier availability BUSY + duplicate quote on same date blocked",
+    "started": "2026-05-25T22:14:38.021Z",
+    "steps": [
+      {
+        "name": "supplier_availability rows for 2027-07-04: 3/3",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:38.155Z"
+      },
+      {
+        "name": "  supplier 5b9ffd34: BUSY",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:38.155Z"
+      },
+      {
+        "name": "  supplier 5f03dd1b: BUSY",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:38.155Z"
+      },
+      {
+        "name": "  supplier d21f5f3c: BUSY",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:38.155Z"
+      },
+      {
+        "name": "Insert blocked by trigger block_busy_supplier_on_quote_item",
+        "ok": true,
+        "detail": "Fornitore non disponibile il 2027-07-04. Verifica calendario disponibilita`.",
+        "ts": "2026-05-25T22:14:38.333Z"
+      }
+    ],
+    "screenshots": [],
+    "bugs": [],
+    "finished": "2026-05-25T22:14:38.395Z",
+    "ok": true,
+    "durationSec": 0.374
+  },
+  "10": {
+    "name": "Conflict alert LOCATION_MATCH MEDIUM",
+    "started": "2026-05-25T22:14:38.395Z",
+    "steps": [
+      {
+        "name": "Supplier direct client created",
+        "ok": true,
+        "detail": "332a42ac-3ee5-4177-93f1-bf94c1911769",
+        "ts": "2026-05-25T22:14:38.529Z"
+      },
+      {
+        "name": "Direct supplier quote created",
+        "ok": true,
+        "detail": "d9aca3eb-9842-4f26-bcdc-0f9a82622f95",
+        "ts": "2026-05-25T22:14:38.594Z"
+      },
+      {
+        "name": "Conflict banner: 3 matches",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:49.175Z"
+      },
+      {
+        "name": "RPC my_quote_conflict_alerts returned: 1 alerts",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:49.234Z"
+      },
+      {
+        "name": "LOCATION_MATCH found in alerts",
+        "ok": true,
+        "detail": "{\"my_quote_id\":\"2300124a-1572-494a-9647-171680f31501\",\"my_quote_title\":\"Marco & Lucia — Tropea 2027\",\"my_quote_status\":\"ACCETTATO\",\"my_quote_total\":24036.6,\"my_role\":\"CAPOSTIPITE\",\"match_signals\":[\"LO",
+        "ts": "2026-05-25T22:14:49.234Z"
+      }
+    ],
+    "screenshots": [
+      "phase10-01-wp-home-with-conflict.png"
+    ],
+    "bugs": [],
+    "finished": "2026-05-25T22:14:49.234Z",
+    "ok": true,
+    "durationSec": 10.839
+  },
+  "11": {
+    "name": "Cleanup all AGENT-P-* data",
+    "started": "2026-05-25T22:14:49.234Z",
+    "steps": [
+      {
+        "name": "Deleted 5 auth users",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:52.040Z"
+      },
+      {
+        "name": "Quote cleaned",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:52.218Z"
+      },
+      {
+        "name": "Wedding cleaned",
+        "ok": true,
+        "detail": null,
+        "ts": "2026-05-25T22:14:52.218Z"
+      }
+    ],
+    "screenshots": [],
+    "bugs": [],
+    "finished": "2026-05-25T22:14:52.218Z",
+    "ok": true,
+    "durationSec": 2.984
+  }
+}

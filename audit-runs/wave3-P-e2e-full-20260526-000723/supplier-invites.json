@@ -1,0 +1,20 @@
+[
+  {
+    "key": "foto",
+    "email": "agent-p-foto-6844200@planfully-demo.it",
+    "token": "49213046-394d-48ab-97c3-dd9ee6dd78a7",
+    "url": "https://planfully.it/invito-fornitore/49213046-394d-48ab-97c3-dd9ee6dd78a7"
+  },
+  {
+    "key": "cater",
+    "email": "agent-p-cater-6844200@planfully-demo.it",
+    "token": "c8d31a0c-52ce-445c-bb64-5f48edb999e2",
+    "url": "https://planfully.it/invito-fornitore/c8d31a0c-52ce-445c-bb64-5f48edb999e2"
+  },
+  {
+    "key": "fiori",
+    "email": "agent-p-fiori-6844200@planfully-demo.it",
+    "token": "c8899ada-1a42-4c0a-8ba1-c8671e1dc1a7",
+    "url": "https://planfully.it/invito-fornitore/c8899ada-1a42-4c0a-8ba1-c8671e1dc1a7"
+  }
+]

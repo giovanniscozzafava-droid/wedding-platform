@@ -1,0 +1,33 @@
+{
+  "wpUserId": "1d8b9a08-1b5f-4bd4-961e-39990ce5ffa1",
+  "supplierIds": [
+    "d21f5f3c-07e0-49b0-9d13-d4a97d2b24c7",
+    "5f03dd1b-323f-459e-a53a-f7225ef9b892",
+    "5b9ffd34-0714-4e19-9e6c-7216334ce27c"
+  ],
+  "supplierMap": {
+    "foto": "d21f5f3c-07e0-49b0-9d13-d4a97d2b24c7",
+    "cater": "5f03dd1b-323f-459e-a53a-f7225ef9b892",
+    "fiori": "5b9ffd34-0714-4e19-9e6c-7216334ce27c"
+  },
+  "totalCost": 20370,
+  "totalClient": 24036.6,
+  "quoteId": "2300124a-1572-494a-9647-171680f31501",
+  "quoteToken": "4a8433ac-36c9-4e5a-936e-d9af52eba086",
+  "quoteStatus": "INVIATO",
+  "quoteTotalClient": 24036.6,
+  "weddingId": "d9ffcb79-6d4c-4110-a393-ee52e81ddb82",
+  "coupleUserId": "ff890ea7-86c7-485a-95fb-b63c6964284c",
+  "quoteAccepted": true,
+  "quoteAcceptedAt": "2026-05-25T22:12:06.026+00:00",
+  "contractId": "e7a56a98-a306-434a-ba74-a9c8d83b6262",
+  "contractToken": "6792bb94-0ac3-46b5-acc3-3eb0ae19f343",
+  "contractStatus": "FIRMATO",
+  "contractSignedAt": "2026-05-25T22:13:50.562+00:00",
+  "fotoTotal": 4012,
+  "fotoAcconto": 1204,
+  "caterTotal": 17641,
+  "supplierDirectClientId": "332a42ac-3ee5-4177-93f1-bf94c1911769",
+  "directQuoteId": "d9aca3eb-9842-4f26-bcdc-0f9a82622f95",
+  "conflictAlerts": 1
+}

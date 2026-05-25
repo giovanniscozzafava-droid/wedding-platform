@@ -1,0 +1,97 @@
+[
+  {
+    "id": "R2",
+    "title": "tab strip overflow indicator",
+    "verdict": "PASS",
+    "details": {
+      "wp_wedding_id": "c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60",
+      "couple_mobile": {
+        "scrollWidth": 1273,
+        "clientWidth": 375,
+        "scrollable": true,
+        "tabCount": 11,
+        "hasFades": true
+      },
+      "couple_mobile_scrolled": {
+        "scrollLeft": 200
+      },
+      "couple_mobile_click_scroll": {
+        "before": 200,
+        "after": 898,
+        "visible": true,
+        "last_tab_text": "Sito ospiti"
+      },
+      "couple_desktop": {
+        "scrollWidth": 1273,
+        "clientWidth": 1152,
+        "scrollable": true,
+        "tabCount": 11,
+        "hasFades": true
+      },
+      "wp_mobile": {
+        "scrollWidth": 1842,
+        "clientWidth": 375,
+        "scrollable": true,
+        "tabCount": 17,
+        "hasFades": true
+      },
+      "wp_desktop": {
+        "scrollWidth": 1874,
+        "clientWidth": 1024,
+        "scrollable": true,
+        "tabCount": 17,
+        "hasFades": true
+      },
+      "checks": {
+        "couple_mobile_scrollable": true,
+        "couple_mobile_fades": true,
+        "couple_mobile_drag_works": true,
+        "couple_mobile_clickscroll_visible": true,
+        "couple_desktop_fades_present": true,
+        "wp_mobile_scrollable_or_fades": true
+      },
+      "pass_ratio": "6/6"
+    }
+  },
+  {
+    "id": "R3",
+    "title": "header sposi mobile (logo+chip+no overflow)",
+    "verdict": "PASS",
+    "details": {
+      "header": {
+        "header_rect": {
+          "x": 0,
+          "y": 0,
+          "w": 375,
+          "h": 65
+        },
+        "logo_present": true,
+        "logo_rect": {
+          "w": 28,
+          "h": 28
+        },
+        "text_planfully_visible": false,
+        "middle_name_visible": false,
+        "chip_visible": true,
+        "chip_text": "GS",
+        "theme_aria": "Cambia tema",
+        "profile_aria": "Profilo",
+        "logout_aria": "Esci",
+        "body_scrollwidth": 375,
+        "window_innerwidth": 375,
+        "overflows": false
+      },
+      "checks": {
+        "logo_present": true,
+        "planfully_word_hidden_or_logo_only": true,
+        "middle_name_hidden": true,
+        "chip_present_or_logo_height_ok": true,
+        "theme_aria_label": true,
+        "profile_aria_label": true,
+        "logout_aria_label": true,
+        "no_horizontal_overflow": true
+      },
+      "pass_ratio": "8/8"
+    }
+  }
+]
