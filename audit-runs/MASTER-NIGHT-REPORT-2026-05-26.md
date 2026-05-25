@@ -79,6 +79,26 @@ Lanciati **21 sub-agent** in 5 wave parallele su https://planfully.it (Vite + Re
 | A11y dev warning su Button icon | Frontend | Deploy |
 | Agent V smoke test 22 check | Verification | **22/22 PASS** ✅ |
 
+### Wave 7 (02:00 → 02:25) — long-tail edge cases (Agent W)
+
+48 test eseguiti — 42 PASS / 1 FAIL / 5 INFO — 0 HIGH / 2 MEDIUM / 5 LOW
+
+**MEDIUM fixati subito:**
+- CHECK quotes_totals_non_negative (markup negativo + edit manuale producevano totali < 0)
+- DocumentsTab filename ASCII-only (Supabase Storage rifiuta key non-ASCII tipo "Curriculum-Niccolò.pdf")
+
+**LOW lasciati come hardening post-lancio:**
+- zero-width chars in client_name
+- error generico Postgres su client_name > 160 char (validazione client mancante)
+- Quote senza optimistic lock (last-write-wins silenzioso multi-tab)
+- MIME spoofing client-side (EXE camuffato da PNG accettato dallo storage)
+- JWT post-signOut valido fino a expiry (TTL già 1h, mitigato)
+
+**Aree green Wave 7 (no bug):**
+Timezone+DST 2027-03-28, session refresh+rotate, empty/null tolerance, concurrent editing, URL routing+slug encoding, PDF 100 voci stress, XSS sanitizzato in public preview, accenti/RTL/emoji integri in DB, brand-assets size limit attivo, logout signOut downgrade client.
+
+Deploy finale: `planfully-lb6m8wnlf-skorpio-agency-hub.vercel.app` aliased planfully.it
+
 ---
 
 ## 2. Hotfix applicati durante la notte
