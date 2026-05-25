@@ -1,0 +1,295 @@
+[
+  {
+    "id": "1",
+    "phase": "P1",
+    "name": "WP crea wedding (calendar_entries row OPZIONATA, business_model=GLOBAL)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "2",
+    "phase": "P1",
+    "name": "WP crea quote standalone da /quotes (id=b2a7b43c)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "3",
+    "phase": "P1",
+    "name": "WP crea quote collegato al wedding (calendar_entries.quote_id linkato)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "4",
+    "phase": "P1",
+    "name": "fornitore foto crea supplier_client (RLS)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "5",
+    "phase": "P1",
+    "name": "fornitore crea quote standalone (RLS quotes_insert_owner blocca FORNITORE)",
+    "pass": false,
+    "severity": "HIGH",
+    "detail": "new row violates row-level security policy for table \"quotes\" | impact: feature supplier-standalone NON funziona via UI/API anon. Migration 20260525120000 aggiunge direct_client_id ma NON aggiorna RLS quotes_insert_owner che richiede role in (WEDDING_PLANNER,LOCATION,ADMIN). FORNITORE escluso."
+  },
+  {
+    "id": "6",
+    "phase": "P1",
+    "name": "direct_client_id solo su quote standalone fornitore (WP=null, fornitore=set)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "1",
+    "phase": "P2",
+    "name": "inserite 4/4 voci basis: FLAT/PER_GUEST/PER_TABLE/PER_HOUR",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "2",
+    "phase": "P2",
+    "name": "total_cost 7680,00 € ~= 7680,00 €",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "3",
+    "phase": "P2",
+    "name": "total_client 8832,00 € ~= 8832,00 € (markup 15%)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "4",
+    "phase": "P2",
+    "name": "margin_amount 1152,00 € margin_percent=15%",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "5",
+    "phase": "P2",
+    "name": "trigger PER_GUEST: qty 110 -> 120 dopo guest_count change",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "6",
+    "phase": "P2",
+    "name": "trigger PER_TABLE: qty 11 -> 12 dopo table_count change",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "7",
+    "phase": "P2",
+    "name": "FLAT/PER_HOUR invariati post-change (qty 1 e 6)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "1",
+    "phase": "P3",
+    "name": "markup globale 20%: tutte le 2 voci hanno line_client = line_cost * 1.20",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "2",
+    "phase": "P3",
+    "name": "override item_markup_percent=50% -> line_client=2250,00 € (lc=1500,00 € * 1.50)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "3",
+    "phase": "P3",
+    "name": "margine: amount=790,00 € percent=46.47% markup_globale=20%",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "1",
+    "phase": "P4",
+    "name": "RLS qitems_select_supplier: foto vede 1 sue voci, 0 altre",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "2",
+    "phase": "P4",
+    "name": "RLS: fiori vede 2 sue voci (Centrotavola/Bouquet), 0 altre",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "1",
+    "phase": "P5",
+    "name": "PDF Q1 generato variant=NEUTRA bytes=14883 total=2490,00 €",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "2",
+    "phase": "P5",
+    "name": "PDF Q2 (wedding) variant=NEUTRA total=8832,00 €",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "3",
+    "phase": "P5",
+    "name": "PDF Q3 fornitore variant=NEUTRA total=2000,00 €",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "1",
+    "phase": "P6",
+    "name": "quote-send: status=INVIATO token=99466891 sent_at=2026-05-25T20:49:09",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "2",
+    "phase": "P6",
+    "name": "sent_email_log popolato (1 entry)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "3",
+    "phase": "P6",
+    "name": "quote_get_by_token (anon) ok title=\"AGENT-E-Q2 - da /weddings/:id\"",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "1",
+    "phase": "P7",
+    "name": "accettazione registrata acceptance_id=b325ed36",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "2",
+    "phase": "P7",
+    "name": "quote.status non passa a ACCETTATO",
+    "pass": false,
+    "severity": "HIGH",
+    "detail": "{\"status\":\"INVIATO\",\"accepted_at\":null}"
+  },
+  {
+    "id": "3",
+    "phase": "P7",
+    "name": "signature_url salvato in storage",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "4",
+    "phase": "P7",
+    "name": "acceptance_pdf_url generato + scaricato (7273B)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "5",
+    "phase": "P7",
+    "name": "quote_pdf_hash SHA-256 (39bad78aa0d724f0...)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "6",
+    "phase": "P7",
+    "name": "audit trail FES: ip=79.30.199.179 ua_set=true",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "7",
+    "phase": "P7",
+    "name": "calendar_entries.status=OPZIONATA post-accettazione",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "1",
+    "phase": "P7.5",
+    "name": "doppia firma: status=200 acceptances totali=2 (no crash)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "1",
+    "phase": "P8",
+    "name": "quote_reject_by_token RPC pubblica disponibile",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "2",
+    "phase": "P8",
+    "name": "status=RIFIUTATO rejected_at popolato reason=\"Test rifiuto budget\"",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "0",
+    "phase": "P9",
+    "name": "Q2 non ACCETTATO",
+    "pass": false,
+    "severity": "HIGH",
+    "detail": "status=INVIATO"
+  },
+  {
+    "id": "0",
+    "phase": "P10",
+    "name": "pre-req",
+    "pass": false,
+    "severity": "HIGH",
+    "detail": ""
+  },
+  {
+    "id": "0",
+    "phase": "P11",
+    "name": "pre-req",
+    "pass": false,
+    "severity": "HIGH",
+    "detail": ""
+  },
+  {
+    "id": "1",
+    "phase": "P12",
+    "name": "token inesistente -> RPC ritorna null (no 500)",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "3",
+    "phase": "P12",
+    "name": "signature malformata: status 500 inatteso",
+    "pass": false,
+    "severity": "MEDIUM",
+    "detail": "Internal Server Error"
+  },
+  {
+    "id": "4",
+    "phase": "P12",
+    "name": "token mancante -> HTTP 400",
+    "pass": true,
+    "detail": null
+  },
+  {
+    "id": "5",
+    "phase": "P12",
+    "name": "accept su quote RIFIUTATO -> HTTP 409 (stato non accettabile)",
+    "pass": true,
+    "detail": null
+  }
+]
