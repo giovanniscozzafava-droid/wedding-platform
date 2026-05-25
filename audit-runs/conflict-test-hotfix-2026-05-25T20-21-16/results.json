@@ -1,0 +1,241 @@
+{
+  "scenarios": {
+    "A": [
+      {
+        "step": "1 WP crea preventivo",
+        "pass": true,
+        "info": "quote 1dba6fc8-11de-4a11-8963-2ecd858deec0",
+        "ts": "2026-05-25T20:21:18.176Z"
+      },
+      {
+        "step": "2 voce fornitore aggiunta",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:21:18.231Z"
+      },
+      {
+        "step": "3 cliente diretto fornitore creato",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:21:18.284Z"
+      },
+      {
+        "step": "4 quote diretto fornitore creato",
+        "pass": true,
+        "info": "quote 18e182fd-de72-455b-93e0-830cef7cdb38",
+        "ts": "2026-05-25T20:21:18.338Z"
+      },
+      {
+        "step": "5a RPC forn HTTP 200",
+        "pass": false,
+        "info": "http=400 err={\"code\":\"42804\",\"details\":\"Returned type character varying(200) does not match expected type text in column 2.\",\"hint\":null,\"message\":\"structure of query does not match function result type\"}",
+        "ts": "2026-05-25T20:21:18.868Z"
+      },
+      {
+        "step": "5b RPC wp HTTP 200",
+        "pass": false,
+        "info": "http=400 err={\"code\":\"42804\",\"details\":\"Returned type character varying(200) does not match expected type text in column 2.\",\"hint\":null,\"message\":\"structure of query does not match function result type\"}",
+        "ts": "2026-05-25T20:21:18.868Z"
+      },
+      {
+        "step": "6a Fornitore vede alert HIGH",
+        "pass": false,
+        "info": "severity=undefined signals=undefined other_owner=undefined",
+        "ts": "2026-05-25T20:21:18.868Z"
+      },
+      {
+        "step": "6b WP vede alert HIGH",
+        "pass": false,
+        "info": "severity=undefined signals=undefined other_owner=undefined",
+        "ts": "2026-05-25T20:21:18.868Z"
+      },
+      {
+        "step": "7a Forn signals include EMAIL+LOCATION+DATE",
+        "pass": false,
+        "info": "signals=undefined",
+        "ts": "2026-05-25T20:21:18.868Z"
+      },
+      {
+        "step": "7b WP signals include EMAIL+LOCATION+DATE",
+        "pass": false,
+        "info": "signals=undefined",
+        "ts": "2026-05-25T20:21:18.868Z"
+      },
+      {
+        "step": "UI WP banner Beta visibile",
+        "pass": true,
+        "info": "OK",
+        "ts": "2026-05-25T20:21:25.523Z"
+      },
+      {
+        "step": "UI WP ConflictAlertsBanner visibile",
+        "pass": false,
+        "info": "mancante",
+        "ts": "2026-05-25T20:21:25.523Z"
+      }
+    ],
+    "B": [
+      {
+        "step": "1 WP crea preventivo",
+        "pass": true,
+        "info": "quote f3f6b05a-feb7-4e9b-8de8-ca8d7a997361",
+        "ts": "2026-05-25T20:21:18.920Z"
+      },
+      {
+        "step": "2 voce fornitore aggiunta",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:21:18.971Z"
+      },
+      {
+        "step": "3 cliente diretto creato (nome+email diversi)",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:21:19.026Z"
+      },
+      {
+        "step": "4 quote diretto fornitore creato",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:21:19.077Z"
+      },
+      {
+        "step": "5a RPC forn HTTP 200",
+        "pass": false,
+        "info": "http=400",
+        "ts": "2026-05-25T20:21:19.585Z"
+      },
+      {
+        "step": "5b RPC wp HTTP 200",
+        "pass": false,
+        "info": "http=400",
+        "ts": "2026-05-25T20:21:19.585Z"
+      },
+      {
+        "step": "6a Forn vede alert MEDIUM LOCATION-only",
+        "pass": false,
+        "info": "severity=undefined signals=undefined",
+        "ts": "2026-05-25T20:21:19.585Z"
+      },
+      {
+        "step": "6b WP vede alert MEDIUM LOCATION-only",
+        "pass": false,
+        "info": "severity=undefined signals=undefined",
+        "ts": "2026-05-25T20:21:19.585Z"
+      },
+      {
+        "step": "UI Forn banner Beta visibile",
+        "pass": true,
+        "info": "OK",
+        "ts": "2026-05-25T20:21:31.434Z"
+      },
+      {
+        "step": "UI Forn ConflictAlertsBanner visibile",
+        "pass": false,
+        "info": "mancante",
+        "ts": "2026-05-25T20:21:31.434Z"
+      }
+    ]
+  },
+  "rpc": {
+    "A": {
+      "forn": {
+        "http": 400,
+        "ok": false,
+        "count": 0,
+        "sample": [],
+        "error": {
+          "code": "42804",
+          "details": "Returned type character varying(200) does not match expected type text in column 2.",
+          "hint": null,
+          "message": "structure of query does not match function result type"
+        }
+      },
+      "wp": {
+        "http": 400,
+        "ok": false,
+        "count": 0,
+        "sample": [],
+        "error": {
+          "code": "42804",
+          "details": "Returned type character varying(200) does not match expected type text in column 2.",
+          "hint": null,
+          "message": "structure of query does not match function result type"
+        }
+      }
+    },
+    "B": {
+      "forn": {
+        "http": 400,
+        "ok": false,
+        "count": 0,
+        "sample": [],
+        "error": {
+          "code": "42804",
+          "details": "Returned type character varying(200) does not match expected type text in column 2.",
+          "hint": null,
+          "message": "structure of query does not match function result type"
+        }
+      },
+      "wp": {
+        "http": 400,
+        "ok": false,
+        "count": 0,
+        "sample": [],
+        "error": {
+          "code": "42804",
+          "details": "Returned type character varying(200) does not match expected type text in column 2.",
+          "hint": null,
+          "message": "structure of query does not match function result type"
+        }
+      }
+    }
+  },
+  "ui": {
+    "wp": {
+      "screenshot": "/Users/giovanniscozzafava/Repository/wedding-platform/audit-runs/conflict-test-hotfix-2026-05-25T20-21-16/ui-wp-home.png",
+      "hasBeta": true,
+      "hasAlert": false,
+      "sampleText": "Planfully\nDashboard\nCatalogo\nMatrimoni\nRete fornitori\nCalendario\nPreventivi\nContratti\nBrand\nProfilo\nFinanziamento\nSOON\nAssicurazione\nSOON\n\nSara De Luca\n\nWedding Planner\n\nScuro\nEsci\nSei in Beta. Il servizio resterà gratuito per i partner fondatori.\nscopri di più\n\nCIAO SARA\n\nCoordina la prossima magia.\n\nSei nel pannello WEDDING_PLANNER. Trova qui un riepilogo delle attività in corso.\n\nCalendario\nNuovo preventivo\n\nSERVIZI ATTIVI\n\n21\n\nCOLLABORATORI\n\n8\n\nEVENTI (60 GG)\n\n2\n\nMARGINE GENERATO\n\n€ 8086,3\n\nPreventivi recenti\nTutti\n\nE2E-HOTFIX-2026-05-25T20-21-16 B WP Giulia&Stefano\n\n25 mag 2026, 22:21\n\n€ 2000\nBOZZA\n\nE2E-HOTFIX-2026-05-25T20-21-16 A WP Anna&Marco\n\n25 mag 2026, 22:21\n\n€ 2500\nBOZZA\n\nAndrea e Sofia\n\n25 mag 2026, 09:47\n\n€ 21.586\nACCETTATO\n\nPaolo e Francesca\n\n24 mag 2026, 23:29\n\n€ 31.625\nAC"
+    },
+    "forn": {
+      "screenshot": "/Users/giovanniscozzafava/Repository/wedding-platform/audit-runs/conflict-test-hotfix-2026-05-25T20-21-16/ui-forn-home.png",
+      "hasBeta": true,
+      "hasAlert": false,
+      "sampleText": "Planfully\nDashboard\nCatalogo\nClienti\nDisponibilità\nCalcolatore\nCalendario\nPreventivi\nContratti\nBrand\nProfilo\n\nMarco Bianchi\n\nFornitore\n\nScuro\nEsci\nSei in Beta gratuita. Da ottobre 2026: €29/mese.\n· Beta gratis fino al 30 settembre 2026\n· poi €29/mese\nscopri di più\n\nCIAO MARCO\n\nCura ogni dettaglio del tuo catalogo.\n\nSei nel pannello FORNITORE. Trova qui un riepilogo delle attività in corso.\n\nVai al catalogo\n\nSERVIZI ATTIVI\n\n3\n\nCAPOSTIPITI\n\n1\n\nEVENTI (60 GG)\n\n2\n\nPREVENTIVI IN CUI SONO\n\n2\n\nPreventivi recenti\nTutti\n\nE2E-HOTFIX-2026-05-25T20-21-16 B FORN G.Bianchi\n\n25 mag 2026, 22:21\n\n€ 0\nBOZZA\n\nE2E-HOTFIX-2026-05-25T20-21-16 A FORN Anna&Marco\n\n25 mag 2026, 22:21\n\n€ 0\nBOZZA\nProssimi eventi\nCalendario\n\nPaolo e Francesca\n\nCONFERMATA\n\n1 giugno 2026\n\nGino e Maria\n\nOPZIONATA\n\n17 giugno 2026\n\nGiovann"
+    }
+  },
+  "bugs": [
+    {
+      "severity": "CRITICAL",
+      "title": "Scenario A: alert HIGH EMAIL_MATCH non corretto post-hotfix",
+      "repro": "WP crea quote+voce fornitore; Forn crea cliente+quote diretto stessa email/data/location; RPC entrambi i lati",
+      "expected": "Forn e WP vedono riga HIGH con signals EMAIL_MATCH+LOCATION_MATCH+DATE_MATCH",
+      "actual": "forn=undefined wp=undefined"
+    },
+    {
+      "severity": "CRITICAL",
+      "title": "Scenario B: LOCATION_MATCH mascherato non rilevato correttamente",
+      "repro": "WP+Forn stessa location/data, nome+email DIVERSI",
+      "expected": "Entrambi lato vedono row MEDIUM con signals=[LOCATION_MATCH,DATE_MATCH] (no EMAIL_MATCH, no NAME_EXACT)",
+      "actual": "forn=undefined wp=undefined"
+    },
+    {
+      "severity": "HIGH",
+      "title": "ConflictAlertsBanner non visibile lato WP post-hotfix",
+      "repro": "WP ha alert HIGH+MEDIUM via RPC, apre /",
+      "expected": "Banner rosa con conteggio conflitti",
+      "actual": "banner assente"
+    },
+    {
+      "severity": "HIGH",
+      "title": "ConflictAlertsBanner non visibile lato Fornitore post-hotfix",
+      "repro": "Fornitore con quote diretto in conflitto, apre /",
+      "expected": "Banner con conteggio alert",
+      "actual": "banner assente"
+    }
+  ],
+  "notes": [
+    "fornFoto profile: {\"business_name\":\"Marco Bianchi Photography\",\"full_name\":\"Marco Bianchi\",\"role\":\"FORNITORE\"}"
+  ]
+}

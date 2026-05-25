@@ -1,0 +1,32 @@
+=== Bundle Stats (prod) ===
+Site: https://planfully.it
+Generated: Mon May 25 23:03:07 CEST 2026
+
+## Initial bundle (referenced from index.html)
+index-yEKpgjQj.js	1743117 bytes
+index-VuxbnXzb.css	65756 bytes
+
+## Local dist analysis
+1.7M	/Users/giovanniscozzafava/Repository/wedding-platform/frontend/dist/assets/index-CRMmIvpV.js
+148K	/Users/giovanniscozzafava/Repository/wedding-platform/frontend/dist/assets/index.es-BCDM3O3U.js
+ 56K	/Users/giovanniscozzafava/Repository/wedding-platform/frontend/dist/assets/index-BOrqTAEq.css
+ 24K	/Users/giovanniscozzafava/Repository/wedding-platform/frontend/dist/assets/purify.es-BHEQZ2W4.js
+
+## Gzipped wire size (prod CDN)
+index-yEKpgjQj.js gz: 482859 bytes (471.5 KB)
+index-VuxbnXzb.css gz: 12246 bytes (11.9 KB)
+
+## Chunk count
+JS chunks: 3
+
+## Notable dependencies (in prod bundle)
+react-router: ~0 refs
+framer-motion: ~1 refs
+html2canvas: ~22 refs
+jspdf: ~4 refs
+zustand: ~0 refs
+date-fns: ~0 refs
+@supabase: ~45 refs
+@tanstack/react-query: ~0 refs
+radix-ui: ~1 refs
+lucide-react: ~0 refs

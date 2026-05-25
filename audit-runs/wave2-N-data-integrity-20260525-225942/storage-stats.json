@@ -1,0 +1,191 @@
+{
+  "discoveredBuckets": [
+    "service-photos",
+    "quote-pdfs",
+    "brand-assets",
+    "event-documents",
+    "quote-signatures"
+  ],
+  "service-photos": {
+    "exists": true,
+    "files": 8,
+    "totalSizeBytes": 844436,
+    "mimeTypes": {
+      "image/webp": 6,
+      "image/png": 1,
+      "image/jpeg": 1
+    },
+    "errors": [],
+    "sample": [
+      {
+        "path": "10e9ffae-df38-4ecd-8100-bfed307f7ca7/304094b7-6b28-40d8-a92a-f01f25fafa0e.webp",
+        "size": 11994,
+        "mime": "image/webp"
+      },
+      {
+        "path": "1324114d-a900-4219-ac0c-ca69176319c4/9c0d0049-07a8-4b1c-9fab-e69299438807.png",
+        "size": 68,
+        "mime": "image/png"
+      },
+      {
+        "path": "3d17c869-e55b-4eb7-b3e2-99b7579853bd/2d82dfe1-70a3-4f11-83b8-20f59ebcb8f7.webp",
+        "size": 110184,
+        "mime": "image/webp"
+      },
+      {
+        "path": "47a54ee7-ca21-4a8d-ae6f-6010d189d874/9e843db2-eab9-4390-a0d5-e9e0da67e2a4.webp",
+        "size": 229406,
+        "mime": "image/webp"
+      },
+      {
+        "path": "47a54ee7-ca21-4a8d-ae6f-6010d189d874/test-1779633789259.jpg",
+        "size": 10,
+        "mime": "image/jpeg"
+      }
+    ],
+    "totalSizeMB": 0.81
+  },
+  "brand-assets": {
+    "exists": true,
+    "files": 10,
+    "totalSizeBytes": 984867,
+    "mimeTypes": {
+      "image/png": 5,
+      "image/jpeg": 3,
+      "image/svg+xml": 2
+    },
+    "errors": [],
+    "sample": [
+      {
+        "path": "1d0177ba-bfd9-4e2e-a997-7201f9273d55/logo-1779641463989.png",
+        "size": 71873,
+        "mime": "image/png"
+      },
+      {
+        "path": "1d0177ba-bfd9-4e2e-a997-7201f9273d55/logo.png",
+        "size": 5705,
+        "mime": "image/png"
+      },
+      {
+        "path": "46277b31-100a-4852-972a-81699d37222e/logo.png",
+        "size": 5705,
+        "mime": "image/png"
+      },
+      {
+        "path": "712baed0-3957-4452-8aab-ab4eeebb2697/couple-73a5bc44-bf6e-4f68-9f30-7beff54073f2-1779640727900.jpeg",
+        "size": 409159,
+        "mime": "image/jpeg"
+      },
+      {
+        "path": "a4e292d2-10ad-4960-b9dd-ddd1198a85a9/logo.svg",
+        "size": 4731,
+        "mime": "image/svg+xml"
+      }
+    ],
+    "totalSizeMB": 0.94
+  },
+  "quote-pdfs": {
+    "exists": true,
+    "files": 27,
+    "totalSizeBytes": 12290932,
+    "mimeTypes": {
+      "application/pdf": 27
+    },
+    "errors": [],
+    "sample": [
+      {
+        "path": "1977cf74-2df3-403e-8ac7-4aea3029fb45/v1.pdf",
+        "size": 12858,
+        "mime": "application/pdf"
+      },
+      {
+        "path": "4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v1.pdf",
+        "size": 11619,
+        "mime": "application/pdf"
+      },
+      {
+        "path": "4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v2.pdf",
+        "size": 12194,
+        "mime": "application/pdf"
+      },
+      {
+        "path": "5eb2c784-a8e6-43c2-b681-f5e6c29f477f/v1.pdf",
+        "size": 12898,
+        "mime": "application/pdf"
+      },
+      {
+        "path": "77cf10af-249a-496c-b120-2dd10cd408b3/v1.pdf",
+        "size": 19422,
+        "mime": "application/pdf"
+      }
+    ],
+    "totalSizeMB": 11.72
+  },
+  "quote-signatures": {
+    "exists": true,
+    "files": 20,
+    "totalSizeBytes": 205947,
+    "mimeTypes": {
+      "application/pdf": 9,
+      "image/png": 11
+    },
+    "errors": [],
+    "sample": [
+      {
+        "path": "4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v1/acceptance-1779640429271.pdf",
+        "size": 37749,
+        "mime": "application/pdf"
+      },
+      {
+        "path": "4b7af12a-0f54-4ef5-9254-2c8d6e149fae/v1/signature-1779640428829.png",
+        "size": 40991,
+        "mime": "image/png"
+      },
+      {
+        "path": "77cf10af-249a-496c-b120-2dd10cd408b3/v1/audit-sig-1779693884544.png",
+        "size": 70,
+        "mime": "image/png"
+      },
+      {
+        "path": "b40a663c-4de8-4db2-8a49-a27ddbc81c3c/v1/audit-sig-1779695223520.png",
+        "size": 70,
+        "mime": "image/png"
+      },
+      {
+        "path": "c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1/acceptance-1779656543661.pdf",
+        "size": 22790,
+        "mime": "application/pdf"
+      }
+    ],
+    "totalSizeMB": 0.2
+  },
+  "event-documents": {
+    "exists": true,
+    "files": 0,
+    "totalSizeBytes": 0,
+    "mimeTypes": {},
+    "errors": [],
+    "sample": [],
+    "totalSizeMB": 0
+  },
+  "dbRefs": {
+    "providers.logo_url": {
+      "error": "Could not find the table 'public.providers' in the schema cache"
+    },
+    "providers.cover_url": {
+      "error": "Could not find the table 'public.providers' in the schema cache"
+    },
+    "service_photos.url": {
+      "error": "column service_photos.url does not exist"
+    },
+    "brand_assets.url": {
+      "error": "Could not find the table 'public.brand_assets' in the schema cache"
+    },
+    "quote_pdfs.url": {
+      "error": "Could not find the table 'public.quote_pdfs' in the schema cache"
+    },
+    "event_documents.url": {
+      "error": "column event_documents.url does not exist"
+    }
+  }
+}

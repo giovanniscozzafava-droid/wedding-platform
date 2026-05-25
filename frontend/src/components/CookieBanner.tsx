@@ -22,9 +22,9 @@ export function CookieBanner() {
   if (!show) return null
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-[100] p-4 sm:p-6"
+    <div className="fixed bottom-0 inset-x-0 z-[40] p-4 sm:p-6 pointer-events-none"
       style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.15) 100%)' }}>
-      <div className="max-w-3xl mx-auto rounded-2xl shadow-xl border p-4 sm:p-5 flex flex-col sm:flex-row gap-3 sm:items-center"
+      <div className="max-w-3xl mx-auto rounded-2xl shadow-xl border p-4 sm:p-5 flex flex-col sm:flex-row gap-3 sm:items-center pointer-events-auto"
         style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
         <Cookie size={28} className="shrink-0 text-[rgb(var(--gold-500))]" />
         <div className="flex-1 text-sm">

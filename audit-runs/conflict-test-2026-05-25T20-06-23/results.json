@@ -1,0 +1,233 @@
+{
+  "scenarios": {
+    "A": [
+      {
+        "step": "1 WP crea preventivo",
+        "pass": true,
+        "info": "quote 45983996-fb49-4098-86d7-e70cd7177245",
+        "ts": "2026-05-25T20:06:24.837Z"
+      },
+      {
+        "step": "2 voce fornitore aggiunta",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:06:24.894Z"
+      },
+      {
+        "step": "3 nessun alert prima del quote diretto",
+        "pass": true,
+        "info": "alerts=0",
+        "ts": "2026-05-25T20:06:25.193Z"
+      },
+      {
+        "step": "4a cliente diretto fornitore creato",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:06:25.243Z"
+      },
+      {
+        "step": "4b quote diretto fornitore creato",
+        "pass": true,
+        "info": "quote 239e8003-5389-4602-9ff6-ef472e72329f",
+        "ts": "2026-05-25T20:06:25.301Z"
+      },
+      {
+        "step": "5 WP vede alert HIGH",
+        "pass": false,
+        "info": "",
+        "ts": "2026-05-25T20:06:25.776Z"
+      },
+      {
+        "step": "5 Fornitore vede alert HIGH",
+        "pass": false,
+        "info": "",
+        "ts": "2026-05-25T20:06:25.776Z"
+      },
+      {
+        "step": "6 availability TENTATIVE su INVIATO",
+        "pass": true,
+        "info": "status=TENTATIVE",
+        "ts": "2026-05-25T20:06:25.876Z"
+      },
+      {
+        "step": "7 availability BUSY su ACCETTATO",
+        "pass": true,
+        "info": "status=BUSY",
+        "ts": "2026-05-25T20:06:25.981Z"
+      },
+      {
+        "step": "8 block_busy_supplier_on_quote_item rifiuta voce",
+        "pass": true,
+        "info": "Fornitore non disponibile il 2027-04-17. Verifica calendario disponibilita`.",
+        "ts": "2026-05-25T20:06:26.085Z"
+      }
+    ],
+    "B": [
+      {
+        "step": "1 WP crea preventivo",
+        "pass": true,
+        "info": "quote 4d4cf7b8-dc36-4c59-b41b-d690a8dc644f",
+        "ts": "2026-05-25T20:06:26.185Z"
+      },
+      {
+        "step": "2 voce fornitore",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:06:26.240Z"
+      },
+      {
+        "step": "3 cliente diretto creato",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:06:26.289Z"
+      },
+      {
+        "step": "4 quote diretto fornitore creato",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:06:26.342Z"
+      },
+      {
+        "step": "5 WP vede alert con LOCATION_MATCH (no email/name)",
+        "pass": false,
+        "info": "severity=undefined signals=undefined",
+        "ts": "2026-05-25T20:06:26.817Z"
+      },
+      {
+        "step": "5b Fornitore vede alert",
+        "pass": false,
+        "info": "severity=undefined signals=undefined",
+        "ts": "2026-05-25T20:06:26.818Z"
+      }
+    ],
+    "C": [
+      {
+        "step": "1 profilo fornitore con brand",
+        "pass": true,
+        "info": "{\"business_name\":\"Marco Bianchi Photography\",\"brand_logo_url\":\"https://api.dicebear.com/9.x/initials/svg?seed=Marco%20Bianchi%20Photography&backgroundColor=1A2E4F&fontWeight=700&fontSize=42&textColor=ffffff\",\"brand_primary_color\":\"#1A2E4F\",\"role\":\"FORNITORE\",\"subrole\":\"fotografo\",\"full_name\":\"Marco Bianchi\"}",
+        "ts": "2026-05-25T20:06:26.865Z"
+      },
+      {
+        "step": "2 quote diretto creato",
+        "pass": true,
+        "info": "quote f57ce843-6c5c-412b-b8f6-4cc79ce93f77",
+        "ts": "2026-05-25T20:06:26.969Z"
+      },
+      {
+        "step": "3 edge function risponde",
+        "pass": true,
+        "info": "{\"ok\":true,\"url\":\"https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/sign/quote-pdfs/f57ce843-6c5c-412b-b8f6-4cc79ce93f77/v1.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9kZmM5YzFhZC01Y",
+        "ts": "2026-05-25T20:06:29.332Z"
+      },
+      {
+        "step": "4 PDF response shape",
+        "pass": false,
+        "info": "keys=ok,url,key,variant,premium_applied",
+        "ts": "2026-05-25T20:06:29.332Z"
+      }
+    ],
+    "D": [
+      {
+        "step": "0 tabella beta_status accessibile",
+        "pass": true,
+        "info": "rows=2",
+        "ts": "2026-05-25T20:06:29.381Z"
+      },
+      {
+        "step": "1 banner Beta visibile per WP",
+        "pass": true,
+        "info": "\"beta\" trovato in pagina",
+        "ts": "2026-05-25T20:06:34.094Z"
+      },
+      {
+        "step": "1b testo specifico WP (partner fondatori/gratis fino al)",
+        "pass": true,
+        "info": "OK",
+        "ts": "2026-05-25T20:06:34.094Z"
+      },
+      {
+        "step": "WP login flow",
+        "pass": false,
+        "info": "locator.count: Unexpected token \"=\" while parsing css selector \"button:has-text(\"scopri di\"), text=/scopri di pi/i\". Did you mean to CSS.escape it?",
+        "ts": "2026-05-25T20:06:34.096Z"
+      },
+      {
+        "step": "4 banner Beta visibile per Fornitore",
+        "pass": true,
+        "info": "OK",
+        "ts": "2026-05-25T20:06:38.447Z"
+      },
+      {
+        "step": "4b testo \"€29/mese\" o \"ottobre 2026\" per fornitore",
+        "pass": true,
+        "info": "OK",
+        "ts": "2026-05-25T20:06:38.447Z"
+      },
+      {
+        "step": "5 banner ConflictAlerts visibile per fornitore (Scenari A/B attivi)",
+        "pass": false,
+        "info": "NON visibile",
+        "ts": "2026-05-25T20:06:38.447Z"
+      },
+      {
+        "step": "6 bottone Sblocca presente in /disponibilita",
+        "pass": false,
+        "info": "non trovato",
+        "ts": "2026-05-25T20:06:41.427Z"
+      },
+      {
+        "step": "7 ConflictAlertsBanner visibile in dashboard WP",
+        "pass": false,
+        "info": "NON visibile (Scenari A+B dovrebbero produrre alert)",
+        "ts": "2026-05-25T20:06:46.777Z"
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "severity": "CRITICAL",
+      "title": "WP non vede alert HIGH EMAIL_MATCH",
+      "repro": "WP crea quote con email X + voce supplier S; S crea quote diretto stessa email stessa data; chiamare my_quote_conflict_alerts come WP",
+      "expected": "Riga con conflict_severity=HIGH, match_signals contiene EMAIL_MATCH + DATE_MATCH",
+      "actual": "alerts=[]"
+    },
+    {
+      "severity": "CRITICAL",
+      "title": "Fornitore non vede alert HIGH EMAIL_MATCH",
+      "repro": "Setup come sopra; chiamare RPC come fornitore",
+      "expected": "Riga HIGH",
+      "actual": "alerts=[]"
+    },
+    {
+      "severity": "CRITICAL",
+      "title": "Disintermediazione mascherata non rilevata da WP (LOCATION_MATCH)",
+      "repro": "WP crea quote con location L + voce fornitore F; F crea quote diretto stessa data, stessa location, nome+email DIVERSI; chiamare my_quote_conflict_alerts come WP",
+      "expected": "Riga con conflict_severity=MEDIUM, match_signals=[LOCATION_MATCH, DATE_MATCH]",
+      "actual": "alerts=[]"
+    },
+    {
+      "severity": "CRITICAL",
+      "title": "Fornitore non vede alert disintermediazione mascherata",
+      "repro": "Vedi B",
+      "expected": "Alert con LOCATION_MATCH",
+      "actual": "alerts=[]"
+    },
+    {
+      "severity": "HIGH",
+      "title": "ConflictAlertsBanner non si renderizza in dashboard fornitore nonostante alert RPC",
+      "repro": "Fornitore con quote diretto in conflitto, apre dashboard",
+      "expected": "Banner visibile con conteggio alert HIGH",
+      "actual": "Nessun testo \"conflitto/alert/disintermediazione\" trovato nel body della home"
+    },
+    {
+      "severity": "HIGH",
+      "title": "ConflictAlertsBanner non visibile lato WP",
+      "repro": "WP ha 2 quote con alert HIGH+MEDIUM via RPC. Apre dashboard.",
+      "expected": "Banner rosa con n. conflitti",
+      "actual": "banner assente"
+    }
+  ],
+  "notes": [
+    "beta_status rows: [{\"role\":\"supplier\",\"is_beta\":true,\"free_until\":\"2026-09-30\",\"planned_price\":29,\"planned_currency\":\"EUR\",\"planned_period\":\"mensile\",\"message_short\":\"Sei in Beta gratuita. Da ottobre 2026: €29/mese.\",\"message_long\":\"Stai usando Planfully durante la fase beta privata. L'utilizzo è gratuito fino al 30 settembre 2026. A partire da ottobre 2026 sarà attivo il piano Pro a €29/mese (illimitato). I dati che inserisci ora rimarranno tuoi e migreranno automaticamente sul piano a pagamento.\",\"updated_at\":\"2026-05-25T19:01:49.521564+00:00\"},{\"role\":\"wedding_planner\",\"is_beta\":true,\"free_until\":null,\"planned_price\":null,\"planned_currency\":\"EUR\",\"planned_period\":null,\"message_short\":\"Sei in Beta. Il servizio resterà gratuito per i partner fondatori.\",\"message_long\":\"Come WP partner fondatrice, l'utilizzo di Planfully resterà gratuito anche dopo la fase beta. Ti ringraziamo per il prezioso feedback.\",\"updated_at\":\"2026-05-25T19:01:49.521564+00:00\"}]"
+  ]
+}

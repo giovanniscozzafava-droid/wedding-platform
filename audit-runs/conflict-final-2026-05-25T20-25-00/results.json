@@ -1,0 +1,308 @@
+{
+  "scenarios": {
+    "A": [
+      {
+        "step": "1 WP crea preventivo",
+        "pass": true,
+        "info": "quote 90f5cba9-58a4-4f4a-afd5-f58a49be0cac",
+        "ts": "2026-05-25T20:25:01.573Z"
+      },
+      {
+        "step": "2 voce fornitore aggiunta",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:25:01.632Z"
+      },
+      {
+        "step": "3 cliente diretto fornitore creato",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:25:01.689Z"
+      },
+      {
+        "step": "4 quote diretto fornitore creato",
+        "pass": true,
+        "info": "quote caa870d4-90d9-4272-a97b-42c2196dc12d",
+        "ts": "2026-05-25T20:25:01.749Z"
+      },
+      {
+        "step": "5a RPC forn HTTP 200",
+        "pass": true,
+        "info": "http=200 err=null",
+        "ts": "2026-05-25T20:25:02.254Z"
+      },
+      {
+        "step": "5b RPC wp HTTP 200",
+        "pass": true,
+        "info": "http=200 err=null",
+        "ts": "2026-05-25T20:25:02.254Z"
+      },
+      {
+        "step": "6a Fornitore vede alert HIGH",
+        "pass": true,
+        "info": "severity=HIGH signals=[\"EMAIL_MATCH\",\"LOCATION_MATCH\",\"DATE_MATCH\"] other_owner=Beta Wedding Studio",
+        "ts": "2026-05-25T20:25:02.254Z"
+      },
+      {
+        "step": "6b WP vede alert HIGH",
+        "pass": true,
+        "info": "severity=HIGH signals=[\"EMAIL_MATCH\",\"LOCATION_MATCH\",\"DATE_MATCH\"] other_owner=Marco Bianchi Photography",
+        "ts": "2026-05-25T20:25:02.254Z"
+      },
+      {
+        "step": "7a Forn signals include EMAIL+LOCATION+DATE",
+        "pass": true,
+        "info": "signals=[\"EMAIL_MATCH\",\"LOCATION_MATCH\",\"DATE_MATCH\"]",
+        "ts": "2026-05-25T20:25:02.254Z"
+      },
+      {
+        "step": "7b WP signals include EMAIL+LOCATION+DATE",
+        "pass": true,
+        "info": "signals=[\"EMAIL_MATCH\",\"LOCATION_MATCH\",\"DATE_MATCH\"]",
+        "ts": "2026-05-25T20:25:02.254Z"
+      },
+      {
+        "step": "UI WP banner Beta visibile",
+        "pass": true,
+        "info": "OK",
+        "ts": "2026-05-25T20:25:08.968Z"
+      },
+      {
+        "step": "UI WP ConflictAlertsBanner visibile",
+        "pass": true,
+        "info": "testo trovato",
+        "ts": "2026-05-25T20:25:08.968Z"
+      }
+    ],
+    "B": [
+      {
+        "step": "1 WP crea preventivo",
+        "pass": true,
+        "info": "quote 7eec6f01-6a3e-4c2b-88a6-3227999de3e9",
+        "ts": "2026-05-25T20:25:02.304Z"
+      },
+      {
+        "step": "2 voce fornitore aggiunta",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:25:02.360Z"
+      },
+      {
+        "step": "3 cliente diretto creato (nome+email diversi)",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:25:02.423Z"
+      },
+      {
+        "step": "4 quote diretto fornitore creato",
+        "pass": true,
+        "info": "",
+        "ts": "2026-05-25T20:25:02.481Z"
+      },
+      {
+        "step": "5a RPC forn HTTP 200",
+        "pass": true,
+        "info": "http=200",
+        "ts": "2026-05-25T20:25:02.967Z"
+      },
+      {
+        "step": "5b RPC wp HTTP 200",
+        "pass": true,
+        "info": "http=200",
+        "ts": "2026-05-25T20:25:02.967Z"
+      },
+      {
+        "step": "6a Forn vede alert MEDIUM LOCATION-only",
+        "pass": true,
+        "info": "severity=MEDIUM signals=[\"LOCATION_MATCH\",\"DATE_MATCH\"]",
+        "ts": "2026-05-25T20:25:02.967Z"
+      },
+      {
+        "step": "6b WP vede alert MEDIUM LOCATION-only",
+        "pass": true,
+        "info": "severity=MEDIUM signals=[\"LOCATION_MATCH\",\"DATE_MATCH\"]",
+        "ts": "2026-05-25T20:25:02.967Z"
+      },
+      {
+        "step": "UI Forn banner Beta visibile",
+        "pass": true,
+        "info": "OK",
+        "ts": "2026-05-25T20:25:14.881Z"
+      },
+      {
+        "step": "UI Forn ConflictAlertsBanner visibile",
+        "pass": true,
+        "info": "testo trovato",
+        "ts": "2026-05-25T20:25:14.882Z"
+      }
+    ]
+  },
+  "rpc": {
+    "A": {
+      "forn": {
+        "http": 200,
+        "ok": true,
+        "count": 1,
+        "sample": [
+          {
+            "my_quote_id": "caa870d4-90d9-4272-a97b-42c2196dc12d",
+            "my_quote_title": "E2E-HOTFIX-2026-05-25T20-25-00 A FORN Anna&Marco",
+            "my_quote_status": "BOZZA",
+            "my_quote_total": 0,
+            "my_role": "FORNITORE_DIRETTO",
+            "match_signals": [
+              "EMAIL_MATCH",
+              "LOCATION_MATCH",
+              "DATE_MATCH"
+            ],
+            "other_quote_id": "90f5cba9-58a4-4f4a-afd5-f58a49be0cac",
+            "other_owner_role": "WEDDING_PLANNER",
+            "other_owner_name": "Beta Wedding Studio",
+            "other_quote_event_date": "2027-04-17",
+            "other_quote_total": 2500,
+            "other_quote_status": "BOZZA",
+            "conflict_severity": "HIGH"
+          }
+        ],
+        "error": null
+      },
+      "wp": {
+        "http": 200,
+        "ok": true,
+        "count": 1,
+        "sample": [
+          {
+            "my_quote_id": "90f5cba9-58a4-4f4a-afd5-f58a49be0cac",
+            "my_quote_title": "E2E-HOTFIX-2026-05-25T20-25-00 A WP Anna&Marco",
+            "my_quote_status": "BOZZA",
+            "my_quote_total": 2500,
+            "my_role": "CAPOSTIPITE",
+            "match_signals": [
+              "EMAIL_MATCH",
+              "LOCATION_MATCH",
+              "DATE_MATCH"
+            ],
+            "other_quote_id": "caa870d4-90d9-4272-a97b-42c2196dc12d",
+            "other_owner_role": "FORNITORE",
+            "other_owner_name": "Marco Bianchi Photography",
+            "other_quote_event_date": "2027-04-17",
+            "other_quote_total": 0,
+            "other_quote_status": "BOZZA",
+            "conflict_severity": "HIGH"
+          }
+        ],
+        "error": null
+      }
+    },
+    "B": {
+      "forn": {
+        "http": 200,
+        "ok": true,
+        "count": 2,
+        "sample": [
+          {
+            "my_quote_id": "caa870d4-90d9-4272-a97b-42c2196dc12d",
+            "my_quote_title": "E2E-HOTFIX-2026-05-25T20-25-00 A FORN Anna&Marco",
+            "my_quote_status": "BOZZA",
+            "my_quote_total": 0,
+            "my_role": "FORNITORE_DIRETTO",
+            "match_signals": [
+              "EMAIL_MATCH",
+              "LOCATION_MATCH",
+              "DATE_MATCH"
+            ],
+            "other_quote_id": "90f5cba9-58a4-4f4a-afd5-f58a49be0cac",
+            "other_owner_role": "WEDDING_PLANNER",
+            "other_owner_name": "Beta Wedding Studio",
+            "other_quote_event_date": "2027-04-17",
+            "other_quote_total": 2500,
+            "other_quote_status": "BOZZA",
+            "conflict_severity": "HIGH"
+          },
+          {
+            "my_quote_id": "72da63e8-6d17-4a25-ab93-7e0e5b8f0ae1",
+            "my_quote_title": "E2E-HOTFIX-2026-05-25T20-25-00 B FORN G.Bianchi",
+            "my_quote_status": "BOZZA",
+            "my_quote_total": 0,
+            "my_role": "FORNITORE_DIRETTO",
+            "match_signals": [
+              "LOCATION_MATCH",
+              "DATE_MATCH"
+            ],
+            "other_quote_id": "7eec6f01-6a3e-4c2b-88a6-3227999de3e9",
+            "other_owner_role": "WEDDING_PLANNER",
+            "other_owner_name": "Beta Wedding Studio",
+            "other_quote_event_date": "2027-10-09",
+            "other_quote_total": 2000,
+            "other_quote_status": "BOZZA",
+            "conflict_severity": "MEDIUM"
+          }
+        ],
+        "error": null
+      },
+      "wp": {
+        "http": 200,
+        "ok": true,
+        "count": 2,
+        "sample": [
+          {
+            "my_quote_id": "90f5cba9-58a4-4f4a-afd5-f58a49be0cac",
+            "my_quote_title": "E2E-HOTFIX-2026-05-25T20-25-00 A WP Anna&Marco",
+            "my_quote_status": "BOZZA",
+            "my_quote_total": 2500,
+            "my_role": "CAPOSTIPITE",
+            "match_signals": [
+              "EMAIL_MATCH",
+              "LOCATION_MATCH",
+              "DATE_MATCH"
+            ],
+            "other_quote_id": "caa870d4-90d9-4272-a97b-42c2196dc12d",
+            "other_owner_role": "FORNITORE",
+            "other_owner_name": "Marco Bianchi Photography",
+            "other_quote_event_date": "2027-04-17",
+            "other_quote_total": 0,
+            "other_quote_status": "BOZZA",
+            "conflict_severity": "HIGH"
+          },
+          {
+            "my_quote_id": "7eec6f01-6a3e-4c2b-88a6-3227999de3e9",
+            "my_quote_title": "E2E-HOTFIX-2026-05-25T20-25-00 B WP Giulia&Stefano",
+            "my_quote_status": "BOZZA",
+            "my_quote_total": 2000,
+            "my_role": "CAPOSTIPITE",
+            "match_signals": [
+              "LOCATION_MATCH",
+              "DATE_MATCH"
+            ],
+            "other_quote_id": "72da63e8-6d17-4a25-ab93-7e0e5b8f0ae1",
+            "other_owner_role": "FORNITORE",
+            "other_owner_name": "Marco Bianchi Photography",
+            "other_quote_event_date": "2027-10-09",
+            "other_quote_total": 0,
+            "other_quote_status": "BOZZA",
+            "conflict_severity": "MEDIUM"
+          }
+        ],
+        "error": null
+      }
+    }
+  },
+  "ui": {
+    "wp": {
+      "screenshot": "/Users/giovanniscozzafava/Repository/wedding-platform/audit-runs/conflict-final-2026-05-25T20-25-00/ui-wp-home.png",
+      "hasBeta": true,
+      "hasAlert": true,
+      "sampleText": "Planfully\nDashboard\nCatalogo\nMatrimoni\nRete fornitori\nCalendario\nPreventivi\nContratti\nBrand\nProfilo\nFinanziamento\nSOON\nAssicurazione\nSOON\n\nSara De Luca\n\nWedding Planner\n\nScuro\nEsci\nSei in Beta. Il servizio resterà gratuito per i partner fondatori.\nscopri di più\n\n2 alert di sovrapposizione preventivi· 1 HIGH\n\nStessa coppia + stessa data tra preventivo diretto fornitore e preventivo WP. Possibile disintermediazione.\n\nHIGH\n\nConflitto: il fornitore Marco Bianchi Photography ha un preventivo diretto per questa coppia\n\nStesso evento, stessa coppia · totale € 0 · stato BOZZA. Verifica la trattativa per evitare doppio canale.\n\nSegnali: EMAIL_MATCH, LOCATION_MATCH, DATE_MATCH\n· Data evento: 17/04/2027\nApri mio preventivo →\nMEDIUM\n\nConflitto: il fornitore Marco Bianchi Photography ha un preventivo d"
+    },
+    "forn": {
+      "screenshot": "/Users/giovanniscozzafava/Repository/wedding-platform/audit-runs/conflict-final-2026-05-25T20-25-00/ui-forn-home.png",
+      "hasBeta": true,
+      "hasAlert": true,
+      "sampleText": "Planfully\nDashboard\nCatalogo\nClienti\nDisponibilità\nCalcolatore\nCalendario\nPreventivi\nContratti\nBrand\nProfilo\n\nMarco Bianchi\n\nFornitore\n\nScuro\nEsci\nSei in Beta gratuita. Da ottobre 2026: €29/mese.\n· Beta gratis fino al 30 settembre 2026\n· poi €29/mese\nscopri di più\n\n2 alert di sovrapposizione preventivi· 1 HIGH\n\nStessa coppia + stessa data tra preventivo diretto fornitore e preventivo WP. Possibile disintermediazione.\n\nHIGH\n\nConflitto: questa coppia è già nel preventivo di Beta Wedding Studio\n\nWedding Planner · totale € 2500 · stato BOZZA. Coordina con il/la collega per evitare disintermediazione.\n\nSegnali: EMAIL_MATCH, LOCATION_MATCH, DATE_MATCH\n· Data evento: 17/04/2027\nApri mio preventivo →\nMEDIUM\n\nConflitto: questa coppia è già nel preventivo di Beta Wedding Studio\n\nWedding Planner · to"
+    }
+  },
+  "bugs": [],
+  "notes": [
+    "fornFoto profile: {\"business_name\":\"Marco Bianchi Photography\",\"full_name\":\"Marco Bianchi\",\"role\":\"FORNITORE\"}"
+  ]
+}

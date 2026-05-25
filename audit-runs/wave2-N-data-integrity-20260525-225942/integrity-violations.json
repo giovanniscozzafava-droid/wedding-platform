@@ -1,0 +1,153 @@
+{
+  "stats": {
+    "startedAt": "2026-05-25T21:02:13.543Z",
+    "calendarValueNoQuote": "column_missing_or_renamed",
+    "couplesAcceptedNoUser": 4,
+    "supplierInvitesStaleP": 0,
+    "quoteAcceptedNoTs": "err",
+    "contractsSignedNoData": 10,
+    "fkIntrospection": "no_rpc",
+    "indexIntrospection": "no_rpc",
+    "timestampsIntrospection": "no_rpc",
+    "endedAt": "2026-05-25T21:02:20.201Z"
+  },
+  "violations": [
+    {
+      "area": "integrity",
+      "severity": "HIGH",
+      "msg": "quotes select error: column quotes.event_id does not exist",
+      "sample": null,
+      "ts": "2026-05-25T21:02:18.171Z"
+    },
+    {
+      "area": "integrity",
+      "severity": "HIGH",
+      "msg": "quote_items select error: column quote_items.unit_client does not exist",
+      "sample": null,
+      "ts": "2026-05-25T21:02:18.225Z"
+    },
+    {
+      "area": "integrity",
+      "severity": "MEDIUM",
+      "msg": "calendar_entries scan error: column calendar_entries.entry_type does not exist; fallback: column calendar_entries.entry_type does not exist",
+      "sample": null,
+      "ts": "2026-05-25T21:02:18.319Z"
+    },
+    {
+      "area": "integrity",
+      "severity": "MEDIUM",
+      "msg": "wedding_couple_members accepted but user_id NULL: 4",
+      "sample": [
+        {
+          "id": "d5b0305a-c70f-4df9-89e4-d70907b37385",
+          "user_id": null,
+          "accepted_at": "2026-05-23T14:03:01.61+00:00",
+          "role": "SPOSA",
+          "entry_id": "86b0dac1-925b-4a03-8e24-8203ef185997"
+        },
+        {
+          "id": "70218c11-2b3a-413f-93b4-3984b7707f6a",
+          "user_id": null,
+          "accepted_at": "2026-05-23T14:03:09.798+00:00",
+          "role": "SPOSA",
+          "entry_id": "ec78a479-32ba-4d33-a1a3-a43f6e2550af"
+        },
+        {
+          "id": "aa15d933-6ee2-4406-986c-02841924fc7c",
+          "user_id": null,
+          "accepted_at": "2026-05-23T14:03:21.574+00:00",
+          "role": "SPOSA",
+          "entry_id": "0d7678d2-30da-444b-8615-7fc56ca4148e"
+        },
+        {
+          "id": "9124070d-edeb-4b95-946d-2bdb13dac3e7",
+          "user_id": null,
+          "accepted_at": "2026-05-23T14:03:33.373+00:00",
+          "role": "SPOSA",
+          "entry_id": "19b1d956-9353-4192-93ff-aad09715f8cf"
+        }
+      ],
+      "ts": "2026-05-25T21:02:18.372Z"
+    },
+    {
+      "area": "integrity",
+      "severity": "MEDIUM",
+      "msg": "event_guests scan err: column event_guests.event_id does not exist",
+      "sample": null,
+      "ts": "2026-05-25T21:02:18.491Z"
+    },
+    {
+      "area": "integrity",
+      "severity": "LOW",
+      "msg": "supplier_availability scan err: column supplier_availability.provider_id does not exist",
+      "sample": null,
+      "ts": "2026-05-25T21:02:18.538Z"
+    },
+    {
+      "area": "integrity",
+      "severity": "MEDIUM",
+      "msg": "contracts FIRMATO with missing signed_at/signature_data: 10",
+      "sample": [
+        {
+          "id": "7a880237-1b9f-4c0e-8b50-b268a2bed96e",
+          "status": "FIRMATO",
+          "signed_at": "2026-05-23T14:42:25.608+00:00",
+          "signature_data": null
+        },
+        {
+          "id": "f9a9361b-72e6-4940-a276-47e926421e8f",
+          "status": "FIRMATO",
+          "signed_at": null,
+          "signature_data": null
+        },
+        {
+          "id": "7655f239-1299-4c7f-81d1-d6224c9a1f55",
+          "status": "FIRMATO",
+          "signed_at": "2026-05-23T14:42:25.76+00:00",
+          "signature_data": null
+        },
+        {
+          "id": "2f7b149d-2c98-47b2-89fc-50ba9ccda42a",
+          "status": "FIRMATO",
+          "signed_at": "2026-05-23T14:42:25.9+00:00",
+          "signature_data": null
+        },
+        {
+          "id": "6894966c-bfbb-4d87-b6a1-99da4e9bf85a",
+          "status": "FIRMATO",
+          "signed_at": null,
+          "signature_data": null
+        }
+      ],
+      "ts": "2026-05-25T21:02:18.701Z"
+    },
+    {
+      "area": "fk",
+      "severity": "LOW",
+      "msg": "No exec_sql RPC available; FK introspection skipped (run via psql instead).",
+      "sample": null,
+      "ts": "2026-05-25T21:02:18.857Z"
+    },
+    {
+      "area": "index",
+      "severity": "LOW",
+      "msg": "pg_stat_user_indexes unreachable via RPC",
+      "sample": null,
+      "ts": "2026-05-25T21:02:19.002Z"
+    },
+    {
+      "area": "audit",
+      "severity": "LOW",
+      "msg": "No exec_sql RPC; timestamp introspection skipped",
+      "sample": null,
+      "ts": "2026-05-25T21:02:19.147Z"
+    },
+    {
+      "area": "cleanup",
+      "severity": "LOW",
+      "msg": "Test/demo residue patterns: 1",
+      "sample": null,
+      "ts": "2026-05-25T21:02:20.200Z"
+    }
+  ]
+}

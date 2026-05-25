@@ -1,0 +1,111 @@
+{
+  "started_at": "2026-05-25T21:01:00.375Z",
+  "tests": [
+    {
+      "id": "HOTFIX-1",
+      "title": "couple INSERT couple_change_requests",
+      "verdict": "SKIP",
+      "details": {},
+      "note": "missing sposo/wedding"
+    },
+    {
+      "id": "HOTFIX-2",
+      "title": "is_collab_supplier_of_entry scope tight",
+      "verdict": "SKIP",
+      "details": {},
+      "note": "missing fiori or andrea wedding"
+    },
+    {
+      "id": "HOTFIX-3a",
+      "title": "upload-photo v6 200 + photo response",
+      "verdict": "PASS",
+      "details": {
+        "service_id": "1324114d-a900-4219-ac0c-ca69176319c4",
+        "status": 200,
+        "body": {
+          "photo": {
+            "id": "9c0d0049-07a8-4b1c-9fab-e69299438807",
+            "service_id": "1324114d-a900-4219-ac0c-ca69176319c4",
+            "original_url": "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/public/service-photos/1324114d-a900-4219-ac0c-ca69176319c4/9c0d0049-07a8-4b1c-9fab-e69299438807.png",
+            "thumbnail_url": "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/render/image/public/service-photos/1324114d-a900-4219-ac0c-ca69176319c4/9c0d0049-07a8-4b1c-9fab-e69299438807.png?width=400&height=400&resize=cover&quality=78",
+            "sort_order": 4,
+            "created_at": "2026-05-25T21:01:02.641585+00:00"
+          }
+        }
+      }
+    },
+    {
+      "id": "HOTFIX-3b",
+      "title": "quote-generate-pdf v8 reachable",
+      "verdict": "SKIP",
+      "details": {},
+      "note": "covered indirectly by HOTFIX-4"
+    },
+    {
+      "id": "HOTFIX-4",
+      "title": "auto_block_availability cast trigger",
+      "verdict": "FAIL",
+      "details": {
+        "create_err": "Could not find the 'currency' column of 'quotes' in the schema cache",
+        "code": "PGRST204"
+      }
+    },
+    {
+      "id": "HOTFIX-5",
+      "title": "RLS quotes insert FORNITORE direct quote",
+      "verdict": "FAIL",
+      "details": {
+        "client_err": "Could not find the 'owner_id' column of 'supplier_clients' in the schema cache",
+        "code": "PGRST204"
+      }
+    },
+    {
+      "id": "HOTFIX-6a",
+      "title": "import-pin-url Pinterest 422 user-friendly",
+      "verdict": "FAIL",
+      "details": {
+        "status": 422,
+        "body": {
+          "error": "no og:image found"
+        }
+      }
+    },
+    {
+      "id": "HOTFIX-6b",
+      "title": "import-pin-url Wired 200 + og:image",
+      "verdict": "PASS",
+      "details": {
+        "status": 200,
+        "body_keys": [
+          "image",
+          "image_base64",
+          "image_content_type",
+          "image_fetch_error",
+          "title",
+          "description",
+          "source_url"
+        ],
+        "image_present": true
+      }
+    },
+    {
+      "id": "HOTFIX-6c",
+      "title": "import-pin-url generic blog",
+      "verdict": "PASS",
+      "details": {
+        "status": 200,
+        "image_present": true,
+        "title": "Blog - Vercel"
+      }
+    }
+  ],
+  "context": {
+    "sposo_id": "6e61b300-66f5-4ddb-9fc0-b0d3351a63b7",
+    "sposo_wedding_id": null,
+    "forn_fiori_id": "a0262dd1-f07c-4359-a9c0-1186e98971a3",
+    "forn_foto_id": "747707fe-03be-4bb8-95b8-17b43b465526",
+    "wp_mini_id": "712baed0-3957-4452-8aab-ab4eeebb2697",
+    "andrea_wedding_id": null
+  },
+  "finished_at": "2026-05-25T21:01:04.891Z"
+}

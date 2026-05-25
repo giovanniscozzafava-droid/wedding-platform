@@ -1,0 +1,14 @@
+[
+  {
+    "table": "profiles",
+    "column": "full_name",
+    "pattern": "Demo %",
+    "count": 1,
+    "sample": [
+      {
+        "id": "bf3dd2e5-6467-4771-ac48-406dd0296b5b",
+        "full_name": "Demo Planner"
+      }
+    ]
+  }
+]

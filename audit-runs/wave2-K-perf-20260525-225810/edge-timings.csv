@@ -1,0 +1,16 @@
+fn,trial,status,time_ms
+quote-generate-pdf,1,400,1395.9
+quote-generate-pdf,2,400,1533.7
+quote-generate-pdf,3,400,357.7
+quote-generate-pdf,4,400,326.8
+quote-generate-pdf,5,400,417.2
+import-pin-url,1,400,204.6
+import-pin-url,2,400,194.3
+import-pin-url,3,400,178.2
+import-pin-url,4,400,166.5
+import-pin-url,5,400,186.8
+quote-send,1,400,257.9
+quote-send,2,400,250.3
+quote-send,3,400,222.3
+quote-send,4,400,144.3
+quote-send,5,400,220.4
