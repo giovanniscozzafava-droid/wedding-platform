@@ -1,0 +1,58 @@
+[
+  {
+    "id": "Q-001",
+    "severity": "HIGH",
+    "tab": "timeline",
+    "description": "Timeline tab shows 'Nessuna voce in scaletta' even though 8 event_timeline rows were inserted via service-role for this entry. Tab is empty and Overview KPI shows SCALETTA=0. Likely RLS misconfiguration on event_timeline for the WP owner of calendar_entries, or the SELECT query joins on a column that the seed left null.",
+    "evidence": "screenshots/06-tab-timeline.png, screenshots/26-timeline-rendered.png; seed-state.json confirms timeline_seeded:8; service-role verifies rows persisted",
+    "ts": "2026-05-25T22:27:02.775Z"
+  },
+  {
+    "id": "Q-002",
+    "severity": "HIGH",
+    "tab": "schema",
+    "description": "event_timeline.is_critical has NOT NULL constraint without a default. Seed inserts that omit is_critical fail with PG error 'null value in column is_critical violates not-null constraint'. Inconsistent with TimelineTab UX where is_critical is optional. Add DEFAULT false or make column nullable.",
+    "evidence": "Seed log: 'timeline null value in column is_critical of relation event_timeline violates not-null constraint'",
+    "ts": "2026-05-25T22:26:39Z"
+  },
+  {
+    "id": "Q-003",
+    "severity": "MEDIUM",
+    "tab": "schema",
+    "description": "couple_preferences.styles enum rejects 'Classic elegance' (wedding_style enum has a different allowed list). Insert silently fails — couple_preferences row never persisted. Either expand the enum to include front-end label, or normalize labels at write time.",
+    "evidence": "Seed log: 'couple_preferences invalid input value for enum wedding_style: \"Classic elegance\"'",
+    "ts": "2026-05-25T22:26:40Z"
+  },
+  {
+    "id": "Q-004",
+    "severity": "MEDIUM",
+    "tab": "overview",
+    "description": "Overview KPI BUDGET shows €0 even though wedding.value_amount is €32.000 (visible in hero). KPI is tied to budget_categories table only, while hero shows the deal value — UX clarification needed (or pre-fill budget categories from quote).",
+    "evidence": "screenshots/04-dashboard-overview-initial.png: hero €32.000 / KPI tile €0",
+    "ts": "2026-05-25T22:26:50Z"
+  },
+  {
+    "id": "Q-005-RESOLVED",
+    "severity": "INFO",
+    "tab": "docs",
+    "description": "FALSE-POSITIVE — .exe upload IS correctly rejected with toast 'mime type application/x-msdownload is not supported' (Fix N is working). The test's locator missed the toast position. No action needed.",
+    "evidence": "screenshots/29-docs-after-exe-upload.png shows the rejection toast top-right",
+    "ts": "2026-05-25T22:27:37.676Z"
+  },
+  {
+    "id": "Q-006",
+    "severity": "LOW",
+    "tab": "contract",
+    "description": "Contract tab shows 'Nessun contratto ancora.' but the 'Nuova bozza' (Genera contratto) button IS available top-right (post-fix QuoteEditor). 'Scarica PDF' absent is acceptable since no contract has been generated yet. The original test heuristic was too strict.",
+    "evidence": "screenshots/17-tab-contract.png, screenshots/31-contract-tab.png",
+    "ts": "2026-05-25T22:27:39.805Z"
+  },
+  {
+    "id": "Q-007",
+    "severity": "LOW",
+    "tab": "global",
+    "description": "Repeated console errors '400 Bad Request' on initial page load and during a tab switch (analytics→home transition). Source unclear without devtools — likely a stale fetch on a missing analytics view.",
+    "evidence": "console output during run: 'Failed to load resource: 400'",
+    "ts": "2026-05-25T22:27:30Z"
+  }
+]

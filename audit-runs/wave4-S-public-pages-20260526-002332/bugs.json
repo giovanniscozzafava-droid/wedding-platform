@@ -1,0 +1,44 @@
+[
+  {
+    "severity": "HIGH",
+    "page": "w-slug",
+    "area": "rsvp-idempotency",
+    "msg": "RSVP /w/:slug NON e' idempotente: stessa coppia (full_name,email) inserisce 2 righe in event_guests con party_size diversi. Conferma DB: 2 record (db68c887..., fe692ced...). Manca UNIQUE(entry_id, email) o upsert nella RPC wedding_site_rsvp. Risk: duplicate guests, conteggio party errato"
+  },
+  {
+    "severity": "MEDIUM",
+    "page": "register",
+    "area": "form",
+    "msg": "Role selector non trovato come native <select>/<input radio> — probabilmente custom combobox senza semantic role accessibile dai selector classici"
+  },
+  {
+    "severity": "MEDIUM",
+    "page": "register",
+    "area": "validation",
+    "msg": "Password corta (<8 char) non mostra messaggio errore specifico al submit"
+  },
+  {
+    "severity": "MEDIUM",
+    "page": "p-accept",
+    "area": "ux",
+    "msg": "Quote gia ACCETTATO mostra ancora la pagina di accettazione (importo 23.414,00 EUR ma nessun banner '409 / gia firmato')"
+  },
+  {
+    "severity": "LOW",
+    "page": "login",
+    "area": "a11y",
+    "msg": "aria-label count=1 sull'intera pagina: pochi label espliciti, form si affida a placeholder/label HTML"
+  },
+  {
+    "severity": "INFO-RETRACTED",
+    "page": "w-slug",
+    "area": "content",
+    "msg": "FALSE POSITIVE iniziale (329 chars): il body innerText era misurato sopra-fold. Screenshot w-02-bottom.png conferma sezioni complete: Storia, Dress code, RSVP form, footer Planfully"
+  },
+  {
+    "severity": "INFO-RETRACTED",
+    "page": "w-slug",
+    "area": "rsvp",
+    "msg": "FALSE POSITIVE iniziale (signature RPC): RPC reale e' wedding_site_rsvp(p_slug,p_full_name,p_email,p_rsvp,p_party,p_diet,p_notes). Re-test con signature corretta: returns true. Bug reale: vedi rsvp-idempotency"
+  }
+]

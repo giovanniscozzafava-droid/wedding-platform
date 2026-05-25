@@ -1,0 +1,17 @@
+{
+  "wp_user_id": "712baed0-3957-4452-8aab-ab4eeebb2697",
+  "couple_user_id": "ea991e43-b9f3-4572-be70-d34e48423d11",
+  "couple_email": "agent-q-couple-1779747995037@planfully-demo.it",
+  "quote_id": "189bb466-84cd-4f63-a6b2-ffdcd914b1b6",
+  "wedding_id": "fef38167-4ae6-4f6d-b190-52674919072e",
+  "table_ids": [
+    "a144479b-a9e9-4fa0-90dd-abb887ebd6bb",
+    "40c98c2b-ee99-487e-8b26-04b40dc4253d",
+    "7a3939f3-52b4-41cb-a4e6-cc3a3f099b67",
+    "2ffc272c-aefb-45de-b701-df125ebc1001",
+    "cc1bf37b-fa20-49c4-9988-baf4504cb6ce"
+  ],
+  "table_count": 5,
+  "guests_seeded": 50,
+  "timeline_seeded": 8
+}

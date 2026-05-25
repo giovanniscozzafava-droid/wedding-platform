@@ -1,0 +1,38 @@
+[
+  {
+    "id": "AGENT-R-001",
+    "severity": "LOW",
+    "area": "validation.qty-max",
+    "msg": "Nessun upper bound su quantity (999999 accettato). Suggerito guard a livello applicativo (no DB constraint).",
+    "repro": null,
+    "phase": "p3",
+    "ts": "2026-05-25T22:32:30.415Z"
+  },
+  {
+    "id": "AGENT-R-002",
+    "severity": "MEDIUM",
+    "area": "validation.empty-label",
+    "msg": "name_snapshot='' accettato → UI mostrerà voce senza titolo. Aggiungi NOT EMPTY constraint o validation lato app.",
+    "repro": null,
+    "phase": "p3",
+    "ts": "2026-05-25T22:32:30.536Z"
+  },
+  {
+    "id": "AGENT-R-003",
+    "severity": "MEDIUM",
+    "area": "status.transitions",
+    "msg": "WP può tornare INVIATO→BOZZA senza vincoli DB. Le state-machine sono solo client-side (no DB trigger). Cliente potrebbe avere link \"scaduto\" senza saperlo.",
+    "repro": "UPDATE quotes SET status='BOZZA' WHERE id='f080797f-47cb-462e-9aea-17fba76b2b5e' AND owner_id=auth.uid()",
+    "phase": "p5",
+    "ts": "2026-05-25T22:32:34.446Z"
+  },
+  {
+    "id": "AGENT-R-004",
+    "severity": "MEDIUM",
+    "area": "status.transitions",
+    "msg": "Transition ACCETTATO→RIFIUTATO consentita da DB (nessun trigger di validazione state-machine). Solo UI/RPC la limita.",
+    "repro": null,
+    "phase": "p5",
+    "ts": "2026-05-25T22:32:46.910Z"
+  }
+]
