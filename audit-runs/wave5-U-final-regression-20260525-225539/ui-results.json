@@ -1,0 +1,66 @@
+[
+  {
+    "id": "F07.UI",
+    "title": "CookieBanner z-index + modal clickable",
+    "verdict": "PASS",
+    "details": {
+      "banner_z": {
+        "z": "40",
+        "pointerEvents": "none",
+        "position": "fixed",
+        "w": 1280,
+        "h": 144,
+        "bottom": 800,
+        "textPreview": "Cookie & privacyUsiamo cookie tecnici essenziali per il funzionamento. Per analytics anonime click \"Accetta tutto\". Nien",
+        "tag": "DIV"
+      },
+      "cta_clickable": true
+    }
+  },
+  {
+    "id": "F11.UI",
+    "title": "header sposi mobile chip @ 375",
+    "verdict": "PASS",
+    "details": {
+      "header_w": 390,
+      "scrollW": 390,
+      "clientW": 390,
+      "overflow": false,
+      "planfullyVisible": true,
+      "chipVisible": true
+    }
+  },
+  {
+    "id": "F10.UI.couple",
+    "title": "tab strip overflow edge-fade visible (couple mobile)",
+    "verdict": "PASS",
+    "details": {
+      "hasGradient": {
+        "inlineStyle": "background: linear-gradient(135deg, rgba(201, 169, 97, 0.867) 0%, rgba(201, 169, 97, 0.6) 100%);",
+        "tag": "DIV"
+      }
+    }
+  },
+  {
+    "id": "F10.UI.wedding",
+    "title": "tab strip overflow edge-fade visible (WP wedding mobile)",
+    "verdict": "PASS",
+    "details": {
+      "hasGradient": {
+        "inlineStyle": "background: linear-gradient(90deg, rgb(var(--gold-100) / 0.6), rgb(var(--rose-100) / 0.5)); border-color: rgb(var(--gold-300)); color: rgb(var(--fg));",
+        "tag": "DIV"
+      }
+    }
+  },
+  {
+    "id": "F16.UI",
+    "title": "Genera contratto button visible on ACCETTATO",
+    "verdict": "PASS",
+    "details": {
+      "quote": "96955fcf-0143-41b5-b824-3f1a4e8109b7",
+      "url": "https://planfully.it/quotes/96955fcf-0143-41b5-b824-3f1a4e8109b7",
+      "btnVisible": true,
+      "textPresent": true
+    }
+  }
+]

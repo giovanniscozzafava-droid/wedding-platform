@@ -1,0 +1,7 @@
+WAVE 5 - AGENT U - FINAL REGRESSION
+Prod: https://planfully.it (deploy hfgggx8hf)
+
+HOTFIX (18 totali, F01..F18): 18 PASS / 0 FAIL
+UI checks aggiuntivi (5 Playwright):           5 PASS / 0 FAIL
+
+ESITO: TUTTI I 18 HOTFIX REGGONO. NESSUNA REGRESSIONE RILEVATA.
