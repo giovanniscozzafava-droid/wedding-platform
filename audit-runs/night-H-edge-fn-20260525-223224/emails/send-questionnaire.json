@@ -1,0 +1,13 @@
+{
+  "request": {
+    "entry_id": "c1b8b3bc-d3a0-4398-8f95-32aa81aa5c60",
+    "couple_email": "test+nh-questionnaire-1779741769312@mailinator.com"
+  },
+  "response": {
+    "ok": true,
+    "mode": "sent",
+    "email_id": "73e7dc69-fdaf-42c8-9570-60182981f8dc",
+    "link": "https://planfully.it/invito-coppia/f0fc7226-8560-42b5-9c5d-690a16290181?step=questionario",
+    "invite_token": "f0fc7226-8560-42b5-9c5d-690a16290181"
+  }
+}

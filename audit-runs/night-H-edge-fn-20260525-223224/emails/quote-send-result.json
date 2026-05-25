@@ -1,0 +1,17 @@
+{
+  "quote": {
+    "access_token": "a20d139a-6507-4511-8c94-3af9843272bb",
+    "status": "INVIATO",
+    "client_email": "test+night-h@mailinator.com",
+    "sent_at": "2026-05-25T20:42:40.671+00:00"
+  },
+  "response": {
+    "ok": true,
+    "access_token": "a20d139a-6507-4511-8c94-3af9843272bb",
+    "pdf_url": "https://zfwlkvqxfzvubmfyxofs.supabase.co/storage/v1/object/sign/quote-pdfs/c18cd9c5-3328-47bc-afd5-cab5adc2499a/v1.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9kZmM5YzFhZC01YTZjLTQ3ZTUtYTMzYS1mOWQyNDhkZGY4MTEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJxdW90ZS1wZGZzL2MxOGNkOWM1LTMzMjgtNDdiYy1hZmQ1LWNhYjVhZGMyNDk5YS92MS5wZGYiLCJpYXQiOjE3Nzk3NDE3NjAsImV4cCI6MTc4MDM0NjU2MH0.01bMVISvgSNXm8iTNGOPUA-o7oGNalRQ2jOYeAVuMkY",
+    "email_result": {
+      "ok": true,
+      "id": "e90aa0fb-1457-410b-8448-db588ce45b81"
+    }
+  }
+}

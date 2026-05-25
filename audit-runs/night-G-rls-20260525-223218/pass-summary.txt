@@ -1,0 +1,5 @@
+Total: 77
+Pass: 74
+Fail: 3
+Percent: 96.1%
+CRITICAL leaks: 2

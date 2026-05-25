@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "recipients": 3,
+  "results": [
+    {
+      "to": "audit-foto@planfully-test.it",
+      "status": "sent"
+    },
+    {
+      "to": "audit-fiori@planfully-test.it",
+      "status": "sent"
+    },
+    {
+      "to": "audit-catering@planfully-test.it",
+      "status": "sent"
+    }
+  ]
+}

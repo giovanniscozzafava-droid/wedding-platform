@@ -1,0 +1,26 @@
+[
+  {
+    "actor": "FORN_B",
+    "op": "SELECT",
+    "table": "calendar_entries",
+    "target": "1c55dd47-e31f-4caa-a0d1-bc94d6c9a3bf",
+    "expected": "block",
+    "actual": "leaked",
+    "dataCount": 1,
+    "errMsg": null,
+    "pass": false,
+    "severity": "CRITICAL"
+  },
+  {
+    "actor": "FORN_B",
+    "op": "SELECT",
+    "table": "event_playlist",
+    "target": "eb2f216d-ced9-4406-884d-2056a5cbd901",
+    "expected": "block",
+    "actual": "leaked",
+    "dataCount": 1,
+    "errMsg": null,
+    "pass": false,
+    "severity": "CRITICAL"
+  }
+]

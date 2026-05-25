@@ -1,0 +1,56 @@
+[
+  {
+    "fn": "import-pin-url",
+    "test": "happy_https_unsplash",
+    "status": 502,
+    "detail": "status=502 Pagina non raggiungibile (HTTP 401)"
+  },
+  {
+    "fn": "import-pin-url",
+    "test": "pinterest_pin",
+    "status": 422,
+    "detail": "status=422 no og:image found"
+  },
+  {
+    "fn": "import-pin-url",
+    "test": "fetch_image_true",
+    "status": 502,
+    "detail": "status=502"
+  },
+  {
+    "fn": "upload-photo",
+    "test": "no_auth",
+    "status": 500,
+    "detail": ""
+  },
+  {
+    "fn": "upload-photo",
+    "test": "wrong_content_type",
+    "status": 500,
+    "detail": ""
+  },
+  {
+    "fn": "upload-photo",
+    "test": "happy_png_1x1",
+    "status": 500,
+    "detail": "{\"code\":\"WORKER_ERROR\",\"message\":\"Function exited due to an error (please check logs)\"}"
+  },
+  {
+    "fn": "upload-photo",
+    "test": "unsupported_heic",
+    "status": 500,
+    "detail": "{\"code\":\"WORKER_ERROR\",\"message\":\"Function exited due to an error (please check logs)\"}"
+  },
+  {
+    "fn": "upload-photo",
+    "test": "no_service_id",
+    "status": 500,
+    "detail": ""
+  },
+  {
+    "fn": "upload-photo",
+    "test": "oversized_2mb",
+    "status": 504,
+    "detail": ""
+  }
+]

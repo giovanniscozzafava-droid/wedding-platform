@@ -1,0 +1,13 @@
+{
+  "request": {
+    "email": "test+nh-invite-1779741770763@mailinator.com"
+  },
+  "response": {
+    "ok": true,
+    "mode": "email_sent",
+    "invite_id": "59dadce5-e6cd-446a-8b2a-be505767b582",
+    "accept_url": "https://planfully.it/invito-fornitore/c1dd4e5a-e9fc-4fa9-8af0-5ea66e399270",
+    "token": "c1dd4e5a-e9fc-4fa9-8af0-5ea66e399270",
+    "email_id": "e6e08563-a939-47b9-8609-786ad533bf7b"
+  }
+}

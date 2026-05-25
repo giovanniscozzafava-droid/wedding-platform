@@ -45,30 +45,53 @@ Deno.serve(async (req) => {
     return json({ error: 'unsupported protocol' }, 400)
   }
 
-  // Pinterest/Instagram servono og:image solo a crawler whitelisted.
-  // Usiamo facebookexternalhit che è universalmente accettato.
+  // Pinterest/Instagram bloccano facebookexternalhit. Tentativi multi-UA:
+  // 1) facebookexternalhit (default storico, funziona su blog/news/Wired/GitHub)
+  // 2) Twitterbot (passa spesso dove FB e bloccato)
+  // 3) Chrome desktop (rare ma necessario per alcuni siti che servono solo UI)
   let finalUrl = target.toString()
   let html = ''
-  const htmlAc = new AbortController()
-  const htmlTimeout = setTimeout(() => htmlAc.abort(), 8000)
-  try {
-    const r = await fetch(finalUrl, {
-      redirect: 'follow',
-      signal: htmlAc.signal,
-      headers: {
-        'user-agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-        'accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
-        'accept-language': 'it-IT,it;q=0.9,en;q=0.8',
-      },
-    })
-    clearTimeout(htmlTimeout)
-    if (!r.ok) return json({ error: `Pagina non raggiungibile (HTTP ${r.status})` }, 502)
-    finalUrl = r.url
-    html = await r.text()
-  } catch (e: any) {
-    clearTimeout(htmlTimeout)
-    const msg = e?.name === 'AbortError' ? 'timeout caricamento pagina (8s)' : (e?.message ?? 'fetch error')
-    return json({ error: `Impossibile leggere la pagina: ${msg}` }, 502)
+  const uaAttempts: Array<{ tag: string; ua: string }> = [
+    { tag: 'fb', ua: 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)' },
+    { tag: 'twitter', ua: 'Twitterbot/1.0' },
+    { tag: 'chrome', ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' },
+  ]
+  let lastErr = ''
+  let ok = false
+  for (const att of uaAttempts) {
+    const htmlAc = new AbortController()
+    const htmlTimeout = setTimeout(() => htmlAc.abort(), 8000)
+    try {
+      const r = await fetch(finalUrl, {
+        redirect: 'follow',
+        signal: htmlAc.signal,
+        headers: {
+          'user-agent': att.ua,
+          'accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+          'accept-language': 'it-IT,it;q=0.9,en;q=0.8',
+        },
+      })
+      clearTimeout(htmlTimeout)
+      if (!r.ok) { lastErr = `${att.tag}:HTTP_${r.status}`; continue }
+      finalUrl = r.url
+      html = await r.text()
+      ok = true
+      break
+    } catch (e: any) {
+      clearTimeout(htmlTimeout)
+      lastErr = `${att.tag}:${e?.name === 'AbortError' ? 'timeout' : (e?.message ?? 'fetch_error').slice(0, 40)}`
+    }
+  }
+  if (!ok) {
+    // Pinterest / Instagram bloccano spesso TUTTI i bot. Messaggio user-friendly.
+    const host = target.hostname.replace(/^www\./, '')
+    if (host.includes('pinterest.') || host.includes('instagram.')) {
+      return json({
+        error: `${host.split('.')[0]} blocca l'estrazione automatica. Salva l'immagine sul tuo device e caricala con il tasto Upload.`,
+        detail: lastErr,
+      }, 422)
+    }
+    return json({ error: `Pagina non raggiungibile: ${lastErr}` }, 502)
   }
 
   const image = pickMeta(html, 'og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src')
