@@ -5,11 +5,10 @@
 // 2) Al cliente: 'Abbiamo ricevuto la tua richiesta'
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { sendEmail as sendEmailSES } from '../_shared/ses.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Planfully <noreply@planfully.it>'
 const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
 
 const cors = {
@@ -26,23 +25,7 @@ function esc(s: string): string {
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
-  if (!RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set, email skipped')
-    return { ok: false, reason: 'no_api_key' }
-  }
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ from: RESEND_FROM, to, subject, html }),
-  })
-  if (!res.ok) {
-    const t = await res.text()
-    return { ok: false, error: t }
-  }
-  return { ok: true }
+  return sendEmailSES({ to, subject, html })
 }
 
 Deno.serve(async (req) => {

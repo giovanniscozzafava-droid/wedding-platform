@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { sendEmail as sendEmailSES } from '../_shared/ses.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'noreply@wedding-platform.test'
 
 const cors = {
@@ -18,17 +18,10 @@ function json(body: unknown, status = 200) {
 }
 
 async function sendResendEmail(to: string, subject: string, html: string) {
-  if (!RESEND_API_KEY) return { skipped: true }
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify({ from: FROM, to, subject, html }),
-  })
-  if (!r.ok) {
-    const text = await r.text()
-    return { error: text }
-  }
-  return { ok: true }
+  const r = await sendEmailSES({ to, subject, html, from: FROM })
+  if (r.ok) return { ok: true as const }
+  if (r.reason === 'no_credentials') return { skipped: true as const }
+  return { error: r.error ?? 'api_error' }
 }
 
 Deno.serve(async (req) => {

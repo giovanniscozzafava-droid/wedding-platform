@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, MessageCircle, Globe, Users as UsersIcon, Lock, Send, MoreHorizontal } from 'lucide-react'
+import { Heart, MessageCircle, Globe, Users as UsersIcon, Lock, Send, MoreHorizontal, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -57,6 +57,20 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
   const [newComment, setNewComment] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
   const [carouselIdx, setCarouselIdx] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [deleted, setDeleted] = useState(false)
+
+  async function deletePost() {
+    if (!confirm('Eliminare definitivamente questo post? L\'azione non è reversibile.')) return
+    try {
+      const { error } = await (supabase as unknown as { from: (t: string) => { delete: () => { eq: (k: string, v: string) => Promise<{ error: Error | null }> } } })
+        .from('posts').delete().eq('id', post.id)
+      if (error) throw error
+      setDeleted(true)
+      toast.success('Post eliminato')
+      onChanged?.()
+    } catch (e) { toast.error((e as Error).message) }
+  }
 
   async function toggleLike() {
     if (!user) { toast.info('Accedi per mettere like'); return }
@@ -117,6 +131,8 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
     : null
   const VisIcon = post.visibility === 'PUBLIC' ? Globe : post.visibility === 'NETWORK' ? UsersIcon : Lock
 
+  if (deleted) return null
+
   return (
     <motion.article initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
       className="surface surface-elev overflow-hidden">
@@ -147,9 +163,23 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
           </p>
         </div>
         {post.author_id === user?.id && (
-          <button className="rounded p-1 hover:bg-[rgb(var(--bg-sunken))]" title="Opzioni">
-            <MoreHorizontal size={16} />
-          </button>
+          <div className="relative">
+            <button onClick={() => setMenuOpen((v) => !v)}
+              className="rounded p-1 hover:bg-[rgb(var(--bg-sunken))]" title="Opzioni">
+              <MoreHorizontal size={16} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 surface surface-lift z-20 min-w-[160px] py-1">
+                  <button onClick={() => { setMenuOpen(false); void deletePost() }}
+                    className="w-full text-left px-3 py-2 text-sm text-[rgb(var(--rose-500))] hover:bg-[rgb(var(--rose-100))] inline-flex items-center gap-2">
+                    <Trash2 size={13} /> Elimina post
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
 

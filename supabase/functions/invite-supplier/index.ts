@@ -12,11 +12,11 @@
 // POST { email, subrole?, message? } -> { ok, mode: 'collab_direct' | 'email_sent', invite_id? }
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { sendEmail as sendEmailSES } from '../_shared/ses.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 // Address only (es. noreply@planfully.it OR onboarding@resend.dev se non ancora verificato)
 const RESEND_FROM_ADDR = (Deno.env.get('RESEND_FROM_EMAIL') ?? 'Planfully <onboarding@resend.dev>')
   .replace(/^.*</, '').replace(/>$/, '')
@@ -173,7 +173,6 @@ async function sendInviteEmail(args: {
   customMessage: string | null
   subrole: string | null
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  if (!RESEND_API_KEY) return { ok: false, error: 'RESEND_API_KEY not set' }
   const preset = presetFor(args.subrole)
   const inviterLabel = args.inviterBusiness
     ? `${args.inviterName} · ${args.inviterBusiness}`
@@ -232,29 +231,18 @@ async function sendInviteEmail(args: {
     : `${args.inviterName} via Planfully`
   const from = `${fromLabel} <${RESEND_FROM_ADDR}>`
 
-  const body: Record<string, unknown> = {
-    from,
-    to: [args.to],
-    subject: `${args.inviterName} ti invita su Planfully (${preset.greeting.split('—')[0].trim().slice(0, 40)}…)`,
-    html,
-  }
-  if (args.inviterEmail) body.reply_to = args.inviterEmail
+  const subject = `${args.inviterName} ti invita su Planfully (${preset.greeting.split('—')[0].trim().slice(0, 40)}…)`
 
-  try {
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify(body),
-    })
-    if (!r.ok) {
-      const t = await r.text()
-      return { ok: false, error: `Resend HTTP ${r.status}: ${t.slice(0, 400)}` }
-    }
-    const j = await r.json()
-    return { ok: true, id: j.id }
-  } catch (e) {
-    return { ok: false, error: (e as Error).message }
-  }
+  const r = await sendEmailSES({
+    to: args.to,
+    subject,
+    html,
+    from,
+    reply_to: args.inviterEmail ?? undefined,
+  })
+  if (r.ok) return { ok: true, id: r.message_id }
+  if (r.reason === 'no_credentials') return { ok: false, error: 'SES credentials not set' }
+  return { ok: false, error: `SES error: ${(r.error ?? '').slice(0, 400)}` }
 }
 
 function escapeHtml(s: string): string {

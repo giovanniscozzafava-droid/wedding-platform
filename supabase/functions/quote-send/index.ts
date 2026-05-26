@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { sendEmail as sendEmailSES } from '../_shared/ses.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'noreply@wedding-platform.test'
 const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'http://localhost:5173'
 
@@ -21,27 +21,23 @@ function escapeHtml(s: string): string {
 }
 
 async function sendResend(to: string, subject: string, html: string) {
-  if (!RESEND_API_KEY) return { skipped: true as const }
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify({ from: FROM, to, subject, html }),
-  })
-  return r.ok ? { ok: true as const } : { error: await r.text() }
+  const r = await sendEmailSES({ to, subject, html, from: FROM })
+  if (r.ok) return { ok: true as const }
+  if (r.reason === 'no_credentials') return { skipped: true as const }
+  return { error: r.error ?? 'api_error' }
 }
 
 async function sendResendCustom(opts: { from: string; to: string; subject: string; html: string; replyTo?: string }) {
-  if (!RESEND_API_KEY) return { skipped: true as const }
-  const body: Record<string, unknown> = { from: opts.from, to: [opts.to], subject: opts.subject, html: opts.html }
-  if (opts.replyTo) body.reply_to = opts.replyTo
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify(body),
+  const r = await sendEmailSES({
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    from: opts.from,
+    reply_to: opts.replyTo,
   })
-  if (!r.ok) return { error: await r.text() }
-  const j = await r.json()
-  return { ok: true as const, id: j.id }
+  if (r.ok) return { ok: true as const, id: r.message_id }
+  if (r.reason === 'no_credentials') return { skipped: true as const }
+  return { error: r.error ?? 'api_error' }
 }
 
 Deno.serve(async (req) => {

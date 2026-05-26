@@ -12,12 +12,32 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { jsPDF } from 'npm:jspdf@2.5.2'
+import { sendEmail as sendEmailSES } from '../_shared/ses.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Planfully <noreply@planfully.it>'
 const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
+
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  opts?: {
+    from?: string
+    reply_to?: string
+    attachments?: Array<{ filename: string; content_base64: string; content_type: string }>
+  },
+) {
+  return sendEmailSES({
+    to,
+    subject,
+    html,
+    from: opts?.from,
+    reply_to: opts?.reply_to,
+    attachments: opts?.attachments,
+  })
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -353,7 +373,6 @@ async function generateAcceptancePdf(
 }
 
 async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | null) {
-  if (!RESEND_API_KEY) return
   const { data: owner } = await admin.from('profiles').select('full_name, business_name, role, subrole').eq('id', quote.owner_id).maybeSingle()
   const { data: ownerAuth } = await admin.auth.admin.getUserById(quote.owner_id)
   const ownerEmail = ownerAuth?.user?.email
@@ -390,10 +409,9 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
   <div style="background:#f6f4ef;padding:16px;text-align:center;font-size:11px;color:#a0aec0;border-top:1px solid #e2e8f0">Un progetto Fuyue Srl · planfully.it</div>
 </div></body>`
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify({ from: fromHeader, to: [toClient], subject: `Accettazione preventivo confermata · ${quote.title}`, html: clientHtml, reply_to: ownerEmail ?? undefined }),
+  await sendEmail(toClient, `Accettazione preventivo confermata · ${quote.title}`, clientHtml, {
+    from: fromHeader,
+    reply_to: ownerEmail ?? undefined,
   }).catch(() => null)
 
   // Email WP
@@ -418,10 +436,8 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
   </div>
 </div></body>`
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: `Planfully <${fromAddr}>`, to: [toOwner ?? ownerEmail], subject: `🎉 ${a.signer_name} ha firmato · ${quote.title}`, html: wpHtml }),
+    await sendEmail(toOwner ?? ownerEmail, `🎉 ${a.signer_name} ha firmato · ${quote.title}`, wpHtml, {
+      from: `Planfully <${fromAddr}>`,
     }).catch(() => null)
   }
 }

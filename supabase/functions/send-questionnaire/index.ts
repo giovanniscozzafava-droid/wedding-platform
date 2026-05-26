@@ -4,12 +4,32 @@
 // Dopo il signup la coppia atterra in CoupleDashboard tab Questionario.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { sendEmail as sendEmailSES } from '../_shared/ses.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Planfully <noreply@planfully.it>'
 const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
+
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  opts?: {
+    from?: string
+    reply_to?: string
+    attachments?: Array<{ filename: string; content_base64: string; content_type: string }>
+  },
+) {
+  return sendEmailSES({
+    to,
+    subject,
+    html,
+    from: opts?.from,
+    reply_to: opts?.reply_to,
+    attachments: opts?.attachments,
+  })
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -190,23 +210,17 @@ Deno.serve(async (req) => {
 </table>
 </body></html>`
 
-  if (!RESEND_API_KEY) return json({ ok: true, mode: 'no_resend', link, invite_token: inviteToken })
-
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify({
-      from: fromHeader,
-      to: [email],
-      subject: `${wpName} vuole conoscervi · raccontateci il vostro matrimonio`,
-      html,
-      reply_to: ownerEmail ?? undefined,
-    }),
-  })
+  const r = await sendEmail(
+    email,
+    `${wpName} vuole conoscervi · raccontateci il vostro matrimonio`,
+    html,
+    { from: fromHeader, reply_to: ownerEmail ?? undefined },
+  )
   if (!r.ok) {
-    const t = await r.text()
-    return json({ ok: true, mode: 'email_failed', link, email_error: t.slice(0, 300) })
+    if (r.reason === 'no_credentials') {
+      return json({ ok: true, mode: 'no_resend', link, invite_token: inviteToken })
+    }
+    return json({ ok: true, mode: 'email_failed', link, email_error: (r.error ?? '').slice(0, 300) })
   }
-  const j = await r.json()
-  return json({ ok: true, mode: 'sent', email_id: j.id, link, invite_token: inviteToken })
+  return json({ ok: true, mode: 'sent', email_id: r.message_id, link, invite_token: inviteToken })
 })
