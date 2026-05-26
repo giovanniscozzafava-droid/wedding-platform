@@ -26,6 +26,7 @@ import {
   PenSquare,
   Newspaper,
   Inbox,
+  Gift,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -57,6 +58,7 @@ const NAV_CAPOSTIPITE: NavItem[] = [
   { to: '/suppliers',  label: 'Rete fornitori', icon: UsersIcon },
   { to: '/scopri',     label: 'Scopri', icon: Sparkles },
   { to: '/blog/admin', label: 'Blog', icon: PenSquare },
+  { to: '/rewards',    label: 'Rewards', icon: Gift },
 ]
 
 // Voci di coda comuni a tutti i ruoli

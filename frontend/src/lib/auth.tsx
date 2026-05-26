@@ -64,6 +64,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s)
       if (s?.user) {
         void fetchProfile(s.user.id).then((p) => setProfile(p))
+        // Redeem pending referral code (impostato da RegisterPage se email confirm flow)
+        try {
+          const pending = localStorage.getItem('pending_ref_code')
+          if (pending) {
+            void (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+              .rpc('referral_redeem_code', { p_code: pending })
+              .then(() => localStorage.removeItem('pending_ref_code'))
+              .catch(() => {})
+          }
+        } catch { /* ignore */ }
       } else {
         setProfile(null)
       }

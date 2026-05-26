@@ -45,6 +45,7 @@ import PublicHomePage from '@/pages/public/PublicHomePage'
 import DiscoverProsPage from '@/pages/public/DiscoverProsPage'
 import FeedArticlePage from '@/pages/public/FeedArticlePage'
 import FeedArticleEditorPage from '@/pages/FeedArticleEditorPage'
+import NetworkRewardsPage from '@/pages/NetworkRewardsPage'
 import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
 import SupplierAvailabilityPage from '@/pages/SupplierAvailabilityPage'
 import SupplierClientsPage from '@/pages/SupplierClientsPage'
@@ -177,6 +178,7 @@ export default function App() {
           <Route path="/feed/post/:slug" element={<FeedArticlePage />} />
           <Route path="/p/wp/:slug" element={<PublicWpPage />} />
           <Route path="/leads" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><WpLeadsPage /></RequireAuth>} />
+          <Route path="/rewards" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><NetworkRewardsPage /></RequireAuth>} />
           <Route path="/blog" element={<BlogListPage />} />
           <Route path="/blog/admin" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogAdminPage /></RequireAuth>} />
           <Route path="/blog/nuovo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogEditorPage /></RequireAuth>} />

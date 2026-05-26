@@ -1,5 +1,5 @@
-import { type FormEvent, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { type FormEvent, useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { z } from 'zod'
 import {  Heart, Building2, Camera } from 'lucide-react'
@@ -34,15 +34,22 @@ const schema = z.object({
 })
 
 export default function RegisterPage() {
+  const [params] = useSearchParams()
+  const refFromUrl = params.get('ref') ?? ''
   const [form, setForm] = useState({
     full_name: '', business_name: '', email: '', password: '',
     role: 'WEDDING_PLANNER' as AppRole, subrole: '',
+    referral_code: refFromUrl.toUpperCase(),
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const nav = useNavigate()
 
   const subroles = SUBROLE_BY_ROLE[form.role]
+
+  useEffect(() => {
+    if (refFromUrl) setForm((f) => ({ ...f, referral_code: refFromUrl.toUpperCase() }))
+  }, [refFromUrl])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -54,7 +61,7 @@ export default function RegisterPage() {
     }
     setBusy(true)
     try {
-      const { error: err } = await supabase.auth.signUp({
+      const { data: signupData, error: err } = await supabase.auth.signUp({
         email: form.email, password: form.password,
         options: {
           data: {
@@ -65,6 +72,15 @@ export default function RegisterPage() {
         },
       })
       if (err) throw err
+      // Se l'auth è già stabilito (no email confirm flow), prova subito a redimere il codice
+      const code = form.referral_code.trim().toUpperCase()
+      if (code && signupData.session) {
+        await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+          .rpc('referral_redeem_code', { p_code: code }).catch(() => {})
+      } else if (code) {
+        // Email confirmation pending → memorizza per dopo conferma
+        try { localStorage.setItem('pending_ref_code', code) } catch { /* ignore */ }
+      }
       nav('/onboarding', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore inatteso')
@@ -144,6 +160,24 @@ export default function RegisterPage() {
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
             </div>
           </div>
+
+          <details open={!!form.referral_code} className="text-sm">
+            <summary className="cursor-pointer text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]">
+              Hai un codice invito? <span className="text-[rgb(var(--gold-600))]">(opzionale)</span>
+            </summary>
+            <div className="space-y-1 mt-2">
+              <Label htmlFor="referral_code">Codice invito</Label>
+              <Input id="referral_code" value={form.referral_code} maxLength={16}
+                onChange={(e) => setForm((f) => ({ ...f, referral_code: e.target.value.toUpperCase() }))}
+                placeholder="Es. ABC123"
+                className="uppercase tracking-widest" />
+              {form.referral_code && (
+                <p className="text-[10px] text-[rgb(var(--fg-subtle))]">
+                  Sarai collegato a chi ti ha invitato e farai parte della sua rete.
+                </p>
+              )}
+            </div>
+          </details>
 
           {error && <p className="text-sm text-[rgb(var(--rose-500))]" role="alert" data-testid="register-error">{error}</p>}
 
