@@ -9,6 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
+import { getQuestionsFor } from '@/lib/eventQuestions'
+import { eventTerm } from '@/lib/eventKind'
+import { QuestionnaireForm } from '@/components/QuestionnaireForm'
 
 type DocType = 'CARTA_IDENTITA' | 'PASSAPORTO' | 'PATENTE'
 
@@ -39,7 +42,11 @@ export default function QuoteAcceptPage() {
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<{ acceptance_pdf_url?: string | null } | null>(null)
 
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0)
+  const [eventKind, setEventKind] = useState<string>('matrimonio')
+  const [answers, setAnswers] = useState<Record<string, unknown>>({})
+  const [, setQuestionnaireDone] = useState(false)
+  const [savingQ, setSavingQ] = useState(false)
   const [signerName, setSignerName] = useState('')
   const [signerPhone, setSignerPhone] = useState('')
   const [docType, setDocType] = useState<DocType>('CARTA_IDENTITA')
@@ -65,6 +72,17 @@ export default function QuoteAcceptPage() {
           status: q.status, revision: q.revision,
           event_date: q.event_date,
         })
+        setEventKind((q.event_kind ?? 'matrimonio').toLowerCase())
+        // Carica risposte questionario gia salvate (se rientra)
+        const qrRes = await supabase.rpc('quote_questionnaire_get', { p_token: token })
+        const qr = qrRes.data as { event_kind?: string; answers?: Record<string, unknown>; completed_at?: string | null } | null
+        if (qr?.answers && Object.keys(qr.answers).length > 0) {
+          setAnswers(qr.answers)
+          if (qr.completed_at) {
+            setQuestionnaireDone(true)
+            setStep(1)
+          }
+        }
         const its = ((data as any).items ?? []) as QuoteItem[]
         setItems(its.map((it: any) => ({
           name_snapshot: it.name_snapshot,
@@ -194,11 +212,46 @@ export default function QuoteAcceptPage() {
 
         {/* Steps progress */}
         <div className="flex items-center gap-1 mb-4 px-2">
-          {[1, 2, 3].map((n) => (
+          {[0, 1, 2, 3].map((n) => (
             <div key={n} className="flex-1 h-1.5 rounded-full transition-colors"
-              style={{ background: step >= (n as 1 | 2 | 3) ? 'rgb(var(--gold-500))' : 'rgb(var(--bg-sunken))' }} />
+              style={{ background: step >= (n as 0 | 1 | 2 | 3) ? 'rgb(var(--gold-500))' : 'rgb(var(--bg-sunken))' }} />
           ))}
         </div>
+
+        {/* STEP 0: Questionario dinamico */}
+        {step === 0 && (
+          <div className="surface surface-lift p-5 sm:p-6 space-y-4">
+            <div>
+              <h2 className="font-display text-xl">Raccontaci {eventTerm(eventKind).article === "l'" ? "l'evento" : `${eventTerm(eventKind).article} ${eventTerm(eventKind).label}`}</h2>
+              <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
+                Poche domande veloci sul/la tuo/a {eventTerm(eventKind).label} per personalizzare il servizio. Puoi tornare a rivedere prima della firma.
+              </p>
+            </div>
+            <QuestionnaireForm sections={getQuestionsFor(eventKind)} initial={answers} onChange={setAnswers} />
+            <div className="flex justify-between gap-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+              <Button variant="ghost" onClick={() => { setQuestionnaireDone(false); setStep(1) }}>
+                Salta per ora
+              </Button>
+              <Button variant="gold" disabled={savingQ} onClick={async () => {
+                if (!token) return
+                setSavingQ(true)
+                try {
+                  const { data, error } = await supabase.rpc('quote_questionnaire_submit', { p_token: token, p_answers: answers as never })
+                  if (error) throw error
+                  const r = data as { ok?: boolean; error?: string }
+                  if (r.error) throw new Error(r.error)
+                  toast.success('Risposte salvate')
+                  setQuestionnaireDone(true)
+                  setStep(1)
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : 'Errore salvataggio')
+                } finally { setSavingQ(false) }
+              }}>
+                {savingQ ? 'Salvataggio…' : 'Continua →'}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* STEP 1: Dati firmatario */}
         {step === 1 && (

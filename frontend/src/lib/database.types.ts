@@ -2435,6 +2435,44 @@ export type Database = {
           },
         ]
       }
+      quote_questionnaire_answers: {
+        Row: {
+          answers: Json
+          completed_at: string | null
+          created_at: string
+          event_kind: string
+          id: string
+          quote_id: string
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string
+          event_kind?: string
+          id?: string
+          quote_id: string
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string
+          event_kind?: string
+          id?: string
+          quote_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_questionnaire_answers_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: true
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_supplier_markups: {
         Row: {
           created_at: string
@@ -3429,6 +3467,11 @@ export type Database = {
       quote_pick_alternative: {
         Args: { p_item_id: string; p_token: string }
         Returns: boolean
+      }
+      quote_questionnaire_get: { Args: { p_token: string }; Returns: Json }
+      quote_questionnaire_submit: {
+        Args: { p_answers: Json; p_token: string }
+        Returns: Json
       }
       quote_reject_by_token: {
         Args: { p_reason: string; p_token: string }

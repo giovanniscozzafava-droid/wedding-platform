@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
 import { useServices } from '@/hooks/useCatalog'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import {
@@ -57,7 +58,12 @@ const PAY_STATUSES: { key: PayStatus; label: string; tone: string; dot: string }
 export default function QuoteEditorPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const { data: quote, isLoading } = useQuote(id ?? null)
+  // Flusso fornitore (sia direct quote sia owner ruolo FORNITORE): nasconde
+  // campi WP-only (tavoli, invitati, markup, suggerimenti basis, dropdown
+  // selezione fornitore).
+  const isFornitoreFlow = !!quote?.direct_client_id || profile?.role === 'FORNITORE'
   const [contractInfo, setContractInfo] = useState<{ id: string; status: string } | null>(null)
   const [creatingContract, setCreatingContract] = useState(false)
   const update = useUpdateQuote()
@@ -396,7 +402,7 @@ export default function QuoteEditorPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end mt-4 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-            {!quote.direct_client_id && (
+            {!isFornitoreFlow && (
               <>
                 <div className="space-y-1">
                   <Label htmlFor="gc"><Users size={12} className="inline" /> Invitati</Label>
@@ -416,7 +422,7 @@ export default function QuoteEditorPage() {
               {forceUnlocked ? 'Applica e notifica cliente' : 'Applica'}
             </Button>
           </div>
-          {!quote.direct_client_id && (
+          {!isFornitoreFlow && (
             <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
               Cambiare <strong>invitati</strong>/<strong>tavoli</strong> riallinea automaticamente le voci con basis × invitati / × tavoli.
             </p>
@@ -483,7 +489,7 @@ export default function QuoteEditorPage() {
                           <p className="font-medium">{it.name_snapshot}</p>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
                             € {Number(it.snapshot_price).toFixed(2)} {it.unit_snapshot.toLowerCase()}
-                            {quote.direct_client_id ? (
+                            {isFornitoreFlow ? (
                               <> · <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong></>
                             ) : (
                               <> · costo € {Number(it.line_cost).toLocaleString('it-IT')} · cliente <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong></>
@@ -569,7 +575,7 @@ export default function QuoteEditorPage() {
                 </a>
               </div>
             )}
-            {!quote.direct_client_id && (
+            {!isFornitoreFlow && (
               <div className="text-xs text-[rgb(var(--fg-subtle))] pt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
                 <p className="mb-2 font-medium">Suggerimenti basis</p>
                 <ul className="space-y-1">
@@ -588,7 +594,7 @@ export default function QuoteEditorPage() {
               <h3 className="font-display text-lg">Aggiungi voce dal catalogo</h3>
             </div>
             <div className="space-y-3">
-              {!quote.direct_client_id && (
+              {!isFornitoreFlow && (
                 <div className="flex gap-3 items-end max-w-md">
                   <div className="flex-1 space-y-1">
                     <Label htmlFor="sup">Fornitore</Label>
@@ -607,9 +613,9 @@ export default function QuoteEditorPage() {
                   </div>
                 </div>
               )}
-              {(pickSupplier || quote.direct_client_id) && (
+              {(pickSupplier || isFornitoreFlow) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {(grouped.get(quote.direct_client_id ? quote.owner_id : pickSupplier) ?? []).map((s) => (
+                  {(grouped.get(isFornitoreFlow ? (profile?.id ?? quote.owner_id) : pickSupplier) ?? []).map((s) => (
                     <div key={s.id} className="rounded-lg border p-3 flex gap-3 hover:bg-[rgb(var(--bg-sunken))] transition-colors"
                       style={{ borderColor: 'rgb(var(--border))' }}>
                       {s.service_photos[0] && (
