@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { MapPin, Users, Sparkles, Briefcase, Globe, Heart, ArrowLeft, AlertCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
+import { FollowButton } from '@/components/feed/FollowButton'
 
 type PublicProfile = {
   id: string
@@ -107,8 +109,30 @@ export default function PublicSupplierPage() {
   // ma qui siamo sul profilo di un fornitore, quindi la candidatura non si applica.
   // Mostriamo CTA "Contatta" per chi cerca il professionista.
 
+  const canonical = `https://planfully.it/p/fornitore/${data.slug}`
+  const subroleLabelLocal = subroleLabel ?? data.subrole
+
   return (
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
+      <Helmet>
+        <title>{(data.business_name ?? data.full_name ?? 'Fornitore')}{subroleLabelLocal ? ` · ${subroleLabelLocal}` : ''}{data.city ? ` a ${data.city}` : ''} · Planfully</title>
+        <meta name="description" content={(data.tagline ?? data.bio ?? `Fornitore eventi su Planfully`).slice(0, 160)} />
+        <link rel="canonical" href={canonical} />
+        <meta property="og:type" content="profile" />
+        <meta property="og:title" content={`${data.business_name ?? data.full_name} · ${subroleLabelLocal}`} />
+        <meta property="og:description" content={(data.tagline ?? data.bio ?? '').slice(0, 200)} />
+        <meta property="og:url" content={canonical} />
+        {data.brand_logo_url && <meta property="og:image" content={data.brand_logo_url} />}
+        <script type="application/ld+json">{JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'LocalBusiness',
+          name: data.business_name ?? data.full_name,
+          description: data.tagline ?? data.bio,
+          image: data.brand_logo_url,
+          url: canonical,
+          address: data.city ? { '@type': 'PostalAddress', addressLocality: data.city, addressRegion: data.province, addressCountry: 'IT' } : undefined,
+        })}</script>
+      </Helmet>
       <div className="max-w-4xl mx-auto px-6 sm:px-10 py-6">
         <Link to="/scopri" className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-4">
           <ArrowLeft size={14} /> Tutti i fornitori
@@ -192,22 +216,23 @@ export default function PublicSupplierPage() {
               </div>
 
               {/* CTA dinamica */}
-              <div className="mt-5 pt-5 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+              <div className="mt-5 pt-5 border-t flex flex-wrap items-center gap-2" style={{ borderColor: 'rgb(var(--border))' }}>
                 {isOwner ? (
                   <Link to="/profile">
                     <Button variant="outline" size="sm">Modifica il tuo profilo</Button>
                   </Link>
                 ) : profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' ? (
                   <Button variant="gold" disabled={requesting} onClick={requestCollaboration}>
-                    <Heart size={14} /> {requesting ? 'Invio…' : 'Aggiungi alla mia pancia'}
+                    <Heart size={14} /> {requesting ? 'Invio…' : 'Aggiungi al mio team'}
                   </Button>
                 ) : isFornitoreViewer ? (
-                  <p className="text-xs text-[rgb(var(--fg-subtle))]">Sei un fornitore. Solo i capostipiti possono aggiungere fornitori alla propria pancia.</p>
+                  <p className="text-xs text-[rgb(var(--fg-subtle))]">Sei un fornitore. Solo i wedding planner e le location possono aggiungerti al loro team.</p>
                 ) : isCoupleViewer ? (
                   <Link to="/register">
                     <Button variant="gold" size="sm"><Send size={14} /> Contatta tramite Planfully</Button>
                   </Link>
                 ) : null}
+                {!isOwner && <FollowButton userId={data.id} variant="outline" />}
               </div>
             </div>
           </div>

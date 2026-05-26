@@ -9,6 +9,7 @@ import { Input, Textarea, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { eventTerm } from '@/lib/eventKind'
+import { FollowButton } from '@/components/feed/FollowButton'
 
 type WpProfile = {
   id: string
@@ -102,10 +103,14 @@ export default function PublicWpPage() {
           p_source:         'public_form',
         })
       if (error) throw error
-      const r = data as { ok?: boolean; error?: string }
+      const r = data as { ok?: boolean; error?: string; id?: string }
       if (r.error) throw new Error(r.error)
       setSent(true)
       toast.success('Richiesta inviata!')
+      // Fire-and-forget notifica email (no await — non blocchiamo UX)
+      if (r.id) {
+        void supabase.functions.invoke('lead-notify', { body: { lead_id: r.id } }).catch(() => {})
+      }
     } catch (e) { toast.error((e as Error).message) }
     finally { setSending(false) }
   }
@@ -183,6 +188,7 @@ export default function PublicWpPage() {
                 <Button variant="gold" onClick={() => setFormOpen(true)}>
                   <Send size={14} /> Richiedi preventivo
                 </Button>
+                <FollowButton userId={wp.id} variant="outline" />
                 {wp.website && (
                   <a href={wp.website} target="_blank" rel="noreferrer"
                     className="inline-flex items-center gap-1 text-xs px-3 py-2 rounded-full border hover:bg-[rgb(var(--bg-sunken))]"

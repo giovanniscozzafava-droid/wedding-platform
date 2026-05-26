@@ -42,6 +42,24 @@ Deno.serve(async () => {
     .not('slug', 'is', null)
     .limit(2000)
 
+  // Profili WP/Location discoverable
+  const { data: wps } = await admin
+    .from('profiles')
+    .select('slug, updated_at, role')
+    .in('role', ['WEDDING_PLANNER', 'LOCATION'])
+    .eq('is_discoverable', true)
+    .not('slug', 'is', null)
+    .limit(2000)
+
+  // Articoli feed pubblici (post_type=ARTICLE)
+  const { data: articles } = await admin
+    .from('posts')
+    .select('slug, updated_at')
+    .eq('post_type', 'ARTICLE')
+    .eq('visibility', 'PUBLIC')
+    .not('slug', 'is', null)
+    .limit(2000)
+
   // Categorie blog (filtri pre-built per SEO)
   const { data: cats } = await admin
     .from('blog_categories')
@@ -83,6 +101,24 @@ Deno.serve(async () => {
     <loc>${BASE}/p/fornitore/${xmlEscape(s.slug)}</loc>
     <lastmod>${new Date(s.updated_at).toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`)
+  }
+
+  for (const w of (wps ?? [])) {
+    urls.push(`  <url>
+    <loc>${BASE}/p/wp/${xmlEscape(w.slug)}</loc>
+    <lastmod>${new Date(w.updated_at).toISOString()}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`)
+  }
+
+  for (const a of (articles ?? [])) {
+    urls.push(`  <url>
+    <loc>${BASE}/feed/post/${xmlEscape(a.slug)}</loc>
+    <lastmod>${new Date(a.updated_at).toISOString()}</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>`)
   }

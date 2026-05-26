@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase } from 'lucide-react'
 import { Input, Select } from '@/components/ui/input'
@@ -58,6 +59,15 @@ export default function DiscoverPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
+      <Helmet>
+        <title>Scopri fornitori di eventi italiani · Fotografi, fioriai, catering · Planfully</title>
+        <meta name="description" content="Tutti i fornitori italiani del settore eventi: fotografi, fioriai, catering, location, light designer, pasticceri, fuochi, food truck e molto altro." />
+        <link rel="canonical" href="https://planfully.it/scopri" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Scopri i fornitori del settore eventi italiano · Planfully" />
+        <meta property="og:description" content="Fotografi, fioriai, catering, location, light designer. Tutti i mestieri degli eventi italiani." />
+        <meta property="og:url" content="https://planfully.it/scopri" />
+      </Helmet>
       {/* Hero */}
       <section className="relative border-b" style={{ borderColor: 'rgb(var(--border))' }}>
         <div className="max-w-6xl mx-auto px-6 sm:px-10 py-6 sm:py-8">
