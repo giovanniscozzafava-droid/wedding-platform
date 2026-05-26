@@ -75,8 +75,10 @@ export default function RegisterPage() {
       // Se l'auth è già stabilito (no email confirm flow), prova subito a redimere il codice
       const code = form.referral_code.trim().toUpperCase()
       if (code && signupData.session) {
-        await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-          .rpc('referral_redeem_code', { p_code: code }).catch(() => {})
+        try {
+          await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+            .rpc('referral_redeem_code', { p_code: code })
+        } catch { /* il redeem può fallire silenziosamente, non blocca il signup */ }
       } else if (code) {
         // Email confirmation pending → memorizza per dopo conferma
         try { localStorage.setItem('pending_ref_code', code) } catch { /* ignore */ }

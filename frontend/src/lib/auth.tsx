@@ -68,10 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const pending = localStorage.getItem('pending_ref_code')
           if (pending) {
-            void (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-              .rpc('referral_redeem_code', { p_code: pending })
-              .then(() => localStorage.removeItem('pending_ref_code'))
-              .catch(() => {})
+            void (async () => {
+              try {
+                await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+                  .rpc('referral_redeem_code', { p_code: pending })
+              } catch { /* ignore */ }
+              try { localStorage.removeItem('pending_ref_code') } catch { /* ignore */ }
+            })()
           }
         } catch { /* ignore */ }
       } else {
