@@ -8,6 +8,7 @@ import { Input, Textarea, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { SUPPLIER_SUBROLES_WITH_PLACEHOLDER as SUBROLES } from '@/lib/supplierSubroles'
 
 type ProviderForm = {
   full_name: string
@@ -28,25 +29,6 @@ type ProviderForm = {
   service_radius_km: number | ''
   years_active: number | ''
 }
-
-const SUBROLES = [
-  { v: '', l: 'Seleziona...' },
-  { v: 'fotografo', l: 'Fotografo' },
-  { v: 'videomaker', l: 'Videomaker' },
-  { v: 'fioraio', l: 'Fioraio / Allestimenti floreali' },
-  { v: 'catering', l: 'Catering' },
-  { v: 'pasticcere', l: 'Pasticceria / Cake design' },
-  { v: 'musica', l: 'Musica / DJ / Band' },
-  { v: 'wedding_planner', l: 'Wedding Planner' },
-  { v: 'location', l: 'Location / Villa' },
-  { v: 'allestimenti', l: 'Allestimenti / Scenografie' },
-  { v: 'auto', l: 'Auto / Trasporti' },
-  { v: 'animazione', l: 'Animazione / Intrattenimento' },
-  { v: 'make_up', l: 'Make-up & Hair stylist' },
-  { v: 'abiti', l: 'Atelier abiti sposi' },
-  { v: 'celebrante', l: 'Celebrante / Officiante' },
-  { v: 'altro', l: 'Altro' },
-]
 
 const STEPS = ['Identità', 'Azienda', 'Contatti', 'Immagine', 'Pronto'] as const
 

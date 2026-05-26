@@ -13,60 +13,15 @@ import {
   useInviteSupplier, useRevokeCollaboration, useSuppliers,
   useSupplierInvites, useCancelSupplierInvite,
 } from '@/hooks/useSuppliers'
+import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 const SUBROLE_TONE: Record<string, 'gold' | 'sage' | 'rose' | 'sky' | 'amber' | 'neutral'> = {
   fioraio: 'rose', fotografo: 'sky', catering: 'amber', musicisti: 'sage', musica: 'sage',
 }
 
-const SUBROLE_OPTS = [
-  { v: '', l: 'Qualsiasi' },
-  // Foto/Video
-  { v: 'fotografo', l: 'Fotografo' },
-  { v: 'videomaker', l: 'Videomaker' },
-  { v: 'photobooth', l: 'Photobooth / Cabina fotografica' },
-  { v: 'livepainter', l: 'Live painter / Caricaturista' },
-  // Beauty
-  { v: 'make_up', l: 'Make-up artist' },
-  { v: 'parrucchiere', l: 'Parrucchiere / Hairstylist' },
-  { v: 'estetista', l: 'Estetista / Manicure / Beauty' },
-  // Allestimenti & decor
-  { v: 'fioraio', l: 'Fioraio' },
-  { v: 'allestimenti', l: 'Allestimenti / Wedding designer' },
-  { v: 'luci', l: 'Luci / Light designer' },
-  { v: 'fuochista', l: 'Fuochi pirotecnici' },
-  { v: 'noleggio', l: 'Noleggio attrezzature' },
-  // Cibo & bevande
-  { v: 'catering', l: 'Catering' },
-  { v: 'chef', l: 'Personal chef / Show cooking' },
-  { v: 'food_truck', l: 'Food truck' },
-  { v: 'pasticcere', l: 'Pasticceria / Wedding cake' },
-  { v: 'sweet_table', l: 'Sweet table / Confettata' },
-  { v: 'bartender', l: 'Bartender / Open bar' },
-  { v: 'sommelier', l: 'Sommelier' },
-  // Musica & intrattenimento
-  { v: 'musica', l: 'Musica / DJ / Band' },
-  { v: 'magia', l: 'Mago / Illusionista / Mentalista' },
-  { v: 'animazione', l: 'Animazione bambini' },
-  { v: 'animali', l: 'Falconiere / Animali cerimonia' },
-  // Logistica
-  { v: 'location', l: 'Location / Villa' },
-  { v: 'auto', l: 'Auto / Trasporti' },
-  { v: 'navetta', l: 'Navetta ospiti' },
-  { v: 'valet', l: 'Valet parking' },
-  { v: 'maitre', l: 'Maitre / Coordinatore sala' },
-  { v: 'hostess', l: 'Hostess / Steward / Accoglienza' },
-  // Cerimonia
-  { v: 'celebrante', l: 'Celebrante / Officiante' },
-  // Cartoleria & gadget
-  { v: 'abiti', l: 'Atelier abiti' },
-  { v: 'stampe', l: 'Stampe / Inviti / Tableau' },
-  { v: 'calligrafo', l: 'Calligrafo' },
-  { v: 'bomboniere', l: 'Bomboniere' },
-  // Pianificazione
-  { v: 'wedding_planner', l: 'Wedding planner' },
-  // Altro
-  { v: 'altro', l: 'Altro' },
-]
+// Lista subroles importata da modulo condiviso — sorgente unica con
+// ProviderOnboardingWizard e altri form. Vedi lib/supplierSubroles.ts.
+const SUBROLE_OPTS = [{ v: '', l: 'Qualsiasi' }, ...SUPPLIER_SUBROLES]
 
 export default function SuppliersPage() {
   const { data, isLoading } = useSuppliers()

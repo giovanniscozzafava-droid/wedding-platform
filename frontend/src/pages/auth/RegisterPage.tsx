@@ -10,6 +10,7 @@ import { GoogleButton } from '@/components/auth/GoogleButton'
 import { supabase } from '@/lib/supabase'
 import type { AppRole } from '@/lib/auth'
 import { cn } from '@/lib/utils'
+import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 const ROLES: Array<{ value: AppRole; label: string; description: string; icon: typeof Heart }> = [
   { value: 'WEDDING_PLANNER', label: 'Wedding Planner', description: 'Coordini matrimoni per clienti tuoi.', icon: Heart },
@@ -17,9 +18,10 @@ const ROLES: Array<{ value: AppRole; label: string; description: string; icon: t
   { value: 'FORNITORE',       label: 'Fornitore',       description: 'Offri servizi (fiori, foto, catering…)', icon: Camera },
 ]
 
-const SUBROLE_BY_ROLE: Record<AppRole, string[]> = {
+const SUBROLE_BY_ROLE: Record<AppRole, { v: string; l: string }[]> = {
   WEDDING_PLANNER: [], LOCATION: [], ADMIN: [], COUPLE: [],
-  FORNITORE: ['fioraio', 'fotografo', 'catering', 'musicisti', 'altro'],
+  // Sorgente unica: SUPPLIER_SUBROLES da lib/supplierSubroles.ts
+  FORNITORE: SUPPLIER_SUBROLES,
 }
 
 const schema = z.object({
@@ -112,7 +114,7 @@ export default function RegisterPage() {
               <Select id="subrole" value={form.subrole} required
                 onChange={(e) => setForm((f) => ({ ...f, subrole: e.target.value }))}>
                 <option value="">— seleziona —</option>
-                {subroles.map((s) => (<option key={s} value={s}>{s}</option>))}
+                {subroles.map((s) => (<option key={s.v} value={s.v}>{s.l}</option>))}
               </Select>
             </div>
           )}
