@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
 import { getQuestionsFor } from '@/lib/eventQuestions'
+import { getQuestionsForSubrole, subroleLabel } from '@/lib/supplierQuestions'
 import { eventTerm } from '@/lib/eventKind'
 import { QuestionnaireForm } from '@/components/QuestionnaireForm'
 
@@ -44,6 +45,8 @@ export default function QuoteAcceptPage() {
 
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0)
   const [eventKind, setEventKind] = useState<string>('matrimonio')
+  const [ownerSubrole, setOwnerSubrole] = useState<string | null>(null)
+  const [isSupplierDirect, setIsSupplierDirect] = useState(false)
   const [answers, setAnswers] = useState<Record<string, unknown>>({})
   const [, setQuestionnaireDone] = useState(false)
   const [savingQ, setSavingQ] = useState(false)
@@ -73,6 +76,10 @@ export default function QuoteAcceptPage() {
           event_date: q.event_date,
         })
         setEventKind((q.event_kind ?? 'matrimonio').toLowerCase())
+        const owner = q.owner ?? {}
+        const sub = (owner.subrole ?? '').toLowerCase().trim() || null
+        setOwnerSubrole(sub)
+        setIsSupplierDirect(!!q.direct_client_id && (owner.role === 'FORNITORE' || !!sub))
         // Carica risposte questionario gia salvate (se rientra)
         const qrRes = await supabase.rpc('quote_questionnaire_get', { p_token: token })
         const qr = qrRes.data as { event_kind?: string; answers?: Record<string, unknown>; completed_at?: string | null } | null
@@ -222,12 +229,22 @@ export default function QuoteAcceptPage() {
         {step === 0 && (
           <div className="surface surface-lift p-5 sm:p-6 space-y-4">
             <div>
-              <h2 className="font-display text-xl">Raccontaci {eventTerm(eventKind).article === "l'" ? "l'evento" : `${eventTerm(eventKind).article} ${eventTerm(eventKind).label}`}</h2>
+              <h2 className="font-display text-xl">
+                {isSupplierDirect
+                  ? `Aiutaci a personalizzare il servizio`
+                  : `Raccontaci ${eventTerm(eventKind).article === "l'" ? "l'evento" : `${eventTerm(eventKind).article} ${eventTerm(eventKind).label}`}`}
+              </h2>
               <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
-                Poche domande veloci sul/la tuo/a {eventTerm(eventKind).label} per personalizzare il servizio. Puoi tornare a rivedere prima della firma.
+                {isSupplierDirect
+                  ? `Poche domande mirate per il/la ${subroleLabel(ownerSubrole)} che hai scelto. Puoi anche allegare link Pinterest o profili Instagram di ispirazione.`
+                  : `Poche domande veloci sul/la tuo/a ${eventTerm(eventKind).label} per personalizzare il servizio. Puoi tornare a rivedere prima della firma.`}
               </p>
             </div>
-            <QuestionnaireForm sections={getQuestionsFor(eventKind)} initial={answers} onChange={setAnswers} />
+            <QuestionnaireForm
+              sections={isSupplierDirect ? getQuestionsForSubrole(ownerSubrole) : getQuestionsFor(eventKind)}
+              initial={answers}
+              onChange={setAnswers}
+            />
             <div className="flex justify-between gap-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
               <Button variant="ghost" onClick={() => { setQuestionnaireDone(false); setStep(1) }}>
                 Salta per ora
