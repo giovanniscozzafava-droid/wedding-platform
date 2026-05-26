@@ -46,8 +46,8 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = 
   { key: 'budget',         label: 'Budget',       icon: Wallet },
   { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
   { key: 'contract',       label: 'Contratto',    icon: FileSignature },
-  { key: 'website',        label: 'Wedding site', icon: Globe },
-  { key: 'members',        label: 'Sposi',        icon: Heart },
+  { key: 'website',        label: 'Sito evento', icon: Globe },
+  { key: 'members',        label: 'Clienti',      icon: Heart },
   { key: 'docs',           label: 'Documenti',    icon: FolderOpen },
   { key: 'analytics', label: 'Analytics',  icon: BarChart3 },
 ]
@@ -67,12 +67,12 @@ export default function WeddingDashboard() {
         <div className="absolute inset-0 dotted opacity-20 pointer-events-none" />
         <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8 relative z-10">
           <Link to="/weddings" className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-3">
-            <ArrowLeft size={14} /> Tutti i matrimoni
+            <ArrowLeft size={14} /> Tutti gli eventi
           </Link>
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'rgb(var(--gold-600))' }}>
-                Matrimonio · {(wedding as any).guest_count ? `${(wedding as any).guest_count} invitati` : ''}
+                Evento {(wedding as any).guest_count ? `· ${(wedding as any).guest_count} invitati` : ''}
               </p>
               <h1 className="font-display text-3xl sm:text-4xl tracking-tight mt-1">{wedding.title}</h1>
               <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
@@ -176,7 +176,7 @@ function BusinessModelToggle({ wedding }: { wedding: any }) {
         className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border hover:bg-[rgb(var(--bg-sunken))] transition-colors"
         style={{ borderColor: 'rgb(var(--border-strong))' }}
         title="Cambia modello di business">
-        {current === 'GLOBAL' ? '🏛 Tutto WP' : '🤝 Sposi diretti'}
+        {current === 'GLOBAL' ? '🏛 Tutto WP' : '🤝 Clienti diretti'}
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)}>
@@ -191,7 +191,7 @@ function BusinessModelToggle({ wedding }: { wedding: any }) {
               </button>
               <button onClick={() => set('BROKER')}
                 className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${current === 'BROKER' ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--bg-sunken))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
-                <p className="font-medium">🤝 Sposi firmano coi fornitori</p>
+                <p className="font-medium">🤝 Clienti firmano coi fornitori</p>
                 <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">Tu organizzi e coordini. Gli sposi firmano contratti diretti con ogni fornitore e pagano direttamente loro. Tu emetti eventuale fee organizzativa separata.</p>
               </button>
             </div>

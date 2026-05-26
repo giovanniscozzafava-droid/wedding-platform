@@ -228,7 +228,7 @@ export default function LoginPage() {
             />
             <RoleCard
               icon={Handshake}
-              title="Sposi"
+              title="Clienti finali"
               copy="Sito pubblico per gli ospiti, programma e RSVP, foto centrabile in hero. Possono richiedere modifiche al planner — niente caos sui WhatsApp."
               points={['Sito ospiti con dominio dedicato', 'Richieste modifiche tracciate', 'RSVP web → arrivano al planner', 'Trasporti, alloggi, gift registry']}
             />
@@ -241,7 +241,7 @@ export default function LoginPage() {
         <div className="max-w-6xl mx-auto px-6 sm:px-10 py-20">
           <h2 className="font-display text-3xl sm:text-4xl mb-3">Cosa c'è dentro.</h2>
           <p className="text-base text-[rgb(var(--fg-muted))] max-w-2xl mb-10">
-            Strumenti pensati per il flusso reale di un matrimonio italiano, dalla prima richiesta al saldo finale.
+            Strumenti pensati per il flusso reale di un evento italiano — matrimonio, battesimo, comunione, cresima, anniversario, evento aziendale — dalla prima richiesta al saldo finale.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <Feature icon={Users} title="Invitati & RSVP" copy="Gestione tavoli, diete, allergie, sub-eventi. Import CSV." />
@@ -249,7 +249,7 @@ export default function LoginPage() {
             <Feature icon={FileText} title="Preventivi & contratti" copy="Versioning, PDF, link cliente, firma digitale." />
             <Feature icon={ShieldCheck} title="Pagamenti tracciati" copy="Stato per ogni voce: chi paga cosa, quando, come." />
             <Feature icon={Network} title="Rete fornitori" copy="Invito nominale. Loro vedono solo i tuoi eventi." />
-            <Feature icon={Sparkles} title="Wedding website" copy="Sito pubblico per ospiti con foto e programma." />
+            <Feature icon={Sparkles} title="Sito evento" copy="Sito pubblico per ospiti con foto e programma." />
             <Feature icon={LockIcon} title="GDPR-first" copy="Cancellazione account, privacy, export dati." />
             <Feature icon={Compass} title="Finanziamento & polizze" copy="Partner per il cliente finale. Esclusive di rete." />
           </div>
@@ -266,7 +266,7 @@ export default function LoginPage() {
           <ol className="space-y-5">
             <Step n="1" title="Apri il tuo studio" copy="Ti registri come wedding planner o location. Importi i tuoi fornitori abituali con un invito email." />
             <Step n="2" title="I fornitori entrano nella tua rete" copy="Accettano l'invito, popolano il loro catalogo e calendario, restano sempre titolari dei propri dati e prezzi." />
-            <Step n="3" title="Costruisci il matrimonio" copy="Preventivo, contratto, tavoli, scaletta, sito ospiti, pagamenti. Sposi e fornitori vedono solo quello che li riguarda." />
+            <Step n="3" title="Costruisci l'evento" copy="Preventivo, contratto, tavoli, scaletta, sito ospiti, pagamenti. Clienti e fornitori vedono solo quello che li riguarda." />
             <Step n="4" title="Mantieni la relazione" copy="Storico cliente, materiali e contatti restano nel tuo account. Se domani cambi piattaforma, te li porti via." />
           </ol>
           <div className="mt-10 p-6 rounded-2xl border" style={{ borderColor: 'rgb(var(--border))' }}>

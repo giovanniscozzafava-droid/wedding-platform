@@ -47,7 +47,7 @@ const NAV_BASE: NavItem[] = [
 ]
 
 const NAV_CAPOSTIPITE: NavItem[] = [
-  { to: '/weddings',   label: 'Matrimoni', icon: Heart },
+  { to: '/weddings',   label: 'Eventi', icon: Heart },
   { to: '/suppliers',  label: 'Rete fornitori', icon: UsersIcon },
 ]
 

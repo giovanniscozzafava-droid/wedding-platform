@@ -77,7 +77,7 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
                       <Badge tone="sage">{entityLabel(r.entity_type)}</Badge>
                       <Badge tone="neutral">{r.action}</Badge>
                       <span className="text-xs text-[rgb(var(--fg-subtle))]">
-                        {r.requester?.full_name ?? 'Sposi'} · {new Date(r.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {r.requester?.full_name ?? 'Cliente'} · {new Date(r.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     <p className="font-medium mt-1">{r.title}</p>

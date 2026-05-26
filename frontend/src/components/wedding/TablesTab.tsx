@@ -174,7 +174,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
           </div>
           <div className="space-y-1 sm:col-span-2">
             <Label>Etichetta</Label>
-            <Input value={draft.label} onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))} placeholder="Sposi, Familiari, ..." />
+            <Input value={draft.label} onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))} placeholder="Tavolo principale, Familiari, ..." />
           </div>
           <div className="space-y-1">
             <Label>Posti</Label>
@@ -229,7 +229,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
         })}
         {(tables ?? []).length === 0 && (
           <Card className="p-10 col-span-full text-center">
-            <p className="text-[rgb(var(--fg-muted))]">Nessun tavolo creato. Inizia con il "Tavolo Sposi".</p>
+            <p className="text-[rgb(var(--fg-muted))]">Nessun tavolo creato. Inizia con il "Tavolo principale".</p>
           </Card>
         )}
       </div>

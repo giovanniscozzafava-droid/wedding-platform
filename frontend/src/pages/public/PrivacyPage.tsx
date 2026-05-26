@@ -21,7 +21,7 @@ export default function PrivacyPage() {
           <ul className="text-sm leading-relaxed list-disc pl-5 space-y-1">
             <li><strong>Account</strong>: nome, email, password (crittografata), ruolo, telefono opzionale</li>
             <li><strong>Fornitori</strong>: P.IVA, codice fiscale, indirizzo, bio, foto servizi, social</li>
-            <li><strong>Matrimoni</strong>: dati cliente (nome, email), date, location, preventivi</li>
+            <li><strong>Eventi</strong>: dati cliente (nome, email), date, location, preventivi</li>
             <li><strong>Invitati</strong>: nome, email opzionale, dieta, RSVP — inseriti dal wedding planner</li>
             <li><strong>Cookie</strong>: solo essenziali. Analytics anonime con consenso esplicito</li>
           </ul>

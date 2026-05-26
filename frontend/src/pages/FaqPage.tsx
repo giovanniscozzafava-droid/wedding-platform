@@ -116,7 +116,7 @@ const FAQ_FORN: FaqSection = {
 }
 
 const FAQ_COUPLE: FaqSection = {
-  title: 'Sposi',
+  title: 'Clienti',
   entries: [
     {
       q: 'Come accedo alla mia dashboard sposi?',

@@ -56,7 +56,7 @@ export function WebsiteTab({ wedding }: { wedding: any }) {
         honeymoon_end: honeyEnd || null,
         honeymoon_notes: honeyNotes || null,
       } as any)
-      toast.success('Wedding site salvato')
+      toast.success('Sito evento salvato')
     } catch (e) { toast.error((e as Error).message) }
   }
 
@@ -81,7 +81,7 @@ export function WebsiteTab({ wedding }: { wedding: any }) {
     <div>
       <header className="mb-6 flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h2 className="font-display text-2xl">Wedding website</h2>
+          <h2 className="font-display text-2xl">Sito evento</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Sito pubblico dedicato ai tuoi ospiti: data, programma, mappa, alloggi consigliati, trasporti, gift registry, RSVP web.</p>
         </div>
         <div className="flex items-center gap-2">

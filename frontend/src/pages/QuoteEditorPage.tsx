@@ -384,7 +384,7 @@ export default function QuoteEditorPage() {
             <div className="space-y-1 lg:col-span-2">
               <Label>Titolo</Label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={isLocked}
-                placeholder="Es. Matrimonio Andrea & Giulia" />
+                placeholder="Es. Matrimonio Andrea & Giulia, Battesimo Sofia..." />
             </div>
             <div className="space-y-1">
               <Label><Calendar size={12} className="inline" /> Data evento</Label>

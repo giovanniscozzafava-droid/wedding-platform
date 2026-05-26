@@ -174,7 +174,7 @@ export default function QuotesPage() {
               <form onSubmit={handleCreate} className="p-6 space-y-4" data-testid="quote-create-form">
                 <div className="space-y-1">
                   <Label htmlFor="title">Titolo</Label>
-                  <Input id="title" required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Matrimonio Famiglia ..." />
+                  <Input id="title" required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Es. Matrimonio Rossi, Battesimo Giulia, Comunione Marco..." />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
