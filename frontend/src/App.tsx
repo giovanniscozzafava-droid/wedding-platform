@@ -34,6 +34,10 @@ import PrivacyPage from '@/pages/public/PrivacyPage'
 import CookiePage from '@/pages/public/CookiePage'
 import DiscoverPage from '@/pages/public/DiscoverPage'
 import PublicSupplierPage from '@/pages/public/PublicSupplierPage'
+import BlogListPage from '@/pages/public/BlogListPage'
+import BlogPostPage from '@/pages/public/BlogPostPage'
+import BlogAdminPage from '@/pages/BlogAdminPage'
+import BlogEditorPage from '@/pages/BlogEditorPage'
 import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
 import SupplierAvailabilityPage from '@/pages/SupplierAvailabilityPage'
 import SupplierClientsPage from '@/pages/SupplierClientsPage'
@@ -160,6 +164,11 @@ export default function App() {
           <Route path="/cookie" element={<CookiePage />} />
           <Route path="/scopri" element={<DiscoverPage />} />
           <Route path="/p/fornitore/:slug" element={<PublicSupplierPage />} />
+          <Route path="/blog" element={<BlogListPage />} />
+          <Route path="/blog/admin" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogAdminPage /></RequireAuth>} />
+          <Route path="/blog/nuovo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogEditorPage /></RequireAuth>} />
+          <Route path="/blog/modifica/:id" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogEditorPage /></RequireAuth>} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
           <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />

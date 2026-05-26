@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+Disallow: /p/accept/
+Disallow: /p/preview/
+Disallow: /p/reject/
+Disallow: /p/contract/
+Disallow: /invito-coppia/
+Disallow: /invito-fornitore/
+Disallow: /couple/accept/
+
+Sitemap: https://planfully.it/sitemap.xml

@@ -5,6 +5,7 @@
   "installCommand": "echo 'install in buildCommand'",
   "framework": null,
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/sitemap-xml" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
