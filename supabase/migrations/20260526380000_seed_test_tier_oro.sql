@@ -146,31 +146,4 @@ begin
   raise notice '════════════════════════════════════════';
 end $$;
 
--- Verifica anche se ci sono fornitori non-test referred a Sara (signup utente)
-do $$
-declare
-  v_sara uuid;
-  v_real_count int;
-  r record;
-begin
-  select id into v_sara from profiles where role = 'WEDDING_PLANNER' order by created_at asc limit 1;
-  select count(*) into v_real_count from referrals r
-    join auth.users u on u.id = r.referee_id
-   where r.referrer_id = v_sara
-     and u.email not like '%@planfully.test';
-  if v_real_count > 0 then
-    raise notice '⚠ Fornitori NON-test referred a Sara: % (signup reali utente)', v_real_count;
-    for r in
-      select u.email, p.subscription_status, p.role, p.business_name
-        from referrals ref
-        join auth.users u on u.id = ref.referee_id
-        join profiles p on p.id = ref.referee_id
-       where ref.referrer_id = v_sara
-         and u.email not like '%@planfully.test'
-    loop
-      raise notice '    • % | % | % | %', r.email, r.role, r.subscription_status, r.business_name;
-    end loop;
-  else
-    raise notice '○ Nessun fornitore reale referred a Sara (solo test data)';
-  end if;
-end $$;
+-- (verifica fornitori reali rimossa per bug pl/pgsql — gestita in migration 390000)
