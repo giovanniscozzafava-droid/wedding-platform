@@ -16,6 +16,7 @@ import QuotesPage from '@/pages/QuotesPage'
 import QuoteEditorPage from '@/pages/QuoteEditorPage'
 import ContractsPage from '@/pages/ContractsPage'
 import FinancePage from '@/pages/FinancePage'
+import BilancioPage from '@/pages/BilancioPage'
 import InsurancePage from '@/pages/InsurancePage'
 import BrandSettingsPage from '@/pages/BrandSettingsPage'
 import QuotePreviewPage from '@/pages/public/QuotePreviewPage'
@@ -160,6 +161,7 @@ export default function App() {
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />
           <Route path="/capostipiti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCapostipitiPage /></RequireAuth>} />
           <Route path="/faq" element={<RequireAuth><FaqPage /></RequireAuth>} />
+          <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
           <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />
           <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />
           <Route path="/couple" element={
