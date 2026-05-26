@@ -307,3 +307,90 @@ export function getQuestionsFor(kind: string | null | undefined): QuestionnaireS
   const k = (kind ?? 'matrimonio').toLowerCase() as EventKind
   return QUESTIONS_BY_KIND[k] ?? QUESTIONS_ALTRO
 }
+
+// ============================================================================
+// MOODBOARD — sezioni dedicate per il cliente capostipite (WP/Location)
+// Una sezione per categoria. Le risposte vengono salvate sia in
+// quote_questionnaire_answers (storico) sia in mood_inspirations (moodboard
+// strutturata, riusabile dalle pagine /weddings/:id moodboard).
+// ============================================================================
+
+export const MOODBOARD_CATEGORIES = [
+  { key: 'fotografo',    label: 'Fotografia' },
+  { key: 'videomaker',   label: 'Video' },
+  { key: 'fioraio',      label: 'Fiori e bouquet' },
+  { key: 'allestimenti', label: 'Allestimenti e decorazioni' },
+  { key: 'torta',        label: 'Torta e dolci' },
+  { key: 'catering',     label: 'Menù e catering' },
+  { key: 'abito_sposa',  label: 'Abito sposa' },
+  { key: 'abito_sposo',  label: 'Abito sposo' },
+  { key: 'bomboniere',   label: 'Bomboniere' },
+  { key: 'stampe',       label: 'Inviti e cartoleria' },
+  { key: 'musica',       label: 'Musica e atmosfera' },
+  { key: 'make_up',      label: 'Make-up e capelli' },
+  { key: 'location',     label: 'Location e ambiente' },
+] as const
+
+export type MoodboardCategory = (typeof MOODBOARD_CATEGORIES)[number]['key']
+
+function moodSection(catKey: string, catLabel: string): QuestionnaireSection {
+  return {
+    title: `Ispirazione · ${catLabel}`,
+    questions: [
+      { key: `mood_${catKey}_pinterest_url`, label: 'Link board Pinterest', type: 'text', placeholder: 'https://pinterest.com/...' },
+      { key: `mood_${catKey}_instagram_refs`, label: 'Profili / post Instagram', type: 'tags', placeholder: '@profilo1, @profilo2' },
+      { key: `mood_${catKey}_mood_words`, label: 'Tre parole per descrivere lo stile', type: 'tags', placeholder: 'elegante, naturale, romantico' },
+      { key: `mood_${catKey}_free_notes`, label: 'Note libere', type: 'textarea', placeholder: 'Qualsiasi dettaglio, immagine descritta, riferimento.' },
+    ],
+  }
+}
+
+export function getMoodboardSectionsForCapostipite(eventKind: string | null | undefined): QuestionnaireSection[] {
+  // Filtra categorie non applicabili agli altri eventi
+  const k = (eventKind ?? 'matrimonio').toLowerCase()
+  const excluded = new Set<string>()
+  if (k !== 'matrimonio') {
+    excluded.add('abito_sposa')
+    excluded.add('abito_sposo')
+    excluded.add('bomboniere')
+  }
+  return MOODBOARD_CATEGORIES
+    .filter((c) => !excluded.has(c.key))
+    .map((c) => moodSection(c.key, c.label))
+}
+
+// Estrae le ispirazioni strutturate dalle risposte del questionario
+// (chiavi mood_<categoria>_<campo>) per il save su mood_inspirations.
+export function extractInspirationsFromAnswers(answers: Record<string, unknown>): Record<string, {
+  pinterest_url?: string
+  instagram_refs?: string[]
+  mood_words?: string[]
+  free_notes?: string
+}> {
+  const out: Record<string, {
+    pinterest_url?: string
+    instagram_refs?: string[]
+    mood_words?: string[]
+    free_notes?: string
+  }> = {}
+  for (const cat of MOODBOARD_CATEGORIES) {
+    const pinterest = answers[`mood_${cat.key}_pinterest_url`] as string | undefined
+    const igRefs = answers[`mood_${cat.key}_instagram_refs`] as string[] | undefined
+    const moodW = answers[`mood_${cat.key}_mood_words`] as string[] | undefined
+    const notes = answers[`mood_${cat.key}_free_notes`] as string | undefined
+    const hasContent =
+      (pinterest && pinterest.trim()) ||
+      (Array.isArray(igRefs) && igRefs.length > 0) ||
+      (Array.isArray(moodW) && moodW.length > 0) ||
+      (notes && notes.trim())
+    if (hasContent) {
+      out[cat.key] = {
+        pinterest_url: pinterest?.trim() || undefined,
+        instagram_refs: Array.isArray(igRefs) ? igRefs.filter(Boolean) : undefined,
+        mood_words: Array.isArray(moodW) ? moodW.filter(Boolean) : undefined,
+        free_notes: notes?.trim() || undefined,
+      }
+    }
+  }
+  return out
+}

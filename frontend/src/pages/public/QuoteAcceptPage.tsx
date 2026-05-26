@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
-import { getQuestionsFor } from '@/lib/eventQuestions'
+import { getQuestionsFor, getMoodboardSectionsForCapostipite, extractInspirationsFromAnswers } from '@/lib/eventQuestions'
 import { getQuestionsForSupplierContext, subroleLabel } from '@/lib/supplierQuestions'
 import { eventTerm } from '@/lib/eventKind'
 import { QuestionnaireForm } from '@/components/QuestionnaireForm'
@@ -268,10 +268,15 @@ export default function QuoteAcceptPage() {
             <QuestionnaireForm
               sections={isSupplierDirect
                 ? getQuestionsForSupplierContext(ownerSubrole, eventKind, getQuestionsFor(eventKind))
-                : getQuestionsFor(eventKind)}
+                : [...getQuestionsFor(eventKind), ...getMoodboardSectionsForCapostipite(eventKind)]}
               initial={answers}
               onChange={setAnswers}
             />
+            {!isSupplierDirect && (
+              <p className="text-[11px] text-[rgb(var(--fg-subtle))] italic">
+                Le ispirazioni che lasci qui (Pinterest, Instagram, parole chiave) vengono salvate nella tua moodboard personale: le ritroverai quando entrerai nella tua area riservata.
+              </p>
+            )}
             <div className="flex justify-between gap-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
               <Button variant="ghost" onClick={() => { setQuestionnaireDone(false); setStep(1) }}>
                 Salta per ora
@@ -284,6 +289,14 @@ export default function QuoteAcceptPage() {
                   if (error) throw error
                   const r = data as { ok?: boolean; error?: string }
                   if (r.error) throw new Error(r.error)
+                  // Per capostipite, persiste anche le ispirazioni nella moodboard
+                  if (!isSupplierDirect) {
+                    const inspirations = extractInspirationsFromAnswers(answers)
+                    if (Object.keys(inspirations).length > 0) {
+                      await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+                        .rpc('save_quote_inspirations', { p_token: token, p_inspirations: inspirations })
+                    }
+                  }
                   toast.success('Risposte salvate')
                   setQuestionnaireDone(true)
                   setStep(1)
