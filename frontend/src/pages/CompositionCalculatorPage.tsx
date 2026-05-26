@@ -158,6 +158,8 @@ export default function CompositionCalculatorPage() {
   const { user, profile } = useAuth()
   const [components, setComponents] = useState<Comp[]>([])
   const [name, setName] = useState('')
+  const [customName, setCustomName] = useState('')
+  const [isCustom, setIsCustom] = useState(false)
   const [markup, setMarkup] = useState(40)
   const [marketHints, setMarketHints] = useState<any[]>([])
 
@@ -264,7 +266,17 @@ export default function CompositionCalculatorPage() {
             <div className="space-y-1">
               <Label htmlFor="comp-name">Nome servizio</Label>
               {SERVICE_NAMES_BY_SUBROLE[profile?.subrole ?? '']?.length ? (
-                <Select id="comp-name" value={name} onChange={(e) => setName(e.target.value)}>
+                <Select id="comp-name"
+                  value={isCustom ? '__custom__' : name}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustom(true)
+                      setName(customName)
+                    } else {
+                      setIsCustom(false)
+                      setName(e.target.value)
+                    }
+                  }}>
                   <option value="">— Scegli dal tuo catalogo —</option>
                   {(SERVICE_NAMES_BY_SUBROLE[profile?.subrole ?? ''] ?? []).map((n) => (
                     <option key={n} value={n}>{n}</option>
@@ -274,9 +286,11 @@ export default function CompositionCalculatorPage() {
               ) : (
                 <Input id="comp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Bouquet sposa peonie" />
               )}
-              {name === '__custom__' && (
+              {isCustom && (
                 <Input className="mt-2" placeholder="Digita il nome personalizzato"
-                  value="" onChange={(e) => setName(e.target.value)} />
+                  value={customName}
+                  onChange={(e) => { setCustomName(e.target.value); setName(e.target.value) }}
+                  autoFocus />
               )}
             </div>
             <div className="space-y-1">
@@ -344,7 +358,7 @@ export default function CompositionCalculatorPage() {
             Margine: <strong>€ {margin.toFixed(2)}</strong>
           </p>
           <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-end">
-            <Button variant="outline" onClick={() => { setName(''); setComponents([]); setMarkup(40) }}>
+            <Button variant="outline" onClick={() => { setName(''); setCustomName(''); setIsCustom(false); setComponents([]); setMarkup(40) }}>
               <Calculator size={14} /> Resetta
             </Button>
             <Button variant="gold" onClick={saveAsService}>
