@@ -31,6 +31,8 @@ export type FeedPost = {
   cover_image_url?: string | null
   body_html?: string | null
   slug?: string | null
+  link_url?: string | null
+  link_preview?: { url?: string; title?: string | null; description?: string | null; image?: string | null; site_name?: string | null } | null
 }
 
 type Comment = {
@@ -185,6 +187,25 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
             📅 {post.event_title}
           </Link>
         </div>
+      )}
+
+      {/* Link preview unfurled */}
+      {post.link_preview && post.link_url && post.post_type !== 'ARTICLE' && (
+        <a href={post.link_url} target="_blank" rel="noopener noreferrer"
+          className="block mx-4 mb-3 surface surface-elev overflow-hidden hover:surface-lift transition-all">
+          {post.link_preview.image && (
+            <img src={post.link_preview.image} alt="" className="w-full aspect-[1.91/1] object-cover" />
+          )}
+          <div className="p-3">
+            {post.link_preview.site_name && (
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-0.5 truncate">{post.link_preview.site_name}</p>
+            )}
+            <p className="text-sm font-medium line-clamp-2">{post.link_preview.title ?? post.link_url}</p>
+            {post.link_preview.description && (
+              <p className="text-xs text-[rgb(var(--fg-muted))] line-clamp-2 mt-1">{post.link_preview.description}</p>
+            )}
+          </div>
+        </a>
       )}
 
       {/* Media carousel — solo per post SHORT (l'articolo ha già la cover) */}

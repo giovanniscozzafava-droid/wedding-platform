@@ -12,9 +12,13 @@ type Visibility = 'PUBLIC' | 'NETWORK' | 'FOLLOWERS'
 
 type TaggedSupplier = { id: string; full_name: string | null; business_name: string | null; brand_logo_url: string | null; subrole: string | null }
 
+type LinkPreview = { ok?: boolean; url?: string; title?: string | null; description?: string | null; image?: string | null; site_name?: string | null }
+
 type Props = {
   onPosted: () => void
 }
+
+const URL_REGEX = /(https?:\/\/[^\s]+)/i
 
 export function PostComposer({ onPosted }: Props) {
   const { profile, user } = useAuth()
@@ -28,7 +32,33 @@ export function PostComposer({ onPosted }: Props) {
   const [tagResults, setTagResults] = useState<TaggedSupplier[]>([])
   const [tagged, setTagged] = useState<TaggedSupplier[]>([])
   const [tagOpen, setTagOpen] = useState(false)
+  const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null)
+  const [linkUrl, setLinkUrl] = useState<string | null>(null)
+  const [fetchingPreview, setFetchingPreview] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Quando body cambia, cerca un URL e fetcha preview (debounced)
+  useEffect(() => {
+    const match = body.match(URL_REGEX)
+    const url = match?.[1]
+    if (!url) {
+      setLinkUrl(null); setLinkPreview(null); return
+    }
+    if (url === linkUrl) return
+    setLinkUrl(url)
+    setFetchingPreview(true)
+    const t = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('link-preview', { body: { url } })
+        if (error) throw error
+        const r = data as LinkPreview
+        if (r?.ok) setLinkPreview(r)
+        else setLinkPreview(null)
+      } catch { setLinkPreview(null) }
+      finally { setFetchingPreview(false) }
+    }, 700)
+    return () => clearTimeout(t)
+  }, [body, linkUrl])
 
   useEffect(() => {
     if (!tagOpen) return
@@ -80,10 +110,18 @@ export function PostComposer({ onPosted }: Props) {
           media_urls:          media,
           tagged_supplier_ids: tagged.map((t) => t.id),
           visibility,
+          link_url:            linkUrl,
+          link_preview:        linkPreview && linkPreview.ok ? {
+            url:         linkPreview.url,
+            title:       linkPreview.title,
+            description: linkPreview.description,
+            image:       linkPreview.image,
+            site_name:   linkPreview.site_name,
+          } : null,
         })
       if (error) throw error
       toast.success('Post pubblicato')
-      setBody(''); setMedia([]); setTagged([]); setOpen(false); setVisibility('PUBLIC')
+      setBody(''); setMedia([]); setTagged([]); setLinkUrl(null); setLinkPreview(null); setOpen(false); setVisibility('PUBLIC')
       onPosted()
     } catch (e) {
       toast.error((e as Error).message)
@@ -143,6 +181,36 @@ export function PostComposer({ onPosted }: Props) {
                   <button onClick={() => removeTag(t.id)} className="hover:opacity-70"><X size={10} /></button>
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Link preview */}
+          {(linkPreview?.ok || fetchingPreview) && (
+            <div className="pl-12">
+              <div className="surface surface-elev relative overflow-hidden">
+                <button onClick={() => { setLinkPreview(null); setLinkUrl(null) }}
+                  className="absolute top-2 right-2 z-10 bg-black/60 text-white rounded-full p-1 hover:bg-black/80">
+                  <X size={11} />
+                </button>
+                {fetchingPreview ? (
+                  <div className="p-4 text-xs text-[rgb(var(--fg-muted))]">Anteprima link in caricamento…</div>
+                ) : (
+                  <div className="flex gap-3">
+                    {linkPreview?.image && (
+                      <img src={linkPreview.image} alt="" className="w-24 sm:w-32 aspect-square object-cover shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0 p-3">
+                      {linkPreview?.site_name && (
+                        <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-0.5 truncate">{linkPreview.site_name}</p>
+                      )}
+                      <p className="text-sm font-medium line-clamp-2">{linkPreview?.title ?? linkPreview?.url}</p>
+                      {linkPreview?.description && (
+                        <p className="text-xs text-[rgb(var(--fg-muted))] line-clamp-2 mt-1">{linkPreview.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
