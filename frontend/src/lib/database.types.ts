@@ -362,10 +362,13 @@ export type Database = {
           created_at: string
           fornitore_id: string
           id: string
+          initiated_by: string
           invite_token: string
           invited_at: string
           revoked_at: string | null
           status: Database["public"]["Enums"]["collaboration_status"]
+          supplier_markup_modifier_percent: number
+          supplier_note: string | null
           updated_at: string
         }
         Insert: {
@@ -374,10 +377,13 @@ export type Database = {
           created_at?: string
           fornitore_id: string
           id?: string
+          initiated_by?: string
           invite_token?: string
           invited_at?: string
           revoked_at?: string | null
           status?: Database["public"]["Enums"]["collaboration_status"]
+          supplier_markup_modifier_percent?: number
+          supplier_note?: string | null
           updated_at?: string
         }
         Update: {
@@ -386,10 +392,13 @@ export type Database = {
           created_at?: string
           fornitore_id?: string
           id?: string
+          initiated_by?: string
           invite_token?: string
           invited_at?: string
           revoked_at?: string | null
           status?: Database["public"]["Enums"]["collaboration_status"]
+          supplier_markup_modifier_percent?: number
+          supplier_note?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2934,6 +2943,61 @@ export type Database = {
           },
         ]
       }
+      supplier_capostipite_pricing: {
+        Row: {
+          capostipite_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          override_price: number
+          service_id: string
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          capostipite_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          override_price: number
+          service_id: string
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          capostipite_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          override_price?: number
+          service_id?: string
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_capostipite_pricing_capostipite_id_fkey"
+            columns: ["capostipite_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_capostipite_pricing_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_capostipite_pricing_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_clients: {
         Row: {
           budget_max: number | null
@@ -3391,6 +3455,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      supplier_invite_capostipite: { Args: { p_email: string }; Returns: Json }
       wedding_site_get: { Args: { p_slug: string }; Returns: Json }
       wedding_site_rsvp: {
         Args: {

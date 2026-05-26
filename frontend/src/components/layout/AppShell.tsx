@@ -68,6 +68,7 @@ const NAV_TAIL_CLIENT_PRODUCTS: NavItem[] = [
 
 const NAV_FORN: NavItem[] = [
   { to: '/clienti', label: 'Clienti', icon: Contact },
+  { to: '/capostipiti', label: 'Capostipiti', icon: UsersIcon },
   { to: '/disponibilita', label: 'Disponibilità', icon: CalendarCheck },
   { to: '/calcolatore', label: 'Calcolatore', icon: Calculator },
 ]
