@@ -7,18 +7,19 @@ import { useAuth } from '@/lib/auth'
 import { PostComposer } from '@/components/feed/PostComposer'
 import { PostCard, type FeedPost } from '@/components/feed/PostCard'
 
-type FilterTab = 'ALL' | 'NETWORK' | 'FOLLOWING' | 'MINE'
+type FilterTab = 'DISCOVER' | 'ALL' | 'NETWORK' | 'FOLLOWING' | 'MINE'
 
 const TABS: { v: FilterTab; l: string }[] = [
-  { v: 'ALL',       l: 'Tutto' },
+  { v: 'DISCOVER',  l: '✨ Scopri' },
   { v: 'NETWORK',   l: 'La mia rete' },
   { v: 'FOLLOWING', l: 'Chi seguo' },
+  { v: 'ALL',       l: 'Tutto' },
   { v: 'MINE',      l: 'I miei post' },
 ]
 
 export default function HomeFeedPage() {
   const { profile } = useAuth()
-  const [filter, setFilter] = useState<FilterTab>('ALL')
+  const [filter, setFilter] = useState<FilterTab>('DISCOVER')
   const [posts, setPosts] = useState<FeedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -29,8 +30,12 @@ export default function HomeFeedPage() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const { data, error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-        .rpc('feed_home', { p_limit: 30, p_offset: 0, p_filter: filter })
+      const rpcCall = filter === 'DISCOVER'
+        ? (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+            .rpc('feed_discover_trending', { p_limit: 30, p_offset: 0 })
+        : (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+            .rpc('feed_home', { p_limit: 30, p_offset: 0, p_filter: filter })
+      const { data, error } = await rpcCall
       if (error) throw error
       setPosts((data as FeedPost[]) ?? [])
     } catch {
@@ -56,7 +61,9 @@ export default function HomeFeedPage() {
           <div>
             <h1 className="font-display text-2xl sm:text-3xl tracking-tight">Il feed del network</h1>
             <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">
-              Cosa stanno realizzando i professionisti italiani degli eventi.
+              {filter === 'DISCOVER'
+                ? 'Lavori più visti del momento. Più engagement = più visibilità.'
+                : 'Cosa stanno realizzando i professionisti italiani degli eventi.'}
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={refresh} disabled={refreshing} title="Aggiorna">
@@ -97,6 +104,8 @@ export default function HomeFeedPage() {
                 ? 'Non segui ancora nessuno. Scopri i professionisti.'
                 : filter === 'NETWORK'
                 ? 'La tua rete non ha ancora postato. Invita più professionisti.'
+                : filter === 'DISCOVER'
+                ? 'Nessun post di tendenza al momento. Torna più tardi o sii tu il primo a pubblicare.'
                 : 'Sii tu il primo a pubblicare qualcosa.'}
             </p>
             {filter === 'FOLLOWING' && (

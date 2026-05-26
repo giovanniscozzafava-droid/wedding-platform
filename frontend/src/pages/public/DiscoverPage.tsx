@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Search, MapPin, Users, Sparkles, Briefcase } from 'lucide-react'
+import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase } from 'lucide-react'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
@@ -25,6 +25,7 @@ type DiscoverSupplier = {
 }
 
 export default function DiscoverPage() {
+  const nav = useNavigate()
   const [list, setList] = useState<DiscoverSupplier[]>([])
   const [loading, setLoading] = useState(true)
   const [city, setCity] = useState('')
@@ -59,7 +60,11 @@ export default function DiscoverPage() {
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
       {/* Hero */}
       <section className="relative border-b" style={{ borderColor: 'rgb(var(--border))' }}>
-        <div className="max-w-6xl mx-auto px-6 sm:px-10 py-12 sm:py-16">
+        <div className="max-w-6xl mx-auto px-6 sm:px-10 py-6 sm:py-8">
+          <button onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))}
+            className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-6">
+            <ArrowLeft size={14} /> Indietro
+          </button>
           <p className="text-xs uppercase tracking-[0.25em] mb-3 text-[rgb(var(--gold-600))]">
             <Sparkles size={12} className="inline mr-1" /> Il network dei professionisti degli eventi
           </p>
