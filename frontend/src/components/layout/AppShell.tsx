@@ -25,6 +25,7 @@ import {
   Sparkles,
   PenSquare,
   Newspaper,
+  Inbox,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -51,6 +52,7 @@ const NAV_BASE: NavItem[] = [
 ]
 
 const NAV_CAPOSTIPITE: NavItem[] = [
+  { to: '/leads',      label: 'Lead', icon: Inbox },
   { to: '/weddings',   label: 'Eventi', icon: Heart },
   { to: '/suppliers',  label: 'Rete fornitori', icon: UsersIcon },
   { to: '/scopri',     label: 'Scopri', icon: Sparkles },
