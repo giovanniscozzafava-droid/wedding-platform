@@ -62,7 +62,7 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
         <Card className="p-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-display text-lg flex items-center gap-2">
-              <MessageSquare size={16} /> Richieste degli sposi
+              <MessageSquare size={16} /> Richieste dei clienti
               {pendingReqs.length > 0 && <Badge tone="amber">{pendingReqs.length} da gestire</Badge>}
             </h2>
           </div>

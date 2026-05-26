@@ -5,7 +5,7 @@ export default function InsurancePage() {
         style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
         ✨ COMING SOON
       </div>
-      <h1 className="font-display text-4xl sm:text-5xl mb-3">Assicurazione matrimonio</h1>
+      <h1 className="font-display text-4xl sm:text-5xl mb-3">Assicurazione evento</h1>
       <p className="text-base text-[rgb(var(--fg-muted))] max-w-xl mx-auto leading-relaxed">
         Stiamo finalizzando l'accordo esclusivo con la compagnia per la polizza dedicata: annullamento evento, maltempo, RC ospiti. Arriva presto.
       </p>

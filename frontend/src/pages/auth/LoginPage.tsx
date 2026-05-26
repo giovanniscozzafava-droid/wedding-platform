@@ -59,7 +59,7 @@ export default function LoginPage() {
               Network &middot; Italia
             </p>
             <h1 className="font-display text-4xl xl:text-5xl leading-tight mb-4 text-white">
-              Una piattaforma per&nbsp;chi orchestra matrimoni.
+              Una piattaforma per&nbsp;chi orchestra eventi.
             </h1>
             <p className="text-white/85 text-base max-w-md">
               Catalogo fornitori, calendari sincronizzati, preventivi con un solo invio.
@@ -87,7 +87,7 @@ export default function LoginPage() {
           </Link>
           <div>
             <p className="text-[10px] uppercase tracking-[0.2em] mb-2 text-white/80">Network · Italia</p>
-            <h1 className="font-display text-2xl leading-tight">Una piattaforma per chi orchestra matrimoni.</h1>
+            <h1 className="font-display text-2xl leading-tight">Una piattaforma per chi orchestra eventi.</h1>
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@ export default function LoginPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
             <div className="lg:col-span-7">
               <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[rgb(var(--gold-600))] mb-4">
-                <Sparkles size={12} /> Network indipendente per il wedding italiano
+                <Sparkles size={12} /> Network indipendente per gli eventi italiani
               </span>
               <h2 className="font-display text-4xl sm:text-5xl tracking-tight leading-[1.05] mb-5">
                 Crea il <em className="text-[rgb(var(--gold-600))] not-italic">tuo</em> network professionale.<br />
@@ -171,7 +171,7 @@ export default function LoginPage() {
                 organizzarsi in rete senza dipendere da grandi piattaforme centralizzate.
               </p>
               <p className="text-base text-[rgb(var(--fg-muted))] max-w-2xl mt-4 leading-relaxed">
-                Negli ultimi anni il settore matrimoni in Italia si è progressivamente concentrato nelle
+                Negli ultimi anni il settore eventi in Italia si è progressivamente concentrato nelle
                 mani di pochi grandi marketplace internazionali, che intermediano contatti, dettano
                 commissioni e definiscono regole di visibilità. Crediamo che il valore generato dal lavoro
                 dei professionisti italiani debba restare ai professionisti italiani: i clienti, le
@@ -195,7 +195,7 @@ export default function LoginPage() {
                   ordine, e per collaborare con la tua rete di fiducia.
                 </p>
                 <ul className="space-y-2.5 text-sm">
-                  <Bullet text="Nessuna commissione sui matrimoni o sui pagamenti dei tuoi clienti" />
+                  <Bullet text="Nessuna commissione sugli eventi o sui pagamenti dei tuoi clienti" />
                   <Bullet text="Nessuna esclusiva: lavori con chi vuoi, dentro e fuori la piattaforma" />
                   <Bullet text="I tuoi dati restano tuoi (GDPR-first, export sempre disponibile)" />
                   <Bullet text="Network privato: inviti i fornitori che già conosci, non un elenco pubblico" />
@@ -223,7 +223,7 @@ export default function LoginPage() {
             <RoleCard
               icon={Network}
               title="Fornitori"
-              copy="Catalogo dei tuoi servizi, calendario di disponibilità, suggerimenti di prezzo, calcolatore composizioni. Vedi solo i matrimoni dove sei stato invitato."
+              copy="Catalogo dei tuoi servizi, calendario di disponibilità, suggerimenti di prezzo, calcolatore composizioni. Vedi solo gli eventi dove sei stato invitato."
               points={['Tu decidi quando sei disponibile', 'Aggiungi solo servizi del tuo settore', 'I tuoi tariffari restano privati', 'Materiale foto/video sempre tuo']}
             />
             <RoleCard
@@ -296,7 +296,7 @@ export default function LoginPage() {
               <span className="font-display text-lg">Planfully</span>
             </div>
             <p className="text-[rgb(var(--fg-muted))]">
-              Un progetto <strong>Fuyue Srl</strong> — software indipendente per la rete del wedding italiano.
+              Un progetto <strong>Fuyue Srl</strong> — software indipendente per la rete degli eventi italiani.
             </p>
           </div>
           <div>

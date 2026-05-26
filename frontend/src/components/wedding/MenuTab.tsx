@@ -205,7 +205,7 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="font-display text-2xl flex items-center gap-2">
-            <Utensils size={20} /> Menu matrimonio
+            <Utensils size={20} /> Menù evento
           </h2>
           <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
             {readOnly

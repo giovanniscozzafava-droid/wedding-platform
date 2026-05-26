@@ -84,7 +84,7 @@ export function GadgetsTab({ entryId }: { entryId: string }) {
       <header className="mb-6 flex items-end justify-between flex-wrap gap-3">
         <div>
           <h2 className="font-display text-2xl">Bomboniere · Gadget · Inviti</h2>
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Tutto il "merchandising" del matrimonio: bomboniere, confetti, welcome bag, save the date, inviti, tableau, segnaposto.</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Tutto il "merchandising" dell'evento: bomboniere, confetti, welcome bag, save the date, inviti, tableau, segnaposto.</p>
         </div>
         <div className="flex gap-3 items-center">
           <Stat label="Voci" value={data?.length ?? 0} />

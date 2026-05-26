@@ -118,13 +118,13 @@ export function WebsiteTab({ wedding }: { wedding: any }) {
           </div>
 
           <div className="pt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-            <h4 className="font-medium mb-2 flex items-center gap-1"><ImagePlus size={14} /> Foto sposi (hero)</h4>
+            <h4 className="font-medium mb-2 flex items-center gap-1"><ImagePlus size={14} /> Foto protagonisti (hero)</h4>
             <input ref={fileRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCouplePhoto(f); e.target.value = '' }} />
             {data.couple_photo_url ? (
               <div className="space-y-2">
                 <div className="relative aspect-[16/9] overflow-hidden rounded-lg border" style={{ borderColor: 'rgb(var(--border))' }}>
-                  <img src={data.couple_photo_url} alt="Foto sposi"
+                  <img src={data.couple_photo_url} alt="Foto protagonisti"
                     className="w-full h-full object-cover"
                     style={{ objectPosition: `center ${data.couple_photo_focal_y ?? 30}%` }} />
                 </div>
@@ -146,7 +146,7 @@ export function WebsiteTab({ wedding }: { wedding: any }) {
               </div>
             ) : (
               <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                <ImagePlus size={14} /> {uploading ? 'Caricamento...' : 'Carica foto sposi'}
+                <ImagePlus size={14} /> {uploading ? 'Caricamento...' : 'Carica foto protagonisti'}
               </Button>
             )}
           </div>
@@ -156,7 +156,7 @@ export function WebsiteTab({ wedding }: { wedding: any }) {
             <div className="space-y-3">
               <div className="space-y-1">
                 <Label>Hashtag</Label>
-                <Input value={data.hashtag ?? ''} onChange={(e) => setData({ ...data, hashtag: e.target.value })} placeholder="#nomesposiwedding2026" />
+                <Input value={data.hashtag ?? ''} onChange={(e) => setData({ ...data, hashtag: e.target.value })} placeholder="#nomecognome2026" />
               </div>
               <div className="space-y-1">
                 <Label>La nostra storia</Label>

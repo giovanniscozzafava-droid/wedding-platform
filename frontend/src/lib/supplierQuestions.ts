@@ -483,7 +483,7 @@ const Q_PARRUCCHIERE: QuestionnaireSection[] = [
       { key: 'style', label: 'Stile desiderato', type: 'multiselect',
         options: ['raccolto_classico', 'raccolto_morbido', 'semiraccolto', 'sciolto_onde', 'treccia', 'chignon_basso', 'effetto_messy', 'vintage_anni30'] },
       { key: 'accessories', label: 'Accessori', type: 'multiselect', options: ['velo', 'tiara', 'fiori_freschi', 'forcine_gioiello', 'fascia', 'pettine_decorato'] },
-      { key: 'trial_session', label: 'Vuoi una prova prima del matrimonio?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+      { key: 'trial_session', label: 'Vuoi una prova prima dell\'evento?', type: 'select', options: ['si', 'no', 'da_valutare'] },
     ],
   },
   {

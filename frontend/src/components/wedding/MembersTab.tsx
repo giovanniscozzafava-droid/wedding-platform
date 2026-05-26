@@ -25,9 +25,9 @@ export function MembersTab({ entryId }: { entryId: string }) {
   return (
     <div>
       <header className="mb-6">
-        <h2 className="font-display text-2xl">Gli sposi</h2>
+        <h2 className="font-display text-2xl">I clienti</h2>
         <p className="text-sm text-[rgb(var(--fg-muted))]">
-          Invita i tuoi sposi (e i loro testimoni di fiducia) a vedere il loro matrimonio.
+          Invita i tuoi clienti (e i loro testimoni di fiducia) a vedere il loro evento.
           Avranno un accesso dedicato per consultare programma, alloggi, trasporti e contribuire al mood/playlist.
         </p>
       </header>
@@ -60,14 +60,14 @@ export function MembersTab({ entryId }: { entryId: string }) {
       {(members ?? []).length === 0 && (
         <Card className="p-10 text-center">
           <Heart size={28} className="mx-auto mb-3 text-[rgb(var(--fg-subtle))]" />
-          <p className="text-[rgb(var(--fg-muted))]">Nessuno sposo invitato. Inizia dalla casella sopra.</p>
+          <p className="text-[rgb(var(--fg-muted))]">Nessun cliente invitato. Inizia dalla casella sopra.</p>
         </Card>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(members ?? []).map((m) => {
           const inviteUrl = `${window.location.origin}/invito-coppia/${m.invite_token}`
-          const waText = `Ciao ${m.full_name ?? ''}! Ti invito al vostro matrimonio su Planfully. Apri questo link e crea il tuo account: ${inviteUrl}`
+          const waText = `Ciao ${m.full_name ?? ''}! Ti invito al vostro evento su Planfully. Apri questo link e crea il tuo account: ${inviteUrl}`
           return (
             <Card key={m.id} className="p-5">
               <div className="flex items-start justify-between gap-3 mb-3">
@@ -104,13 +104,13 @@ export function MembersTab({ entryId }: { entryId: string }) {
                       className="flex-1 text-xs text-center rounded-md border border-[rgb(var(--border))] px-2 py-1.5 hover:bg-[rgb(var(--bg-sunken))]">
                       WhatsApp
                     </a>
-                    <a href={`mailto:${m.email}?subject=${encodeURIComponent('Il vostro matrimonio su Planfully')}&body=${encodeURIComponent(waText)}`}
+                    <a href={`mailto:${m.email}?subject=${encodeURIComponent('Il vostro evento su Planfully')}&body=${encodeURIComponent(waText)}`}
                       className="flex-1 text-xs text-center rounded-md border border-[rgb(var(--border))] px-2 py-1.5 hover:bg-[rgb(var(--bg-sunken))]">
                       Email
                     </a>
                   </div>
                   <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
-                    Aprendolo, la sposa/sposo crea l'account (o accede se ne ha già uno) e viene collegata al matrimonio.
+                    Aprendolo, il cliente crea l'account (o accede se ne ha già uno) e viene collegato all'evento.
                   </p>
                 </div>
               )}

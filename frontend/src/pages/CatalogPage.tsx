@@ -46,7 +46,9 @@ export default function CatalogPage() {
   })
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const isProvider = profile?.role === 'FORNITORE' || profile?.role === 'LOCATION'
+  // WP e LOCATION possono emettere propri servizi (organizzazione/coordinamento)
+  // oltre a vedere il catalogo di rete. Fornitore solo i propri.
+  const isProvider = profile?.role === 'FORNITORE' || profile?.role === 'LOCATION' || profile?.role === 'WEDDING_PLANNER'
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'ADMIN'
 
   const filtered = useMemo(() => {
@@ -249,7 +251,7 @@ export default function CatalogPage() {
 
       {(creating || editing) && (
         <ServiceForm
-          subrole={profile?.subrole ?? null}
+          subrole={profile?.subrole ?? (profile?.role === 'WEDDING_PLANNER' ? 'wedding_planner' : profile?.role === 'LOCATION' ? 'location' : null)}
           service={editing}
           onClose={() => { setEditing(null); setCreating(false) }}
         />

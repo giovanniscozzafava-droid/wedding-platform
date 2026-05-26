@@ -35,7 +35,7 @@ const SHAPE_LABEL: Record<string, string> = {
 
 const TABLE_FIELDS: Field[] = [
   { type: 'number', key: 'table_no', label: 'Numero tavolo' },
-  { type: 'text', key: 'label', label: 'Etichetta', placeholder: 'Es. Tavolo sposi, Famiglia, ...' },
+  { type: 'text', key: 'label', label: 'Etichetta', placeholder: 'Es. Tavolo principale, Famiglia, ...' },
   { type: 'number', key: 'seats', label: 'Posti' },
   { type: 'select', key: 'shape', label: 'Forma', options: SHAPES.map((s) => ({ v: s, l: SHAPE_LABEL[s] ?? s })) },
 ]
@@ -125,11 +125,11 @@ export function TablesTab({ entryId }: { entryId: string }) {
       <Card className="p-4 mb-4">
         <div className="flex items-center gap-2 mb-3">
           <Palette size={14} className="text-[rgb(var(--gold-600))]" />
-          <h3 className="font-medium">Tema matrimonio & nomi tavoli</h3>
+          <h3 className="font-medium">Tema evento & nomi tavoli</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider">Tema matrimonio</Label>
+            <Label className="text-xs uppercase tracking-wider">Tema evento</Label>
             <div className="flex flex-wrap gap-1.5">
               {THEME_PRESETS.map((t) => {
                 const active = currentTheme === t

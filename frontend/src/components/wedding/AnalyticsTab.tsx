@@ -18,7 +18,7 @@ export function AnalyticsTab({ quoteId }: { quoteId: string | null }) {
   const { data, isLoading } = useQuoteViews(quoteId)
 
   if (!quoteId) return (
-    <Card className="p-10 text-center"><p className="text-[rgb(var(--fg-muted))]">Nessun preventivo collegato a questo matrimonio.</p></Card>
+    <Card className="p-10 text-center"><p className="text-[rgb(var(--fg-muted))]">Nessun preventivo collegato a questo evento.</p></Card>
   )
   if (isLoading) return <p className="text-[rgb(var(--fg-subtle))]">Caricamento...</p>
 

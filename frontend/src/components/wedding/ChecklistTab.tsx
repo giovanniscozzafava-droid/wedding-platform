@@ -91,7 +91,7 @@ export function ChecklistTab({ entryId }: { entryId: string }) {
     <div>
       <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h2 className="font-display text-2xl">Checklist matrimonio</h2>
+          <h2 className="font-display text-2xl">Checklist evento</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Task organizzati per fase. {done}/{tot} completati ({pct}%).</p>
         </div>
         <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
