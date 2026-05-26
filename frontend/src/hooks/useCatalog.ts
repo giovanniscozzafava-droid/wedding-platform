@@ -65,10 +65,25 @@ export function useCategories(subrole?: string | null) {
         .from('service_categories')
         .select('*')
         .order('name', { ascending: true })
-      if (subrole) q = q.or(`subrole.eq.${subrole},subrole.is.null`)
+      // Se passato subrole: SOLO categorie di quel verticale.
+      // Senza subrole: solo le categorie trasversali (subrole IS NULL) +
+      // custom dell'utente.
+      if (subrole) q = q.eq('subrole', subrole)
       const { data, error } = await q
       if (error) throw error
-      return data ?? []
+      let rows = data ?? []
+      // Fallback: se per il subrole non ci sono categorie standard,
+      // mostriamo quelle trasversali (subrole IS NULL) per non lasciare
+      // il dropdown vuoto.
+      if (subrole && rows.length === 0) {
+        const fb = await supabase
+          .from('service_categories')
+          .select('*')
+          .is('subrole', null)
+          .order('name', { ascending: true })
+        if (!fb.error) rows = fb.data ?? []
+      }
+      return rows
     },
   })
 }
