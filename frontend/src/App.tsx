@@ -32,6 +32,8 @@ import SupplierInviteAcceptPage from '@/pages/public/SupplierInviteAcceptPage'
 import CoupleInviteAcceptPage from '@/pages/public/CoupleInviteAcceptPage'
 import PrivacyPage from '@/pages/public/PrivacyPage'
 import CookiePage from '@/pages/public/CookiePage'
+import DiscoverPage from '@/pages/public/DiscoverPage'
+import PublicSupplierPage from '@/pages/public/PublicSupplierPage'
 import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
 import SupplierAvailabilityPage from '@/pages/SupplierAvailabilityPage'
 import SupplierClientsPage from '@/pages/SupplierClientsPage'
@@ -156,6 +158,8 @@ export default function App() {
           <Route path="/invito-coppia/:token" element={<CoupleInviteAcceptPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookie" element={<CookiePage />} />
+          <Route path="/scopri" element={<DiscoverPage />} />
+          <Route path="/p/fornitore/:slug" element={<PublicSupplierPage />} />
           <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
           <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />

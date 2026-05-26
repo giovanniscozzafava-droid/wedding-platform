@@ -22,6 +22,7 @@ import {
   FileSignature,
   Contact,
   HelpCircle,
+  Sparkles,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -49,6 +50,7 @@ const NAV_BASE: NavItem[] = [
 const NAV_CAPOSTIPITE: NavItem[] = [
   { to: '/weddings',   label: 'Eventi', icon: Heart },
   { to: '/suppliers',  label: 'Rete fornitori', icon: UsersIcon },
+  { to: '/scopri',     label: 'Scopri', icon: Sparkles },
 ]
 
 // Voci di coda comuni a tutti i ruoli
