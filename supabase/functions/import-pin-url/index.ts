@@ -45,11 +45,19 @@ Deno.serve(async (req) => {
     return json({ error: 'unsupported protocol' }, 400)
   }
 
-  // Pinterest/Instagram bloccano facebookexternalhit. Tentativi multi-UA:
-  // 1) facebookexternalhit (default storico, funziona su blog/news/Wired/GitHub)
-  // 2) Twitterbot (passa spesso dove FB e bloccato)
-  // 3) Chrome desktop (rare ma necessario per alcuni siti che servono solo UI)
+  // Instagram: tenta endpoint embed pubblico /embed/ (non richiede login).
+  // L'HTML embed include URL scontent.cdninstagram.com/v/t39.30808-6 (post content).
   let finalUrl = target.toString()
+  const host = target.hostname.replace(/^www\./, '')
+  const isInstagram = host.includes('instagram.')
+  if (isInstagram) {
+    const pathMatch = target.pathname.match(/^\/(p|reel|reels|tv)\/([^/]+)/)
+    if (pathMatch) {
+      finalUrl = `https://www.instagram.com/p/${pathMatch[2]}/embed/`
+    }
+  }
+
+  // Pinterest/Instagram bloccano facebookexternalhit. Tentativi multi-UA:
   let html = ''
   const uaAttempts: Array<{ tag: string; ua: string }> = [
     { tag: 'fb', ua: 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)' },
@@ -94,11 +102,55 @@ Deno.serve(async (req) => {
     return json({ error: `Pagina non raggiungibile: ${lastErr}` }, 502)
   }
 
-  const image = pickMeta(html, 'og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src')
+  // Pickup standard og:image / twitter:image
+  let image = pickMeta(html, 'og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src')
   const title = pickMeta(html, 'og:title', 'twitter:title') || ''
   const desc = pickMeta(html, 'og:description', 'description', 'twitter:description') || ''
 
-  if (!image) return json({ error: 'no og:image found' }, 422)
+  // Per Instagram preferisci sempre scontent.cdninstagram.com/v/t39 (foto post,
+  // size grande) invece dello og:image lookaside che rimanda al login wall.
+  if (isInstagram) {
+    // Pattern: t39.30808-6 = post content. t51.2885-19 = avatar profilo (scartare).
+    const postContentRe = /https:\/\/scontent[^"\s]*\/v\/t39\.30808-6\/[^"\s]+\.(?:jpg|jpeg|png|webp)[^"\s]*/g
+    const matches = [...html.matchAll(postContentRe)].map((m) => m[0].replace(/&amp;/g, '&'))
+    if (matches.length > 0) {
+      // Preferisci URL grandi: cerca quelle SENZA s150x150 e con stp 1440/1080.
+      // L'embed Instagram fornisce srcset con varianti size — prendi la piu grande.
+      const ranked = matches
+        .map((url) => {
+          // Penalita per thumbnail piccoli
+          const isSmall = /s150x150|s320x320|s640x640/.test(url)
+          // Score positivo per size grandi
+          const big1440 = url.includes('1440x1440') || url.includes('p1440x1440')
+          const big1080 = url.includes('1080x1080') || url.includes('p1080x1080')
+          // Default: no size param -> nativa
+          const noSize = !/s\d+x\d+|p\d+x\d+/.test(url)
+          let score = 0
+          if (big1440) score += 100
+          else if (big1080) score += 80
+          else if (noSize) score += 60
+          if (isSmall) score -= 50
+          score += url.length / 100  // tie-break con piu params
+          return { url, score }
+        })
+        .sort((a, b) => b.score - a.score)
+      image = ranked[0]?.url
+    }
+    // Fallback secondario: EmbeddedMediaImage class
+    if (!image) {
+      const m1 = html.match(/<img[^>]+class="[^"]*EmbeddedMediaImage[^"]*"[^>]+src="([^"]+)"/i)
+      if (m1 && m1[1]) image = m1[1].replace(/&amp;/g, '&')
+    }
+  }
+
+  if (!image) {
+    if (isInstagram) {
+      return json({
+        error: 'Instagram non permette di estrarre questa foto (probabilmente caroselli o post privato). Apri il post, fai screenshot o salva la foto, e usa il bottone "Carica file" qui sopra.',
+      }, 422)
+    }
+    return json({ error: 'Nessuna immagine trovata nella pagina (manca og:image).' }, 422)
+  }
 
   // Se richiesto, scarica l'immagine lato server (bypassa CORS browser) e
   // ritorna in base64 + content-type. Il client puo' poi ricostruire un Blob/File.
@@ -134,6 +186,11 @@ Deno.serve(async (req) => {
       {
         tag: 'wsrv',
         url: `https://wsrv.nl/?url=${encodeURIComponent(image)}&output=jpg&q=85`,
+        headers: { 'user-agent': 'Planfully/1.0' },
+      },
+      {
+        tag: 'images-weserv',
+        url: `https://images.weserv.nl/?url=${encodeURIComponent(image.replace(/^https?:\/\//, ''))}&output=jpg&q=85`,
         headers: { 'user-agent': 'Planfully/1.0' },
       },
     ]

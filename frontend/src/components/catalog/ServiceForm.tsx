@@ -330,7 +330,9 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                       </Button>
                     </div>
                     <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1.5">
-                      Estraggo l'immagine principale del post (og:image). Funziona su qualsiasi pagina pubblica.
+                      Estraggo l'immagine principale del post. Funziona su Pinterest, blog, news, articoli.
+                      <br />
+                      <strong>Instagram caroselli:</strong> apri la singola foto (URL con <code>?img_index=N</code>) o salva l'immagine e usa "Carica file" sopra.
                     </p>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
