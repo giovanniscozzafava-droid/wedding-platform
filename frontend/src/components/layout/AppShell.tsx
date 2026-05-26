@@ -24,6 +24,7 @@ import {
   HelpCircle,
   Sparkles,
   PenSquare,
+  Newspaper,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -45,6 +46,7 @@ type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?
 
 const NAV_BASE: NavItem[] = [
   { to: '/',           label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/feed',       label: 'Feed',      icon: Newspaper },
   { to: '/catalog',    label: 'Catalogo',  icon: PackageSearch },
 ]
 

@@ -1,0 +1,292 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Heart, MessageCircle, Globe, Users as UsersIcon, Lock, Send, MoreHorizontal } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
+
+export type FeedPost = {
+  id: string
+  author_id: string
+  author_name: string | null
+  author_business: string | null
+  author_slug: string | null
+  author_role: string
+  author_logo: string | null
+  author_subrole: string | null
+  body: string
+  media_urls: string[]
+  tagged_supplier_ids: string[]
+  visibility: 'PUBLIC' | 'NETWORK' | 'FOLLOWERS'
+  like_count: number
+  comment_count: number
+  created_at: string
+  liked_by_me: boolean
+  event_id: string | null
+  event_title: string | null
+}
+
+type Comment = {
+  id: string
+  body: string
+  created_at: string
+  author_id: string
+  author_name: string | null
+  author_business: string | null
+  author_slug: string | null
+  author_logo: string | null
+  author_role: string
+}
+
+export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () => void }) {
+  const { user, profile } = useAuth()
+  const [liked, setLiked] = useState(post.liked_by_me)
+  const [likeCount, setLikeCount] = useState(post.like_count)
+  const [showComments, setShowComments] = useState(false)
+  const [comments, setComments] = useState<Comment[]>([])
+  const [loadingComments, setLoadingComments] = useState(false)
+  const [newComment, setNewComment] = useState('')
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [carouselIdx, setCarouselIdx] = useState(0)
+
+  async function toggleLike() {
+    if (!user) { toast.info('Accedi per mettere like'); return }
+    // Optimistic
+    setLiked((v) => !v)
+    setLikeCount((c) => liked ? c - 1 : c + 1)
+    try {
+      const { data, error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+        .rpc('post_toggle_like', { p_post_id: post.id })
+      if (error) throw error
+      const r = data as { liked?: boolean }
+      // Allineamento server
+      if (typeof r.liked === 'boolean') {
+        setLiked(r.liked)
+      }
+    } catch (e) {
+      // Rollback
+      setLiked(post.liked_by_me)
+      setLikeCount(post.like_count)
+      toast.error((e as Error).message)
+    }
+  }
+
+  async function loadComments() {
+    if (loadingComments) return
+    setLoadingComments(true)
+    try {
+      const { data, error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+        .rpc('post_comments_list', { p_post_id: post.id })
+      if (error) throw error
+      setComments((data as Comment[]) ?? [])
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setLoadingComments(false) }
+  }
+
+  useEffect(() => {
+    if (showComments && comments.length === 0) void loadComments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showComments])
+
+  async function submitComment() {
+    if (!user || !newComment.trim()) return
+    setSubmittingComment(true)
+    try {
+      const { error } = await (supabase as unknown as { from: (t: string) => { insert: (p: Record<string, unknown>) => Promise<{ error: Error | null }> } })
+        .from('post_comments').insert({ post_id: post.id, author_id: user.id, body: newComment.trim() })
+      if (error) throw error
+      setNewComment('')
+      await loadComments()
+      onChanged?.()
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setSubmittingComment(false) }
+  }
+
+  const authorName = post.author_business ?? post.author_name ?? 'Utente'
+  const authorHref = post.author_slug
+    ? (post.author_role === 'FORNITORE' ? `/p/fornitore/${post.author_slug}` : `/p/wp/${post.author_slug}`)
+    : null
+  const VisIcon = post.visibility === 'PUBLIC' ? Globe : post.visibility === 'NETWORK' ? UsersIcon : Lock
+
+  return (
+    <motion.article initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      className="surface surface-elev overflow-hidden">
+      {/* Header */}
+      <div className="flex items-start gap-3 p-4">
+        {post.author_logo ? (
+          authorHref
+            ? <Link to={authorHref}><img src={post.author_logo} alt="" className="w-10 h-10 rounded-full object-cover" /></Link>
+            : <img src={post.author_logo} alt="" className="w-10 h-10 rounded-full object-cover" />
+        ) : (
+          <div className="w-10 h-10 rounded-full flex items-center justify-center font-display text-sm"
+            style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+            {authorName.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate">
+            {authorHref ? <Link to={authorHref} className="hover:underline">{authorName}</Link> : authorName}
+            <span className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-600))] ml-2">
+              {post.author_role === 'WEDDING_PLANNER' ? 'Wedding Planner' : post.author_role === 'LOCATION' ? 'Location' : post.author_subrole ?? 'Fornitore'}
+            </span>
+          </p>
+          <p className="text-[10px] text-[rgb(var(--fg-subtle))] flex items-center gap-1 mt-0.5">
+            {timeAgo(post.created_at)}
+            <span>·</span>
+            <VisIcon size={10} />
+            <span>{post.visibility === 'PUBLIC' ? 'Pubblico' : post.visibility === 'NETWORK' ? 'Network' : 'Follower'}</span>
+          </p>
+        </div>
+        {post.author_id === user?.id && (
+          <button className="rounded p-1 hover:bg-[rgb(var(--bg-sunken))]" title="Opzioni">
+            <MoreHorizontal size={16} />
+          </button>
+        )}
+      </div>
+
+      {/* Body */}
+      {post.body && (
+        <div className="px-4 pb-3">
+          <p className="text-sm whitespace-pre-wrap leading-relaxed">{post.body}</p>
+        </div>
+      )}
+
+      {/* Event link */}
+      {post.event_id && post.event_title && (
+        <div className="px-4 pb-3">
+          <Link to={`/weddings/${post.event_id}`}
+            className="inline-block text-xs px-2 py-1 rounded-full hover:underline"
+            style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+            📅 {post.event_title}
+          </Link>
+        </div>
+      )}
+
+      {/* Media carousel */}
+      {post.media_urls.length > 0 && (
+        <div className="relative bg-[rgb(var(--bg-sunken))]">
+          <img src={post.media_urls[carouselIdx]!} alt=""
+            className="w-full max-h-[600px] object-cover" />
+          {post.media_urls.length > 1 && (
+            <>
+              <div className="absolute inset-y-0 left-0 flex items-center">
+                {carouselIdx > 0 && (
+                  <button onClick={() => setCarouselIdx((i) => i - 1)}
+                    className="bg-black/40 text-white rounded-full w-8 h-8 ml-2 hover:bg-black/60">‹</button>
+                )}
+              </div>
+              <div className="absolute inset-y-0 right-0 flex items-center">
+                {carouselIdx < post.media_urls.length - 1 && (
+                  <button onClick={() => setCarouselIdx((i) => i + 1)}
+                    className="bg-black/40 text-white rounded-full w-8 h-8 mr-2 hover:bg-black/60">›</button>
+                )}
+              </div>
+              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+                {post.media_urls.map((_, i) => (
+                  <span key={i} className="w-1.5 h-1.5 rounded-full transition-colors"
+                    style={{ background: i === carouselIdx ? 'white' : 'rgba(255,255,255,0.5)' }} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Counts */}
+      {(likeCount > 0 || post.comment_count > 0) && (
+        <div className="px-4 py-2 text-xs text-[rgb(var(--fg-muted))] flex items-center gap-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+          {likeCount > 0 && <span>{likeCount} {likeCount === 1 ? 'mi piace' : 'piaciuti'}</span>}
+          {post.comment_count > 0 && <button onClick={() => setShowComments(true)} className="hover:underline">{post.comment_count} commenti</button>}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center px-2 py-1 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+        <button onClick={toggleLike}
+          className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-md hover:bg-[rgb(var(--bg-sunken))] transition-colors">
+          <Heart size={16} fill={liked ? 'currentColor' : 'none'} style={{ color: liked ? 'rgb(var(--rose-500))' : 'rgb(var(--fg-muted))' }} />
+          <span className="text-sm" style={{ color: liked ? 'rgb(var(--rose-500))' : 'rgb(var(--fg-muted))' }}>
+            {liked ? 'Ti piace' : 'Mi piace'}
+          </span>
+        </button>
+        <button onClick={() => setShowComments((v) => !v)}
+          className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-md hover:bg-[rgb(var(--bg-sunken))] transition-colors">
+          <MessageCircle size={16} className="text-[rgb(var(--fg-muted))]" />
+          <span className="text-sm text-[rgb(var(--fg-muted))]">Commenta</span>
+        </button>
+      </div>
+
+      {/* Comments */}
+      <AnimatePresence>
+        {showComments && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="border-t overflow-hidden" style={{ borderColor: 'rgb(var(--border))' }}>
+            {/* Lista */}
+            <div className="px-4 py-3 space-y-3 max-h-96 overflow-auto">
+              {loadingComments && <p className="text-xs text-[rgb(var(--fg-subtle))]">Caricamento...</p>}
+              {!loadingComments && comments.length === 0 && (
+                <p className="text-xs text-[rgb(var(--fg-subtle))] text-center py-4">Nessun commento ancora. Sii il primo.</p>
+              )}
+              {comments.map((c) => (
+                <div key={c.id} className="flex items-start gap-2">
+                  {c.author_logo ? (
+                    <img src={c.author_logo} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display shrink-0"
+                      style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                      {(c.author_business ?? c.author_name ?? '?').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="rounded-2xl px-3 py-2" style={{ background: 'rgb(var(--bg-sunken))' }}>
+                      <p className="text-xs font-medium">{c.author_business ?? c.author_name}</p>
+                      <p className="text-sm leading-snug">{c.body}</p>
+                    </div>
+                    <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-0.5 ml-3">{timeAgo(c.created_at)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Form */}
+            {user && (
+              <div className="px-4 py-3 border-t flex items-center gap-2" style={{ borderColor: 'rgb(var(--border))' }}>
+                {profile?.brand_logo_url ? (
+                  <img src={profile.brand_logo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display"
+                    style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                    {(profile?.business_name ?? profile?.full_name ?? '?').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Scrivi un commento..."
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment() } }}
+                  className="flex-1 h-9 px-3 rounded-full border text-sm bg-[rgb(var(--bg-elev))]"
+                  style={{ borderColor: 'rgb(var(--border))' }} />
+                <Button variant="gold" size="icon" onClick={submitComment}
+                  disabled={!newComment.trim() || submittingComment}>
+                  <Send size={14} />
+                </Button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.article>
+  )
+}
+
+function timeAgo(iso: string): string {
+  try {
+    const now = Date.now()
+    const t = new Date(iso).getTime()
+    const diff = Math.max(0, Math.round((now - t) / 1000))
+    if (diff < 60) return `${diff}s`
+    if (diff < 3600) return `${Math.floor(diff/60)}m`
+    if (diff < 86400) return `${Math.floor(diff/3600)}h`
+    if (diff < 604800) return `${Math.floor(diff/86400)}g`
+    return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
+  } catch { return iso }
+}
