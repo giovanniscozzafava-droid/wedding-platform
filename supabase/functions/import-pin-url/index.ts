@@ -107,30 +107,37 @@ Deno.serve(async (req) => {
   const title = pickMeta(html, 'og:title', 'twitter:title') || ''
   const desc = pickMeta(html, 'og:description', 'description', 'twitter:description') || ''
 
-  // Per Instagram preferisci sempre scontent.cdninstagram.com/v/t39 (foto post,
-  // size grande) invece dello og:image lookaside che rimanda al login wall.
+  // Per Instagram preferisci sempre scontent.cdninstagram.com (foto post, size
+  // grande) invece dello og:image lookaside che rimanda al login wall.
   if (isInstagram) {
-    // Pattern: t39.30808-6 = post content. t51.2885-19 = avatar profilo (scartare).
-    const postContentRe = /https:\/\/scontent[^"\s]*\/v\/t39\.30808-6\/[^"\s]+\.(?:jpg|jpeg|png|webp)[^"\s]*/g
-    const matches = [...html.matchAll(postContentRe)].map((m) => m[0].replace(/&amp;/g, '&'))
-    if (matches.length > 0) {
-      // Preferisci URL grandi: cerca quelle SENZA s150x150 e con stp 1440/1080.
-      // L'embed Instagram fornisce srcset con varianti size — prendi la piu grande.
-      const ranked = matches
+    // Match generoso su scontent. Pattern conosciuti:
+    //   t39.30808-6   = post content (carosello classico)
+    //   t51.82787-15  = post content (variante recente)
+    //   t51.71878-15  = video cover frame
+    //   t51.2885-19   = AVATAR profilo (scartare!)
+    //   t51.2885-15   = post mid-size
+    const allRe = /https:\/\/scontent[^"\s]*\/v\/[^"\s]+\.(?:jpg|jpeg|png|webp)[^"\s]*/g
+    const all = [...html.matchAll(allRe)].map((m) => m[0].replace(/&amp;/g, '&'))
+    // Escludi avatar profilo (-19 finale dopo punto)
+    const candidates = all.filter((u) => !/\/v\/t51\.\d+-19\//.test(u))
+    if (candidates.length > 0) {
+      const ranked = candidates
         .map((url) => {
-          // Penalita per thumbnail piccoli
-          const isSmall = /s150x150|s320x320|s640x640/.test(url)
-          // Score positivo per size grandi
+          const isSmall = /s150x150|s240x240|s320x320|s640x640/.test(url)
           const big1440 = url.includes('1440x1440') || url.includes('p1440x1440')
           const big1080 = url.includes('1080x1080') || url.includes('p1080x1080')
-          // Default: no size param -> nativa
+          const big750 = url.includes('p750x750') || url.includes('s750x750')
           const noSize = !/s\d+x\d+|p\d+x\d+/.test(url)
           let score = 0
           if (big1440) score += 100
           else if (big1080) score += 80
-          else if (noSize) score += 60
+          else if (noSize) score += 70
+          else if (big750) score += 40
           if (isSmall) score -= 50
-          score += url.length / 100  // tie-break con piu params
+          // Bonus per t39 (carosello classico) e t51.82787/71878 (post content)
+          if (/\/v\/t39\.30808-6\//.test(url)) score += 30
+          if (/\/v\/t51\.(82787|71878)-15\//.test(url)) score += 20
+          score += url.length / 100
           return { url, score }
         })
         .sort((a, b) => b.score - a.score)
@@ -201,6 +208,12 @@ Deno.serve(async (req) => {
         const ir = await fetch(att.url, { redirect: 'follow', signal: ac.signal, headers: att.headers })
         clearTimeout(timeout)
         if (!ir.ok) { imageFetchError = `${att.tag}:HTTP_${ir.status}`; continue }
+        // Validazione content_type: deve essere image/*, no HTML (login wall).
+        const ct = (ir.headers.get('content-type') ?? '').toLowerCase()
+        if (!ct.startsWith('image/')) {
+          imageFetchError = `${att.tag}:not_an_image_${ct.slice(0, 30)}`
+          continue
+        }
         const ab = await ir.arrayBuffer()
         if (ab.byteLength < 200) { imageFetchError = `${att.tag}:empty`; continue }
         const u8 = new Uint8Array(ab)
