@@ -514,6 +514,142 @@ export function getQuestionsForSubrole(subrole: string | null | undefined): Ques
   return QUESTIONS_BY_SUBROLE[k] ?? Q_GENERICO
 }
 
+// Sezione "stile" minimale per il subrole, da combinare con domande event-specific
+// quando l'evento NON è un matrimonio. Le domande dei Q_* per subrole sono cucite
+// su matrimonio (bouquet sposa, auto sposi, ecc) e non si applicano agli altri eventi.
+const SUBROLE_STYLE_SECTIONS: Record<string, QuestionnaireSection> = {
+  fotografo: {
+    title: 'Stile fotografico',
+    questions: [
+      { key: 'photo_style', label: 'Stile preferito', type: 'multiselect',
+        options: ['reportage_naturale', 'posato_elegante', 'editoriale_fashion', 'fine_art', 'cinematografico', 'spontaneo_emozionale', 'vintage_pellicola', 'minimal_pulito'] },
+      { key: 'photo_must_have', label: 'Foto che NON possono mancare', type: 'textarea', placeholder: 'Es. il momento del rito, i nonni con il festeggiato, primi piani durante il taglio della torta' },
+      { key: 'photo_to_avoid', label: 'Cose da evitare', type: 'textarea' },
+      { key: 'delivery_format', label: 'Cosa vuoi ricevere', type: 'multiselect', options: ['solo_digitale', 'album_stampato', 'box_stampe', 'video_slideshow'] },
+    ],
+  },
+  videomaker: {
+    title: 'Stile video',
+    questions: [
+      { key: 'video_style', label: 'Stile preferito', type: 'multiselect', options: ['cinematografico', 'documentaristico', 'editoriale', 'spontaneo', 'highlight_breve'] },
+      { key: 'video_duration', label: 'Durata video finale', type: 'select', options: ['1_3_minuti', '5_10_minuti', '15_20_minuti', 'lungo_30_min'] },
+      { key: 'video_music_pref', label: 'Preferenze musica', type: 'textarea' },
+    ],
+  },
+  fioraio: {
+    title: 'Palette e allestimenti',
+    questions: [
+      { key: 'color_palette', label: 'Colori preferiti', type: 'tags', placeholder: 'bianco, verde salvia, rosa cipria' },
+      { key: 'flower_style', label: 'Stile', type: 'multiselect', options: ['classico', 'romantico', 'rustico_country', 'minimal_moderno', 'elegante_lussuoso', 'boho', 'tropicale'] },
+      { key: 'addobbi_needed', label: 'Allestimenti richiesti', type: 'textarea', placeholder: 'Es. centrotavola per 8 tavoli, addobbo altare, ingresso casa, fonte battesimale' },
+    ],
+  },
+  catering: {
+    title: 'Servizio catering',
+    questions: [
+      { key: 'service_format', label: 'Formato', type: 'multiselect', options: ['servito_al_tavolo', 'buffet', 'fingerfood', 'aperitivo', 'rinfresco', 'pranzo_seduti', 'cena_seduti'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'vegetarian_count', label: 'Vegetariani', type: 'number' },
+      { key: 'vegan_count', label: 'Vegani', type: 'number' },
+      { key: 'celiac_count', label: 'Celiaci', type: 'number' },
+      { key: 'allergies', label: 'Allergie/intolleranze', type: 'textarea' },
+    ],
+  },
+  pasticcere: {
+    title: 'Dolce/torta',
+    questions: [
+      { key: 'cake_format', label: 'Formato', type: 'multiselect', options: ['torta_unica', 'cake_design_piani', 'monoporzioni', 'mignon_assortiti', 'cupcakes'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'cake_style', label: 'Stile decorativo', type: 'textarea' },
+      { key: 'flavors', label: 'Gusti preferiti', type: 'tags' },
+    ],
+  },
+  musica: {
+    title: 'Musica e intrattenimento',
+    questions: [
+      { key: 'music_format', label: 'Tipo di servizio', type: 'multiselect', options: ['dj_set', 'band_live', 'musicista_solo', 'coro', 'musica_ambient_aperitivo'] },
+      { key: 'music_genre', label: 'Generi preferiti', type: 'tags' },
+      { key: 'special_songs', label: 'Brani particolari richiesti', type: 'textarea' },
+    ],
+  },
+  allestimenti: {
+    title: 'Allestimenti e mood',
+    questions: [
+      { key: 'style', label: 'Stile', type: 'multiselect', options: ['classico', 'rustico', 'moderno_minimal', 'elegante_lussuoso', 'boho', 'industriale', 'fairytale'] },
+      { key: 'color_palette', label: 'Colori', type: 'tags' },
+      { key: 'spaces_to_decorate', label: 'Spazi da allestire', type: 'textarea' },
+    ],
+  },
+  make_up: {
+    title: 'Make-up & hair',
+    questions: [
+      { key: 'style_preferred', label: 'Stile preferito', type: 'multiselect', options: ['naturale_glow', 'classico_elegante', 'glamour_intenso', 'bohemian', 'editoriale_moderno'] },
+      { key: 'other_people_makeup', label: 'Altre persone da truccare', type: 'number', help: 'Quante altre persone oltre te' },
+      { key: 'allergies', label: 'Allergie/sensibilità', type: 'textarea' },
+    ],
+  },
+  abiti: {
+    title: 'Abito',
+    questions: [
+      { key: 'style', label: 'Stile', type: 'textarea', placeholder: 'Es. elegante, classico, moderno' },
+      { key: 'colors', label: 'Colori preferiti', type: 'tags' },
+      { key: 'size_notes', label: 'Note taglia/misure', type: 'textarea' },
+    ],
+  },
+  location: {
+    title: 'Spazio e setup',
+    questions: [
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'service_type', label: 'Tipo di servizio', type: 'multiselect', options: ['solo_spazio', 'spazio_e_catering', 'aperitivo', 'pranzo', 'cena', 'evento_serale'] },
+      { key: 'special_needs', label: 'Esigenze particolari', type: 'textarea' },
+    ],
+  },
+  auto: {
+    title: 'Trasporto',
+    questions: [
+      { key: 'pickup_address', label: 'Indirizzo ritiro', type: 'text' },
+      { key: 'destination', label: 'Destinazione', type: 'text' },
+      { key: 'auto_style', label: 'Tipo auto', type: 'select', options: ['classica_epoca', 'moderna_lusso', 'limousine', 'minivan', 'sportiva'] },
+    ],
+  },
+  animazione: {
+    title: 'Intrattenimento',
+    questions: [
+      { key: 'children_count', label: 'Numero bambini', type: 'number' },
+      { key: 'children_age', label: 'Fasce d\'età', type: 'tags', placeholder: '3-5 anni, 6-10 anni, ...' },
+      { key: 'activities', label: 'Attività preferite', type: 'multiselect', options: ['baby_dance', 'truccabimbi', 'palloncini', 'magia', 'giochi_organizzati', 'angolo_lettura'] },
+    ],
+  },
+  celebrante: { title: 'Celebrazione', questions: [
+    { key: 'ceremony_type', label: 'Tipo cerimonia', type: 'textarea' },
+    { key: 'reading_preferences', label: 'Letture/preghiere preferite', type: 'textarea' },
+  ]},
+  wedding_planner: { title: 'Coordinamento evento', questions: [
+    { key: 'services_needed', label: 'Servizi richiesti', type: 'multiselect', options: ['consulenza', 'pianificazione_completa', 'coordinamento_giorno', 'gestione_fornitori'] },
+    { key: 'budget_range', label: 'Budget orientativo (€)', type: 'select', options: ['<5k', '5k-15k', '15k-30k', '30k-50k', '>50k'] },
+  ]},
+}
+
+// Combina domande event-specific con stile del fornitore.
+// Per matrimonio mantiene il flusso attuale (Q_* subrole cucite su matrimonio).
+// Per altri eventi (battesimo, comunione, ...) prende le domande evento + stile subrole.
+export function getQuestionsForSupplierContext(
+  subrole: string | null | undefined,
+  eventKind: string | null | undefined,
+  baseEventQuestions: QuestionnaireSection[],
+): QuestionnaireSection[] {
+  const ek = (eventKind ?? 'matrimonio').toLowerCase().trim()
+  if (ek === 'matrimonio') {
+    return getQuestionsForSubrole(subrole)
+  }
+  const k = (subrole ?? 'altro').toLowerCase().trim()
+  const styleSection = SUBROLE_STYLE_SECTIONS[k]
+  const sections: QuestionnaireSection[] = [...baseEventQuestions]
+  if (styleSection) sections.push(styleSection)
+  sections.push(INSPIRATION_SECTION)
+  return sections
+}
+
 const SUBROLE_LABELS: Record<string, string> = {
   fotografo: 'fotografo',
   videomaker: 'videomaker',

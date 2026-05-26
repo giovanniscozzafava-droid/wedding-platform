@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
 import { getQuestionsFor } from '@/lib/eventQuestions'
-import { getQuestionsForSubrole, subroleLabel } from '@/lib/supplierQuestions'
+import { getQuestionsForSupplierContext, subroleLabel } from '@/lib/supplierQuestions'
 import { eventTerm } from '@/lib/eventKind'
 import { QuestionnaireForm } from '@/components/QuestionnaireForm'
 
@@ -266,7 +266,9 @@ export default function QuoteAcceptPage() {
               </p>
             </div>
             <QuestionnaireForm
-              sections={isSupplierDirect ? getQuestionsForSubrole(ownerSubrole) : getQuestionsFor(eventKind)}
+              sections={isSupplierDirect
+                ? getQuestionsForSupplierContext(ownerSubrole, eventKind, getQuestionsFor(eventKind))
+                : getQuestionsFor(eventKind)}
               initial={answers}
               onChange={setAnswers}
             />
