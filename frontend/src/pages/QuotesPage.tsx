@@ -1,7 +1,7 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, FileText, ArrowUpRight, X, Trash2 } from 'lucide-react'
+import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,14 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { supabase } from '@/lib/supabase'
 import { useCreateQuote, useDeleteQuote, useQuotes } from '@/hooks/useQuotes'
+
+type BusyCheck = {
+  busy: boolean
+  quotes: Array<{ id: string; title: string; client_name: string | null; status: string; total_client: number; revision: number }>
+  entries: Array<{ id: string; title: string; status: string; kind: string }>
+}
 
 export default function QuotesPage() {
   const { data, isLoading } = useQuotes()
@@ -21,6 +28,27 @@ export default function QuotesPage() {
     title: '', client_name: '', client_email: '', event_date: '', guest_count: '', event_location: '', event_kind: 'matrimonio',
   })
   const [createErr, setCreateErr] = useState<string | null>(null)
+  const [busyCheck, setBusyCheck] = useState<BusyCheck | null>(null)
+  const [checkingBusy, setCheckingBusy] = useState(false)
+
+  // Verifica disponibilità data evento in tempo reale
+  useEffect(() => {
+    if (!openNew || !form.event_date) { setBusyCheck(null); return }
+    setCheckingBusy(true)
+    const t = setTimeout(async () => {
+      try {
+        const { data, error } = await (supabase as unknown as { rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+          .rpc('check_owner_date_busy', { p_date: form.event_date })
+        if (error) throw error
+        setBusyCheck(data as BusyCheck)
+      } catch {
+        setBusyCheck(null)
+      } finally {
+        setCheckingBusy(false)
+      }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [openNew, form.event_date])
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault()
@@ -166,6 +194,39 @@ export default function QuotesPage() {
                     <Input id="gc" type="number" value={form.guest_count} onChange={(e) => setForm((f) => ({ ...f, guest_count: e.target.value }))} />
                   </div>
                 </div>
+                {/* Alert disponibilità data */}
+                {form.event_date && busyCheck?.busy && (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    className="rounded-lg border p-3 text-xs"
+                    style={{
+                      borderColor: 'rgb(var(--amber-500))',
+                      background: 'rgb(var(--amber-100))',
+                      color: 'rgb(var(--ink, 26 23 20))',
+                    }}>
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle size={16} className="shrink-0 mt-0.5 text-[rgb(var(--amber-500))]" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">Hai già impegni su questa data</p>
+                        <ul className="mt-1 space-y-0.5">
+                          {busyCheck.quotes.map((q) => (
+                            <li key={q.id} className="truncate">
+                              · <strong>{q.status}</strong> · {q.title} {q.client_name && `(${q.client_name})`}
+                            </li>
+                          ))}
+                          {busyCheck.entries.map((e) => (
+                            <li key={e.id} className="truncate">
+                              · Calendario <strong>{e.status}</strong> · {e.title}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="mt-2 opacity-80">Procedi solo se sei sicuro di poter gestire più eventi contemporaneamente.</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                {form.event_date && checkingBusy && !busyCheck && (
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Verifica disponibilità...</p>
+                )}
                 <div className="space-y-1">
                   <Label htmlFor="eloc">Location evento</Label>
                   <Input id="eloc" value={form.event_location} onChange={(e) => setForm((f) => ({ ...f, event_location: e.target.value }))} placeholder="Es. Villa Rosa - Tropea" />
