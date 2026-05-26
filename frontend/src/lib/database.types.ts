@@ -515,6 +515,33 @@ export type Database = {
           },
         ]
       }
+      contracts_legacy_audit: {
+        Row: {
+          id: string | null
+          original_signature_data: Json | null
+          original_signed_at: string | null
+          patched_at: string | null
+          patched_signature_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string | null
+          original_signature_data?: Json | null
+          original_signed_at?: string | null
+          patched_at?: string | null
+          patched_signature_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string | null
+          original_signature_data?: Json | null
+          original_signed_at?: string | null
+          patched_at?: string | null
+          patched_signature_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       couple_change_requests: {
         Row: {
           action: Database["public"]["Enums"]["change_request_action"]
@@ -1142,6 +1169,79 @@ export type Database = {
             columns: ["table_id"]
             isOneToOne: false
             referencedRelation: "event_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_menu: {
+        Row: {
+          allergens: string[]
+          created_at: string
+          description: string | null
+          dietary_tags: string[]
+          entry_id: string
+          id: string
+          is_optional: boolean
+          notes: string | null
+          ord: number
+          price_per_guest: number | null
+          section: Database["public"]["Enums"]["menu_section_kind"]
+          supplier_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          allergens?: string[]
+          created_at?: string
+          description?: string | null
+          dietary_tags?: string[]
+          entry_id: string
+          id?: string
+          is_optional?: boolean
+          notes?: string | null
+          ord?: number
+          price_per_guest?: number | null
+          section: Database["public"]["Enums"]["menu_section_kind"]
+          supplier_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          allergens?: string[]
+          created_at?: string
+          description?: string | null
+          dietary_tags?: string[]
+          entry_id?: string
+          id?: string
+          is_optional?: boolean
+          notes?: string | null
+          ord?: number
+          price_per_guest?: number | null
+          section?: Database["public"]["Enums"]["menu_section_kind"]
+          supplier_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_menu_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_menu_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_menu_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2096,6 +2196,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      quote_acceptances_audit: {
+        Row: {
+          acceptance_pdf_url: string | null
+          accepted_at: string
+          access_token: string
+          audit_at: string
+          audit_reason: string | null
+          consent_privacy: boolean
+          consent_terms: boolean
+          created_at: string
+          doc_issued_by: string | null
+          doc_number: string
+          doc_type: string
+          id: string
+          ip_address: string | null
+          quote_id: string
+          quote_pdf_hash: string | null
+          quote_revision: number
+          signature_url: string
+          signer_email: string
+          signer_name: string
+          signer_phone: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          acceptance_pdf_url?: string | null
+          accepted_at?: string
+          access_token: string
+          audit_at?: string
+          audit_reason?: string | null
+          consent_privacy?: boolean
+          consent_terms?: boolean
+          created_at?: string
+          doc_issued_by?: string | null
+          doc_number: string
+          doc_type: string
+          id?: string
+          ip_address?: string | null
+          quote_id: string
+          quote_pdf_hash?: string | null
+          quote_revision: number
+          signature_url: string
+          signer_email: string
+          signer_name: string
+          signer_phone?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          acceptance_pdf_url?: string | null
+          accepted_at?: string
+          access_token?: string
+          audit_at?: string
+          audit_reason?: string | null
+          consent_privacy?: boolean
+          consent_terms?: boolean
+          created_at?: string
+          doc_issued_by?: string | null
+          doc_number?: string
+          doc_type?: string
+          id?: string
+          ip_address?: string | null
+          quote_id?: string
+          quote_pdf_hash?: string | null
+          quote_revision?: number
+          signature_url?: string
+          signer_email?: string
+          signer_name?: string
+          signer_phone?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
       }
       quote_items: {
         Row: {
@@ -3196,6 +3368,7 @@ export type Database = {
         | "SUBEVENT"
         | "WEBSITE"
         | "OTHER"
+        | "MENU"
       change_request_status: "PENDING" | "APPROVED" | "REJECTED" | "APPLIED"
       collaboration_status: "PENDING" | "ACTIVE" | "REVOKED"
       contract_status: "BOZZA" | "INVIATO" | "FIRMATO" | "ANNULLATO"
@@ -3219,6 +3392,19 @@ export type Database = {
         | "RINGRAZIAMENTO"
         | "GADGET"
         | "ALTRO"
+      menu_section_kind:
+        | "BENVENUTO"
+        | "ANTIPASTO"
+        | "PRIMO"
+        | "SECONDO"
+        | "CONTORNO"
+        | "FRUTTA"
+        | "DOLCE"
+        | "TORTA"
+        | "CAFFE"
+        | "BEVANDA"
+        | "OPEN_BAR"
+        | "CONFETTATA"
       modifier_type: "PERCENT" | "FIXED"
       pdf_variant: "NEUTRA" | "PREMIUM"
       profile_visibility: "PRIVATE" | "PUBLIC"
@@ -3419,6 +3605,7 @@ export const Constants = {
         "SUBEVENT",
         "WEBSITE",
         "OTHER",
+        "MENU",
       ],
       change_request_status: ["PENDING", "APPROVED", "REJECTED", "APPLIED"],
       collaboration_status: ["PENDING", "ACTIVE", "REVOKED"],
@@ -3444,6 +3631,20 @@ export const Constants = {
         "RINGRAZIAMENTO",
         "GADGET",
         "ALTRO",
+      ],
+      menu_section_kind: [
+        "BENVENUTO",
+        "ANTIPASTO",
+        "PRIMO",
+        "SECONDO",
+        "CONTORNO",
+        "FRUTTA",
+        "DOLCE",
+        "TORTA",
+        "CAFFE",
+        "BEVANDA",
+        "OPEN_BAR",
+        "CONFETTATA",
       ],
       modifier_type: ["PERCENT", "FIXED"],
       pdf_variant: ["NEUTRA", "PREMIUM"],

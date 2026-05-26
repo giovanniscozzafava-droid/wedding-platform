@@ -237,6 +237,52 @@ export function useMood(entryId: string | null) {
   })
 }
 
+// Menu matrimoniale (sezioni: antipasto, primo, secondo, dolce, bevande, ...)
+export function useMenu(entryId: string | null) {
+  return useQuery({
+    queryKey: ['menu', entryId],
+    enabled: !!entryId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('event_menu' as any) as any)
+        .select('*, supplier:profiles(id, business_name, full_name)')
+        .eq('entry_id', entryId!)
+        .order('section')
+        .order('ord')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+export function useMenuMutations(entryId: string) {
+  const qc = useQueryClient()
+  const inv = () => qc.invalidateQueries({ queryKey: ['menu', entryId] })
+  return {
+    add: useMutation({
+      mutationFn: async (input: { section: string; title: string; description?: string; dietary_tags?: string[]; allergens?: string[]; price_per_guest?: number | null; notes?: string; is_optional?: boolean; supplier_id?: string | null; ord?: number }) => {
+        const { data, error } = await (supabase.from('event_menu' as any) as any).insert({ entry_id: entryId, ord: 0, ...input }).select().single()
+        if (error) throw error
+        return data
+      },
+      onSuccess: inv,
+    }),
+    update: useMutation({
+      mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+        const { error } = await (supabase.from('event_menu' as any) as any).update(patch).eq('id', id)
+        if (error) throw error
+      },
+      onSuccess: inv,
+    }),
+    remove: useMutation({
+      mutationFn: async (id: string) => {
+        const { error } = await (supabase.from('event_menu' as any) as any).delete().eq('id', id)
+        if (error) throw error
+      },
+      onSuccess: inv,
+    }),
+  }
+}
+
 export function usePlaylist(entryId: string | null) {
   return useQuery({
     queryKey: ['playlist', entryId],

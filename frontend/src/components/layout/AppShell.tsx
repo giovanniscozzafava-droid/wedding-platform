@@ -99,9 +99,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'rgb(var(--bg))' }}>
-      {/* Sidebar desktop */}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
+    <div className="h-screen flex overflow-hidden" style={{ background: 'rgb(var(--bg))' }}>
+      {/* Sidebar desktop — fissa, no scroll con la pagina */}
+      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r h-screen sticky top-0" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
         <Link to="/" className="px-6 pt-6 pb-4 flex items-center gap-2" style={{ color: 'rgb(var(--fg))' }}>
           <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" style={{ color: 'rgb(var(--fg))' }} />
           <span className="font-display text-lg tracking-tight">Planfully</span>
@@ -233,8 +233,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Main area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* Main area — scrollabile indipendentemente dalla sidebar fissa */}
+      <div className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto">
         {/* Topbar mobile */}
         <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between gap-3 px-4 h-14 border-b backdrop-blur"
           style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev) / 0.85)' }}>

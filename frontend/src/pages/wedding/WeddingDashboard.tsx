@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, CalendarClock, Table2, Users as UsersIcon, Wallet, ListChecks,
   Palette, Music, FileSignature, FolderOpen, BarChart3, FileText,
-  BedDouble, Bus, Gift, PartyPopper, Globe, Heart,
+  BedDouble, Bus, Gift, PartyPopper, Globe, Heart, Utensils,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -26,15 +26,17 @@ import { GadgetsTab } from '@/components/wedding/GadgetsTab'
 import { SubEventsTab } from '@/components/wedding/SubEventsTab'
 import { WebsiteTab } from '@/components/wedding/WebsiteTab'
 import { MembersTab } from '@/components/wedding/MembersTab'
+import { MenuTab } from '@/components/wedding/MenuTab'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'overview' | 'timeline' | 'tables' | 'guests' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
+type TabKey = 'overview' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
   { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock },
   { key: 'guests',         label: 'Invitati',     icon: UsersIcon },
   { key: 'tables',         label: 'Tavoli',       icon: Table2 },
+  { key: 'menu',           label: 'Menu',         icon: Utensils },
   { key: 'accommodations', label: 'Alloggi',      icon: BedDouble },
   { key: 'transport',      label: 'Trasporti',    icon: Bus },
   { key: 'subevents',      label: 'Eventi',       icon: PartyPopper },
@@ -133,6 +135,7 @@ export default function WeddingDashboard() {
             {tab === 'timeline' && <TimelineTab entryId={wedding.id} />}
             {tab === 'tables' && <TablesTab entryId={wedding.id} />}
             {tab === 'guests' && <GuestsTab entryId={wedding.id} />}
+            {tab === 'menu' && <MenuTab entryId={wedding.id} />}
             {tab === 'budget' && <BudgetTab entryId={wedding.id} />}
             {tab === 'checklist' && <ChecklistTab entryId={wedding.id} />}
             {tab === 'mood' && <MoodTab entryId={wedding.id} />}

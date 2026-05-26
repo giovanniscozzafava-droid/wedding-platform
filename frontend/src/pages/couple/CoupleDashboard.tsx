@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
-  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink,
+  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils,
 } from 'lucide-react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -19,9 +19,10 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
+import { MenuTab } from '@/components/wedding/MenuTab'
 import { AppFooter } from '@/components/layout/AppFooter'
 
-type Tab = 'overview' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'mood' | 'playlist' | 'gadgets' | 'website'
+type Tab = 'overview' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
 const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'overview',  label: 'Overview',     icon: Heart },
@@ -31,6 +32,7 @@ const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'trasporti', label: 'Trasporti',    icon: Bus },
   { key: 'invitati',  label: 'Invitati',     icon: UsersIcon },
   { key: 'tavoli',    label: 'Tavoli',       icon: PartyPopper },
+  { key: 'menu',      label: 'Menu',         icon: Utensils },
   { key: 'mood',      label: 'Mood board',   icon: Palette },
   { key: 'playlist',  label: 'Playlist',     icon: Music },
   { key: 'gadgets',   label: 'Bomboniere',   icon: Gift },
@@ -185,6 +187,14 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             {tab === 'trasporti' && <TrasportiCouple entryId={entryId} />}
             {tab === 'invitati' && <InvitatiCouple entryId={entryId} />}
             {tab === 'tavoli' && <TavoliCouple entryId={entryId} />}
+            {tab === 'menu' && (
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <ChangeRequestModal weddingId={entryId} entityType="MENU" defaultAction="UPDATE" prefillTitle="Modifica al menu" />
+                </div>
+                <MenuTab entryId={entryId} readOnly />
+              </div>
+            )}
             {tab === 'mood' && <MoodCouple entryId={entryId} />}
             {tab === 'playlist' && <PlaylistCouple entryId={entryId} />}
             {tab === 'gadgets' && <GadgetsCouple entryId={entryId} />}

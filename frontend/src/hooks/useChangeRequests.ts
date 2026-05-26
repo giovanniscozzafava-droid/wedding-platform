@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
-export type EntityType = 'GUEST' | 'TABLE' | 'ACCOMMODATION' | 'TRANSPORT' | 'TIMELINE' | 'SUBEVENT' | 'WEBSITE' | 'OTHER'
+export type EntityType = 'GUEST' | 'TABLE' | 'ACCOMMODATION' | 'TRANSPORT' | 'TIMELINE' | 'SUBEVENT' | 'WEBSITE' | 'MENU' | 'OTHER'
 export type ReqAction = 'CREATE' | 'UPDATE' | 'DELETE'
 export type ReqStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPLIED'
 
@@ -97,6 +97,7 @@ export function entityLabel(t: EntityType): string {
     TIMELINE: 'Scaletta',
     SUBEVENT: 'Sub-evento',
     WEBSITE: 'Sito ospiti',
+    MENU: 'Menu',
     OTHER: 'Altro',
   })[t] ?? t
 }
