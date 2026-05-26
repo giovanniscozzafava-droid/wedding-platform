@@ -1,26 +1,47 @@
-import { useState } from 'react'
-import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { supabase } from '@/lib/supabase'
 import { useMenu, useMenuMutations } from '@/hooks/useWedding'
 
-const SECTIONS: Array<{ key: string; label: string }> = [
-  { key: 'BENVENUTO', label: 'Aperitivo di benvenuto' },
-  { key: 'ANTIPASTO', label: 'Antipasti' },
-  { key: 'PRIMO', label: 'Primi piatti' },
-  { key: 'SECONDO', label: 'Secondi piatti' },
-  { key: 'CONTORNO', label: 'Contorni' },
-  { key: 'FRUTTA', label: 'Frutta' },
-  { key: 'DOLCE', label: 'Dolci' },
-  { key: 'TORTA', label: 'Taglio torta' },
-  { key: 'CAFFE', label: 'Caffè' },
-  { key: 'BEVANDA', label: 'Bevande' },
-  { key: 'OPEN_BAR', label: 'Open bar' },
-  { key: 'CONFETTATA', label: 'Confettata' },
+const SECTIONS: Array<{ key: string; label: string; group: string }> = [
+  // Menu seduta tradizionale
+  { key: 'BENVENUTO',           label: 'Aperitivo di benvenuto',  group: 'Menu seduta' },
+  { key: 'ANTIPASTO',           label: 'Antipasti',                group: 'Menu seduta' },
+  { key: 'PRIMO',               label: 'Primi piatti',             group: 'Menu seduta' },
+  { key: 'SECONDO',             label: 'Secondi piatti',           group: 'Menu seduta' },
+  { key: 'CONTORNO',            label: 'Contorni',                 group: 'Menu seduta' },
+  { key: 'FRUTTA',              label: 'Frutta',                   group: 'Menu seduta' },
+  { key: 'DOLCE',               label: 'Dolci',                    group: 'Menu seduta' },
+  { key: 'TORTA',               label: 'Taglio torta',             group: 'Menu seduta' },
+  { key: 'CAFFE',               label: 'Caffè',                    group: 'Menu seduta' },
+  { key: 'BEVANDA',             label: 'Bevande',                  group: 'Menu seduta' },
+  // Isole pre-cena
+  { key: 'ISOLA_BENVENUTO',     label: 'Isola benvenuto',          group: 'Isole pre-cena' },
+  { key: 'ISOLA_PRECENA',       label: 'Isola pre-cena (generica)',group: 'Isole pre-cena' },
+  { key: 'ISOLA_SALUMI',        label: 'Isola salumi e formaggi',  group: 'Isole pre-cena' },
+  { key: 'ISOLA_FRITTI',        label: 'Isola fritti caldi',       group: 'Isole pre-cena' },
+  { key: 'ISOLA_PIZZA',         label: 'Isola pizza',              group: 'Isole pre-cena' },
+  { key: 'ISOLA_PESCE_CRUDO',   label: 'Isola pesce crudo',        group: 'Isole pre-cena' },
+  { key: 'ISOLA_PASTA_LIVE',    label: 'Isola pasta fresca live',  group: 'Isole pre-cena' },
+  { key: 'ISOLA_FORMAGGI',      label: 'Isola formaggi DOP',       group: 'Isole pre-cena' },
+  { key: 'SHOW_COOKING',        label: 'Show cooking',             group: 'Isole pre-cena' },
+  // Isole / carrelli dopocena
+  { key: 'ISOLA_DOPOCENA',      label: 'Isola dopocena (gelati ecc.)', group: 'Isole dopocena' },
+  { key: 'ISOLA_DOLCI',         label: 'Isola dolci',              group: 'Isole dopocena' },
+  { key: 'ISOLA_FRUTTA',        label: 'Isola frutta',             group: 'Isole dopocena' },
+  { key: 'ISOLA_CIOCCOLATO',    label: 'Isola cioccolato',         group: 'Isole dopocena' },
+  { key: 'CARRELLO_DISTILLATI', label: 'Carrello distillati',      group: 'Isole dopocena' },
+  { key: 'CARRELLO_SIGARI',     label: 'Carrello sigari',          group: 'Isole dopocena' },
+  { key: 'CARRELLO_GIN_TONIC',  label: 'Gin Tonic station',        group: 'Isole dopocena' },
+  { key: 'CARRELLO_CAFFE_SPECIAL', label: 'Caffè con liquori',     group: 'Isole dopocena' },
+  { key: 'OPEN_BAR',            label: 'Open bar',                 group: 'Isole dopocena' },
+  { key: 'CONFETTATA',          label: 'Confettata',               group: 'Isole dopocena' },
 ]
 
 const DIETARY_TAGS = ['vegano', 'vegetariano', 'celiaco', 'no_lattosio', 'kosher', 'halal', 'pesce_friendly', 'kid_friendly']
@@ -52,17 +73,65 @@ const EMPTY: FormState = {
   is_optional: false,
 }
 
+type Preset = {
+  id: string
+  section: string
+  title: string
+  description: string | null
+  dietary_tags: string[] | null
+  allergens: string[] | null
+  typical_price_per_guest: number | null
+  region: string | null
+}
+
 export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOnly?: boolean }) {
   const { data, isLoading } = useMenu(entryId)
   const { add, update, remove } = useMenuMutations(entryId)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY)
   const [open, setOpen] = useState(false)
+  const [presetsOpen, setPresetsOpen] = useState(false)
+  const [presets, setPresets] = useState<Preset[]>([])
+  const [presetFilter, setPresetFilter] = useState<string>('')
+
+  useEffect(() => {
+    if (!presetsOpen || readOnly) return
+    void (async () => {
+      const { data } = await (supabase.from('menu_presets' as any) as any)
+        .select('id, section, title, description, dietary_tags, allergens, typical_price_per_guest, region')
+        .eq('is_active', true)
+        .order('section')
+      setPresets((data ?? []) as Preset[])
+    })()
+  }, [presetsOpen, readOnly])
 
   const grouped = SECTIONS.map((s) => ({
     ...s,
     items: ((data as any[] | undefined) ?? []).filter((it) => it.section === s.key),
   }))
+
+  async function importPreset(p: Preset) {
+    try {
+      await add.mutateAsync({
+        section: p.section,
+        title: p.title,
+        description: p.description ?? undefined,
+        dietary_tags: p.dietary_tags ?? [],
+        allergens: p.allergens ?? [],
+        price_per_guest: p.typical_price_per_guest ?? null,
+      } as any)
+      toast.success(`"${p.title}" importato`)
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  const filteredPresets = presets.filter((p) => {
+    if (!presetFilter) return true
+    return p.section.toLowerCase().includes(presetFilter.toLowerCase())
+        || p.title.toLowerCase().includes(presetFilter.toLowerCase())
+        || (p.region ?? '').toLowerCase().includes(presetFilter.toLowerCase())
+  })
 
   function openCreate(section: string) {
     setEditing(null)
@@ -141,9 +210,14 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
           <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
             {readOnly
               ? 'Il menu viene definito da WP / location. Usa "Suggerisci modifica" per richiedere variazioni.'
-              : 'Definisci ogni portata con diete e allergeni (Reg. UE 1169/2011). Gli sposi vedono il menu in sola lettura.'}
+              : 'Definisci portate seduta, isole pre-cena, show cooking, isole dolci, carrelli bar. Diete + allergeni (Reg. UE 1169/2011).'}
           </p>
         </div>
+        {!readOnly && (
+          <Button variant="outline" size="sm" onClick={() => setPresetsOpen(true)}>
+            <BookOpen size={14} /> Importa da catalogo
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -215,6 +289,66 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
               </section>
             )
           ))}
+        </div>
+      )}
+
+      {presetsOpen && !readOnly && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setPresetsOpen(false)}>
+          <div className="surface surface-elev max-w-4xl w-full max-h-[90vh] flex flex-col rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+              <div>
+                <h3 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} /> Catalogo offerte</h3>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                  {filteredPresets.length} stazioni tipiche italiane (isole, show cooking, carrelli). Click "Importa" per aggiungere al tuo menu — modificabile dopo.
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setPresetsOpen(false)} aria-label="Chiudi"><XIcon size={16} /></Button>
+            </div>
+            <div className="p-4 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+              <Input placeholder="Filtra per sezione, titolo, regione (es. 'sicilia', 'sigari', 'pizza')..."
+                value={presetFilter} onChange={(e) => setPresetFilter(e.target.value)} />
+            </div>
+            <div className="overflow-y-auto p-4 flex-1 space-y-2">
+              {filteredPresets.map((p) => {
+                const secLabel = SECTIONS.find((s) => s.key === p.section)?.label ?? p.section
+                return (
+                  <Card key={p.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <h4 className="font-medium">{p.title}</h4>
+                          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                            {secLabel}
+                          </span>
+                          {p.region && <span className="text-[10px] text-[rgb(var(--fg-subtle))]">{p.region}</span>}
+                          {p.typical_price_per_guest && (
+                            <span className="text-xs text-[rgb(var(--fg-muted))]">~€ {p.typical_price_per_guest}/pax</span>
+                          )}
+                        </div>
+                        {p.description && <p className="text-sm text-[rgb(var(--fg-muted))] mt-1.5 leading-relaxed">{p.description}</p>}
+                        {((p.dietary_tags?.length ?? 0) > 0 || (p.allergens?.length ?? 0) > 0) && (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            {(p.dietary_tags ?? []).map((t) => (
+                              <span key={t} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--sage-100))', color: 'rgb(var(--sage-700))' }}>{t}</span>
+                            ))}
+                            {(p.allergens ?? []).map((a) => (
+                              <span key={a} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--rose-100))', color: 'rgb(var(--rose-700))' }}>{a}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <Button variant="gold" size="sm" onClick={() => importPreset(p)} disabled={add.isPending}>
+                        <Plus size={13} /> Importa
+                      </Button>
+                    </div>
+                  </Card>
+                )
+              })}
+              {filteredPresets.length === 0 && (
+                <p className="text-sm text-center text-[rgb(var(--fg-muted))] py-12">Nessun preset corrisponde al filtro.</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
