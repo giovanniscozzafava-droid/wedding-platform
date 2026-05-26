@@ -26,6 +26,11 @@ export type FeedPost = {
   liked_by_me: boolean
   event_id: string | null
   event_title: string | null
+  post_type?: 'SHORT' | 'ARTICLE'
+  title?: string | null
+  cover_image_url?: string | null
+  body_html?: string | null
+  slug?: string | null
 }
 
 type Comment = {
@@ -146,11 +151,29 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
         )}
       </div>
 
-      {/* Body */}
-      {post.body && (
-        <div className="px-4 pb-3">
-          <p className="text-sm whitespace-pre-wrap leading-relaxed">{post.body}</p>
-        </div>
+      {/* Body — articolo o post normale */}
+      {post.post_type === 'ARTICLE' && post.title ? (
+        <Link to={`/feed/post/${post.slug ?? post.id}`} className="block">
+          {post.cover_image_url && (
+            <img src={post.cover_image_url} alt="" className="w-full aspect-[21/9] object-cover" loading="lazy" />
+          )}
+          <div className="px-4 py-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] mb-1" style={{ color: 'rgb(var(--gold-600))' }}>
+              Articolo · Lettura
+            </p>
+            <h2 className="font-display text-xl sm:text-2xl leading-tight mb-2 hover:underline">{post.title}</h2>
+            {post.body && (
+              <p className="text-sm text-[rgb(var(--fg-muted))] line-clamp-3 leading-relaxed">{post.body}</p>
+            )}
+            <p className="text-xs font-medium mt-3" style={{ color: 'rgb(var(--gold-600))' }}>Leggi l'articolo →</p>
+          </div>
+        </Link>
+      ) : (
+        post.body && (
+          <div className="px-4 pb-3">
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">{post.body}</p>
+          </div>
+        )
       )}
 
       {/* Event link */}
@@ -164,8 +187,8 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
         </div>
       )}
 
-      {/* Media carousel */}
-      {post.media_urls.length > 0 && (
+      {/* Media carousel — solo per post SHORT (l'articolo ha già la cover) */}
+      {post.post_type !== 'ARTICLE' && post.media_urls.length > 0 && (
         <div className="relative bg-[rgb(var(--bg-sunken))]">
           <img src={post.media_urls[carouselIdx]!} alt=""
             className="w-full max-h-[600px] object-cover" />

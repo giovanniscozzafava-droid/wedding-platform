@@ -43,6 +43,8 @@ import PublicWpPage from '@/pages/public/PublicWpPage'
 import WpLeadsPage from '@/pages/WpLeadsPage'
 import PublicHomePage from '@/pages/public/PublicHomePage'
 import DiscoverProsPage from '@/pages/public/DiscoverProsPage'
+import FeedArticlePage from '@/pages/public/FeedArticlePage'
+import FeedArticleEditorPage from '@/pages/FeedArticleEditorPage'
 import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
 import SupplierAvailabilityPage from '@/pages/SupplierAvailabilityPage'
 import SupplierClientsPage from '@/pages/SupplierClientsPage'
@@ -170,6 +172,9 @@ export default function App() {
           <Route path="/scopri" element={<DiscoverPage />} />
           <Route path="/p/fornitore/:slug" element={<PublicSupplierPage />} />
           <Route path="/feed" element={<RequireAuth><HomeFeedPage /></RequireAuth>} />
+          <Route path="/feed/nuovo-articolo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><FeedArticleEditorPage /></RequireAuth>} />
+          <Route path="/feed/modifica-articolo/:id" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><FeedArticleEditorPage /></RequireAuth>} />
+          <Route path="/feed/post/:slug" element={<FeedArticlePage />} />
           <Route path="/p/wp/:slug" element={<PublicWpPage />} />
           <Route path="/leads" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><WpLeadsPage /></RequireAuth>} />
           <Route path="/blog" element={<BlogListPage />} />

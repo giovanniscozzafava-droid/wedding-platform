@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ImagePlus, X, AtSign, Globe, Users as UsersIcon, Lock, Send } from 'lucide-react'
+import { ImagePlus, X, AtSign, Globe, Users as UsersIcon, Lock, Send, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
@@ -96,18 +97,25 @@ export function PostComposer({ onPosted }: Props) {
   return (
     <div className="surface surface-elev p-4 mb-6">
       {!open ? (
-        <button onClick={() => setOpen(true)}
-          className="flex items-center gap-3 w-full text-left px-3 py-3 rounded-full hover:bg-[rgb(var(--bg-sunken))] transition-colors">
-          {profile?.brand_logo_url ? (
-            <img src={profile.brand_logo_url} alt="" className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <div className="w-10 h-10 rounded-full flex items-center justify-center font-display"
-              style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-              {initials}
-            </div>
-          )}
-          <span className="text-sm text-[rgb(var(--fg-muted))]">Condividi un evento, una storia, un dietro le quinte...</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setOpen(true)}
+            className="flex-1 flex items-center gap-3 text-left px-3 py-3 rounded-full hover:bg-[rgb(var(--bg-sunken))] transition-colors">
+            {profile?.brand_logo_url ? (
+              <img src={profile.brand_logo_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-display"
+                style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                {initials}
+              </div>
+            )}
+            <span className="text-sm text-[rgb(var(--fg-muted))]">Condividi un evento, una foto, un dietro le quinte...</span>
+          </button>
+          <Link to="/feed/nuovo-articolo"
+            className="hidden sm:inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-full border hover:bg-[rgb(var(--bg-sunken))] transition-colors whitespace-nowrap"
+            style={{ borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
+            <FileText size={13} /> Scrivi articolo
+          </Link>
+        </div>
       ) : (
         <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
           <div className="flex items-start gap-3">
