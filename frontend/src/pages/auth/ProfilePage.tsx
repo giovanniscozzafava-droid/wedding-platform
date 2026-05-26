@@ -16,6 +16,11 @@ export default function ProfilePage() {
   const [form, setForm] = useState({
     full_name: '', business_name: '', phone: '', subrole: '',
     work_style: '', offers_full_dining: false,
+    // Dati fiscali — riusati su ogni contratto generato
+    business_legal_name: '',
+    vat_number: '', fiscal_code: '',
+    address: '', city: '', zip: '', province: '', country: 'Italia',
+    sdi_code: '', pec_email: '',
   })
   const [busy, setBusy] = useState(false)
   const [deletionPending, setDeletionPending] = useState<boolean>(false)
@@ -24,7 +29,7 @@ export default function ProfilePage() {
     if (!user) return
     void (async () => {
       const { data } = await (supabase.from('profiles') as any)
-        .select('full_name, business_name, phone, subrole, work_style, offers_full_dining, deletion_requested_at')
+        .select('full_name, business_name, phone, subrole, work_style, offers_full_dining, deletion_requested_at, business_legal_name, vat_number, fiscal_code, address, city, zip, province, country, sdi_code, pec_email')
         .eq('id', user.id).maybeSingle()
       if (data) {
         setForm({
@@ -34,6 +39,16 @@ export default function ProfilePage() {
           subrole: data.subrole ?? '',
           work_style: (data as any).work_style ?? '',
           offers_full_dining: !!(data as any).offers_full_dining,
+          business_legal_name: (data as any).business_legal_name ?? '',
+          vat_number: (data as any).vat_number ?? '',
+          fiscal_code: (data as any).fiscal_code ?? '',
+          address: (data as any).address ?? '',
+          city: (data as any).city ?? '',
+          zip: (data as any).zip ?? '',
+          province: (data as any).province ?? '',
+          country: (data as any).country ?? 'Italia',
+          sdi_code: (data as any).sdi_code ?? '',
+          pec_email: (data as any).pec_email ?? '',
         })
         setDeletionPending(!!(data as any).deletion_requested_at)
       }
@@ -52,6 +67,16 @@ export default function ProfilePage() {
         subrole: form.subrole || null,
         work_style: form.work_style || null,
         offers_full_dining: form.offers_full_dining,
+        business_legal_name: form.business_legal_name || null,
+        vat_number: form.vat_number || null,
+        fiscal_code: form.fiscal_code || null,
+        address: form.address || null,
+        city: form.city || null,
+        zip: form.zip || null,
+        province: form.province || null,
+        country: form.country || null,
+        sdi_code: form.sdi_code || null,
+        pec_email: form.pec_email || null,
       } as any).eq('id', user.id)
       if (err) throw err
       await refreshProfile()
@@ -135,6 +160,82 @@ export default function ProfilePage() {
                   </div>
                 </label>
               )}
+
+              {/* === Dati fiscali — riusati su ogni contratto === */}
+              <div className="pt-4 mt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                <h3 className="font-display text-base mb-1">Dati fiscali</h3>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
+                  Vengono compilati automaticamente in ogni contratto e fattura che generi. Compilali una volta, ti accompagnano per sempre.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1 md:col-span-2">
+                    <Label htmlFor="business_legal_name">Ragione sociale completa</Label>
+                    <Input id="business_legal_name" value={form.business_legal_name}
+                      placeholder="Es. Fuyue Srl"
+                      onChange={(e) => setForm((f) => ({ ...f, business_legal_name: e.target.value }))} />
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Nome legale dell'impresa per atti e contratti. Distinto dal brand.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="vat_number">Partita IVA</Label>
+                    <Input id="vat_number" value={form.vat_number}
+                      placeholder="01234567890"
+                      onChange={(e) => setForm((f) => ({ ...f, vat_number: e.target.value.toUpperCase() }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="fiscal_code">Codice fiscale</Label>
+                    <Input id="fiscal_code" value={form.fiscal_code}
+                      placeholder="RSSMRA80A01H501Z"
+                      onChange={(e) => setForm((f) => ({ ...f, fiscal_code: e.target.value.toUpperCase() }))} />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <Label htmlFor="address">Sede / Indirizzo</Label>
+                    <Input id="address" value={form.address}
+                      placeholder="Via Roma 12"
+                      onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="city">Città</Label>
+                    <Input id="city" value={form.city}
+                      placeholder="Cosenza"
+                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="zip">CAP</Label>
+                      <Input id="zip" value={form.zip}
+                        placeholder="87100"
+                        onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="province">Provincia</Label>
+                      <Input id="province" value={form.province}
+                        placeholder="CS"
+                        maxLength={2}
+                        onChange={(e) => setForm((f) => ({ ...f, province: e.target.value.toUpperCase() }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="country">Paese</Label>
+                    <Input id="country" value={form.country}
+                      onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="sdi_code">Codice SDI</Label>
+                    <Input id="sdi_code" value={form.sdi_code}
+                      placeholder="ABCDE12"
+                      maxLength={7}
+                      onChange={(e) => setForm((f) => ({ ...f, sdi_code: e.target.value.toUpperCase() }))} />
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))]">7 caratteri per fattura elettronica B2B.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="pec_email">PEC</Label>
+                    <Input id="pec_email" type="email" value={form.pec_email}
+                      placeholder="azienda@pec.it"
+                      onChange={(e) => setForm((f) => ({ ...f, pec_email: e.target.value }))} />
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Alternativa a SDI per ricezione fatture.</p>
+                  </div>
+                </div>
+              </div>
 
               <div className="flex justify-end">
                 <Button type="submit" variant="gold" disabled={busy}>

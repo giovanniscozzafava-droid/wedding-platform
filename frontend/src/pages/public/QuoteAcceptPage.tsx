@@ -43,7 +43,7 @@ export default function QuoteAcceptPage() {
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<{ acceptance_pdf_url?: string | null } | null>(null)
 
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0)
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0)
   const [eventKind, setEventKind] = useState<string>('matrimonio')
   const [ownerSubrole, setOwnerSubrole] = useState<string | null>(null)
   const [isSupplierDirect, setIsSupplierDirect] = useState(false)
@@ -59,6 +59,17 @@ export default function QuoteAcceptPage() {
   const [consentTerms, setConsentTerms] = useState(false)
   const [consentPrivacy, setConsentPrivacy] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Dati fiscali del cliente — richiesti per la stipula del contratto
+  const [fiscalCode, setFiscalCode] = useState('')
+  const [vatNumber, setVatNumber] = useState('')
+  const [businessName, setBusinessName] = useState('')
+  const [address, setAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [zip, setZip] = useState('')
+  const [province, setProvince] = useState('')
+  const [country] = useState('Italia')
+  const [sdiCode, setSdiCode] = useState('')
+  const [pecEmail, setPecEmail] = useState('')
 
   useEffect(() => {
     if (!token) return
@@ -107,6 +118,8 @@ export default function QuoteAcceptPage() {
   async function submit() {
     if (!token) return
     if (!signerName.trim()) return toast.error('Inserisci nome e cognome')
+    if (!fiscalCode.trim()) return toast.error('Codice fiscale obbligatorio')
+    if (!address.trim() || !city.trim()) return toast.error('Indirizzo e città obbligatori')
     if (!docNumber.trim()) return toast.error('Inserisci numero documento')
     if (!signature) return toast.error('Firma sul riquadro')
     if (!consentTerms || !consentPrivacy) return toast.error('Devi accettare termini e privacy')
@@ -123,6 +136,18 @@ export default function QuoteAcceptPage() {
           signature_data_url: signature,
           consent_terms: consentTerms,
           consent_privacy: consentPrivacy,
+          fiscal: {
+            fiscal_code: fiscalCode.trim().toUpperCase(),
+            vat_number: vatNumber.trim().toUpperCase() || null,
+            business_name: businessName.trim() || null,
+            address: address.trim(),
+            city: city.trim(),
+            zip: zip.trim() || null,
+            province: province.trim().toUpperCase() || null,
+            country: country.trim() || 'Italia',
+            sdi_code: sdiCode.trim().toUpperCase() || null,
+            pec_email: pecEmail.trim() || null,
+          },
         },
       })
       if (error) throw error
@@ -219,9 +244,9 @@ export default function QuoteAcceptPage() {
 
         {/* Steps progress */}
         <div className="flex items-center gap-1 mb-4 px-2">
-          {[0, 1, 2, 3].map((n) => (
+          {[0, 1, 2, 3, 4].map((n) => (
             <div key={n} className="flex-1 h-1.5 rounded-full transition-colors"
-              style={{ background: step >= (n as 0 | 1 | 2 | 3) ? 'rgb(var(--gold-500))' : 'rgb(var(--bg-sunken))' }} />
+              style={{ background: step >= (n as 0 | 1 | 2 | 3 | 4) ? 'rgb(var(--gold-500))' : 'rgb(var(--bg-sunken))' }} />
           ))}
         </div>
 
@@ -291,8 +316,95 @@ export default function QuoteAcceptPage() {
           </div>
         )}
 
-        {/* STEP 2: Documento identità */}
+        {/* STEP 2: Dati fiscali del cliente per stipula contratto */}
         {step === 2 && (
+          <div className="surface surface-lift p-5 sm:p-6 space-y-4">
+            <div>
+              <h2 className="font-display text-xl">Dati fiscali</h2>
+              <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
+                Servono per intestare correttamente il contratto e l'eventuale fattura. Vengono usati solo a questo scopo.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label>Codice fiscale <span className="text-[rgb(var(--rose-500))]">*</span></Label>
+              <Input value={fiscalCode} maxLength={16}
+                onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
+                placeholder="RSSMRA80A01H501Z" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Partita IVA (se azienda)</Label>
+                <Input value={vatNumber}
+                  onChange={(e) => setVatNumber(e.target.value.toUpperCase())}
+                  placeholder="01234567890" />
+              </div>
+              <div className="space-y-1">
+                <Label>Ragione sociale</Label>
+                <Input value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="Se azienda" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Indirizzo <span className="text-[rgb(var(--rose-500))]">*</span></Label>
+              <Input value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Via Roma 12" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Città <span className="text-[rgb(var(--rose-500))]">*</span></Label>
+                <Input value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Cosenza" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label>CAP</Label>
+                  <Input value={zip} maxLength={5}
+                    onChange={(e) => setZip(e.target.value)}
+                    placeholder="87100" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Prov.</Label>
+                  <Input value={province} maxLength={2}
+                    onChange={(e) => setProvince(e.target.value.toUpperCase())}
+                    placeholder="CS" />
+                </div>
+              </div>
+            </div>
+            <details className="text-xs">
+              <summary className="cursor-pointer text-[rgb(var(--fg-muted))] py-1">
+                Dati per fatturazione elettronica (opzionale)
+              </summary>
+              <div className="space-y-3 pt-2">
+                <div className="space-y-1">
+                  <Label>Codice SDI</Label>
+                  <Input value={sdiCode} maxLength={7}
+                    onChange={(e) => setSdiCode(e.target.value.toUpperCase())}
+                    placeholder="ABCDE12" />
+                </div>
+                <div className="space-y-1">
+                  <Label>PEC</Label>
+                  <Input type="email" value={pecEmail}
+                    onChange={(e) => setPecEmail(e.target.value)}
+                    placeholder="cliente@pec.it" />
+                </div>
+              </div>
+            </details>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setStep(1)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
+              <Button variant="gold" onClick={() => setStep(3)}
+                disabled={!fiscalCode.trim() || !address.trim() || !city.trim()}
+                className="flex-1">
+                Continua <ChevronRight size={14} />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Documento identità */}
+        {step === 3 && (
           <div className="surface surface-lift p-5 sm:p-6 space-y-4">
             <div>
               <h2 className="font-display text-xl flex items-center gap-2"><Shield size={18} /> Documento</h2>
@@ -317,16 +429,16 @@ export default function QuoteAcceptPage() {
               <Input value={docIssuedBy} onChange={(e) => setDocIssuedBy(e.target.value)} placeholder="Comune di Cosenza" />
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setStep(1)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
-              <Button variant="gold" onClick={() => setStep(3)} disabled={!docNumber.trim()} className="flex-1">
+              <Button variant="ghost" onClick={() => setStep(2)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
+              <Button variant="gold" onClick={() => setStep(4)} disabled={!docNumber.trim()} className="flex-1">
                 Continua <ChevronRight size={14} />
               </Button>
             </div>
           </div>
         )}
 
-        {/* STEP 3: Firma + conferma */}
-        {step === 3 && (
+        {/* STEP 4: Firma + conferma */}
+        {step === 4 && (
           <div className="surface surface-lift p-5 sm:p-6 space-y-4">
             <div>
               <h2 className="font-display text-xl">Firma</h2>
@@ -361,7 +473,7 @@ export default function QuoteAcceptPage() {
             </div>
 
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setStep(2)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
+              <Button variant="ghost" onClick={() => setStep(3)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
               <Button variant="gold" onClick={submit} disabled={busy || !signature || !consentTerms || !consentPrivacy} className="flex-1">
                 {busy ? 'Invio...' : 'Conferma e firma'}
               </Button>

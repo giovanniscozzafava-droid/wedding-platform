@@ -58,6 +58,19 @@ Deno.serve(async (req) => {
     signature_data_url?: string
     consent_terms?: boolean
     consent_privacy?: boolean
+    // Dati fiscali del cliente (raccolti pre-firma per il contratto)
+    fiscal?: {
+      fiscal_code?: string
+      vat_number?: string
+      business_name?: string
+      address?: string
+      city?: string
+      zip?: string
+      province?: string
+      country?: string
+      sdi_code?: string
+      pec_email?: string
+    }
   }
 
   if (!body.token) return json({ error: 'token required' }, 400)
@@ -66,6 +79,8 @@ Deno.serve(async (req) => {
   if (!body.doc_number?.trim()) return json({ error: 'Numero documento obbligatorio' }, 400)
   if (!body.signature_data_url) return json({ error: 'Firma obbligatoria' }, 400)
   if (!body.consent_terms || !body.consent_privacy) return json({ error: 'Devi accettare termini e privacy' }, 400)
+  if (!body.fiscal?.fiscal_code?.trim()) return json({ error: 'Codice fiscale obbligatorio per la stipula del contratto' }, 400)
+  if (!body.fiscal?.address?.trim() || !body.fiscal?.city?.trim()) return json({ error: 'Indirizzo e città obbligatori' }, 400)
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
@@ -127,7 +142,8 @@ Deno.serve(async (req) => {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('cf-connecting-ip') ?? null
   const ua = req.headers.get('user-agent') ?? null
 
-  // 5. Insert quote_acceptances
+  // 5. Insert quote_acceptances (con snapshot fiscale del cliente)
+  const f = body.fiscal ?? {}
   const { data: acceptance, error: insErr } = await admin.from('quote_acceptances').insert({
     quote_id: quote.id,
     access_token: body.token,
@@ -144,6 +160,16 @@ Deno.serve(async (req) => {
     user_agent: ua,
     consent_terms: true,
     consent_privacy: true,
+    client_fiscal_code:    f.fiscal_code ? safeText(f.fiscal_code).toUpperCase() : null,
+    client_vat_number:     f.vat_number ? safeText(f.vat_number).toUpperCase() : null,
+    client_business_name:  f.business_name ? safeText(f.business_name) : null,
+    client_address:        f.address ? safeText(f.address) : null,
+    client_city:           f.city ? safeText(f.city) : null,
+    client_zip:            f.zip ? safeText(f.zip) : null,
+    client_province:       f.province ? safeText(f.province).toUpperCase() : null,
+    client_country:        f.country ? safeText(f.country) : null,
+    client_sdi_code:       f.sdi_code ? safeText(f.sdi_code).toUpperCase() : null,
+    client_pec_email:      f.pec_email ? safeText(f.pec_email) : null,
   }).select().single()
   if (insErr) return json({ error: 'insert acceptance failed', detail: insErr.message }, 500)
 
@@ -159,6 +185,36 @@ Deno.serve(async (req) => {
   // 7. Aggiorna calendar_entries → OPZIONATA
   await admin.from('calendar_entries').update({ status: 'OPZIONATA', updated_at: new Date().toISOString() })
     .eq('quote_id', quote.id).in('status', ['IN_TRATTATIVA', 'OPZIONATA'])
+
+  // 7b. Propaga dati fiscali ai contracts collegati (se già esistenti)
+  await admin.from('contracts').update({
+    client_fiscal_code:    f.fiscal_code ? safeText(f.fiscal_code).toUpperCase() : null,
+    client_vat_number:     f.vat_number ? safeText(f.vat_number).toUpperCase() : null,
+    client_business_name:  f.business_name ? safeText(f.business_name) : null,
+    client_address:        f.address ? safeText(f.address) : null,
+    client_city:           f.city ? safeText(f.city) : null,
+    client_zip:            f.zip ? safeText(f.zip) : null,
+    client_province:       f.province ? safeText(f.province).toUpperCase() : null,
+    client_country:        f.country ? safeText(f.country) : null,
+    client_sdi_code:       f.sdi_code ? safeText(f.sdi_code).toUpperCase() : null,
+    client_pec_email:      f.pec_email ? safeText(f.pec_email) : null,
+  }).eq('quote_id', quote.id)
+
+  // 7c. Per fornitori standalone, propaga al supplier_clients per riuso futuro
+  if (quote.direct_client_id) {
+    await admin.from('supplier_clients').update({
+      fiscal_code:   f.fiscal_code ? safeText(f.fiscal_code).toUpperCase() : null,
+      vat_number:    f.vat_number ? safeText(f.vat_number).toUpperCase() : null,
+      business_name: f.business_name ? safeText(f.business_name) : null,
+      address:       f.address ? safeText(f.address) : null,
+      city:          f.city ? safeText(f.city) : null,
+      zip:           f.zip ? safeText(f.zip) : null,
+      province:      f.province ? safeText(f.province).toUpperCase() : null,
+      country:       f.country ? safeText(f.country) : null,
+      sdi_code:      f.sdi_code ? safeText(f.sdi_code).toUpperCase() : null,
+      pec_email:     f.pec_email ? safeText(f.pec_email) : null,
+    }).eq('id', quote.direct_client_id)
+  }
 
   // 8. Genera PDF atto di accettazione
   const actPdfUrl = await generateAcceptancePdf(admin, quote, acceptance, signatureBytes, ip, ua, pdfHash)
