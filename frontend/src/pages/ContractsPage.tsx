@@ -40,10 +40,33 @@ export default function ContractsPage() {
     })()
   }, [])
 
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+
   function copyClientLink(token: string | null | undefined) {
     if (!token) { toast.error('Nessun link cliente disponibile'); return }
     const url = `${window.location.origin}/p/contract/${token}`
     navigator.clipboard.writeText(url).then(() => toast.success('Link copiato negli appunti')).catch(() => toast.error('Impossibile copiare'))
+  }
+
+  async function generatePdf(contractId: string) {
+    setGeneratingPdf(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-generate-pdf', {
+        body: { contract_id: contractId },
+      })
+      if (error) throw error
+      const url = (data as { pdf_url?: string })?.pdf_url
+      if (!url) throw new Error('PDF non generato')
+      toast.success('PDF contratto generato')
+      // Aggiorna riga in stato locale + apre PDF
+      setRows((rs) => rs.map((r) => r.id === contractId ? { ...r, pdf_url: url } : r))
+      setSelected((s) => s && s.id === contractId ? { ...s, pdf_url: url } : s)
+      window.open(url, '_blank', 'noopener')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore generazione PDF')
+    } finally {
+      setGeneratingPdf(false)
+    }
   }
 
   const fmtEUR = (n: number | null) => n == null ? '—' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -166,13 +189,16 @@ export default function ContractsPage() {
             </div>
 
             <div className="border-t p-4 flex flex-wrap items-center justify-end gap-2" style={{ borderColor: 'rgb(var(--border))' }}>
+              <Button variant="outline" size="sm" onClick={() => generatePdf(selected.id)} disabled={generatingPdf}>
+                <FileDown size={14} /> {generatingPdf ? 'Generazione…' : selected.pdf_url ? 'Rigenera PDF' : 'Genera PDF contratto'}
+              </Button>
               {selected.access_token && selected.status !== 'FIRMATO' && (
                 <Button variant="outline" size="sm" onClick={() => copyClientLink(selected.access_token)}>
                   <Copy size={14} /> Copia link firma cliente
                 </Button>
               )}
               {selected.client_email && (
-                <a href={`mailto:${selected.client_email}?subject=${encodeURIComponent(selected.title ?? 'Contratto')}`}
+                <a href={`mailto:${selected.client_email}?subject=${encodeURIComponent(selected.title ?? 'Contratto')}${selected.pdf_url ? `&body=${encodeURIComponent('In allegato il contratto. Puoi anche scaricarlo qui: ' + selected.pdf_url)}` : ''}`}
                   className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium border hover:bg-[rgb(var(--bg-sunken))]"
                   style={{ borderColor: 'rgb(var(--border-strong))' }}>
                   <Mail size={14} /> Email cliente
@@ -182,7 +208,7 @@ export default function ContractsPage() {
                 <a href={selected.pdf_url} target="_blank" rel="noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium"
                   style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-                  <FileDown size={14} /> Scarica PDF
+                  <FileDown size={14} /> Apri PDF
                 </a>
               )}
             </div>

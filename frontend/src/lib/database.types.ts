@@ -1876,6 +1876,48 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_presets: {
+        Row: {
+          allergens: string[]
+          created_at: string
+          description: string | null
+          dietary_tags: string[]
+          id: string
+          is_active: boolean
+          notes: string | null
+          region: string | null
+          section: Database["public"]["Enums"]["menu_section_kind"]
+          title: string
+          typical_price_per_guest: number | null
+        }
+        Insert: {
+          allergens?: string[]
+          created_at?: string
+          description?: string | null
+          dietary_tags?: string[]
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          region?: string | null
+          section: Database["public"]["Enums"]["menu_section_kind"]
+          title: string
+          typical_price_per_guest?: number | null
+        }
+        Update: {
+          allergens?: string[]
+          created_at?: string
+          description?: string | null
+          dietary_tags?: string[]
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          region?: string | null
+          section?: Database["public"]["Enums"]["menu_section_kind"]
+          title?: string
+          typical_price_per_guest?: number | null
+        }
+        Relationships: []
+      }
       mood_images: {
         Row: {
           caption: string | null
@@ -3251,6 +3293,7 @@ export type Database = {
     Functions: {
       accept_supplier_invite: { Args: { p_token: string }; Returns: boolean }
       admin_purge_deletion_requests: { Args: never; Returns: number }
+      build_contract_sections: { Args: { p_quote_id: string }; Returns: Json }
       calcola_markup_effettivo: {
         Args: {
           p_item_markup: number
@@ -3405,6 +3448,23 @@ export type Database = {
         | "BEVANDA"
         | "OPEN_BAR"
         | "CONFETTATA"
+        | "ISOLA_BENVENUTO"
+        | "ISOLA_PRECENA"
+        | "ISOLA_DOPOCENA"
+        | "ISOLA_SALUMI"
+        | "ISOLA_FRITTI"
+        | "ISOLA_PIZZA"
+        | "ISOLA_PESCE_CRUDO"
+        | "ISOLA_PASTA_LIVE"
+        | "ISOLA_FORMAGGI"
+        | "ISOLA_DOLCI"
+        | "ISOLA_FRUTTA"
+        | "ISOLA_CIOCCOLATO"
+        | "SHOW_COOKING"
+        | "CARRELLO_DISTILLATI"
+        | "CARRELLO_SIGARI"
+        | "CARRELLO_GIN_TONIC"
+        | "CARRELLO_CAFFE_SPECIAL"
       modifier_type: "PERCENT" | "FIXED"
       pdf_variant: "NEUTRA" | "PREMIUM"
       profile_visibility: "PRIVATE" | "PUBLIC"
@@ -3645,6 +3705,23 @@ export const Constants = {
         "BEVANDA",
         "OPEN_BAR",
         "CONFETTATA",
+        "ISOLA_BENVENUTO",
+        "ISOLA_PRECENA",
+        "ISOLA_DOPOCENA",
+        "ISOLA_SALUMI",
+        "ISOLA_FRITTI",
+        "ISOLA_PIZZA",
+        "ISOLA_PESCE_CRUDO",
+        "ISOLA_PASTA_LIVE",
+        "ISOLA_FORMAGGI",
+        "ISOLA_DOLCI",
+        "ISOLA_FRUTTA",
+        "ISOLA_CIOCCOLATO",
+        "SHOW_COOKING",
+        "CARRELLO_DISTILLATI",
+        "CARRELLO_SIGARI",
+        "CARRELLO_GIN_TONIC",
+        "CARRELLO_CAFFE_SPECIAL",
       ],
       modifier_type: ["PERCENT", "FIXED"],
       pdf_variant: ["NEUTRA", "PREMIUM"],

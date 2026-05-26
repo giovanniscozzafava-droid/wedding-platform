@@ -104,24 +104,27 @@ export default function QuoteEditorPage() {
     try {
       const { data: me } = await supabase.auth.getUser()
       if (!me.user) throw new Error('Non autenticato')
+      // Genera articolato legale completo (15 articoli + premesse) via RPC
+      const { data: sections, error: rpcErr } = await supabase.rpc('build_contract_sections', { p_quote_id: id })
+      if (rpcErr) throw rpcErr
       const { data, error } = await (supabase.from('contracts' as any) as any)
         .insert({
           owner_id: me.user.id,
           quote_id: id,
-          title: `Contratto · ${quote.title ?? 'preventivo'}`,
+          title: `Contratto matrimonio · ${quote.client_name ?? quote.title ?? ''}`.trim(),
           client_name: quote.client_name,
           client_email: quote.client_email,
           event_date: quote.event_date,
           total_amount: quote.total_client,
           status: 'BOZZA',
           access_token: crypto.randomUUID(),
+          sections: sections ?? [],
         })
         .select('id, status')
         .single()
       if (error) throw error
-      // Aggiorna anche quote → CONVERTITO_IN_CONTRATTO
       await (supabase.from('quotes' as any) as any).update({ status: 'CONVERTITO_IN_CONTRATTO' }).eq('id', id)
-      toast.success('Contratto generato')
+      toast.success('Contratto generato con articolato legale completo')
       setContractInfo(data as { id: string; status: string })
       navigate('/contracts')
     } catch (e) {
