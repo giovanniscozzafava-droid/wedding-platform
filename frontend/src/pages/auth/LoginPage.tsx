@@ -56,15 +56,15 @@ export default function LoginPage() {
 
           <div className="max-w-md">
             <p className="text-xs uppercase tracking-[0.2em] mb-3 text-white/80">
-              Il network del settore eventi &middot; Italia
+              Il network dei professionisti degli eventi &middot; Italia
             </p>
             <h1 className="font-display text-4xl xl:text-5xl leading-tight mb-4 text-white">
-              I capostipiti scelgono.<br />I fornitori entrano in pancia.
+              Il tuo network di professionisti.<br />In un posto solo.
             </h1>
             <p className="text-white/85 text-base max-w-md">
-              Wedding Planner e Location costruiscono la propria rete privata di fornitori
-              di fiducia. I professionisti del settore puntano a entrarci. Tutto gratuito
-              per chi orchestra. Prova 90 giorni gratis per i fornitori.
+              Wedding planner, location e i migliori fornitori italiani — tutti collegati.
+              Costruisci la tua rete di fiducia, organizza ogni evento, fai crescere il tuo
+              business. Senza intermediari, senza commissioni.
             </p>
           </div>
 
@@ -88,7 +88,7 @@ export default function LoginPage() {
           </Link>
           <div>
             <p className="text-[10px] uppercase tracking-[0.2em] mb-2 text-white/80">Network · Italia</p>
-            <h1 className="font-display text-2xl leading-tight">I capostipiti scelgono. I fornitori entrano in pancia.</h1>
+            <h1 className="font-display text-2xl leading-tight">Il tuo network di professionisti degli eventi. In un posto solo.</h1>
           </div>
         </div>
       </div>
@@ -190,11 +190,12 @@ export default function LoginPage() {
             <aside className="lg:col-span-5 lg:sticky lg:top-8">
               <div className="rounded-2xl border p-6 sm:p-7 backdrop-blur" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev) / 0.7)' }}>
                 <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--fg-subtle))] mb-3">In sintesi</p>
-                <h3 className="font-display text-2xl mb-3">Il network ribalta le regole.</h3>
+                <h3 className="font-display text-2xl mb-3">Costruisci la tua rete.</h3>
                 <p className="text-sm text-[rgb(var(--fg-muted))] leading-relaxed mb-4">
                   Nei marketplace tradizionali i fornitori comprano lead, gli sposi scelgono.
-                  Qui sono i <strong>capostipiti</strong> — Wedding Planner e Location — a
-                  decidere chi entra nella propria pancia. Status game, non corsa al ribasso.
+                  Qui sei <strong>tu</strong> — Wedding Planner o Location — a costruire la
+                  tua rete di professionisti di fiducia. Decidi chi sale a bordo, lavori come
+                  un team. Status game, non corsa al ribasso.
                 </p>
                 <ul className="space-y-2.5 text-sm">
                   <Bullet text="WP e Location: gratis per sempre" />

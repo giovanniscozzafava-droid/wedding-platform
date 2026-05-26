@@ -61,14 +61,14 @@ export default function DiscoverPage() {
       <section className="relative border-b" style={{ borderColor: 'rgb(var(--border))' }}>
         <div className="max-w-6xl mx-auto px-6 sm:px-10 py-12 sm:py-16">
           <p className="text-xs uppercase tracking-[0.25em] mb-3 text-[rgb(var(--gold-600))]">
-            <Sparkles size={12} className="inline mr-1" /> Il network del settore eventi
+            <Sparkles size={12} className="inline mr-1" /> Il network dei professionisti degli eventi
           </p>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-tight mb-4">
-            Scopri i fornitori che entrano in pancia<br />ai capostipiti italiani.
+            Scopri i migliori professionisti<br />degli eventi italiani.
           </h1>
           <p className="text-base sm:text-lg text-[rgb(var(--fg-muted))] max-w-2xl leading-relaxed">
             Fotografi, fioriai, catering, location, light designer, pasticceri e tanto altro.
-            Tutti professionisti scelti dai migliori Wedding Planner e Location.
+            Tutti collegati nei network privati dei migliori Wedding Planner e Location d'Italia.
           </p>
         </div>
       </section>
