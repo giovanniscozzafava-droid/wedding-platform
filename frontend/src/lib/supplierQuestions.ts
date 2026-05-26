@@ -472,6 +472,156 @@ const Q_WEDDING_PLANNER: QuestionnaireSection[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// PARRUCCHIERE (separato da make-up; solo capelli)
+// ---------------------------------------------------------------------------
+const Q_PARRUCCHIERE: QuestionnaireSection[] = [
+  {
+    title: 'Acconciatura sposa',
+    questions: [
+      { key: 'hair_length', label: 'Lunghezza capelli', type: 'select', options: ['corti', 'medi', 'lunghi', 'extralunghi'] },
+      { key: 'hair_color', label: 'Colore naturale / colpi di sole', type: 'text' },
+      { key: 'style', label: 'Stile desiderato', type: 'multiselect',
+        options: ['raccolto_classico', 'raccolto_morbido', 'semiraccolto', 'sciolto_onde', 'treccia', 'chignon_basso', 'effetto_messy', 'vintage_anni30'] },
+      { key: 'accessories', label: 'Accessori', type: 'multiselect', options: ['velo', 'tiara', 'fiori_freschi', 'forcine_gioiello', 'fascia', 'pettine_decorato'] },
+      { key: 'trial_session', label: 'Vuoi una prova prima del matrimonio?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+    ],
+  },
+  {
+    title: 'Altre persone da pettinare',
+    questions: [
+      { key: 'other_people_hair', label: 'Chi altro vuoi pettinare', type: 'multiselect', options: ['mamma_sposa', 'mamma_sposo', 'damigelle', 'testimoni', 'invitate', 'bambini'] },
+      { key: 'on_location', label: 'Vuoi il servizio sul posto?', type: 'select', options: ['si_casa_sposa', 'si_in_location', 'no_solo_salone'] },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// FUOCHISTA (giochi pirotecnici, fontane luminose, fireworks)
+// ---------------------------------------------------------------------------
+const Q_FUOCHISTA: QuestionnaireSection[] = [
+  {
+    title: 'Spettacolo pirotecnico',
+    questions: [
+      { key: 'show_type', label: 'Tipo di spettacolo', type: 'multiselect',
+        options: ['fuochi_artificio_aereo', 'fontane_luminose', 'cascate_dorate', 'effetti_freddi_indoor', 'sparo_coriandoli', 'fumogeni_colorati'] },
+      { key: 'duration_minutes', label: 'Durata desiderata (minuti)', type: 'number' },
+      { key: 'show_moment', label: 'Momento dello show', type: 'multiselect',
+        options: ['ingresso_sposi', 'primo_ballo', 'taglio_torta', 'finale_serata', 'mezzanotte'] },
+    ],
+  },
+  {
+    title: 'Logistica e sicurezza',
+    questions: [
+      { key: 'venue_type', label: 'Tipo di luogo', type: 'select', options: ['outdoor_aperto', 'outdoor_giardino_chiuso', 'indoor_solo_effetti_freddi', 'mare_spiaggia'] },
+      { key: 'noise_restrictions', label: 'Vincoli orari/rumore', type: 'textarea', placeholder: 'Es. silenziamento dopo le 23, vicinanza centro abitato' },
+      { key: 'permits_help', label: 'Hai bisogno di aiuto con i permessi?', type: 'select', options: ['si', 'no_li_ho_io', 'da_valutare'] },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// LUCI (light designer, illuminotecnica scenica)
+// ---------------------------------------------------------------------------
+const Q_LUCI: QuestionnaireSection[] = [
+  {
+    title: 'Atmosfera luminosa',
+    questions: [
+      { key: 'mood', label: 'Mood', type: 'multiselect',
+        options: ['romantico_caldo', 'elegante_oro', 'fairytale_magico', 'minimal_moderno', 'club_dinamico', 'rustico_caldo', 'industriale'] },
+      { key: 'color_temperature', label: 'Temperatura colore preferita', type: 'select', options: ['caldo_2700K', 'naturale_3500K', 'freddo_5000K', 'mix_dinamico'] },
+      { key: 'effects', label: 'Effetti richiesti', type: 'multiselect',
+        options: ['fairy_lights', 'lampadari_stringhe', 'uplighters_pareti', 'gobo_personalizzati', 'led_pista_ballo', 'lanterne_candele', 'projection_mapping', 'laser_show'] },
+    ],
+  },
+  {
+    title: 'Aree da illuminare',
+    questions: [
+      { key: 'areas', label: 'Quali aree', type: 'multiselect',
+        options: ['cerimonia', 'aperitivo', 'sala_pranzo', 'pista_ballo', 'esterno_giardino', 'piscina', 'facciata_villa', 'percorsi_camminamenti'] },
+      { key: 'power_available', label: 'Hai problema di corrente elettrica?', type: 'select', options: ['no', 'forse', 'serve_generatore', 'non_so'] },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// BARTENDER (open bar, mixology, cocktail bar)
+// ---------------------------------------------------------------------------
+const Q_BARTENDER: QuestionnaireSection[] = [
+  {
+    title: 'Servizio bar',
+    questions: [
+      { key: 'service_format', label: 'Formato', type: 'multiselect',
+        options: ['cocktail_bar_aperitivo', 'open_bar_serata', 'corner_gin_tonic', 'corner_vino_champagne', 'corner_caffetteria', 'molecolare_show'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'duration_hours', label: 'Ore di servizio', type: 'number' },
+    ],
+  },
+  {
+    title: 'Drink list',
+    questions: [
+      { key: 'signature_cocktail', label: 'Vuoi un signature cocktail dedicato?', type: 'select', options: ['si_creiamolo_insieme', 'si_ho_idea', 'no'] },
+      { key: 'spirits_pref', label: 'Distillati preferiti', type: 'tags', placeholder: 'gin, rum, mezcal, whisky' },
+      { key: 'no_alcohol', label: '% ospiti che NON beve alcol', type: 'number' },
+      { key: 'allergies', label: 'Allergie/intolleranze note', type: 'textarea' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// STAMPE (inviti, tableau, menù, segnaposto, partecipazioni)
+// ---------------------------------------------------------------------------
+const Q_STAMPE: QuestionnaireSection[] = [
+  {
+    title: 'Materiali da stampare',
+    questions: [
+      { key: 'items', label: 'Cosa ti serve', type: 'multiselect',
+        options: ['partecipazioni', 'inviti_cerimonia', 'libretto_messa', 'tableau_mariage', 'menu_tavolo', 'segnaposto', 'numeri_tavolo', 'cartelli_indicazioni', 'ringraziamenti_post', 'thank_you_cards'] },
+      { key: 'partecipazioni_quantity', label: 'Quante partecipazioni', type: 'number' },
+      { key: 'menu_quantity', label: 'Quanti menù', type: 'number' },
+    ],
+  },
+  {
+    title: 'Stile grafico',
+    questions: [
+      { key: 'style', label: 'Stile', type: 'multiselect',
+        options: ['classico_elegante', 'minimal_moderno', 'romantico_floreale', 'vintage', 'illustrato_acquerello', 'tipografico_audace', 'caligrafia_corsivo'] },
+      { key: 'palette', label: 'Colori', type: 'tags', placeholder: 'oro, avorio, verde salvia' },
+      { key: 'paper_finish', label: 'Tipo carta/finitura', type: 'multiselect', options: ['carta_cotone', 'carta_naturale', 'patinata', 'oro_a_caldo', 'rilievo_letterpress', 'busta_cerata', 'sigillo_cera'] },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// BOMBONIERE
+// ---------------------------------------------------------------------------
+const Q_BOMBONIERE: QuestionnaireSection[] = [
+  {
+    title: 'Bomboniere',
+    questions: [
+      { key: 'quantity', label: 'Quante bomboniere', type: 'number' },
+      { key: 'budget_per_unit', label: 'Budget orientativo per bomboniera (€)', type: 'number' },
+      { key: 'type', label: 'Tipo', type: 'multiselect',
+        options: ['oggettistica_casa', 'alimentari_dolci', 'gioiello_argento', 'piantina_aromatiche', 'profumate_candele', 'solidale_charity', 'personalizzata_logo', 'libro_lettura'] },
+      { key: 'with_confetti', label: 'Con confetti?', type: 'select', options: ['si_classici', 'si_aromatizzati', 'no'] },
+    ],
+  },
+  {
+    title: 'Personalizzazione',
+    questions: [
+      { key: 'packaging', label: 'Confezione', type: 'multiselect', options: ['scatola_cartoncino', 'sacchetto_organza', 'sacchetto_carta', 'vaso_vetro', 'busta_cerata', 'pacchetto_legno'] },
+      { key: 'tag_message', label: 'Messaggio/iniziali su tag', type: 'text' },
+      { key: 'palette', label: 'Colori coordinati', type: 'tags' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
 // GENERICO (altro/wedding_planner non specifico)
 // ---------------------------------------------------------------------------
 const Q_GENERICO: QuestionnaireSection[] = [
@@ -498,7 +648,8 @@ const QUESTIONS_BY_SUBROLE: Record<string, QuestionnaireSection[]> = {
   band: Q_MUSICA,
   allestimenti: Q_ALLESTIMENTI,
   make_up: Q_MAKE_UP,
-  hairstylist: Q_MAKE_UP,
+  hairstylist: Q_PARRUCCHIERE,
+  parrucchiere: Q_PARRUCCHIERE,
   abiti: Q_ABITI,
   atelier: Q_ABITI,
   location: Q_LOCATION,
@@ -506,6 +657,15 @@ const QUESTIONS_BY_SUBROLE: Record<string, QuestionnaireSection[]> = {
   animazione: Q_ANIMAZIONE,
   celebrante: Q_CELEBRANTE,
   wedding_planner: Q_WEDDING_PLANNER,
+  fuochista: Q_FUOCHISTA,
+  pirotecnico: Q_FUOCHISTA,
+  luci: Q_LUCI,
+  illuminotecnica: Q_LUCI,
+  bartender: Q_BARTENDER,
+  open_bar: Q_BARTENDER,
+  stampe: Q_STAMPE,
+  inviti: Q_STAMPE,
+  bomboniere: Q_BOMBONIERE,
   altro: Q_GENERICO,
 }
 
@@ -628,6 +788,58 @@ const SUBROLE_STYLE_SECTIONS: Record<string, QuestionnaireSection> = {
     { key: 'services_needed', label: 'Servizi richiesti', type: 'multiselect', options: ['consulenza', 'pianificazione_completa', 'coordinamento_giorno', 'gestione_fornitori'] },
     { key: 'budget_range', label: 'Budget orientativo (€)', type: 'select', options: ['<5k', '5k-15k', '15k-30k', '30k-50k', '>50k'] },
   ]},
+  parrucchiere: {
+    title: 'Acconciatura',
+    questions: [
+      { key: 'hair_length', label: 'Lunghezza capelli', type: 'select', options: ['corti', 'medi', 'lunghi'] },
+      { key: 'style', label: 'Stile preferito', type: 'tags' },
+      { key: 'other_people_hair', label: 'Quante altre persone da pettinare', type: 'number' },
+    ],
+  },
+  fuochista: {
+    title: 'Spettacolo pirotecnico',
+    questions: [
+      { key: 'show_type', label: 'Tipo di spettacolo', type: 'multiselect',
+        options: ['fuochi_artificio_aereo', 'fontane_luminose', 'cascate_dorate', 'effetti_freddi_indoor', 'fumogeni_colorati'] },
+      { key: 'duration_minutes', label: 'Durata desiderata (minuti)', type: 'number' },
+      { key: 'venue_type', label: 'Luogo', type: 'select', options: ['outdoor_aperto', 'outdoor_giardino_chiuso', 'indoor_effetti_freddi', 'mare_spiaggia'] },
+    ],
+  },
+  luci: {
+    title: 'Atmosfera luminosa',
+    questions: [
+      { key: 'mood', label: 'Mood', type: 'multiselect',
+        options: ['romantico_caldo', 'elegante_oro', 'fairytale_magico', 'minimal_moderno', 'club_dinamico', 'rustico_caldo'] },
+      { key: 'effects', label: 'Effetti richiesti', type: 'multiselect',
+        options: ['fairy_lights', 'uplighters_pareti', 'gobo_personalizzati', 'led_pista_ballo', 'lanterne_candele', 'projection_mapping'] },
+      { key: 'areas', label: 'Aree da illuminare', type: 'tags' },
+    ],
+  },
+  bartender: {
+    title: 'Servizio bar',
+    questions: [
+      { key: 'service_format', label: 'Formato', type: 'multiselect',
+        options: ['cocktail_aperitivo', 'open_bar_serata', 'corner_gin_tonic', 'corner_vino_champagne', 'caffetteria'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'signature_cocktail', label: 'Signature cocktail dedicato?', type: 'select', options: ['si', 'no'] },
+    ],
+  },
+  stampe: {
+    title: 'Materiali grafici',
+    questions: [
+      { key: 'items', label: 'Cosa serve stampare', type: 'tags', placeholder: 'inviti, menù, tableau, ringraziamenti' },
+      { key: 'style', label: 'Stile grafico', type: 'tags' },
+      { key: 'palette', label: 'Colori', type: 'tags' },
+    ],
+  },
+  bomboniere: {
+    title: 'Bomboniere',
+    questions: [
+      { key: 'quantity', label: 'Quante bomboniere', type: 'number' },
+      { key: 'type', label: 'Tipo preferito', type: 'tags' },
+      { key: 'budget_per_unit', label: 'Budget per unità (€)', type: 'number' },
+    ],
+  },
 }
 
 // Combina domande event-specific con stile del fornitore.
@@ -662,6 +874,16 @@ const SUBROLE_LABELS: Record<string, string> = {
   allestimenti: 'allestimenti',
   make_up: 'make-up artist',
   hairstylist: 'hairstylist',
+  parrucchiere: 'parrucchiere',
+  fuochista: 'fuochista',
+  pirotecnico: 'pirotecnico',
+  luci: 'light designer',
+  illuminotecnica: 'illuminotecnica',
+  bartender: 'bartender',
+  open_bar: 'open bar',
+  stampe: 'stampe e grafica',
+  inviti: 'inviti e partecipazioni',
+  bomboniere: 'bomboniere',
   abiti: 'atelier',
   atelier: 'atelier',
   location: 'location',
