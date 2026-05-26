@@ -622,6 +622,262 @@ const Q_BOMBONIERE: QuestionnaireSection[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// PHOTOBOOTH (cabina fotografica per ospiti)
+// ---------------------------------------------------------------------------
+const Q_PHOTOBOOTH: QuestionnaireSection[] = [
+  {
+    title: 'Photobooth',
+    questions: [
+      { key: 'booth_type', label: 'Tipo di cabina', type: 'multiselect',
+        options: ['classica_chiusa', 'open_air_aperta', 'mirror_specchio', 'gif_animata', '360_slow_motion', 'instax_polaroid'] },
+      { key: 'duration_hours', label: 'Ore di servizio', type: 'number' },
+      { key: 'props_theme', label: 'Tema props', type: 'tags', placeholder: 'maschere, cappelli, occhiali...' },
+      { key: 'backdrop', label: 'Backdrop / fondale', type: 'select', options: ['neutro', 'floreale', 'sequins_paillettes', 'personalizzato_logo', 'green_screen'] },
+      { key: 'print_format', label: 'Stampe', type: 'multiselect', options: ['strisce_classiche', 'cartoline_grandi', 'instagram_quadrate', 'no_solo_digitale'] },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// ESTETISTA (manicure, pedicure, trattamenti pre-evento)
+// ---------------------------------------------------------------------------
+const Q_ESTETISTA: QuestionnaireSection[] = [
+  {
+    title: 'Trattamenti pre-evento',
+    questions: [
+      { key: 'services', label: 'Servizi richiesti', type: 'multiselect',
+        options: ['manicure', 'pedicure', 'ricostruzione_unghie', 'depilazione', 'pulizia_viso', 'trattamento_corpo', 'massaggio_rilassante', 'spa_day'] },
+      { key: 'days_before', label: 'Quanti giorni prima', type: 'number' },
+      { key: 'on_location', label: 'Servizio sul posto?', type: 'select', options: ['si_casa', 'si_location', 'no_solo_centro'] },
+      { key: 'other_people', label: 'Altre persone', type: 'number' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// MAITRE / COORDINATORE DI SALA
+// ---------------------------------------------------------------------------
+const Q_MAITRE: QuestionnaireSection[] = [
+  {
+    title: 'Coordinamento di sala',
+    questions: [
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'staff_needed', label: 'Personale da coordinare', type: 'number' },
+      { key: 'event_phases', label: 'Fasi da coordinare', type: 'multiselect',
+        options: ['aperitivo', 'cena_seduti', 'taglio_torta', 'apertura_danze', 'after_party'] },
+      { key: 'dress_code_staff', label: 'Dress code personale', type: 'text' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// PERSONAL CHEF / SHOW COOKING
+// ---------------------------------------------------------------------------
+const Q_CHEF: QuestionnaireSection[] = [
+  {
+    title: 'Cucina dal vivo',
+    questions: [
+      { key: 'cuisine_style', label: 'Stile cucina', type: 'multiselect',
+        options: ['mediterranea', 'italiana_tradizionale', 'gourmet_creativa', 'pesce', 'carne_griglia', 'vegetariana', 'asiatica', 'sud_americana'] },
+      { key: 'show_format', label: 'Formato', type: 'multiselect',
+        options: ['live_cooking_corner', 'chef_action_station', 'degustazione_guidata', 'menu_degustazione_seduti', 'showcooking_pesce_crudo'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'allergies', label: 'Allergie/intolleranze', type: 'textarea' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// FOOD TRUCK / CUCINE MOBILI
+// ---------------------------------------------------------------------------
+const Q_FOOD_TRUCK: QuestionnaireSection[] = [
+  {
+    title: 'Food truck',
+    questions: [
+      { key: 'food_type', label: 'Tipo di cibo', type: 'multiselect',
+        options: ['pizza_forno_legna', 'burger_americani', 'street_food_italiano', 'tacos_messicano', 'panini_gourmet', 'crepes_dolci_salate', 'pasta_fresca', 'pesce_fritto'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'moment', label: 'Quando', type: 'multiselect', options: ['aperitivo', 'cena_principale', 'after_party_notte', 'brunch_giorno_dopo'] },
+      { key: 'venue_setup', label: 'Spazio disponibile', type: 'text', placeholder: 'es. piazzola esterna 4x6 m' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// SOMMELIER
+// ---------------------------------------------------------------------------
+const Q_SOMMELIER: QuestionnaireSection[] = [
+  {
+    title: 'Servizio sommelier',
+    questions: [
+      { key: 'service_type', label: 'Tipo di servizio', type: 'multiselect',
+        options: ['degustazione_guidata', 'abbinamento_menu', 'corner_vini', 'masterclass_per_ospiti', 'champagne_corner', 'distillati_post_dinner'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'wine_pref', label: 'Preferenze vino', type: 'tags', placeholder: 'Calabria, biologici, naturali, champagne...' },
+      { key: 'budget_bottle', label: 'Budget per bottiglia (€)', type: 'number' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// SWEET TABLE / CONFETTATA
+// ---------------------------------------------------------------------------
+const Q_SWEET_TABLE: QuestionnaireSection[] = [
+  {
+    title: 'Tavolo dolci',
+    questions: [
+      { key: 'table_type', label: 'Tipo di tavolo', type: 'multiselect',
+        options: ['confettata_classica', 'sweet_table_internazionale', 'macarons_corner', 'cioccolato_fontana', 'gelato_artigianale', 'frutta_intagliata', 'caramelle_americane', 'cake_pops'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'palette', label: 'Colori coordinati', type: 'tags' },
+      { key: 'allergies', label: 'Allergie/intolleranze', type: 'textarea' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// HOSTESS / ACCOGLIENZA
+// ---------------------------------------------------------------------------
+const Q_HOSTESS: QuestionnaireSection[] = [
+  {
+    title: 'Accoglienza ospiti',
+    questions: [
+      { key: 'staff_count', label: 'Numero hostess/steward', type: 'number' },
+      { key: 'duration_hours', label: 'Ore di servizio', type: 'number' },
+      { key: 'tasks', label: 'Mansioni richieste', type: 'multiselect',
+        options: ['welcome_drink', 'guida_ai_posti', 'distribuzione_libretti', 'gestione_libro_firme', 'assistenza_anziani', 'coordinamento_foto_gruppo', 'guardaroba'] },
+      { key: 'dress_code', label: 'Dress code', type: 'select', options: ['nero_classico', 'colore_personalizzato', 'casual_chic', 'tema_evento'] },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// VALET PARKING
+// ---------------------------------------------------------------------------
+const Q_VALET: QuestionnaireSection[] = [
+  {
+    title: 'Valet parking',
+    questions: [
+      { key: 'cars_expected', label: 'Auto attese', type: 'number' },
+      { key: 'duration_hours', label: 'Ore di servizio', type: 'number' },
+      { key: 'venue_distance', label: 'Distanza parcheggio (m)', type: 'number' },
+      { key: 'staff_count', label: 'Numero valet', type: 'number' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// NAVETTA OSPITI
+// ---------------------------------------------------------------------------
+const Q_NAVETTA: QuestionnaireSection[] = [
+  {
+    title: 'Navetta ospiti',
+    questions: [
+      { key: 'guests_count', label: 'Ospiti da trasportare', type: 'number' },
+      { key: 'pickup_point', label: 'Punto di ritrovo', type: 'text', placeholder: 'es. hotel principale' },
+      { key: 'destination', label: 'Destinazione', type: 'text' },
+      { key: 'trips_count', label: 'Quante corse', type: 'number' },
+      { key: 'vehicle_type', label: 'Tipo mezzo', type: 'select', options: ['minivan_8_posti', 'pulmino_15_posti', 'bus_30_posti', 'bus_gran_turismo'] },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// NOLEGGIO ATTREZZATURE (tavoli, sedie, gazebo, stoviglie)
+// ---------------------------------------------------------------------------
+const Q_NOLEGGIO: QuestionnaireSection[] = [
+  {
+    title: 'Noleggio attrezzature',
+    questions: [
+      { key: 'items', label: 'Cosa serve', type: 'multiselect',
+        options: ['tavoli_tondi', 'tavoli_rettangolari', 'sedie_chiavari', 'sedie_napoleon', 'sedie_eames_design', 'gazebo_4x4', 'gazebo_grande', 'tendostrutture', 'pista_da_ballo', 'palco', 'tovaglie_runner', 'piatti_porcellana', 'bicchieri_calici', 'posate_lusso', 'pedane_riscaldatori_esterni'] },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+      { key: 'delivery_setup', label: 'Vuoi consegna + montaggio?', type: 'select', options: ['si_chiavi_in_mano', 'si_solo_consegna', 'no_ritiro_io'] },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// FALCONIERE / ANIMALI DA CERIMONIA
+// ---------------------------------------------------------------------------
+const Q_ANIMALI: QuestionnaireSection[] = [
+  {
+    title: 'Animali in cerimonia',
+    questions: [
+      { key: 'animal_type', label: 'Tipo di animale', type: 'multiselect',
+        options: ['falco_aquila', 'colombe_bianche', 'cavalli', 'cani_addestrati_anello', 'rapaci_show', 'farfalle_liberatorie'] },
+      { key: 'moment', label: 'Momento dello show', type: 'multiselect',
+        options: ['ingresso_sposi', 'scambio_anelli', 'uscita_chiesa', 'aperitivo', 'apertura_pista_ballo'] },
+      { key: 'venue_outdoor', label: 'La cerimonia è all\'aperto?', type: 'select', options: ['si', 'no_indoor', 'misto'] },
+      { key: 'animal_welfare', label: 'Note benessere animale', type: 'textarea' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// CALLIGRAFO (a mano, su pergamene, segnaposto, tableau)
+// ---------------------------------------------------------------------------
+const Q_CALLIGRAFO: QuestionnaireSection[] = [
+  {
+    title: 'Calligrafia',
+    questions: [
+      { key: 'items', label: 'Cosa scrivere', type: 'multiselect',
+        options: ['partecipazioni', 'buste_indirizzi', 'menu_singoli', 'segnaposto', 'tableau_mariage', 'libretto_messa', 'cartelli_grandi_legno'] },
+      { key: 'quantity', label: 'Quante unità', type: 'number' },
+      { key: 'style', label: 'Stile calligrafico', type: 'multiselect',
+        options: ['italica_corsiva', 'gotica', 'copperplate', 'moderna_brush', 'roman_capitals', 'spencerian'] },
+      { key: 'ink_color', label: 'Colore inchiostro', type: 'tags' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// MAGIA / ILLUSIONISTA / MENTALISTA
+// ---------------------------------------------------------------------------
+const Q_MAGIA: QuestionnaireSection[] = [
+  {
+    title: 'Spettacolo di magia',
+    questions: [
+      { key: 'show_format', label: 'Formato', type: 'multiselect',
+        options: ['close_up_aperitivo', 'micromagia_tavoli', 'mentalismo_show', 'illusionismo_palco', 'magia_comica', 'magia_per_bambini'] },
+      { key: 'duration_minutes', label: 'Durata (minuti)', type: 'number' },
+      { key: 'guests_count', label: 'Numero ospiti', type: 'number' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
+// LIVE PAINTER / RITRATTISTA / CARICATURISTA
+// ---------------------------------------------------------------------------
+const Q_LIVEPAINTER: QuestionnaireSection[] = [
+  {
+    title: 'Pittura/Ritratto dal vivo',
+    questions: [
+      { key: 'art_format', label: 'Formato', type: 'multiselect',
+        options: ['ritratto_olio_sposi', 'ritratto_acquerello_ospiti', 'caricature_veloci', 'live_painting_evento', 'illustrazione_digitale_iPad'] },
+      { key: 'duration_hours', label: 'Ore di servizio', type: 'number' },
+      { key: 'subject', label: 'Soggetti principali', type: 'text' },
+      { key: 'style_pref', label: 'Stile artistico', type: 'tags' },
+    ],
+  },
+  INSPIRATION_SECTION,
+]
+
+// ---------------------------------------------------------------------------
 // GENERICO (altro/wedding_planner non specifico)
 // ---------------------------------------------------------------------------
 const Q_GENERICO: QuestionnaireSection[] = [
@@ -666,6 +922,29 @@ const QUESTIONS_BY_SUBROLE: Record<string, QuestionnaireSection[]> = {
   stampe: Q_STAMPE,
   inviti: Q_STAMPE,
   bomboniere: Q_BOMBONIERE,
+  photobooth: Q_PHOTOBOOTH,
+  estetista: Q_ESTETISTA,
+  beauty: Q_ESTETISTA,
+  maitre: Q_MAITRE,
+  chef: Q_CHEF,
+  show_cooking: Q_CHEF,
+  food_truck: Q_FOOD_TRUCK,
+  sommelier: Q_SOMMELIER,
+  sweet_table: Q_SWEET_TABLE,
+  confettata: Q_SWEET_TABLE,
+  hostess: Q_HOSTESS,
+  steward: Q_HOSTESS,
+  valet: Q_VALET,
+  navetta: Q_NAVETTA,
+  noleggio: Q_NOLEGGIO,
+  animali: Q_ANIMALI,
+  falconiere: Q_ANIMALI,
+  calligrafo: Q_CALLIGRAFO,
+  magia: Q_MAGIA,
+  illusionista: Q_MAGIA,
+  mentalista: Q_MAGIA,
+  livepainter: Q_LIVEPAINTER,
+  caricaturista: Q_LIVEPAINTER,
   altro: Q_GENERICO,
 }
 
@@ -840,6 +1119,136 @@ const SUBROLE_STYLE_SECTIONS: Record<string, QuestionnaireSection> = {
       { key: 'budget_per_unit', label: 'Budget per unità (€)', type: 'number' },
     ],
   },
+  photobooth: {
+    title: 'Photobooth',
+    questions: [
+      { key: 'booth_type', label: 'Tipo cabina', type: 'multiselect',
+        options: ['classica_chiusa', 'open_air', 'mirror', 'gif', '360_slow_motion'] },
+      { key: 'duration_hours', label: 'Ore', type: 'number' },
+      { key: 'backdrop', label: 'Fondale', type: 'select', options: ['neutro', 'floreale', 'sequins', 'personalizzato'] },
+    ],
+  },
+  estetista: {
+    title: 'Trattamenti beauty',
+    questions: [
+      { key: 'services', label: 'Servizi', type: 'multiselect',
+        options: ['manicure', 'pedicure', 'depilazione', 'pulizia_viso', 'massaggio', 'spa_day'] },
+      { key: 'on_location', label: 'Sul posto?', type: 'select', options: ['si_casa', 'si_location', 'no_centro'] },
+      { key: 'other_people', label: 'Altre persone', type: 'number' },
+    ],
+  },
+  maitre: {
+    title: 'Coordinamento sala',
+    questions: [
+      { key: 'guests_count', label: 'Ospiti', type: 'number' },
+      { key: 'staff_count', label: 'Personale da coordinare', type: 'number' },
+      { key: 'phases', label: 'Fasi evento', type: 'multiselect', options: ['aperitivo', 'cena_seduti', 'taglio_torta', 'apertura_danze'] },
+    ],
+  },
+  chef: {
+    title: 'Show cooking',
+    questions: [
+      { key: 'cuisine', label: 'Stile cucina', type: 'tags' },
+      { key: 'guests_count', label: 'Ospiti', type: 'number' },
+      { key: 'format', label: 'Formato', type: 'multiselect', options: ['live_corner', 'action_station', 'degustazione_guidata', 'showcooking_pesce_crudo'] },
+    ],
+  },
+  food_truck: {
+    title: 'Food truck',
+    questions: [
+      { key: 'food_type', label: 'Tipo cibo', type: 'multiselect',
+        options: ['pizza_forno_legna', 'burger', 'street_food_italiano', 'tacos', 'panini_gourmet', 'crepes', 'pasta_fresca'] },
+      { key: 'guests_count', label: 'Ospiti', type: 'number' },
+      { key: 'moment', label: 'Quando', type: 'multiselect', options: ['aperitivo', 'cena', 'after_party', 'brunch_giorno_dopo'] },
+    ],
+  },
+  sommelier: {
+    title: 'Servizio sommelier',
+    questions: [
+      { key: 'service_type', label: 'Tipo servizio', type: 'multiselect',
+        options: ['degustazione_guidata', 'abbinamento_menu', 'corner_vini', 'champagne_corner', 'masterclass'] },
+      { key: 'guests_count', label: 'Ospiti', type: 'number' },
+      { key: 'wine_pref', label: 'Preferenze', type: 'tags' },
+    ],
+  },
+  sweet_table: {
+    title: 'Tavolo dolci',
+    questions: [
+      { key: 'table_type', label: 'Tipo', type: 'multiselect',
+        options: ['confettata', 'sweet_table_internazionale', 'macarons', 'cioccolato_fontana', 'gelato_artigianale', 'caramelle_americane'] },
+      { key: 'guests_count', label: 'Ospiti', type: 'number' },
+      { key: 'palette', label: 'Colori', type: 'tags' },
+    ],
+  },
+  hostess: {
+    title: 'Hostess/Steward',
+    questions: [
+      { key: 'staff_count', label: 'Numero hostess', type: 'number' },
+      { key: 'duration_hours', label: 'Ore servizio', type: 'number' },
+      { key: 'tasks', label: 'Mansioni', type: 'multiselect',
+        options: ['welcome_drink', 'guida_ai_posti', 'libretti_distribuzione', 'libro_firme', 'guardaroba'] },
+    ],
+  },
+  valet: {
+    title: 'Valet parking',
+    questions: [
+      { key: 'cars_expected', label: 'Auto attese', type: 'number' },
+      { key: 'duration_hours', label: 'Ore servizio', type: 'number' },
+      { key: 'staff_count', label: 'Valet', type: 'number' },
+    ],
+  },
+  navetta: {
+    title: 'Navetta ospiti',
+    questions: [
+      { key: 'guests_count', label: 'Ospiti', type: 'number' },
+      { key: 'pickup_point', label: 'Ritrovo', type: 'text' },
+      { key: 'vehicle_type', label: 'Mezzo', type: 'select', options: ['minivan_8', 'pulmino_15', 'bus_30', 'gran_turismo'] },
+    ],
+  },
+  noleggio: {
+    title: 'Noleggio attrezzature',
+    questions: [
+      { key: 'items', label: 'Cosa serve', type: 'tags', placeholder: 'tavoli, sedie chiavari, gazebo...' },
+      { key: 'guests_count', label: 'Ospiti', type: 'number' },
+      { key: 'delivery_setup', label: 'Consegna + montaggio?', type: 'select', options: ['si_chiavi_in_mano', 'si_solo_consegna', 'no_ritiro_io'] },
+    ],
+  },
+  animali: {
+    title: 'Animali in cerimonia',
+    questions: [
+      { key: 'animal_type', label: 'Tipo', type: 'multiselect',
+        options: ['falco_aquila', 'colombe_bianche', 'cavalli', 'cani_anello', 'rapaci_show', 'farfalle_liberatorie'] },
+      { key: 'moment', label: 'Momento', type: 'multiselect',
+        options: ['ingresso', 'scambio_anelli', 'uscita_chiesa', 'aperitivo'] },
+    ],
+  },
+  calligrafo: {
+    title: 'Calligrafia',
+    questions: [
+      { key: 'items', label: 'Cosa scrivere', type: 'multiselect',
+        options: ['partecipazioni', 'buste_indirizzi', 'menu', 'segnaposto', 'tableau', 'libretto_messa'] },
+      { key: 'quantity', label: 'Unità', type: 'number' },
+      { key: 'style', label: 'Stile', type: 'multiselect', options: ['italica', 'gotica', 'copperplate', 'moderna_brush'] },
+    ],
+  },
+  magia: {
+    title: 'Spettacolo magia',
+    questions: [
+      { key: 'show_format', label: 'Formato', type: 'multiselect',
+        options: ['close_up_aperitivo', 'micromagia_tavoli', 'mentalismo', 'illusionismo_palco', 'magia_bambini'] },
+      { key: 'duration_minutes', label: 'Durata (min)', type: 'number' },
+      { key: 'guests_count', label: 'Ospiti', type: 'number' },
+    ],
+  },
+  livepainter: {
+    title: 'Pittura dal vivo',
+    questions: [
+      { key: 'art_format', label: 'Formato', type: 'multiselect',
+        options: ['ritratto_olio', 'ritratto_acquerello', 'caricature_veloci', 'live_painting', 'illustrazione_digitale'] },
+      { key: 'duration_hours', label: 'Ore', type: 'number' },
+      { key: 'style_pref', label: 'Stile', type: 'tags' },
+    ],
+  },
 }
 
 // Combina domande event-specific con stile del fornitore.
@@ -884,6 +1293,29 @@ const SUBROLE_LABELS: Record<string, string> = {
   stampe: 'stampe e grafica',
   inviti: 'inviti e partecipazioni',
   bomboniere: 'bomboniere',
+  photobooth: 'photobooth',
+  estetista: 'estetista',
+  beauty: 'centro beauty',
+  maitre: 'maitre',
+  chef: 'personal chef',
+  show_cooking: 'show cooking',
+  food_truck: 'food truck',
+  sommelier: 'sommelier',
+  sweet_table: 'sweet table',
+  confettata: 'confettata',
+  hostess: 'hostess',
+  steward: 'steward',
+  valet: 'valet parking',
+  navetta: 'servizio navetta',
+  noleggio: 'noleggio attrezzature',
+  animali: 'falconeria/animali',
+  falconiere: 'falconiere',
+  calligrafo: 'calligrafo',
+  magia: 'mago/illusionista',
+  illusionista: 'illusionista',
+  mentalista: 'mentalista',
+  livepainter: 'live painter',
+  caricaturista: 'caricaturista',
   abiti: 'atelier',
   atelier: 'atelier',
   location: 'location',
