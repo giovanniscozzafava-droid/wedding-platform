@@ -27,8 +27,9 @@ export function useServices(opts?: { onlyActive?: boolean }) {
       let q = supabase
         .from('services')
         .select(
-          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
+          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
         )
+        .order('display_order', { ascending: true })
         .order('updated_at', { ascending: false })
       if (opts?.onlyActive ?? true) q = q.eq('is_active', true)
       const { data, error } = await q
@@ -46,10 +47,11 @@ export function useServicesBySupplier(supplierId: string | null) {
       const { data, error } = await supabase
         .from('services')
         .select(
-          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
+          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
         )
         .eq('fornitore_id', supplierId!)
         .eq('is_active', true)
+        .order('display_order', { ascending: true })
         .order('updated_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as unknown as ServiceWithExtras[]
@@ -102,6 +104,18 @@ export function useCollaboratingSuppliers() {
       if (error) throw error
       return data ?? []
     },
+  })
+}
+
+export function useReorderServices() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      const { error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ error: Error | null }> })
+        .rpc('reorder_services', { p_ids: orderedIds })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
   })
 }
 

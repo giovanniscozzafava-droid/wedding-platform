@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon } from 'lucide-react'
+import { motion, Reorder } from 'framer-motion'
+import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { ServiceForm } from '@/components/catalog/ServiceForm'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { useDeleteService, useServices, type ServiceWithExtras } from '@/hooks/useCatalog'
+import { useDeleteService, useReorderServices, useServices, type ServiceWithExtras } from '@/hooks/useCatalog'
 import { useSuppliers } from '@/hooks/useSuppliers'
 
 type Filters = {
@@ -30,6 +30,9 @@ export default function CatalogPage() {
   const [editing, setEditing] = useState<ServiceWithExtras | null>(null)
   const [viewing, setViewing] = useState<ServiceWithExtras | null>(null)
   const [creating, setCreating] = useState(false)
+  const [reorderMode, setReorderMode] = useState(false)
+  const [reorderList, setReorderList] = useState<ServiceWithExtras[]>([])
+  const reorder = useReorderServices()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Onboarding fornitore: ?firstOffer=1 apre direttamente il modal Nuovo servizio
@@ -109,9 +112,40 @@ export default function CatalogPage() {
           }
           actions={
             isProvider && (
-              <Button variant="gold" onClick={() => setCreating(true)} data-testid="new-service-btn">
-                <Plus /> Nuovo servizio
-              </Button>
+              <div className="flex gap-2">
+                {!reorderMode ? (
+                  <Button variant="outline" onClick={() => {
+                    setReorderList([...filtered].sort((a, b) => {
+                      const ao = (a as ServiceWithExtras & { display_order?: number }).display_order ?? 0
+                      const bo = (b as ServiceWithExtras & { display_order?: number }).display_order ?? 0
+                      return ao - bo
+                    }))
+                    setReorderMode(true)
+                  }} data-testid="reorder-btn">
+                    <ArrowDownUp /> Riordina
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" onClick={() => setReorderMode(false)}>
+                      Annulla
+                    </Button>
+                    <Button variant="gold" disabled={reorder.isPending} onClick={async () => {
+                      try {
+                        await reorder.mutateAsync(reorderList.map((s) => s.id))
+                        toast.success('Ordine salvato')
+                        setReorderMode(false)
+                      } catch (e) {
+                        toast.error((e as Error).message)
+                      }
+                    }}>
+                      <Check /> {reorder.isPending ? 'Salvataggio…' : 'Salva ordine'}
+                    </Button>
+                  </>
+                )}
+                <Button variant="gold" onClick={() => setCreating(true)} data-testid="new-service-btn">
+                  <Plus /> Nuovo servizio
+                </Button>
+              </div>
             )
           }
         />
@@ -221,8 +255,35 @@ export default function CatalogPage() {
           </div>
         )}
 
+        {/* Modalità riordina: lista flat con drag-and-drop */}
+        {isProvider && reorderMode && (
+          <div className="surface p-4">
+            <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
+              Trascina le card per riordinarle. L'ordine sarà visibile a te e ai capostipiti della tua rete.
+            </p>
+            <Reorder.Group axis="y" values={reorderList} onReorder={setReorderList} className="space-y-2">
+              {reorderList.map((s) => (
+                <Reorder.Item
+                  key={s.id}
+                  value={s}
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-[rgb(var(--bg-elev))] cursor-grab active:cursor-grabbing"
+                  style={{ borderColor: 'rgb(var(--border))' }}
+                  whileDrag={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+                  <GripVertical size={16} className="text-[rgb(var(--fg-subtle))] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{s.name}</p>
+                    <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">
+                      {s.service_categories?.name ?? 'Senza categoria'} · € {Number(s.base_price).toLocaleString('it-IT')}
+                    </p>
+                  </div>
+                </Reorder.Item>
+              ))}
+            </Reorder.Group>
+          </div>
+        )}
+
         {/* Vista fornitore: raggruppa per categoria */}
-        {!isCapostipite && groupedByCategory && groupedByCategory.length > 0 && (
+        {!isCapostipite && !reorderMode && groupedByCategory && groupedByCategory.length > 0 && (
           <div className="space-y-10">
             {groupedByCategory.map(([category, items]) => (
               <section key={category}>
