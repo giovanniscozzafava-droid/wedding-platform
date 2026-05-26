@@ -396,27 +396,31 @@ export default function QuoteEditorPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end mt-4 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-            <div className="space-y-1">
-              <Label htmlFor="gc"><Users size={12} className="inline" /> Invitati</Label>
-              <Input id="gc" type="number" min="0" value={guestCount} onChange={(e) => setGuestCount(e.target.value)} disabled={isLocked} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="tc"><Table size={12} className="inline" /> Tavoli</Label>
-              <Input id="tc" type="number" min="0" value={tableCount} onChange={(e) => setTableCount(e.target.value)} disabled={isLocked} />
-            </div>
             {!quote.direct_client_id && (
-              <div className="space-y-1">
-                <Label htmlFor="mk">Markup default %</Label>
-                <Input id="mk" type="number" step="0.1" value={defaultMarkup} onChange={(e) => setDefaultMarkup(e.target.value)} disabled={isLocked} />
-              </div>
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="gc"><Users size={12} className="inline" /> Invitati</Label>
+                  <Input id="gc" type="number" min="0" value={guestCount} onChange={(e) => setGuestCount(e.target.value)} disabled={isLocked} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="tc"><Table size={12} className="inline" /> Tavoli</Label>
+                  <Input id="tc" type="number" min="0" value={tableCount} onChange={(e) => setTableCount(e.target.value)} disabled={isLocked} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="mk">Markup default %</Label>
+                  <Input id="mk" type="number" step="0.1" value={defaultMarkup} onChange={(e) => setDefaultMarkup(e.target.value)} disabled={isLocked} />
+                </div>
+              </>
             )}
             <Button onClick={handleHeaderUpdate} variant="gold" disabled={isLocked}>
               {forceUnlocked ? 'Applica e notifica cliente' : 'Applica'}
             </Button>
           </div>
-          <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
-            Cambiare <strong>invitati</strong>/<strong>tavoli</strong> riallinea automaticamente le voci con basis × invitati / × tavoli.
-          </p>
+          {!quote.direct_client_id && (
+            <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
+              Cambiare <strong>invitati</strong>/<strong>tavoli</strong> riallinea automaticamente le voci con basis × invitati / × tavoli.
+            </p>
+          )}
         </Card>
 
         {/* Modal modifica forzata */}
@@ -565,15 +569,17 @@ export default function QuoteEditorPage() {
                 </a>
               </div>
             )}
-            <div className="text-xs text-[rgb(var(--fg-subtle))] pt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-              <p className="mb-2 font-medium">Suggerimenti basis</p>
-              <ul className="space-y-1">
-                <li><Users size={11} className="inline mr-1" /> Menu/aperitivo/welcome → <strong>per invitato</strong></li>
-                <li><Table size={11} className="inline mr-1" /> Centrotavola → <strong>per tavolo</strong></li>
-                <li><Clock size={11} className="inline mr-1" /> Open bar/musicisti → <strong>per ora</strong></li>
-                <li><Package size={11} className="inline mr-1" /> Sala/foto/video → <strong>quantità fissa</strong></li>
-              </ul>
-            </div>
+            {!quote.direct_client_id && (
+              <div className="text-xs text-[rgb(var(--fg-subtle))] pt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                <p className="mb-2 font-medium">Suggerimenti basis</p>
+                <ul className="space-y-1">
+                  <li><Users size={11} className="inline mr-1" /> Menu/aperitivo/welcome → <strong>per invitato</strong></li>
+                  <li><Table size={11} className="inline mr-1" /> Centrotavola → <strong>per tavolo</strong></li>
+                  <li><Clock size={11} className="inline mr-1" /> Open bar/musicisti → <strong>per ora</strong></li>
+                  <li><Package size={11} className="inline mr-1" /> Sala/foto/video → <strong>quantità fissa</strong></li>
+                </ul>
+              </div>
+            )}
           </Card>
 
           {/* Aggiungi voce */}
@@ -582,26 +588,28 @@ export default function QuoteEditorPage() {
               <h3 className="font-display text-lg">Aggiungi voce dal catalogo</h3>
             </div>
             <div className="space-y-3">
-              <div className="flex gap-3 items-end max-w-md">
-                <div className="flex-1 space-y-1">
-                  <Label htmlFor="sup">Fornitore</Label>
-                  <Select id="sup" value={pickSupplier}
-                    onChange={(e) => setPickSupplier(e.target.value)}>
-                    <option value="">— seleziona —</option>
-                    {Array.from(grouped.entries()).map(([sid]) => {
-                      const sup = suppliers?.find((s) => s.id === sid)
-                      return (
-                        <option key={sid} value={sid}>
-                          {sup?.business_name ?? sup?.full_name ?? sid.slice(0, 8)} {sup?.subrole ? `· ${sup.subrole}` : ''} ({grouped.get(sid)?.length ?? 0})
-                        </option>
-                      )
-                    })}
-                  </Select>
+              {!quote.direct_client_id && (
+                <div className="flex gap-3 items-end max-w-md">
+                  <div className="flex-1 space-y-1">
+                    <Label htmlFor="sup">Fornitore</Label>
+                    <Select id="sup" value={pickSupplier}
+                      onChange={(e) => setPickSupplier(e.target.value)}>
+                      <option value="">— seleziona —</option>
+                      {Array.from(grouped.entries()).map(([sid]) => {
+                        const sup = suppliers?.find((s) => s.id === sid)
+                        return (
+                          <option key={sid} value={sid}>
+                            {sup?.business_name ?? sup?.full_name ?? sid.slice(0, 8)} {sup?.subrole ? `· ${sup.subrole}` : ''} ({grouped.get(sid)?.length ?? 0})
+                          </option>
+                        )
+                      })}
+                    </Select>
+                  </div>
                 </div>
-              </div>
-              {pickSupplier && (
+              )}
+              {(pickSupplier || quote.direct_client_id) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {(grouped.get(pickSupplier) ?? []).map((s) => (
+                  {(grouped.get(quote.direct_client_id ? quote.owner_id : pickSupplier) ?? []).map((s) => (
                     <div key={s.id} className="rounded-lg border p-3 flex gap-3 hover:bg-[rgb(var(--bg-sunken))] transition-colors"
                       style={{ borderColor: 'rgb(var(--border))' }}>
                       {s.service_photos[0] && (
