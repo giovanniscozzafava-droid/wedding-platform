@@ -298,12 +298,25 @@ async function generateAcceptancePdf(
 
 async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | null) {
   if (!RESEND_API_KEY) return
-  const { data: owner } = await admin.from('profiles').select('full_name, business_name').eq('id', quote.owner_id).maybeSingle()
+  const { data: owner } = await admin.from('profiles').select('full_name, business_name, role, subrole').eq('id', quote.owner_id).maybeSingle()
   const { data: ownerAuth } = await admin.auth.admin.getUserById(quote.owner_id)
   const ownerEmail = ownerAuth?.user?.email
 
   const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(quote.total_client))
-  const wpName = owner?.full_name ?? 'Wedding Planner'
+  // Display name owner: business_name > full_name > email local part (mai email piena)
+  const cleanName = (s: string | null | undefined): string | null => {
+    if (!s) return null
+    const t = s.trim()
+    if (!t || t.includes('@')) return null
+    return t
+  }
+  const ownerEmailLocal = ownerEmail ? ownerEmail.split('@')[0].replace(/\+.*$/, '').replace(/[._-]+/g, ' ').trim() : null
+  const wpName = cleanName(owner?.business_name) ?? cleanName(owner?.full_name) ?? cleanName(ownerEmailLocal) ?? 'Il tuo fornitore'
+  const safeName = (s: string) => s.replace(/[",;<>\r\n]/g, ' ').trim().slice(0, 80) || 'Planfully'
+  const fromAddr = (RESEND_FROM.match(/<(.+)>/)?.[1]) ?? RESEND_FROM
+  const fromHeader = `${safeName(wpName)} via Planfully <${fromAddr}>`
+  const toClient = cleanName(a.signer_name) ? `${safeName(a.signer_name)} <${quote.client_email}>` : quote.client_email
+  const toOwner = ownerEmail ? (cleanName(owner?.business_name ?? owner?.full_name) ? `${safeName(owner?.business_name ?? owner?.full_name)} <${ownerEmail}>` : ownerEmail) : null
 
   // Email cliente
   const clientHtml = `<!doctype html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f6f4ef;padding:24px;color:#1A1714">
@@ -324,7 +337,7 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify({ from: RESEND_FROM, to: [quote.client_email], subject: `Accettazione preventivo confermata · ${quote.title}`, html: clientHtml }),
+    body: JSON.stringify({ from: fromHeader, to: [toClient], subject: `Accettazione preventivo confermata · ${quote.title}`, html: clientHtml, reply_to: ownerEmail ?? undefined }),
   }).catch(() => null)
 
   // Email WP
@@ -352,7 +365,7 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: RESEND_FROM, to: [ownerEmail], subject: `🎉 ${a.signer_name} ha firmato · ${quote.title}`, html: wpHtml }),
+      body: JSON.stringify({ from: `Planfully <${fromAddr}>`, to: [toOwner ?? ownerEmail], subject: `🎉 ${a.signer_name} ha firmato · ${quote.title}`, html: wpHtml }),
     }).catch(() => null)
   }
 }

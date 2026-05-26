@@ -69,13 +69,25 @@ Deno.serve(async (req) => {
 
   const link = `${APP_BASE}/invito-coppia/${inviteToken}?step=questionario`
 
-  // Branding
-  const wpName = owner?.full_name ?? 'Il tuo wedding planner'
-  const wpBiz = owner?.business_name ?? null
+  // Branding — display name priorita: business_name > full_name > local part email
+  const cleanName = (s: string | null | undefined): string | null => {
+    if (!s) return null
+    const t = s.trim()
+    if (!t || t.includes('@')) return null
+    return t
+  }
+  const ownerEmail = (await admin.auth.admin.getUserById(quote.owner_id)).data?.user?.email ?? null
+  const ownerEmailLocal = ownerEmail ? ownerEmail.split('@')[0].replace(/\+.*$/, '').replace(/[._-]+/g, ' ').trim() : null
+  const wpName = cleanName(owner?.business_name) ?? cleanName(owner?.full_name) ?? cleanName(ownerEmailLocal) ?? 'Il tuo wedding planner'
+  const wpBiz = cleanName(owner?.business_name)
   const primaryColor = isPremium && owner?.brand_primary_color ? owner.brand_primary_color : '#1A2E4F'
   const accentColor = isPremium && owner?.brand_secondary_color ? owner.brand_secondary_color : '#C49A5C'
   const logoUrl = isPremium && owner?.brand_logo_url ? owner.brand_logo_url : 'https://planfully.it/brand/planfully-symbol.png'
-  const fromHeader = wpBiz ? `${wpName} · ${wpBiz} via Planfully <${(RESEND_FROM.match(/<(.+)>/)?.[1]) ?? RESEND_FROM}>` : `${wpName} via Planfully <${(RESEND_FROM.match(/<(.+)>/)?.[1]) ?? RESEND_FROM}>`
+  const safeName = (s: string) => s.replace(/[",;<>\r\n]/g, ' ').trim().slice(0, 80) || 'Planfully'
+  const fromAddr = (RESEND_FROM.match(/<(.+)>/)?.[1]) ?? RESEND_FROM
+  const fromHeader = `${safeName(wpBiz ?? wpName)} via Planfully <${fromAddr}>`
+  const toClientName = cleanName(quote.client_name)
+  const toHeader = toClientName ? `${safeName(toClientName)} <${quote.client_email}>` : quote.client_email
 
   const html = `<!doctype html>
 <html lang="it">

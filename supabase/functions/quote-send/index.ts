@@ -150,14 +150,29 @@ Deno.serve(async (req) => {
   if (q.client_email) {
     // Recupera info WP per personalizzazione email
     const { data: owner } = await admin.from('profiles')
-      .select('full_name, business_name, brand_logo_url, brand_primary_color, brand_secondary_color, phone, city, bio, subscription_tier')
+      .select('full_name, business_name, brand_logo_url, brand_primary_color, brand_secondary_color, phone, city, bio, subscription_tier, role, subrole')
       .eq('id', q.owner_id).maybeSingle()
     const { data: ownerAuth } = await admin.auth.admin.getUserById(q.owner_id)
     const ownerEmail = ownerAuth?.user?.email ?? null
     const isPremium = owner?.subscription_tier === 'PREMIUM'
 
-    const wpName = owner?.full_name ?? 'Il tuo wedding planner'
-    const wpBiz = owner?.business_name ?? null
+    // Display name dell'owner: priorita business_name > full_name > parte locale email
+    // (mai mostrare l'indirizzo email completo come "from name").
+    const cleanName = (s: string | null | undefined): string | null => {
+      if (!s) return null
+      const t = s.trim()
+      if (!t) return null
+      // Se contiene @ probabilmente e una email (no nome reale)
+      if (t.includes('@')) return null
+      return t
+    }
+    const roleFallback = owner?.role === 'FORNITORE'
+      ? (owner?.subrole ? owner.subrole.charAt(0).toUpperCase() + owner.subrole.slice(1) : 'Il tuo fornitore')
+      : owner?.role === 'LOCATION' ? 'La tua location'
+      : 'Il tuo wedding planner'
+    const ownerEmailLocal = ownerEmail ? ownerEmail.split('@')[0].replace(/\+.*$/, '').replace(/[._-]+/g, ' ').trim() : null
+    const wpName = cleanName(owner?.business_name) ?? cleanName(owner?.full_name) ?? cleanName(ownerEmailLocal) ?? roleFallback
+    const wpBiz = cleanName(owner?.business_name)
     const primaryColor = isPremium && owner?.brand_primary_color ? owner.brand_primary_color : '#1A2E4F'
     const accentColor = isPremium && owner?.brand_secondary_color ? owner.brand_secondary_color : '#C49A5C'
     const logoUrl = isPremium && owner?.brand_logo_url ? owner.brand_logo_url : 'https://planfully.it/brand/planfully-symbol.png'
@@ -349,13 +364,21 @@ Deno.serve(async (req) => {
 </table>
 </body></html>`
 
-    const fromName = wpBiz ? `${wpName} · ${wpBiz}` : wpName
+    // From: usa SOLO business_name se presente, altrimenti wpName. NO email-like.
+    // Format: "Nome Business via Planfully <noreply@planfully.it>"
+    // Escape virgolette nel display name per evitare header injection.
+    const safeName = (s: string) => s.replace(/[",;<>\r\n]/g, ' ').trim().slice(0, 80) || 'Planfully'
+    const fromName = safeName(wpBiz ?? wpName)
     const fromAddr = (FROM.match(/<(.+)>/)?.[1]) ?? FROM
     const fromHeader = `${fromName} via Planfully <${fromAddr}>`
 
+    // To: usa "Nome Cliente <email>" se abbiamo client_name (cliente vede il proprio nome).
+    const toClientName = cleanName(q.client_name)
+    const toHeader = toClientName ? `${safeName(toClientName)} <${q.client_email}>` : q.client_email
+
     emailResult = await sendResendCustom({
       from: fromHeader,
-      to: q.client_email,
+      to: toHeader,
       subject,
       html,
       replyTo: ownerEmail ?? undefined,
