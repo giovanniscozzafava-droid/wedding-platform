@@ -23,10 +23,19 @@ type QuoteInfo = {
   event_date: string | null
 }
 
+type QuoteItem = {
+  name_snapshot: string
+  description_snapshot: string | null
+  quantity: number
+  unit_snapshot: string | null
+  line_client: number
+}
+
 export default function QuoteAcceptPage() {
   const { token } = useParams<{ token: string }>()
   const [loading, setLoading] = useState(true)
   const [quote, setQuote] = useState<QuoteInfo | null>(null)
+  const [items, setItems] = useState<QuoteItem[]>([])
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<{ acceptance_pdf_url?: string | null } | null>(null)
 
@@ -56,6 +65,14 @@ export default function QuoteAcceptPage() {
           status: q.status, revision: q.revision,
           event_date: q.event_date,
         })
+        const its = ((data as any).items ?? []) as QuoteItem[]
+        setItems(its.map((it: any) => ({
+          name_snapshot: it.name_snapshot,
+          description_snapshot: it.description_snapshot,
+          quantity: Number(it.quantity ?? 1),
+          unit_snapshot: it.unit_snapshot,
+          line_client: Number(it.line_client ?? 0),
+        })))
         if (q.client_name && !signerName) setSignerName(q.client_name)
       } catch (e) { setErr((e as Error).message) }
       finally { setLoading(false) }
@@ -142,10 +159,33 @@ export default function QuoteAcceptPage() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="max-w-xl mx-auto legal-doc">
 
-        {/* Header preventivo */}
+        {/* Header preventivo + dettaglio voci */}
         <div className="surface surface-lift p-5 mb-4">
           <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--gold-600))]">Stai accettando il preventivo</p>
           <h1 className="font-display text-2xl sm:text-3xl mt-1">{quote.title}</h1>
+          {items.length > 0 && (
+            <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Cosa stai acquistando ({items.length} {items.length === 1 ? 'voce' : 'voci'})</p>
+              <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+                {items.map((it, i) => (
+                  <li key={i} className="py-2.5 flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{it.name_snapshot}</p>
+                      <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
+                        {it.quantity} {(it.unit_snapshot ?? '').toLowerCase()}
+                      </p>
+                      {it.description_snapshot && (
+                        <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1 italic line-clamp-2">{it.description_snapshot}</p>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium tabular-nums whitespace-nowrap">
+                      € {Number(it.line_client).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
             <span className="text-sm text-[rgb(var(--fg-muted))]">Importo totale</span>
             <span className="font-display text-2xl">{totFmt}</span>
