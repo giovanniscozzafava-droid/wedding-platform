@@ -198,8 +198,8 @@ export default function LoginPage() {
                   un team. Status game, non corsa al ribasso.
                 </p>
                 <ul className="space-y-2.5 text-sm">
-                  <Bullet text="WP e Location: gratis per sempre" />
-                  <Bullet text="Fornitori: 90 giorni di prova, poi €29 (Plus) o €79 (Premium)" />
+                  <Bullet text="Gratis per tutti i professionisti fino a ottobre 2026" />
+                  <Bullet text="Network privato: scegli tu chi fa parte della tua rete" />
                   <Bullet text="Nessuna commissione sugli eventi, nessuna esclusiva" />
                   <Bullet text="I tuoi dati restano tuoi: GDPR-first, export sempre disponibile" />
                 </ul>

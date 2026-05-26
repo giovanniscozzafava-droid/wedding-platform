@@ -180,15 +180,15 @@ export default function DiscoverPage() {
       {/* Footer CTA */}
       <section className="border-t mt-8" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
         <div className="max-w-4xl mx-auto px-6 sm:px-10 py-12 text-center">
-          <h2 className="font-display text-2xl sm:text-3xl mb-3">Sei un fornitore?</h2>
+          <h2 className="font-display text-2xl sm:text-3xl mb-3">Sei un professionista degli eventi?</h2>
           <p className="text-[rgb(var(--fg-muted))] mb-6 max-w-xl mx-auto">
-            Costruisci il tuo profilo, candidati alle reti dei capostipiti del tuo territorio.
-            <strong> 90 giorni gratis</strong>, senza carta di credito.
+            Costruisci il tuo profilo, mostra i tuoi lavori, entra nel network dei migliori
+            professionisti italiani. Senza carta di credito.
           </p>
-          <Link to="/register?role=FORNITORE"
+          <Link to="/register"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-colors"
             style={{ background: 'rgb(var(--gold-500))', color: 'white' }}>
-            Crea il tuo profilo gratis
+            Crea il tuo profilo
           </Link>
         </div>
       </section>

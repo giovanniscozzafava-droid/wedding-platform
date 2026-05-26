@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { AuthProvider } from '@/lib/auth'
+import { AuthProvider, useAuth } from '@/lib/auth'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/auth/LoginPage'
@@ -41,6 +41,8 @@ import BlogEditorPage from '@/pages/BlogEditorPage'
 import HomeFeedPage from '@/pages/HomeFeedPage'
 import PublicWpPage from '@/pages/public/PublicWpPage'
 import WpLeadsPage from '@/pages/WpLeadsPage'
+import PublicHomePage from '@/pages/public/PublicHomePage'
+import DiscoverProsPage from '@/pages/public/DiscoverProsPage'
 import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
 import SupplierAvailabilityPage from '@/pages/SupplierAvailabilityPage'
 import SupplierClientsPage from '@/pages/SupplierClientsPage'
@@ -186,18 +188,26 @@ export default function App() {
           <Route path="/couple" element={
             <RequireAuth bare roles={['COUPLE', 'ADMIN']}><CoupleDashboard /></RequireAuth>
           } />
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <HomePage />
-              </RequireAuth>
-            }
-          />
+          <Route path="/" element={<HomeOrPublicHome />} />
+          <Route path="/scopri-pro" element={<DiscoverProsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <CookieBanner />
       </AuthProvider>
     </BrowserRouter>
+  )
+}
+
+// Switch homepage in base allo stato di autenticazione:
+// - Visitatore non loggato → PublicHomePage B2C (portale clienti finali)
+// - Utente loggato → HomePage interna (dashboard ruolo-specifica)
+function HomeOrPublicHome() {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return <PublicHomePage />
+  return (
+    <RequireAuth>
+      <HomePage />
+    </RequireAuth>
   )
 }
