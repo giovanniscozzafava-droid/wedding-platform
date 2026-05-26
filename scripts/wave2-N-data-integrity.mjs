@@ -324,6 +324,14 @@ function auditTimestampsFromMigrations() {
   const triggerTables = new Set()
   while ((m = trgRe.exec(allSql)) !== null) triggerTables.add(m[1])
 
+  // Find dynamic creation via DO $$ unnest(array[...]) loops that create set_updated_at triggers
+  const dynRe = /do \$\$[\s\S]*?unnest\(array\[([\s\S]*?)\]\)[\s\S]*?set_updated_at[\s\S]*?\$\$/gi
+  while ((m = dynRe.exec(allSql)) !== null) {
+    const list = m[1]
+    const tableNames = [...list.matchAll(/'(\w+)'/g)].map(x => x[1])
+    for (const t of tableNames) triggerTables.add(t)
+  }
+
   const missingCreated = Object.entries(tables).filter(([_, v]) => !v.hasCreatedAt).map(([k]) => k)
   const withUpdated = Object.entries(tables).filter(([_, v]) => v.hasUpdatedAt).map(([k]) => k)
   const missingTrigger = withUpdated.filter(t => !triggerTables.has(t))

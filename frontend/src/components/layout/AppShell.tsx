@@ -20,11 +20,13 @@ import {
   ShieldCheck,
   FileSignature,
   Contact,
+  HelpCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { BetaBanner } from '@/components/BetaBanner'
 import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
+import { SupplierTutorialCards } from '@/components/SupplierTutorialCards'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -55,6 +57,7 @@ const NAV_TAIL_COMMON: NavItem[] = [
   { to: '/contracts',  label: 'Contratti',  icon: FileSignature },
   { to: '/settings/brand', label: 'Brand', icon: Palette },
   { to: '/profile',    label: 'Profilo',  icon: UserRound },
+  { to: '/faq',        label: 'FAQ',       icon: HelpCircle },
 ]
 
 // Voci esclusive WP/LOCATION (riservate al cliente finale, non ai fornitori)
@@ -259,6 +262,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <AppFooter />
         </main>
       </div>
+      <SupplierTutorialCards />
     </div>
   )
 }

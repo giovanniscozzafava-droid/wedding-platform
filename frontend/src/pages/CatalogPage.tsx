@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -30,6 +30,17 @@ export default function CatalogPage() {
   const [editing, setEditing] = useState<ServiceWithExtras | null>(null)
   const [viewing, setViewing] = useState<ServiceWithExtras | null>(null)
   const [creating, setCreating] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Onboarding fornitore: ?firstOffer=1 apre direttamente il modal Nuovo servizio
+  useEffect(() => {
+    if (searchParams.get('firstOffer') === '1' && profile?.role === 'FORNITORE') {
+      setCreating(true)
+      const params = new URLSearchParams(searchParams)
+      params.delete('firstOffer')
+      setSearchParams(params, { replace: true })
+    }
+  }, [searchParams, profile?.role, setSearchParams])
   const [filters, setFilters] = useState<Filters>({
     q: '', unit: '', hasPhoto: false, hasModifier: false, priceMin: '', priceMax: '', supplierId: '',
   })

@@ -2082,6 +2082,7 @@ export type Database = {
           subrole: string | null
           subscription_tier: Database["public"]["Enums"]["subscription_tier"]
           tiktok: string | null
+          tutorial_state: Json
           updated_at: string
           vat_number: string | null
           website: string | null
@@ -2119,6 +2120,7 @@ export type Database = {
           subrole?: string | null
           subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
           tiktok?: string | null
+          tutorial_state?: Json
           updated_at?: string
           vat_number?: string | null
           website?: string | null
@@ -2156,6 +2158,7 @@ export type Database = {
           subrole?: string | null
           subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
           tiktok?: string | null
+          tutorial_state?: Json
           updated_at?: string
           vat_number?: string | null
           website?: string | null

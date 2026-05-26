@@ -1,0 +1,315 @@
+{
+  "1": {
+    "name": "WP onboarding (register + onboarding wizard + brand)",
+    "started": "2026-05-25T21:30:29.524Z",
+    "steps": [
+      {
+        "name": "WP registered & landed onboarding",
+        "ok": true,
+        "detail": "https://planfully.it/onboarding",
+        "ts": "2026-05-25T21:30:34.167Z"
+      },
+      {
+        "name": "WP onboarding wizard completed",
+        "ok": false,
+        "detail": "https://planfully.it/onboarding",
+        "ts": "2026-05-25T21:33:26.083Z"
+      },
+      {
+        "name": "WP user created in auth",
+        "ok": true,
+        "detail": "1c5a0d69-93d7-4f5c-a8e6-8c0ab07c03fb",
+        "ts": "2026-05-25T21:33:34.485Z"
+      }
+    ],
+    "screenshots": [
+      "phase1-01-register-page.png",
+      "phase1-02-register-filled.png",
+      "phase1-03-onboarding-step0.png",
+      "phase1-04-onboarding-step1.png",
+      "phase1-05-onboarding-step2.png",
+      "phase1-06-onboarding-step3.png",
+      "phase1-07-onboarding-step4.png",
+      "phase1-08-wp-home.png",
+      "phase1-09-brand-page.png",
+      "phase1-10-brand-saved.png"
+    ],
+    "bugs": [
+      {
+        "severity": "LOW",
+        "area": "BRAND_UPLOAD",
+        "msg": "No file input found on brand page"
+      }
+    ],
+    "finished": "2026-05-25T21:33:34.485Z",
+    "ok": true,
+    "durationSec": 184.961
+  },
+  "2": {
+    "name": "WP invites 3 suppliers (foto/cater/fiori)",
+    "started": "2026-05-25T21:33:34.486Z",
+    "steps": [],
+    "screenshots": [
+      "phase2-01-suppliers-page.png",
+      "phase2-99-error.png"
+    ],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "PHASE2",
+        "msg": "locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"invite-btn\"]')\n"
+      }
+    ],
+    "finished": "2026-05-25T21:33:46.184Z",
+    "ok": false,
+    "durationSec": 11.698
+  },
+  "3": {
+    "name": "WP creates quote + sends to couple",
+    "started": "2026-05-25T21:33:46.184Z",
+    "steps": [],
+    "screenshots": [
+      "phase3-01-quotes-list.png",
+      "phase3-99-error.png"
+    ],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "PHASE3",
+        "msg": "locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /Nuovo preventivo|Crea preventivo|Nuovo|\\+ Preventivo/i }).first()\n"
+      }
+    ],
+    "finished": "2026-05-25T21:33:53.065Z",
+    "ok": false,
+    "durationSec": 6.881
+  },
+  "4": {
+    "name": "Couple registers and signs the quote",
+    "started": "2026-05-25T21:33:53.065Z",
+    "steps": [
+      {
+        "name": "Wedding entry resolved",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T21:33:53.386Z"
+      },
+      {
+        "name": "Couple invite token resolved",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T21:33:53.386Z"
+      },
+      {
+        "name": "Couple dashboard loaded",
+        "ok": false,
+        "detail": "https://planfully.it/login",
+        "ts": "2026-05-25T21:34:17.703Z"
+      }
+    ],
+    "screenshots": [
+      "phase4-04-couple-dashboard.png"
+    ],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "WEDDING",
+        "msg": "Could not find the 'guest_count' column of 'calendar_entries' in the schema cache"
+      }
+    ],
+    "finished": "2026-05-25T21:34:17.703Z",
+    "ok": false,
+    "durationSec": 24.638
+  },
+  "5": {
+    "name": "WP converts quote to contract + couple signs",
+    "started": "2026-05-25T21:34:17.704Z",
+    "steps": [
+      {
+        "name": "Contract resolved",
+        "ok": true,
+        "detail": "df0260b3-4b43-4590-b850-97347b6d5ea7",
+        "ts": "2026-05-25T21:34:27.202Z"
+      },
+      {
+        "name": "Contract signed: status=undefined, signed_at=undefined, signature=false",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T21:35:16.771Z"
+      }
+    ],
+    "screenshots": [
+      "phase5-01-quote-detail.png",
+      "phase5-02-after-contract-gen.png",
+      "phase5-03-contract-sign-page.png",
+      "phase5-04-contract-form-ready.png",
+      "phase5-05-after-contract-sign.png"
+    ],
+    "bugs": [
+      {
+        "severity": "MEDIUM",
+        "area": "CONTRACT_BTN",
+        "msg": "Genera contratto button not found in UI - using DB"
+      },
+      {
+        "severity": "MEDIUM",
+        "area": "CONTRACT_CANVAS",
+        "msg": "no canvas found in contract sign page"
+      }
+    ],
+    "finished": "2026-05-25T21:35:16.771Z",
+    "ok": false,
+    "durationSec": 59.067
+  },
+  "6": {
+    "name": "Full wedding configuration (tables, guests, timeline, mood, playlist, tasks, transport, accommodation)",
+    "started": "2026-05-25T21:35:16.771Z",
+    "steps": [],
+    "screenshots": [],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "NO_WEDDING",
+        "msg": "wedding ID missing - skipping"
+      }
+    ],
+    "finished": "2026-05-25T21:35:16.771Z",
+    "ok": false,
+    "durationSec": 0
+  },
+  "7": {
+    "name": "Couple change request",
+    "started": "2026-05-25T21:35:16.771Z",
+    "steps": [],
+    "screenshots": [
+      "phase7-01-couple-dashboard.png",
+      "phase7-05-wp-sees-cr.png"
+    ],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "CR_INSERT",
+        "msg": "Could not find the 'category' column of 'couple_change_requests' in the schema cache"
+      }
+    ],
+    "finished": "2026-05-25T21:35:50.459Z",
+    "ok": true,
+    "durationSec": 33.688
+  },
+  "8": {
+    "name": "Supplier payments (foto acconto, catering pending)",
+    "started": "2026-05-25T21:35:50.459Z",
+    "steps": [
+      {
+        "name": "Foto does NOT see wedding total",
+        "ok": true,
+        "detail": "body has 15770? false",
+        "ts": "2026-05-25T21:36:15.011Z"
+      }
+    ],
+    "screenshots": [
+      "phase8-01-foto-calendar.png"
+    ],
+    "bugs": [
+      {
+        "severity": "MEDIUM",
+        "area": "PAY_INSERT",
+        "msg": "Could not find the table 'public.supplier_payments' in the schema cache"
+      },
+      {
+        "severity": "HIGH",
+        "area": "PAY_ALT",
+        "msg": "Could not find the table 'public.supplier_payments' in the schema cache"
+      }
+    ],
+    "finished": "2026-05-25T21:36:15.011Z",
+    "ok": true,
+    "durationSec": 24.552
+  },
+  "9": {
+    "name": "Availability busy + duplicate quote blocked",
+    "started": "2026-05-25T21:36:15.011Z",
+    "steps": [
+      {
+        "name": "Availability rows for 2027-07-04: 0/3",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T21:36:15.155Z"
+      },
+      {
+        "name": "Quote item blocked by trigger",
+        "ok": false,
+        "detail": "Could not find the 'basis' column of 'quote_items' in the schema cache",
+        "ts": "2026-05-25T21:36:15.453Z"
+      }
+    ],
+    "screenshots": [],
+    "bugs": [
+      {
+        "severity": "MEDIUM",
+        "area": "TRIGGER_NOT_FIRED",
+        "msg": "Could not find the 'basis' column of 'quote_items' in the schema cache"
+      }
+    ],
+    "finished": "2026-05-25T21:36:15.512Z",
+    "ok": true,
+    "durationSec": 0.501
+  },
+  "10": {
+    "name": "Disintermediation conflict alert (LOCATION_MATCH)",
+    "started": "2026-05-25T21:36:15.513Z",
+    "steps": [
+      {
+        "name": "Conflict alerts created: undefined",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T21:36:17.686Z"
+      },
+      {
+        "name": "LOCATION_MATCH alert found",
+        "ok": false,
+        "detail": "none",
+        "ts": "2026-05-25T21:36:17.686Z"
+      },
+      {
+        "name": "Conflict banner UI: 0 matches",
+        "ok": false,
+        "detail": null,
+        "ts": "2026-05-25T21:36:26.876Z"
+      }
+    ],
+    "screenshots": [
+      "phase10-01-wp-with-conflict.png"
+    ],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "SCL",
+        "msg": "Could not find the 'client_email' column of 'supplier_clients' in the schema cache"
+      },
+      {
+        "severity": "MEDIUM",
+        "area": "LOCATION_ALERT",
+        "msg": "No LOCATION alert generated"
+      }
+    ],
+    "finished": "2026-05-25T21:36:26.876Z",
+    "ok": true,
+    "durationSec": 11.363
+  },
+  "11": {
+    "name": "Cleanup all AGENT-P-* users and data",
+    "started": "2026-05-25T21:36:26.876Z",
+    "steps": [],
+    "screenshots": [],
+    "bugs": [
+      {
+        "severity": "HIGH",
+        "area": "PHASE11",
+        "msg": "sb.from(...).delete(...).eq(...).catch is not a function"
+      }
+    ],
+    "finished": "2026-05-25T21:36:27.377Z",
+    "ok": false,
+    "durationSec": 0.501
+  }
+}

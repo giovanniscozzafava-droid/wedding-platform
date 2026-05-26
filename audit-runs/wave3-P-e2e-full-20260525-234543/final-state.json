@@ -1,0 +1,29 @@
+{
+  "wpUserId": "fc14c1d7-3a81-4e4c-bcf7-be2117851090",
+  "supplierIds": [
+    "040e9b0c-b94c-420f-aea0-45ace6243067"
+  ],
+  "supplierMap": {
+    "foto": "040e9b0c-b94c-420f-aea0-45ace6243067",
+    "cater": null,
+    "fiori": null
+  },
+  "totalCost": 0,
+  "totalClient": 0,
+  "quoteId": "d6aed1b5-e1a3-4e93-a4a1-d34b168c999e",
+  "quoteToken": "961c63ac-e134-4e71-acf9-54e15f591b40",
+  "quoteStatus": "INVIATO",
+  "quoteTotalClient": 0,
+  "weddingId": "0e544016-7e14-4170-8379-2006c2e83913",
+  "coupleUserId": "8f563bc6-322d-4169-8852-f8e2b2a45abe",
+  "quoteAccepted": false,
+  "quoteAcceptedAt": null,
+  "contractId": null,
+  "contractToken": null,
+  "fotoTotal": 0,
+  "fotoAcconto": 0,
+  "caterTotal": 0,
+  "supplierDirectClientId": "61bfba16-f726-48d3-9114-f8cb2ba9d8a7",
+  "directQuoteId": "30ab2e50-b2c2-4d3d-befe-553ec9731120",
+  "conflictAlerts": 0
+}

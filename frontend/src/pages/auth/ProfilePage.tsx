@@ -144,6 +144,25 @@ export default function ProfilePage() {
             </form>
           </Card>
 
+          {/* Tutorial — solo fornitori */}
+          {profile?.role === 'FORNITORE' && (
+            <Card className="p-6 mt-6">
+              <h3 className="font-display text-lg mb-1">Tutorial di benvenuto</h3>
+              <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">
+                Le card che ti guidano nei primi passi su Planfully. Se le hai chiuse e vuoi rivederle, riattivale qui.
+              </p>
+              <Button variant="outline" size="sm" onClick={async () => {
+                if (!user) return
+                await supabase.from('profiles').update({
+                  tutorial_state: { dismissed: false, completed_steps: [], first_offer_created: false, started_at: new Date().toISOString() }
+                }).eq('id', user.id)
+                location.reload()
+              }}>
+                Riattiva tutorial
+              </Button>
+            </Card>
+          )}
+
           {/* GDPR */}
           <Card className="p-6 mt-6 border-[rgb(var(--rose-200))]">
             <div className="flex items-start gap-3 mb-3">

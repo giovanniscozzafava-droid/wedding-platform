@@ -71,6 +71,17 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
         const created = await create.mutateAsync(payload)
         setSavedId(created.id)
         toast.success('Servizio creato')
+        // Onboarding: marca first_offer_created sul profilo
+        const { data: me } = await supabase.auth.getUser()
+        if (me.user) {
+          const { data: prof } = await supabase.from('profiles').select('tutorial_state').eq('id', me.user.id).single()
+          const state = (prof?.tutorial_state ?? {}) as Record<string, unknown>
+          if (!state.first_offer_created) {
+            await supabase.from('profiles').update({
+              tutorial_state: { ...state, first_offer_created: true },
+            }).eq('id', me.user.id)
+          }
+        }
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore')

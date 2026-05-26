@@ -125,7 +125,16 @@ export function ProviderOnboardingWizard() {
       const { error } = await supabase.from('profiles').update(payload).eq('id', user.id)
       if (error) throw error
       await refreshProfile()
-      if (complete) { toast.success('Profilo completato'); nav('/', { replace: true }) }
+      if (complete) {
+        toast.success('Profilo completato')
+        // Fornitore: portalo subito a creare la prima offerta (con possibilità di skip).
+        // Tutorial card si attiveranno in dashboard se chiude.
+        if (profile?.role === 'FORNITORE') {
+          nav('/catalog?firstOffer=1', { replace: true })
+        } else {
+          nav('/', { replace: true })
+        }
+      }
       else toast.success('Salvato')
     } catch (e) {
       toast.error((e as Error).message)

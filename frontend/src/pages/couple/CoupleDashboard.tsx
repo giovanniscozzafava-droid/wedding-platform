@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
-  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils,
+  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle,
 } from 'lucide-react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -91,6 +91,9 @@ export default function CoupleDashboard() {
               title={profile?.full_name ?? user?.email ?? undefined}>
               {(profile?.full_name ?? user?.email ?? '?').split(/\s+|@/).filter(Boolean).slice(0, 2).map((s) => s[0]!.toUpperCase()).join('')}
             </span>
+            <Link to="/faq" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Domande frequenti" aria-label="FAQ">
+              <HelpCircle size={14} />
+            </Link>
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Cambia tema">{theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}</Button>
             <Link to="/profile" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Profilo / Privacy" aria-label="Profilo">
               <Sparkles size={14} />

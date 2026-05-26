@@ -34,6 +34,7 @@ import CookiePage from '@/pages/public/CookiePage'
 import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
 import SupplierAvailabilityPage from '@/pages/SupplierAvailabilityPage'
 import SupplierClientsPage from '@/pages/SupplierClientsPage'
+import FaqPage from '@/pages/FaqPage'
 import { CookieBanner } from '@/components/CookieBanner'
 
 export default function App() {
@@ -156,6 +157,7 @@ export default function App() {
           <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
           <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />
+          <Route path="/faq" element={<RequireAuth><FaqPage /></RequireAuth>} />
           <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />
           <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />
           <Route path="/couple" element={
