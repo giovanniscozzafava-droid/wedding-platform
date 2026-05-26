@@ -404,10 +404,12 @@ export default function QuoteEditorPage() {
               <Label htmlFor="tc"><Table size={12} className="inline" /> Tavoli</Label>
               <Input id="tc" type="number" min="0" value={tableCount} onChange={(e) => setTableCount(e.target.value)} disabled={isLocked} />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="mk">Markup default %</Label>
-              <Input id="mk" type="number" step="0.1" value={defaultMarkup} onChange={(e) => setDefaultMarkup(e.target.value)} disabled={isLocked} />
-            </div>
+            {!quote.direct_client_id && (
+              <div className="space-y-1">
+                <Label htmlFor="mk">Markup default %</Label>
+                <Input id="mk" type="number" step="0.1" value={defaultMarkup} onChange={(e) => setDefaultMarkup(e.target.value)} disabled={isLocked} />
+              </div>
+            )}
             <Button onClick={handleHeaderUpdate} variant="gold" disabled={isLocked}>
               {forceUnlocked ? 'Applica e notifica cliente' : 'Applica'}
             </Button>
@@ -476,9 +478,12 @@ export default function QuoteEditorPage() {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium">{it.name_snapshot}</p>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
-                            € {Number(it.snapshot_price).toFixed(2)} {it.unit_snapshot.toLowerCase()} ·
-                            costo € {Number(it.line_cost).toLocaleString('it-IT')} ·
-                            cliente <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong>
+                            € {Number(it.snapshot_price).toFixed(2)} {it.unit_snapshot.toLowerCase()}
+                            {quote.direct_client_id ? (
+                              <> · <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong></>
+                            ) : (
+                              <> · costo € {Number(it.line_cost).toLocaleString('it-IT')} · cliente <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong></>
+                            )}
                           </p>
                         </div>
                         <Button variant="ghost" size="icon"

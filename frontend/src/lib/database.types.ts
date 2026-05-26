@@ -174,6 +174,7 @@ export type Database = {
           destination_country: string | null
           destination_language: string | null
           destination_location: string | null
+          event_kind: string
           honeymoon_destination: string | null
           honeymoon_end: string | null
           honeymoon_notes: string | null
@@ -203,6 +204,7 @@ export type Database = {
           destination_country?: string | null
           destination_language?: string | null
           destination_location?: string | null
+          event_kind?: string
           honeymoon_destination?: string | null
           honeymoon_end?: string | null
           honeymoon_notes?: string | null
@@ -232,6 +234,7 @@ export type Database = {
           destination_country?: string | null
           destination_language?: string | null
           destination_location?: string | null
+          event_kind?: string
           honeymoon_destination?: string | null
           honeymoon_end?: string | null
           honeymoon_notes?: string | null
@@ -416,6 +419,7 @@ export type Database = {
           direct_client_id: string | null
           entry_id: string | null
           event_date: string | null
+          event_kind: string
           id: string
           owner_id: string
           pdf_url: string | null
@@ -437,6 +441,7 @@ export type Database = {
           direct_client_id?: string | null
           entry_id?: string | null
           event_date?: string | null
+          event_kind?: string
           id?: string
           owner_id: string
           pdf_url?: string | null
@@ -458,6 +463,7 @@ export type Database = {
           direct_client_id?: string | null
           entry_id?: string | null
           event_date?: string | null
+          event_kind?: string
           id?: string
           owner_id?: string
           pdf_url?: string | null
@@ -2511,6 +2517,7 @@ export type Database = {
           default_markup_percent: number
           direct_client_id: string | null
           event_date: string | null
+          event_kind: string
           event_location: string | null
           guest_count: number | null
           id: string
@@ -2541,6 +2548,7 @@ export type Database = {
           default_markup_percent?: number
           direct_client_id?: string | null
           event_date?: string | null
+          event_kind?: string
           event_location?: string | null
           guest_count?: number | null
           id?: string
@@ -2571,6 +2579,7 @@ export type Database = {
           default_markup_percent?: number
           direct_client_id?: string | null
           event_date?: string | null
+          event_kind?: string
           event_location?: string | null
           guest_count?: number | null
           id?: string

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { useMyWeddings } from '@/hooks/useCouple'
+import { eventTerm } from '@/lib/eventKind'
 
 type StyleKey =
   | 'CLASSICO' | 'MODERNO' | 'BOHO' | 'RUSTICO' | 'GLAMOUR' | 'MINIMAL'
@@ -107,6 +108,11 @@ export function CoupleOnboardingWizard() {
   }, [weddings, entryId])
 
   const totalSteps = STEPS.length
+
+  // Terminologia dinamica per event_kind (matrimonio | battesimo | comunione | ...)
+  const currentEntry = (weddings ?? []).find((w) => w.entry?.id === entryId)?.entry as any
+  const eventKind = currentEntry?.event_kind ?? 'matrimonio'
+  const term = eventTerm(eventKind)
   const progress = useMemo(() => Math.round(((step + 1) / totalSteps) * 100), [step, totalSteps])
 
   function patch<K extends keyof CoupleForm>(k: K, v: CoupleForm[K]) {
@@ -201,14 +207,14 @@ export function CoupleOnboardingWizard() {
             <Heart size={18} strokeWidth={2.5} />
           </span>
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Il vostro matrimonio</p>
-            <h1 className="font-display text-2xl">Raccontateci la vostra visione</h1>
+            <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">{term.hasCoupleConcept ? `Il vostro ${term.label}` : `Il ${term.label}`}</p>
+            <h1 className="font-display text-2xl">{term.hasCoupleConcept ? 'Raccontateci la vostra visione' : 'Raccontaci come lo immagini'}</h1>
           </div>
         </header>
 
         {weddings.length > 1 && (
           <div className="mb-4">
-            <Label>Per quale matrimonio?</Label>
+            <Label>{term.hasCoupleConcept ? `Per quale ${term.label}?` : `Per quale ${term.label}?`}</Label>
             <Select value={entryId ?? ''} onChange={(e) => setEntryId(e.target.value)}>
               {weddings.map((w) => (
                 <option key={w.entry?.id} value={w.entry?.id ?? ''}>{w.entry?.title}</option>
@@ -235,17 +241,23 @@ export function CoupleOnboardingWizard() {
                 transition={{ duration: 0.18 }} className="space-y-4">
                 {step === 0 && (
                   <>
-                    <h2 className="font-display text-xl mb-2">Chi siete</h2>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Nome (sposa/sposo 1)">
-                        <Input value={form.bride_name} onChange={(e) => patch('bride_name', e.target.value)} placeholder="Es. Giulia" />
+                    <h2 className="font-display text-xl mb-2">{term.hasCoupleConcept ? 'Chi siete' : 'Chi è il/la festeggiato/a'}</h2>
+                    {term.hasCoupleConcept ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label={`Nome (${term.honoreeFeminine} / ${term.honoreeSingular})`}>
+                          <Input value={form.bride_name} onChange={(e) => patch('bride_name', e.target.value)} placeholder="Es. Giulia" />
+                        </Field>
+                        <Field label={`Nome (${term.honoreeFeminine} / ${term.honoreeSingular})`}>
+                          <Input value={form.groom_name} onChange={(e) => patch('groom_name', e.target.value)} placeholder="Es. Marco" />
+                        </Field>
+                      </div>
+                    ) : (
+                      <Field label={`Nome ${term.honoreeNeutral}`}>
+                        <Input value={form.bride_name} onChange={(e) => patch('bride_name', e.target.value)} placeholder="Es. Sofia Rossi" />
                       </Field>
-                      <Field label="Nome (sposa/sposo 2)">
-                        <Input value={form.groom_name} onChange={(e) => patch('groom_name', e.target.value)} placeholder="Es. Marco" />
-                      </Field>
-                    </div>
-                    <Field label="Come vi piace essere chiamati">
-                      <Input value={form.couple_name} onChange={(e) => patch('couple_name', e.target.value)} placeholder="Es. Giulia & Marco" />
+                    )}
+                    <Field label={term.hasCoupleConcept ? 'Come vi piace essere chiamati' : 'Come ti piace essere chiamato/a'}>
+                      <Input value={form.couple_name} onChange={(e) => patch('couple_name', e.target.value)} placeholder={term.hasCoupleConcept ? 'Es. Giulia & Marco' : 'Es. Sofia'} />
                     </Field>
                   </>
                 )}

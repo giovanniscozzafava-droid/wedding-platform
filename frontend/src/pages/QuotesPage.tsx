@@ -18,7 +18,7 @@ export default function QuotesPage() {
   const nav = useNavigate()
   const [openNew, setOpenNew] = useState(false)
   const [form, setForm] = useState({
-    title: '', client_name: '', client_email: '', event_date: '', guest_count: '', event_location: '',
+    title: '', client_name: '', client_email: '', event_date: '', guest_count: '', event_location: '', event_kind: 'matrimonio',
   })
   const [createErr, setCreateErr] = useState<string | null>(null)
 
@@ -33,6 +33,7 @@ export default function QuotesPage() {
         event_date: form.event_date || null,
         guest_count: form.guest_count ? Number(form.guest_count) : null,
         event_location: form.event_location || null,
+        event_kind: form.event_kind || 'matrimonio',
       } as never)
       toast.success('Preventivo creato')
       nav(`/quotes/${q.id}`)
@@ -168,6 +169,25 @@ export default function QuotesPage() {
                 <div className="space-y-1">
                   <Label htmlFor="eloc">Location evento</Label>
                   <Input id="eloc" value={form.event_location} onChange={(e) => setForm((f) => ({ ...f, event_location: e.target.value }))} placeholder="Es. Villa Rosa - Tropea" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="ekind">Tipo evento</Label>
+                  <select id="ekind" value={form.event_kind}
+                    onChange={(e) => setForm((f) => ({ ...f, event_kind: e.target.value }))}
+                    className="w-full h-10 px-3 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))] text-sm">
+                    <option value="matrimonio">Matrimonio</option>
+                    <option value="battesimo">Battesimo</option>
+                    <option value="cresima">Cresima</option>
+                    <option value="comunione">Prima comunione</option>
+                    <option value="compleanno">Compleanno</option>
+                    <option value="anniversario">Anniversario</option>
+                    <option value="laurea">Festa di laurea</option>
+                    <option value="corporate">Evento aziendale</option>
+                    <option value="altro">Altro</option>
+                  </select>
+                  <p className="text-[10px] text-[rgb(var(--fg-subtle))]">
+                    Disciplina linguaggio email, PDF, form firma e contratto.
+                  </p>
                 </div>
                 {createErr && <p className="text-sm text-[rgb(var(--rose-500))]" role="alert" data-testid="quote-create-error">{createErr}</p>}
                 <div className="flex justify-end gap-2 pt-2">
