@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal } from 'lucide-react'
+import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,7 @@ export default function CatalogPage() {
   const { data: suppliers } = useSuppliers()
   const del = useDeleteService()
   const [editing, setEditing] = useState<ServiceWithExtras | null>(null)
+  const [viewing, setViewing] = useState<ServiceWithExtras | null>(null)
   const [creating, setCreating] = useState(false)
   const [filters, setFilters] = useState<Filters>({
     q: '', unit: '', hasPhoto: false, hasModifier: false, priceMin: '', priceMax: '', supplierId: '',
@@ -199,7 +200,7 @@ export default function CatalogPage() {
                     </div>
                   </Link>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {items.map((s) => <ServiceCard key={s.id} s={s} isProvider={false} />)}
+                    {items.map((s) => <ServiceCard key={s.id} s={s} isProvider={false} onView={() => setViewing(s)} />)}
                   </div>
                 </section>
               )
@@ -242,20 +243,83 @@ export default function CatalogPage() {
           onClose={() => { setEditing(null); setCreating(false) }}
         />
       )}
+
+      {viewing && <ServiceDetailModal s={viewing} onClose={() => setViewing(null)} />}
     </div>
   )
 }
 
-function ServiceCard({ s, isProvider, onEdit, onDelete }: {
+function ServiceDetailModal({ s, onClose }: { s: ServiceWithExtras; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="surface surface-elev max-w-3xl w-full max-h-[90vh] flex flex-col rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-display text-xl truncate">{s.name}</h2>
+              {!s.is_active && <Badge tone="rose">Inattivo</Badge>}
+            </div>
+            <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">
+              € {Number(s.base_price).toLocaleString('it-IT')} / {s.unit.toLowerCase()}
+            </p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Chiudi"><XIcon size={18} /></Button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-5 space-y-5">
+          {s.service_photos.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {s.service_photos.map((ph) => (
+                <a key={ph.id} href={ph.original_url} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-lg bg-[rgb(var(--bg-sunken))]">
+                  <img src={ph.thumbnail_url} alt="" className="h-full w-full object-cover hover:scale-105 transition-transform" />
+                </a>
+              ))}
+            </div>
+          )}
+          {s.description && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Descrizione</p>
+              <p className="text-sm whitespace-pre-line leading-relaxed">{s.description}</p>
+            </div>
+          )}
+          {s.service_modifiers.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Modificatori prezzo</p>
+              <ul className="space-y-2">
+                {s.service_modifiers.map((m) => (
+                  <li key={m.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
+                    <span className="font-medium">{m.name}</span>
+                    <span className="text-xs text-[rgb(var(--fg-muted))]">
+                      {m.modifier_type === 'PERCENT' ? `${m.value}%` : `€ ${m.value}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ServiceCard({ s, isProvider, onEdit, onDelete, onView }: {
   s: ServiceWithExtras
   isProvider: boolean
   onEdit?: () => void
   onDelete?: () => void
+  onView?: () => void
 }) {
+  // La card intera è cliccabile: per fornitore apre l'edit, per WP apre dettaglio read-only.
+  const handleCardClick = () => {
+    if (isProvider && onEdit) onEdit()
+    else if (onView) onView()
+  }
+  const clickable = isProvider ? !!onEdit : !!onView
   return (
     <motion.article data-testid={`service-card-${s.id}`}
       initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-      className="surface surface-elev overflow-hidden group hover:shadow-[var(--shadow-lift)] transition-shadow">
+      onClick={clickable ? handleCardClick : undefined}
+      className={`surface surface-elev overflow-hidden group transition-all ${clickable ? 'cursor-pointer hover:shadow-[var(--shadow-lift)] hover:border-[rgb(var(--gold-500))]' : 'hover:shadow-[var(--shadow-lift)]'}`}>
       <div className="relative aspect-[16/10] bg-[rgb(var(--bg-sunken))] overflow-hidden">
         {s.service_photos[0] ? (
           <img src={s.service_photos[0].thumbnail_url} alt={s.name}
@@ -291,7 +355,7 @@ function ServiceCard({ s, isProvider, onEdit, onDelete }: {
           </div>
         )}
         {isProvider && onEdit && onDelete && (
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
             <Button variant="outline" size="sm" onClick={onEdit} data-testid={`edit-${s.id}`}>Modifica</Button>
             <Button variant="ghost" size="sm" onClick={onDelete}>Elimina</Button>
           </div>
