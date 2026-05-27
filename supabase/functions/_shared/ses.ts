@@ -1,33 +1,19 @@
-// Centralizzato: invio email via Amazon SES v2 API.
-// Sostituisce Resend in tutte le edge functions per ridurre costi (~10x meno)
-// e dipendere su SES eu-west-1 dove abbiamo gia' l'identity verificata.
+// Centralizzato invio email — implementato adesso con Resend (sandbox SES
+// di AWS in attesa di production access). Mantiene la stessa firma del
+// vecchio helper SES per non toccare le 6 edge functions che lo importano.
 //
-// Required env vars:
-//   AWS_ACCESS_KEY_ID       — chiave IAM con policy ses:SendEmail
-//   AWS_SECRET_ACCESS_KEY   — secret
-//   AWS_REGION              — default 'eu-west-1'
-//   SES_FROM_EMAIL          — default 'Planfully <noreply@planfully.it>'
+// Quando AWS approva production access, basta swappare l'implementazione
+// interna a SES (codice precedente in git history).
+//
+// Required env vars (Supabase Edge Function Secrets):
+//   RESEND_API_KEY    — API key da https://resend.com/api-keys
+//   SES_FROM_EMAIL    — mittente default (riusiamo lo stesso nome del SES helper)
+//                       formato: "Planfully <noreply@planfully.it>"
 
-import { AwsClient } from 'npm:aws4fetch@1.0.20'
-
-const REGION = Deno.env.get('AWS_REGION') ?? 'eu-west-1'
-const FROM = Deno.env.get('SES_FROM_EMAIL') ?? 'Planfully <noreply@planfully.it>'
-const ACCESS = Deno.env.get('AWS_ACCESS_KEY_ID') ?? ''
-const SECRET = Deno.env.get('AWS_SECRET_ACCESS_KEY') ?? ''
-
-let _client: AwsClient | null = null
-function client(): AwsClient | null {
-  if (!ACCESS || !SECRET) return null
-  if (!_client) {
-    _client = new AwsClient({
-      accessKeyId: ACCESS,
-      secretAccessKey: SECRET,
-      service: 'ses',
-      region: REGION,
-    })
-  }
-  return _client
-}
+const RESEND_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
+const FROM = Deno.env.get('SES_FROM_EMAIL')
+  ?? Deno.env.get('RESEND_FROM_EMAIL')
+  ?? 'Planfully <noreply@planfully.it>'
 
 export type EmailAttachment = {
   filename: string
@@ -49,115 +35,57 @@ export type SendEmailResult =
   | { ok: false; reason: 'no_credentials' | 'api_error'; error?: string }
 
 /**
- * Invia una singola email via SES API v2.
- * Per email con allegati o multi-recipient piu' complessi, usa sendRawEmail.
+ * Invia una email transazionale via Resend.
+ * Per allegati il payload è in base64, Resend supporta nativamente.
  */
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
-  const c = client()
-  if (!c) {
-    console.warn('SES: missing AWS credentials, email skipped')
+  if (!RESEND_KEY) {
+    console.warn('Resend: missing RESEND_API_KEY, email skipped')
     return { ok: false, reason: 'no_credentials' }
   }
 
-  if (input.attachments && input.attachments.length > 0) {
-    return sendRawEmail(input)
-  }
-
-  const url = `https://email.${REGION}.amazonaws.com/v2/email/outbound-emails`
   const recipients = Array.isArray(input.to) ? input.to : [input.to]
 
-  const body = JSON.stringify({
-    FromEmailAddress: input.from ?? FROM,
-    Destination: { ToAddresses: recipients },
-    Content: {
-      Simple: {
-        Subject: { Data: input.subject, Charset: 'UTF-8' },
-        Body: { Html: { Data: input.html, Charset: 'UTF-8' } },
-      },
-    },
-    ...(input.reply_to ? { ReplyToAddresses: [input.reply_to] } : {}),
-  })
+  const payload: Record<string, unknown> = {
+    from: input.from ?? FROM,
+    to: recipients,
+    subject: input.subject,
+    html: input.html,
+  }
+  if (input.reply_to) payload.reply_to = input.reply_to
+  if (input.attachments && input.attachments.length > 0) {
+    payload.attachments = input.attachments.map((a) => ({
+      filename: a.filename,
+      content: a.content_base64,
+      content_type: a.content_type,
+    }))
+  }
 
   try {
-    const res = await c.fetch(url, {
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      body,
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${RESEND_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     })
     if (!res.ok) {
       const errText = await res.text()
-      console.error('SES error:', res.status, errText)
+      console.error('Resend error:', res.status, errText)
       return { ok: false, reason: 'api_error', error: errText }
     }
-    const json = await res.json().catch(() => ({} as { MessageId?: string }))
-    return { ok: true, message_id: (json as { MessageId?: string }).MessageId ?? '' }
+    const json = await res.json().catch(() => ({} as { id?: string }))
+    return { ok: true, message_id: (json as { id?: string }).id ?? '' }
   } catch (e) {
-    console.error('SES fetch error:', e)
+    console.error('Resend fetch error:', e)
     return { ok: false, reason: 'api_error', error: (e as Error).message }
   }
 }
 
 /**
- * Invia raw MIME (necessario per allegati come PDF firmati).
- * Costruisce manualmente il MIME multipart e lo manda a SES.
+ * Alias retro-compatibile: nel vecchio helper SES esisteva un sendRawEmail
+ * separato per i payload con allegati. Resend gestisce tutto in un'unica
+ * chiamata, quindi sendRawEmail e sendEmail sono equivalenti.
  */
-export async function sendRawEmail(input: SendEmailInput): Promise<SendEmailResult> {
-  const c = client()
-  if (!c) return { ok: false, reason: 'no_credentials' }
-
-  const recipients = Array.isArray(input.to) ? input.to : [input.to]
-  const boundary = `--bd${crypto.randomUUID().replace(/-/g, '')}`
-
-  const parts: string[] = []
-  parts.push(`From: ${input.from ?? FROM}`)
-  parts.push(`To: ${recipients.join(', ')}`)
-  parts.push(`Subject: ${encodeRfc2047(input.subject)}`)
-  if (input.reply_to) parts.push(`Reply-To: ${input.reply_to}`)
-  parts.push('MIME-Version: 1.0')
-  parts.push(`Content-Type: multipart/mixed; boundary="${boundary}"`)
-  parts.push('')
-  parts.push(`--${boundary}`)
-  parts.push('Content-Type: text/html; charset=UTF-8')
-  parts.push('Content-Transfer-Encoding: 7bit')
-  parts.push('')
-  parts.push(input.html)
-
-  for (const att of (input.attachments ?? [])) {
-    parts.push(`--${boundary}`)
-    parts.push(`Content-Type: ${att.content_type}; name="${att.filename}"`)
-    parts.push('Content-Transfer-Encoding: base64')
-    parts.push(`Content-Disposition: attachment; filename="${att.filename}"`)
-    parts.push('')
-    // Spezza base64 in righe da 76 char (RFC)
-    parts.push(att.content_base64.match(/.{1,76}/g)?.join('\r\n') ?? att.content_base64)
-  }
-  parts.push(`--${boundary}--`)
-
-  const rawMessage = parts.join('\r\n')
-  const rawBase64 = btoa(rawMessage)
-
-  const url = `https://email.${REGION}.amazonaws.com/v2/email/outbound-emails`
-  const body = JSON.stringify({
-    Content: { Raw: { Data: rawBase64 } },
-  })
-
-  try {
-    const res = await c.fetch(url, { method: 'POST', body, headers: { 'content-type': 'application/json' } })
-    if (!res.ok) {
-      const errText = await res.text()
-      console.error('SES raw error:', res.status, errText)
-      return { ok: false, reason: 'api_error', error: errText }
-    }
-    const json = await res.json().catch(() => ({} as { MessageId?: string }))
-    return { ok: true, message_id: (json as { MessageId?: string }).MessageId ?? '' }
-  } catch (e) {
-    return { ok: false, reason: 'api_error', error: (e as Error).message }
-  }
-}
-
-// RFC 2047 encoded-word per subject con caratteri non-ASCII (accentati italiani)
-function encodeRfc2047(s: string): string {
-  if (/^[\x20-\x7e]*$/.test(s)) return s
-  const b64 = btoa(unescape(encodeURIComponent(s)))
-  return `=?UTF-8?B?${b64}?=`
-}
+export const sendRawEmail = sendEmail

@@ -6,6 +6,7 @@ import { ArrowLeft, Heart, MessageCircle, Share2, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 type Article = {
   id: string
@@ -176,7 +177,7 @@ export default function FeedArticlePage() {
             </div>
 
             {/* Body */}
-            <div className="blog-body prose-content" dangerouslySetInnerHTML={{ __html: article.body_html }} />
+            <div className="blog-body prose-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.body_html) }} />
 
             {/* Engagement bar */}
             <div className="flex items-center gap-2 mt-10 pt-6 border-t" style={{ borderColor: 'rgb(var(--border))' }}>

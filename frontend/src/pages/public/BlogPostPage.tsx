@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Clock, Eye, Share2, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 type PostFull = {
   id: string
@@ -207,7 +208,7 @@ export default function BlogPostPage() {
 
             {/* Body HTML */}
             <div className="blog-body prose-content"
-              dangerouslySetInnerHTML={{ __html: post.body_html }} />
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.body_html) }} />
 
             {/* Tags */}
             {post.tags.length > 0 && (
