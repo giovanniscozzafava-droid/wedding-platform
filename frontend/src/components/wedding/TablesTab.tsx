@@ -19,7 +19,10 @@ const TABLE_NAMING_PRESETS: Record<string, string[]> = {
   Libri:   ['Calvino', 'Pavese', 'Eco', 'Pasolini', 'Ferrante', 'Sciascia', 'Morante', 'Levi', 'Saba', 'Magris', 'Tabucchi', 'Ammaniti'],
   Colori:  ['Oro', 'Rame', 'Argento', 'Avorio', 'Salvia', 'Pesca', 'Rosa cipria', 'Blu notte', 'Verde bosco', 'Sabbia', 'Bordeaux', 'Lavanda'],
 }
-const NAMING_STYLES = Object.keys(TABLE_NAMING_PRESETS)
+// Numerati = "Tavolo 1, 2, 3..." (default, label = null)
+// Libero    = nome custom scelto manualmente per ogni tavolo
+// Gli altri sono preset tematici (Mare, Citta, Stelle, ...)
+const NAMING_STYLES = ['Numerati', 'Libero', ...Object.keys(TABLE_NAMING_PRESETS)]
 
 const THEME_PRESETS = [
   'Boho chic', 'Classic elegance', 'Rustic country', 'Coastal Mediterranean',
@@ -52,11 +55,40 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const currentStyle = (wedding as any)?.tables_naming_style ?? ''
 
   async function applyNamingPreset(style: string) {
-    const names = TABLE_NAMING_PRESETS[style] ?? []
-    if (!names.length) return
     const list = (tables ?? []) as any[]
+    if (list.length === 0) {
+      toast.error('Aggiungi prima dei tavoli')
+      return
+    }
     try {
       await updateWedding.mutateAsync({ tables_naming_style: style } as any)
+      if (style === 'Numerati') {
+        // Resetta tutte le etichette: i tavoli torneranno a mostrare "Tavolo {n}"
+        for (const t of list) {
+          if (t.label) await update.mutateAsync({ id: t.id, patch: { label: null } } as any)
+        }
+        toast.success(`${list.length} tavoli numerati`)
+        return
+      }
+      if (style === 'Libero') {
+        // Apri un prompt per ogni tavolo (in sequenza). L'utente decide nome custom.
+        let changed = 0
+        for (const t of list) {
+          const current = t.label ?? `Tavolo ${t.table_no}`
+          const ans = window.prompt(`Nome per il tavolo #${t.table_no}`, current)
+          if (ans === null) break // utente ha annullato → interrompe ma mantiene quelli già rinominati
+          const next = ans.trim() || null
+          if (next !== t.label) {
+            await update.mutateAsync({ id: t.id, patch: { label: next } } as any)
+            changed++
+          }
+        }
+        toast.success(`Rinominati ${changed} tavoli`)
+        return
+      }
+      // Preset tematici (Mare, Città, Stelle, ...)
+      const names = TABLE_NAMING_PRESETS[style] ?? []
+      if (!names.length) return
       for (let i = 0; i < list.length; i++) {
         const nameForTable = names[i % names.length]
         await update.mutateAsync({ id: list[i].id, patch: { label: nameForTable } } as any)
@@ -152,9 +184,15 @@ export function TablesTab({ entryId }: { entryId: string }) {
                 return (
                   <button key={s} onClick={() => applyNamingPreset(s)}
                     disabled={(tables ?? []).length === 0}
+                    title={s === 'Numerati' ? 'Etichette vuote, mostra solo il numero del tavolo'
+                      : s === 'Libero' ? 'Scegli a mano il nome di ogni tavolo'
+                      : `Applica il preset "${s}" a tutti i tavoli`}
                     className={`rounded-full px-2.5 py-1 text-xs border transition-colors disabled:opacity-50 ${active ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}
                     style={!active ? { borderColor: 'rgb(var(--border))' } : undefined}>
-                    <Sparkles size={10} className="inline mr-1" /> {s}
+                    {s === 'Numerati' ? <span className="inline-block mr-1">#</span>
+                      : s === 'Libero' ? <span className="inline-block mr-1">✎</span>
+                      : <Sparkles size={10} className="inline mr-1" />}
+                    {s}
                   </button>
                 )
               })}
