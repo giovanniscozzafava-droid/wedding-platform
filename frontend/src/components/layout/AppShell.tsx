@@ -83,6 +83,7 @@ const NAV_FORN: NavItem[] = [
   { to: '/clienti', label: 'Clienti', icon: Contact },
   { to: '/capostipiti', label: 'Capostipiti', icon: UsersIcon },
   { to: '/disponibilita', label: 'Disponibilità', icon: CalendarCheck },
+  { to: '/my-contracts', label: 'Contratti', icon: FileSignature },
   { to: '/calcolatore', label: 'Calcolatore', icon: Calculator },
 ]
 

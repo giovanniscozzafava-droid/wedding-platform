@@ -15,6 +15,7 @@ import SupplierDetailPage from '@/pages/SupplierDetailPage'
 import QuotesPage from '@/pages/QuotesPage'
 import QuoteEditorPage from '@/pages/QuoteEditorPage'
 import ContractsPage from '@/pages/ContractsPage'
+import SupplierContractsPage from '@/pages/SupplierContractsPage'
 import FinancePage from '@/pages/FinancePage'
 import BilancioPage from '@/pages/BilancioPage'
 import InsurancePage from '@/pages/InsurancePage'
@@ -131,6 +132,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <ContractsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/my-contracts"
+            element={
+              <RequireAuth roles={['FORNITORE','ADMIN']}>
+                <SupplierContractsPage />
               </RequireAuth>
             }
           />

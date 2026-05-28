@@ -29,12 +29,13 @@ import { MembersTab } from '@/components/wedding/MembersTab'
 import { MenuTab } from '@/components/wedding/MenuTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
+import { AllContractsMonitor } from '@/components/wedding/AllContractsMonitor'
 import { RateCollaborationModal } from '@/components/social/RateCollaborationModal'
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
+type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
@@ -53,6 +54,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = 
   { key: 'budget',         label: 'Budget',       icon: Wallet },
   { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
   { key: 'contract',       label: 'Contratto',    icon: FileSignature },
+  { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature },
   { key: 'website',        label: 'Sito evento', icon: Globe },
   { key: 'members',        label: 'Clienti',      icon: Heart },
   { key: 'docs',           label: 'Documenti',    icon: FolderOpen },
@@ -157,6 +159,7 @@ export default function WeddingDashboard() {
             {tab === 'checklist' && <ChecklistTab entryId={wedding.id} />}
             {tab === 'mood' && <MoodTab entryId={wedding.id} />}
             {tab === 'playlist' && <PlaylistTab entryId={wedding.id} />}
+            {tab === 'contracts_net' && <AllContractsMonitor entryId={wedding.id} />}
             {tab === 'contract' && <ContractTab wedding={wedding} />}
             {tab === 'docs' && <DocumentsTab entryId={wedding.id} />}
             {tab === 'analytics' && <AnalyticsTab quoteId={wedding.quote_id} />}
