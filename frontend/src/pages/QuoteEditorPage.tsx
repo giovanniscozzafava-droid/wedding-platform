@@ -255,13 +255,41 @@ export default function QuoteEditorPage() {
       await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { quantity_basis: newBasis, quantity: qty } })
     } catch (e) { toast.error((e as Error).message) }
   }
-  async function handleChangePayStatus(itemId: string, status: PayStatus, lineClient: number) {
+  async function handleChangePayStatus(itemId: string, status: PayStatus, lineClient: number, currentPaid: number) {
     try {
       const patch: any = { payment_status: status }
-      if (status === 'SALDATO') { patch.paid_amount = lineClient; patch.paid_at = new Date().toISOString() }
-      else if (status === 'NON_PAGATO' || status === 'STORNATO') { patch.paid_amount = 0; patch.paid_at = null }
+      if (status === 'SALDATO') {
+        patch.paid_amount = lineClient
+        patch.paid_at = new Date().toISOString()
+      } else if (status === 'NON_PAGATO' || status === 'STORNATO') {
+        patch.paid_amount = 0
+        patch.paid_at = null
+      } else if (status === 'ACCONTO') {
+        // Chiedi l'importo dell'acconto (default: 30% della voce, oppure l'importo già registrato).
+        const fmt = (n: number) => n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        const suggested = currentPaid > 0 ? currentPaid : Math.round(lineClient * 30) / 100
+        const ans = window.prompt(
+          `Importo dell'acconto (€)\n\nVoce: € ${fmt(lineClient)}\nSuggerito (30%): € ${fmt(Math.round(lineClient * 30) / 100)}`,
+          fmt(suggested).replace(/\./g, '').replace(',', '.'),
+        )
+        if (ans === null) return // utente ha annullato
+        const cleaned = ans.replace(/[€\s]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.')
+        const amount = parseFloat(cleaned)
+        if (isNaN(amount) || amount <= 0) {
+          toast.error('Importo non valido')
+          return
+        }
+        if (amount > lineClient) {
+          toast.error(`L'acconto (€ ${fmt(amount)}) non può superare l'importo della voce (€ ${fmt(lineClient)})`)
+          return
+        }
+        patch.paid_amount = amount
+        patch.paid_at = new Date().toISOString()
+      }
       await updItem.mutateAsync({ id: itemId, quoteId: id!, patch })
-      toast.success(`Pagamento → ${status}`)
+      toast.success(status === 'ACCONTO'
+        ? `Acconto registrato (€ ${Number(patch.paid_amount).toLocaleString('it-IT')})`
+        : `Pagamento → ${status}`)
     } catch (e) { toast.error((e as Error).message) }
   }
 
@@ -522,7 +550,7 @@ export default function QuoteEditorPage() {
                           const active = ((it as any).payment_status ?? 'NON_PAGATO') === p.key
                           return (
                             <button key={p.key} type="button"
-                              onClick={() => handleChangePayStatus(it.id, p.key, Number(it.line_client))}
+                              onClick={() => handleChangePayStatus(it.id, p.key, Number(it.line_client), Number((it as any).paid_amount ?? 0))}
                               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border transition-colors ${active ? p.tone : 'bg-transparent text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]'}`}
                               style={{ borderColor: active ? 'transparent' : 'rgb(var(--border))' }}>
                               <span className={`inline-block h-1.5 w-1.5 rounded-full ${p.dot}`} />
