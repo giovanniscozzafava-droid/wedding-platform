@@ -8,14 +8,17 @@ import { Input, Textarea, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ComuneInput } from '@/components/ComuneInput'
 import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
-import { InstagramLogoPicker } from '@/components/InstagramLogoPicker'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES_WITH_PLACEHOLDER as SUBROLES } from '@/lib/supplierSubroles'
 
+type LegalForm = 'INDIVIDUAL' | 'SRL' | 'SRLS' | 'SPA' | 'SAS' | 'SNC' | 'COOPERATIVE' | 'ASSOCIATION' | 'OTHER' | ''
+
 type ProviderForm = {
   full_name: string
   business_name: string
+  business_legal_name: string
+  legal_form: LegalForm
   subrole: string
   phone: string
   vat_number: string
@@ -34,6 +37,19 @@ type ProviderForm = {
   years_active: number | ''
 }
 
+const LEGAL_FORM_OPTIONS: Array<{ v: LegalForm; label: string; hint?: string }> = [
+  { v: '',             label: 'Seleziona…' },
+  { v: 'INDIVIDUAL',   label: 'Ditta individuale / Libero professionista' },
+  { v: 'SRL',          label: 'SRL' },
+  { v: 'SRLS',         label: 'SRLS' },
+  { v: 'SPA',          label: 'SPA' },
+  { v: 'SAS',          label: 'SAS' },
+  { v: 'SNC',          label: 'SNC' },
+  { v: 'COOPERATIVE',  label: 'Cooperativa' },
+  { v: 'ASSOCIATION',  label: 'Associazione / ASD', hint: 'La P.IVA è facoltativa' },
+  { v: 'OTHER',        label: 'Altro' },
+]
+
 const STEPS = ['Identità', 'Azienda', 'Contatti', 'Immagine', 'Pronto'] as const
 
 export function ProviderOnboardingWizard() {
@@ -43,9 +59,9 @@ export function ProviderOnboardingWizard() {
   const [busy, setBusy] = useState(false)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [logoUrlPreview, setLogoUrlPreview] = useState<string | null>(null)
+  const [logoUrlPreview] = useState<string | null>(null)
   const [form, setForm] = useState<ProviderForm>({
-    full_name: '', business_name: '', subrole: '', phone: '',
+    full_name: '', business_name: '', business_legal_name: '', legal_form: '', subrole: '', phone: '',
     vat_number: '', fiscal_code: '', address: '', city: '', zip: '', province: '', country: 'Italia',
     website: '', instagram: '', facebook: '', tiktok: '', bio: '',
     service_radius_km: '', years_active: '',
@@ -57,6 +73,8 @@ export function ProviderOnboardingWizard() {
       ...f,
       full_name: profile.full_name ?? '',
       business_name: profile.business_name ?? '',
+      business_legal_name: (profile as any).business_legal_name ?? '',
+      legal_form: ((profile as any).legal_form ?? '') as LegalForm,
       subrole: profile.subrole ?? '',
       phone: profile.phone ?? '',
     }))
@@ -90,6 +108,8 @@ export function ProviderOnboardingWizard() {
       const payload = {
         full_name: form.full_name,
         business_name: form.business_name || null,
+        business_legal_name: form.business_legal_name || null,
+        legal_form: form.legal_form || null,
         subrole: form.subrole || null,
         phone: form.phone || null,
         vat_number: form.vat_number || null,
@@ -170,8 +190,12 @@ export function ProviderOnboardingWizard() {
                 {step === 0 && (
                   <>
                     <h2 className="font-display text-xl mb-2">Chi sei</h2>
-                    <Field label="Nome e cognome *">
-                      <Input value={form.full_name} onChange={(e) => patch('full_name', e.target.value)} required />
+                    <Field label="Nome pubblico *">
+                      <Input value={form.full_name} onChange={(e) => patch('full_name', e.target.value)} required
+                        placeholder="Mario Rossi · Black Mamba · Villa Klopè · DaisyLab21" />
+                      <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">
+                        Come ti chiamano i clienti: nome e cognome, nome d&apos;arte, nome della band o della villa. I dati legali (ragione sociale, P.IVA) li chiediamo dopo.
+                      </p>
                     </Field>
                     <Field label="Tipo di servizio *">
                       <Select value={form.subrole} onChange={(e) => patch('subrole', e.target.value)}>
@@ -187,12 +211,36 @@ export function ProviderOnboardingWizard() {
 
                 {step === 1 && (
                   <>
-                    <h2 className="font-display text-xl mb-2">Dati azienda</h2>
-                    <Field label="Ragione sociale">
-                      <Input value={form.business_name} onChange={(e) => patch('business_name', e.target.value)} />
+                    <h2 className="font-display text-xl mb-2">Dati legali</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Field label="Forma giuridica">
+                        <Select value={form.legal_form} onChange={(e) => patch('legal_form', e.target.value as LegalForm)}>
+                          {LEGAL_FORM_OPTIONS.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+                        </Select>
+                        {form.legal_form === 'ASSOCIATION' && (
+                          <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Le associazioni/ASD possono lasciare la P.IVA vuota se non sono tenute a tenerne una.</p>
+                        )}
+                      </Field>
+                      <Field label="Ragione sociale">
+                        <Input value={form.business_legal_name}
+                          onChange={(e) => patch('business_legal_name', e.target.value)}
+                          placeholder={form.legal_form === 'ASSOCIATION'
+                            ? 'es. ASD Black Mamba'
+                            : form.legal_form === 'INDIVIDUAL'
+                              ? 'es. Mario Rossi · Ditta individuale'
+                              : 'es. Black Mamba SRLS'} />
+                      </Field>
+                    </div>
+                    <Field label="Nome pubblico mostrato">
+                      <Input value={form.business_name}
+                        onChange={(e) => patch('business_name', e.target.value)}
+                        placeholder="Lascia vuoto per usare il nome di Step 1" />
+                      <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">
+                        È il nome che compare sui preventivi e sulla vetrina. Se diverso dalla ragione sociale (es. brand o nome d&apos;arte), specificalo qui.
+                      </p>
                     </Field>
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Partita IVA">
+                      <Field label={form.legal_form === 'ASSOCIATION' ? 'Partita IVA (opzionale)' : 'Partita IVA'}>
                         <Input value={form.vat_number} onChange={(e) => patch('vat_number', e.target.value)} />
                       </Field>
                       <Field label="Codice fiscale">
@@ -245,12 +293,6 @@ export function ProviderOnboardingWizard() {
                       <Field label="Facebook"><Input value={form.facebook} onChange={(e) => patch('facebook', e.target.value)} /></Field>
                       <Field label="TikTok"><Input value={form.tiktok} onChange={(e) => patch('tiktok', e.target.value)} placeholder="@handle" /></Field>
                     </div>
-                    <InstagramLogoPicker
-                      instagramHandle={form.instagram}
-                      websiteUrl={form.website}
-                      currentLogoUrl={logoUrlPreview ?? profile?.brand_logo_url ?? null}
-                      onLogoChosen={(url) => setLogoUrlPreview(url)}
-                    />
                   </>
                 )}
 

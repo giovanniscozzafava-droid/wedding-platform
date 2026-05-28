@@ -20,6 +20,7 @@ export default function ProfilePage() {
     work_style: '', offers_full_dining: false,
     // Dati fiscali — riusati su ogni contratto generato
     business_legal_name: '',
+    legal_form: '',
     vat_number: '', fiscal_code: '',
     address: '', city: '', zip: '', province: '', country: 'Italia',
     sdi_code: '', pec_email: '',
@@ -31,7 +32,7 @@ export default function ProfilePage() {
     if (!user) return
     void (async () => {
       const { data } = await (supabase.from('profiles') as any)
-        .select('full_name, business_name, phone, subrole, work_style, offers_full_dining, deletion_requested_at, business_legal_name, vat_number, fiscal_code, address, city, zip, province, country, sdi_code, pec_email')
+        .select('full_name, business_name, phone, subrole, work_style, offers_full_dining, deletion_requested_at, business_legal_name, legal_form, vat_number, fiscal_code, address, city, zip, province, country, sdi_code, pec_email')
         .eq('id', user.id).maybeSingle()
       if (data) {
         setForm({
@@ -42,6 +43,7 @@ export default function ProfilePage() {
           work_style: (data as any).work_style ?? '',
           offers_full_dining: !!(data as any).offers_full_dining,
           business_legal_name: (data as any).business_legal_name ?? '',
+          legal_form: (data as any).legal_form ?? '',
           vat_number: (data as any).vat_number ?? '',
           fiscal_code: (data as any).fiscal_code ?? '',
           address: (data as any).address ?? '',
@@ -70,6 +72,7 @@ export default function ProfilePage() {
         work_style: form.work_style || null,
         offers_full_dining: form.offers_full_dining,
         business_legal_name: form.business_legal_name || null,
+        legal_form: form.legal_form || null,
         vat_number: form.vat_number || null,
         fiscal_code: form.fiscal_code || null,
         address: form.address || null,
@@ -122,9 +125,11 @@ export default function ProfilePage() {
                     onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="business_name">Ragione sociale</Label>
+                  <Label htmlFor="business_name">Nome pubblico / brand</Label>
                   <Input id="business_name" value={form.business_name}
-                    onChange={(e) => setForm((f) => ({ ...f, business_name: e.target.value }))} />
+                    onChange={(e) => setForm((f) => ({ ...f, business_name: e.target.value }))}
+                    placeholder="es. Black Mamba · Villa Klopè · Gisko Photographer" />
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Compare su preventivi, vetrina e PDF. La ragione sociale legale è nei "Dati fiscali" sotto.</p>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="phone">Telefono</Label>
@@ -170,12 +175,38 @@ export default function ProfilePage() {
                   Vengono compilati automaticamente in ogni contratto e fattura che generi. Compilali una volta, ti accompagnano per sempre.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1 md:col-span-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="legal_form">Forma giuridica</Label>
+                    <select
+                      id="legal_form"
+                      value={form.legal_form}
+                      onChange={(e) => setForm((f) => ({ ...f, legal_form: e.target.value }))}
+                      className="flex h-10 w-full rounded-lg border bg-[rgb(var(--bg-elev))] px-3 py-2 text-sm"
+                      style={{ borderColor: 'rgb(var(--border-strong))' }}
+                    >
+                      <option value="">Seleziona…</option>
+                      <option value="INDIVIDUAL">Ditta individuale / Libero professionista</option>
+                      <option value="SRL">SRL</option>
+                      <option value="SRLS">SRLS</option>
+                      <option value="SPA">SPA</option>
+                      <option value="SAS">SAS</option>
+                      <option value="SNC">SNC</option>
+                      <option value="COOPERATIVE">Cooperativa</option>
+                      <option value="ASSOCIATION">Associazione / ASD</option>
+                      <option value="OTHER">Altro</option>
+                    </select>
+                    {form.legal_form === 'ASSOCIATION' && (
+                      <p className="text-[11px] text-[rgb(var(--fg-subtle))]">P.IVA opzionale per ASD/Associazioni non tenute.</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
                     <Label htmlFor="business_legal_name">Ragione sociale completa</Label>
                     <Input id="business_legal_name" value={form.business_legal_name}
-                      placeholder="Es. Fuyue Srl"
+                      placeholder={form.legal_form === 'ASSOCIATION' ? 'Es. ASD Black Mamba'
+                        : form.legal_form === 'INDIVIDUAL' ? 'Es. Mario Rossi · Ditta individuale'
+                        : 'Es. Fuyue Srl'}
                       onChange={(e) => setForm((f) => ({ ...f, business_legal_name: e.target.value }))} />
-                    <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Nome legale dell'impresa per atti e contratti. Distinto dal brand.</p>
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Nome legale dell&apos;impresa per atti e contratti.</p>
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="vat_number">Partita IVA</Label>
