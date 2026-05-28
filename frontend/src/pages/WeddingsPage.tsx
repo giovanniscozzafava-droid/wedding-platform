@@ -1,13 +1,55 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowUpRight, CalendarHeart } from 'lucide-react'
+import { ArrowUpRight, CalendarHeart, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useWeddings } from '@/hooks/useWedding'
+import { supabase } from '@/lib/supabase'
 
 export default function WeddingsPage() {
   const { data, isLoading } = useWeddings()
+  const qc = useQueryClient()
+
+  async function deleteWedding(id: string, title: string) {
+    const confirmMsg = `Elimini definitivamente "${title}"?
+
+Verranno cancellati per sempre TUTTI i dati associati a questo matrimonio:
+• Dati anagrafici e contatti della coppia
+• Preventivo, voci e firme digitali
+• Contratti generati
+• Lista invitati, alloggi, trasporti
+• Menu, tavoli, mood board, playlist, budget, checklist
+• Documenti caricati e PDF
+• Gadget / bomboniere
+
+L'azione è IRREVERSIBILE e conforme al GDPR 196/2003 (diritto all'oblio).
+Procedere?`
+    if (!confirm(confirmMsg)) return
+    try {
+      const { data: paths, error } = await (supabase as any).rpc('delete_wedding_cascade', { p_entry_id: id })
+      if (error) throw error
+      // Storage cleanup (best-effort)
+      const byBucket = new Map<string, string[]>()
+      for (const r of (paths as Array<{ bucket: string; path: string }>) ?? []) {
+        if (!r.bucket || !r.path) continue
+        const arr = byBucket.get(r.bucket) ?? []
+        arr.push(r.path)
+        byBucket.set(r.bucket, arr)
+      }
+      for (const [bucket, files] of byBucket.entries()) {
+        try { await supabase.storage.from(bucket).remove(files) } catch { /* ignore */ }
+      }
+      toast.success('Matrimonio eliminato. Dati della coppia rimossi (GDPR).')
+      qc.invalidateQueries({ queryKey: ['weddings'] })
+      qc.invalidateQueries({ queryKey: ['calendar'] })
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
 
   return (
     <div className="min-h-full">
@@ -42,30 +84,41 @@ export default function WeddingsPage() {
             <motion.div key={w.id}
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}>
-              <Link to={`/weddings/${w.id}`}>
-                <Card className="hover:shadow-[var(--shadow-lift)] transition-shadow overflow-hidden">
-                  <div className="p-6 flex flex-col gap-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="font-display text-xl truncate">{w.title}</h3>
-                        <p className="text-sm text-[rgb(var(--fg-muted))]">
-                          {w.client_name ?? '—'} ·{' '}
-                          {new Date(w.date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </p>
-                      </div>
+              <Card className="hover:shadow-[var(--shadow-lift)] transition-shadow overflow-hidden">
+                <div className="p-6 flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <Link to={`/weddings/${w.id}`} className="min-w-0 flex-1">
+                      <h3 className="font-display text-xl truncate">{w.title}</h3>
+                      <p className="text-sm text-[rgb(var(--fg-muted))]">
+                        {w.client_name ?? '—'} ·{' '}
+                        {new Date(w.date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    </Link>
+                    <div className="flex items-center gap-1">
                       <Badge status={w.status} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Elimina matrimonio + dati coppia (GDPR)"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); void deleteWedding(w.id, w.title) }}
+                        className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
                     </div>
+                  </div>
+                  <Link to={`/weddings/${w.id}`}>
                     <div className="grid grid-cols-3 gap-3 pt-3 border-t text-xs" style={{ borderColor: 'rgb(var(--border))' }}>
                       <Stat label="Valore" value={`€ ${Number(w.value_amount ?? 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`} />
                       <Stat label="Preventivo" value={w.quote?.status ?? '—'} />
                       <Stat label="Revision" value={`v${w.quote?.revision ?? 1}`} />
                     </div>
-                    <div className="flex items-center justify-end gap-1 text-sm text-[rgb(var(--fg-muted))]">
+                    <div className="flex items-center justify-end gap-1 text-sm text-[rgb(var(--fg-muted))] mt-2">
                       Apri dashboard <ArrowUpRight size={14} />
                     </div>
-                  </div>
-                </Card>
-              </Link>
+                  </Link>
+                </div>
+              </Card>
             </motion.div>
           ))}
         </div>

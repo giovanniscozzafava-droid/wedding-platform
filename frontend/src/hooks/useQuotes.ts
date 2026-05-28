@@ -84,8 +84,21 @@ export function useDeleteQuote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('quotes').delete().eq('id', id)
+      // GDPR: RPC che cancella quote + dipendenze + ritorna i path Storage da rimuovere
+      const { data, error } = await (supabase as any).rpc('delete_quote_cascade', { p_quote_id: id })
       if (error) throw error
+      const paths = (data as Array<{ bucket: string; path: string }>) ?? []
+      // Pulizia Storage (best-effort, no error blocking)
+      const byBucket = new Map<string, string[]>()
+      for (const r of paths) {
+        if (!r.bucket || !r.path) continue
+        const arr = byBucket.get(r.bucket) ?? []
+        arr.push(r.path)
+        byBucket.set(r.bucket, arr)
+      }
+      for (const [bucket, files] of byBucket.entries()) {
+        try { await supabase.storage.from(bucket).remove(files) } catch { /* ignore */ }
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quotes'] }),
   })

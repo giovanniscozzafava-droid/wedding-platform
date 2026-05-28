@@ -146,10 +146,11 @@ export default function QuotesPage() {
                     </Button>
                     <Button variant="ghost" size="icon"
                       onClick={async () => {
-                        if (!confirm('Eliminare?')) return
-                        try { await del.mutateAsync(q.id); toast.success('Eliminato') }
+                        if (!confirm(`Elimini definitivamente questo preventivo?\n\nVerranno cancellati per sempre:\n• Tutte le voci e i markup\n• Eventuali accettazioni cliente con firme digitali\n• Contratti generati dal preventivo\n• Documenti caricati e PDF di firma\n\nL'azione è IRREVERSIBILE e conforme al GDPR 196/2003.`)) return
+                        try { await del.mutateAsync(q.id); toast.success('Preventivo eliminato. Dati cliente rimossi.') }
                         catch (e) { toast.error((e as Error).message) }
-                      }}>
+                      }}
+                      title="Elimina preventivo (GDPR)">
                       <Trash2 size={14} />
                     </Button>
                   </div>
