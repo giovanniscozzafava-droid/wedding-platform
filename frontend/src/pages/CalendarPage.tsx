@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Plus, Download } from 'lucide-react'
 import { toast } from 'sonner'
@@ -10,6 +10,7 @@ import { EntryForm } from '@/components/calendar/EntryForm'
 import { useCalendarEntries, useEnsureExportToken, type EntryWithParticipants } from '@/hooks/useCalendar'
 import { useSupplierEarnings } from '@/hooks/useSupplierEarnings'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { supabase } from '@/lib/supabase'
 
 const WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
 
@@ -52,6 +53,56 @@ export default function CalendarPage() {
 
   const canCreate = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isSupplier = profile?.role === 'FORNITORE'
+  const { user } = useAuth()
+
+  type AvailStatus = 'BUSY' | 'TENTATIVE'
+  type AvailSlot = { id: string; status: AvailStatus; notes?: string | null }
+  const [availMap, setAvailMap] = useState<Map<string, AvailSlot>>(new Map())
+  const [availBusy, setAvailBusy] = useState(false)
+
+  const reloadAvail = useCallback(async () => {
+    if (!isSupplier || !user) { setAvailMap(new Map()); return }
+    const start = `${range.from.slice(0, 7)}-01`
+    const end = range.to
+    const { data, error } = await (supabase.from('supplier_availability' as any) as any)
+      .select('id, date, status, notes')
+      .eq('fornitore_id', user.id)
+      .gte('date', start)
+      .lte('date', end)
+    if (error) return
+    const m = new Map<string, AvailSlot>()
+    for (const r of (data ?? []) as any[]) m.set(r.date, { id: r.id, status: r.status as AvailStatus, notes: r.notes })
+    setAvailMap(m)
+  }, [isSupplier, user, range.from, range.to])
+
+  useEffect(() => { void reloadAvail() }, [reloadAvail])
+
+  async function toggleAvail(date: string) {
+    if (!isSupplier || !user) return
+    setAvailBusy(true)
+    try {
+      const cur = availMap.get(date)
+      // cycle: nessuno (verde) → BUSY (rosso) → TENTATIVE (giallo) → nessuno (verde)
+      if (!cur) {
+        const { error } = await (supabase.from('supplier_availability' as any) as any)
+          .insert({ fornitore_id: user.id, date, status: 'BUSY' })
+        if (error) throw error
+      } else if (cur.status === 'BUSY') {
+        const { error } = await (supabase.from('supplier_availability' as any) as any)
+          .update({ status: 'TENTATIVE' }).eq('id', cur.id)
+        if (error) throw error
+      } else {
+        const { error } = await (supabase.from('supplier_availability' as any) as any)
+          .delete().eq('id', cur.id)
+        if (error) throw error
+      }
+      await reloadAvail()
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setAvailBusy(false)
+    }
+  }
   const entryIds = useMemo(() => (data ?? []).map((e: any) => e.id), [data])
   const { data: earnings } = useSupplierEarnings(entryIds)
   const monthLabel = cursor.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
@@ -123,19 +174,41 @@ export default function CalendarPage() {
                 <div key={i} className="text-center py-3" style={{ color: 'rgb(var(--fg-subtle))' }}>{w}</div>
               ))}
             </div>
+            {isSupplier && (
+              <div className="flex flex-wrap gap-3 text-[11px] px-4 py-3 border-b" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
+                <span className="text-[rgb(var(--fg-muted))] font-medium">Disponibilità:</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-emerald-400" /> Disponibile</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm" style={{ background: 'rgb(var(--amber-500))' }} /> Forse</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm" style={{ background: 'rgb(var(--rose-500))' }} /> Occupato</span>
+                <span className="text-[rgb(var(--fg-subtle))] ml-auto">Click sul giorno per cambiare stato</span>
+              </div>
+            )}
             <div className="grid grid-cols-7">
               {grid.map((cell, i) => {
                 const k = fmtDay(cell.date)
                 const dayEvents = entriesByDay.get(k) ?? []
                 const isToday = k === fmtDay(new Date())
                 const isSelected = k === selectedDay
+                const isPast = k < fmtDay(new Date())
+                const slot = isSupplier ? availMap.get(k) : undefined
+                const availBg = isSupplier
+                  ? slot?.status === 'BUSY' ? 'rgb(var(--rose-500) / 0.18)'
+                    : slot?.status === 'TENTATIVE' ? 'rgb(var(--amber-500) / 0.20)'
+                    : isPast ? undefined
+                    : 'rgb(157 188 152 / 0.18)'
+                  : undefined
+                const cellBgClass = isSupplier
+                  ? ''
+                  : (isSelected ? 'bg-[rgb(var(--bg-sunken))]' : 'hover:bg-[rgb(var(--bg-sunken))]')
                 return (
                   <button
                     key={i}
-                    onClick={() => setSelectedDay(k)}
+                    onClick={() => isSupplier ? void toggleAvail(k) : setSelectedDay(k)}
                     onDoubleClick={() => canCreate && setCreating({ date: k })}
-                    className={`relative min-h-24 p-2 text-left border-t border-r last:border-r-0 transition-colors ${cell.out ? 'opacity-40' : ''} ${isSelected ? 'bg-[rgb(var(--bg-sunken))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}
-                    style={{ borderColor: 'rgb(var(--border))' }}
+                    disabled={isSupplier && availBusy}
+                    className={`relative min-h-24 p-2 text-left border-t border-r last:border-r-0 transition-colors ${cell.out ? 'opacity-40' : ''} ${cellBgClass} ${isSupplier ? 'hover:brightness-110' : ''} disabled:cursor-wait`}
+                    style={{ borderColor: 'rgb(var(--border))', background: availBg }}
+                    title={isSupplier ? (slot?.notes ?? (slot ? slot.status : 'Disponibile')) : undefined}
                   >
                     <span className={`inline-flex items-center justify-center text-xs ${isToday ? 'h-6 w-6 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))]' : ''}`}>
                       {cell.date.getDate()}
