@@ -22,6 +22,8 @@ const URL_REGEX = /(https?:\/\/[^\s]+)/i
 
 export function PostComposer({ onPosted }: Props) {
   const { profile, user } = useAuth()
+  const isCouple = profile?.role === 'COUPLE'
+  const networkLabel = isCouple ? 'Matrimonio' : 'Network'
   const [open, setOpen] = useState(false)
   const [body, setBody] = useState('')
   const [media, setMedia] = useState<string[]>([])
@@ -271,13 +273,15 @@ export function PostComposer({ onPosted }: Props) {
               <ToolBtn onClick={() => fileRef.current?.click()} title="Aggiungi foto" disabled={uploading}>
                 <ImagePlus size={16} />
               </ToolBtn>
-              <ToolBtn onClick={() => setTagOpen((v) => !v)} title="Tag fornitori" active={tagOpen}>
-                <AtSign size={16} />
-              </ToolBtn>
+              {!isCouple && (
+                <ToolBtn onClick={() => setTagOpen((v) => !v)} title="Tag fornitori" active={tagOpen}>
+                  <AtSign size={16} />
+                </ToolBtn>
+              )}
               {/* Visibility selector */}
               <div className="ml-2 inline-flex items-center gap-0.5 text-xs">
                 <VisBtn current={visibility} v="PUBLIC" onSet={setVisibility} label="Pubblico" icon={Globe} />
-                <VisBtn current={visibility} v="NETWORK" onSet={setVisibility} label="Network" icon={UsersIcon} />
+                <VisBtn current={visibility} v="NETWORK" onSet={setVisibility} label={networkLabel} icon={UsersIcon} />
                 <VisBtn current={visibility} v="FOLLOWERS" onSet={setVisibility} label="Follower" icon={Lock} />
               </div>
             </div>

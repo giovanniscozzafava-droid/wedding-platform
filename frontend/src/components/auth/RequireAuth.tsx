@@ -33,7 +33,16 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     return <Navigate to="/onboarding" replace />
   }
   // COUPLE: forziamo accesso a /couple (no sidebar capostipite, no /weddings, no /quotes)
-  if (profile?.role === 'COUPLE' && !location.pathname.startsWith('/couple') && location.pathname !== '/profile' && location.pathname !== '/onboarding') {
+  // Eccezioni: /profile, /onboarding, /feed (community), /scopri, /fornitore (vetrine pubbliche), /faq
+  if (profile?.role === 'COUPLE'
+    && !location.pathname.startsWith('/couple')
+    && location.pathname !== '/profile'
+    && location.pathname !== '/onboarding'
+    && location.pathname !== '/feed'
+    && !location.pathname.startsWith('/feed/')
+    && !location.pathname.startsWith('/scopri')
+    && !location.pathname.startsWith('/fornitore/')
+    && !location.pathname.startsWith('/faq')) {
     return <Navigate to="/couple" replace />
   }
   if (roles && profile && !roles.includes(profile.role)) {

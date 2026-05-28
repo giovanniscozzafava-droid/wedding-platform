@@ -24,8 +24,7 @@ export default function HomeFeedPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const canPost = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION'
-    || profile?.role === 'ADMIN' || profile?.role === 'FORNITORE'
+  const canPost = !!profile?.role && ['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'FORNITORE', 'COUPLE'].includes(profile.role)
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
