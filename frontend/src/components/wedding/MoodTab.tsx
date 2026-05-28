@@ -71,19 +71,53 @@ export function MoodTab({ entryId }: { entryId: string }) {
     if (!/^https?:\/\//i.test(trimmed)) { toast.error('URL deve iniziare con http:// o https://'); return }
     setPinBusy(true)
     try {
-      const { data, error } = await supabase.functions.invoke('import-pin-url', { body: { url: trimmed } })
+      // fetch_image=true → la edge function scarica la foto e ce la rimanda
+      // in base64. Senza, Instagram/Pinterest CDN rifiutano hotlink (img bianca).
+      const { data, error } = await supabase.functions.invoke('import-pin-url', {
+        body: { url: trimmed, fetch_image: true },
+      })
       if (error) throw error
-      const j = data as { image?: string; title?: string; source_url?: string; error?: string }
+      const j = data as {
+        image?: string; title?: string; source_url?: string; error?: string
+        image_base64?: string | null; image_content_type?: string | null; image_fetch_error?: string | null
+      }
       if (j?.error || !j?.image) throw new Error(j?.error ?? 'Nessuna immagine trovata')
+
+      // Se ho il base64 della foto, la ri-hosto su Storage cosi non dipendo
+      // dal CDN di IG/Pinterest (che spesso scade o blocca hotlink).
+      let finalUrl: string = j.image
+      if (j.image_base64 && j.image_content_type) {
+        try {
+          const bin = atob(j.image_base64)
+          const u8 = new Uint8Array(bin.length)
+          for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i)
+          const blob = new Blob([u8], { type: j.image_content_type })
+          const ext = j.image_content_type.includes('png') ? 'png'
+            : j.image_content_type.includes('webp') ? 'webp'
+            : 'jpg'
+          const path = `${entryId}/mood/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
+          const { error: upErr } = await supabase.storage
+            .from('wedding-photos')
+            .upload(path, blob, { cacheControl: '604800', contentType: j.image_content_type, upsert: false })
+          if (!upErr) {
+            const { data: pub } = supabase.storage.from('wedding-photos').getPublicUrl(path)
+            finalUrl = pub.publicUrl
+          }
+        } catch { /* keep finalUrl = j.image */ }
+      } else if (j.image_fetch_error) {
+        // L'utente vedrà la foto solo se il CDN sorgente permette hotlink
+        toast.info('Foto rilevata ma non scaricabile. Potrebbe non apparire correttamente.')
+      }
+
       await add.mutateAsync({
-        url: j.image, source: 'pinterest', tag,
+        url: finalUrl, source: /instagram/i.test(trimmed) ? 'instagram' : 'pinterest', tag,
         source_url: j.source_url ?? pinUrl,
         source_title: j.title ?? null,
         caption: j.title ?? null,
         ord: (images?.length ?? 0),
       })
       setPinUrl('')
-      toast.success('Importato da Pinterest')
+      toast.success(/instagram/i.test(trimmed) ? 'Importato da Instagram' : 'Importato da Pinterest')
     } catch (e) { toast.error((e as Error).message) }
     finally { setPinBusy(false) }
   }
