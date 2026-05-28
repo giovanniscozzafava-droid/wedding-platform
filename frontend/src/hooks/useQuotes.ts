@@ -109,7 +109,18 @@ export function useAddQuoteItem() {
   return useMutation({
     mutationFn: async (payload: QuoteItemInsert) => {
       const { data, error } = await supabase.from('quote_items').insert(payload).select().single()
-      if (error) throw error
+      if (error) {
+        // Conflitto di disponibilità → traduci in messaggio user-friendly
+        if (error.message && error.message.includes('AVAILABILITY_CONFLICT')) {
+          const m = error.message.match(/il fornitore (.+?) è OCCUPATO il (\d{4}-\d{2}-\d{2})/)
+          if (m) {
+            const [, name, date] = m
+            const formatted = new Date(date!).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+            throw new Error(`Il fornitore ${name} è OCCUPATO il ${formatted}. Cambia data o scegli un altro fornitore.`)
+          }
+        }
+        throw error
+      }
       return data
     },
     onSuccess: (_d, vars) => {

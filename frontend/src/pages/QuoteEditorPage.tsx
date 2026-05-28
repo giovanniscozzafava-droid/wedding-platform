@@ -8,6 +8,7 @@ import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { AvailabilityBanner } from '@/components/quote/AvailabilityBanner'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { useServices } from '@/hooks/useCatalog'
@@ -171,15 +172,26 @@ export default function QuoteEditorPage() {
     const svc = services?.find((s) => s.id === serviceId)
     if (!svc || !quote) return
 
-    // Check fornitore disponibile in event_date
+    // Hard-block: il fornitore NON deve essere occupato nella data del preventivo.
+    // (Il trigger DB blocca comunque l'INSERT — questo è il check UX preventivo.)
     if (quote.event_date) {
       try {
-        const { data: avail } = await (supabase.rpc as any)('check_supplier_available', {
-          p_supplier: supplierId,
-          p_date: quote.event_date,
+        const { data: conflicts } = await (supabase.rpc as any)('check_suppliers_busy_in_range', {
+          p_supplier_ids: [supplierId],
+          p_date_from: quote.event_date,
+          p_date_to: quote.event_date,
         })
-        if (avail === false) {
-          if (!confirm(`⚠️ Il fornitore ha segnato il ${quote.event_date} come OCCUPATO nel suo calendario.\n\nProcedere comunque?`)) return
+        const busyConflict = (conflicts as Array<{ status: string; conflict_date: string; supplier_business_name?: string; supplier_full_name?: string }> | null)
+          ?.find((c) => c.status === 'BUSY')
+        if (busyConflict) {
+          const name = busyConflict.supplier_business_name ?? busyConflict.supplier_full_name ?? 'Il fornitore'
+          const formatted = new Date(busyConflict.conflict_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+          toast.error(`${name} è OCCUPATO il ${formatted}. Cambia data o scegli un altro fornitore.`, { duration: 8000 })
+          return
+        }
+        const tentative = (conflicts as Array<{ status: string }> | null)?.find((c) => c.status === 'TENTATIVE')
+        if (tentative) {
+          if (!confirm(`⚠️ Il fornitore ha segnato questa data come "in forse". Vuoi aggiungerlo comunque al preventivo?`)) return
         }
       } catch { /* check soft, prosegui */ }
     }
@@ -493,6 +505,12 @@ export default function QuoteEditorPage() {
             </div>
           </div>
         )}
+
+        {/* Banner disponibilità fornitori (mostra conflitti BUSY/TENTATIVE) */}
+        <AvailabilityBanner
+          date={quote.event_date ?? null}
+          supplierIds={Array.from(new Set((quote.quote_items ?? []).map((it: any) => it.supplier_id).filter(Boolean)))}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Voci */}
