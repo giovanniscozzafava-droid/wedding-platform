@@ -8,6 +8,7 @@ import { Input, Textarea, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ComuneInput } from '@/components/ComuneInput'
 import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
+import { InstagramLogoPicker } from '@/components/InstagramLogoPicker'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES_WITH_PLACEHOLDER as SUBROLES } from '@/lib/supplierSubroles'
@@ -42,6 +43,7 @@ export function ProviderOnboardingWizard() {
   const [busy, setBusy] = useState(false)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoUrlPreview, setLogoUrlPreview] = useState<string | null>(null)
   const [form, setForm] = useState<ProviderForm>({
     full_name: '', business_name: '', subrole: '', phone: '',
     vat_number: '', fiscal_code: '', address: '', city: '', zip: '', province: '', country: 'Italia',
@@ -104,7 +106,7 @@ export function ProviderOnboardingWizard() {
         bio: form.bio || null,
         service_radius_km: form.service_radius_km === '' ? null : form.service_radius_km,
         years_active: form.years_active === '' ? null : form.years_active,
-        ...(logoUrl ? { brand_logo_url: logoUrl } : {}),
+        ...(logoUrl ? { brand_logo_url: logoUrl } : logoUrlPreview ? { brand_logo_url: logoUrlPreview } : {}),
         ...(coverUrl ? { cover_image_url: coverUrl } : {}),
         ...(complete ? { onboarding_complete: true } : {}),
       }
@@ -243,6 +245,11 @@ export function ProviderOnboardingWizard() {
                       <Field label="Facebook"><Input value={form.facebook} onChange={(e) => patch('facebook', e.target.value)} /></Field>
                       <Field label="TikTok"><Input value={form.tiktok} onChange={(e) => patch('tiktok', e.target.value)} placeholder="@handle" /></Field>
                     </div>
+                    <InstagramLogoPicker
+                      instagramHandle={form.instagram}
+                      currentLogoUrl={logoUrlPreview ?? profile?.brand_logo_url ?? null}
+                      onLogoChosen={(url) => setLogoUrlPreview(url)}
+                    />
                   </>
                 )}
 
