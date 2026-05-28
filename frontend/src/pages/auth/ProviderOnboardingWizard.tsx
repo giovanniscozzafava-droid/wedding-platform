@@ -247,6 +247,7 @@ export function ProviderOnboardingWizard() {
                     </div>
                     <InstagramLogoPicker
                       instagramHandle={form.instagram}
+                      websiteUrl={form.website}
                       currentLogoUrl={logoUrlPreview ?? profile?.brand_logo_url ?? null}
                       onLogoChosen={(url) => setLogoUrlPreview(url)}
                     />
