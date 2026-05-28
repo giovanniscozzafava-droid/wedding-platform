@@ -39,12 +39,23 @@ export function MoodTab({ entryId }: { entryId: string }) {
     if (!search.trim()) return
     setBusy(true)
     try {
-      const r = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(search)}&per_page=12&orientation=landscape`, {
-        headers: { Authorization: import.meta.env.VITE_PEXELS_KEY ?? '' },
-      })
-      if (!r.ok) throw new Error('Pexels: ' + r.status)
-      const j = await r.json()
-      setResults(j.photos ?? [])
+      const { data, error } = await supabase.functions.invoke<{
+        ok: boolean
+        photos?: Array<{ id: number; src: { medium: string; large: string }; alt?: string }>
+        error?: string
+        hint?: string
+        status?: number
+      }>('pexels-search', { body: { query: search, per_page: 12, orientation: 'landscape' } })
+      if (error) throw error
+      if (!data?.ok) {
+        if (data?.error === 'no_pexels_key') {
+          toast.error('Pexels non configurato. Contatta l\'admin per attivare la chiave (gratuita).')
+        } else {
+          throw new Error(data?.hint ?? data?.error ?? 'Pexels non risponde')
+        }
+        return
+      }
+      setResults((data.photos ?? []) as any)
     } catch (e) { toast.error((e as Error).message) }
     finally { setBusy(false) }
   }
