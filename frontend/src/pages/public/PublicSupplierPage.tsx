@@ -98,12 +98,17 @@ export default function PublicSupplierPage() {
     setRequesting(true)
     try {
       const { data: res, error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-        .rpc('supplier_request_collaboration', { p_capostipite_id: data.id })
+        .rpc('capostipite_add_supplier', { p_supplier_id: data.id })
       if (error) throw error
-      const r = res as { error?: string; ok?: boolean }
-      if (r.error === 'already_exists') { toast.info('Collaborazione già esistente o richiesta in corso.'); return }
+      const r = res as { error?: string; ok?: boolean; already_active?: boolean; reactivated?: boolean }
       if (r.error) throw new Error(r.error)
-      toast.success('Richiesta inviata!')
+      if (r.already_active) {
+        toast.info('Fornitore già nel tuo team')
+        setExistingCollab('ACTIVE')
+        return
+      }
+      toast.success(r.reactivated ? 'Fornitore riattivato nel tuo team!' : 'Fornitore aggiunto al tuo team!')
+      setExistingCollab('ACTIVE')
     } catch (e) {
       toast.error((e as Error).message)
     } finally {
