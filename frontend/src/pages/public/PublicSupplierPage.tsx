@@ -172,7 +172,7 @@ export default function PublicSupplierPage() {
               </div>
               <div className="flex items-center gap-3 mt-2 flex-wrap">
                 <StarsBadge userId={data.id} size="md" />
-                <FollowButton userId={data.id} />
+                <FollowButton userId={data.id} targetRole="FORNITORE" />
               </div>
 
               {data.tagline && (

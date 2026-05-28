@@ -71,9 +71,9 @@ export default function DiscoverPage() {
       {/* Hero */}
       <section className="relative border-b" style={{ borderColor: 'rgb(var(--border))' }}>
         <div className="max-w-6xl mx-auto px-6 sm:px-10 py-6 sm:py-8">
-          <button onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))}
+          <button onClick={() => nav('/')}
             className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-6">
-            <ArrowLeft size={14} /> Indietro
+            <ArrowLeft size={14} /> Torna alla dashboard
           </button>
           <p className="text-xs uppercase tracking-[0.25em] mb-3 text-[rgb(var(--gold-600))]">
             <Sparkles size={12} className="inline mr-1" /> Il network dei professionisti degli eventi

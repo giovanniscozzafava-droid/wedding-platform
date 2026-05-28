@@ -12,6 +12,8 @@ type Props = {
   userId: string
   /** Initial state (opzionale) per evitare flash di rete */
   initialStatus?: FollowStatus
+  /** Ruolo del target: se WEDDING_PLANNER/LOCATION mostra "Candidati" anziché "Segui" */
+  targetRole?: 'WEDDING_PLANNER' | 'LOCATION' | 'FORNITORE' | 'COUPLE' | 'ADMIN'
   size?: 'sm' | 'default' | 'lg'
   variant?: 'gold' | 'outline'
 }
@@ -23,7 +25,7 @@ type Props = {
  *   - altri ruoli: APPROVED automatico
  * Logica gestita lato server da request_follow() (security definer).
  */
-export function FollowButton({ userId, initialStatus, size = 'sm' as const, variant = 'gold' }: Props) {
+export function FollowButton({ userId, initialStatus, targetRole, size = 'sm' as const, variant = 'gold' }: Props) {
   const { user } = useAuth()
   const nav = useNavigate()
   const [status, setStatus] = useState<FollowStatus | null>(initialStatus ?? null)
@@ -55,7 +57,7 @@ export function FollowButton({ userId, initialStatus, size = 'sm' as const, vari
       if (error) throw error
       const next = (data?.status ?? 'APPROVED') as FollowStatus
       setStatus(next)
-      toast.success(next === 'PENDING' ? 'Richiesta inviata' : 'Ora segui questo profilo')
+      toast.success(next === 'PENDING' ? 'Candidatura inviata, in attesa di approvazione' : 'Ora segui questo profilo')
     } catch (e) { toast.error((e as Error).message) }
     finally { setBusy(false) }
   }
@@ -82,10 +84,17 @@ export function FollowButton({ userId, initialStatus, size = 'sm' as const, vari
     return <Button size={size} variant="outline" disabled className="opacity-60"><UserPlus size={13} /> …</Button>
   }
   if (status === 'PENDING') {
-    return <Button size={size} variant="outline" disabled><Clock4 size={13} /> Richiesta in attesa</Button>
+    return <Button size={size} variant="outline" disabled><Clock4 size={13} /> Candidatura inviata</Button>
   }
   if (status === 'APPROVED') {
-    return <Button size={size} variant="outline" onClick={handleUnfollow} disabled={busy}><Check size={13} /> Seguito</Button>
+    return <Button size={size} variant="outline" onClick={handleUnfollow} disabled={busy}><Check size={13} /> Già segui</Button>
   }
-  return <Button size={size} variant={variant} onClick={handleFollow} disabled={busy}><UserPlus size={13} /> Segui</Button>
+  // I fornitori si "candidano" ai WP/LOCATION (richiesta di approvazione),
+  // gli altri rapporti sono follow diretti.
+  const isCandidacy = targetRole === 'WEDDING_PLANNER' || targetRole === 'LOCATION'
+  return (
+    <Button size={size} variant={variant} onClick={handleFollow} disabled={busy}>
+      <UserPlus size={13} /> {isCandidacy ? 'Candidati' : 'Segui'}
+    </Button>
+  )
 }

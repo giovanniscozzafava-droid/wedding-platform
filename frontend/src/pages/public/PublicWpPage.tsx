@@ -188,7 +188,7 @@ export default function PublicWpPage() {
                 <Button variant="gold" onClick={() => setFormOpen(true)}>
                   <Send size={14} /> Richiedi preventivo
                 </Button>
-                <FollowButton userId={wp.id} variant="outline" />
+                <FollowButton userId={wp.id} targetRole="WEDDING_PLANNER" variant="outline" />
                 {wp.website && (
                   <a href={wp.website} target="_blank" rel="noreferrer"
                     className="inline-flex items-center gap-1 text-xs px-3 py-2 rounded-full border hover:bg-[rgb(var(--bg-sunken))]"
