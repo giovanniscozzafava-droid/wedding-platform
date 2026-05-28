@@ -140,7 +140,11 @@ export function ProviderOnboardingWizard() {
         <header className="mb-6 flex items-center gap-3" style={{ color: 'rgb(var(--fg))' }}>
           <img src="/brand/planfully-symbol.svg" alt="" className="h-9 w-9" />
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Onboarding fornitore</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">
+              {profile?.role === 'WEDDING_PLANNER' ? 'Onboarding wedding planner'
+                : profile?.role === 'LOCATION' ? 'Onboarding location'
+                : 'Onboarding fornitore'}
+            </p>
             <h1 className="font-display text-2xl">Costruiamo il tuo profilo</h1>
           </div>
         </header>
