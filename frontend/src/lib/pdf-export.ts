@@ -2,9 +2,10 @@
  * PDF export client-side universale.
  * Cattura un nodo DOM e lo esporta in PDF (multi-page automatico).
  * Brand: header con logo Planfully + titolo, footer con data.
+ *
+ * jspdf + html2canvas (~185KB gz) caricati dinamicamente: il chunk pdf
+ * viene scaricato solo quando l'utente clicca "Esporta PDF".
  */
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 export type ExportOptions = {
   title?: string
@@ -20,6 +21,11 @@ export async function exportNodeToPdf(node: HTMLElement, opts: ExportOptions = {
     filename = `${(title ?? 'planfully').toLowerCase().replace(/\s+/g, '-')}.pdf`,
     landscape = false,
   } = opts
+
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    import('jspdf'),
+    import('html2canvas'),
+  ])
 
   // Render nodo a canvas (PNG ad alta risoluzione)
   const canvas = await html2canvas(node, {
@@ -122,9 +128,10 @@ export type TableExportOptions = {
   landscape?: boolean
 }
 
-export function exportTableToPdf(opts: TableExportOptions) {
+export async function exportTableToPdf(opts: TableExportOptions) {
   const { title, subtitle = '', filename = `${title.toLowerCase().replace(/\s+/g, '-')}.pdf`, columns, rows, landscape = false } = opts
 
+  const { default: jsPDF } = await import('jspdf')
   const pdf = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' })
   const pageW = pdf.internal.pageSize.getWidth()
   const pageH = pdf.internal.pageSize.getHeight()

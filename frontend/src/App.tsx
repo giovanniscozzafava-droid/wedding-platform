@@ -1,64 +1,78 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { RequireAuth } from '@/components/auth/RequireAuth'
+import { CookieBanner } from '@/components/CookieBanner'
+
+// Eager: pagine sul critical path (auth + home pubblica + dashboard interna).
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
-import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
-import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
-import OnboardingPage from '@/pages/auth/OnboardingPage'
-import ProfilePage from '@/pages/auth/ProfilePage'
-import CatalogPage from '@/pages/CatalogPage'
-import CalendarPage from '@/pages/CalendarPage'
-import SuppliersPage from '@/pages/SuppliersPage'
-import SupplierDetailPage from '@/pages/SupplierDetailPage'
-import QuotesPage from '@/pages/QuotesPage'
-import QuoteEditorPage from '@/pages/QuoteEditorPage'
-import ContractsPage from '@/pages/ContractsPage'
-import SupplierContractsPage from '@/pages/SupplierContractsPage'
-import FinancePage from '@/pages/FinancePage'
-import BilancioPage from '@/pages/BilancioPage'
-import InsurancePage from '@/pages/InsurancePage'
-import BrandSettingsPage from '@/pages/BrandSettingsPage'
-import QuotePreviewPage from '@/pages/public/QuotePreviewPage'
-import QuoteAcceptPage from '@/pages/public/QuoteAcceptPage'
-import QuoteRejectPage from '@/pages/public/QuoteRejectPage'
-import ContractSignPage from '@/pages/public/ContractSignPage'
-import WeddingSitePage from '@/pages/public/WeddingSitePage'
-import WeddingsPage from '@/pages/WeddingsPage'
-import WeddingDashboard from '@/pages/wedding/WeddingDashboard'
-import CoupleDashboard from '@/pages/couple/CoupleDashboard'
-import CoupleAcceptPage from '@/pages/couple/CoupleAcceptPage'
-import SupplierInviteAcceptPage from '@/pages/public/SupplierInviteAcceptPage'
-import CoupleInviteAcceptPage from '@/pages/public/CoupleInviteAcceptPage'
-import PrivacyPage from '@/pages/public/PrivacyPage'
-import CookiePage from '@/pages/public/CookiePage'
-import DiscoverPage from '@/pages/public/DiscoverPage'
-import PublicSupplierPage from '@/pages/public/PublicSupplierPage'
-import BlogListPage from '@/pages/public/BlogListPage'
-import BlogPostPage from '@/pages/public/BlogPostPage'
-import BlogAdminPage from '@/pages/BlogAdminPage'
-import BlogEditorPage from '@/pages/BlogEditorPage'
-import HomeFeedPage from '@/pages/HomeFeedPage'
-import PublicWpPage from '@/pages/public/PublicWpPage'
-import WpLeadsPage from '@/pages/WpLeadsPage'
 import PublicHomePage from '@/pages/public/PublicHomePage'
-import DiscoverProsPage from '@/pages/public/DiscoverProsPage'
-import FeedArticlePage from '@/pages/public/FeedArticlePage'
-import FeedArticleEditorPage from '@/pages/FeedArticleEditorPage'
-import NetworkRewardsPage from '@/pages/NetworkRewardsPage'
-import CompositionCalculatorPage from '@/pages/CompositionCalculatorPage'
-import SupplierAvailabilityPage from '@/pages/SupplierAvailabilityPage'
-import SupplierClientsPage from '@/pages/SupplierClientsPage'
-import SupplierCapostipitiPage from '@/pages/SupplierCapostipitiPage'
-import FaqPage from '@/pages/FaqPage'
-import { CookieBanner } from '@/components/CookieBanner'
+
+// Lazy: tutto il resto (60+ pagine). Scaricate on-demand.
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
+const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage'))
+const ProfilePage = lazy(() => import('@/pages/auth/ProfilePage'))
+const CatalogPage = lazy(() => import('@/pages/CatalogPage'))
+const CalendarPage = lazy(() => import('@/pages/CalendarPage'))
+const SuppliersPage = lazy(() => import('@/pages/SuppliersPage'))
+const SupplierDetailPage = lazy(() => import('@/pages/SupplierDetailPage'))
+const QuotesPage = lazy(() => import('@/pages/QuotesPage'))
+const QuoteEditorPage = lazy(() => import('@/pages/QuoteEditorPage'))
+const ContractsPage = lazy(() => import('@/pages/ContractsPage'))
+const SupplierContractsPage = lazy(() => import('@/pages/SupplierContractsPage'))
+const FinancePage = lazy(() => import('@/pages/FinancePage'))
+const BilancioPage = lazy(() => import('@/pages/BilancioPage'))
+const InsurancePage = lazy(() => import('@/pages/InsurancePage'))
+const BrandSettingsPage = lazy(() => import('@/pages/BrandSettingsPage'))
+const QuotePreviewPage = lazy(() => import('@/pages/public/QuotePreviewPage'))
+const QuoteAcceptPage = lazy(() => import('@/pages/public/QuoteAcceptPage'))
+const QuoteRejectPage = lazy(() => import('@/pages/public/QuoteRejectPage'))
+const ContractSignPage = lazy(() => import('@/pages/public/ContractSignPage'))
+const WeddingSitePage = lazy(() => import('@/pages/public/WeddingSitePage'))
+const WeddingsPage = lazy(() => import('@/pages/WeddingsPage'))
+const WeddingDashboard = lazy(() => import('@/pages/wedding/WeddingDashboard'))
+const CoupleDashboard = lazy(() => import('@/pages/couple/CoupleDashboard'))
+const CoupleAcceptPage = lazy(() => import('@/pages/couple/CoupleAcceptPage'))
+const SupplierInviteAcceptPage = lazy(() => import('@/pages/public/SupplierInviteAcceptPage'))
+const CoupleInviteAcceptPage = lazy(() => import('@/pages/public/CoupleInviteAcceptPage'))
+const PrivacyPage = lazy(() => import('@/pages/public/PrivacyPage'))
+const CookiePage = lazy(() => import('@/pages/public/CookiePage'))
+const DiscoverPage = lazy(() => import('@/pages/public/DiscoverPage'))
+const PublicSupplierPage = lazy(() => import('@/pages/public/PublicSupplierPage'))
+const BlogListPage = lazy(() => import('@/pages/public/BlogListPage'))
+const BlogPostPage = lazy(() => import('@/pages/public/BlogPostPage'))
+const BlogAdminPage = lazy(() => import('@/pages/BlogAdminPage'))
+const BlogEditorPage = lazy(() => import('@/pages/BlogEditorPage'))
+const HomeFeedPage = lazy(() => import('@/pages/HomeFeedPage'))
+const PublicWpPage = lazy(() => import('@/pages/public/PublicWpPage'))
+const WpLeadsPage = lazy(() => import('@/pages/WpLeadsPage'))
+const DiscoverProsPage = lazy(() => import('@/pages/public/DiscoverProsPage'))
+const FeedArticlePage = lazy(() => import('@/pages/public/FeedArticlePage'))
+const FeedArticleEditorPage = lazy(() => import('@/pages/FeedArticleEditorPage'))
+const NetworkRewardsPage = lazy(() => import('@/pages/NetworkRewardsPage'))
+const CompositionCalculatorPage = lazy(() => import('@/pages/CompositionCalculatorPage'))
+const SupplierAvailabilityPage = lazy(() => import('@/pages/SupplierAvailabilityPage'))
+const SupplierClientsPage = lazy(() => import('@/pages/SupplierClientsPage'))
+const SupplierCapostipitiPage = lazy(() => import('@/pages/SupplierCapostipitiPage'))
+const FaqPage = lazy(() => import('@/pages/FaqPage'))
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'rgb(var(--bg))' }}>
+      <div className="text-sm text-[rgb(var(--fg-subtle))]">Caricamento…</div>
+    </div>
+  )
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -207,16 +221,14 @@ export default function App() {
           <Route path="/" element={<HomeOrPublicHome />} />
           <Route path="/scopri-pro" element={<DiscoverProsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          </Routes>
+        </Suspense>
         <CookieBanner />
       </AuthProvider>
     </BrowserRouter>
   )
 }
 
-// Switch homepage in base allo stato di autenticazione:
-// - Visitatore non loggato → PublicHomePage B2C (portale clienti finali)
-// - Utente loggato → HomePage interna (dashboard ruolo-specifica)
 function HomeOrPublicHome() {
   const { user, loading } = useAuth()
   if (loading) return null
