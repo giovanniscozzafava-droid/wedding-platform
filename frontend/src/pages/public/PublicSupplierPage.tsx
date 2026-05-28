@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { FollowButton } from '@/components/feed/FollowButton'
+import { StarsBadge } from '@/components/social/StarsBadge'
+import { FollowButton } from '@/components/feed/FollowButton'
 
 type PublicProfile = {
   id: string
@@ -168,6 +170,10 @@ export default function PublicSupplierPage() {
                     <Sparkles size={11} className="inline mr-1" /> Premium
                   </span>
                 )}
+              </div>
+              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                <StarsBadge userId={data.id} size="md" />
+                <FollowButton targetId={data.id} />
               </div>
 
               {data.tagline && (

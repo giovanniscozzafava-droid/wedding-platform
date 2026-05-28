@@ -194,45 +194,49 @@ Deno.serve(async (req) => {
   }
 
   function miniHeader(chapterLabel?: string) {
+    // Tutto centrato in alto (logo + brand + eyebrow capitolo)
     if (logoImg) {
-      try { doc.addImage(logoImg.data, logoImg.format, M, 18, 20, 20, undefined, 'FAST') } catch {}
-      doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-      doc.text(safeText(brandName), M + 26, 32)
-    } else {
-      doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-      doc.text(safeText(brandName), M, 32)
+      try { doc.addImage(logoImg.data, logoImg.format, cx - 10, 14, 20, 20, undefined, 'FAST') } catch {}
     }
-    doc.setFontSize(7); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-    const right = chapterLabel ? `${safeText(title).slice(0, 30)} · ${chapterLabel}` : safeText(title)
-    doc.text(right, W - M, 32, { align: 'right' })
+    const brandY = logoImg ? 44 : 30
+    doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
+    doc.text(safeText(brandName), cx, brandY, { align: 'center' })
+    if (chapterLabel) {
+      doc.setFontSize(7); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
+      doc.text(
+        `${safeText(title).slice(0, 30).toUpperCase()} · ${chapterLabel.toUpperCase()}`,
+        cx, brandY + 12, { align: 'center', charSpace: 1.2 }
+      )
+    }
   }
 
   function pageFooter(pageNum: number, totalPages: number, chapterLabel?: string) {
+    // Footer centrato: capitolo · pagina (oppure brand · pagina)
     doc.setFontSize(8); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-    doc.text(chapterLabel ?? safeText(brandName), M, H - 18)
-    doc.text(`${pageNum} / ${totalPages}`, W - M, H - 18, { align: 'right' })
+    const left = chapterLabel ?? safeText(brandName)
+    doc.text(`${left} · ${pageNum} / ${totalPages}`, cx, H - 18, { align: 'center' })
   }
 
   // ╔════ COVER ═══════════════════════════════════════════╗
   paperBg(); topBottomStripes()
 
-  // Brand top
+  // Brand top — centrato
   if (logoImg) {
-    try { doc.addImage(logoImg.data, logoImg.format, M, 22, 32, 32, undefined, 'FAST') } catch {}
+    try { doc.addImage(logoImg.data, logoImg.format, cx - 16, 22, 32, 32, undefined, 'FAST') } catch {}
     doc.setFontSize(11); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(safeText(brandName), M + 40, 38)
+    doc.text(safeText(brandName), cx, 68, { align: 'center' })
     doc.setFontSize(8); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
-    doc.text(safeText(owner?.city ?? 'Wedding planner'), M + 40, 50)
+    doc.text(safeText(owner?.city ?? 'Wedding planner'), cx, 80, { align: 'center' })
   } else {
     doc.setFontSize(12); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(safeText(brandName), M, 36)
+    doc.text(safeText(brandName), cx, 36, { align: 'center' })
     doc.setFontSize(8); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
-    doc.text(safeText(owner?.city ?? 'Wedding planner'), M, 48)
+    doc.text(safeText(owner?.city ?? 'Wedding planner'), cx, 48, { align: 'center' })
   }
 
   doc.setFontSize(8); doc.setTextColor(...SUBTLE)
-  doc.text(new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }), W - M, 38, { align: 'right' })
-  doc.text(`${images.length} ispirazioni curate`, W - M, 50, { align: 'right' })
+  const coverMeta = `${new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })} · ${images.length} ispirazioni curate`
+  doc.text(coverMeta, cx, logoImg ? 92 : 60, { align: 'center', charSpace: 0.5 })
 
   // Hero centrato verticalmente
   const heroCy = H / 2 - 20
@@ -324,10 +328,27 @@ Deno.serve(async (req) => {
 
     while (imgIdx < imgs.length) {
       const img = imgs[imgIdx]
-      // Aspect compatto: mix 1.0, 1.2, 1.33, 0.85
-      const aspects = [1.0, 1.2, 1.33, 0.85, 1.1]
-      const aspect = aspects[imgIdx % aspects.length]
-      const h = Math.round(colW * aspect)
+      const fetched = allFetched[img.id]
+
+      // Aspect ratio REALE dell'immagine (altezza / larghezza). Fallback su
+      // un mix masonry se non leggibile. Clamp per evitare foto eccessivamente
+      // lunghe che spaccano la composizione (max 1.8 verticale, min 0.6 land).
+      let aspectHW = 1.1
+      if (fetched) {
+        try {
+          const props = (doc as any).getImageProperties(fetched.data)
+          if (props?.width && props?.height) {
+            aspectHW = props.height / props.width
+          }
+        } catch {
+          // fallback
+          const fallbacks = [1.0, 1.2, 1.33, 0.85, 1.1]
+          aspectHW = fallbacks[imgIdx % fallbacks.length]
+        }
+      }
+      aspectHW = Math.max(0.6, Math.min(1.8, aspectHW))
+
+      const h = Math.round(colW * aspectHW)
       const captionH = img.caption ? 14 : 0
       const totalH = h + GAP + captionH
 
@@ -341,10 +362,12 @@ Deno.serve(async (req) => {
       const x = M + col * (colW + GAP)
       const y = colHeights[col]
 
-      // Background placeholder + immagine
+      // Background placeholder
       doc.setFillColor(238, 232, 222)
       doc.rect(x, y, colW, h, 'F')
-      const fetched = allFetched[img.id]
+
+      // Disegno l'immagine mantenendo le proporzioni reali (aspectHW = h/w
+      // della foto reale, h = colW * aspectHW → ratio rispettato → no stretch).
       if (fetched) {
         try { doc.addImage(fetched.data, fetched.format, x, y, colW, h, undefined, 'FAST') } catch {}
       }

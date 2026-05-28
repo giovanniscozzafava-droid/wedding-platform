@@ -29,6 +29,9 @@ import { MembersTab } from '@/components/wedding/MembersTab'
 import { MenuTab } from '@/components/wedding/MenuTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
+import { RateCollaborationModal } from '@/components/social/RateCollaborationModal'
+import { Star } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
@@ -60,9 +63,12 @@ export default function WeddingDashboard() {
   const { id } = useParams<{ id: string }>()
   const { data: wedding, isLoading } = useWedding(id ?? null)
   const [tab, setTab] = useState<TabKey>('overview')
+  const [rateOpen, setRateOpen] = useState(false)
 
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!wedding) return <div className="p-10 text-[rgb(var(--rose-500))]">Wedding non trovato</div>
+
+  const eventPassed = wedding.date_to ? new Date(wedding.date_to) < new Date() : false
 
   return (
     <div className="min-h-full">
@@ -91,6 +97,11 @@ export default function WeddingDashboard() {
                 <span className="font-display text-2xl tabular-nums" style={{ color: 'rgb(var(--gold-700))' }}>
                   € {Number(wedding.value_amount).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
                 </span>
+              )}
+              {eventPassed && (
+                <Button variant="gold" size="sm" onClick={() => setRateOpen(true)}>
+                  <Star size={14} /> Valuta collaborazione
+                </Button>
               )}
             </div>
           </div>
@@ -158,6 +169,7 @@ export default function WeddingDashboard() {
           </motion.div>
         </AnimatePresence>
       </div>
+      {rateOpen && <RateCollaborationModal entryId={wedding.id} onClose={() => setRateOpen(false)} />}
     </div>
   )
 }
