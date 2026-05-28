@@ -96,7 +96,6 @@ Deno.serve(async (req) => {
     if (!t || t.includes('@')) return null
     return t
   }
-  const ownerEmail = (await admin.auth.admin.getUserById(quote.owner_id)).data?.user?.email ?? null
   const ownerEmailLocal = ownerEmail ? ownerEmail.split('@')[0].replace(/\+.*$/, '').replace(/[._-]+/g, ' ').trim() : null
   const wpName = cleanName(owner?.business_name) ?? cleanName(owner?.full_name) ?? cleanName(ownerEmailLocal) ?? 'Il tuo wedding planner'
   const wpBiz = cleanName(owner?.business_name)
@@ -106,8 +105,6 @@ Deno.serve(async (req) => {
   const safeName = (s: string) => s.replace(/[",;<>\r\n]/g, ' ').trim().slice(0, 80) || 'Planfully'
   const fromAddr = (RESEND_FROM.match(/<(.+)>/)?.[1]) ?? RESEND_FROM
   const fromHeader = `${safeName(wpBiz ?? wpName)} via Planfully <${fromAddr}>`
-  const toClientName = cleanName(quote.client_name)
-  const toHeader = toClientName ? `${safeName(toClientName)} <${quote.client_email}>` : quote.client_email
 
   const html = `<!doctype html>
 <html lang="it">
