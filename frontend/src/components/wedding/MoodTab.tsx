@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { useMood, useMoodMutations } from '@/hooks/useWedding'
+import { PaletteSection } from '@/components/wedding/PaletteSection'
 
 const TAGS = ['vestito', 'fiori', 'location', 'torta', 'allestimento', 'altro']
 
@@ -133,6 +134,8 @@ export function MoodTab({ entryId }: { entryId: string }) {
           <FileDown size={14} /> {exporting ? 'Genero PDF...' : 'Esporta PDF editoriale'}
         </Button>
       </header>
+
+      <PaletteSection entryId={entryId} />
 
       <div className="flex gap-2 mb-3">
         <button onClick={() => setMode('pexels')}

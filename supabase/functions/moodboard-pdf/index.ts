@@ -131,9 +131,32 @@ Deno.serve(async (req) => {
   const ownerEmail = ownerAuth?.user?.email ?? null
   const isPremium = owner?.subscription_tier === 'PREMIUM'
 
-  // Palette
-  const PRIMARY = hexToRgb(isPremium ? owner?.brand_primary_color : '#1A2E4F', [26, 46, 79])
-  const ACCENT = hexToRgb(isPremium ? owner?.brand_secondary_color : '#C49A5C', [196, 154, 92])
+  // Palette scelta dalla coppia (couple_preferences.preferred_palette)
+  const { data: prefs } = await admin
+    .from('couple_preferences')
+    .select('preferred_palette')
+    .eq('entry_id', body.entry_id)
+    .maybeSingle()
+  const couplePalette: string[] = Array.isArray(prefs?.preferred_palette)
+    ? (prefs!.preferred_palette as string[]).filter((c) => /^#?[0-9a-fA-F]{6}$/.test(c))
+    : []
+  const NAME_BY_HEX: Record<string, string> = {
+    '#f3eee4': 'Paper', '#fbf5e9': 'Crema', '#f5ebe0': 'Avorio', '#f4f1ea': 'Sabbia',
+    '#e8d9b3': 'Vaniglia', '#c49a5c': 'Oro', '#1a1714': 'Inchiostro', '#8a9a7b': 'Salvia',
+  }
+  function nameForHex(hex: string): string {
+    const k = hex.toLowerCase().startsWith('#') ? hex.toLowerCase() : '#' + hex.toLowerCase()
+    return NAME_BY_HEX[k] ?? k.toUpperCase().replace('#', '')
+  }
+
+  // Palette principale del PDF: priorità alla scelta della coppia,
+  // poi brand WP, infine default Planfully.
+  const PRIMARY = couplePalette.length >= 2
+    ? hexToRgb(couplePalette[couplePalette.length - 1]!, [26, 46, 79])
+    : hexToRgb(isPremium ? owner?.brand_primary_color : '#1A2E4F', [26, 46, 79])
+  const ACCENT = couplePalette.length >= 1
+    ? hexToRgb(couplePalette[Math.min(2, couplePalette.length - 1)]!, [196, 154, 92])
+    : hexToRgb(isPremium ? owner?.brand_secondary_color : '#C49A5C', [196, 154, 92])
   const INK = [26, 23, 20] as [number, number, number]
   const MUTED = [120, 113, 100] as [number, number, number]
   const SUBTLE = [165, 156, 142] as [number, number, number]
@@ -400,14 +423,19 @@ Deno.serve(async (req) => {
   doc.setFontSize(36); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
   doc.text('I colori del giorno', cx, 180, { align: 'center' })
 
-  // Palette 5 swatch centered
-  const swatches: { color: number[]; name: string }[] = [
-    { color: PRIMARY as any, name: 'Profondo' },
-    { color: ACCENT as any, name: 'Oro' },
-    { color: [200, 190, 175], name: 'Sabbia' },
-    { color: [230, 222, 210], name: 'Cipria' },
-    { color: [140, 138, 128], name: 'Salvia' },
-  ]
+  // Palette: usa quella scelta dalla coppia se disponibile, altrimenti fallback default
+  const swatches: { color: number[]; name: string }[] = couplePalette.length >= 2
+    ? couplePalette.slice(0, 6).map((hex) => ({
+        color: hexToRgb(hex, [200, 190, 175]) as any,
+        name: nameForHex(hex),
+      }))
+    : [
+        { color: PRIMARY as any, name: 'Profondo' },
+        { color: ACCENT as any, name: 'Oro' },
+        { color: [200, 190, 175], name: 'Sabbia' },
+        { color: [230, 222, 210], name: 'Cipria' },
+        { color: [140, 138, 128], name: 'Salvia' },
+      ]
   const sw = 70
   const gapSw = 16
   const totalSwW = sw * swatches.length + gapSw * (swatches.length - 1)
