@@ -8,6 +8,7 @@ import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { StarsBadge } from '@/components/social/StarsBadge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import {
   useInviteSupplier, useRevokeCollaboration, useSuppliers,
@@ -149,9 +150,10 @@ export default function SuppliersPage() {
                         {s.business_name ?? s.full_name}
                       </h3>
                       <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">{s.full_name}</p>
-                      <div className="flex gap-1 mt-1.5">
+                      <div className="flex gap-1 mt-1.5 items-center flex-wrap">
                         {s.subrole && <Badge tone={SUBROLE_TONE[s.subrole] ?? 'neutral'}>{s.subrole}</Badge>}
                         <Badge status={s.collaboration_status} />
+                        <StarsBadge userId={s.id} size="sm" />
                       </div>
                     </div>
                     <ArrowUpRight className="text-[rgb(var(--fg-subtle))] shrink-0" size={16} />

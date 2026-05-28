@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase } from 'lucide-react'
+import { StarsBadge } from '@/components/social/StarsBadge'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
@@ -151,6 +152,7 @@ export default function DiscoverPage() {
                         {labelForSubrole(s.subrole)}
                       </p>
                     )}
+                    <div className="mt-1"><StarsBadge userId={s.id} size="sm" /></div>
                   </div>
                   {s.discover_tier === 'PREMIUM' && (
                     <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Inbox, Check, X, Sparkles } from 'lucide-react'
+import { StarsBadge } from '@/components/social/StarsBadge'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -138,6 +139,7 @@ export function CandidacyInbox() {
                       <p className="text-[11px] text-[rgb(var(--fg-subtle))]">
                         {c.subrole ?? '—'}{c.city && ` · ${c.city}`}
                       </p>
+                      <StarsBadge userId={c.follower_id} size="sm" />
                       <div className="flex gap-1.5 mt-2">
                         <Button size="sm" variant="gold" disabled={busyId === c.follower_id}
                           onClick={() => void approve(c.follower_id)}>

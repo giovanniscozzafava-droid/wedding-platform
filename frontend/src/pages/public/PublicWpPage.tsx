@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { eventTerm } from '@/lib/eventKind'
 import { FollowButton } from '@/components/feed/FollowButton'
+import { StarsBadge } from '@/components/social/StarsBadge'
+import { ReviewsList } from '@/components/social/ReviewsList'
 
 type WpProfile = {
   id: string
@@ -173,6 +175,7 @@ export default function PublicWpPage() {
                 {roleLabel}
               </p>
               <h1 className="font-display text-3xl sm:text-4xl tracking-tight">{displayName}</h1>
+              <div className="mt-2"><StarsBadge userId={wp.id} size="md" /></div>
               {wp.tagline && <p className="text-base italic mt-2">"{wp.tagline}"</p>}
               <div className="flex flex-wrap gap-3 text-sm text-[rgb(var(--fg-muted))] mt-3">
                 {wp.city && <span className="inline-flex items-center gap-1"><MapPin size={14} /> {wp.city}{wp.province && ` (${wp.province})`}</span>}
@@ -265,6 +268,7 @@ export default function PublicWpPage() {
                   )}
                   <p className="text-xs font-medium truncate w-full">{s.business_name ?? s.full_name}</p>
                   {s.subrole && <p className="text-[10px] text-[rgb(var(--fg-subtle))] truncate w-full">{s.subrole}</p>}
+                  <StarsBadge userId={s.id} size="sm" showCount={false} />
                 </Link>
               ))}
             </div>
@@ -291,6 +295,8 @@ export default function PublicWpPage() {
             </div>
           </section>
         )}
+
+        <ReviewsList userId={wp.id} />
 
         {/* Lead form modale */}
         {formOpen && !sent && (
