@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X } from 'lucide-react'
+import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -123,6 +123,19 @@ export function TablesTab({ entryId }: { entryId: string }) {
     return (guests ?? []).filter((g: any) => g.table_id === tableId)
   }
 
+  // Ospiti che dovrebbero essere a un tavolo ma non sono assegnati.
+  // Includiamo solo confermati (YES) e in attesa (PENDING) e in forse (MAYBE),
+  // escludiamo INFANT (non occupa posto a tavola).
+  const unseated = (guests ?? []).filter((g: any) => {
+    if (g.table_id) return false
+    if ((g.rsvp ?? 'PENDING') === 'NO') return false
+    if (g.age_group === 'INFANT') return false
+    return true
+  })
+  const totalSeatsAvailable = (tables ?? []).reduce((s: number, t: any) => s + (t.seats ?? 0), 0)
+  const totalSeated = (guests ?? []).filter((g: any) => g.table_id).reduce((s: number, g: any) => s + (g.party_size ?? 1), 0)
+  const totalUnseatedSize = unseated.reduce((s: number, g: any) => s + (g.party_size ?? 1), 0)
+
   function exportPdf() {
     const rows: any[] = []
     for (const t of (tables ?? []) as any[]) {
@@ -155,6 +168,49 @@ export function TablesTab({ entryId }: { entryId: string }) {
         </div>
         <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
       </header>
+
+      {/* Banner ospiti non ancora assegnati */}
+      {(tables ?? []).length > 0 && (
+        unseated.length === 0 ? (
+          <Card className="p-3 mb-4 flex items-center gap-3" style={{ background: 'rgb(var(--bg-sunken))', borderColor: 'rgb(34 197 94 / 0.4)' }}>
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            <p className="text-sm text-[rgb(var(--fg-muted))]">
+              Tutti gli invitati sono seduti — <strong>{totalSeated}</strong> posti occupati su {totalSeatsAvailable} disponibili.
+            </p>
+          </Card>
+        ) : (
+          <Card className="p-4 mb-4 border-l-4" style={{ borderLeftColor: 'rgb(var(--amber-500))', background: 'rgb(var(--bg-sunken))' }}>
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="text-[rgb(var(--amber-500))] shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">
+                  Mancano {unseated.length} {unseated.length === 1 ? 'invitato' : 'invitati'} ai tavoli
+                  {totalUnseatedSize !== unseated.length && ` (${totalUnseatedSize} posti totali)`}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {unseated.slice(0, 18).map((g: any) => (
+                    <span key={g.id}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+                      style={{ background: 'rgb(var(--bg-elev))', border: '1px solid rgb(var(--border))' }}>
+                      {g.full_name}
+                      {g.party_size > 1 && <span className="text-[rgb(var(--fg-subtle))]">×{g.party_size}</span>}
+                      {g.age_group === 'CHILD' && '🧒'}
+                      {g.rsvp === 'PENDING' && <span className="text-[rgb(var(--amber-600))] text-[10px]">in attesa</span>}
+                      {g.rsvp === 'MAYBE' && <span className="text-[rgb(var(--fg-subtle))] text-[10px]">forse</span>}
+                    </span>
+                  ))}
+                  {unseated.length > 18 && (
+                    <span className="text-xs text-[rgb(var(--fg-subtle))] self-center">+{unseated.length - 18} altri…</span>
+                  )}
+                </div>
+                <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
+                  Apri un tavolo e clicca <strong>+ Assegna invitati</strong> per posizionarli. Gli infant (in braccio) non vengono contati.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )
+      )}
 
       <Card className="p-4 mb-4">
         <div className="flex items-center gap-2 mb-3">

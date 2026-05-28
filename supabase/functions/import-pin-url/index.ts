@@ -47,10 +47,19 @@ Deno.serve(async (req) => {
 
   // Instagram: tenta endpoint embed pubblico /embed/ (non richiede login).
   // L'HTML embed include URL scontent.cdninstagram.com/v/t39.30808-6 (post content).
+  // Se l'URL utente specifica ?img_index=N (1-based) selezioniamo la N-esima
+  // foto del carosello invece della prima.
   let finalUrl = target.toString()
   const host = target.hostname.replace(/^www\./, '')
   const isInstagram = host.includes('instagram.')
+  let carouselIndex: number | null = null
   if (isInstagram) {
+    // Parsing img_index sia da query (?img_index=5) sia da path (/img_index/5).
+    const qIdx = target.searchParams.get('img_index')
+    if (qIdx) {
+      const n = parseInt(qIdx, 10)
+      if (!isNaN(n) && n >= 1) carouselIndex = n
+    }
     const pathMatch = target.pathname.match(/^\/(p|reel|reels|tv)\/([^/]+)/)
     if (pathMatch) {
       finalUrl = `https://www.instagram.com/p/${pathMatch[2]}/embed/`
@@ -121,8 +130,24 @@ Deno.serve(async (req) => {
     // Escludi avatar profilo (-19 finale dopo punto)
     const candidates = all.filter((u) => !/\/v\/t51\.\d+-19\//.test(u))
     if (candidates.length > 0) {
-      const ranked = candidates
-        .map((url) => {
+      // Per ogni "slide" del carosello, Instagram emette piu' size della stessa
+      // foto. Raggruppiamo per FBID (l'identificatore inviato in querystring),
+      // cosi possiamo distinguere "slide 1" da "slide 2" e scegliere la slide
+      // giusta in base a img_index.
+      const groups = new Map<string, string[]>()
+      const order: string[] = []
+      for (const url of candidates) {
+        // Match _nc_ohc, fbid_=, oh=, oe= → usiamo il path base (senza query)
+        // come chiave: scontent ruota i CDN ma il path di base e' stabile per
+        // slide.
+        const baseKey = url.split('?')[0]!.replace(/_n\.(jpg|jpeg|png|webp)$/, '_n')
+        if (!groups.has(baseKey)) { groups.set(baseKey, []); order.push(baseKey) }
+        groups.get(baseKey)!.push(url)
+      }
+
+      // Per ogni gruppo (slide), scegli la variante con risoluzione piu' alta.
+      function pickBest(urls: string[]): string {
+        const ranked = urls.map((url) => {
           const isSmall = /s150x150|s240x240|s320x320|s640x640/.test(url)
           const big1440 = url.includes('1440x1440') || url.includes('p1440x1440')
           const big1080 = url.includes('1080x1080') || url.includes('p1080x1080')
@@ -134,14 +159,24 @@ Deno.serve(async (req) => {
           else if (noSize) score += 70
           else if (big750) score += 40
           if (isSmall) score -= 50
-          // Bonus per t39 (carosello classico) e t51.82787/71878 (post content)
           if (/\/v\/t39\.30808-6\//.test(url)) score += 30
           if (/\/v\/t51\.(82787|71878)-15\//.test(url)) score += 20
           score += url.length / 100
           return { url, score }
-        })
-        .sort((a, b) => b.score - a.score)
-      image = ranked[0]?.url
+        }).sort((a, b) => b.score - a.score)
+        return ranked[0]!.url
+      }
+
+      // Slides nell'ordine in cui appaiono nell'HTML embed (= ordine del carosello).
+      const slides = order.map((key) => pickBest(groups.get(key)!))
+
+      if (carouselIndex && slides.length > 1) {
+        // Se l'utente ha chiesto img_index=N e ci sono almeno N slide, prendi la
+        // N-esima. Altrimenti fallback alla prima.
+        image = slides[Math.min(carouselIndex, slides.length) - 1] ?? slides[0]
+      } else {
+        image = slides[0]
+      }
     }
     // Fallback secondario: EmbeddedMediaImage class
     if (!image) {
@@ -241,5 +276,6 @@ Deno.serve(async (req) => {
     title: title.slice(0, 200),
     description: desc.slice(0, 500),
     source_url: finalUrl,
+    carousel_index: carouselIndex,
   })
 })
