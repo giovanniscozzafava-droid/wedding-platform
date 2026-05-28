@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, CalendarClock, Table2, Users as UsersIcon, Wallet, ListChecks,
   Palette, Music, FileSignature, FolderOpen, BarChart3, FileText,
-  BedDouble, Bus, Gift, PartyPopper, Globe, Heart, Utensils, Church,
+  BedDouble, Bus, Gift, PartyPopper, Globe, Heart, Utensils, Church, ClipboardList,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -28,12 +28,14 @@ import { WebsiteTab } from '@/components/wedding/WebsiteTab'
 import { MembersTab } from '@/components/wedding/MembersTab'
 import { MenuTab } from '@/components/wedding/MenuTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
+import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'overview' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
+type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
+  { key: 'planning',       label: 'Questionario', icon: ClipboardList },
   { key: 'ceremony',       label: 'Cerimonia',    icon: Church },
   { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock },
   { key: 'guests',         label: 'Invitati',     icon: UsersIcon },
@@ -134,6 +136,7 @@ export default function WeddingDashboard() {
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewTab wedding={wedding} onTab={setTab as any} />}
+            {tab === 'planning' && <CouplePlanningTab entryId={wedding.id} readOnly />}
             {tab === 'ceremony' && <CeremonyTab entryId={wedding.id} />}
             {tab === 'timeline' && <TimelineTab entryId={wedding.id} />}
             {tab === 'tables' && <TablesTab entryId={wedding.id} />}

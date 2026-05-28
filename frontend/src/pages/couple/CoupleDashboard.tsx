@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
-  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Newspaper, Church,
+  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Newspaper, Church, ClipboardList,
 } from 'lucide-react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -21,12 +21,14 @@ import { cn } from '@/lib/utils'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 import { MenuTab } from '@/components/wedding/MenuTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
+import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AppFooter } from '@/components/layout/AppFooter'
 
-type Tab = 'overview' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
+type Tab = 'overview' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
 const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'overview',  label: 'Overview',     icon: Heart },
+  { key: 'planning',  label: 'Questionario', icon: ClipboardList },
   { key: 'cerimonia', label: 'Cerimonia',    icon: Church },
   { key: 'documenti', label: 'Documenti',    icon: FileText },
   { key: 'programma', label: 'Programma',    icon: CalendarClock },
@@ -189,6 +191,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewCouple wedding={wedding} entryId={entryId} memberRole={memberRole} />}
+            {tab === 'planning' && <CouplePlanningTab entryId={entryId} />}
             {tab === 'cerimonia' && <CeremonyTab entryId={entryId} />}
             {tab === 'documenti' && <DocumentiCouple wedding={wedding} entryId={entryId} />}
             {tab === 'programma' && <ProgrammaCouple entryId={entryId} />}
