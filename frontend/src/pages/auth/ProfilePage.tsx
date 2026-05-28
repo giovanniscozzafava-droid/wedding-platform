@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ComuneInput } from '@/components/ComuneInput'
+import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
@@ -183,9 +185,11 @@ export default function ProfilePage() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="fiscal_code">Codice fiscale</Label>
-                    <Input id="fiscal_code" value={form.fiscal_code}
-                      placeholder="RSSMRA80A01H501Z"
-                      onChange={(e) => setForm((f) => ({ ...f, fiscal_code: e.target.value.toUpperCase() }))} />
+                    <CodiceFiscaleInput
+                      id="fiscal_code"
+                      value={form.fiscal_code}
+                      onChange={(v) => setForm((f) => ({ ...f, fiscal_code: v }))}
+                    />
                   </div>
                   <div className="space-y-1 md:col-span-2">
                     <Label htmlFor="address">Sede / Indirizzo</Label>
@@ -194,10 +198,20 @@ export default function ProfilePage() {
                       onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="city">Città</Label>
-                    <Input id="city" value={form.city}
-                      placeholder="Cosenza"
-                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
+                    <Label htmlFor="city">Comune</Label>
+                    <ComuneInput
+                      id="city"
+                      value={form.city}
+                      onChange={({ city, cap, province }) =>
+                        setForm((f) => ({
+                          ...f,
+                          city,
+                          zip: cap || f.zip,
+                          province: province || f.province,
+                        }))
+                      }
+                      placeholder="es. Botricello"
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">

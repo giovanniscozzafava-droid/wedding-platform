@@ -6,6 +6,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ComuneInput } from '@/components/ComuneInput'
+import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES_WITH_PLACEHOLDER as SUBROLES } from '@/lib/supplierSubroles'
@@ -20,6 +22,7 @@ type ProviderForm = {
   address: string
   city: string
   zip: string
+  province: string
   country: string
   website: string
   instagram: string
@@ -41,7 +44,7 @@ export function ProviderOnboardingWizard() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [form, setForm] = useState<ProviderForm>({
     full_name: '', business_name: '', subrole: '', phone: '',
-    vat_number: '', fiscal_code: '', address: '', city: '', zip: '', country: 'Italia',
+    vat_number: '', fiscal_code: '', address: '', city: '', zip: '', province: '', country: 'Italia',
     website: '', instagram: '', facebook: '', tiktok: '', bio: '',
     service_radius_km: '', years_active: '',
   })
@@ -92,6 +95,7 @@ export function ProviderOnboardingWizard() {
         address: form.address || null,
         city: form.city || null,
         zip: form.zip || null,
+        province: form.province || null,
         country: form.country || null,
         website: form.website || null,
         instagram: form.instagram || null,
@@ -104,7 +108,7 @@ export function ProviderOnboardingWizard() {
         ...(coverUrl ? { cover_image_url: coverUrl } : {}),
         ...(complete ? { onboarding_complete: true } : {}),
       }
-      const { error } = await supabase.from('profiles').update(payload).eq('id', user.id)
+      const { error } = await (supabase.from('profiles') as any).update(payload).eq('id', user.id)
       if (error) throw error
       await refreshProfile()
       if (complete) {
@@ -186,16 +190,36 @@ export function ProviderOnboardingWizard() {
                         <Input value={form.vat_number} onChange={(e) => patch('vat_number', e.target.value)} />
                       </Field>
                       <Field label="Codice fiscale">
-                        <Input value={form.fiscal_code} onChange={(e) => patch('fiscal_code', e.target.value)} />
+                        <CodiceFiscaleInput
+                          value={form.fiscal_code}
+                          onChange={(v) => patch('fiscal_code', v)}
+                        />
                       </Field>
                     </div>
                     <Field label="Indirizzo">
                       <Input value={form.address} onChange={(e) => patch('address', e.target.value)} placeholder="Via, numero civico" />
                     </Field>
-                    <div className="grid grid-cols-3 gap-3">
-                      <Field label="Città"><Input value={form.city} onChange={(e) => patch('city', e.target.value)} /></Field>
-                      <Field label="CAP"><Input value={form.zip} onChange={(e) => patch('zip', e.target.value)} /></Field>
-                      <Field label="Nazione"><Input value={form.country} onChange={(e) => patch('country', e.target.value)} /></Field>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <Field label="Comune">
+                        <ComuneInput
+                          value={form.city}
+                          onChange={({ city, cap, province }) => {
+                            patch('city', city)
+                            if (cap) patch('zip', cap)
+                            if (province) patch('province', province)
+                          }}
+                          placeholder="es. Botricello"
+                        />
+                      </Field>
+                      <Field label="CAP">
+                        <Input value={form.zip} onChange={(e) => patch('zip', e.target.value)} placeholder="88070" />
+                      </Field>
+                      <Field label="Provincia">
+                        <Input value={form.province} onChange={(e) => patch('province', e.target.value.toUpperCase())} maxLength={2} placeholder="CZ" />
+                      </Field>
+                      <Field label="Nazione">
+                        <Input value={form.country} onChange={(e) => patch('country', e.target.value)} />
+                      </Field>
                     </div>
                     <Field label="Raggio di servizio (km)">
                       <Input type="number" min={0} value={form.service_radius_km}
