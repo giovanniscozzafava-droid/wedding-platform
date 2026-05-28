@@ -15,6 +15,8 @@ type GuestInsert = {
   group_label?: string | null
   diet?: string | null
   notes?: string | null
+  age_group?: 'ADULT' | 'CHILD' | 'INFANT'
+  accessibility_notes?: string | null
 }
 
 type Props = {
@@ -55,6 +57,15 @@ const HEADER_MAP: Record<string, keyof GuestInsert> = {
   note: 'notes',
   notes: 'notes',
   notas: 'notes',
+  eta: 'age_group',
+  tipo: 'age_group',
+  agegroup: 'age_group',
+  age: 'age_group',
+  bambino: 'age_group',
+  accessibilita: 'accessibility_notes',
+  esigenze: 'accessibility_notes',
+  handicap: 'accessibility_notes',
+  disabilita: 'accessibility_notes',
 }
 
 function normalizeSide(v: string): 'SPOSA' | 'SPOSO' | 'ENTRAMBI' | null {
@@ -63,6 +74,15 @@ function normalizeSide(v: string): 'SPOSA' | 'SPOSO' | 'ENTRAMBI' | null {
   if (['sposa', 'lei', 'bride', 'b'].includes(x)) return 'SPOSA'
   if (['sposo', 'lui', 'groom', 'g'].includes(x)) return 'SPOSO'
   if (['entrambi', 'both', 'comuni', 'comune'].includes(x)) return 'ENTRAMBI'
+  return null
+}
+
+function normalizeAgeGroup(v: string): 'ADULT' | 'CHILD' | 'INFANT' | null {
+  const x = v.trim().toLowerCase()
+  if (!x) return null
+  if (['adulto', 'adult', 'a', 'grande'].includes(x)) return 'ADULT'
+  if (['bambino', 'bambina', 'bimbo', 'bimba', 'child', 'kid', 'b'].includes(x)) return 'CHILD'
+  if (['infant', 'neonato', 'lattante', '0', 'i'].includes(x)) return 'INFANT'
   return null
 }
 
@@ -78,6 +98,9 @@ function mapRow(row: CsvRow, mapping: Map<string, keyof GuestInsert>): GuestInse
       if (!isNaN(n) && n > 0) out.party_size = n
     } else if (target === 'side') {
       out.side = normalizeSide(v)
+    } else if (target === 'age_group') {
+      const ag = normalizeAgeGroup(v)
+      if (ag) out.age_group = ag
     } else {
       ;(out as any)[target] = v
     }
@@ -86,10 +109,11 @@ function mapRow(row: CsvRow, mapping: Map<string, keyof GuestInsert>): GuestInse
   return out
 }
 
-const SAMPLE_CSV = `Nome,Email,Telefono,Posti,Lato,Gruppo,Dieta,Note
-Mario Rossi,mario.rossi@email.it,+39 333 1234567,2,Sposa,Famiglia,Vegetariano,Allergia frutta secca
-Giulia Bianchi,giulia@email.com,,1,Sposo,Amici università,Senza glutine,
-Famiglia Verdi,verdi@email.com,+39 02 1234,4,Entrambi,Cugini,,Tavolo bambini
+const SAMPLE_CSV = `Nome,Email,Telefono,Posti,Lato,Gruppo,Dieta,Eta,Esigenze,Note
+Mario Rossi,mario.rossi@email.it,+39 333 1234567,2,Sposa,Famiglia,Vegetariano,Adulto,,Allergia frutta secca
+Giulia Bianchi,giulia@email.com,,1,Sposo,Amici università,Senza glutine,Adulto,Mobilità ridotta - usa carrozzina,
+Luca Verdi,,,1,Entrambi,Cugini,,Bambino,,Necessita seggiolone
+Anna Verdi,,,1,Entrambi,Cugini,,Infant,,Allattamento — stanza riservata
 `
 
 export function GuestsCsvImport({ entryId, onImported }: Props) {

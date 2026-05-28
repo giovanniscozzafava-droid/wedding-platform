@@ -52,17 +52,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+    let lastSessionId: string | undefined
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return
       setSession(data.session)
+      lastSessionId = data.session?.user?.id
       if (data.session?.user) {
         void fetchProfile(data.session.user.id).then((p) => mounted && setProfile(p))
       }
       setLoading(false)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       if (s?.user) {
+        lastSessionId = s.user.id
         void fetchProfile(s.user.id).then((p) => setProfile(p))
         // Redeem pending referral code (impostato da RegisterPage se email confirm flow)
         try {
@@ -78,12 +81,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch { /* ignore */ }
       } else {
+        // Logout: distingui tra utente che ha cliccato Esci e session expirata.
+        // Se prima c'era una sessione, il browser ha perso il token (tab inattiva,
+        // refresh fallito, cookie scaduto…) — notifico l'utente prima del redirect.
+        if (event === 'SIGNED_OUT' && lastSessionId) {
+          try {
+            // dynamic import per evitare cicli
+            void import('sonner').then(({ toast }) => {
+              toast.info('Sessione scaduta. Effettua di nuovo l\'accesso.', { duration: 6000 })
+            })
+          } catch { /* ignore */ }
+        }
+        lastSessionId = undefined
         setProfile(null)
       }
     })
+
+    // Refresh proattivo: quando la tab torna visibile, prova a rinnovare il token.
+    // Senza questo, su mobile/tab-suspended il refreshTimer si ferma e la
+    // prossima chiamata fa fallire la sessione "nel vuoto".
+    function onVisibility() {
+      if (document.visibilityState !== 'visible') return
+      supabase.auth.getSession().then(({ data }) => {
+        if (!data.session) return
+        const exp = (data.session.expires_at ?? 0) * 1000
+        // se manca meno di 5 minuti alla scadenza, refresh subito
+        if (exp - Date.now() < 5 * 60 * 1000) {
+          void supabase.auth.refreshSession()
+        }
+      }).catch(() => { /* ignore */ })
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
     return () => {
       mounted = false
       sub.subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
 
