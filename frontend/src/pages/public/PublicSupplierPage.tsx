@@ -57,6 +57,7 @@ export default function PublicSupplierPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [requesting, setRequesting] = useState(false)
+  const [existingCollab, setExistingCollab] = useState<'ACTIVE' | 'PENDING' | 'REVOKED' | null>(null)
 
   useEffect(() => {
     if (!slug) return
@@ -74,6 +75,22 @@ export default function PublicSupplierPage() {
       }
     })()
   }, [slug])
+
+  // Se il visitatore è WP/LOCATION, verifica se ha già una collaboration con
+  // questo fornitore — così evitiamo di mostrargli "Aggiungi al mio team"
+  // quando il fornitore è già nel suo team (paradosso).
+  useEffect(() => {
+    if (!user || !data?.id) { setExistingCollab(null); return }
+    if (profile?.role !== 'WEDDING_PLANNER' && profile?.role !== 'LOCATION') return
+    void (async () => {
+      const { data: row } = await (supabase.from as any)('collaborations')
+        .select('status')
+        .eq('capostipite_id', user.id)
+        .eq('fornitore_id', data.id)
+        .maybeSingle()
+      setExistingCollab((row?.status as any) ?? null)
+    })()
+  }, [user, profile, data?.id])
 
   async function requestCollaboration() {
     if (!user) { nav('/login'); return }
@@ -228,9 +245,19 @@ export default function PublicSupplierPage() {
                     <Button variant="outline" size="sm">Modifica il tuo profilo</Button>
                   </Link>
                 ) : profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' ? (
-                  <Button variant="gold" disabled={requesting} onClick={requestCollaboration}>
-                    <Heart size={14} /> {requesting ? 'Invio…' : 'Aggiungi al mio team'}
-                  </Button>
+                  existingCollab === 'ACTIVE' ? (
+                    <Button variant="outline" size="sm" disabled className="text-emerald-600">
+                      <Heart size={14} className="fill-emerald-600" /> Già nel tuo team
+                    </Button>
+                  ) : existingCollab === 'PENDING' ? (
+                    <Button variant="outline" size="sm" disabled>
+                      <Heart size={14} /> Invito in attesa
+                    </Button>
+                  ) : (
+                    <Button variant="gold" disabled={requesting} onClick={requestCollaboration}>
+                      <Heart size={14} /> {requesting ? 'Invio…' : 'Aggiungi al mio team'}
+                    </Button>
+                  )
                 ) : isFornitoreViewer ? (
                   <p className="text-xs text-[rgb(var(--fg-subtle))]">Sei un fornitore. Solo i wedding planner e le location possono aggiungerti al loro team.</p>
                 ) : isCoupleViewer ? (
