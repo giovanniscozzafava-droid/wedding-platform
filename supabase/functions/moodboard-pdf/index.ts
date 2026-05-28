@@ -468,13 +468,27 @@ Deno.serve(async (req) => {
   for (let i = 0; i < swatches.length; i++) {
     const { color, name } = swatches[i]
     const x = sxStart + i * (sw + gapSw)
+    const cellCenter = x + sw / 2
+
     doc.setFillColor(color[0], color[1], color[2])
     doc.roundedRect(x, syStart, sw, sw, 4, 4, 'F')
-    doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(name, x + sw / 2, syStart + sw + 14, { align: 'center' })
+
     const hex = '#' + color.map((v: number) => v.toString(16).padStart(2, '0')).join('').toUpperCase()
-    doc.setFontSize(7); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-    doc.text(hex, x + sw / 2, syStart + sw + 26, { align: 'center' })
+    // Se "name" è già il codice hex (nessuna mapping disponibile), non duplico
+    const nameIsHex = name.replace('#', '').toUpperCase() === hex.replace('#', '')
+
+    // Nome (centratura manuale via getTextWidth per evitare drift di align:center)
+    doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
+    const displayName = nameIsHex ? hex : name
+    const nameW = doc.getTextWidth(displayName)
+    doc.text(displayName, cellCenter - nameW / 2, syStart + sw + 14)
+
+    // Riga hex (solo se nome è semantico)
+    if (!nameIsHex) {
+      doc.setFontSize(7); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
+      const hexW = doc.getTextWidth(hex)
+      doc.text(hex, cellCenter - hexW / 2, syStart + sw + 26)
+    }
   }
 
   // Quote chiusura
