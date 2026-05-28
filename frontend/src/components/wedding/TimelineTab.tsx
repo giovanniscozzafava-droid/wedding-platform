@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, Clock, AlertTriangle, Download } from 'lucide-react'
+import { Plus, Trash2, Clock, AlertTriangle, Download, GripVertical, ArrowDownAZ } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,15 @@ export function TimelineTab({ entryId }: { entryId: string }) {
   const { add, update, remove } = useTimelineMutations(entryId)
   const [openNew, setOpenNew] = useState(false)
   const [draft, setDraft] = useState({ start_time: '', title: '', duration_min: '', location: '', is_critical: false })
+  const [items, setItems] = useState<any[]>([])
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null)
+  const [reordering, setReordering] = useState(false)
+
+  // Mantieni una copia locale ordinata per ord (così posso riordinare ottimisticamente)
+  useEffect(() => {
+    setItems(((data ?? []) as any[]).slice().sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0)))
+  }, [data])
 
   async function handleAdd() {
     if (!draft.title.trim()) return
@@ -32,10 +41,61 @@ export function TimelineTab({ entryId }: { entryId: string }) {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  /** Salva i nuovi ord sul DB (batch). */
+  async function persistOrder(next: any[]) {
+    setReordering(true)
+    try {
+      // Solo le righe che cambiano ord
+      const updates = next.map((it, i) => ({ id: it.id, newOrd: i + 1, oldOrd: it.ord ?? 0 }))
+        .filter((u) => u.newOrd !== u.oldOrd)
+      for (const u of updates) {
+        await update.mutateAsync({ id: u.id, patch: { ord: u.newOrd } } as any)
+      }
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setReordering(false)
+    }
+  }
+
+  function onDragStart(idx: number) {
+    setDragIdx(idx)
+  }
+  function onDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    if (dragIdx === null || dragIdx === idx) return
+    setHoverIdx(idx)
+  }
+  async function onDrop(idx: number) {
+    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setHoverIdx(null); return }
+    const next = items.slice()
+    const [moved] = next.splice(dragIdx, 1)
+    if (moved) next.splice(idx, 0, moved)
+    setItems(next)
+    setDragIdx(null)
+    setHoverIdx(null)
+    await persistOrder(next)
+  }
+  function onDragEnd() {
+    setDragIdx(null)
+    setHoverIdx(null)
+  }
+
+  async function sortChronological() {
+    // Ordina per start_time ASC; le righe senza ora vanno in coda mantenendo il loro ord relativo.
+    const withTime = items.filter((it) => it.start_time)
+    const withoutTime = items.filter((it) => !it.start_time)
+    withTime.sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))
+    const next = [...withTime, ...withoutTime]
+    setItems(next)
+    await persistOrder(next)
+    toast.success('Scaletta riordinata per ora')
+  }
+
   function exportPdf() {
     exportTableToPdf({
       title: 'Scaletta evento',
-      subtitle: `${(data ?? []).length} momenti`,
+      subtitle: `${items.length} momenti`,
       filename: 'scaletta-evento.pdf',
       columns: [
         { header: 'Ora', key: 'start_time', width: 22 },
@@ -44,7 +104,7 @@ export function TimelineTab({ entryId }: { entryId: string }) {
         { header: 'Luogo', key: 'location', width: 40 },
         { header: 'Critico', key: 'critico' },
       ],
-      rows: (data ?? []).map((s: any) => ({
+      rows: items.map((s: any) => ({
         ...s,
         start_time: s.start_time ?? '—',
         duration_min: s.duration_min ?? '',
@@ -59,9 +119,12 @@ export function TimelineTab({ entryId }: { entryId: string }) {
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="font-display text-2xl">Scaletta evento</h2>
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Timeline minuto per minuto. Marca i momenti critici.</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Trascina le card per riordinare, o ordina per ora con un click.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={sortChronological} disabled={reordering || items.length < 2}>
+            <ArrowDownAZ size={14} /> Ordina per ora
+          </Button>
           <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
           <Button variant="gold" onClick={() => setOpenNew(true)}>
             <Plus /> Nuovo step
@@ -104,7 +167,7 @@ export function TimelineTab({ entryId }: { entryId: string }) {
       )}
 
       {isLoading && <p className="text-[rgb(var(--fg-subtle))]">Caricamento...</p>}
-      {!isLoading && (data ?? []).length === 0 && (
+      {!isLoading && items.length === 0 && (
         <Card className="p-12 text-center">
           <Clock size={28} className="mx-auto mb-3 text-[rgb(var(--fg-subtle))]" />
           <p className="text-[rgb(var(--fg-muted))]">Nessuna voce in scaletta. Aggiungi il primo momento.</p>
@@ -112,47 +175,64 @@ export function TimelineTab({ entryId }: { entryId: string }) {
       )}
 
       <div className="relative">
-        {/* timeline rail */}
-        {(data ?? []).length > 0 && (
+        {items.length > 0 && (
           <div className="absolute left-[5.5rem] top-0 bottom-0 w-px hidden sm:block" style={{ background: 'rgb(var(--border))' }} />
         )}
         <ul className="space-y-3">
-          {(data ?? []).map((s: any, idx) => (
-            <motion.li key={s.id} initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.03 }}>
-              <Card className={`p-4 sm:pl-28 relative ${s.is_critical ? 'ring-2 ring-[rgb(var(--rose-500))]/30' : ''}`}>
-                <div className="sm:absolute sm:left-3 sm:top-1/2 sm:-translate-y-1/2 flex items-center gap-2 mb-2 sm:mb-0">
-                  <span className="font-display text-lg tabular-nums" style={{ color: s.is_critical ? 'rgb(var(--rose-500))' : 'rgb(var(--gold-700))' }}>
-                    {s.start_time?.slice(0, 5) ?? '—'}
+          {items.map((s: any, idx) => {
+            const isDragging = dragIdx === idx
+            const isHoverTarget = hoverIdx === idx && dragIdx !== null && dragIdx !== idx
+            return (
+              <motion.li
+                key={s.id}
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: isDragging ? 0.5 : 1, x: 0 }}
+                transition={{ delay: idx * 0.02 }}
+                draggable
+                onDragStart={() => onDragStart(idx)}
+                onDragOver={(e) => onDragOver(e, idx)}
+                onDrop={() => void onDrop(idx)}
+                onDragEnd={onDragEnd}
+                className={isHoverTarget ? 'ring-2 ring-[rgb(var(--gold-500))] rounded-xl' : ''}
+              >
+                <Card className={`p-4 sm:pl-28 relative ${s.is_critical ? 'ring-2 ring-[rgb(var(--rose-500))]/30' : ''} cursor-grab active:cursor-grabbing`}>
+                  <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[rgb(var(--fg-subtle))] hidden sm:block" title="Trascina per spostare">
+                    <GripVertical size={14} />
                   </span>
-                  <span className="sm:absolute sm:left-[5.25rem] sm:top-1/2 sm:-translate-y-1/2 inline-flex h-2.5 w-2.5 rounded-full hidden sm:inline-flex"
-                    style={{ background: s.is_critical ? 'rgb(var(--rose-500))' : 'rgb(var(--gold-500))' }} />
-                </div>
-                <div className="flex items-start gap-3 justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium flex items-center gap-1">
-                      {s.is_critical && <AlertTriangle size={14} className="text-[rgb(var(--rose-500))]" />}
-                      {s.title}
-                    </p>
-                    <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
-                      {s.duration_min ? `${s.duration_min} min` : 'durata libera'}
-                      {s.location && ` · ${s.location}`}
-                      {s.supplier && ` · ${s.supplier.business_name ?? s.supplier.full_name}`}
-                    </p>
-                    {s.description && <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">{s.description}</p>}
+                  <div className="sm:absolute sm:left-7 sm:top-1/2 sm:-translate-y-1/2 flex items-center gap-2 mb-2 sm:mb-0">
+                    <span className="font-display text-lg tabular-nums" style={{ color: s.is_critical ? 'rgb(var(--rose-500))' : 'rgb(var(--gold-700))' }}>
+                      {s.start_time?.slice(0, 5) ?? '—'}
+                    </span>
+                    <span className="sm:absolute sm:left-[4.75rem] sm:top-1/2 sm:-translate-y-1/2 inline-flex h-2.5 w-2.5 rounded-full hidden sm:inline-flex"
+                      style={{ background: s.is_critical ? 'rgb(var(--rose-500))' : 'rgb(var(--gold-500))' }} />
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <label className="flex items-center gap-1 text-xs">
-                      <input type="checkbox" className="size-3 accent-[rgb(var(--rose-500))]"
-                        checked={s.is_critical}
-                        onChange={(e) => update.mutate({ id: s.id, patch: { is_critical: e.target.checked } })} />
-                      critico
-                    </label>
-                    <Button variant="ghost" size="icon" onClick={() => remove.mutate(s.id)}><Trash2 size={14} /></Button>
+                  <div className="flex items-start gap-3 justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium flex items-center gap-1">
+                        {s.is_critical && <AlertTriangle size={14} className="text-[rgb(var(--rose-500))]" />}
+                        {s.title}
+                      </p>
+                      <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
+                        {s.duration_min ? `${s.duration_min} min` : 'durata libera'}
+                        {s.location && ` · ${s.location}`}
+                        {s.supplier && ` · ${s.supplier.business_name ?? s.supplier.full_name}`}
+                      </p>
+                      {s.description && <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">{s.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="flex items-center gap-1 text-xs">
+                        <input type="checkbox" className="size-3 accent-[rgb(var(--rose-500))]"
+                          checked={s.is_critical}
+                          onChange={(e) => update.mutate({ id: s.id, patch: { is_critical: e.target.checked } })} />
+                        critico
+                      </label>
+                      <Button variant="ghost" size="icon" onClick={() => remove.mutate(s.id)}><Trash2 size={14} /></Button>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </motion.li>
-          ))}
+                </Card>
+              </motion.li>
+            )
+          })}
         </ul>
       </div>
     </div>
