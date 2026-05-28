@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
+import { CandidacyInbox } from '@/components/social/CandidacyInbox'
 import { BetaBanner } from '@/components/BetaBanner'
 import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
 import { SupplierTutorialCards } from '@/components/SupplierTutorialCards'
@@ -166,6 +167,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="mt-1 flex items-center gap-1">
+            <CandidacyInbox />
             <button onClick={toggle} aria-label="Toggle theme"
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors hover:bg-[rgb(var(--bg-sunken))]"
               style={{ color: 'rgb(var(--fg-muted))' }}>
@@ -261,9 +263,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <img src="/brand/planfully-symbol.svg" alt="" className="h-6 w-6" />
             Planfully
           </Link>
-          <button onClick={toggle} aria-label="Toggle theme">
-            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
+          <div className="flex items-center gap-2">
+            <CandidacyInbox />
+            <button onClick={toggle} aria-label="Toggle theme">
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 min-w-0 flex flex-col">
