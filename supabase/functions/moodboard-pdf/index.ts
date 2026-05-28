@@ -194,49 +194,49 @@ Deno.serve(async (req) => {
   }
 
   function miniHeader(chapterLabel?: string) {
-    // Tutto centrato in alto (logo + brand + eyebrow capitolo)
+    const _cx = W / 2
     if (logoImg) {
-      try { doc.addImage(logoImg.data, logoImg.format, cx - 10, 14, 20, 20, undefined, 'FAST') } catch {}
+      try { doc.addImage(logoImg.data, logoImg.format, _cx - 10, 14, 20, 20, undefined, 'FAST') } catch {}
     }
     const brandY = logoImg ? 44 : 30
     doc.setFontSize(9); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(safeText(brandName), cx, brandY, { align: 'center' })
+    doc.text(safeText(brandName), _cx, brandY, { align: 'center' })
     if (chapterLabel) {
       doc.setFontSize(7); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
       doc.text(
         `${safeText(title).slice(0, 30).toUpperCase()} · ${chapterLabel.toUpperCase()}`,
-        cx, brandY + 12, { align: 'center', charSpace: 1.2 }
+        _cx, brandY + 12, { align: 'center', charSpace: 1.2 }
       )
     }
   }
 
   function pageFooter(pageNum: number, totalPages: number, chapterLabel?: string) {
-    // Footer centrato: capitolo · pagina (oppure brand · pagina)
     doc.setFontSize(8); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
     const left = chapterLabel ?? safeText(brandName)
-    doc.text(`${left} · ${pageNum} / ${totalPages}`, cx, H - 18, { align: 'center' })
+    doc.text(`${left} · ${pageNum} / ${totalPages}`, W / 2, H - 18, { align: 'center' })
   }
 
   // ╔════ COVER ═══════════════════════════════════════════╗
   paperBg(); topBottomStripes()
 
   // Brand top — centrato
+  const _coverCx = W / 2
   if (logoImg) {
-    try { doc.addImage(logoImg.data, logoImg.format, cx - 16, 22, 32, 32, undefined, 'FAST') } catch {}
+    try { doc.addImage(logoImg.data, logoImg.format, _coverCx - 16, 22, 32, 32, undefined, 'FAST') } catch {}
     doc.setFontSize(11); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(safeText(brandName), cx, 68, { align: 'center' })
+    doc.text(safeText(brandName), _coverCx, 68, { align: 'center' })
     doc.setFontSize(8); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
-    doc.text(safeText(owner?.city ?? 'Wedding planner'), cx, 80, { align: 'center' })
+    doc.text(safeText(owner?.city ?? 'Wedding planner'), _coverCx, 80, { align: 'center' })
   } else {
     doc.setFontSize(12); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
-    doc.text(safeText(brandName), cx, 36, { align: 'center' })
+    doc.text(safeText(brandName), _coverCx, 36, { align: 'center' })
     doc.setFontSize(8); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
-    doc.text(safeText(owner?.city ?? 'Wedding planner'), cx, 48, { align: 'center' })
+    doc.text(safeText(owner?.city ?? 'Wedding planner'), _coverCx, 48, { align: 'center' })
   }
 
   doc.setFontSize(8); doc.setTextColor(...SUBTLE)
   const coverMeta = `${new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })} · ${images.length} ispirazioni curate`
-  doc.text(coverMeta, cx, logoImg ? 92 : 60, { align: 'center', charSpace: 0.5 })
+  doc.text(coverMeta, _coverCx, logoImg ? 92 : 60, { align: 'center', charSpace: 0.5 })
 
   // Hero centrato verticalmente
   const heroCy = H / 2 - 20
