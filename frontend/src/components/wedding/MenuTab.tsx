@@ -60,6 +60,7 @@ type FormState = {
   price_per_guest: string
   notes: string
   is_optional: boolean
+  included_in_package: boolean
 }
 
 const EMPTY: FormState = {
@@ -71,6 +72,7 @@ const EMPTY: FormState = {
   price_per_guest: '',
   notes: '',
   is_optional: false,
+  included_in_package: false,
 }
 
 type Preset = {
@@ -150,6 +152,7 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
       price_per_guest: item.price_per_guest?.toString() ?? '',
       notes: item.notes ?? '',
       is_optional: !!item.is_optional,
+      included_in_package: !!item.included_in_package,
     })
     setOpen(true)
   }
@@ -165,9 +168,10 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
       description: form.description.trim() || undefined,
       dietary_tags: form.dietary_tags,
       allergens: form.allergens,
-      price_per_guest: form.price_per_guest ? Number(form.price_per_guest) : null,
+      price_per_guest: form.included_in_package ? null : (form.price_per_guest ? Number(form.price_per_guest) : null),
       notes: form.notes.trim() || undefined,
       is_optional: form.is_optional,
+      included_in_package: form.included_in_package,
     }
     try {
       if (editing) {
@@ -249,9 +253,13 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
                               <div className="flex items-baseline gap-2 flex-wrap">
                                 <h4 className="font-medium">{it.title}</h4>
                                 {it.is_optional && <Badge tone="amber">opzionale</Badge>}
-                                {it.price_per_guest && (
+                                {it.included_in_package ? (
+                                  <span className="text-xs inline-flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                                    ✓ Incluso nel pacchetto
+                                  </span>
+                                ) : it.price_per_guest ? (
                                   <span className="text-xs text-[rgb(var(--fg-muted))]">€ {Number(it.price_per_guest).toFixed(2)}/pax</span>
-                                )}
+                                ) : null}
                               </div>
                               {it.description && <p className="text-sm text-[rgb(var(--fg-muted))] mt-1 whitespace-pre-line">{it.description}</p>}
                               {(it.dietary_tags?.length > 0 || it.allergens?.length > 0) && (
@@ -407,10 +415,25 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
                   ))}
                 </div>
               </div>
+              <div>
+                <label className="inline-flex items-start gap-2 text-sm cursor-pointer p-2 rounded-md border" style={{ borderColor: form.included_in_package ? 'rgb(var(--gold-500))' : 'rgb(var(--border))', background: form.included_in_package ? 'rgb(var(--bg-sunken))' : 'transparent' }}>
+                  <input type="checkbox" className="mt-0.5" checked={form.included_in_package}
+                    onChange={(e) => setForm({ ...form, included_in_package: e.target.checked, price_per_guest: e.target.checked ? '' : form.price_per_guest })} />
+                  <span className="flex-1">
+                    <span className="font-medium">Inclusa nel prezzo a persona del pacchetto</span>
+                    <span className="block text-[11px] text-[rgb(var(--fg-muted))]">Se il pacchetto del preventivo è "tutto incluso", questa voce non si somma al totale.</span>
+                  </span>
+                </label>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="menu-price">Prezzo €/persona</Label>
-                  <Input id="menu-price" type="number" min="0" step="0.5" value={form.price_per_guest} onChange={(e) => setForm({ ...form, price_per_guest: e.target.value })} />
+                  <Input id="menu-price" type="number" min="0" step="0.5"
+                    value={form.included_in_package ? '' : form.price_per_guest}
+                    onChange={(e) => setForm({ ...form, price_per_guest: e.target.value })}
+                    disabled={form.included_in_package}
+                    placeholder={form.included_in_package ? 'Incluso nel pacchetto' : ''}
+                  />
                 </div>
                 <div className="flex items-end pb-1">
                   <label className="inline-flex items-center gap-2 text-sm">
