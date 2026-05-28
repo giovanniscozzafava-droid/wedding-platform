@@ -119,10 +119,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="h-screen flex overflow-hidden" style={{ background: 'rgb(var(--bg))' }}>
       {/* Sidebar desktop — fissa, no scroll con la pagina */}
       <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r h-screen sticky top-0" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
-        <Link to="/" className="px-6 pt-6 pb-4 flex items-center gap-2" style={{ color: 'rgb(var(--fg))' }}>
-          <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" style={{ color: 'rgb(var(--fg))' }} />
-          <span className="font-display text-lg tracking-tight">Planfully</span>
-        </Link>
+        <div className="px-6 pt-6 pb-4 flex items-center justify-between gap-2">
+          <Link to="/" className="flex items-center gap-2" style={{ color: 'rgb(var(--fg))' }}>
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" style={{ color: 'rgb(var(--fg))' }} />
+            <span className="font-display text-lg tracking-tight">Planfully</span>
+          </Link>
+          <CandidacyInbox />
+        </div>
 
         <nav className="flex-1 px-3 py-2 space-y-0.5">
           {NAV.map((n) => (
@@ -167,7 +170,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="mt-1 flex items-center gap-1">
-            <CandidacyInbox />
             <button onClick={toggle} aria-label="Toggle theme"
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors hover:bg-[rgb(var(--bg-sunken))]"
               style={{ color: 'rgb(var(--fg-muted))' }}>

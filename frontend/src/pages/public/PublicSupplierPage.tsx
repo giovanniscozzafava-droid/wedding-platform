@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { StarsBadge } from '@/components/social/StarsBadge'
 import { FollowButton } from '@/components/feed/FollowButton'
+import { ReviewsList } from '@/components/social/ReviewsList'
 
 type PublicProfile = {
   id: string
@@ -298,6 +299,8 @@ export default function PublicSupplierPage() {
             </div>
           </section>
         )}
+
+        <ReviewsList userId={data.id} />
 
         <p className="text-center text-[11px] text-[rgb(var(--fg-subtle))] mt-8 pb-6">
           Profilo pubblico Planfully — il network indipendente del settore eventi italiani
