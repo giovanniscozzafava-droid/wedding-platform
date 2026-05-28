@@ -34,7 +34,7 @@ export function FollowButton({ userId, initialStatus, size = 'sm' as const, vari
     if (!user) { setStatus('NONE'); return }
     void (async () => {
       try {
-        const { data } = await (supabase.from('follows') as any)
+        const { data } = await (supabase.from as any)('follows')
           .select('status')
           .eq('follower_id', user.id)
           .eq('followed_id', userId)
@@ -66,7 +66,7 @@ export function FollowButton({ userId, initialStatus, size = 'sm' as const, vari
     if (busy) return
     setBusy(true)
     try {
-      const { error } = await (supabase.from('follows') as any)
+      const { error } = await (supabase.from as any)('follows')
         .delete()
         .eq('follower_id', user!.id)
         .eq('followed_id', userId)

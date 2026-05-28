@@ -15,7 +15,7 @@ export function StarsBadge({ userId, size = 'sm', showCount = true }: Props) {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await (supabase.from('user_rating_summary') as any)
+      const { data } = await (supabase.from as any)('user_rating_summary')
         .select('avg_stars, ratings_count')
         .eq('user_id', userId)
         .maybeSingle()

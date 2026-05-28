@@ -35,7 +35,7 @@ export function RateCollaborationModal({ entryId, onClose }: Props) {
         // Pre-popola con valutazioni esistenti
         const ids = ((data as Rateable[]) ?? []).map((p) => p.user_id)
         if (ids.length > 0) {
-          const { data: existing } = await (supabase.from('collaboration_ratings') as any)
+          const { data: existing } = await (supabase.from as any)('collaboration_ratings')
             .select('rated_id, stars, review')
             .eq('entry_id', entryId)
             .in('rated_id', ids)
