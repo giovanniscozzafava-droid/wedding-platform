@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Plus, Trash2, Users, Download, Sparkles, Palette } from 'lucide-react'
+import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useGuests, useTables, useTableMutations, useUpdateWedding, useWedding } from '@/hooks/useWedding'
+import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { EditRowModal, type Field } from './EditRowModal'
 
@@ -49,8 +49,10 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const { data: wedding } = useWedding(entryId)
   const updateWedding = useUpdateWedding(entryId)
   const { add, update, remove } = useTableMutations(entryId)
+  const { update: updateGuest } = useGuestMutations(entryId)
   const [draft, setDraft] = useState({ table_no: '', label: '', seats: '8', shape: 'ROUND' })
   const [editTable, setEditTable] = useState<any | null>(null)
+  const [assigningTable, setAssigningTable] = useState<any | null>(null)
   const currentTheme = (wedding as any)?.theme ?? ''
   const currentStyle = (wedding as any)?.tables_naming_style ?? ''
 
@@ -251,17 +253,29 @@ export function TablesTab({ entryId }: { entryId: string }) {
                 {free > 0 && <span className="text-xs text-[rgb(var(--fg-subtle))]">{free} liberi</span>}
               </div>
               {seated.length > 0 && (
-                <ul className="text-sm space-y-1">
+                <ul className="text-sm space-y-1 mb-3">
                   {seated.map((g: any) => (
-                    <li key={g.id} className="flex items-center justify-between">
-                      <span>{g.full_name}</span>
-                      <span className="text-xs text-[rgb(var(--fg-subtle))]">
-                        {g.diet ? `· ${g.diet}` : ''}
-                      </span>
+                    <li key={g.id} className="flex items-center justify-between gap-2 group">
+                      <span className="truncate flex-1">{g.full_name}</span>
+                      {g.diet && <span className="text-xs text-[rgb(var(--fg-subtle))]">· {g.diet}</span>}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateGuest.mutate({ id: g.id, patch: { table_id: null } }) }}
+                        className="opacity-0 group-hover:opacity-100 text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))] transition-opacity"
+                        title="Rimuovi dal tavolo"
+                      >
+                        <X size={12} />
+                      </button>
                     </li>
                   ))}
                 </ul>
               )}
+              <button
+                onClick={(e) => { e.stopPropagation(); setAssigningTable(t) }}
+                className="w-full inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-md border border-dashed transition-colors hover:bg-[rgb(var(--bg-sunken))]"
+                style={{ borderColor: 'rgb(var(--border-strong))', color: 'rgb(var(--fg-muted))' }}
+              >
+                <UserPlus size={12} /> Assegna invitati
+              </button>
             </Card>
           )
         })}
@@ -287,6 +301,117 @@ export function TablesTab({ entryId }: { entryId: string }) {
           await remove.mutateAsync(editTable.id)
         }}
       />
+
+      {assigningTable && (
+        <AssignGuestsModal
+          table={assigningTable}
+          guests={guests ?? []}
+          tables={tables ?? []}
+          onClose={() => setAssigningTable(null)}
+          onAssign={(guestId) => updateGuest.mutate({ id: guestId, patch: { table_id: assigningTable.id } })}
+          onUnassign={(guestId) => updateGuest.mutate({ id: guestId, patch: { table_id: null } })}
+        />
+      )}
+    </div>
+  )
+}
+
+function AssignGuestsModal({ table, guests, tables, onClose, onAssign, onUnassign }: {
+  table: any
+  guests: any[]
+  tables: any[]
+  onClose: () => void
+  onAssign: (guestId: string) => void
+  onUnassign: (guestId: string) => void
+}) {
+  const [filter, setFilter] = useState('')
+  const [tab, setTab] = useState<'unassigned' | 'all'>('unassigned')
+
+  const tableNameById = new Map<string, string>(
+    tables.map((t: any) => [t.id, t.label ?? `Tavolo ${t.table_no}`]),
+  )
+
+  const filtered = guests.filter((g: any) => {
+    if (filter && !g.full_name.toLowerCase().includes(filter.toLowerCase())) return false
+    if (tab === 'unassigned' && g.table_id && g.table_id !== table.id) return false
+    return true
+  })
+
+  const tableSeated = guests.filter((g: any) => g.table_id === table.id)
+  const seatsTotal = table.seats ?? 0
+  const seatsFree = seatsTotal - tableSeated.length
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgb(0 0 0 / 0.4)' }} onClick={onClose}>
+      <Card className="w-full max-w-lg max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="p-5 border-b flex items-start justify-between gap-3" style={{ borderColor: 'rgb(var(--border))' }}>
+          <div>
+            <h3 className="font-display text-lg">Assegna invitati · {table.label ?? `Tavolo ${table.table_no}`}</h3>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">
+              {tableSeated.length} / {seatsTotal} posti occupati
+              {seatsFree > 0 && ` · ${seatsFree} liberi`}
+              {seatsFree < 0 && ` · sovraffollato di ${-seatsFree}`}
+            </p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}><X size={16} /></Button>
+        </div>
+
+        <div className="px-5 pt-3">
+          <div className="flex gap-1 mb-3">
+            <button onClick={() => setTab('unassigned')}
+              className={`text-xs px-3 py-1.5 rounded-full transition-colors ${tab === 'unassigned' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'bg-[rgb(var(--bg-sunken))]'}`}>
+              Disponibili
+            </button>
+            <button onClick={() => setTab('all')}
+              className={`text-xs px-3 py-1.5 rounded-full transition-colors ${tab === 'all' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'bg-[rgb(var(--bg-sunken))]'}`}>
+              Tutti gli invitati
+            </button>
+          </div>
+          <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Cerca per nome..." />
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-1">
+          {filtered.length === 0 && (
+            <p className="text-sm text-center text-[rgb(var(--fg-subtle))] py-8">
+              {tab === 'unassigned' ? 'Nessun invitato disponibile' : 'Nessun invitato corrisponde alla ricerca'}
+            </p>
+          )}
+          {filtered.map((g: any) => {
+            const isHere = g.table_id === table.id
+            const otherTable = g.table_id && g.table_id !== table.id ? tableNameById.get(g.table_id) : null
+            return (
+              <div key={g.id} className="flex items-center justify-between gap-3 p-2 rounded-md hover:bg-[rgb(var(--bg-sunken))]">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm truncate">
+                    {g.full_name}
+                    {g.party_size > 1 && <span className="text-xs text-[rgb(var(--fg-subtle))]"> ×{g.party_size}</span>}
+                    {g.age_group === 'CHILD' && <span className="text-xs ml-1">🧒</span>}
+                    {g.age_group === 'INFANT' && <span className="text-xs ml-1">👶</span>}
+                  </p>
+                  <p className="text-[10px] text-[rgb(var(--fg-subtle))]">
+                    {otherTable ? `Già al ${otherTable}` : isHere ? 'A questo tavolo' : 'Non assegnato'}
+                    {g.diet && ` · ${g.diet}`}
+                    {Array.isArray(g.accessibility_needs) && g.accessibility_needs.length > 0 && ' · ♿'}
+                  </p>
+                </div>
+                {isHere ? (
+                  <Button variant="ghost" size="sm" onClick={() => onUnassign(g.id)} className="text-[rgb(var(--rose-500))]">
+                    Rimuovi
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => onAssign(g.id)}>
+                    {otherTable ? 'Sposta qui' : 'Aggiungi'}
+                  </Button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="px-5 py-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+          <Button variant="ghost" className="w-full" onClick={onClose}>Chiudi</Button>
+        </div>
+      </Card>
     </div>
   )
 }
