@@ -25,7 +25,7 @@ type Candidacy = {
  * Solo per WP/LOCATION/ADMIN (i fornitori non ricevono candidature da seguire,
  * ma se ne ricevessero da peer la lista resterebbe vuota).
  */
-export function CandidacyInbox() {
+export function CandidacyInbox({ placement = 'below' }: { placement?: 'below' | 'beside' } = {}) {
   const { profile } = useAuth()
   const [open, setOpen] = useState(false)
   const [list, setList] = useState<Candidacy[]>([])
@@ -97,7 +97,11 @@ export function CandidacyInbox() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <Card className="absolute right-0 top-full mt-2 z-50 w-[340px] max-h-[70vh] overflow-hidden flex flex-col shadow-lg">
+          <Card className={`absolute z-50 w-[320px] max-h-[70vh] overflow-hidden flex flex-col shadow-xl ${
+            placement === 'beside'
+              ? 'left-full top-0 ml-2'
+              : 'right-0 top-full mt-2'
+          }`}>
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'rgb(var(--border))' }}>
               <h3 className="font-display text-base">Candidature al team</h3>
               <span className="text-xs text-[rgb(var(--fg-muted))]">{count}</span>

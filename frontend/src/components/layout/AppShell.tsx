@@ -125,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" style={{ color: 'rgb(var(--fg))' }} />
             <span className="font-display text-lg tracking-tight">Planfully</span>
           </Link>
-          <CandidacyInbox />
+          <CandidacyInbox placement="beside" />
         </div>
 
         <nav className="flex-1 px-3 py-2 space-y-0.5">
