@@ -4,13 +4,16 @@ import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
+import { useQueryClient } from '@tanstack/react-query'
 import { useGuests, useGuestMutations, useTables } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
+import { GuestsCsvImport } from '@/components/wedding/GuestsCsvImport'
 
 export function GuestsTab({ entryId }: { entryId: string }) {
   const { data: guests } = useGuests(entryId)
   const { data: tables } = useTables(entryId)
   const { add, update, remove } = useGuestMutations(entryId)
+  const qc = useQueryClient()
   const [filter, setFilter] = useState('')
   const [rsvpFilter, setRsvpFilter] = useState('')
 
@@ -71,8 +74,9 @@ export function GuestsTab({ entryId }: { entryId: string }) {
           <h2 className="font-display text-2xl">Lista invitati</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Anagrafica + RSVP + assegnazione tavolo.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
+          <GuestsCsvImport entryId={entryId} onImported={() => qc.invalidateQueries({ queryKey: ['guests', entryId] })} />
           <Button variant="gold" onClick={quickAdd}><Plus /> Aggiungi invitato</Button>
         </div>
       </header>
