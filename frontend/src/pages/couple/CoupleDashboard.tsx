@@ -24,13 +24,14 @@ import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AppFooter } from '@/components/layout/AppFooter'
 
-type Tab = 'overview' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
+type Tab = 'overview' | 'preventivo' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
 const TABS: Array<{ key: Tab; label: string; icon: any }> = [
-  { key: 'overview',  label: 'Overview',     icon: Heart },
-  { key: 'planning',  label: 'Questionario', icon: ClipboardList },
-  { key: 'cerimonia', label: 'Cerimonia',    icon: Church },
-  { key: 'documenti', label: 'Documenti',    icon: FileText },
+  { key: 'overview',   label: 'Overview',     icon: Heart },
+  { key: 'preventivo', label: 'Preventivo',   icon: FileSignature },
+  { key: 'planning',   label: 'Questionario', icon: ClipboardList },
+  { key: 'cerimonia',  label: 'Cerimonia',    icon: Church },
+  { key: 'documenti',  label: 'Documenti',    icon: FileText },
   { key: 'programma', label: 'Programma',    icon: CalendarClock },
   { key: 'alloggi',   label: 'Alloggi',      icon: BedDouble },
   { key: 'trasporti', label: 'Trasporti',    icon: Bus },
@@ -191,6 +192,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewCouple wedding={wedding} entryId={entryId} memberRole={memberRole} />}
+            {tab === 'preventivo' && <PreventivoCouple entryId={entryId} />}
             {tab === 'planning' && <CouplePlanningTab entryId={entryId} />}
             {tab === 'cerimonia' && <CeremonyTab entryId={entryId} />}
             {tab === 'documenti' && <DocumentiCouple wedding={wedding} entryId={entryId} />}
@@ -743,4 +745,185 @@ function Row({ k, v }: { k: string; v: string }) {
 function Stat({ label, v, tone }: { label: string; v: number; tone?: 'emerald' | 'amber' | 'rose' }) {
   const cls = tone === 'emerald' ? 'text-[rgb(var(--emerald-500))]' : tone === 'amber' ? 'text-[rgb(var(--amber-500))]' : tone === 'rose' ? 'text-[rgb(var(--rose-500))]' : ''
   return <div className="surface p-3 text-center"><p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{label}</p><p className={`font-display text-2xl mt-0.5 ${cls}`}>{v}</p></div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Preventivo Couple — sposi loggati vedono e firmano il preventivo
+// ──────────────────────────────────────────────────────────────────────
+type PreventivoData = {
+  id: string
+  access_token: string
+  title: string
+  client_name: string | null
+  client_email: string | null
+  event_date: string | null
+  guest_count: number | null
+  status: string
+  revision: number
+  total_client: number | null
+  pdf_url: string | null
+  accepted_at: string | null
+  business_model: 'GLOBAL' | 'BROKER'
+  owner: { full_name?: string | null; business_name?: string | null }
+  items: Array<{ name_snapshot: string; quantity: number; unit_snapshot: string; line_client: number; supplier_id?: string | null }>
+  error?: string
+}
+
+function PreventivoCouple({ entryId }: { entryId: string }) {
+  const [data, setData] = useState<PreventivoData | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [signing, setSigning] = useState(false)
+  const [signerName, setSignerName] = useState('')
+  const [fiscalCode, setFiscalCode] = useState('')
+  const [signed, setSigned] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    setLoading(true)
+    void (async () => {
+      try {
+        const { data: res, error } = await (supabase.rpc as any)('couple_get_quote_for_entry', { p_entry_id: entryId })
+        if (error) throw error
+        const p = res as PreventivoData
+        if (p?.error) {
+          if (p.error === 'no_quote') setErr('Il tuo wedding planner non ha ancora generato un preventivo.')
+          else if (p.error === 'not_couple_member') setErr('Non sei membro di questo matrimonio.')
+          else setErr(p.error)
+          return
+        }
+        setData(p)
+        if (p.accepted_at) setSigned(true)
+      } catch (e) { setErr((e as Error).message) }
+      finally { setLoading(false) }
+    })()
+  }, [entryId, reloadKey])
+
+  async function sign() {
+    if (!data) return
+    if (!signerName.trim()) return toast.error('Inserisci il tuo nome completo')
+    if (!fiscalCode.trim()) return toast.error('Codice fiscale obbligatorio')
+    setSigning(true)
+    try {
+      const { error } = await supabase.functions.invoke('quote-accept-sign', {
+        body: {
+          token: data.access_token,
+          signer_name: signerName.trim(),
+          fiscal: { fiscal_code: fiscalCode.trim().toUpperCase() },
+        },
+      })
+      if (error) throw error
+      setSigned(true)
+      toast.success('Preventivo firmato! Ti abbiamo inviato l\'atto firmato via email.')
+      setReloadKey((k) => k + 1)
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally { setSigning(false) }
+  }
+
+  if (loading) return <div className="text-sm text-[rgb(var(--fg-muted))]">Carico il preventivo…</div>
+  if (err) return (
+    <Card className="p-6 text-center">
+      <FileSignature size={28} className="mx-auto mb-3 text-[rgb(var(--gold-600))]" />
+      <h2 className="font-display text-xl mb-1">Preventivo non disponibile</h2>
+      <p className="text-sm text-[rgb(var(--fg-muted))]">{err}</p>
+    </Card>
+  )
+  if (!data) return null
+
+  const ownerName = data.owner?.business_name ?? data.owner?.full_name ?? 'Wedding Planner'
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-6 sm:p-8">
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[rgb(var(--gold-600))] mb-1">
+              Preventivo · revisione {data.revision}
+            </p>
+            <h2 className="font-display text-2xl sm:text-3xl tracking-tight">{data.title}</h2>
+            <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
+              Da <strong>{ownerName}</strong>
+            </p>
+          </div>
+          <Badge>
+            {signed ? '✓ Firmato' : data.status}
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5 text-sm">
+          {data.event_date && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Data evento</p>
+              <p className="font-medium mt-0.5">{new Date(data.event_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            </div>
+          )}
+          {data.guest_count != null && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Invitati</p>
+              <p className="font-medium mt-0.5">{data.guest_count}</p>
+            </div>
+          )}
+          {data.total_client != null && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Totale</p>
+              <p className="font-display text-2xl mt-0.5">€ {Number(data.total_client).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+            </div>
+          )}
+        </div>
+
+        <h3 className="font-display text-lg mb-2">Servizi inclusi</h3>
+        <ul className="divide-y mb-4" style={{ borderColor: 'rgb(var(--border))' }}>
+          {data.items.map((it, i) => (
+            <li key={i} className="py-3 flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">{it.name_snapshot}</p>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">{it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}</p>
+              </div>
+              <p className="font-medium text-sm whitespace-nowrap">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+            </li>
+          ))}
+        </ul>
+
+        {data.pdf_url && (
+          <a href={data.pdf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-[rgb(var(--gold-600))] hover:underline mb-4">
+            <FileText size={12} /> Scarica PDF preventivo <ExternalLink size={10} />
+          </a>
+        )}
+      </Card>
+
+      {!signed ? (
+        <Card className="p-6 sm:p-8">
+          <h3 className="font-display text-xl mb-2 flex items-center gap-2">
+            <FileSignature size={18} className="text-[rgb(var(--gold-600))]" /> Accetta e firma
+          </h3>
+          <p className="text-sm text-[rgb(var(--fg-muted))] mb-5">
+            Confermi l'accettazione del preventivo con i tuoi dati anagrafici. Riceverai una copia firmata via email.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Nome completo *</label>
+              <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} placeholder="Maria Rossi" />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Codice fiscale *</label>
+              <Input value={fiscalCode} onChange={(e) => setFiscalCode(e.target.value.toUpperCase())} placeholder="RSSMRA80A01H501Z" maxLength={16} />
+            </div>
+          </div>
+          <Button variant="gold" className="mt-5" onClick={sign} disabled={signing || !signerName.trim() || !fiscalCode.trim()}>
+            <FileSignature size={14} /> {signing ? 'Firma in corso…' : 'Firma il preventivo'}
+          </Button>
+        </Card>
+      ) : (
+        <Card className="p-6 sm:p-8 text-center">
+          <FileSignature size={36} className="mx-auto mb-3 text-emerald-500" />
+          <h3 className="font-display text-2xl mb-2">Preventivo firmato</h3>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">
+            L'atto di accettazione e' stato registrato il {data.accepted_at ? new Date(data.accepted_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : 'oggi'}.
+            Una copia firmata e' stata inviata via email.
+          </p>
+        </Card>
+      )}
+    </div>
+  )
 }
