@@ -875,11 +875,17 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
             La firma richiede: dati documento d'identità, consenso GDPR e firma grafica (puoi disegnarla
             col mouse o col dito). Tutto in una pagina dedicata.
           </p>
-          <a href={`/p/accept/${data.access_token}`} target="_blank" rel="noreferrer">
-            <Button variant="gold">
-              <FileSignature size={14} /> Procedi alla firma del preventivo
+          {data.access_token ? (
+            <a href={`/p/accept/${data.access_token}`} target="_blank" rel="noreferrer">
+              <Button variant="gold">
+                <FileSignature size={14} /> Procedi alla firma del preventivo
+              </Button>
+            </a>
+          ) : (
+            <Button variant="gold" disabled>
+              <FileSignature size={14} /> Preventivo non ancora pronto alla firma
             </Button>
-          </a>
+          )}
         </Card>
       ) : (
         <Card className="p-6 sm:p-8 text-center">
