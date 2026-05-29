@@ -37,6 +37,7 @@ const WeddingDashboard = lazy(() => import('@/pages/wedding/WeddingDashboard'))
 const CoupleDashboard = lazy(() => import('@/pages/couple/CoupleDashboard'))
 const CoupleAcceptPage = lazy(() => import('@/pages/couple/CoupleAcceptPage'))
 const SupplierInviteAcceptPage = lazy(() => import('@/pages/public/SupplierInviteAcceptPage'))
+const CapostipiteInviteAcceptPage = lazy(() => import('@/pages/public/CapostipiteInviteAcceptPage'))
 const CoupleInviteAcceptPage = lazy(() => import('@/pages/public/CoupleInviteAcceptPage'))
 const PrivacyPage = lazy(() => import('@/pages/public/PrivacyPage'))
 const CookiePage = lazy(() => import('@/pages/public/CookiePage'))
@@ -190,6 +191,7 @@ export default function App() {
             <RequireAuth bare><CoupleAcceptPage /></RequireAuth>
           } />
           <Route path="/invito-fornitore/:token" element={<SupplierInviteAcceptPage />} />
+          <Route path="/invito-capostipite/:token" element={<CapostipiteInviteAcceptPage />} />
           <Route path="/invito-coppia/:token" element={<CoupleInviteAcceptPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookie" element={<CookiePage />} />
