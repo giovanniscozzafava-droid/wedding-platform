@@ -8,6 +8,7 @@ import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { useWedding } from '@/hooks/useWedding'
+import { StandardClausesBuilder, type ContractSection } from '@/components/wedding/StandardClausesBuilder'
 
 type Row = {
   id: string
@@ -39,7 +40,24 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
   const [creating, setCreating] = useState(false)
   const [chosenSupplier, setChosenSupplier] = useState<string>('')
   const [offlineTarget, setOfflineTarget] = useState<Row | null>(null)
+  const [showClauseBuilder, setShowClauseBuilder] = useState(false)
   const businessModel = (wedding as any)?.business_model ?? 'GLOBAL'
+
+  async function createFromClauses(sections: ContractSection[]) {
+    try {
+      const { error } = await (supabase as any).rpc('create_contract_from_clauses', {
+        p_entry_id: entryId,
+        p_party_kind: 'CLIENT_WP',
+        p_title: null,
+        p_sections: sections,
+        p_supplier_id: null,
+      })
+      if (error) throw error
+      toast.success('Contratto creato dalle clausole standard')
+      setShowClauseBuilder(false)
+      await load()
+    } catch (e) { toast.error((e as Error).message) }
+  }
 
   async function load() {
     setLoading(true)
@@ -137,6 +155,19 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
         </Card>
       )}
 
+      {/* Nuovo: builder clausole standard per contratto CLIENT_WP */}
+      <Card className="p-4 mb-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-muted))]">Contratto coppia ↔ WP</p>
+            <p className="text-sm mt-1">Componi un contratto cliente partendo dalle clausole standard Planfully (modificabili).</p>
+          </div>
+          <Button variant="outline" onClick={() => setShowClauseBuilder(true)}>
+            <FileSignature size={14} /> Componi clausole
+          </Button>
+        </div>
+      </Card>
+
       {/* Lista per categoria */}
       {(['CLIENT_WP', 'SUPPLIER_WP', 'SUPPLIER_CLIENT'] as Row['party_kind'][]).map((kind) => {
         const list = buckets[kind]
@@ -201,6 +232,19 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
           contract={offlineTarget}
           onClose={() => setOfflineTarget(null)}
           onSigned={() => { setOfflineTarget(null); void load() }}
+        />
+      )}
+
+      {showClauseBuilder && (
+        <StandardClausesBuilder
+          onClose={() => setShowClauseBuilder(false)}
+          onComposed={createFromClauses}
+          placeholders={{
+            client_name: (wedding as any)?.client_name ?? '',
+            event_date: (wedding as any)?.date_from ?? '',
+            event_location: (wedding as any)?.location ?? '',
+            total_amount: '',
+          }}
         />
       )}
     </div>
