@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { InviteCapostipiteCard } from '@/components/network/InviteCapostipiteCard'
 
 type Tier = {
   tier: 'BRONZO' | 'ARGENTO' | 'ORO'
@@ -150,6 +151,11 @@ export default function NetworkRewardsPage() {
               planfully.it/register?ref={stats.referral_code}
             </p>
           </div>
+        </motion.div>
+
+        {/* Invito mirato capostipite */}
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <InviteCapostipiteCard />
         </motion.div>
 
         {/* KPI cards */}
