@@ -115,6 +115,19 @@ Deno.serve(async (req) => {
   }
   if (!quote.client_email) return json({ error: 'preventivo senza email cliente' }, 400)
 
+  // 1a-bis. Auto-invio: il trigger quotes_validate_status_transition vieta il
+  // salto diretto BOZZA -> ACCETTATO. Se la coppia firma su un quote ancora
+  // BOZZA (atterrata direttamente sull'accept page senza passare per quote-send),
+  // promuoviamo prima BOZZA -> INVIATO. Il consenso del cliente equivale a
+  // ricezione del preventivo, l'invio implicito e' legittimo.
+  if (quote.status === 'BOZZA') {
+    // Usa SQL raw via RPC per evitare ambiguita' di tipo PostgREST sul cast enum.
+    const { error: promErr } = await admin.rpc('quote_promote_to_inviato', { p_quote_id: quote.id })
+    if (promErr) {
+      return json({ error: 'db error', detail: 'autoinvio fallito: ' + promErr.message }, 500)
+    }
+  }
+
   // 1b. ATOMIC GATE: tenta di transitare quote a ACCETTATO solo se ancora INVIATO/BOZZA.
   // Se un'altra request concorrente l'ha gia' fatto, qui non trova righe -> 409.
   // Questo elimina la race condition che permetteva 5 firme parallele.
