@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { FileSignature, CheckCircle2, Clock, AlertCircle, Plus, Copy, ExternalLink } from 'lucide-react'
+import { FileSignature, CheckCircle2, Clock, AlertCircle, Plus, Copy, ExternalLink, PenTool } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Select } from '@/components/ui/input'
+import { Input, Select } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { useWedding } from '@/hooks/useWedding'
 
@@ -37,6 +38,7 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [chosenSupplier, setChosenSupplier] = useState<string>('')
+  const [offlineTarget, setOfflineTarget] = useState<Row | null>(null)
   const businessModel = (wedding as any)?.business_model ?? 'GLOBAL'
 
   async function load() {
@@ -173,11 +175,16 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       <Button variant="outline" size="sm" onClick={() => copyLink(r.access_token)}><Copy size={12} /> Link</Button>
                       <Button asChild variant="ghost" size="sm">
                         <Link to={`/p/contract/${r.access_token}`} target="_blank"><ExternalLink size={12} /></Link>
                       </Button>
+                      {r.status !== 'FIRMATO' && r.status !== 'ANNULLATO' && (
+                        <Button variant="gold" size="sm" onClick={() => setOfflineTarget(r)}>
+                          <PenTool size={12} /> Firma di persona
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 ))}
@@ -188,6 +195,85 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
       })}
 
       {loading && <p className="text-[rgb(var(--fg-subtle))]">Caricamento…</p>}
+
+      {offlineTarget && (
+        <OfflineSignModal
+          contract={offlineTarget}
+          onClose={() => setOfflineTarget(null)}
+          onSigned={() => { setOfflineTarget(null); void load() }}
+        />
+      )}
+    </div>
+  )
+}
+
+function OfflineSignModal({ contract, onClose, onSigned }: { contract: Row; onClose: () => void; onSigned: () => void }) {
+  const [signerName, setSignerName] = useState(contract.client_name ?? '')
+  const [fiscal, setFiscal] = useState('')
+  const [pdfUrl, setPdfUrl] = useState('')
+  const [notes, setNotes] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function sign() {
+    if (!signerName.trim()) return toast.error('Inserisci nome firmatario')
+    setBusy(true)
+    try {
+      const { data, error } = await (supabase as any).rpc('sign_contract_offline', {
+        p_contract_id: contract.id,
+        p_signer_name: signerName.trim(),
+        p_signer_fiscal: fiscal.trim().toUpperCase() || null,
+        p_pdf_url: pdfUrl.trim() || null,
+        p_notes: notes.trim() || null,
+      })
+      if (error) throw error
+      const r = data as { ok?: boolean; error?: string }
+      if (r?.error) throw new Error(r.error)
+      toast.success('Contratto firmato di persona')
+      onSigned()
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(15,15,15,0.65)' }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()}
+        className="surface w-full max-w-lg p-6 sm:p-8">
+        <header className="mb-4">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[rgb(var(--gold-600))]">Firma di persona</div>
+          <h3 className="font-display text-xl mt-1">{contract.title}</h3>
+          <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">
+            Hai firmato il contratto col cliente in studio o in location.
+            Marca il contratto come FIRMATO e (opzionale) carica/incolla il link al PDF cartaceo scannerizzato.
+          </p>
+        </header>
+
+        <div className="space-y-3">
+          <div>
+            <Label>Nome firmatario *</Label>
+            <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} placeholder="Mario Rossi" />
+          </div>
+          <div>
+            <Label>Codice fiscale (opzionale)</Label>
+            <Input value={fiscal} onChange={(e) => setFiscal(e.target.value.toUpperCase())} placeholder="RSSMRA80A01H501Z" maxLength={16} />
+          </div>
+          <div>
+            <Label>URL PDF cartaceo (opzionale)</Label>
+            <Input value={pdfUrl} onChange={(e) => setPdfUrl(e.target.value)} placeholder="https://… (Drive / Storage)" />
+          </div>
+          <div>
+            <Label>Note (opzionale)</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Firmato in studio il…" />
+          </div>
+        </div>
+
+        <footer className="mt-5 flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Annulla</Button>
+          <Button variant="gold" onClick={sign} disabled={busy || !signerName.trim()}>
+            <PenTool size={14} /> {busy ? 'Salvataggio…' : 'Marca firmato'}
+          </Button>
+        </footer>
+      </div>
     </div>
   )
 }
