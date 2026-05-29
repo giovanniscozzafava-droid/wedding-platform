@@ -354,6 +354,16 @@ export default function QuoteEditorPage() {
         <Link to="/quotes" className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-3">
           <ArrowLeft size={14} /> Preventivi
         </Link>
+        {(quote as any).forced_without_questionnaire && (
+          <div className="mb-4 px-4 py-3 rounded-lg flex items-start gap-3 text-xs"
+            style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))', border: '1px solid rgb(var(--gold-200))' }}>
+            <FileSignature size={14} className="mt-0.5 shrink-0" />
+            <div>
+              <strong>Preventivo creato senza questionario.</strong>{' '}
+              La coppia non ha ancora compilato il questionario di pianificazione. Tracciato per audit; nessun blocco. Considera di mandarglielo prima di chiudere.
+            </div>
+          </div>
+        )}
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
           <div>
             <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'rgb(var(--gold-600))' }}>
