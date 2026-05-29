@@ -773,11 +773,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   const [data, setData] = useState<PreventivoData | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [signing, setSigning] = useState(false)
-  const [signerName, setSignerName] = useState('')
-  const [fiscalCode, setFiscalCode] = useState('')
   const [signed, setSigned] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -797,29 +793,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
       } catch (e) { setErr((e as Error).message) }
       finally { setLoading(false) }
     })()
-  }, [entryId, reloadKey])
-
-  async function sign() {
-    if (!data) return
-    if (!signerName.trim()) return toast.error('Inserisci il tuo nome completo')
-    if (!fiscalCode.trim()) return toast.error('Codice fiscale obbligatorio')
-    setSigning(true)
-    try {
-      const { error } = await supabase.functions.invoke('quote-accept-sign', {
-        body: {
-          token: data.access_token,
-          signer_name: signerName.trim(),
-          fiscal: { fiscal_code: fiscalCode.trim().toUpperCase() },
-        },
-      })
-      if (error) throw error
-      setSigned(true)
-      toast.success('Preventivo firmato! Ti abbiamo inviato l\'atto firmato via email.')
-      setReloadKey((k) => k + 1)
-    } catch (e) {
-      toast.error((e as Error).message)
-    } finally { setSigning(false) }
-  }
+  }, [entryId])
 
   if (loading) return <div className="text-sm text-[rgb(var(--fg-muted))]">Carico il preventivo…</div>
   if (err) return (
@@ -898,21 +872,14 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
             <FileSignature size={18} className="text-[rgb(var(--gold-600))]" /> Accetta e firma
           </h3>
           <p className="text-sm text-[rgb(var(--fg-muted))] mb-5">
-            Confermi l'accettazione del preventivo con i tuoi dati anagrafici. Riceverai una copia firmata via email.
+            La firma richiede: dati documento d'identità, consenso GDPR e firma grafica (puoi disegnarla
+            col mouse o col dito). Tutto in una pagina dedicata.
           </p>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Nome completo *</label>
-              <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} placeholder="Maria Rossi" />
-            </div>
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Codice fiscale *</label>
-              <Input value={fiscalCode} onChange={(e) => setFiscalCode(e.target.value.toUpperCase())} placeholder="RSSMRA80A01H501Z" maxLength={16} />
-            </div>
-          </div>
-          <Button variant="gold" className="mt-5" onClick={sign} disabled={signing || !signerName.trim() || !fiscalCode.trim()}>
-            <FileSignature size={14} /> {signing ? 'Firma in corso…' : 'Firma il preventivo'}
-          </Button>
+          <a href={`/p/accept/${data.access_token}`} target="_blank" rel="noreferrer">
+            <Button variant="gold">
+              <FileSignature size={14} /> Procedi alla firma del preventivo
+            </Button>
+          </a>
         </Card>
       ) : (
         <Card className="p-6 sm:p-8 text-center">
