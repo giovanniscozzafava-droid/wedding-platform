@@ -7,6 +7,8 @@ import { Input, Textarea, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { useWedding, useUpdateWedding, useMood, useMoodMutations } from '@/hooks/useWedding'
+import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
+import { Lock } from 'lucide-react'
 
 type CeremonyType = 'RELIGIOUS' | 'CIVIL' | 'SYMBOLIC' | 'ELOPEMENT' | 'MIXED' | 'OTHER'
 type CeremonyStatus = 'TO_DEFINE' | 'EVALUATING' | 'REQUESTED' | 'BOOKED' | 'CANCELLED'
@@ -50,6 +52,10 @@ export function CeremonyTab({ entryId, readOnly = false }: { entryId: string; re
     ceremony_contact_email: '',
     ceremony_notes: '',
   })
+
+  // Data evento "ufficiale" (stabilita dal preventivo accettato). La coppia
+  // non puo` modificarla direttamente: deve richiedere modifica al WP.
+  const eventDateOfficial: string | null = (wedding as any)?.date_from ?? (wedding as any)?.quote?.event_date ?? null
 
   useEffect(() => {
     if (!wedding) return
@@ -211,13 +217,27 @@ export function CeremonyTab({ entryId, readOnly = false }: { entryId: string; re
             />
           </div>
           <div className="space-y-1">
-            <Label>Data e ora della cerimonia</Label>
+            <Label className="flex items-center gap-1.5">
+              Data e ora della cerimonia
+              {readOnly && eventDateOfficial && <Lock size={11} className="text-[rgb(var(--fg-subtle))]" />}
+            </Label>
             <Input
               type="datetime-local"
               disabled={readOnly}
-              value={form.ceremony_date}
+              value={form.ceremony_date || (eventDateOfficial ? new Date(eventDateOfficial).toISOString().slice(0, 16) : '')}
               onChange={(e) => setForm((f) => ({ ...f, ceremony_date: e.target.value }))}
             />
+            {readOnly && (
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Stabilita dal preventivo.</p>
+                <ChangeRequestModal
+                  weddingId={entryId}
+                  entityType="EVENT_DATE"
+                  defaultAction="UPDATE"
+                  prefillTitle="Richiesta modifica data evento/cerimonia"
+                />
+              </div>
+            )}
           </div>
           <div className="space-y-1">
             <Label>Stato prenotazione</Label>

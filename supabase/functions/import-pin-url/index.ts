@@ -170,13 +170,18 @@ Deno.serve(async (req) => {
       // Slides nell'ordine in cui appaiono nell'HTML embed (= ordine del carosello).
       const slides = order.map((key) => pickBest(groups.get(key)!))
 
-      if (carouselIndex && slides.length > 1) {
-        // Se l'utente ha chiesto img_index=N e ci sono almeno N slide, prendi la
-        // N-esima. Altrimenti fallback alla prima.
-        image = slides[Math.min(carouselIndex, slides.length) - 1] ?? slides[0]
-      } else {
-        image = slides[0]
+      // Bug noto: l'HTML embed Instagram include ANCHE preview di post correlati
+      // ("Altri post"). Le scontent URL di quelli si mischiano con quelle del
+      // post target. Un img_index=N >= 2 NON e` quindi affidabile: si rischia
+      // di importare slide 1 di un altro post. Per i caroselli rifiutiamo
+      // esplicitamente e diciamo all'utente di salvare l'immagine e usare
+      // Carica file.
+      if (carouselIndex && carouselIndex >= 2) {
+        return json({
+          error: `Instagram non espone in modo affidabile la slide ${carouselIndex} del carosello (l'embed mostra solo la prima). Salva l'immagine sul tuo device e usa "Carica file".`,
+        }, 422)
       }
+      image = slides[0]
     }
     // Fallback secondario: EmbeddedMediaImage class
     if (!image) {

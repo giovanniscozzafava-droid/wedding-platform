@@ -304,6 +304,10 @@ export default function QuoteEditorPage() {
           body: { quote_id: id, override_reason: reason, force_resend: true },
         }).catch(() => { /* email fallback OK, le modifiche sono salvate */ })
       }
+      // 3. Notifica in-app per i membri della coppia (workflow guidato)
+      await (supabase.rpc as any)('notify_couple_quote_forced_edit', {
+        p_quote_id: id, p_reason: reason,
+      }).catch(() => { /* non bloccante */ })
       toast.success(`Modifiche applicate · rev. ${(quote.revision ?? 1) + 1} · cliente avvisato`)
       setForceModal({ open: false, reason: '' })
       setForceUnlocked(true)

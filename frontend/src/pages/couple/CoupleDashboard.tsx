@@ -211,7 +211,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             {tab === 'overview' && <OverviewCouple wedding={wedding} entryId={entryId} memberRole={memberRole} />}
             {tab === 'preventivo' && <PreventivoCouple entryId={entryId} />}
             {tab === 'planning' && <CouplePlanningTab entryId={entryId} />}
-            {tab === 'cerimonia' && <CeremonyTab entryId={entryId} />}
+            {tab === 'cerimonia' && <CeremonyTab entryId={entryId} readOnly />}
             {tab === 'documenti' && <DocumentiCouple wedding={wedding} entryId={entryId} />}
             {tab === 'programma' && <ProgrammaCouple entryId={entryId} />}
             {tab === 'alloggi' && <AlloggiCouple entryId={entryId} />}
