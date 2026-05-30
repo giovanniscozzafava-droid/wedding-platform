@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -37,9 +37,12 @@ import { ChatEvento } from '@/components/wedding/ChatEvento'
 import { SaluteEventoBadge } from '@/components/wedding/SaluteEventoBadge'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { RateCollaborationModal } from '@/components/social/RateCollaborationModal'
+import { AmbitoIncaricoModal, type Ambito } from '@/components/wedding/AmbitoIncaricoModal'
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/lib/auth'
+import { useQueryClient } from '@tanstack/react-query'
 
 type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat'
 
@@ -77,13 +80,61 @@ export default function WeddingDashboard() {
   const { data: wedding, isLoading } = useWedding(id ?? null)
   const [tab, setTab] = useState<TabKey>('overview')
   const [rateOpen, setRateOpen] = useState(false)
+  const [ambitoSkipped, setAmbitoSkipped] = useState(false)
   const nuovoModello = useNuovoModello()
+  const { user } = useAuth()
+  const qc = useQueryClient()
+
+  // REVISIONE C: ambito incarico (COMPLETO | SOLO_COORDINAMENTO | SOLO_PROPRI_SERVIZI).
+  // Letto da wedding.ambito_capostipite (puo` essere null). Per il gating delle tab
+  // e per ProssimaMossa, fallback operativo a COMPLETO.
+  const ambito = ((wedding as any)?.ambito_capostipite ?? null) as Ambito | null
+  const effectiveAmbito: Ambito = ambito ?? 'COMPLETO'
+
+  // Reset "skipped" se cambio evento.
+  useEffect(() => {
+    setAmbitoSkipped(false)
+  }, [wedding?.id])
+
+  // Se la tab attiva e' stata nascosta dal gating, torno a overview.
+  useEffect(() => {
+    const hidden = (effectiveAmbito === 'SOLO_COORDINAMENTO') &&
+      (tab === 'contract' || tab === 'contracts_net' || tab === 'budget')
+    if (hidden) setTab('overview')
+  }, [effectiveAmbito, tab])
+
+  // La modale appare per l'owner del calendar_entry quando lo stato e`
+  // INCARICO_FIRMATO (o successivo, se non l'aveva ancora scelto) e ambito = null.
+  const shouldAskAmbito = useMemo(() => {
+    if (!wedding) return false
+    if (ambito != null) return false
+    if (ambitoSkipped) return false
+    const stato = (wedding as any).evento_stato as string | null | undefined
+    if (!stato) return false
+    if (stato === 'LEAD' || stato === 'SVOLTO' || stato === 'ANNULLATO') return false
+    const ownerId = (wedding as any).owner_id as string | undefined
+    if (!ownerId || !user?.id) return false
+    return ownerId === user.id
+  }, [wedding, ambito, ambitoSkipped, user?.id])
+
+  const visibleTabs = useMemo(
+    () =>
+      TABS.filter((t) => {
+        if (t.nuovoModelloOnly && !nuovoModello) return false
+        // Gating per ambito incarico.
+        if (effectiveAmbito === 'SOLO_COORDINAMENTO') {
+          // Niente preventivi/contratti/contratti-rete: il capostipite coordina solo.
+          if (t.key === 'contract' || t.key === 'contracts_net' || t.key === 'budget') return false
+        }
+        return true
+      }),
+    [nuovoModello, effectiveAmbito],
+  )
 
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!wedding) return <div className="p-10 text-[rgb(var(--rose-500))]">Wedding non trovato</div>
 
   const eventPassed = wedding.date_to ? new Date(wedding.date_to) < new Date() : false
-  const visibleTabs = TABS.filter((t) => !t.nuovoModelloOnly || nuovoModello)
 
   return (
     <div className="min-h-full">
@@ -108,6 +159,17 @@ export default function WeddingDashboard() {
             <div className="flex items-center gap-2 flex-wrap">
               <Badge status={wedding.status} />
               {nuovoModello && <SaluteEventoBadge entryId={wedding.id} />}
+              {ambito && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border"
+                  style={{ borderColor: 'rgb(var(--border-strong))', color: 'rgb(var(--gold-700))', background: 'rgb(var(--gold-100))' }}
+                  title="Ambito incarico capostipite"
+                >
+                  {ambito === 'COMPLETO' && 'Ambito: completo'}
+                  {ambito === 'SOLO_COORDINAMENTO' && 'Ambito: solo coordinamento'}
+                  {ambito === 'SOLO_PROPRI_SERVIZI' && 'Ambito: solo propri servizi'}
+                </span>
+              )}
               <BusinessModelToggle wedding={wedding} />
               {wedding.value_amount && (
                 <span className="font-display text-2xl tabular-nums" style={{ color: 'rgb(var(--gold-700))' }}>
@@ -130,6 +192,12 @@ export default function WeddingDashboard() {
               {visibleTabs.map((t) => {
                 const Icon = t.icon
                 const active = tab === t.key
+                // SOLO_PROPRI_SERVIZI: enfatizza "Menu" + tab dedicato ai servizi
+                // propri (qui usiamo "contract" come tab "Documenti del proprio
+                // catalogo" via highlight visivo; il routing reale lo gestisce
+                // /services tramite la link_action del ProssimaMossa).
+                const emphasized =
+                  effectiveAmbito === 'SOLO_PROPRI_SERVIZI' && t.key === 'menu'
                 return (
                   <button
                     key={t.key}
@@ -138,13 +206,20 @@ export default function WeddingDashboard() {
                       ;(e.currentTarget as HTMLElement).scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' })
                     }}
                     className={cn(
-                      'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
+                      'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[44px]',
                       active
                         ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
-                        : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
-                    )}>
+                        : emphasized
+                          ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] hover:bg-[rgb(var(--bg-sunken))]'
+                          : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
+                    )}
+                    aria-label={emphasized ? `${t.label} (in evidenza)` : t.label}
+                  >
                     <Icon size={14} />
                     {t.label}
+                    {emphasized && !active && (
+                      <span aria-hidden className="ml-1">★</span>
+                    )}
                   </button>
                 )
               })}
@@ -190,6 +265,17 @@ export default function WeddingDashboard() {
         </AnimatePresence>
       </div>
       {rateOpen && <RateCollaborationModal entryId={wedding.id} onClose={() => setRateOpen(false)} />}
+      {shouldAskAmbito && (
+        <AmbitoIncaricoModal
+          entryId={wedding.id}
+          onSaved={() => {
+            // Forza il refetch dell'evento e delle notifiche prossima-mossa.
+            void qc.invalidateQueries({ queryKey: ['wedding', wedding.id] })
+            void qc.invalidateQueries({ queryKey: ['notifiche'] })
+          }}
+          onSkip={() => setAmbitoSkipped(true)}
+        />
+      )}
     </div>
   )
 }

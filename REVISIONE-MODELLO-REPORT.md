@@ -226,3 +226,154 @@ Contenuto:
   `erogatore_e_capostipite=true`. Cio' garantisce la semantica
   "fornitore-di-se-stesso" pulita.
 
+---
+
+## Task C — Ambito incarico dinamico
+
+### Differenze schema vs spec trovate
+
+Ispezione: `20260530120000_fase1_evento_stato.sql` (enum `evento_stato`),
+`20260530200000_fase2_notifiche.sql` (funzione base
+`refresh_notifiche_per_evento`), `20260531100000_revisione_a_fix_proprieta_azioni.sql`
+(versione post Task A, con `PROPONI_INCARICO`/`COPPIA_FIRMA_INCARICO`).
+
+- **Nessun campo `ambito_capostipite` preesistente** su `calendar_entries`:
+  introdotto ex novo come enum nullable. NULL = "non ancora deciso"; il
+  default operativo COMPLETO viene applicato dentro la funzione via
+  `coalesce(v_entry.ambito_capostipite::text, 'COMPLETO')` per non forzare
+  un default DB-side che cambierebbe la semantica di "scelta esplicita".
+- **`evento_stato` ha gia` `INCARICO_FIRMATO`** come stato esistente: nessun
+  enum nuovo. La logica nuova vive solo nei branch `CASE` della funzione.
+- **`refresh_notifiche_per_evento` esistente**: la base Task A non aveva
+  logica condizionale su `ambito`. Riscritta in `CREATE OR REPLACE` con
+  branch su `v_ambito` dentro `INCARICO_FIRMATO`, `PREVENTIVI`,
+  `PIANIFICAZIONE` (gli altri stati restano invariati). Mantenuto invariato
+  il blocco "chiusura notifiche non-pertinenti" (con eccezione: ora si
+  preserva anche il `v_extra_tipo` quando presente, oltre a quello primario).
+- **`useUpdateWedding`** (frontend `hooks/useWedding.ts` riga 205-214): gia`
+  generic e accetta `patch: any` su `calendar_entries`; copre l'update di
+  `ambito_capostipite` senza modifiche al hook. Cast `as any` nel payload del
+  modale per evitare di toccare `database.types.ts` (rigenerato in altro task).
+- **Tab del `WeddingDashboard`**: la `TabKey` esistente include gia`
+  `contract` (contratto), `contracts_net` (contratti rete), `budget`, `menu`.
+  Nessuna nuova tab necessaria: il gating filtra le esistenti.
+
+### Migrazione creata
+
+`supabase/migrations/20260531300000_revisione_c_ambito_capostipite.sql`
+(idempotente, additiva + `CREATE OR REPLACE`):
+
+1. `create type public.ambito_capostipite as enum
+   ('COMPLETO','SOLO_COORDINAMENTO','SOLO_PROPRI_SERVIZI')` guard via
+   `pg_type` (`if not exists`).
+2. `alter table calendar_entries add column if not exists
+   ambito_capostipite public.ambito_capostipite` (nullable; nessun default,
+   per distinguere "non scelto" da "scelto COMPLETO").
+3. `comment on type` + `comment on column` esplicativi.
+4. `create or replace function public.refresh_notifiche_per_evento(uuid)`:
+   - Legge `ambito_capostipite` dal row e applica `coalesce(..., 'COMPLETO')`.
+   - **`INCARICO_FIRMATO`**: SOLO_COORDINAMENTO -> `AVVIA_PIANIFICAZIONE`
+     (link `/calendar?entry=...`). Altri ambiti -> `RACCOGLI_PREVENTIVI`
+     come prima.
+   - **`PREVENTIVI`**: SOLO_PROPRI_SERVIZI -> mossa primaria `COMPONI_MENU`
+     (link `/quotes?entry=...&tab=menu`) + mossa extra `GESTISCI_SERVIZI`
+     (link `/services`, prio 7). Altri ambiti -> `INVIA_PREVENTIVO_COPPIA`.
+   - **`PIANIFICAZIONE`**: SOLO_COORDINAMENTO -> primaria
+     `PIANIFICA_TAVOLI` (link `/calendar?entry=...&tab=tables`) + extra
+     `PIANIFICA_TIMELINE` (`...&tab=timeline`). Altri ambiti -> mossa unica
+     `COMPLETA_CHECKLIST`.
+   - **Tutti gli altri stati invariati** (LEAD, PREVENTIVO_FIRMATO,
+     CONTRATTO, CHECKLIST, SVOLTO, ANNULLATO).
+   - **Notifiche coppia** in `PREVENTIVI`: SOLO_PROPRI_SERVIZI produce
+     `COPPIA_ATTENDE_PROPOSTA` ("In arrivo la proposta da <owner>") invece
+     di `COPPIA_ATTENDE_PREVENTIVO`. Altri ambiti invariati.
+   - Chiusura "DONE" delle notifiche non-pertinenti: esclude oltre a
+     `PROMEMORIA_%` / `COPPIA_%` anche il `v_extra_tipo` per non chiudere
+     subito la mossa complementare appena emessa.
+5. Backfill: rigenera `refresh_notifiche_per_evento` per **tutti** i
+   calendar_entries in stato != SVOLTO/ANNULLATO (cosi` la nuova logica
+   appare subito sui dati esistenti senza richiedere transizione di stato).
+
+### File frontend creati / toccati
+
+**Nuovo**: `frontend/src/components/wedding/AmbitoIncaricoModal.tsx`
+- 3 card (`COMPLETO`, `SOLO_COORDINAMENTO`, `SOLO_PROPRI_SERVIZI`) con
+  icona dedicata (Briefcase / ClipboardCheck / Sparkles) e descrizione
+  operativa.
+- Salva via `supabase.from('calendar_entries').update({
+  ambito_capostipite })` (cast `as any` finche` `database.types.ts` non
+  viene rigenerato).
+- Mobile-first: bottom-sheet su mobile (`rounded-t-2xl`,
+  `items-end sm:items-center`), card width 100% fino a `max-w-md`, touch
+  target `min-h-[44px]`, una azione primaria per card, disabilita gli altri
+  bottoni mentre c'e` un salvataggio in corso.
+- `aria-modal`, `aria-labelledby`, `aria-label` su ciascun bottone.
+- Opzione "Decido piu` tardi" (skip locale, non persistito).
+
+**Modificato**: `frontend/src/pages/wedding/WeddingDashboard.tsx`
+- Import `AmbitoIncaricoModal` + `useAuth` + `useQueryClient`.
+- Stato `effectiveAmbito` (`ambito ?? 'COMPLETO'`) usato per il gating.
+- `useMemo` su `visibleTabs`: in `SOLO_COORDINAMENTO` nasconde `contract`,
+  `contracts_net`, `budget` (preventivo/contratti/budget) — coerente con
+  "salta gli step preventivi/contratti".
+- Enfasi visiva sulla tab `menu` in `SOLO_PROPRI_SERVIZI`: classe
+  `bg-[rgb(var(--gold-100))]` + stellina ★ accanto al label quando non
+  attiva (la tab "Servizi" reale e` esterna al WeddingDashboard, su
+  `/services`, raggiungibile dalla mossa `GESTISCI_SERVIZI`).
+- `useEffect` di safety: se la tab attiva e' stata nascosta dal gating,
+  ripristina `overview`.
+- `shouldAskAmbito` (useMemo): mostra il modale solo all'owner del
+  calendar_entry (`owner_id === user.id`), quando `ambito === null`,
+  l'utente non ha skippato, e lo stato evento e` diverso da
+  `LEAD/SVOLTO/ANNULLATO` (cioe` da `INCARICO_FIRMATO` in poi).
+- Badge "Ambito: ..." nel header (accanto al `BusinessModelToggle`) per
+  rendere visibile la scelta corrente.
+- Reset `ambitoSkipped` quando cambia `wedding.id`.
+
+**`ProssimaMossa`** (componente Fase 2) **non toccato**: legge gia` le
+notifiche `PENDING` dell'utente e renderizza `titolo/descrizione/link_action`
+as-is. La revisione C agisce a monte tramite la funzione
+`refresh_notifiche_per_evento`: i tipi nuovi (`AVVIA_PIANIFICAZIONE`,
+`COMPONI_MENU`, `GESTISCI_SERVIZI`, `PIANIFICA_TAVOLI`,
+`PIANIFICA_TIMELINE`, `COPPIA_ATTENDE_PROPOSTA`) appaiono automaticamente
+sia in `/dashboard` sia in `/weddings/:id` (vincolo via `entryId`). Nessuna
+duplicazione di logica condizionale lato client.
+
+### RLS
+
+Nessuna modifica richiesta (vincolo C.4): il campo `ambito_capostipite` e`
+una colonna su `calendar_entries`, gia` protetto dalle policy esistenti
+(`calendar_entries_select_owner`, `calendar_entries_update_owner` su
+`owner_id = auth.uid()`). L'`update` dal modale e` autorizzato implicito:
+solo l'owner del calendar_entry vede il modale (check lato client su
+`wedding.owner_id === user.id`); RLS rifiuta in ogni caso un update da un
+non-owner.
+
+### Esito build
+
+- `cd frontend && npm run build` -> **PASS** (1.02s, vite 5, nessun warning
+  bloccante, bundle `WeddingDashboard` 174.98 kB / gzip 41.48 kB,
+  `AmbitoIncaricoModal` inlinato nello stesso chunk).
+
+### Note
+
+- **`supabase db reset --local` NON eseguito**: vincolo del task (solo
+  build pass + file migrazione pronti). Il reset locale fallisce
+  storicamente per seed legacy `v_sara/TEST-SEED` come gia` annotato.
+- **`database.types.ts` non rigenerato**: `ambito_capostipite` viene
+  letto/scritto via cast `as any`. Nessuna rottura tipo.
+- **Default operativo COMPLETO dentro la funzione** (e non `DEFAULT
+  'COMPLETO'` sulla colonna): scelta intenzionale per poter distinguere
+  "owner deve ancora decidere" (NULL) da "owner ha esplicitamente scelto
+  completo". Il modale appare *solo* per NULL.
+- **Tab "Servizi"**: non esiste come tab del WeddingDashboard (i servizi
+  vivono su `/services`, fuori dal contesto evento). Per "enfasi" si e`
+  scelta solo la tab `menu` interna; la mossa `GESTISCI_SERVIZI` nella
+  ProssimaMossa porta correttamente a `/services`.
+- **Backfill**: la funzione e` rigenerata su tutti gli eventi attivi al
+  termine della migrazione. Eventi in `LEAD` non sono toccati (la logica
+  LEAD e` invariata rispetto a Task A).
+- **Idempotenza**: enum guard via `pg_type`, `add column if not exists`,
+  `create or replace function`, `on conflict do update` su notifiche.
+  Riapplicabile su DB pulito o esistente.
+
