@@ -734,9 +734,13 @@ export default function QuoteEditorPage() {
                         .filter(([sid]) => sid !== profile?.id)
                         .map(([sid]) => {
                           const sup = suppliers?.find((s) => s.id === sid)
+                          const isSelf = sid === quote.owner_id
+                          const label = isSelf
+                            ? "⭐ I miei servizi (sono io l'erogatore · no ricarico)"
+                            : (sup?.business_name ?? sup?.full_name ?? 'Fornitore senza nome')
                           return (
                             <option key={sid} value={sid}>
-                              {sup?.business_name ?? sup?.full_name ?? sid.slice(0, 8)} {sup?.subrole ? `· ${sup.subrole}` : ''} ({grouped.get(sid)?.length ?? 0})
+                              {label}{!isSelf && sup?.subrole ? ` · ${sup.subrole}` : ''} ({grouped.get(sid)?.length ?? 0})
                             </option>
                           )
                         })}
