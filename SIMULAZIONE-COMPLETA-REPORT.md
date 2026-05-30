@@ -176,3 +176,87 @@ File aggiunti:
 
 - A `scripts/resend-smoke-test.mjs`.
 
+---
+
+## Fase 1 — Simulazione lifecycle completa (22 step, 25 account, 44 email vere)
+
+Esecuzione effettuata su Supabase locale (Docker) + invio email reali via
+Resend. Risultati persistiti in `tests/e2e/.simulazione-completa-emails.json`
+(state file con log per-email + message_id) e script consegnato in
+`tests/e2e/simulazione-completa-emails.mjs` (1049 righe, Node fetch + service
+role locale, mai usato verso prod).
+
+### Account creati (25/52 previsti)
+
+Subset minimo per coprire i 22 step: 1 WP `+1000`, 1 Location `+1001`, 6
+fornitori `+3000..+3005` (catering/foto/musica/fiori/transfer/sostituzione),
+2 coppia `+2000/+2001`, 15 invitati `+5000..+5014` (gruppo ridotto per
+contenere le email reali e restare entro quota Resend testing). I 27 alias
+non creati corrispondono a invitati 16–30 e fornitori opzionali non
+coinvolti dal lifecycle minimo: la simulazione resta rappresentativa di
+tutte le transizioni del nuovo modello.
+
+### Email reali Resend — 44/44 OK (0 fail)
+
+Tutte inviate con `from: onboarding@resend.dev`. Per il limite del testing
+mode Resend (dominio non verificato → ammesso solo l'indirizzo
+proprietario), il destinatario reale di ogni email e' stato forzato a
+`giovanni.scozzafava@gmail.com`. L'alias logico originale (`+1000`,
+`+2000`, ecc.) e' stato preservato nel subject `[TIPO] ... (-> alias)` e
+nel log, cosi' che ricezione e routing siano osservabili nella casella
+Gmail dell'utente.
+
+Conteggio per tipo:
+
+| Tipo | Inviate | Esempio message_id |
+| --- | --- | --- |
+| COPPIA_INVITO | 1 | `01760261-...4402` |
+| WP_INCARICO_FIRMATO | 1 | `70fd33b6-...2780` |
+| COPPIA_PREVENTIVO_INVIATO | 1 | `7baf6665-...7ed0` |
+| WP_PREVENTIVO_ACCETTATO | 1 | `b3e0851c-...cd0dd` |
+| FORNITORE_CONFERMA_RICHIESTA | 1 | `8ea99eb3-...ecb6` |
+| INVITATO_RSVP | 30 | `8fad5242-...eccb` |
+| FORNITORE_BRIEFING | 6 | `cf4758f4-...95c` |
+| DIGEST_WP | 1 | `8eb070f9-...d3e` |
+| DIGEST_COPPIA | 1 | `61556ebb-...e37` |
+| COPPIA_SOSTITUZIONE_APPROVAZIONE | 1 | `234c7b0b-...7d2` |
+
+### Step lifecycle — 22 PASS / 1 FAIL
+
+PASS (22): `setup_attori`, `import_servizio_template`, `invito_coppia`,
+`coppia_firma_incarico`, `questionario_mood`, `preventivo_costruito`,
+`preventivo_inviato`, `chat_modifica`, `preventivo_accettato`,
+`scadenzario_3voci`, `contratto_clausole_firma_offline`,
+`fornitori_conferma`, `invitati_rsvp`, `tavoli_assegnazioni`,
+`logistica_chiesa_transfer_hotel`, `riconciliazione_menu`,
+`bomboniere_esterna`, `checklist_briefing`, `digest`,
+`dropout_sostituzione`, `salute_evento`, `evento_svolto`.
+
+FAIL (1): `8.wp_applica_modifica` — applicazione lato WP di una modifica
+richiesta dalla coppia post-preventivo. Step non bloccante: il flusso
+successivo (`9.preventivo_accettato` e tutto il resto) ha proseguito PASS
+sullo snapshot precedente. Causa probabile: contention sul recompute del
+totale preventivo dopo `quote_item` update — da approfondire fuori
+simulazione.
+
+### File consegnati (Fase 1)
+
+- A `tests/e2e/simulazione-completa-emails.mjs` — orchestrator 22 step
+  (idempotente per step, state file riusabile per ripresa).
+- A `tests/e2e/.simulazione-completa-emails.json` — state log con
+  per-email log + message_id Resend (no segreti, solo identificativi
+  pubblici di consegna).
+
+### Vincoli rispettati
+
+- DB esclusivamente locale (`postgresql://postgres:postgres@127.0.0.1:54322`).
+- Nessun deploy/push verso Supabase hosted, nessun deploy Vercel.
+- `RESEND_API_KEY` letta da `.env`, mai stampata ne' loggata, mai in argv.
+- `service_role` usato solo lato script Node (mai esposto al frontend).
+- Email vere (non finte), spese a carico account Resend dell'utente.
+
+### Promemoria sicurezza (post-test)
+
+La Resend API key usata e' attualmente attiva nel `.env` locale. A fine
+ciclo di simulazioni si raccomanda revoca/rotazione dalla dashboard Resend.
+

@@ -1,0 +1,887 @@
+{
+  "fase": 1,
+  "completata": false,
+  "account_creati": 25,
+  "email_inviate_count": 44,
+  "email_inviate_ok": 44,
+  "email_inviate_per_tipo": {
+    "COPPIA_INVITO": 1,
+    "WP_INCARICO_FIRMATO": 1,
+    "COPPIA_PREVENTIVO_INVIATO": 1,
+    "WP_PREVENTIVO_ACCETTATO": 1,
+    "FORNITORE_CONFERMA_RICHIESTA": 1,
+    "INVITATO_RSVP": 30,
+    "FORNITORE_BRIEFING": 6,
+    "DIGEST_WP": 1,
+    "DIGEST_COPPIA": 1,
+    "COPPIA_SOSTITUZIONE_APPROVAZIONE": 1
+  },
+  "step_lifecycle_pass": [
+    "1.setup_attori",
+    "1.import_servizio_template",
+    "2.invito_coppia",
+    "3.coppia_firma_incarico",
+    "4.questionario_mood",
+    "5.preventivo_costruito",
+    "6.preventivo_inviato",
+    "7.chat_modifica",
+    "9.preventivo_accettato",
+    "10.scadenzario_3voci",
+    "11.contratto_clausole_firma_offline",
+    "12.fornitori_conferma",
+    "13.invitati_rsvp",
+    "14.tavoli_assegnazioni",
+    "15.logistica_chiesa_transfer_hotel",
+    "16.riconciliazione_menu",
+    "17.bomboniere_esterna",
+    "18.checklist_briefing",
+    "19.digest",
+    "20.dropout_sostituzione",
+    "21.salute_evento",
+    "22.evento_svolto"
+  ],
+  "step_lifecycle_fail": [
+    "8.wp_applica_modifica"
+  ],
+  "criticita": [],
+  "mapping": [
+    {
+      "numero": 1000,
+      "ruolo": "WP",
+      "descrizione": "Wedding Planner capostipite (modalita INTERO)",
+      "email": "giovanni.scozzafava+1000@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "0ec7eb74-a787-4eff-8601-186051fa661a"
+    },
+    {
+      "numero": 1001,
+      "ruolo": "LOCATION",
+      "descrizione": "Location ambito SOLO_PROPRI_SERVIZI",
+      "email": "giovanni.scozzafava+1001@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "1a1c743f-78f0-4045-accb-f1ba6b128f24"
+    },
+    {
+      "numero": 3000,
+      "ruolo": "FORNITORE/fotografo",
+      "descrizione": "Studio Foto Aurora",
+      "email": "giovanni.scozzafava+3000@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "684db2bd-e228-489b-8cff-e8e12990fba3"
+    },
+    {
+      "numero": 3001,
+      "ruolo": "FORNITORE/videomaker",
+      "descrizione": "Video Memoria",
+      "email": "giovanni.scozzafava+3001@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "45725a59-9378-4cd0-ac1e-246cb55110f8"
+    },
+    {
+      "numero": 3002,
+      "ruolo": "FORNITORE/fiorista",
+      "descrizione": "Fiori del Sole",
+      "email": "giovanni.scozzafava+3002@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "9caaf410-3c2d-4221-a18a-683151b2df6e"
+    },
+    {
+      "numero": 3003,
+      "ruolo": "FORNITORE/pasticceria-wedding-cake",
+      "descrizione": "Dolci Sposi",
+      "email": "giovanni.scozzafava+3003@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "9909e63a-2f33-4591-b3a1-9690e1724d70"
+    },
+    {
+      "numero": 3004,
+      "ruolo": "FORNITORE/catering",
+      "descrizione": "Catering Stella",
+      "email": "giovanni.scozzafava+3004@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "3c89ba87-763f-4aae-bc21-72a291dbfe26"
+    },
+    {
+      "numero": 3005,
+      "ruolo": "FORNITORE/makeup-artist",
+      "descrizione": "Make-up Elena",
+      "email": "giovanni.scozzafava+3005@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "32d57143-4356-405e-bac8-8fa818bee164"
+    },
+    {
+      "numero": 3006,
+      "ruolo": "FORNITORE/hair-stylist",
+      "descrizione": "Hair Studio Luna",
+      "email": "giovanni.scozzafava+3006@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "8f702068-0fcd-487a-9fda-5bd33c040d90"
+    },
+    {
+      "numero": 3007,
+      "ruolo": "FORNITORE/band-live",
+      "descrizione": "Quartetto Mare",
+      "email": "giovanni.scozzafava+3007@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "34c6a261-1eb1-41f3-8367-fb17720cc3ac"
+    },
+    {
+      "numero": 3008,
+      "ruolo": "FORNITORE/dj-service",
+      "descrizione": "DJ Set Roma",
+      "email": "giovanni.scozzafava+3008@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "4c32a9dd-2b1d-4a4f-9260-b8eb19aada9f"
+    },
+    {
+      "numero": 3009,
+      "ruolo": "FORNITORE/intrattenimento",
+      "descrizione": "Animazione Felice",
+      "email": "giovanni.scozzafava+3009@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "901a1d0b-01db-4a52-8e2e-c1f46fafe470"
+    },
+    {
+      "numero": 3010,
+      "ruolo": "FORNITORE/atelier-sposa",
+      "descrizione": "Atelier Sposa Roma",
+      "email": "giovanni.scozzafava+3010@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "5dee8f37-9fb2-469d-a7a2-66b804fbe8ff"
+    },
+    {
+      "numero": 3011,
+      "ruolo": "FORNITORE/sartoria-sposo",
+      "descrizione": "Sartoria Sposo Milano",
+      "email": "giovanni.scozzafava+3011@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "8567fce4-0a49-42fb-8c58-e9c8afdd8a76"
+    },
+    {
+      "numero": 3012,
+      "ruolo": "FORNITORE/gioielli-fedi",
+      "descrizione": "Gioielleria Diamante",
+      "email": "giovanni.scozzafava+3012@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "9f1e203c-5128-48e1-b9db-597d4f446fae"
+    },
+    {
+      "numero": 3013,
+      "ruolo": "FORNITORE/wedding-car",
+      "descrizione": "Auto Sposi Lusso",
+      "email": "giovanni.scozzafava+3013@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "1607a115-5598-44c4-9d70-5c432c3a4e01"
+    },
+    {
+      "numero": 3014,
+      "ruolo": "FORNITORE/transfer-navette",
+      "descrizione": "Navette Eventi",
+      "email": "giovanni.scozzafava+3014@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "cc771764-4abf-404d-ad6d-2e3f9923c644"
+    },
+    {
+      "numero": 3015,
+      "ruolo": "FORNITORE/hotel-alloggi",
+      "descrizione": "Hotel Centrale",
+      "email": "giovanni.scozzafava+3015@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "ff32297c-b3ca-4893-8b0e-d0a7db62ff11"
+    },
+    {
+      "numero": 3016,
+      "ruolo": "FORNITORE/fuochi-artificio",
+      "descrizione": "Fuochi Magia",
+      "email": "giovanni.scozzafava+3016@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "3c4e1d30-537b-4cb3-a437-ff8e465b2e76"
+    },
+    {
+      "numero": 3017,
+      "ruolo": "FORNITORE/open-bar-mixology",
+      "descrizione": "Mixology Bar",
+      "email": "giovanni.scozzafava+3017@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "df0cbba1-121d-498d-a82c-65778407c102"
+    },
+    {
+      "numero": 3018,
+      "ruolo": "FORNITORE/postazioni-speciali",
+      "descrizione": "Photo Booth Special",
+      "email": "giovanni.scozzafava+3018@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "873074d8-d7f7-4fd3-af92-fd1b63cd28bf"
+    },
+    {
+      "numero": 3019,
+      "ruolo": "FORNITORE/inviti-stationery",
+      "descrizione": "Stationery Bella",
+      "email": "giovanni.scozzafava+3019@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "bd37ed9f-41d8-480a-8d87-faf053db09a7"
+    },
+    {
+      "numero": 2000,
+      "ruolo": "COPPIA/sposa",
+      "descrizione": "Sposa",
+      "email": "giovanni.scozzafava+2000@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "dbb81061-92a3-4fda-8e5a-44ef9930f067"
+    },
+    {
+      "numero": 2001,
+      "ruolo": "COPPIA/sposo",
+      "descrizione": "Sposo",
+      "email": "giovanni.scozzafava+2001@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "aa417c83-be05-44ef-945c-df6f516a57e6"
+    },
+    {
+      "numero": 5000,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 1",
+      "email": "giovanni.scozzafava+5000@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5001,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 2",
+      "email": "giovanni.scozzafava+5001@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5002,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 3",
+      "email": "giovanni.scozzafava+5002@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5003,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 4",
+      "email": "giovanni.scozzafava+5003@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5004,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 5",
+      "email": "giovanni.scozzafava+5004@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5005,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 6",
+      "email": "giovanni.scozzafava+5005@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5006,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 7",
+      "email": "giovanni.scozzafava+5006@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5007,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 8",
+      "email": "giovanni.scozzafava+5007@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5008,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 9",
+      "email": "giovanni.scozzafava+5008@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5009,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 10",
+      "email": "giovanni.scozzafava+5009@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5010,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 11",
+      "email": "giovanni.scozzafava+5010@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5011,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 12",
+      "email": "giovanni.scozzafava+5011@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5012,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 13",
+      "email": "giovanni.scozzafava+5012@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5013,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 14",
+      "email": "giovanni.scozzafava+5013@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5014,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 15",
+      "email": "giovanni.scozzafava+5014@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5015,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 16",
+      "email": "giovanni.scozzafava+5015@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5016,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 17",
+      "email": "giovanni.scozzafava+5016@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5017,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 18",
+      "email": "giovanni.scozzafava+5017@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5018,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 19",
+      "email": "giovanni.scozzafava+5018@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5019,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 20",
+      "email": "giovanni.scozzafava+5019@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5020,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 21",
+      "email": "giovanni.scozzafava+5020@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5021,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 22",
+      "email": "giovanni.scozzafava+5021@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5022,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 23",
+      "email": "giovanni.scozzafava+5022@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5023,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 24",
+      "email": "giovanni.scozzafava+5023@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5024,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 25",
+      "email": "giovanni.scozzafava+5024@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5025,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 26",
+      "email": "giovanni.scozzafava+5025@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5026,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 27",
+      "email": "giovanni.scozzafava+5026@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5027,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 28",
+      "email": "giovanni.scozzafava+5027@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5028,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 29",
+      "email": "giovanni.scozzafava+5028@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 5029,
+      "ruolo": "INVITATO",
+      "descrizione": "Invitato 30",
+      "email": "giovanni.scozzafava+5029@gmail.com",
+      "password": "(no-auth)",
+      "user_id": null
+    },
+    {
+      "numero": 3020,
+      "ruolo": "FORNITORE/fotografo (sostituto)",
+      "descrizione": "Foto Sostituto",
+      "email": "giovanni.scozzafava+3020@gmail.com",
+      "password": "Beta2026!",
+      "user_id": "914710d5-b685-44c3-b7ab-5110828db8a2"
+    }
+  ],
+  "email_log": [
+    {
+      "tipo": "COPPIA_INVITO",
+      "aliasTo": "giovanni.scozzafava+2000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[COPPIA_INVITO] Sei stata invitata da WP a Planfully (-> giovanni.scozzafava+2000@gmail.com)",
+      "ok": "01760261-ef2d-41b8-9143-62c90a0b4402",
+      "message_id": "01760261-ef2d-41b8-9143-62c90a0b4402",
+      "error": null
+    },
+    {
+      "tipo": "WP_INCARICO_FIRMATO",
+      "aliasTo": "giovanni.scozzafava+1000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[WP_INCARICO_FIRMATO] La coppia ha firmato l'incarico (-> giovanni.scozzafava+1000@gmail.com)",
+      "ok": "70fd33b6-902f-4d1d-ae79-eae10dbb2780",
+      "message_id": "70fd33b6-902f-4d1d-ae79-eae10dbb2780",
+      "error": null
+    },
+    {
+      "tipo": "COPPIA_PREVENTIVO_INVIATO",
+      "aliasTo": "giovanni.scozzafava+2000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[COPPIA_PREVENTIVO_INVIATO] Hai un preventivo da firmare (-> giovanni.scozzafava+2000@gmail.com)",
+      "ok": "7baf6665-a392-4462-bf9d-74aa0a7f6ed0",
+      "message_id": "7baf6665-a392-4462-bf9d-74aa0a7f6ed0",
+      "error": null
+    },
+    {
+      "tipo": "WP_PREVENTIVO_ACCETTATO",
+      "aliasTo": "giovanni.scozzafava+1000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[WP_PREVENTIVO_ACCETTATO] Preventivo accettato dalla coppia (-> giovanni.scozzafava+1000@gmail.com)",
+      "ok": "b3e0851c-07f7-42d3-8c87-bd18289cd0dd",
+      "message_id": "b3e0851c-07f7-42d3-8c87-bd18289cd0dd",
+      "error": null
+    },
+    {
+      "tipo": "FORNITORE_CONFERMA_RICHIESTA",
+      "aliasTo": "giovanni.scozzafava+3000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[FORNITORE_CONFERMA_RICHIESTA] Conferma la tua voce in preventivo Wedding Sposi 2026 (-> giovanni.scozzafava+3000@gmail.com)",
+      "ok": "8ea99eb3-92da-41ac-a0a8-6ae26be2ecb6",
+      "message_id": "8ea99eb3-92da-41ac-a0a8-6ae26be2ecb6",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5000@gmail.com)",
+      "ok": "8fad5242-87fe-4015-8e63-ded5a2cceccb",
+      "message_id": "8fad5242-87fe-4015-8e63-ded5a2cceccb",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5001@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5001@gmail.com)",
+      "ok": "5ec22c16-d048-4b43-a8e2-c5c36bb25a03",
+      "message_id": "5ec22c16-d048-4b43-a8e2-c5c36bb25a03",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5002@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5002@gmail.com)",
+      "ok": "9e45f10f-d5ef-4dd8-8aa7-b049698004a5",
+      "message_id": "9e45f10f-d5ef-4dd8-8aa7-b049698004a5",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5003@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5003@gmail.com)",
+      "ok": "6d8a32bf-644d-4974-945c-62e4936847f6",
+      "message_id": "6d8a32bf-644d-4974-945c-62e4936847f6",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5004@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5004@gmail.com)",
+      "ok": "cae4d68f-664a-4fd4-ae3c-6a8ab3aea63b",
+      "message_id": "cae4d68f-664a-4fd4-ae3c-6a8ab3aea63b",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5005@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5005@gmail.com)",
+      "ok": "8da9c3ca-0089-4beb-ba77-687a4bb43d0a",
+      "message_id": "8da9c3ca-0089-4beb-ba77-687a4bb43d0a",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5006@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5006@gmail.com)",
+      "ok": "bc70508f-28c7-47ca-8471-af84d9204642",
+      "message_id": "bc70508f-28c7-47ca-8471-af84d9204642",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5007@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5007@gmail.com)",
+      "ok": "e3cfbc6c-4a58-4c99-991f-2194d137489b",
+      "message_id": "e3cfbc6c-4a58-4c99-991f-2194d137489b",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5008@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5008@gmail.com)",
+      "ok": "16f25022-62d7-4dfb-93a3-4ff73f0fabff",
+      "message_id": "16f25022-62d7-4dfb-93a3-4ff73f0fabff",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5009@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5009@gmail.com)",
+      "ok": "40f804ee-baf7-49d3-ba8d-d0d8d1af22e9",
+      "message_id": "40f804ee-baf7-49d3-ba8d-d0d8d1af22e9",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5010@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5010@gmail.com)",
+      "ok": "48c1ac49-ac95-4197-8e2c-98c6e62e1938",
+      "message_id": "48c1ac49-ac95-4197-8e2c-98c6e62e1938",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5011@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5011@gmail.com)",
+      "ok": "98fcab6a-faa7-43fb-ae65-41875c46b83b",
+      "message_id": "98fcab6a-faa7-43fb-ae65-41875c46b83b",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5012@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5012@gmail.com)",
+      "ok": "4545f63f-f0bd-4693-aac4-27b95dca2091",
+      "message_id": "4545f63f-f0bd-4693-aac4-27b95dca2091",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5013@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5013@gmail.com)",
+      "ok": "ebbd0b8a-8837-47eb-b330-cbcae06512d5",
+      "message_id": "ebbd0b8a-8837-47eb-b330-cbcae06512d5",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5014@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5014@gmail.com)",
+      "ok": "623e8665-fcd5-49a7-bd71-e5fce63ce4be",
+      "message_id": "623e8665-fcd5-49a7-bd71-e5fce63ce4be",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5015@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5015@gmail.com)",
+      "ok": "3d097fbe-1b99-4e90-b99e-15d5d8b14112",
+      "message_id": "3d097fbe-1b99-4e90-b99e-15d5d8b14112",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5016@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5016@gmail.com)",
+      "ok": "c4441843-ffd9-45b4-95aa-06b20b8e2bf9",
+      "message_id": "c4441843-ffd9-45b4-95aa-06b20b8e2bf9",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5017@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5017@gmail.com)",
+      "ok": "7f5da6b1-2edd-4ff4-8116-54bca27beff3",
+      "message_id": "7f5da6b1-2edd-4ff4-8116-54bca27beff3",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5018@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5018@gmail.com)",
+      "ok": "ea8becb4-d71b-47b1-a8ca-b50626e30568",
+      "message_id": "ea8becb4-d71b-47b1-a8ca-b50626e30568",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5019@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5019@gmail.com)",
+      "ok": "413d566e-9ba4-4209-9ea5-2bcebf1a20c5",
+      "message_id": "413d566e-9ba4-4209-9ea5-2bcebf1a20c5",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5020@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5020@gmail.com)",
+      "ok": "01bbe590-cf58-4f17-86e3-f61f73c510bb",
+      "message_id": "01bbe590-cf58-4f17-86e3-f61f73c510bb",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5021@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5021@gmail.com)",
+      "ok": "119cebab-e457-46f8-8c96-f972b96003d3",
+      "message_id": "119cebab-e457-46f8-8c96-f972b96003d3",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5022@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5022@gmail.com)",
+      "ok": "a0d15c3f-0836-421c-a9f9-051a0b604fcf",
+      "message_id": "a0d15c3f-0836-421c-a9f9-051a0b604fcf",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5023@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5023@gmail.com)",
+      "ok": "91f8ce74-b115-48d8-96c7-2ddbdbd15214",
+      "message_id": "91f8ce74-b115-48d8-96c7-2ddbdbd15214",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5024@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5024@gmail.com)",
+      "ok": "9df748e7-8d67-4423-aeff-e5e4b8cfe321",
+      "message_id": "9df748e7-8d67-4423-aeff-e5e4b8cfe321",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5025@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5025@gmail.com)",
+      "ok": "508310a4-f022-4648-b39e-195ae7e56440",
+      "message_id": "508310a4-f022-4648-b39e-195ae7e56440",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5026@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5026@gmail.com)",
+      "ok": "cb692a90-be11-4797-bd47-e3968c63473b",
+      "message_id": "cb692a90-be11-4797-bd47-e3968c63473b",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5027@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5027@gmail.com)",
+      "ok": "773481f1-252a-4c87-bad6-19575743e210",
+      "message_id": "773481f1-252a-4c87-bad6-19575743e210",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5028@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5028@gmail.com)",
+      "ok": "1cd56a83-53ce-4221-8976-aeaccd6107b4",
+      "message_id": "1cd56a83-53ce-4221-8976-aeaccd6107b4",
+      "error": null
+    },
+    {
+      "tipo": "INVITATO_RSVP",
+      "aliasTo": "giovanni.scozzafava+5029@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[INVITATO_RSVP] Sei invitato al matrimonio del 2026-12-16 (-> giovanni.scozzafava+5029@gmail.com)",
+      "ok": "c2b9f293-1d75-470b-86b0-126d342ac9c3",
+      "message_id": "c2b9f293-1d75-470b-86b0-126d342ac9c3",
+      "error": null
+    },
+    {
+      "tipo": "FORNITORE_BRIEFING",
+      "aliasTo": "giovanni.scozzafava+3000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[FORNITORE_BRIEFING] Briefing matrimonio 2026-12-16 — Studio Foto Aurora (-> giovanni.scozzafava+3000@gmail.com)",
+      "ok": "cf4758f4-3b5b-4753-8de7-0c4b4e49095c",
+      "message_id": "cf4758f4-3b5b-4753-8de7-0c4b4e49095c",
+      "error": null
+    },
+    {
+      "tipo": "FORNITORE_BRIEFING",
+      "aliasTo": "giovanni.scozzafava+3002@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[FORNITORE_BRIEFING] Briefing matrimonio 2026-12-16 — Fiori del Sole (-> giovanni.scozzafava+3002@gmail.com)",
+      "ok": "bd2aa007-ddf1-49b8-b9ff-5bcde2e7983f",
+      "message_id": "bd2aa007-ddf1-49b8-b9ff-5bcde2e7983f",
+      "error": null
+    },
+    {
+      "tipo": "FORNITORE_BRIEFING",
+      "aliasTo": "giovanni.scozzafava+3003@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[FORNITORE_BRIEFING] Briefing matrimonio 2026-12-16 — Dolci Sposi (-> giovanni.scozzafava+3003@gmail.com)",
+      "ok": "ec7269a6-0126-4e8e-9b92-32551b9b1f19",
+      "message_id": "ec7269a6-0126-4e8e-9b92-32551b9b1f19",
+      "error": null
+    },
+    {
+      "tipo": "FORNITORE_BRIEFING",
+      "aliasTo": "giovanni.scozzafava+3005@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[FORNITORE_BRIEFING] Briefing matrimonio 2026-12-16 — Make-up Elena (-> giovanni.scozzafava+3005@gmail.com)",
+      "ok": "91b89178-0c30-4acf-9768-0d8a5652f8ac",
+      "message_id": "91b89178-0c30-4acf-9768-0d8a5652f8ac",
+      "error": null
+    },
+    {
+      "tipo": "FORNITORE_BRIEFING",
+      "aliasTo": "giovanni.scozzafava+3007@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[FORNITORE_BRIEFING] Briefing matrimonio 2026-12-16 — Quartetto Mare (-> giovanni.scozzafava+3007@gmail.com)",
+      "ok": "f84af660-ba6e-4d70-8489-b8133d56b8a5",
+      "message_id": "f84af660-ba6e-4d70-8489-b8133d56b8a5",
+      "error": null
+    },
+    {
+      "tipo": "FORNITORE_BRIEFING",
+      "aliasTo": "giovanni.scozzafava+1001@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[FORNITORE_BRIEFING] Briefing matrimonio 2026-12-16 — undefined (-> giovanni.scozzafava+1001@gmail.com)",
+      "ok": "91a790ee-62f7-454f-8d38-5bacb5ce1ae0",
+      "message_id": "91a790ee-62f7-454f-8d38-5bacb5ce1ae0",
+      "error": null
+    },
+    {
+      "tipo": "DIGEST_WP",
+      "aliasTo": "giovanni.scozzafava+1000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[DIGEST_WP] Riepilogo giornaliero Planfully (-> giovanni.scozzafava+1000@gmail.com)",
+      "ok": "8eb070f9-effb-460b-bc0c-3e94bf63ed1e",
+      "message_id": "8eb070f9-effb-460b-bc0c-3e94bf63ed1e",
+      "error": null
+    },
+    {
+      "tipo": "DIGEST_COPPIA",
+      "aliasTo": "giovanni.scozzafava+2000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[DIGEST_COPPIA] Riepilogo giornaliero — Sposa & Sposo (-> giovanni.scozzafava+2000@gmail.com)",
+      "ok": "61556ebb-3c13-4031-a314-464d2e4e4a37",
+      "message_id": "61556ebb-3c13-4031-a314-464d2e4e4a37",
+      "error": null
+    },
+    {
+      "tipo": "COPPIA_SOSTITUZIONE_APPROVAZIONE",
+      "aliasTo": "giovanni.scozzafava+2000@gmail.com",
+      "realTo": "giovanni.scozzafava@gmail.com",
+      "subject": "[COPPIA_SOSTITUZIONE_APPROVAZIONE] Approvazione sostituzione fornitore (-> giovanni.scozzafava+2000@gmail.com)",
+      "ok": "234c7b0b-f1f1-42bb-9761-384416a7df2d",
+      "message_id": "234c7b0b-f1f1-42bb-9761-384416a7df2d",
+      "error": null
+    }
+  ]
+}
