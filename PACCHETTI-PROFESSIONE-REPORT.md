@@ -206,3 +206,116 @@ Verificata applicando la migration manualmente via `psql` sul container `supabas
 
 - **Fotografo**: confermare 7 servizi-tipo e clausole con un fotografo matrimonialista reale. Punti critici: tempi consegna 60gg, diritti di portfolio nero su bianco, sostituzione professionista equivalente.
 - **Fiorista**: confermare 8 servizi-tipo e clausole con un fiorista matrimonialista reale. Punti critici: stagionalita` (+30-100% off-season), penali post-acquisto fiori (curva graduata 60/15/7gg), 10% scorta di sicurezza.
+
+## Fase 2 — Seed completo (tutte le professioni)
+
+**Obiettivo**: estendere il motore di Fase 1 (Generico/Fotografo/Fiorista) con il contenuto editoriale di tutte le altre professioni della tassonomia, in un unico file di migrazione `20260601200000_seed_pacchetti_tutte_professioni.sql`.
+
+### Tabella professioni seedate
+
+| Gruppo | Slug | Servizi | Clausole | Consigli | Checklist |
+|---|---|---|---|---|---|
+| IMMAGINE | `videomaker` | 7 | 4 | 5 | 8 |
+| IMMAGINE | `drone-fotografo` | 5 | 4 | 5 | 8 |
+| COORDINAMENTO | `wedding-planner` | 7 | 5 | 6 | 10 |
+| COORDINAMENTO | `event-designer` | 6 | 4 | 5 | 8 |
+| LUOGO_CIBO | `location` | 7 | 5 | 6 | 11 |
+| LUOGO_CIBO | `catering` | 10 | 5 | 6 | 11 |
+| LUOGO_CIBO | `pasticceria-wedding-cake` | 8 | 4 | 5 | 9 |
+| LUOGO_CIBO | `confettata` | 7 | 4 | 5 | 10 |
+| ALLESTIMENTI | `noleggio-scenografie` | 9 | 4 | 5 | 10 |
+| BELLEZZA | `makeup-artist` | 7 | 4 | 5 | 9 |
+| BELLEZZA | `hair-stylist` | 7 | 4 | 5 | 9 |
+| MUSICA | `band-live` | 8 | 5 | 6 | 10 |
+| MUSICA | `dj-service` | 8 | 5 | 5 | 11 |
+| MUSICA | `intrattenimento` | 7 | 4 | 5 | 9 |
+| ABBIGLIAMENTO | `atelier-sposa` | 8 | 5 | 5 | 8 |
+| ABBIGLIAMENTO | `sartoria-sposo` | 8 | 4 | 5 | 8 |
+| ABBIGLIAMENTO | `gioielli-fedi` | 8 | 4 | 5 | 7 |
+| MOBILITA | `wedding-car` | 7 | 4 | 5 | 8 |
+| MOBILITA | `transfer-navette` | 7 | 4 | 6 | 9 |
+| MOBILITA | `hotel-alloggi` | 8 | 4 | 6 | 9 |
+| EXTRA | `fuochi-artificio` | 6 | 4 | 6 | 11 |
+| EXTRA | `open-bar-mixology` | 7 | 4 | 5 | 10 |
+| EXTRA | `postazioni-speciali` | 7 | 4 | 5 | 9 |
+| EXTRA | `bomboniere` | 7 | 4 | 5 | 8 |
+| EXTRA | `inviti-stationery` | 8 | 4 | 5 | 9 |
+| EXTRA | `celebrante-officiante` | 7 | 4 | 6 | 10 |
+| **TOTALE** | **26 nuove professioni** | **~190** | **~110** | **~140** | **~240** |
+
+Totale combinato con Fase 1 (Generico/Fotografo/Fiorista): **29 professioni attive**.
+
+### Idempotenza migration
+
+Lo schema della migration FASE 2 e' progettato per essere rieseguibile in sicurezza:
+- `professioni`: `insert ... on conflict (slug) do update set ...` (aggiorna etichette/icone/sort_order, mantiene UUID stabile).
+- `servizio_template` / `clausola_template` / `consiglio` / `checklist_template`: `delete where professione_id = (select id ... slug = X) + insert`. Una rilancio della migration ripristina i template allo stato canonico senza errori.
+
+NON e' stato eseguito `supabase db reset` perche' fallisce su seed legacy `v_sara/TEST-SEED` (failure pre-esistente, gia' documentata in Fase 1). La migration verra' applicata via psql diretto sul container o tramite `supabase db push` (vietato in autonomia per regole task).
+
+### Build
+
+`cd frontend && npm run build` -> **PASS** (built in ~1.2s, nessun errore TS/runtime, nessun import nuovo).
+Nessuna modifica al codice frontend in Fase 2: solo seed di dati. Le query alle template restano quelle di Fase 1 (pattern `(supabase as any).from(...)`).
+
+### Casi speciali (annotazioni UX)
+
+#### Celebrante / Officiante (`celebrante-officiante`)
+Il celebrante e' una **risorsa** piu' che un fornitore pagante tradizionale.
+- L'officiante civile pubblico (sindaco/assessore) non emette fattura: non andrebbe gestito come "fornitore-quote".
+- Il sacerdote per il rito concordatario riceve un'offerta libera, non un corrispettivo.
+- Solo il celebrante simbolico/laico privato emette fattura e ha pacchetto economico reale.
+
+**Implicazione UX (da affrontare in fase successiva)**: il flusso del celebrante in `ProviderOnboardingWizard` dovrebbe poter offrire un "ruolo risorsa" (solo blocco data + agenda, no preventivo, no contratto). L'etichetta `is_risorsa: true` e' gia' stata predisposta nel jsonb `etichette` per questa professione, in attesa di logica frontend dedicata.
+
+#### Hotel / Alloggi (`hotel-alloggi`)
+Hotel non vende un "evento", vende **camere in allotment**. La rappresentazione corretta sarebbe:
+- Allotment di N camere a tariffa convenzionata (blocco totale fino a -90gg, parziale -90/-30gg, libero <-30gg).
+- Booking ospiti gestito direttamente dall'hotel (non dal cliente sposi), con tariffe convenzionate.
+- Penali no-show in capo al singolo ospite, non agli sposi.
+
+**Workaround attuale**: `quantity_basis = 'PER_TABLE'` riusato come proxy "per camera" per coerenza con l'enum esistente (`FLAT/PER_GUEST/PER_TABLE/PER_HOUR`). Le clausole esplicitano allotment 30/60/90gg e penali no-show.
+
+**Implicazione UX**: l'hotel potrebbe meritare in futuro un "modulo allotment" dedicato (matrice tipologie camere x notte x ospiti).
+
+#### Transfer / Navette (`transfer-navette`)
+Servizio fondamentalmente **orario** (PER_HOUR/ORA), con tariffe diverse per capienza veicolo (16/30/50 posti). I servizi-tipo modellati riflettono questa logica: 3 voci a `PER_HOUR`, 4 voci a `FLAT` (transfer aeroporto VIP, shuttle continuo fine serata, pacchetto giornata, NCC dedicato anziano).
+
+#### Auto / Wedding Car (`wedding-car`)
+Servizio **a evento** (FLAT/EVENTO) con franchigia chilometrica (100 km/evento inclusi) e km eccedenti fatturati a 1,5 EUR/km nelle clausole. Allegata licenza NCC obbligatoria nella clausola RESPONSABILITA.
+
+#### Fuochi d'artificio (`fuochi-artificio`)
+Servizio con **vincoli normativi forti**: licenza TULPS, SCIA VVF (30-45gg di anticipo), polizza RC 5M massimale. Le clausole includono asimmetria meteo (50% al cliente per costi sostenuti se annullamento per maltempo, 100% se cliente cancella per altri motivi). Tempi pratica permessi 30-45gg evidenziati anche nei consigli.
+
+### Da validare con fornitori veri
+
+**Priorita' alta (importi specifici e curve di mercato)**:
+- **Catering** (10 servizi): conferma fascia prezzi (€35 aperitivo, €95 menu 5 portate, €28 open bar premium) con catering reali di fascia media. Validazione fluttuazione ospiti -10% / +10%.
+- **Pasticceria** (8 servizi): conferma €450-750 wedding cake 3-4 piani, €1.20 mignon/pezzo. Validazione catena freddo.
+- **Hotel** (8 servizi): conferma tariffe convenzionate camere (€110 standard, €160 superior, €280 suite) e curve allotment 30/60/90gg con hotel matrimoniali reali.
+- **Transfer** (7 servizi): conferma €65/h 16posti, €95/h 30posti, €130/h 50posti con NCC operativi.
+- **Fuochi d'artificio** (6 servizi): conferma €1500 show 5min, €3200 show 10min, tempi SCIA 30-45gg con pirotecnico operativo licenziato.
+
+**Priorita' media (inquadramento giuridico/etico)**:
+- **Celebrante** (7 servizi): validazione disclaimer "cerimonia simbolica non sostituisce civile" con celebrante professionale, e curva di prezzo €750-950 per cerimonia base + moduli rituali.
+- **Wedding Planner** (7 servizi): validazione clausola anti-kickback con WP operativo e curva fee fissa (€1.500 day-coordination -> €6.500 full planning).
+- **Gioielli** (8 servizi): validazione tempi lavorazione 45-60gg e certificazioni titolo/gemmologica con orafo specializzato fedi.
+
+**Priorita' bassa (template piu' generici)**:
+- Le restanti professioni (videomaker, drone, designer, location, confettata, noleggio, MUA, hair, band, DJ, intrattenimento, atelier, sartoria, wedding car, open bar, postazioni, bomboniere, stationery) hanno fasce di prezzo allineate al mercato medio italiano e clausole standard, ma una review da operatori reali del settore alzerebbe la qualita' editoriale e l'aderenza terminologica al gergo del mestiere.
+
+### File toccati (Fase 2)
+
+**Migrazione**
+- `supabase/migrations/20260601200000_seed_pacchetti_tutte_professioni.sql` *(nuovo, 1800 righe)*
+
+**Report**
+- `PACCHETTI-PROFESSIONE-REPORT.md` *(modificato — aggiunta sezione Fase 2)*
+
+### Criticita' Fase 2
+
+- Nessun cambio schema in Fase 2 (solo dati). Idempotente per rilancio.
+- Non e' stato possibile verificare il count effettivo via `supabase db reset` (fallisce su seed legacy). Verifica conta righe seedate fatta tramite analisi statica del file SQL (26 blocchi `delete from servizio_template` x ogni professione + corrispondenti insert).
+- I caratteri apostrofi italiani (es. "perche'") sono volutamente scritti con tick singolo escapato (`''`) per compatibilita' PostgreSQL: per portare in produzione, una revisione editoriale finale potrebbe migrare a Unicode `’` se preferito.
+- Le etichette/icone usano nomi Lucide (`Camera`, `Plane`, `ClipboardList`, `Palette`, `MapPin`, ecc.). Per professioni dove il nome icona non e' standard (`Cake`, `Candy`, `Disc`, `PartyPopper`), verificare disponibilita' nella libreria Lucide installata in frontend.
+- L'etichetta speciale `is_risorsa: true` aggiunta al jsonb `etichette` di `celebrante-officiante` non e' ancora letta dal frontend: e' una predisposizione futura.
