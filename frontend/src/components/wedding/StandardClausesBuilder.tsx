@@ -9,6 +9,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
+export type ModalitaIncasso = 'INTERO' | 'SEGNALAZIONE'
+
 export type StandardClause = {
   id: string
   category: string
@@ -18,6 +20,7 @@ export type StandardClause = {
   placeholders: string[]
   sort_order: number
   is_default: boolean
+  per_modalita: ModalitaIncasso | null
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -38,28 +41,86 @@ export type ContractSection = { heading: string; body: string; slug?: string }
 export function StandardClausesBuilder({
   onClose, onComposed,
   placeholders = {},
+  modalita,
+  professioneId,
 }: {
   onClose: () => void
   onComposed: (sections: ContractSection[]) => void
   placeholders?: Record<string, string>
+  /**
+   * Modalita di incasso target. Se valorizzata, il builder filtra le clausole
+   * con per_modalita = quella specifica o NULL (universali). Default: tutte.
+   */
+  modalita?: ModalitaIncasso
+  /**
+   * Pacchetti professione FASE 1: se valorizzato, il builder mostra anche
+   * le clausole specifiche della professione (clausola_template) accanto
+   * a quelle standard. Le clausole specifiche sono marcate visivamente e
+   * pre-selezionate (sono "consigliate" per il mestiere).
+   */
+  professioneId?: string | null
 }) {
   const [clauses, setClauses] = useState<StandardClause[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<ModalitaIncasso | 'ALL'>(modalita ?? 'ALL')
 
   useEffect(() => {
     void (async () => {
-      const { data, error } = await (supabase as any).rpc('list_standard_clauses')
-      if (error) { toast.error(error.message); setLoading(false); return }
-      const list = (data ?? []) as StandardClause[]
+      setLoading(true)
+      // 1) Clausole standard (libreria globale)
+      const std = await (supabase as any).rpc('list_standard_clauses')
+      if (std.error) { toast.error(std.error.message); setLoading(false); return }
+      const stdList = (std.data ?? []) as StandardClause[]
+      // 2) Clausole template della professione (se specificata)
+      let proList: StandardClause[] = []
+      if (professioneId) {
+        const { data: tpl, error: terr } = await (supabase as any)
+          .from('clausola_template')
+          .select('id, professione_id, categoria, per_modalita, titolo, body, sort_order')
+          .eq('professione_id', professioneId)
+          .order('sort_order', { ascending: true })
+        if (terr) {
+          // non-bloccante: continuiamo con le standard
+          console.warn('clausola_template fetch error', terr)
+        } else if (tpl) {
+          proList = (tpl as Array<{
+            id: string
+            categoria: string | null
+            per_modalita: ModalitaIncasso | null
+            titolo: string
+            body: string
+            sort_order: number | null
+          }>).map((t) => ({
+            id: `prof:${t.id}`,
+            category: t.categoria ?? 'ALTRE',
+            slug: `prof-${t.id}`,
+            title: t.titolo,
+            body: t.body,
+            placeholders: [],
+            sort_order: t.sort_order ?? 50,
+            is_default: true,
+            per_modalita: t.per_modalita,
+          }))
+        }
+      }
+      const list = [...proList, ...stdList]
       setClauses(list)
-      // preselect defaults
-      setSelected(new Set(list.filter((c) => c.is_default).map((c) => c.id)))
+      // preselect defaults compatibili col filtro corrente
+      const initialFilter = modalita ?? 'ALL'
+      const compatible = (c: StandardClause) =>
+        initialFilter === 'ALL' || c.per_modalita == null || c.per_modalita === initialFilter
+      setSelected(new Set(list.filter((c) => c.is_default && compatible(c)).map((c) => c.id)))
       setLoading(false)
     })()
-  }, [])
+  }, [modalita, professioneId])
 
-  const grouped = clauses.reduce<Record<string, StandardClause[]>>((acc, c) => {
+  // Applica filtro modalita: clausole universali (NULL) + clausole della modalita corrente.
+  const visibleClauses = clauses.filter((c) =>
+    filter === 'ALL' ? true : c.per_modalita == null || c.per_modalita === filter,
+  )
+
+  const grouped = visibleClauses.reduce<Record<string, StandardClause[]>>((acc, c) => {
     (acc[c.category] = acc[c.category] ?? []).push(c)
     return acc
   }, {})
@@ -78,6 +139,8 @@ export function StandardClausesBuilder({
 
   function compose() {
     if (selected.size === 0) return toast.error('Seleziona almeno una clausola')
+    // Considera tutte le clausole selezionate (anche se attualmente filtrate
+    // out: il WP puo` aver scelto prima di cambiare filtro).
     const ordered = clauses
       .filter((c) => selected.has(c.id))
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -108,6 +171,21 @@ export function StandardClausesBuilder({
           </Button>
         </header>
 
+        {/* Filtro modalita_incasso: INTERO | SEGNALAZIONE | TUTTE */}
+        <div className="px-6 pt-3 pb-1 flex flex-wrap items-center gap-2 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-[rgb(var(--fg-muted))]">Modalita</span>
+          {(['ALL', 'INTERO', 'SEGNALAZIONE'] as const).map((m) => {
+            const label = m === 'ALL' ? 'Tutte' : m === 'INTERO' ? 'Incasso intero' : 'Segnalazione'
+            const active = filter === m
+            return (
+              <button key={m} type="button" onClick={() => setFilter(m)}
+                className={`min-h-[36px] px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-[rgb(var(--fg))]' : 'border-[rgb(var(--border-strong))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                {label}
+              </button>
+            )
+          })}
+        </div>
+
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {loading && <p className="text-xs text-[rgb(var(--fg-subtle))]">Caricamento clausole…</p>}
           {!loading && clauses.length === 0 && (
@@ -137,9 +215,14 @@ export function StandardClausesBuilder({
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium text-sm">{c.title}</p>
                             {c.is_default && <span className="text-[10px] text-[rgb(var(--gold-600))]">★</span>}
+                            {c.slug.startsWith('prof-') && (
+                              <span className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] px-1.5 py-0.5 rounded">
+                                Professione
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 line-clamp-3 whitespace-pre-line">
                             {applyPlaceholders(c.body)}

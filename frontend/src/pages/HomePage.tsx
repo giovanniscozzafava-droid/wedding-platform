@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
+import { useNuovoModello } from '@/hooks/useNuovoModello'
 
 type Stats = {
   servicesCount: number
@@ -79,6 +81,7 @@ export default function HomePage() {
   const firstName = (profile?.full_name ?? user?.email ?? '').split(/\s|@/)[0]
 
   const isCapostipite = role === 'WEDDING_PLANNER' || role === 'LOCATION' || role === 'ADMIN'
+  const nuovoModello = useNuovoModello()
 
   return (
     <div className="aurora min-h-full">
@@ -127,6 +130,13 @@ export default function HomePage() {
             accent="ink"
           />
         </div>
+
+        {/* Prossima mossa (workflow guidato) — solo capostipiti (WP/LOCATION/ADMIN) e con feature flag attiva */}
+        {isCapostipite && nuovoModello && (
+          <div className="mb-10">
+            <ProssimaMossa limit={5} />
+          </div>
+        )}
 
         {/* Activity feed */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

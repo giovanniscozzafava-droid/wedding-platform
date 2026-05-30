@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { useWedding } from '@/hooks/useWedding'
 import { StandardClausesBuilder, type ContractSection } from '@/components/wedding/StandardClausesBuilder'
+import { EventoChangesMenu } from '@/components/wedding/EventoChangesMenu'
+import { useNuovoModello } from '@/hooks/useNuovoModello'
 
 type Row = {
   id: string
@@ -34,6 +36,7 @@ const KIND_LABEL: Record<Row['party_kind'], string> = {
 
 export function AllContractsMonitor({ entryId }: { entryId: string }) {
   const { data: wedding } = useWedding(entryId)
+  const nuovoModello = useNuovoModello()
   const [rows, setRows] = useState<Row[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
@@ -119,14 +122,17 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
 
   return (
     <div>
-      <header className="mb-6">
-        <h2 className="font-display text-2xl">Tutti i contratti del wedding</h2>
-        <p className="text-sm text-[rgb(var(--fg-muted))]">
-          Modello business attuale: <strong>{businessModel === 'GLOBAL' ? 'WP gestisce tutto' : 'Sposi clienti diretti dei fornitori'}</strong>.
-          {businessModel === 'GLOBAL'
-            ? ' Il contratto principale è coppia↔WP. Tra te e ogni fornitore serve un impegno separato.'
-            : ' Ogni fornitore firma direttamente con la coppia.'}
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <h2 className="font-display text-2xl">Tutti i contratti del wedding</h2>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">
+            Modello business attuale: <strong>{businessModel === 'GLOBAL' ? 'WP gestisce tutto' : 'Sposi clienti diretti dei fornitori'}</strong>.
+            {businessModel === 'GLOBAL'
+              ? ' Il contratto principale è coppia↔WP. Tra te e ogni fornitore serve un impegno separato.'
+              : ' Ogni fornitore firma direttamente con la coppia.'}
+          </p>
+        </div>
+        {nuovoModello && <EventoChangesMenu entryId={entryId} onChanged={() => void load()} />}
       </header>
 
       {/* Crea contratto fornitore */}

@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { ShieldAlert, Trash2 } from 'lucide-react'
+import { ShieldAlert, Trash2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,9 +12,13 @@ import { ComuneInput } from '@/components/ComuneInput'
 import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { useNuovoModello, useSetNuovoModello } from '@/hooks/useNuovoModello'
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth()
+  const nuovoModello = useNuovoModello()
+  const setNuovoModello = useSetNuovoModello()
+  const [togglingFlag, setTogglingFlag] = useState(false)
   const [form, setForm] = useState({
     full_name: '', business_name: '', phone: '', subrole: '',
     work_style: '', offers_full_dining: false,
@@ -308,6 +312,63 @@ export default function ProfilePage() {
               </Button>
             </Card>
           )}
+
+          {/* Feature flag — Nuovo modello (workflow guidato) */}
+          <Card className="p-6 mt-6">
+            <div className="flex items-start gap-3">
+              <Sparkles className="text-[rgb(var(--gold-600))] shrink-0 mt-0.5" size={20} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <h3 className="font-display text-lg">Nuovo modello</h3>
+                    <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
+                      Attiva il workflow guidato: prossima mossa, salute evento, riconciliazione menu/ospiti,
+                      chat evento, scadenzario, cambiamenti evento.
+                    </p>
+                    {profile?.role !== 'ADMIN' && (
+                      <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">
+                        Funzionalita` in anteprima. Puoi disattivarla in qualunque momento.
+                      </p>
+                    )}
+                  </div>
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none min-h-[44px]"
+                    aria-label={nuovoModello ? 'Disattiva nuovo modello' : 'Attiva nuovo modello'}>
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={nuovoModello}
+                      disabled={togglingFlag}
+                      onChange={async (e) => {
+                        const next = e.target.checked
+                        setTogglingFlag(true)
+                        try {
+                          await setNuovoModello(next)
+                          toast.success(next ? 'Nuovo modello attivato' : 'Nuovo modello disattivato')
+                        } catch (err) {
+                          toast.error((err as Error).message)
+                        } finally {
+                          setTogglingFlag(false)
+                        }
+                      }}
+                    />
+                    <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-[rgb(var(--bg-sunken))] peer-checked:bg-[rgb(var(--gold-500))] transition-colors ring-1 ring-[rgb(var(--border-strong))] peer-disabled:opacity-60">
+                      <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"
+                        style={{ transform: nuovoModello ? 'translateX(20px)' : 'translateX(0)' }} />
+                    </span>
+                    <span className="text-sm font-medium">
+                      {nuovoModello ? 'Attivo' : 'Disattivo'}
+                    </span>
+                  </label>
+                </div>
+                {profile?.role === 'ADMIN' && (
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-3">
+                    Sei admin: vedi e gestisci questo flag globalmente. Per attivarlo su altri profili,
+                    aggiorna `profiles.nuovo_modello_attivo` dal pannello admin.
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
 
           {/* GDPR */}
           <Card className="p-6 mt-6 border-[rgb(var(--rose-200))]">

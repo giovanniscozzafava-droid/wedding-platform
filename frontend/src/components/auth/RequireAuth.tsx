@@ -32,6 +32,10 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     && !location.pathname.startsWith('/couple/accept')) {
     return <Navigate to="/onboarding" replace />
   }
+  // Questionario-once: se il timestamp e` valorizzato, non riapriamo mai il wizard.
+  if (profile?.onboarding_completato_il && location.pathname === '/onboarding') {
+    return <Navigate to="/" replace />
+  }
   // COUPLE: forziamo accesso a /couple (no sidebar capostipite, no /weddings, no /quotes)
   // Eccezioni: /profile, /onboarding, /feed (community), /scopri, /fornitore (vetrine pubbliche), /faq
   if (profile?.role === 'COUPLE'

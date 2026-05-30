@@ -88,8 +88,18 @@ export default function QuoteEditorPage() {
   const [pickSupplier, setPickSupplier] = useState<string>('')
   const [forceUnlocked, setForceUnlocked] = useState(false)
   const [forceModal, setForceModal] = useState<{ open: boolean; reason: string }>({ open: false, reason: '' })
+  // REVISIONE D: ambito dell'incarico del calendar_entry collegato al
+  // preventivo. Quando 'SOLO_PROPRI_SERVIZI' restringiamo l'erogatore al
+  // capostipite stesso (no raccolta da fornitori terzi).
+  const [eventAmbito, setEventAmbito] = useState<'COMPLETO' | 'SOLO_COORDINAMENTO' | 'SOLO_PROPRI_SERVIZI' | null>(null)
 
   const isLocked = (quote?.status === 'ACCETTATO') && !forceUnlocked
+  // SOLO_PROPRI_SERVIZI vale solo se l'utente puo' effettivamente erogare
+  // (WP/LOCATION). Per il flusso fornitore (direct quote o role=FORNITORE)
+  // resta il comportamento standard.
+  const isSoloProprioServizi = eventAmbito === 'SOLO_PROPRI_SERVIZI'
+    && !isFornitoreFlow
+    && (profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION')
 
   // Fetch eventuale contratto già collegato a questo preventivo
   useEffect(() => {
@@ -104,6 +114,27 @@ export default function QuoteEditorPage() {
       if (data) setContractInfo(data as { id: string; status: string })
     })()
   }, [id, quote?.status])
+
+  // REVISIONE D: fetch ambito_capostipite del calendar_entry collegato.
+  // calendar_entries.quote_id -> quotes.id (1:1 logico). Best-effort: se
+  // l'entry non esiste, restiamo su COMPLETO (comportamento standard).
+  useEffect(() => {
+    if (!id) { setEventAmbito(null); return }
+    void (async () => {
+      const { data } = await (supabase
+        .from('calendar_entries')
+        .select('ambito_capostipite' as any) as any)
+        .eq('quote_id', id)
+        .limit(1)
+        .maybeSingle()
+      const v = data?.ambito_capostipite ?? null
+      setEventAmbito(
+        v === 'SOLO_PROPRI_SERVIZI' || v === 'SOLO_COORDINAMENTO' || v === 'COMPLETO'
+          ? v
+          : null,
+      )
+    })()
+  }, [id])
 
   async function handleCreateContract() {
     if (!quote || !id) return
@@ -164,6 +195,15 @@ export default function QuoteEditorPage() {
     return out
   }, [services])
 
+  // REVISIONE D: in SOLO_PROPRI_SERVIZI forza pickSupplier al capostipite
+  // stesso (il dropdown e' nascosto), cosi' la card "Aggiungi voce dal
+  // catalogo" elenca subito i SUOI servizi senza chiedere di scegliere.
+  useEffect(() => {
+    if (isSoloProprioServizi && profile?.id && pickSupplier !== profile.id) {
+      setPickSupplier(profile.id)
+    }
+  }, [isSoloProprioServizi, profile?.id, pickSupplier])
+
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!quote) return <div className="p-10 text-[rgb(var(--rose-500))]">Preventivo non trovato</div>
 
@@ -172,9 +212,14 @@ export default function QuoteEditorPage() {
     const svc = services?.find((s) => s.id === serviceId)
     if (!svc || !quote) return
 
-    // Hard-block: il fornitore NON deve essere occupato nella data del preventivo.
-    // (Il trigger DB blocca comunque l'INSERT — questo è il check UX preventivo.)
-    if (quote.event_date) {
+    // REVISIONE B: se l'erogatore e' il capostipite stesso (WP/LOCATION fornitore
+    // di se' stesso), saltiamo il check di disponibilita' (e' l'evento del capostipite)
+    // e impostiamo il flag no-ricarico.
+    const isSelfCapostipite = supplierId === profile?.id
+
+    if (!isSelfCapostipite && quote.event_date) {
+      // Hard-block: il fornitore NON deve essere occupato nella data del preventivo.
+      // (Il trigger DB blocca comunque l'INSERT — questo è il check UX preventivo.)
       try {
         const { data: conflicts } = await (supabase.rpc as any)('check_suppliers_busy_in_range', {
           p_supplier_ids: [supplierId],
@@ -204,8 +249,12 @@ export default function QuoteEditorPage() {
         name_snapshot: svc.name, description_snapshot: svc.description ?? null,
         unit_snapshot: svc.unit, snapshot_price: svc.base_price, quantity: qty,
         quantity_basis: basis,
-      })
-      toast.success(`Voce aggiunta · ${qty} ${svc.unit.toLowerCase()}`)
+        // REVISIONE B: capostipite come erogatore di se' stesso → no ricarico
+        ...(isSelfCapostipite ? { erogatore_e_capostipite: true } : {}),
+      } as any)
+      toast.success(isSelfCapostipite
+        ? `Mio servizio aggiunto · ${qty} ${svc.unit.toLowerCase()} (no ricarico)`
+        : `Voce aggiunta · ${qty} ${svc.unit.toLowerCase()}`)
     } catch (e) {
       const msg = (e as Error).message
       if (msg.includes('non disponibile')) {
@@ -538,15 +587,33 @@ export default function QuoteEditorPage() {
                 {quote.quote_items.map((it) => {
                   const basis = (it as any).quantity_basis as Basis ?? 'FLAT'
                   const Icon = BASIS_LABEL[basis].icon
+                  const isMio = !!(it as any).erogatore_e_capostipite
                   return (
                     <motion.li key={it.id} layout className="py-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium">{it.name_snapshot}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium">{it.name_snapshot}</p>
+                            {isMio && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                                style={{
+                                  background: 'rgb(var(--gold-100))',
+                                  color: 'rgb(var(--gold-700))',
+                                  border: '1px solid rgb(var(--gold-500))',
+                                }}
+                                title="Erogatore = io · nessun ricarico applicato"
+                              >
+                                ⭐ Mio servizio
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
                             € {Number(it.snapshot_price).toFixed(2)} {it.unit_snapshot.toLowerCase()}
-                            {isFornitoreFlow ? (
-                              <> · <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong></>
+                            {isFornitoreFlow || isMio ? (
+                              <> · <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong>
+                                {isMio && <span className="ml-1">· no ricarico</span>}
+                              </>
                             ) : (
                               <> · costo € {Number(it.line_cost).toLocaleString('it-IT')} · cliente <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong></>
                             )}
@@ -650,23 +717,43 @@ export default function QuoteEditorPage() {
               <h3 className="font-display text-lg">Aggiungi voce dal catalogo</h3>
             </div>
             <div className="space-y-3">
-              {!isFornitoreFlow && (
+              {!isFornitoreFlow && !isSoloProprioServizi && (
                 <div className="flex gap-3 items-end max-w-md">
                   <div className="flex-1 space-y-1">
-                    <Label htmlFor="sup">Fornitore</Label>
+                    <Label htmlFor="sup">Erogatore</Label>
                     <Select id="sup" value={pickSupplier}
                       onChange={(e) => setPickSupplier(e.target.value)}>
                       <option value="">— seleziona —</option>
-                      {Array.from(grouped.entries()).map(([sid]) => {
-                        const sup = suppliers?.find((s) => s.id === sid)
-                        return (
-                          <option key={sid} value={sid}>
-                            {sup?.business_name ?? sup?.full_name ?? sid.slice(0, 8)} {sup?.subrole ? `· ${sup.subrole}` : ''} ({grouped.get(sid)?.length ?? 0})
-                          </option>
-                        )
-                      })}
+                      {/* REVISIONE B: WP/LOCATION puo' essere fornitore di se' stesso (no ricarico) */}
+                      {profile?.id && (profile.role === 'WEDDING_PLANNER' || profile.role === 'LOCATION') && grouped.has(profile.id) && (
+                        <option value={profile.id}>
+                          ⭐ I miei servizi (sono io l'erogatore · no ricarico) ({grouped.get(profile.id)?.length ?? 0})
+                        </option>
+                      )}
+                      {Array.from(grouped.entries())
+                        .filter(([sid]) => sid !== profile?.id)
+                        .map(([sid]) => {
+                          const sup = suppliers?.find((s) => s.id === sid)
+                          return (
+                            <option key={sid} value={sid}>
+                              {sup?.business_name ?? sup?.full_name ?? sid.slice(0, 8)} {sup?.subrole ? `· ${sup.subrole}` : ''} ({grouped.get(sid)?.length ?? 0})
+                            </option>
+                          )
+                        })}
                     </Select>
                   </div>
+                </div>
+              )}
+              {/* REVISIONE D: SOLO_PROPRI_SERVIZI → niente dropdown fornitori,
+                  solo i miei servizi in catalogo (con badge contestuale). */}
+              {!isFornitoreFlow && isSoloProprioServizi && (
+                <div className="rounded-lg border p-3 text-sm max-w-md"
+                  style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+                  <p className="font-medium">⭐ Solo i miei servizi</p>
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
+                    L'incarico e' "{eventAmbito?.replaceAll('_', ' ').toLowerCase()}": componi il preventivo
+                    usando solo il tuo catalogo. Nessun ricarico applicato.
+                  </p>
                 </div>
               )}
               {(pickSupplier || isFornitoreFlow) && (

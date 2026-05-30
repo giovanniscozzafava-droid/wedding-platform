@@ -11,8 +11,11 @@ import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES_WITH_PLACEHOLDER as SUBROLES } from '@/lib/supplierSubroles'
+import { ProfessionPicker } from '@/components/professione/ProfessionPicker'
+import { PackImportPicker } from '@/components/professione/PackImportPicker'
 
 type LegalForm = 'INDIVIDUAL' | 'SRL' | 'SRLS' | 'SPA' | 'SAS' | 'SNC' | 'COOPERATIVE' | 'ASSOCIATION' | 'OTHER' | ''
+type ModalitaIncasso = 'INTERO' | 'SEGNALAZIONE' | ''
 
 type ProviderForm = {
   full_name: string
@@ -20,6 +23,8 @@ type ProviderForm = {
   business_legal_name: string
   legal_form: LegalForm
   subrole: string
+  professione_id: string | null
+  professione_nome: string | null
   phone: string
   vat_number: string
   fiscal_code: string
@@ -35,6 +40,9 @@ type ProviderForm = {
   bio: string
   service_radius_km: number | ''
   years_active: number | ''
+  modalita_incasso_default: ModalitaIncasso
+  parcella_default: number | ''
+  applica_ricarico_default: boolean
 }
 
 const LEGAL_FORM_OPTIONS: Array<{ v: LegalForm; label: string; hint?: string }> = [
@@ -50,7 +58,8 @@ const LEGAL_FORM_OPTIONS: Array<{ v: LegalForm; label: string; hint?: string }> 
   { v: 'OTHER',        label: 'Altro' },
 ]
 
-const STEPS = ['Identità', 'Azienda', 'Contatti', 'Immagine', 'Pronto'] as const
+const STEPS_BASE = ['Identità', 'Professione', 'Azienda', 'Contatti', 'Immagine', 'Pronto'] as const
+const STEPS_WP_LOC = ['Identità', 'Professione', 'Azienda', 'Contatti', 'Modus operandi', 'Immagine', 'Pronto'] as const
 
 export function ProviderOnboardingWizard() {
   const { user, profile, refreshProfile } = useAuth()
@@ -61,22 +70,35 @@ export function ProviderOnboardingWizard() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoUrlPreview] = useState<string | null>(null)
   const [form, setForm] = useState<ProviderForm>({
-    full_name: '', business_name: '', business_legal_name: '', legal_form: '', subrole: '', phone: '',
+    full_name: '', business_name: '', business_legal_name: '', legal_form: '', subrole: '',
+    professione_id: null, professione_nome: null,
+    phone: '',
     vat_number: '', fiscal_code: '', address: '', city: '', zip: '', province: '', country: 'Italia',
     website: '', instagram: '', facebook: '', tiktok: '', bio: '',
     service_radius_km: '', years_active: '',
+    modalita_incasso_default: '', parcella_default: '', applica_ricarico_default: true,
   })
+  const [showPackPicker, setShowPackPicker] = useState(false)
+
+  const isWpOrLocation = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION'
+  const STEPS: readonly string[] = isWpOrLocation ? STEPS_WP_LOC : STEPS_BASE
 
   useEffect(() => {
     if (!profile) return
+    const p = profile as any
     setForm((f) => ({
       ...f,
       full_name: profile.full_name ?? '',
       business_name: profile.business_name ?? '',
-      business_legal_name: (profile as any).business_legal_name ?? '',
-      legal_form: ((profile as any).legal_form ?? '') as LegalForm,
+      business_legal_name: p.business_legal_name ?? '',
+      legal_form: (p.legal_form ?? '') as LegalForm,
       subrole: profile.subrole ?? '',
       phone: profile.phone ?? '',
+      modalita_incasso_default: (p.modalita_incasso_default ?? '') as ModalitaIncasso,
+      parcella_default: p.parcella_default == null ? '' : Number(p.parcella_default),
+      applica_ricarico_default: p.applica_ricarico_default ?? true,
+      professione_id: p.professione_id ?? null,
+      professione_nome: p.professione_nome ?? null,
     }))
   }, [profile])
 
@@ -126,9 +148,18 @@ export function ProviderOnboardingWizard() {
         bio: form.bio || null,
         service_radius_km: form.service_radius_km === '' ? null : form.service_radius_km,
         years_active: form.years_active === '' ? null : form.years_active,
+        ...(isWpOrLocation ? {
+          modalita_incasso_default: form.modalita_incasso_default || null,
+          parcella_default: form.parcella_default === '' ? null : form.parcella_default,
+          applica_ricarico_default: form.applica_ricarico_default,
+        } : {}),
+        // Pacchetti professione FASE 1: salva la professione scelta (opzionale).
+        // Se NULL, il trigger lascia il profilo invariato ed e' il backfill che
+        // ha gia' messo 'generico' come fallback.
+        ...(form.professione_id ? { professione_id: form.professione_id } : {}),
         ...(logoUrl ? { brand_logo_url: logoUrl } : logoUrlPreview ? { brand_logo_url: logoUrlPreview } : {}),
         ...(coverUrl ? { cover_image_url: coverUrl } : {}),
-        ...(complete ? { onboarding_complete: true } : {}),
+        ...(complete ? { onboarding_complete: true, onboarding_completato_il: new Date().toISOString() } : {}),
       }
       const { error } = await (supabase.from('profiles') as any).update(payload).eq('id', user.id)
       if (error) throw error
@@ -152,6 +183,10 @@ export function ProviderOnboardingWizard() {
   function next() {
     if (step === 0 && !form.full_name.trim()) { toast.error('Nome obbligatorio'); return }
     if (step === 0 && !form.subrole) { toast.error('Seleziona il tipo di servizio'); return }
+    if (STEPS[step] === 'Professione' && !form.professione_id) {
+      toast.error('Seleziona la tua professione')
+      return
+    }
     setStep((s) => Math.min(s + 1, totalSteps - 1))
   }
   function prev() { setStep((s) => Math.max(s - 1, 0)) }
@@ -187,7 +222,7 @@ export function ProviderOnboardingWizard() {
               <motion.div key={step}
                 initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                 transition={{ duration: 0.18 }} className="space-y-4">
-                {step === 0 && (
+                {STEPS[step] === 'Identità' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Chi sei</h2>
                     <Field label="Nome pubblico *">
@@ -209,7 +244,53 @@ export function ProviderOnboardingWizard() {
                   </>
                 )}
 
-                {step === 1 && (
+                {STEPS[step] === 'Professione' && (
+                  <>
+                    <h2 className="font-display text-xl mb-2">La tua professione</h2>
+                    <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">
+                      Scegli la tua professione: vestiremo il prodotto con le tue parole
+                      (servizi-tipo, etichette, consigli e clausole). Puoi sempre cambiarla.
+                    </p>
+                    <ProfessionPicker
+                      value={form.professione_id}
+                      onChange={(id, p) => {
+                        patch('professione_id', id)
+                        patch('professione_nome', p.nome)
+                      }}
+                    />
+                    {form.professione_id && form.professione_nome && form.professione_nome !== 'Generico' && (
+                      <div className="mt-4 rounded-lg border p-3 sm:p-4 bg-[rgb(var(--bg-sunken))]" style={{ borderColor: 'rgb(var(--border))' }}>
+                        <div className="flex items-start gap-3 flex-wrap">
+                          <div className="flex-1 min-w-[200px]">
+                            <p className="text-sm font-medium">Vuoi partire dai servizi tipici del tuo mestiere?</p>
+                            <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                              Importa il pacchetto starter di {form.professione_nome}. Modificherai tutto quando vuoi.
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="gold"
+                            className="min-h-[44px]"
+                            onClick={async () => {
+                              // Salviamo subito la professione cosi` PackImportPicker la legge dal profilo.
+                              if (!user) return
+                              const { error } = await (supabase.from('profiles') as any)
+                                .update({ professione_id: form.professione_id })
+                                .eq('id', user.id)
+                              if (error) { toast.error(error.message); return }
+                              await refreshProfile()
+                              setShowPackPicker(true)
+                            }}
+                          >
+                            Importa starter pack
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {STEPS[step] === 'Azienda' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Dati legali</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -283,7 +364,7 @@ export function ProviderOnboardingWizard() {
                   </>
                 )}
 
-                {step === 2 && (
+                {STEPS[step] === 'Contatti' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Contatti & social</h2>
                     <Field label="Telefono"><Input type="tel" value={form.phone} onChange={(e) => patch('phone', e.target.value)} /></Field>
@@ -296,7 +377,45 @@ export function ProviderOnboardingWizard() {
                   </>
                 )}
 
-                {step === 3 && (
+                {STEPS[step] === 'Modus operandi' && (
+                  <>
+                    <h2 className="font-display text-xl mb-2">Modus operandi</h2>
+                    <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">
+                      Come gestisci di solito gli incassi? Lo applichiamo come default sui nuovi eventi: potrai sempre cambiarlo evento per evento.
+                    </p>
+                    <Field label="Modalità di incasso predefinita">
+                      <Select value={form.modalita_incasso_default}
+                        onChange={(e) => patch('modalita_incasso_default', e.target.value as ModalitaIncasso)}>
+                        <option value="">Seleziona…</option>
+                        <option value="INTERO">Intero — incasso tutto io, pago io i fornitori</option>
+                        <option value="SEGNALAZIONE">Segnalazione — incasso solo la mia parcella, il fornitore lo paga il cliente</option>
+                      </Select>
+                    </Field>
+                    <Field label="Parcella di coordinamento/segnalazione (€)">
+                      <Input type="number" min={0} step="0.01" inputMode="decimal"
+                        value={form.parcella_default}
+                        onChange={(e) => patch('parcella_default', e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="Es. 1500" />
+                      <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">
+                        È l&apos;importo che richiedi tipicamente per coordinare o segnalare. Lo useremo come suggerimento sui nuovi eventi.
+                      </p>
+                    </Field>
+                    <div className="flex items-start gap-3 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
+                      <input id="applica_ricarico_default" type="checkbox"
+                        checked={form.applica_ricarico_default}
+                        onChange={(e) => patch('applica_ricarico_default', e.target.checked)}
+                        className="mt-1 h-5 w-5 min-w-[44px] sm:min-w-0 sm:h-4 sm:w-4 accent-[rgb(var(--gold-500))]" />
+                      <label htmlFor="applica_ricarico_default" className="text-sm leading-snug">
+                        Applica di default il mio ricarico ai preventivi
+                        <span className="block text-[11px] text-[rgb(var(--fg-subtle))]">
+                          Se disattivato, ogni nuovo preventivo parte senza ricarico (lo aggiungi a mano quando serve).
+                        </span>
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {STEPS[step] === 'Immagine' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Immagine & racconto</h2>
                     <Field label="Bio breve (max 600 caratteri)">
@@ -309,7 +428,7 @@ export function ProviderOnboardingWizard() {
                   </>
                 )}
 
-                {step === 4 && (
+                {STEPS[step] === 'Pronto' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Tutto pronto</h2>
                     <p className="text-sm text-[rgb(var(--fg-muted))]">
@@ -318,6 +437,7 @@ export function ProviderOnboardingWizard() {
                     </p>
                     <div className="rounded-lg border p-4 text-sm space-y-1" style={{ borderColor: 'rgb(var(--border))' }}>
                       <p><strong>Tipo:</strong> {SUBROLES.find((s) => s.v === form.subrole)?.l ?? '—'}</p>
+                      <p><strong>Professione:</strong> {form.professione_nome ?? '—'}</p>
                       <p><strong>Città:</strong> {form.city || '—'}</p>
                       <p><strong>Sito:</strong> {form.website || '—'}</p>
                       <p><strong>P.IVA:</strong> {form.vat_number || '—'}</p>
@@ -348,6 +468,13 @@ export function ProviderOnboardingWizard() {
           Puoi anche <button onClick={() => save(false)} className="underline hover:text-[rgb(var(--fg))]">salvare in bozza</button> e completare dopo.
         </p>
       </div>
+
+      {showPackPicker && (
+        <PackImportPicker
+          onClose={() => setShowPackPicker(false)}
+          onImported={() => setShowPackPicker(false)}
+        />
+      )}
     </div>
   )
 }

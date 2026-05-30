@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion, Reorder } from 'framer-motion'
-import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check } from 'lucide-react'
+import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check, PackageCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,8 @@ import { ServiceForm } from '@/components/catalog/ServiceForm'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useDeleteService, useReorderServices, useServices, type ServiceWithExtras } from '@/hooks/useCatalog'
 import { useSuppliers } from '@/hooks/useSuppliers'
+import { useProfessione } from '@/hooks/useProfessione'
+import { PackImportPicker } from '@/components/professione/PackImportPicker'
 
 type Filters = {
   q: string
@@ -26,10 +28,12 @@ export default function CatalogPage() {
   const { profile } = useAuth()
   const { data, isLoading, error } = useServices({ onlyActive: false })
   const { data: suppliers } = useSuppliers()
+  const { data: professione } = useProfessione()
   const del = useDeleteService()
   const [editing, setEditing] = useState<ServiceWithExtras | null>(null)
   const [viewing, setViewing] = useState<ServiceWithExtras | null>(null)
   const [creating, setCreating] = useState(false)
+  const [showPackPicker, setShowPackPicker] = useState(false)
   const [reorderMode, setReorderMode] = useState(false)
   const [reorderList, setReorderList] = useState<ServiceWithExtras[]>([])
   const reorder = useReorderServices()
@@ -103,16 +107,22 @@ export default function CatalogPage() {
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader
-          eyebrow="Catalogo"
-          title={isProvider ? 'I tuoi servizi' : 'Catalogo di rete'}
+          eyebrow={professione?.nome ?? 'Catalogo'}
+          title={
+            isProvider
+              ? (professione?.etichette.catalogo_label ?? 'I tuoi servizi')
+              : 'Catalogo di rete'
+          }
           description={
             isProvider
-              ? 'Servizi raggruppati per categoria. Aggiorna prezzi e foto in qualsiasi momento.'
+              ? (professione?.etichette.servizio_label
+                  ? `${professione.etichette.servizio_label}. Aggiorna prezzi e foto in qualsiasi momento.`
+                  : 'Servizi raggruppati per categoria. Aggiorna prezzi e foto in qualsiasi momento.')
               : `${filtered.length} servizi visibili dai tuoi ${suppliers?.length ?? 0} fornitori collaboranti.`
           }
           actions={
             isProvider && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {!reorderMode ? (
                   <Button variant="outline" onClick={() => {
                     setReorderList([...filtered].sort((a, b) => {
@@ -141,6 +151,11 @@ export default function CatalogPage() {
                       <Check /> {reorder.isPending ? 'Salvataggio…' : 'Salva ordine'}
                     </Button>
                   </>
+                )}
+                {professione && professione.slug !== 'generico' && (
+                  <Button variant="outline" onClick={() => setShowPackPicker(true)} data-testid="import-pack-btn">
+                    <PackageCheck /> Starter pack
+                  </Button>
                 )}
                 <Button variant="gold" onClick={() => setCreating(true)} data-testid="new-service-btn">
                   <Plus /> Nuovo servizio
@@ -222,7 +237,12 @@ export default function CatalogPage() {
         {error && <p className="text-[rgb(var(--rose-500))]">{(error as Error).message}</p>}
 
         {!isLoading && filtered.length === 0 && (
-          <EmptyState isProvider={isProvider} onCreate={() => setCreating(true)} />
+          <EmptyState
+            isProvider={isProvider}
+            onCreate={() => setCreating(true)}
+            emptyLabel={professione?.etichette.empty_state ?? null}
+            onImport={professione && professione.slug !== 'generico' ? () => setShowPackPicker(true) : undefined}
+          />
         )}
 
         {/* Vista capostipite: raggruppa per fornitore */}
@@ -319,6 +339,13 @@ export default function CatalogPage() {
       )}
 
       {viewing && <ServiceDetailModal s={viewing} onClose={() => setViewing(null)} />}
+
+      {showPackPicker && (
+        <PackImportPicker
+          onClose={() => setShowPackPicker(false)}
+          onImported={() => setShowPackPicker(false)}
+        />
+      )}
     </div>
   )
 }
@@ -439,23 +466,37 @@ function ServiceCard({ s, isProvider, onEdit, onDelete, onView }: {
   )
 }
 
-function EmptyState({ isProvider, onCreate }: { isProvider: boolean; onCreate: () => void }) {
+function EmptyState({ isProvider, onCreate, emptyLabel, onImport }: {
+  isProvider: boolean
+  onCreate: () => void
+  emptyLabel?: string | null
+  onImport?: () => void
+}) {
   return (
-    <div className="surface surface-elev p-12 text-center max-w-xl mx-auto">
+    <div className="surface surface-elev p-8 sm:p-12 text-center max-w-xl mx-auto">
       <span className="inline-flex h-12 w-12 items-center justify-center rounded-full mb-4"
         style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
         <Sparkles size={20} />
       </span>
-      <h3 className="font-display text-xl mb-1">Nessun servizio</h3>
+      <h3 className="font-display text-xl mb-1">
+        {emptyLabel ?? 'Nessun servizio'}
+      </h3>
       <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
         {isProvider
-          ? 'Inizia aggiungendo il tuo primo servizio.'
+          ? 'Inizia aggiungendo il tuo primo servizio o importa lo starter pack della tua professione.'
           : 'Aggiungi fornitori dalla pagina Rete per vedere i loro cataloghi.'}
       </p>
       {isProvider && (
-        <Button variant="gold" onClick={onCreate}>
-          <Plus /> Crea il primo servizio
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          {onImport && (
+            <Button variant="outline" onClick={onImport} className="min-h-[44px]">
+              <PackageCheck /> Importa starter pack
+            </Button>
+          )}
+          <Button variant="gold" onClick={onCreate} className="min-h-[44px]">
+            <Plus /> Crea il primo servizio
+          </Button>
+        </div>
       )}
     </div>
   )

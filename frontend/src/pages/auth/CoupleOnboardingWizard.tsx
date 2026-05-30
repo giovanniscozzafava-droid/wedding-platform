@@ -169,8 +169,9 @@ export function CoupleOnboardingWizard() {
       // Non sovrascrivere full_name dell'auth user con il couple_name: full_name è il nome del singolo.
       // Imposta full_name solo se ancora vuoto, usando bride_name o groom_name appropriato.
       const myFirstName = form.bride_name || form.groom_name || null
-      await supabase.from('profiles').update({
+      await (supabase.from('profiles') as any).update({
         onboarding_complete: true,
+        onboarding_completato_il: new Date().toISOString(),
         ...(myFirstName ? { full_name: myFirstName } : {}),
       }).eq('id', user.id)
       await refreshProfile()
