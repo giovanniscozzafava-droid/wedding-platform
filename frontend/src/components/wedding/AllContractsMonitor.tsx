@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { useWedding } from '@/hooks/useWedding'
 import { StandardClausesBuilder, type ContractSection } from '@/components/wedding/StandardClausesBuilder'
 import { EventoChangesMenu } from '@/components/wedding/EventoChangesMenu'
+import { useNuovoModello } from '@/hooks/useNuovoModello'
 
 type Row = {
   id: string
@@ -35,6 +36,7 @@ const KIND_LABEL: Record<Row['party_kind'], string> = {
 
 export function AllContractsMonitor({ entryId }: { entryId: string }) {
   const { data: wedding } = useWedding(entryId)
+  const nuovoModello = useNuovoModello()
   const [rows, setRows] = useState<Row[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,7 +132,7 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
               : ' Ogni fornitore firma direttamente con la coppia.'}
           </p>
         </div>
-        <EventoChangesMenu entryId={entryId} onChanged={() => void load()} />
+        {nuovoModello && <EventoChangesMenu entryId={entryId} onChanged={() => void load()} />}
       </header>
 
       {/* Crea contratto fornitore */}

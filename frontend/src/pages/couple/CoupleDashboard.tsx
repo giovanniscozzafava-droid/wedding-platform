@@ -26,6 +26,8 @@ import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
+import { SaluteEventoBadge } from '@/components/wedding/SaluteEventoBadge'
+import { useNuovoModello } from '@/hooks/useNuovoModello'
 
 type Tab = 'overview' | 'preventivo' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
@@ -227,11 +229,19 @@ function OverviewCouple({ wedding, entryId, memberRole }: { wedding: any; entryI
   const guests = useGuests(entryId)
   const subevents = useSubEvents(entryId)
   const yes = (guests.data ?? []).filter((g: any) => g.rsvp === 'YES').length
+  const nuovoModello = useNuovoModello()
 
   return (
     <div className="space-y-6">
       {/* Prossima mossa per la coppia su questo matrimonio (workflow guidato) */}
-      <ProssimaMossa entryId={entryId} title="La vostra prossima mossa" limit={5} />
+      {nuovoModello && (
+        <>
+          <div className="flex items-center justify-end">
+            <SaluteEventoBadge entryId={entryId} />
+          </div>
+          <ProssimaMossa entryId={entryId} title="La vostra prossima mossa" limit={5} />
+        </>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">

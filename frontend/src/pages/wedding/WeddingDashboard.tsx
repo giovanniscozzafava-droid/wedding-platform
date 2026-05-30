@@ -34,6 +34,8 @@ import { AllContractsMonitor } from '@/components/wedding/AllContractsMonitor'
 import { PagamentiTab } from '@/components/wedding/PagamentiTab'
 import { RiconciliazioneCard } from '@/components/wedding/RiconciliazioneCard'
 import { ChatEvento } from '@/components/wedding/ChatEvento'
+import { SaluteEventoBadge } from '@/components/wedding/SaluteEventoBadge'
+import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { RateCollaborationModal } from '@/components/social/RateCollaborationModal'
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -41,7 +43,9 @@ import { cn } from '@/lib/utils'
 
 type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat'
 
-const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = [
+type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean }
+
+const TABS: Array<TabDef> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
   { key: 'planning',       label: 'Questionario', icon: ClipboardList },
   { key: 'ceremony',       label: 'Cerimonia',    icon: Church },
@@ -57,8 +61,8 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = 
   { key: 'playlist',       label: 'Playlist',     icon: Music },
   { key: 'budget',         label: 'Budget',       icon: Wallet },
   { key: 'payments',       label: 'Pagamenti',    icon: Wallet },
-  { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale },
-  { key: 'chat',           label: 'Chat',         icon: MessageCircle },
+  { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale, nuovoModelloOnly: true },
+  { key: 'chat',           label: 'Chat',         icon: MessageCircle, nuovoModelloOnly: true },
   { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
   { key: 'contract',       label: 'Contratto',    icon: FileSignature },
   { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature },
@@ -73,11 +77,13 @@ export default function WeddingDashboard() {
   const { data: wedding, isLoading } = useWedding(id ?? null)
   const [tab, setTab] = useState<TabKey>('overview')
   const [rateOpen, setRateOpen] = useState(false)
+  const nuovoModello = useNuovoModello()
 
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!wedding) return <div className="p-10 text-[rgb(var(--rose-500))]">Wedding non trovato</div>
 
   const eventPassed = wedding.date_to ? new Date(wedding.date_to) < new Date() : false
+  const visibleTabs = TABS.filter((t) => !t.nuovoModelloOnly || nuovoModello)
 
   return (
     <div className="min-h-full">
@@ -101,6 +107,7 @@ export default function WeddingDashboard() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge status={wedding.status} />
+              {nuovoModello && <SaluteEventoBadge entryId={wedding.id} />}
               <BusinessModelToggle wedding={wedding} />
               {wedding.value_amount && (
                 <span className="font-display text-2xl tabular-nums" style={{ color: 'rgb(var(--gold-700))' }}>
@@ -120,7 +127,7 @@ export default function WeddingDashboard() {
         <div className="border-t relative z-20" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
           <div className="max-w-7xl mx-auto px-6 sm:px-10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <div className="flex gap-1 py-2 min-w-max">
-              {TABS.map((t) => {
+              {visibleTabs.map((t) => {
                 const Icon = t.icon
                 const active = tab === t.key
                 return (
@@ -164,8 +171,8 @@ export default function WeddingDashboard() {
             {tab === 'menu' && <MenuTab entryId={wedding.id} />}
             {tab === 'budget' && <BudgetTab entryId={wedding.id} />}
             {tab === 'payments' && <PagamentiTab entryId={wedding.id} />}
-            {tab === 'riconciliazione' && <RiconciliazioneCard entryId={wedding.id} />}
-            {tab === 'chat' && <ChatEvento entryId={wedding.id} />}
+            {tab === 'riconciliazione' && nuovoModello && <RiconciliazioneCard entryId={wedding.id} />}
+            {tab === 'chat' && nuovoModello && <ChatEvento entryId={wedding.id} />}
             {tab === 'checklist' && <ChecklistTab entryId={wedding.id} />}
             {tab === 'mood' && <MoodTab entryId={wedding.id} />}
             {tab === 'playlist' && <PlaylistTab entryId={wedding.id} />}
