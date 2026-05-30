@@ -225,6 +225,7 @@ export default function QuoteEditorPage() {
           p_supplier_ids: [supplierId],
           p_date_from: quote.event_date,
           p_date_to: quote.event_date,
+          p_exclude_quote_id: quote.id,
         })
         const busyConflict = (conflicts as Array<{ status: string; conflict_date: string; supplier_business_name?: string; supplier_full_name?: string }> | null)
           ?.find((c) => c.status === 'BUSY')
@@ -565,10 +566,12 @@ export default function QuoteEditorPage() {
           </div>
         )}
 
-        {/* Banner disponibilità fornitori (mostra conflitti BUSY/TENTATIVE) */}
+        {/* Banner disponibilità fornitori (mostra conflitti BUSY/TENTATIVE).
+            excludeQuoteId: il quote stesso ha generato i BUSY se ACCETTATO -> escludo. */}
         <AvailabilityBanner
           date={quote.event_date ?? null}
           supplierIds={Array.from(new Set((quote.quote_items ?? []).map((it: any) => it.supplier_id).filter(Boolean)))}
+          excludeQuoteId={quote.id}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

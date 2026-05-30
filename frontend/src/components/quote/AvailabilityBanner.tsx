@@ -19,6 +19,8 @@ type Props = {
   supplierIds: string[]
   /** opzionale: range (per matrimoni che coprono più giorni). */
   dateTo?: string | null
+  /** opzionale: id del quote corrente — esclude i BUSY che lui stesso ha generato. */
+  excludeQuoteId?: string | null
 }
 
 /**
@@ -26,7 +28,7 @@ type Props = {
  * fornitore-data. Si aggiorna ogni volta che cambia la lista fornitori o la
  * data del preventivo.
  */
-export function AvailabilityBanner({ date, dateTo, supplierIds }: Props) {
+export function AvailabilityBanner({ date, dateTo, supplierIds, excludeQuoteId }: Props) {
   const [conflicts, setConflicts] = useState<Conflict[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -43,6 +45,7 @@ export function AvailabilityBanner({ date, dateTo, supplierIds }: Props) {
           p_supplier_ids: supplierIds,
           p_date_from: date,
           p_date_to: dateTo ?? date,
+          p_exclude_quote_id: excludeQuoteId ?? null,
         })
         if (!cancelled) {
           if (error) {
@@ -56,7 +59,7 @@ export function AvailabilityBanner({ date, dateTo, supplierIds }: Props) {
       }
     })()
     return () => { cancelled = true }
-  }, [date, dateTo, JSON.stringify(supplierIds)])
+  }, [date, dateTo, JSON.stringify(supplierIds), excludeQuoteId])
 
   if (!date || supplierIds.length === 0) return null
   if (loading) return null
