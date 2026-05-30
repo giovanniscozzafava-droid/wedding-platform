@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
-  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Newspaper, Church, ClipboardList,
+  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Church, ClipboardList,
 } from 'lucide-react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -101,9 +101,7 @@ export default function CoupleDashboard() {
               title={profile?.full_name ?? user?.email ?? undefined}>
               {(profile?.full_name ?? user?.email ?? '?').split(/\s+|@/).filter(Boolean).slice(0, 2).map((s) => s[0]!.toUpperCase()).join('')}
             </span>
-            <Link to="/feed" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Feed del network" aria-label="Feed">
-              <Newspaper size={14} />
-            </Link>
+            {/* Feed network = solo professionisti (WP/fornitori). La coppia non lo vede. */}
             <Link to="/faq" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Domande frequenti" aria-label="FAQ">
               <HelpCircle size={14} />
             </Link>
