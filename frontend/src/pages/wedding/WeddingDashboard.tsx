@@ -5,6 +5,7 @@ import {
   ArrowLeft, CalendarClock, Table2, Users as UsersIcon, Wallet, ListChecks,
   Palette, Music, FileSignature, FolderOpen, BarChart3, FileText,
   BedDouble, Bus, Gift, PartyPopper, Globe, Heart, Utensils, Church, ClipboardList,
+  Scale,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -31,12 +32,13 @@ import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AllContractsMonitor } from '@/components/wedding/AllContractsMonitor'
 import { PagamentiTab } from '@/components/wedding/PagamentiTab'
+import { RiconciliazioneCard } from '@/components/wedding/RiconciliazioneCard'
 import { RateCollaborationModal } from '@/components/social/RateCollaborationModal'
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
+type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione'
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
@@ -54,6 +56,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = 
   { key: 'playlist',       label: 'Playlist',     icon: Music },
   { key: 'budget',         label: 'Budget',       icon: Wallet },
   { key: 'payments',       label: 'Pagamenti',    icon: Wallet },
+  { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale },
   { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
   { key: 'contract',       label: 'Contratto',    icon: FileSignature },
   { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature },
@@ -159,6 +162,7 @@ export default function WeddingDashboard() {
             {tab === 'menu' && <MenuTab entryId={wedding.id} />}
             {tab === 'budget' && <BudgetTab entryId={wedding.id} />}
             {tab === 'payments' && <PagamentiTab entryId={wedding.id} />}
+            {tab === 'riconciliazione' && <RiconciliazioneCard entryId={wedding.id} />}
             {tab === 'checklist' && <ChecklistTab entryId={wedding.id} />}
             {tab === 'mood' && <MoodTab entryId={wedding.id} />}
             {tab === 'playlist' && <PlaylistTab entryId={wedding.id} />}
