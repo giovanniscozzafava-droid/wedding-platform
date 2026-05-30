@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES_WITH_PLACEHOLDER as SUBROLES } from '@/lib/supplierSubroles'
 
 type LegalForm = 'INDIVIDUAL' | 'SRL' | 'SRLS' | 'SPA' | 'SAS' | 'SNC' | 'COOPERATIVE' | 'ASSOCIATION' | 'OTHER' | ''
+type ModalitaIncasso = 'INTERO' | 'SEGNALAZIONE' | ''
 
 type ProviderForm = {
   full_name: string
@@ -35,6 +36,9 @@ type ProviderForm = {
   bio: string
   service_radius_km: number | ''
   years_active: number | ''
+  modalita_incasso_default: ModalitaIncasso
+  parcella_default: number | ''
+  applica_ricarico_default: boolean
 }
 
 const LEGAL_FORM_OPTIONS: Array<{ v: LegalForm; label: string; hint?: string }> = [
@@ -50,7 +54,8 @@ const LEGAL_FORM_OPTIONS: Array<{ v: LegalForm; label: string; hint?: string }> 
   { v: 'OTHER',        label: 'Altro' },
 ]
 
-const STEPS = ['Identità', 'Azienda', 'Contatti', 'Immagine', 'Pronto'] as const
+const STEPS_BASE = ['Identità', 'Azienda', 'Contatti', 'Immagine', 'Pronto'] as const
+const STEPS_WP_LOC = ['Identità', 'Azienda', 'Contatti', 'Modus operandi', 'Immagine', 'Pronto'] as const
 
 export function ProviderOnboardingWizard() {
   const { user, profile, refreshProfile } = useAuth()
@@ -65,18 +70,26 @@ export function ProviderOnboardingWizard() {
     vat_number: '', fiscal_code: '', address: '', city: '', zip: '', province: '', country: 'Italia',
     website: '', instagram: '', facebook: '', tiktok: '', bio: '',
     service_radius_km: '', years_active: '',
+    modalita_incasso_default: '', parcella_default: '', applica_ricarico_default: true,
   })
+
+  const isWpOrLocation = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION'
+  const STEPS: readonly string[] = isWpOrLocation ? STEPS_WP_LOC : STEPS_BASE
 
   useEffect(() => {
     if (!profile) return
+    const p = profile as any
     setForm((f) => ({
       ...f,
       full_name: profile.full_name ?? '',
       business_name: profile.business_name ?? '',
-      business_legal_name: (profile as any).business_legal_name ?? '',
-      legal_form: ((profile as any).legal_form ?? '') as LegalForm,
+      business_legal_name: p.business_legal_name ?? '',
+      legal_form: (p.legal_form ?? '') as LegalForm,
       subrole: profile.subrole ?? '',
       phone: profile.phone ?? '',
+      modalita_incasso_default: (p.modalita_incasso_default ?? '') as ModalitaIncasso,
+      parcella_default: p.parcella_default == null ? '' : Number(p.parcella_default),
+      applica_ricarico_default: p.applica_ricarico_default ?? true,
     }))
   }, [profile])
 
@@ -126,9 +139,14 @@ export function ProviderOnboardingWizard() {
         bio: form.bio || null,
         service_radius_km: form.service_radius_km === '' ? null : form.service_radius_km,
         years_active: form.years_active === '' ? null : form.years_active,
+        ...(isWpOrLocation ? {
+          modalita_incasso_default: form.modalita_incasso_default || null,
+          parcella_default: form.parcella_default === '' ? null : form.parcella_default,
+          applica_ricarico_default: form.applica_ricarico_default,
+        } : {}),
         ...(logoUrl ? { brand_logo_url: logoUrl } : logoUrlPreview ? { brand_logo_url: logoUrlPreview } : {}),
         ...(coverUrl ? { cover_image_url: coverUrl } : {}),
-        ...(complete ? { onboarding_complete: true } : {}),
+        ...(complete ? { onboarding_complete: true, onboarding_completato_il: new Date().toISOString() } : {}),
       }
       const { error } = await (supabase.from('profiles') as any).update(payload).eq('id', user.id)
       if (error) throw error
@@ -187,7 +205,7 @@ export function ProviderOnboardingWizard() {
               <motion.div key={step}
                 initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                 transition={{ duration: 0.18 }} className="space-y-4">
-                {step === 0 && (
+                {STEPS[step] === 'Identità' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Chi sei</h2>
                     <Field label="Nome pubblico *">
@@ -209,7 +227,7 @@ export function ProviderOnboardingWizard() {
                   </>
                 )}
 
-                {step === 1 && (
+                {STEPS[step] === 'Azienda' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Dati legali</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -283,7 +301,7 @@ export function ProviderOnboardingWizard() {
                   </>
                 )}
 
-                {step === 2 && (
+                {STEPS[step] === 'Contatti' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Contatti & social</h2>
                     <Field label="Telefono"><Input type="tel" value={form.phone} onChange={(e) => patch('phone', e.target.value)} /></Field>
@@ -296,7 +314,45 @@ export function ProviderOnboardingWizard() {
                   </>
                 )}
 
-                {step === 3 && (
+                {STEPS[step] === 'Modus operandi' && (
+                  <>
+                    <h2 className="font-display text-xl mb-2">Modus operandi</h2>
+                    <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">
+                      Come gestisci di solito gli incassi? Lo applichiamo come default sui nuovi eventi: potrai sempre cambiarlo evento per evento.
+                    </p>
+                    <Field label="Modalità di incasso predefinita">
+                      <Select value={form.modalita_incasso_default}
+                        onChange={(e) => patch('modalita_incasso_default', e.target.value as ModalitaIncasso)}>
+                        <option value="">Seleziona…</option>
+                        <option value="INTERO">Intero — incasso tutto io, pago io i fornitori</option>
+                        <option value="SEGNALAZIONE">Segnalazione — incasso solo la mia parcella, il fornitore lo paga il cliente</option>
+                      </Select>
+                    </Field>
+                    <Field label="Parcella di coordinamento/segnalazione (€)">
+                      <Input type="number" min={0} step="0.01" inputMode="decimal"
+                        value={form.parcella_default}
+                        onChange={(e) => patch('parcella_default', e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="Es. 1500" />
+                      <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">
+                        È l&apos;importo che richiedi tipicamente per coordinare o segnalare. Lo useremo come suggerimento sui nuovi eventi.
+                      </p>
+                    </Field>
+                    <div className="flex items-start gap-3 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
+                      <input id="applica_ricarico_default" type="checkbox"
+                        checked={form.applica_ricarico_default}
+                        onChange={(e) => patch('applica_ricarico_default', e.target.checked)}
+                        className="mt-1 h-5 w-5 min-w-[44px] sm:min-w-0 sm:h-4 sm:w-4 accent-[rgb(var(--gold-500))]" />
+                      <label htmlFor="applica_ricarico_default" className="text-sm leading-snug">
+                        Applica di default il mio ricarico ai preventivi
+                        <span className="block text-[11px] text-[rgb(var(--fg-subtle))]">
+                          Se disattivato, ogni nuovo preventivo parte senza ricarico (lo aggiungi a mano quando serve).
+                        </span>
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {STEPS[step] === 'Immagine' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Immagine & racconto</h2>
                     <Field label="Bio breve (max 600 caratteri)">
@@ -309,7 +365,7 @@ export function ProviderOnboardingWizard() {
                   </>
                 )}
 
-                {step === 4 && (
+                {STEPS[step] === 'Pronto' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Tutto pronto</h2>
                     <p className="text-sm text-[rgb(var(--fg-muted))]">

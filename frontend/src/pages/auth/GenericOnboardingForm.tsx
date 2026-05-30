@@ -24,10 +24,11 @@ export function GenericOnboardingForm() {
     if (!user) return
     setError(null); setBusy(true)
     try {
-      const { error: err } = await supabase.from('profiles').update({
+      const { error: err } = await (supabase.from('profiles') as any).update({
         full_name: form.full_name,
         phone: form.phone || null,
         onboarding_complete: true,
+        onboarding_completato_il: new Date().toISOString(),
       }).eq('id', user.id)
       if (err) throw err
       await refreshProfile()
