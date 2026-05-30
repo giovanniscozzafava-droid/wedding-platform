@@ -43,7 +43,11 @@ export default function QuoteAcceptPage() {
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<{ acceptance_pdf_url?: string | null } | null>(null)
 
-  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0)
+  // Lo step 0 (questionario "Raccontaci il matrimonio") duplica dati che il
+  // WP ha gia` raccolto nel lead/preventivo (nome coppia, data, tipo evento).
+  // Default: si parte da step 1 (firma). Il questionario di personalizzazione
+  // verra` riproposto nel portale coppia post-firma.
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(1)
   const [eventKind, setEventKind] = useState<string>('matrimonio')
   const [ownerSubrole, setOwnerSubrole] = useState<string | null>(null)
   const [isSupplierDirect, setIsSupplierDirect] = useState(false)
@@ -242,9 +246,9 @@ export default function QuoteAcceptPage() {
           </div>
         </div>
 
-        {/* Steps progress */}
+        {/* Steps progress (step 0 questionario nascosto: gia` raccolto dal WP) */}
         <div className="flex items-center gap-1 mb-4 px-2">
-          {[0, 1, 2, 3, 4].map((n) => (
+          {[1, 2, 3, 4].map((n) => (
             <div key={n} className="flex-1 h-1.5 rounded-full transition-colors"
               style={{ background: step >= (n as 0 | 1 | 2 | 3 | 4) ? 'rgb(var(--gold-500))' : 'rgb(var(--bg-sunken))' }} />
           ))}
