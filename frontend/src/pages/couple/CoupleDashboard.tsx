@@ -25,6 +25,7 @@ import { TablesTab } from '@/components/wedding/TablesTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AppFooter } from '@/components/layout/AppFooter'
+import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 
 type Tab = 'overview' | 'preventivo' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
@@ -228,28 +229,33 @@ function OverviewCouple({ wedding, entryId, memberRole }: { wedding: any; entryI
   const yes = (guests.data ?? []).filter((g: any) => g.rsvp === 'YES').length
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="p-6">
-        <Badge tone="gold">{memberRole}</Badge>
-        <h2 className="font-display text-xl mt-3 mb-3">Riepilogo</h2>
-        <dl className="space-y-2 text-sm">
-          <Row k="Wedding planner" v={wedding.owner?.business_name ?? wedding.owner?.full_name ?? '—'} />
-          <Row k="Data" v={new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} />
-          <Row k="Invitati confermati" v={`${yes} / ${wedding.guest_count ?? '?'}`} />
-          <Row k="Programma" v={`${subevents.data?.length ?? 0} eventi`} />
-          {wedding.is_destination && <Row k="Destination" v={wedding.destination_location ?? '—'} />}
-        </dl>
-      </Card>
-      <Card className="p-6">
-        <h2 className="font-display text-xl mb-3">Note del planner</h2>
-        <p className="text-sm text-[rgb(var(--fg-muted))]">
-          {wedding.client_name && `Per: ${wedding.client_name}`}
-        </p>
-        <p className="text-sm mt-3">
-          Le info sensibili (note interne, valore economico) sono riservate al wedding planner.
-          Voi vedete tutto cio` che riguarda la vostra esperienza il giorno del matrimonio.
-        </p>
-      </Card>
+    <div className="space-y-6">
+      {/* Prossima mossa per la coppia su questo matrimonio (workflow guidato) */}
+      <ProssimaMossa entryId={entryId} title="La vostra prossima mossa" limit={5} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <Badge tone="gold">{memberRole}</Badge>
+          <h2 className="font-display text-xl mt-3 mb-3">Riepilogo</h2>
+          <dl className="space-y-2 text-sm">
+            <Row k="Wedding planner" v={wedding.owner?.business_name ?? wedding.owner?.full_name ?? '—'} />
+            <Row k="Data" v={new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} />
+            <Row k="Invitati confermati" v={`${yes} / ${wedding.guest_count ?? '?'}`} />
+            <Row k="Programma" v={`${subevents.data?.length ?? 0} eventi`} />
+            {wedding.is_destination && <Row k="Destination" v={wedding.destination_location ?? '—'} />}
+          </dl>
+        </Card>
+        <Card className="p-6">
+          <h2 className="font-display text-xl mb-3">Note del planner</h2>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">
+            {wedding.client_name && `Per: ${wedding.client_name}`}
+          </p>
+          <p className="text-sm mt-3">
+            Le info sensibili (note interne, valore economico) sono riservate al wedding planner.
+            Voi vedete tutto cio` che riguarda la vostra esperienza il giorno del matrimonio.
+          </p>
+        </Card>
+      </div>
     </div>
   )
 }
