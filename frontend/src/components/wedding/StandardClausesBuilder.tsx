@@ -9,6 +9,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
+export type ModalitaIncasso = 'INTERO' | 'SEGNALAZIONE'
+
 export type StandardClause = {
   id: string
   category: string
@@ -18,6 +20,7 @@ export type StandardClause = {
   placeholders: string[]
   sort_order: number
   is_default: boolean
+  per_modalita: ModalitaIncasso | null
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -38,14 +41,21 @@ export type ContractSection = { heading: string; body: string; slug?: string }
 export function StandardClausesBuilder({
   onClose, onComposed,
   placeholders = {},
+  modalita,
 }: {
   onClose: () => void
   onComposed: (sections: ContractSection[]) => void
   placeholders?: Record<string, string>
+  /**
+   * Modalita di incasso target. Se valorizzata, il builder filtra le clausole
+   * con per_modalita = quella specifica o NULL (universali). Default: tutte.
+   */
+  modalita?: ModalitaIncasso
 }) {
   const [clauses, setClauses] = useState<StandardClause[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<ModalitaIncasso | 'ALL'>(modalita ?? 'ALL')
 
   useEffect(() => {
     void (async () => {
@@ -53,13 +63,21 @@ export function StandardClausesBuilder({
       if (error) { toast.error(error.message); setLoading(false); return }
       const list = (data ?? []) as StandardClause[]
       setClauses(list)
-      // preselect defaults
-      setSelected(new Set(list.filter((c) => c.is_default).map((c) => c.id)))
+      // preselect defaults compatibili col filtro corrente
+      const initialFilter = modalita ?? 'ALL'
+      const compatible = (c: StandardClause) =>
+        initialFilter === 'ALL' || c.per_modalita == null || c.per_modalita === initialFilter
+      setSelected(new Set(list.filter((c) => c.is_default && compatible(c)).map((c) => c.id)))
       setLoading(false)
     })()
-  }, [])
+  }, [modalita])
 
-  const grouped = clauses.reduce<Record<string, StandardClause[]>>((acc, c) => {
+  // Applica filtro modalita: clausole universali (NULL) + clausole della modalita corrente.
+  const visibleClauses = clauses.filter((c) =>
+    filter === 'ALL' ? true : c.per_modalita == null || c.per_modalita === filter,
+  )
+
+  const grouped = visibleClauses.reduce<Record<string, StandardClause[]>>((acc, c) => {
     (acc[c.category] = acc[c.category] ?? []).push(c)
     return acc
   }, {})
@@ -78,6 +96,8 @@ export function StandardClausesBuilder({
 
   function compose() {
     if (selected.size === 0) return toast.error('Seleziona almeno una clausola')
+    // Considera tutte le clausole selezionate (anche se attualmente filtrate
+    // out: il WP puo` aver scelto prima di cambiare filtro).
     const ordered = clauses
       .filter((c) => selected.has(c.id))
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -107,6 +127,21 @@ export function StandardClausesBuilder({
             <X size={16} />
           </Button>
         </header>
+
+        {/* Filtro modalita_incasso: INTERO | SEGNALAZIONE | TUTTE */}
+        <div className="px-6 pt-3 pb-1 flex flex-wrap items-center gap-2 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-[rgb(var(--fg-muted))]">Modalita</span>
+          {(['ALL', 'INTERO', 'SEGNALAZIONE'] as const).map((m) => {
+            const label = m === 'ALL' ? 'Tutte' : m === 'INTERO' ? 'Incasso intero' : 'Segnalazione'
+            const active = filter === m
+            return (
+              <button key={m} type="button" onClick={() => setFilter(m)}
+                className={`min-h-[36px] px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-[rgb(var(--fg))]' : 'border-[rgb(var(--border-strong))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                {label}
+              </button>
+            )
+          })}
+        </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {loading && <p className="text-xs text-[rgb(var(--fg-subtle))]">Caricamento clausole…</p>}

@@ -30,12 +30,13 @@ import { MenuTab } from '@/components/wedding/MenuTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AllContractsMonitor } from '@/components/wedding/AllContractsMonitor'
+import { PagamentiTab } from '@/components/wedding/PagamentiTab'
 import { RateCollaborationModal } from '@/components/social/RateCollaborationModal'
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
+type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members'
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
@@ -52,6 +53,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof CalendarClock }> = 
   { key: 'mood',           label: 'Mood',         icon: Palette },
   { key: 'playlist',       label: 'Playlist',     icon: Music },
   { key: 'budget',         label: 'Budget',       icon: Wallet },
+  { key: 'payments',       label: 'Pagamenti',    icon: Wallet },
   { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
   { key: 'contract',       label: 'Contratto',    icon: FileSignature },
   { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature },
@@ -156,6 +158,7 @@ export default function WeddingDashboard() {
             {tab === 'guests' && <GuestsTab entryId={wedding.id} />}
             {tab === 'menu' && <MenuTab entryId={wedding.id} />}
             {tab === 'budget' && <BudgetTab entryId={wedding.id} />}
+            {tab === 'payments' && <PagamentiTab entryId={wedding.id} />}
             {tab === 'checklist' && <ChecklistTab entryId={wedding.id} />}
             {tab === 'mood' && <MoodTab entryId={wedding.id} />}
             {tab === 'playlist' && <PlaylistTab entryId={wedding.id} />}

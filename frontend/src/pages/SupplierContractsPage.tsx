@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CheckCircle2, CircleDashed } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,22 @@ type Template = {
   category: string | null
   sections: Section[]
   is_default: boolean
+}
+
+type PendingItem = {
+  id: string
+  name_snapshot: string
+  description_snapshot: string | null
+  unit_snapshot: string
+  quantity: number
+  snapshot_price: number
+  line_client: number
+  supplier_confirmed_at: string | null
+  quote_id: string
+  entry_id: string | null
+  entry_title: string | null
+  event_date: string | null
+  client_name: string | null
 }
 
 type Contract = {
@@ -45,24 +61,75 @@ const DEFAULT_SECTIONS: Section[] = [
 export default function SupplierContractsPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [pending, setPending] = useState<PendingItem[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [draft, setDraft] = useState<{ title: string; category: string; sections: Section[] }>({
     title: '', category: '', sections: DEFAULT_SECTIONS,
   })
+  const [searchParams, setSearchParams] = useSearchParams()
+  const confirmId = searchParams.get('confirm')
 
   async function load() {
     setLoading(true)
     try {
-      const [{ data: t }, { data: c }] = await Promise.all([
+      const me = (await supabase.auth.getUser()).data.user?.id
+      const [{ data: t }, { data: c }, pendingResp] = await Promise.all([
         (supabase.from as any)('supplier_contract_templates').select('*').order('created_at', { ascending: false }),
         (supabase as any).rpc('list_supplier_contracts'),
+        me ? (supabase.from as any)('quote_items')
+          .select('id, name_snapshot, description_snapshot, unit_snapshot, quantity, snapshot_price, line_client, supplier_confirmed_at, quote_id')
+          .eq('supplier_id', me)
+          .is('supplier_confirmed_at', null)
+          .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] }),
       ])
       setTemplates((t ?? []) as Template[])
       setContracts((c ?? []) as Contract[])
+
+      // Arricchisce le righe pending con dati evento (best effort)
+      const items = (pendingResp.data ?? []) as PendingItem[]
+      const quoteIds = Array.from(new Set(items.map((x) => x.quote_id))).filter(Boolean)
+      if (quoteIds.length > 0) {
+        const { data: events } = await (supabase.from as any)('calendar_entries')
+          .select('id, title, date_from, client_name, quote_id')
+          .in('quote_id', quoteIds)
+        const byQuote = new Map<string, any>((events ?? []).map((e: any) => [e.quote_id, e]))
+        for (const it of items) {
+          const ev = byQuote.get(it.quote_id)
+          if (ev) {
+            it.entry_id = ev.id
+            it.entry_title = ev.title
+            it.event_date = ev.date_from
+            it.client_name = ev.client_name
+          }
+        }
+      }
+      setPending(items)
     } finally { setLoading(false) }
   }
   useEffect(() => { void load() }, [])
+
+  async function confirmItem(itemId: string) {
+    try {
+      const { error } = await (supabase as any).rpc('supplier_confirm_quote_item', { p_item_id: itemId })
+      if (error) throw error
+      toast.success('Voce confermata')
+      // pulisci eventuale ?confirm=...
+      if (confirmId === itemId) {
+        searchParams.delete('confirm')
+        setSearchParams(searchParams, { replace: true })
+      }
+      await load()
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  // Se arrivi con ?confirm=<id>, scrolla alla card.
+  useEffect(() => {
+    if (!confirmId) return
+    const el = document.getElementById(`pending-${confirmId}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [confirmId, pending.length])
 
   function startNew() {
     setDraft({ title: 'Il mio contratto', category: '', sections: DEFAULT_SECTIONS })
@@ -123,6 +190,57 @@ export default function SupplierContractsPage() {
     <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-8">
         <PageHeader eyebrow="Strumenti fornitore" title="Contratti" description="Crea modelli personalizzati e gestisci i contratti firmati con clienti o wedding planner." />
+
+        {/* Da confermare: voci preventivo assegnate al fornitore in attesa di conferma */}
+        {!loading && pending.length > 0 && (
+          <section className="mb-10">
+            <header className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-xl">Da confermare</h2>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">
+                  Voci di preventivo assegnate da un wedding planner. Conferma per essere conteggiato sul lavoro.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
+                style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                {pending.length} in attesa
+              </span>
+            </header>
+            <div className="space-y-2">
+              {pending.map((it) => {
+                const highlight = confirmId === it.id
+                return (
+                  <Card key={it.id} id={`pending-${it.id}`}
+                    className={`p-4 ${highlight ? 'border-2' : ''}`}
+                    style={highlight ? { borderColor: 'rgb(var(--gold-500))' } : undefined}>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="self-start min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full"
+                        style={{ background: 'rgb(var(--bg-sunken))' }}>
+                        <CircleDashed size={20} style={{ color: 'rgb(var(--gold-700))' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm">{it.name_snapshot}</h3>
+                        {it.description_snapshot && (
+                          <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 line-clamp-2">{it.description_snapshot}</p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-[rgb(var(--fg-subtle))]">
+                          {it.entry_title && <span>{it.entry_title}</span>}
+                          {it.event_date && <span>· {new Date(it.event_date).toLocaleDateString('it-IT')}</span>}
+                          {it.client_name && <span>· {it.client_name}</span>}
+                          <span>· qty {Number(it.quantity)}</span>
+                          <span>· € {Number(it.line_client).toLocaleString('it-IT', { maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                      <Button variant="gold" onClick={() => confirmItem(it.id)} className="min-h-[44px] w-full sm:w-auto">
+                        <CheckCircle2 size={14} /> Conferma
+                      </Button>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Templates */}
         <section className="mb-10">
