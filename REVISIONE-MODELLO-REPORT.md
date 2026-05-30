@@ -96,3 +96,133 @@ Nessun file frontend modificato. Verifiche eseguite:
   notifica: il componente `CoupleDashboard` potra` leggere il query param
   in un task successivo per scrollare/aprire automaticamente il modal di
   firma incarico.
+
+---
+
+## Task B — Erogatore generico (capostipite come fornitore di se' stesso)
+
+### Differenze schema vs spec trovate
+
+Ispezionato `supabase/migrations/20260521150000_schema.sql` +
+`20260521150200_rls.sql` + `20260521150700_wedding_suite.sql` +
+`frontend/src/lib/database.types.ts`.
+
+- **FK su `services` confermata**: il nome reale e' `fornitore_id`
+  (FK -> `profiles(id)`), NON `provider_id` ne' `owner_id`. Schema
+  `20260521150000_schema.sql` riga 83.
+- **Nessun vincolo a `role='FORNITORE'` su services**: le policy RLS
+  (`services_select_owner`, `services_modify_owner` in
+  `20260521150200_rls.sql` righe 188-207) usano solo
+  `fornitore_id = auth.uid()`. NON c'e' check constraint ne' trigger che
+  limiti la creazione di service a profili `role='FORNITORE'`. Quindi
+  WP/LOCATION possono gia' inserire services con la loro stessa identita';
+  e' una "feature implicita" del modello, ma non era esplicitata. La
+  migrazione `20260526170000_wp_services_categories.sql` infatti aggiunge
+  gia' categorie standard per `subrole='wedding_planner'`, anticipando il
+  caso d'uso.
+- **`quote_items.supplier_id`**: confermato il nome reale (FK ->
+  `profiles(id)`, schema riga 217). Niente `provider_id` ne' `erogatore_id`.
+- **Markup gia' su due livelli**:
+  - `quote_items.item_markup_percent` (override per voce, schema riga 224)
+  - `quote_supplier_markups(quote_id, supplier_id, markup_percent)`
+    (override per fornitore, schema riga 237-245)
+  - `quotes.default_markup_percent` (default sul preventivo)
+  - Funzione resolver gia' esistente: `calcola_markup_effettivo(p_quote_id,
+    p_supplier_id, p_item_markup)` in
+    `20260521150100_triggers.sql` righe 62-89. Ordine override: item ->
+    supplier -> default.
+- **Trigger di calcolo line_cost/line_client**: la versione viva e'
+  `quote_items_recalc_lines_v2()` in
+  `20260521150700_wedding_suite.sql` righe 18-53 (override v1 con supporto
+  optional/alternative). Trigger `trg_qitems_recalc_lines` (BEFORE
+  INSERT/UPDATE) gia' agganciato.
+- **Niente cambiamento nominale necessario**: la spec parlava di "fornitore_id
+  vs provider_id vs owner_id" — riusiamo `fornitore_id` allargandone la
+  semantica via `COMMENT ON COLUMN`, senza rinominare (zero rotture).
+
+### Migrazione creata
+
+`supabase/migrations/20260531200000_revisione_b_erogatore_generico.sql`
+(idempotente, additiva).
+
+Contenuto:
+
+1. `alter table quote_items add column if not exists
+   erogatore_e_capostipite boolean not null default false` con commento di
+   semantica (`true` -> erogatore = capostipite, no ricarico).
+2. `COMMENT ON COLUMN services.fornitore_id` -> ridefinita la semantica:
+   "fornitore esterno OR capostipite stesso".
+3. `CREATE OR REPLACE FUNCTION quote_items_recalc_lines_v2()` con la nuova
+   logica:
+   - calcolo `line_cost` invariato (snapshot * qty + modifiers, optional gating)
+   - **se `erogatore_e_capostipite = true`**: `line_client := line_cost`
+     (no ricarico, bypassa item_markup_percent, quote_supplier_markups,
+     quote.default_markup_percent).
+   - **altrimenti**: comportamento esistente immutato via
+     `calcola_markup_effettivo(...)`.
+4. Il trigger `trg_qitems_recalc_lines` e' gia' agganciato alla funzione: il
+   `CREATE OR REPLACE` propaga automaticamente.
+
+### Verifica RLS / sicurezza
+
+- **WP/LOCATION puo' INSERT su services**: si — policy
+  `services_modify_owner` accetta `fornitore_id = auth.uid()` senza filtro
+  di ruolo.
+- **WP/LOCATION puo' INSERT su quote_items con `supplier_id = auth.uid()`
+  e `erogatore_e_capostipite=true`**: si — non esistono policy RLS che
+  controllano `supplier_id` su quote_items oltre a "owner_id del quote =
+  auth.uid()". Nessun constraint blocca il caso.
+- **Fornitore vede solo propri services**: invariato — policy
+  `services_select_owner` (`fornitore_id = auth.uid()`) +
+  `services_select_collab` (collaborazione attiva). Nulla cambia.
+- **Markup non ignorato per gli altri fornitori**: garantito dal branch
+  `if/else` nel trigger; per `erogatore_e_capostipite = false` la chain
+  item -> supplier -> default e' intatta.
+- **Idempotenza**: `add column if not exists` + `create or replace`
+  function -> riapplicabile su DB esistente senza errori.
+
+### Frontend toccato
+
+`frontend/src/pages/QuoteEditorPage.tsx`:
+
+- **Picker "Erogatore"** (sezione "Aggiungi voce dal catalogo", non
+  visibile in flusso FORNITORE): aggiunta come **prima opzione** quando
+  l'utente loggato e' `WEDDING_PLANNER` o `LOCATION` e ha gia' almeno un
+  proprio servizio nel catalogo: `"⭐ I miei servizi (sono io l'erogatore ·
+  no ricarico)"`. Selezionando questa opzione, `pickSupplier = profile.id`
+  e `grouped.get(profile.id)` espone i propri servizi.
+- **`handleAddItem`**: rileva `isSelfCapostipite = supplierId ===
+  profile?.id`. In quel caso:
+  - salta il check `check_suppliers_busy_in_range` (e' il capostipite
+    stesso, l'occupato del capostipite e' verificato altrove)
+  - inserisce `erogatore_e_capostipite: true` nel payload
+  - toast "Mio servizio aggiunto … (no ricarico)"
+- **Lista voci**: ogni `quote_item` con `erogatore_e_capostipite=true`
+  mostra un **badge dorato** `"⭐ Mio servizio"` accanto al nome e nella
+  riga totali appare `· no ricarico` (line_client === line_cost).
+- **Mobile-first**: il picker e' gia' a colonna singola (max-w-md),
+  badge usa flex-wrap, touch target >=44px sui pulsanti +. Nessuna
+  regressione layout.
+
+### Esito build
+
+- `cd frontend && npm run build` -> **PASS** (2.22s, vite, nessun
+  warning bloccante, bundle `QuoteEditorPage` 28.36 kB / gzip 8.45 kB).
+
+### Note
+
+- **`supabase db reset --local` NON eseguito** (vincolo: il task chiede
+  solo build pass e file migrazione pronti; reset locale failed
+  storicamente per seed legacy `v_sara/TEST-SEED`, gia' noto). La
+  migrazione e' idempotente e pronta ad essere applicata su DB pulito o
+  esistente.
+- **`database.types.ts` non rigenerato**: la colonna nuova
+  `erogatore_e_capostipite` viene passata tramite cast `as any` nel payload
+  insert; nessuna rottura di tipo. Si rigenera quando si rifara' lo schema
+  introspection.
+- **Nessun `quote_supplier_markups` modificato**: il bypass markup avviene
+  *a monte* nel trigger, quindi anche se esistesse un override supplier per
+  l'identita' del capostipite, NON verrebbe applicato quando
+  `erogatore_e_capostipite=true`. Cio' garantisce la semantica
+  "fornitore-di-se-stesso" pulita.
+

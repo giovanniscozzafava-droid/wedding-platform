@@ -172,9 +172,14 @@ export default function QuoteEditorPage() {
     const svc = services?.find((s) => s.id === serviceId)
     if (!svc || !quote) return
 
-    // Hard-block: il fornitore NON deve essere occupato nella data del preventivo.
-    // (Il trigger DB blocca comunque l'INSERT — questo è il check UX preventivo.)
-    if (quote.event_date) {
+    // REVISIONE B: se l'erogatore e' il capostipite stesso (WP/LOCATION fornitore
+    // di se' stesso), saltiamo il check di disponibilita' (e' l'evento del capostipite)
+    // e impostiamo il flag no-ricarico.
+    const isSelfCapostipite = supplierId === profile?.id
+
+    if (!isSelfCapostipite && quote.event_date) {
+      // Hard-block: il fornitore NON deve essere occupato nella data del preventivo.
+      // (Il trigger DB blocca comunque l'INSERT — questo è il check UX preventivo.)
       try {
         const { data: conflicts } = await (supabase.rpc as any)('check_suppliers_busy_in_range', {
           p_supplier_ids: [supplierId],
@@ -204,8 +209,12 @@ export default function QuoteEditorPage() {
         name_snapshot: svc.name, description_snapshot: svc.description ?? null,
         unit_snapshot: svc.unit, snapshot_price: svc.base_price, quantity: qty,
         quantity_basis: basis,
-      })
-      toast.success(`Voce aggiunta · ${qty} ${svc.unit.toLowerCase()}`)
+        // REVISIONE B: capostipite come erogatore di se' stesso → no ricarico
+        ...(isSelfCapostipite ? { erogatore_e_capostipite: true } : {}),
+      } as any)
+      toast.success(isSelfCapostipite
+        ? `Mio servizio aggiunto · ${qty} ${svc.unit.toLowerCase()} (no ricarico)`
+        : `Voce aggiunta · ${qty} ${svc.unit.toLowerCase()}`)
     } catch (e) {
       const msg = (e as Error).message
       if (msg.includes('non disponibile')) {
@@ -538,15 +547,33 @@ export default function QuoteEditorPage() {
                 {quote.quote_items.map((it) => {
                   const basis = (it as any).quantity_basis as Basis ?? 'FLAT'
                   const Icon = BASIS_LABEL[basis].icon
+                  const isMio = !!(it as any).erogatore_e_capostipite
                   return (
                     <motion.li key={it.id} layout className="py-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium">{it.name_snapshot}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium">{it.name_snapshot}</p>
+                            {isMio && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                                style={{
+                                  background: 'rgb(var(--gold-100))',
+                                  color: 'rgb(var(--gold-700))',
+                                  border: '1px solid rgb(var(--gold-500))',
+                                }}
+                                title="Erogatore = io · nessun ricarico applicato"
+                              >
+                                ⭐ Mio servizio
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
                             € {Number(it.snapshot_price).toFixed(2)} {it.unit_snapshot.toLowerCase()}
-                            {isFornitoreFlow ? (
-                              <> · <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong></>
+                            {isFornitoreFlow || isMio ? (
+                              <> · <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong>
+                                {isMio && <span className="ml-1">· no ricarico</span>}
+                              </>
                             ) : (
                               <> · costo € {Number(it.line_cost).toLocaleString('it-IT')} · cliente <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong></>
                             )}
@@ -653,18 +680,26 @@ export default function QuoteEditorPage() {
               {!isFornitoreFlow && (
                 <div className="flex gap-3 items-end max-w-md">
                   <div className="flex-1 space-y-1">
-                    <Label htmlFor="sup">Fornitore</Label>
+                    <Label htmlFor="sup">Erogatore</Label>
                     <Select id="sup" value={pickSupplier}
                       onChange={(e) => setPickSupplier(e.target.value)}>
                       <option value="">— seleziona —</option>
-                      {Array.from(grouped.entries()).map(([sid]) => {
-                        const sup = suppliers?.find((s) => s.id === sid)
-                        return (
-                          <option key={sid} value={sid}>
-                            {sup?.business_name ?? sup?.full_name ?? sid.slice(0, 8)} {sup?.subrole ? `· ${sup.subrole}` : ''} ({grouped.get(sid)?.length ?? 0})
-                          </option>
-                        )
-                      })}
+                      {/* REVISIONE B: WP/LOCATION puo' essere fornitore di se' stesso (no ricarico) */}
+                      {profile?.id && (profile.role === 'WEDDING_PLANNER' || profile.role === 'LOCATION') && grouped.has(profile.id) && (
+                        <option value={profile.id}>
+                          ⭐ I miei servizi (sono io l'erogatore · no ricarico) ({grouped.get(profile.id)?.length ?? 0})
+                        </option>
+                      )}
+                      {Array.from(grouped.entries())
+                        .filter(([sid]) => sid !== profile?.id)
+                        .map(([sid]) => {
+                          const sup = suppliers?.find((s) => s.id === sid)
+                          return (
+                            <option key={sid} value={sid}>
+                              {sup?.business_name ?? sup?.full_name ?? sid.slice(0, 8)} {sup?.subrole ? `· ${sup.subrole}` : ''} ({grouped.get(sid)?.length ?? 0})
+                            </option>
+                          )
+                        })}
                     </Select>
                   </div>
                 </div>
