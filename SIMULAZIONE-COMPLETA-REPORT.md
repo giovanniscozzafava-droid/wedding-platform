@@ -143,3 +143,36 @@ File toccati / creati:
 - A `supabase/functions/send-digest/index.ts`.
 - M `frontend/src/lib/database.types.ts` (rigenerato).
 
+## Resend Smoke Test
+
+Data esecuzione: 2026-05-30.
+
+- Script: `scripts/resend-smoke-test.mjs` (Node fetch, NO shell pipe → chiave
+  mai in `process list`).
+- Chiave letta da `/Users/giovanniscozzafava/Repository/wedding-platform/.env`
+  (`RESEND_API_KEY` ora valorizzata). Mai stampata.
+- `RESEND_FROM_EMAIL` non presente nel `.env` come tale (esiste solo per typo
+  la variabile `RRESEND_FROM_EMAIL=onboarding@resend.dev`). Lo script fa
+  fallback su `onboarding@resend.dev` (sandbox Resend, sempre valido senza
+  verifica dominio) — scelta annotata come da consegna.
+- Endpoint: `POST https://api.resend.com/emails`.
+- From address usato: `onboarding@resend.dev`.
+- Destinatario: `giovanni.scozzafava@gmail.com` (indirizzo proprietario
+  dell'account Resend).
+  - Tentativo iniziale verso `giovanni.scozzafava+9999@gmail.com` rifiutato
+    con `403`: in modalita' testing (dominio non verificato) Resend ammette
+    SOLO l'esatto indirizzo proprietario, senza plus-alias. Adattato come
+    minima deviazione dalla consegna per sbloccare la consegna.
+- Esito: **success** (`status 200`).
+- Message id: `036ff029-f165-46a0-b9f9-aaeabd87a39a`.
+- Timestamp invio (UTC): `2026-05-30T18:57:21.752Z`.
+- Note di sicurezza:
+  - Chiave caricata via parsing manuale del `.env` (no `dotenv`), mai
+    loggata, mai passata via argv. Solo nell'header `Authorization` della
+    richiesta HTTPS.
+  - Nessuna chiave persistita nel report o nello stdout.
+
+File aggiunti:
+
+- A `scripts/resend-smoke-test.mjs`.
+
