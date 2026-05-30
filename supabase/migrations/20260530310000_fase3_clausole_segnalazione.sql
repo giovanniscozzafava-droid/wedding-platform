@@ -61,6 +61,9 @@ on conflict (slug) do update set
   updated_at   = now();
 
 -- 4) Aggiorna la RPC list_standard_clauses per esporre per_modalita -------
+-- DROP necessario perche' PG non permette CREATE OR REPLACE con cambio
+-- return type (la versione precedente non aveva la colonna per_modalita).
+drop function if exists public.list_standard_clauses();
 create or replace function public.list_standard_clauses()
 returns table (
   id           uuid,
