@@ -250,7 +250,12 @@ Deno.serve(async (req) => {
   }
 
   // 8. Genera PDF atto di accettazione
-  const actPdfUrl = await generateAcceptancePdf(admin, quote, acceptance, signatureBytes, ip, ua, pdfHash)
+  const { data: items } = await admin
+    .from('quote_items')
+    .select('name_snapshot, description_snapshot, quantity, unit_snapshot, line_client, sort_order')
+    .eq('quote_id', quote.id)
+    .order('sort_order', { ascending: true })
+  const actPdfUrl = await generateAcceptancePdf(admin, quote, acceptance, signatureBytes, ip, ua, pdfHash, items ?? [])
   if (actPdfUrl) {
     await admin.from('quote_acceptances').update({ acceptance_pdf_url: actPdfUrl }).eq('id', acceptance.id)
   }
@@ -264,6 +269,13 @@ Deno.serve(async (req) => {
 async function generateAcceptancePdf(
   admin: any, quote: any, a: any, signatureBytes: Uint8Array,
   ip: string | null, ua: string | null, pdfHash: string | null,
+  items: Array<{
+    name_snapshot: string
+    description_snapshot: string | null
+    quantity: number | string
+    unit_snapshot: string | null
+    line_client: number | string
+  }>,
 ): Promise<string | null> {
   try {
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
@@ -317,6 +329,50 @@ async function generateAcceptancePdf(
 
     y += 12
 
+    // Voci del preventivo accettato
+    const fmtEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+    if (items.length > 0) {
+      doc.setFontSize(11)
+      doc.setTextColor(196, 154, 92)
+      doc.setFont('helvetica', 'bold')
+      doc.text('VOCI ACCETTATE', M, y); y += 16
+
+      doc.setFontSize(9)
+      doc.setTextColor(110, 110, 110)
+      doc.setFont('helvetica', 'normal')
+      const colRight = W - M
+      for (const it of items) {
+        const name = safeText(it.name_snapshot)
+        const qty = Number(it.quantity)
+        const unit = it.unit_snapshot ? safeText(it.unit_snapshot).toLowerCase() : ''
+        const line = fmtEur.format(Number(it.line_client))
+        const qtyLabel = unit ? `${qty} ${unit}` : `${qty}`
+
+        doc.setTextColor(26, 23, 20)
+        doc.setFont('helvetica', 'bold')
+        const nameLines = doc.splitTextToSize(name, (W - M * 2) * 0.62)
+        doc.text(nameLines[0], M, y)
+        doc.setFont('helvetica', 'normal')
+        doc.text(line, colRight, y, { align: 'right' })
+        y += 12
+
+        doc.setTextColor(110, 110, 110)
+        doc.setFontSize(8)
+        doc.text(`Quantita: ${qtyLabel}`, M, y); y += 11
+
+        if (it.description_snapshot) {
+          const desc = doc.splitTextToSize(safeText(it.description_snapshot), W - M * 2)
+          for (const dl of desc.slice(0, 3)) { doc.text(dl, M, y); y += 10 }
+        }
+
+        doc.setDrawColor(225, 222, 216)
+        doc.line(M, y + 2, W - M, y + 2)
+        y += 10
+        doc.setFontSize(9)
+      }
+      y += 6
+    }
+
     // Importo totale
     doc.setFontSize(11)
     doc.setTextColor(196, 154, 92)
@@ -324,7 +380,7 @@ async function generateAcceptancePdf(
     doc.text('IMPORTO ACCETTATO', M, y); y += 16
     doc.setFontSize(20)
     doc.setTextColor(26, 23, 20)
-    const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(quote.total_client))
+    const totFmt = fmtEur.format(Number(quote.total_client))
     doc.text(totFmt, M, y); y += 28
 
     // Firma

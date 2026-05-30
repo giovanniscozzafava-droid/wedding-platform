@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles, Check, X, ExternalLink } from 'lucide-react'
+import { Sparkles, Check, X, ExternalLink, Home, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { publicQuoteByToken } from '@/hooks/useQuotes'
@@ -123,6 +123,31 @@ export default function QuotePreviewPage() {
               <Button asChild variant="outline" className="flex-1">
                 <Link to={`/p/reject/${token}`} data-testid="reject-btn">
                   <X /> Rifiuto
+                </Link>
+              </Button>
+            </div>
+          )}
+
+          {data.status === 'ACCETTATO' && (
+            <div className="px-6 sm:px-10 pb-8 flex flex-col sm:flex-row gap-3">
+              <Button asChild variant="gold" className="flex-1">
+                <Link to="/login?next=/couple" data-testid="couple-portal-btn">
+                  <LogIn /> Vai al portale matrimonio
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="flex-1">
+                <Link to="/" data-testid="back-home-btn">
+                  <Home /> Torna alla home
+                </Link>
+              </Button>
+            </div>
+          )}
+
+          {(data.status === 'RIFIUTATO' || data.status === 'SCADUTO') && (
+            <div className="px-6 sm:px-10 pb-8 flex">
+              <Button asChild variant="outline" className="flex-1">
+                <Link to="/" data-testid="back-home-btn">
+                  <Home /> Torna alla home
                 </Link>
               </Button>
             </div>

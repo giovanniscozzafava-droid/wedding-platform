@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES_WITH_PLACEHOLDER as SUBROLES } from '@/lib/supplierSubroles'
 import { ProfessionPicker } from '@/components/professione/ProfessionPicker'
 import { PackImportPicker } from '@/components/professione/PackImportPicker'
+import { useProfessioniList } from '@/hooks/useProfessione'
 
 type LegalForm = 'INDIVIDUAL' | 'SRL' | 'SRLS' | 'SPA' | 'SAS' | 'SNC' | 'COOPERATIVE' | 'ASSOCIATION' | 'OTHER' | ''
 type ModalitaIncasso = 'INTERO' | 'SEGNALAZIONE' | ''
@@ -24,7 +25,6 @@ type ProviderForm = {
   legal_form: LegalForm
   subrole: string
   professione_id: string | null
-  professione_nome: string | null
   phone: string
   vat_number: string
   fiscal_code: string
@@ -71,7 +71,7 @@ export function ProviderOnboardingWizard() {
   const [logoUrlPreview] = useState<string | null>(null)
   const [form, setForm] = useState<ProviderForm>({
     full_name: '', business_name: '', business_legal_name: '', legal_form: '', subrole: '',
-    professione_id: null, professione_nome: null,
+    professione_id: null,
     phone: '',
     vat_number: '', fiscal_code: '', address: '', city: '', zip: '', province: '', country: 'Italia',
     website: '', instagram: '', facebook: '', tiktok: '', bio: '',
@@ -82,6 +82,11 @@ export function ProviderOnboardingWizard() {
 
   const isWpOrLocation = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION'
   const STEPS: readonly string[] = isWpOrLocation ? STEPS_WP_LOC : STEPS_BASE
+  const { data: professioniList } = useProfessioniList()
+  const professioneNome = useMemo(
+    () => professioniList?.find((p) => p.id === form.professione_id)?.nome ?? null,
+    [professioniList, form.professione_id],
+  )
 
   useEffect(() => {
     if (!profile) return
@@ -97,8 +102,7 @@ export function ProviderOnboardingWizard() {
       modalita_incasso_default: (p.modalita_incasso_default ?? '') as ModalitaIncasso,
       parcella_default: p.parcella_default == null ? '' : Number(p.parcella_default),
       applica_ricarico_default: p.applica_ricarico_default ?? true,
-      professione_id: p.professione_id ?? null,
-      professione_nome: p.professione_nome ?? null,
+      professione_id: p.professione_id ?? f.professione_id ?? null,
     }))
   }, [profile])
 
@@ -182,7 +186,7 @@ export function ProviderOnboardingWizard() {
 
   function next() {
     if (step === 0 && !form.full_name.trim()) { toast.error('Nome obbligatorio'); return }
-    if (step === 0 && !form.subrole) { toast.error('Seleziona il tipo di servizio'); return }
+    if (step === 0 && !isWpOrLocation && !form.subrole) { toast.error('Seleziona il tipo di servizio'); return }
     if (STEPS[step] === 'Professione' && !form.professione_id) {
       toast.error('Seleziona la tua professione')
       return
@@ -232,11 +236,13 @@ export function ProviderOnboardingWizard() {
                         Come ti chiamano i clienti: nome e cognome, nome d&apos;arte, nome della band o della villa. I dati legali (ragione sociale, P.IVA) li chiediamo dopo.
                       </p>
                     </Field>
-                    <Field label="Tipo di servizio *">
-                      <Select value={form.subrole} onChange={(e) => patch('subrole', e.target.value)}>
-                        {SUBROLES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
-                      </Select>
-                    </Field>
+                    {!isWpOrLocation && (
+                      <Field label="Tipo di servizio *">
+                        <Select value={form.subrole} onChange={(e) => patch('subrole', e.target.value)}>
+                          {SUBROLES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
+                        </Select>
+                      </Field>
+                    )}
                     <Field label="Anni di attività">
                       <Input type="number" min={0} value={form.years_active}
                         onChange={(e) => patch('years_active', e.target.value === '' ? '' : Number(e.target.value))} />
@@ -253,18 +259,17 @@ export function ProviderOnboardingWizard() {
                     </p>
                     <ProfessionPicker
                       value={form.professione_id}
-                      onChange={(id, p) => {
+                      onChange={(id) => {
                         patch('professione_id', id)
-                        patch('professione_nome', p.nome)
                       }}
                     />
-                    {form.professione_id && form.professione_nome && form.professione_nome !== 'Generico' && (
+                    {form.professione_id && professioneNome && professioneNome !== 'Generico' && (
                       <div className="mt-4 rounded-lg border p-3 sm:p-4 bg-[rgb(var(--bg-sunken))]" style={{ borderColor: 'rgb(var(--border))' }}>
                         <div className="flex items-start gap-3 flex-wrap">
                           <div className="flex-1 min-w-[200px]">
                             <p className="text-sm font-medium">Vuoi partire dai servizi tipici del tuo mestiere?</p>
                             <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
-                              Importa il pacchetto starter di {form.professione_nome}. Modificherai tutto quando vuoi.
+                              Importa il pacchetto starter di {professioneNome}. Modificherai tutto quando vuoi.
                             </p>
                           </div>
                           <Button
@@ -437,7 +442,7 @@ export function ProviderOnboardingWizard() {
                     </p>
                     <div className="rounded-lg border p-4 text-sm space-y-1" style={{ borderColor: 'rgb(var(--border))' }}>
                       <p><strong>Tipo:</strong> {SUBROLES.find((s) => s.v === form.subrole)?.l ?? '—'}</p>
-                      <p><strong>Professione:</strong> {form.professione_nome ?? '—'}</p>
+                      <p><strong>Professione:</strong> {professioneNome ?? '—'}</p>
                       <p><strong>Città:</strong> {form.city || '—'}</p>
                       <p><strong>Sito:</strong> {form.website || '—'}</p>
                       <p><strong>P.IVA:</strong> {form.vat_number || '—'}</p>
