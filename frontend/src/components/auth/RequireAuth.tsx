@@ -61,5 +61,9 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     )
   }
   if (bare) return <>{children}</>
+  // La sidebar AppShell e' progettata per WP/LOCATION/FORNITORE/ADMIN.
+  // Per il ruolo COUPLE forziamo bare anche sulle pagine condivise (es. /faq)
+  // cosi' la coppia non vede mai voci di menu da professionista.
+  if (profile?.role === 'COUPLE') return <>{children}</>
   return <AppShell>{children}</AppShell>
 }

@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { useMyWeddings } from '@/hooks/useCouple'
-import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTimeline, useTransport, useMoodMutations, usePlaylistMutations } from '@/hooks/useWedding'
+import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTimeline, useTransport, useMoodMutations, usePlaylistMutations, useWedding } from '@/hooks/useWedding'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { useNavigate } from 'react-router-dom'
@@ -31,10 +31,13 @@ import { useNuovoModello } from '@/hooks/useNuovoModello'
 
 type Tab = 'overview' | 'preventivo' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
+// La tab "Questionario" (planning) e' stata rimossa dalla coppia:
+// le domande sono gia` raccolte nel questionario di presentazione iniziale
+// degli sposi (lato lead/intake). La tab "Menu" e' filtrata in render se
+// il preventivo non include alcun servizio di ristorazione.
 const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'overview',   label: 'Overview',     icon: Heart },
   { key: 'preventivo', label: 'Preventivo',   icon: FileSignature },
-  { key: 'planning',   label: 'Questionario', icon: ClipboardList },
   { key: 'cerimonia',  label: 'Cerimonia',    icon: Church },
   { key: 'documenti',  label: 'Documenti',    icon: FileText },
   { key: 'programma', label: 'Programma',    icon: CalendarClock },
@@ -48,6 +51,8 @@ const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'gadgets',   label: 'Bomboniere',   icon: Gift },
   { key: 'website',   label: 'Sito ospiti',  icon: Globe },
 ]
+
+const RESTAURATION_SUBROLES = new Set(['location', 'catering', 'chef', 'food_truck', 'pasticcere', 'sweet_table', 'bartender', 'sommelier'])
 
 export default function CoupleDashboard() {
   const { data: weddings } = useMyWeddings()
@@ -136,6 +141,15 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
   const primary = wedding.owner?.brand_primary_color ?? '#C9A961'
   const eventDate = new Date(wedding.date_from)
   const daysLeft = Math.max(0, Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+  const { data: fullWedding } = useWedding(entryId)
+  const quoteItems: Array<any> = (fullWedding as any)?.quote?.quote_items ?? []
+  // Mostra la tab Menu SOLO se il preventivo include almeno un servizio di
+  // ristorazione (location, catering, chef, ...). Se il quote non e` ancora
+  // caricato o e` vuoto, fallback a mostrare la tab (non sappiamo ancora).
+  const hasRestauration = quoteItems.length === 0
+    ? true
+    : quoteItems.some((it) => RESTAURATION_SUBROLES.has(String(it?.supplier?.subrole ?? '').toLowerCase()))
+  const visibleTabs = TABS.filter((t) => t.key !== 'menu' || hasRestauration)
 
   return (
     <>
@@ -163,7 +177,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
       <nav className="sticky top-[57px] z-20 border-b relative" style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
         <div className="max-w-6xl mx-auto px-6 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <div className="flex gap-1 py-2 min-w-max">
-            {TABS.map((t) => {
+            {visibleTabs.map((t) => {
               const Icon = t.icon
               const active = tab === t.key
               return (
@@ -714,7 +728,7 @@ type PreventivoData = {
   accepted_at: string | null
   business_model: 'GLOBAL' | 'BROKER'
   owner: { full_name?: string | null; business_name?: string | null }
-  items: Array<{ name_snapshot: string; quantity: number; unit_snapshot: string; line_client: number; supplier_id?: string | null }>
+  items: Array<{ name_snapshot: string; quantity: number; unit_snapshot: string; line_client: number; supplier_id?: string | null; created_at?: string | null }>
   error?: string
 }
 
@@ -801,7 +815,14 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
             <li key={i} className="py-3 flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">{it.name_snapshot}</p>
-                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">{it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}</p>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">
+                  {it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}
+                  {it.created_at && (
+                    <span className="ml-2 text-[10px] text-[rgb(var(--fg-subtle))]">
+                      · aggiunta il {new Date(it.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                    </span>
+                  )}
+                </p>
               </div>
               <p className="font-medium text-sm whitespace-nowrap">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
             </li>
