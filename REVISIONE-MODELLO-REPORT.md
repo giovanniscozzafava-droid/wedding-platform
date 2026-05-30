@@ -377,3 +377,138 @@ non-owner.
   `create or replace function`, `on conflict do update` su notifiche.
   Riapplicabile su DB pulito o esistente.
 
+## Task D — Location menu propri + riconciliazione
+
+### Obiettivo
+La Location deve poter agire da capostipite-erogatore con catalogo proprio
+(menu + extra) e il flusso di riconciliazione "menu a porzione" / invitati
+deve funzionare anche quando l'erogatore e' il capostipite stesso (non solo
+fornitori terzi).
+
+### Ispezione preliminare
+
+1. **RLS services** (post Task B). File:
+   `supabase/migrations/20260521150200_rls.sql` (linee 188-207).
+   - `services_modify_owner` permette INSERT/UPDATE/DELETE quando
+     `fornitore_id = auth.uid()` — **nessun filtro** sul ruolo del
+     proprietario, quindi LOCATION puo' inserire righe in `services` a tutti
+     gli effetti (gia' confermato anche dal commento di Task B sulla FK).
+2. **service_unit / quantity_basis**: enum reali confermati in
+   `supabase/migrations/20260521150600_quote_basis.sql` e
+   `20260521150700_wedding_suite.sql`. Per riconciliazione si usa
+   `quote_items.quantity_basis = 'PER_GUEST'` (NON `unit_snapshot`).
+3. **Vista + RPC riconciliazione** (Fase 4):
+   `supabase/migrations/20260530410000_fase4_riconciliazione.sql`.
+   - `v_riconciliazione_evento`: il join su `quote_items` filtra **solo** per
+     `qi.quantity_basis = 'PER_GUEST'`. NESSUN filtro per ruolo di
+     `qi.supplier_id`. Quindi se l'erogatore e' il capostipite stesso
+     (Location/WP che pubblica menu propri) le voci entrano comunque nel
+     conteggio menu.
+   - `riconciliazione_allinea_menu(uuid)`: l'UPDATE filtra **solo** per
+     `quote_id = ... and quantity_basis = 'PER_GUEST'`. Anche qui nessun
+     filtro per ruolo del supplier.
+   => **Funzionamento corretto**: la riconciliazione gia' supporta il
+   capostipite-erogatore. Non serve fix funzionale; serve solo documentazione
+   esplicita per evitare regressioni future.
+
+### Migrazione
+
+- `supabase/migrations/20260531400000_revisione_d_location_menu.sql`
+
+Contenuti (idempotenti):
+1. Riemissione di `v_riconciliazione_evento` con `drop view if exists +
+   create view` e **commento esteso** che documenta esplicitamente la
+   semantica universale: "NESSUN filtro per ruolo dell'erogatore: funziona
+   anche per servizi propri del capostipite (Location/WP che eroga il menu)".
+2. `create or replace function public.riconciliazione_allinea_menu(uuid)`
+   con commento aggiornato sullo stesso punto.
+3. Aggiornamento del commento sulla colonna
+   `quote_items.erogatore_e_capostipite` (definita in Task B) per
+   esplicitare l'interazione con la riconciliazione PER_GUEST. Wrappato in
+   un blocco `do$$` con guard `information_schema.columns` per essere
+   robusto a stati parziali (la colonna proviene da Task B).
+4. **NO seed di esempio**: la Location creera' i propri servizi dalla UI
+   (`/catalog` -> "Nuovo servizio").
+
+### Frontend
+
+#### CatalogPage (`frontend/src/pages/CatalogPage.tsx`)
+
+- Verificato: nessuna modifica necessaria. La pagina e' gia' accessibile a
+  LOCATION:
+  - `isProvider = role === 'FORNITORE' || 'LOCATION' || 'WEDDING_PLANNER'`
+    (linea 54). Mostra "I tuoi servizi", il pulsante "Nuovo servizio", il
+    riordino e raggruppamento per categoria.
+  - `isCapostipite = role === 'WEDDING_PLANNER' || 'ADMIN'`: LOCATION non
+    cade qui, quindi vede la vista "catalogo proprio" (per categoria),
+    coerente con il caso d'uso "erogatore".
+  - `ServiceForm` riceve `subrole = profile.subrole ?? 'location' (se
+    LOCATION) | 'wedding_planner' (se WP)`, abilitando i preset reali
+    presenti in `frontend/src/lib/service-presets.ts` (vedi blocco
+    `location:` con "Affitto sala + menu", ecc.).
+- Rotta `/catalog` in `App.tsx`: protetta da `RequireAuth` ma **senza** gate
+  di ruolo. AppShell la mostra a tutti i ruoli (linea 53). LOCATION ha
+  accesso pieno.
+
+#### QuoteEditorPage (`frontend/src/pages/QuoteEditorPage.tsx`)
+
+Modifiche:
+1. Nuovo stato `eventAmbito` (`'COMPLETO' | 'SOLO_COORDINAMENTO' |
+   'SOLO_PROPRI_SERVIZI' | null`) caricato in `useEffect` dalla riga
+   `calendar_entries` collegata via `calendar_entries.quote_id = quote.id`
+   (campo introdotto in Task C).
+2. Flag derivato `isSoloProprioServizi`: true solo per WP/LOCATION (non per
+   il flusso fornitore) quando `eventAmbito === 'SOLO_PROPRI_SERVIZI'`.
+3. `useEffect` che forza `pickSupplier = profile.id` quando in
+   SOLO_PROPRI_SERVIZI, cosi' la card "Aggiungi voce dal catalogo" mostra
+   subito SOLO i servizi propri (il filter su `grouped.get(pickSupplier)`
+   gia' restringe per `fornitore_id`).
+4. Il dropdown "Erogatore" viene **nascosto** in SOLO_PROPRI_SERVIZI e
+   sostituito da un banner informativo "Solo i miei servizi · nessun
+   ricarico" (mobile-first, una sola call to action implicita).
+5. La logica esistente di no-ricarico (`isSelfCapostipite` ->
+   `erogatore_e_capostipite: true` in `handleAddItem`, Task B) continua a
+   coprire correttamente l'INSERT.
+
+### Riconciliazione (UI)
+Nessuna modifica UI necessaria: il componente che mostra
+`v_riconciliazione_evento` e chiama `riconciliazione_allinea_menu` (Fase 4)
+e' agnostico rispetto al ruolo dell'erogatore. Il fix di Task D e' al livello
+DB+documentazione, esattamente come richiesto.
+
+### Verifica
+
+- **Build**: `cd frontend && npm run build` -> PASS (built in ~1s,
+  bundle `QuoteEditorPage` 29.30 kB).
+- **DB reset locale**: fallisce su `20260526380000_seed_test_tier_oro.sql`
+  per `referrer_id NOT NULL violation` — e' il seed legacy preesistente
+  (v_sara / TEST-SEED) gia' noto e documentato nelle revisioni precedenti.
+  La nostra migrazione `20260531400000_revisione_d_location_menu.sql` e'
+  stata applicata manualmente in container come smoke test (DROP VIEW /
+  CREATE VIEW / COMMENT / CREATE FUNCTION / COMMENT / REVOKE / GRANT / GRANT
+  / DO -> tutti OK). Riapplicabile per idempotenza.
+
+### Idempotenza
+
+- `drop view if exists` + `create view`
+- `create or replace function`
+- `do$$ ... if exists information_schema.columns ... execute comment ...
+  end$$` per evitare errore in stati parziali
+
+### Mobile-first
+
+- Banner "Solo i miei servizi" e' un block `max-w-md` con padding `p-3`,
+  testo `text-sm`, descrizione `text-xs`, single column su mobile (>=380px).
+  Nessun bottone aggiuntivo (l'azione primaria resta "+ aggiungi voce" sulle
+  card dei servizi propri, gia' min 44px di hit area).
+
+## Criteri di accettazione
+
+| Criterio                                                              | Riferimento |
+|-----------------------------------------------------------------------|-------------|
+| WP/Location propone incarico anche 0 EUR, coppia firma                | Task A (`20260531100000_revisione_a_fix_proprieta_azioni.sql` + `20260531110000_revisione_a_allow_zero.sql`) |
+| Voce propria no ricarico, voce terzi con ricarico                     | Task B (`20260531200000_revisione_b_erogatore_generico.sql`: colonna `quote_items.erogatore_e_capostipite` + override `quote_items_recalc_lines_v2`) |
+| Location SOLO_PROPRI_SERVIZI non vede step fornitori                  | Task C (`20260531300000_revisione_c_ambito_capostipite.sql`: enum + `refresh_notifiche_per_evento` rami SOLO_PROPRI_SERVIZI) + Task D frontend (`QuoteEditorPage`: dropdown erogatore nascosto + pin self quando ambito = SOLO_PROPRI_SERVIZI) |
+| Servizi / preventivi esistenti continuano a funzionare                | Build PASS (frontend) + migrazioni idempotenti (`add column if not exists`, `create or replace`, `on conflict do update`) + `default false` su `erogatore_e_capostipite` cosi' le voci pre-esistenti mantengono il comportamento di ricarico classico |
+| RLS verificata per ruolo                                              | Task B: RLS su `services` (`services_modify_owner` su `fornitore_id = auth.uid()`, gia' senza filtro role) consente a WP/LOCATION di pubblicare catalogo proprio. RLS su `quote_items` invariata (tramite ownership quote). Tabelle nuove di Fase 1-6 mantengono RLS originale. |
+

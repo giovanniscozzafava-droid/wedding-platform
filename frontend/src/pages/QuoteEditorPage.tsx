@@ -88,8 +88,18 @@ export default function QuoteEditorPage() {
   const [pickSupplier, setPickSupplier] = useState<string>('')
   const [forceUnlocked, setForceUnlocked] = useState(false)
   const [forceModal, setForceModal] = useState<{ open: boolean; reason: string }>({ open: false, reason: '' })
+  // REVISIONE D: ambito dell'incarico del calendar_entry collegato al
+  // preventivo. Quando 'SOLO_PROPRI_SERVIZI' restringiamo l'erogatore al
+  // capostipite stesso (no raccolta da fornitori terzi).
+  const [eventAmbito, setEventAmbito] = useState<'COMPLETO' | 'SOLO_COORDINAMENTO' | 'SOLO_PROPRI_SERVIZI' | null>(null)
 
   const isLocked = (quote?.status === 'ACCETTATO') && !forceUnlocked
+  // SOLO_PROPRI_SERVIZI vale solo se l'utente puo' effettivamente erogare
+  // (WP/LOCATION). Per il flusso fornitore (direct quote o role=FORNITORE)
+  // resta il comportamento standard.
+  const isSoloProprioServizi = eventAmbito === 'SOLO_PROPRI_SERVIZI'
+    && !isFornitoreFlow
+    && (profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION')
 
   // Fetch eventuale contratto già collegato a questo preventivo
   useEffect(() => {
@@ -104,6 +114,27 @@ export default function QuoteEditorPage() {
       if (data) setContractInfo(data as { id: string; status: string })
     })()
   }, [id, quote?.status])
+
+  // REVISIONE D: fetch ambito_capostipite del calendar_entry collegato.
+  // calendar_entries.quote_id -> quotes.id (1:1 logico). Best-effort: se
+  // l'entry non esiste, restiamo su COMPLETO (comportamento standard).
+  useEffect(() => {
+    if (!id) { setEventAmbito(null); return }
+    void (async () => {
+      const { data } = await (supabase
+        .from('calendar_entries')
+        .select('ambito_capostipite' as any) as any)
+        .eq('quote_id', id)
+        .limit(1)
+        .maybeSingle()
+      const v = data?.ambito_capostipite ?? null
+      setEventAmbito(
+        v === 'SOLO_PROPRI_SERVIZI' || v === 'SOLO_COORDINAMENTO' || v === 'COMPLETO'
+          ? v
+          : null,
+      )
+    })()
+  }, [id])
 
   async function handleCreateContract() {
     if (!quote || !id) return
@@ -163,6 +194,15 @@ export default function QuoteEditorPage() {
     }
     return out
   }, [services])
+
+  // REVISIONE D: in SOLO_PROPRI_SERVIZI forza pickSupplier al capostipite
+  // stesso (il dropdown e' nascosto), cosi' la card "Aggiungi voce dal
+  // catalogo" elenca subito i SUOI servizi senza chiedere di scegliere.
+  useEffect(() => {
+    if (isSoloProprioServizi && profile?.id && pickSupplier !== profile.id) {
+      setPickSupplier(profile.id)
+    }
+  }, [isSoloProprioServizi, profile?.id, pickSupplier])
 
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!quote) return <div className="p-10 text-[rgb(var(--rose-500))]">Preventivo non trovato</div>
@@ -677,7 +717,7 @@ export default function QuoteEditorPage() {
               <h3 className="font-display text-lg">Aggiungi voce dal catalogo</h3>
             </div>
             <div className="space-y-3">
-              {!isFornitoreFlow && (
+              {!isFornitoreFlow && !isSoloProprioServizi && (
                 <div className="flex gap-3 items-end max-w-md">
                   <div className="flex-1 space-y-1">
                     <Label htmlFor="sup">Erogatore</Label>
@@ -702,6 +742,18 @@ export default function QuoteEditorPage() {
                         })}
                     </Select>
                   </div>
+                </div>
+              )}
+              {/* REVISIONE D: SOLO_PROPRI_SERVIZI → niente dropdown fornitori,
+                  solo i miei servizi in catalogo (con badge contestuale). */}
+              {!isFornitoreFlow && isSoloProprioServizi && (
+                <div className="rounded-lg border p-3 text-sm max-w-md"
+                  style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+                  <p className="font-medium">⭐ Solo i miei servizi</p>
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
+                    L'incarico e' "{eventAmbito?.replaceAll('_', ' ').toLowerCase()}": componi il preventivo
+                    usando solo il tuo catalogo. Nessun ricarico applicato.
+                  </p>
                 </div>
               )}
               {(pickSupplier || isFornitoreFlow) && (
