@@ -42,6 +42,7 @@ export function StandardClausesBuilder({
   onClose, onComposed,
   placeholders = {},
   modalita,
+  professioneId,
 }: {
   onClose: () => void
   onComposed: (sections: ContractSection[]) => void
@@ -51,6 +52,13 @@ export function StandardClausesBuilder({
    * con per_modalita = quella specifica o NULL (universali). Default: tutte.
    */
   modalita?: ModalitaIncasso
+  /**
+   * Pacchetti professione FASE 1: se valorizzato, il builder mostra anche
+   * le clausole specifiche della professione (clausola_template) accanto
+   * a quelle standard. Le clausole specifiche sono marcate visivamente e
+   * pre-selezionate (sono "consigliate" per il mestiere).
+   */
+  professioneId?: string | null
 }) {
   const [clauses, setClauses] = useState<StandardClause[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -59,9 +67,44 @@ export function StandardClausesBuilder({
 
   useEffect(() => {
     void (async () => {
-      const { data, error } = await (supabase as any).rpc('list_standard_clauses')
-      if (error) { toast.error(error.message); setLoading(false); return }
-      const list = (data ?? []) as StandardClause[]
+      setLoading(true)
+      // 1) Clausole standard (libreria globale)
+      const std = await (supabase as any).rpc('list_standard_clauses')
+      if (std.error) { toast.error(std.error.message); setLoading(false); return }
+      const stdList = (std.data ?? []) as StandardClause[]
+      // 2) Clausole template della professione (se specificata)
+      let proList: StandardClause[] = []
+      if (professioneId) {
+        const { data: tpl, error: terr } = await (supabase as any)
+          .from('clausola_template')
+          .select('id, professione_id, categoria, per_modalita, titolo, body, sort_order')
+          .eq('professione_id', professioneId)
+          .order('sort_order', { ascending: true })
+        if (terr) {
+          // non-bloccante: continuiamo con le standard
+          console.warn('clausola_template fetch error', terr)
+        } else if (tpl) {
+          proList = (tpl as Array<{
+            id: string
+            categoria: string | null
+            per_modalita: ModalitaIncasso | null
+            titolo: string
+            body: string
+            sort_order: number | null
+          }>).map((t) => ({
+            id: `prof:${t.id}`,
+            category: t.categoria ?? 'ALTRE',
+            slug: `prof-${t.id}`,
+            title: t.titolo,
+            body: t.body,
+            placeholders: [],
+            sort_order: t.sort_order ?? 50,
+            is_default: true,
+            per_modalita: t.per_modalita,
+          }))
+        }
+      }
+      const list = [...proList, ...stdList]
       setClauses(list)
       // preselect defaults compatibili col filtro corrente
       const initialFilter = modalita ?? 'ALL'
@@ -70,7 +113,7 @@ export function StandardClausesBuilder({
       setSelected(new Set(list.filter((c) => c.is_default && compatible(c)).map((c) => c.id)))
       setLoading(false)
     })()
-  }, [modalita])
+  }, [modalita, professioneId])
 
   // Applica filtro modalita: clausole universali (NULL) + clausole della modalita corrente.
   const visibleClauses = clauses.filter((c) =>
@@ -172,9 +215,14 @@ export function StandardClausesBuilder({
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium text-sm">{c.title}</p>
                             {c.is_default && <span className="text-[10px] text-[rgb(var(--gold-600))]">★</span>}
+                            {c.slug.startsWith('prof-') && (
+                              <span className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] px-1.5 py-0.5 rounded">
+                                Professione
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 line-clamp-3 whitespace-pre-line">
                             {applyPlaceholders(c.body)}
