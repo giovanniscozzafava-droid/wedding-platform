@@ -46,45 +46,90 @@ const ROLE_LABEL: Record<string, string> = {
 }
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: string }
+type NavGroup = { section: string | null; items: NavItem[] }
 
-const NAV_BASE: NavItem[] = [
-  { to: '/',           label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/feed',       label: 'Feed',      icon: Newspaper },
-  { to: '/catalog',    label: 'Catalogo',  icon: PackageSearch },
+// ── Menu CAPOSTIPITE (WP / LOCATION / ADMIN) ──────────────────────────────
+// Ordine = flusso di lavoro reale: Lead → Evento → Preventivo → Contratto.
+// I gruppi raccontano "dove sei" nel ciclo: prima vendi, poi gestisci la
+// tua rete e cresci, infine le impostazioni.
+const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
+  { section: null, items: [
+    { to: '/',          label: 'Dashboard', icon: LayoutDashboard },
+  ]},
+  { section: 'Pipeline', items: [
+    { to: '/leads',     label: 'Lead',       icon: Inbox },
+    { to: '/weddings',  label: 'Eventi',     icon: Heart },
+    { to: '/quotes',    label: 'Preventivi', icon: FileText },
+    { to: '/contracts', label: 'Contratti',  icon: FileSignature },
+  ]},
+  { section: 'Catalogo & rete', items: [
+    { to: '/catalog',   label: 'Catalogo',       icon: PackageSearch },
+    { to: '/suppliers', label: 'Rete fornitori', icon: UsersIcon },
+    { to: '/scopri',    label: 'Scopri',         icon: Sparkles },
+  ]},
+  { section: 'Crescita', items: [
+    { to: '/feed',       label: 'Feed',    icon: Newspaper },
+    { to: '/blog/admin', label: 'Blog',    icon: PenSquare },
+    { to: '/rewards',    label: 'Rewards', icon: Gift },
+  ]},
+  { section: 'Gestione', items: [
+    { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+    { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
+  ]},
+  { section: 'Impostazioni', items: [
+    { to: '/settings/brand', label: 'Brand',   icon: Palette },
+    { to: '/profile',        label: 'Profilo', icon: UserRound },
+    { to: '/faq',            label: 'FAQ',     icon: HelpCircle },
+  ]},
+  { section: 'Prodotti (presto)', items: [
+    { to: '/finanziamento', label: 'Finanziamento', icon: Wallet,      badge: 'SOON' },
+    { to: '/assicurazione', label: 'Assicurazione', icon: ShieldCheck, badge: 'SOON' },
+  ]},
 ]
 
-const NAV_CAPOSTIPITE: NavItem[] = [
-  { to: '/leads',      label: 'Lead', icon: Inbox },
-  { to: '/weddings',   label: 'Eventi', icon: Heart },
-  { to: '/suppliers',  label: 'Rete fornitori', icon: UsersIcon },
-  { to: '/scopri',     label: 'Scopri', icon: Sparkles },
-  { to: '/blog/admin', label: 'Blog', icon: PenSquare },
-  { to: '/rewards',    label: 'Rewards', icon: Gift },
+// ── Menu FORNITORE ────────────────────────────────────────────────────────
+// Stesso principio: prima i clienti/capostipiti e la vendita, poi catalogo e
+// disponibilità, infine crescita e impostazioni.
+const NAV_FORNITORE_GROUPS: NavGroup[] = [
+  { section: null, items: [
+    { to: '/',           label: 'Dashboard', icon: LayoutDashboard },
+  ]},
+  { section: 'Pipeline', items: [
+    { to: '/capostipiti', label: 'Capostipiti', icon: UsersIcon },
+    { to: '/clienti',     label: 'Clienti',     icon: Contact },
+    { to: '/quotes',      label: 'Preventivi',  icon: FileText },
+    { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
+  ]},
+  { section: 'Catalogo & lavoro', items: [
+    { to: '/catalog',      label: 'Catalogo',      icon: PackageSearch },
+    { to: '/disponibilita', label: 'Disponibilità', icon: CalendarCheck },
+    { to: '/calcolatore',  label: 'Calcolatore',   icon: Calculator },
+  ]},
+  { section: 'Crescita', items: [
+    { to: '/feed', label: 'Feed', icon: Newspaper },
+  ]},
+  { section: 'Gestione', items: [
+    { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+    { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
+  ]},
+  { section: 'Impostazioni', items: [
+    { to: '/settings/brand', label: 'Brand',   icon: Palette },
+    { to: '/profile',        label: 'Profilo', icon: UserRound },
+    { to: '/faq',            label: 'FAQ',     icon: HelpCircle },
+  ]},
 ]
 
-// Voci di coda comuni a tutti i ruoli
-const NAV_TAIL_COMMON: NavItem[] = [
-  { to: '/calendar',   label: 'Calendario', icon: CalendarDays },
-  { to: '/quotes',     label: 'Preventivi', icon: FileText },
-  { to: '/contracts',  label: 'Contratti',  icon: FileSignature },
-  { to: '/bilancio',   label: 'Bilancio',   icon: PiggyBank },
-  { to: '/settings/brand', label: 'Brand', icon: Palette },
-  { to: '/profile',    label: 'Profilo',  icon: UserRound },
-  { to: '/faq',        label: 'FAQ',       icon: HelpCircle },
-]
-
-// Voci esclusive WP/LOCATION (riservate al cliente finale, non ai fornitori)
-const NAV_TAIL_CLIENT_PRODUCTS: NavItem[] = [
-  { to: '/finanziamento', label: 'Finanziamento', icon: Wallet, badge: 'SOON' },
-  { to: '/assicurazione', label: 'Assicurazione', icon: ShieldCheck, badge: 'SOON' },
-]
-
-const NAV_FORN: NavItem[] = [
-  { to: '/clienti', label: 'Clienti', icon: Contact },
-  { to: '/capostipiti', label: 'Capostipiti', icon: UsersIcon },
-  { to: '/disponibilita', label: 'Disponibilità', icon: CalendarCheck },
-  { to: '/my-contracts', label: 'Contratti', icon: FileSignature },
-  { to: '/calcolatore', label: 'Calcolatore', icon: Calculator },
+// Fallback (ruolo non noto): solo l'essenziale.
+const NAV_FALLBACK_GROUPS: NavGroup[] = [
+  { section: null, items: [
+    { to: '/',        label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/feed',    label: 'Feed',      icon: Newspaper },
+    { to: '/catalog', label: 'Catalogo',  icon: PackageSearch },
+  ]},
+  { section: 'Impostazioni', items: [
+    { to: '/profile', label: 'Profilo', icon: UserRound },
+    { to: '/faq',     label: 'FAQ',     icon: HelpCircle },
+  ]},
 ]
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -95,11 +140,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isFornitore = profile?.role === 'FORNITORE'
-  const NAV = isCapostipite
-    ? [...NAV_BASE, ...NAV_CAPOSTIPITE, ...NAV_TAIL_COMMON, ...NAV_TAIL_CLIENT_PRODUCTS]
+  const NAV_GROUPS = isCapostipite
+    ? NAV_CAPOSTIPITE_GROUPS
     : isFornitore
-    ? [...NAV_BASE, ...NAV_FORN, ...NAV_TAIL_COMMON]
-    : [...NAV_BASE, ...NAV_TAIL_COMMON]
+    ? NAV_FORNITORE_GROUPS
+    : NAV_FALLBACK_GROUPS
 
   const initials =
     (profile?.full_name ?? user?.email ?? '?')
@@ -128,26 +173,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <CandidacyInbox placement="beside" />
         </div>
 
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {NAV.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg))]'
-                    : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
-                )
-              }
-            >
-              <n.icon size={18} strokeWidth={1.8} />
-              <span className="flex-1">{n.label}</span>
-              {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
-            </NavLink>
-          ))}
+        <nav className="flex-1 px-3 py-2 overflow-y-auto">
+          <NavGroups groups={NAV_GROUPS} />
         </nav>
 
         <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -208,20 +235,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <X size={20} />
                 </button>
               </div>
-              <nav className="flex-1 px-3 py-2 space-y-0.5">
-                {NAV.map((n) => (
-                  <NavLink key={n.to} to={n.to} end={n.to === '/'} onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) =>
-                      cn(
-                        'group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium',
-                        isActive ? 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg))]' : 'text-[rgb(var(--fg-muted))]',
-                      )
-                    }>
-                    <n.icon size={18} strokeWidth={1.8} />
-                    <span className="flex-1">{n.label}</span>
-                    {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
-                  </NavLink>
-                ))}
+              <nav className="flex-1 px-3 py-2 overflow-y-auto">
+                <NavGroups groups={NAV_GROUPS} onNavigate={() => setMobileOpen(false)} />
               </nav>
               {/* Mobile drawer footer: user + logout */}
               <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -284,6 +299,42 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <SupplierTutorialCards />
+    </div>
+  )
+}
+
+function NavGroups({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
+  return (
+    <div className="space-y-3">
+      {groups.map((g, gi) => (
+        <div key={g.section ?? `g${gi}`} className="space-y-0.5">
+          {g.section && (
+            <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--fg-subtle))]">
+              {g.section}
+            </p>
+          )}
+          {g.items.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.to === '/'}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                cn(
+                  'group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg))]'
+                    : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
+                )
+              }
+            >
+              <n.icon size={18} strokeWidth={1.8} />
+              <span className="flex-1">{n.label}</span>
+              {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
+            </NavLink>
+          ))}
+        </div>
+      ))}
     </div>
   )
 }

@@ -92,6 +92,13 @@ export default function QuoteEditorPage() {
   // preventivo. Quando 'SOLO_PROPRI_SERVIZI' restringiamo l'erogatore al
   // capostipite stesso (no raccolta da fornitori terzi).
   const [eventAmbito, setEventAmbito] = useState<'COMPLETO' | 'SOLO_COORDINAMENTO' | 'SOLO_PROPRI_SERVIZI' | null>(null)
+  // Gating contratto per ambito: per COMPLETO si attende l'approvazione del
+  // budget totale (tutti i fornitori terzi confermati). Per gli ambiti
+  // ristretti basta che il preventivo sia ACCETTATO.
+  const [budgetReadiness, setBudgetReadiness] = useState<{
+    ready_for_contract: boolean; reason: string; ambito: string
+    supplier_items: number; confirmed_supplier_items: number
+  } | null>(null)
 
   const isLocked = (quote?.status === 'ACCETTATO') && !forceUnlocked
   // SOLO_PROPRI_SERVIZI vale solo se l'utente puo' effettivamente erogare
@@ -136,8 +143,27 @@ export default function QuoteEditorPage() {
     })()
   }, [id])
 
+  // Readiness contratto: per ambito COMPLETO il contratto attende l'approvazione
+  // del budget totale (tutti i fornitori terzi confermati). Ricalcolato quando
+  // cambia lo stato del preventivo o le voci.
+  useEffect(() => {
+    if (!id || (quote?.status !== 'ACCETTATO' && quote?.status !== 'CONVERTITO_IN_CONTRATTO')) {
+      setBudgetReadiness(null)
+      return
+    }
+    void (async () => {
+      const { data } = await (supabase.rpc as any)('quote_budget_readiness', { p_quote_id: id })
+      if (data && !data.error) setBudgetReadiness(data)
+    })()
+  }, [id, quote?.status, quote?.quote_items?.length])
+
   async function handleCreateContract() {
     if (!quote || !id) return
+    // Gating per ambito: COMPLETO richiede approvazione del budget totale.
+    if (budgetReadiness && !budgetReadiness.ready_for_contract) {
+      toast.error(budgetReadiness.reason)
+      return
+    }
     setCreatingContract(true)
     try {
       const { data: me } = await supabase.auth.getUser()
@@ -462,9 +488,23 @@ export default function QuoteEditorPage() {
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 {!contractInfo && quote.status === 'ACCETTATO' && (
-                  <Button variant="gold" size="sm" onClick={handleCreateContract} disabled={creatingContract} data-testid="generate-contract-btn">
-                    <FileSignature size={14} /> {creatingContract ? 'Genero…' : 'Genera contratto'}
-                  </Button>
+                  <div className="flex flex-col items-end gap-1">
+                    <Button variant="gold" size="sm" onClick={handleCreateContract}
+                      disabled={creatingContract || (budgetReadiness ? !budgetReadiness.ready_for_contract : false)}
+                      data-testid="generate-contract-btn">
+                      <FileSignature size={14} /> {creatingContract ? 'Genero…' : 'Genera contratto'}
+                    </Button>
+                    {budgetReadiness && !budgetReadiness.ready_for_contract && (
+                      <p className="text-[11px] text-[rgb(var(--amber-600))] max-w-[240px] text-right leading-tight">
+                        🔒 {budgetReadiness.reason}
+                      </p>
+                    )}
+                    {budgetReadiness?.ready_for_contract && budgetReadiness.ambito !== 'COMPLETO' && (
+                      <p className="text-[11px] text-[rgb(var(--fg-subtle))] max-w-[240px] text-right leading-tight">
+                        Ambito ristretto: firma possibile subito.
+                      </p>
+                    )}
+                  </div>
                 )}
                 {contractInfo && (
                   <Button variant="outline" size="sm" onClick={() => navigate('/contracts')}>

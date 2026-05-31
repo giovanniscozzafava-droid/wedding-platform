@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Inbox, Mail, Phone, Calendar, MapPin, Users, Euro, MessageSquare, Check, X, Eye, FileText, AlertCircle } from 'lucide-react'
+import { Inbox, Mail, Phone, Calendar, MapPin, Users, Euro, MessageSquare, Check, X, Eye, FileText, AlertCircle, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -234,9 +235,26 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose: () => void; onTransition: (id: string, status: Lead['status'], extra?: { close_amount?: number | null; close_notes?: string | null }) => Promise<void> }) {
+  const navigate = useNavigate()
   const [closeAmount, setCloseAmount] = useState(lead.close_amount?.toString() ?? '')
   const [closeNotes, setCloseNotes] = useState(lead.close_notes ?? '')
   const [showWonForm, setShowWonForm] = useState(false)
+  const [converting, setConverting] = useState(false)
+
+  async function convertToEvent() {
+    setConverting(true)
+    try {
+      const { data, error } = await (supabase.rpc as any)('create_event_from_lead', { p_lead_id: lead.id })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      toast.success(data?.reused ? 'Evento gia` esistente: apro il preventivo' : 'Evento e preventivo creati dal lead')
+      navigate(`/quotes/${data.quote_id}`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore conversione lead')
+    } finally {
+      setConverting(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
@@ -266,6 +284,18 @@ function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose:
           <div className="surface p-4 mb-5">
             <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1 flex items-center gap-1"><MessageSquare size={11} /> Messaggio</p>
             <p className="text-sm whitespace-pre-wrap">{lead.message}</p>
+          </div>
+        )}
+
+        {/* Conversione lead -> evento + preventivo (continuità dei dati) */}
+        {lead.status !== 'CLOSED_WON' && lead.status !== 'CLOSED_LOST' && lead.status !== 'SPAM' && (
+          <div className="pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+            <Button variant="gold" className="w-full" onClick={convertToEvent} disabled={converting}>
+              <Sparkles size={14} /> {converting ? 'Creo evento…' : 'Crea evento + preventivo da questo lead'}
+            </Button>
+            <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1.5 text-center">
+              I dati del lead (contatto, data, tipo evento, invitati) vengono pre-compilati e ti seguono per tutto il matrimonio.
+            </p>
           </div>
         )}
 

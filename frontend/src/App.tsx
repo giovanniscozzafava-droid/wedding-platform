@@ -49,6 +49,7 @@ const BlogAdminPage = lazy(() => import('@/pages/BlogAdminPage'))
 const BlogEditorPage = lazy(() => import('@/pages/BlogEditorPage'))
 const HomeFeedPage = lazy(() => import('@/pages/HomeFeedPage'))
 const PublicWpPage = lazy(() => import('@/pages/public/PublicWpPage'))
+const PublicSlugResolver = lazy(() => import('@/pages/public/PublicSlugResolver'))
 const WpLeadsPage = lazy(() => import('@/pages/WpLeadsPage'))
 const DiscoverProsPage = lazy(() => import('@/pages/public/DiscoverProsPage'))
 const FeedArticlePage = lazy(() => import('@/pages/public/FeedArticlePage'))
@@ -222,6 +223,10 @@ export default function App() {
           } />
           <Route path="/" element={<HomeOrPublicHome />} />
           <Route path="/scopri-pro" element={<DiscoverProsPage />} />
+          {/* URL pulito del professionista: planfully.it/<slug>. DEVE restare
+              penultima (subito prima del catch-all) per non oscurare le route
+              applicative. Risolve a landing WP o fornitore; slug ignoto → "/". */}
+          <Route path="/:slug" element={<PublicSlugResolver />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
