@@ -37,7 +37,7 @@ export function useWedding(entryId: string | null) {
         .select(`
           *,
           owner:profiles!calendar_entries_owner_id_fkey(id, full_name, business_name, subrole, role),
-          quote:quotes!calendar_entries_quote_fk(*, quote_items(*, supplier:profiles(id, full_name, business_name, subrole))),
+          quote:quotes!calendar_entries_quote_fk(*, quote_items(*, supplier:profiles!quote_items_supplier_id_fkey(id, full_name, business_name, subrole))),
           calendar_entry_participants(*, user:profiles!calendar_entry_participants_user_id_fkey(id, full_name, business_name, subrole))
         `)
         .eq('id', entryId!)
