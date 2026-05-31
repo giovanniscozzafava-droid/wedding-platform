@@ -33,6 +33,7 @@ type Lead = {
   is_billable: boolean
   billed_at: string | null
   billed_amount: number | null
+  profile_answers: Record<string, unknown> | null
   created_at: string
 }
 
@@ -46,6 +47,16 @@ type Stats = {
   total_revenue: number
   billed: number
   pending_billing: number
+}
+
+const PROFILE_LABELS: Record<string, string> = {
+  how_met: 'La loro storia',
+  styles: 'Stile',
+  budget_priorities: 'Priorità',
+  must_haves: 'Non può mancare',
+  no_thanks: 'Da evitare',
+  guests_estimate: 'Invitati',
+  budget_range: 'Budget',
 }
 
 const STATUS_LABELS: Record<Lead['status'], { label: string; tone: 'gold' | 'sage' | 'rose' | 'sky' | 'amber' | 'neutral' | 'emerald' | 'ink' }> = {
@@ -284,6 +295,24 @@ function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose:
           <div className="surface p-4 mb-5">
             <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1 flex items-center gap-1"><MessageSquare size={11} /> Messaggio</p>
             <p className="text-sm whitespace-pre-wrap">{lead.message}</p>
+          </div>
+        )}
+
+        {/* Profilazione raccolta nel form pubblico */}
+        {lead.profile_answers && Object.keys(lead.profile_answers).length > 0 && (
+          <div className="surface p-4 mb-5">
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2 flex items-center gap-1"><Sparkles size={11} /> Profilazione</p>
+            <dl className="space-y-1.5 text-sm">
+              {Object.entries(lead.profile_answers).map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <dt className="text-[rgb(var(--fg-subtle))] shrink-0">{PROFILE_LABELS[k] ?? k}:</dt>
+                  <dd className="text-[rgb(var(--fg))]">{Array.isArray(v) ? v.join(', ') : String(v)}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-2 italic">
+              Queste risposte verranno pre-caricate nel questionario del matrimonio alla conversione.
+            </p>
           </div>
         )}
 

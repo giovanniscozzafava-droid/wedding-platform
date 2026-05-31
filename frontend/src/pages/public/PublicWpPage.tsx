@@ -52,6 +52,11 @@ const BUDGETS = [
   { v: '>50k',      l: 'Oltre i 50.000 €' },
 ]
 
+// Domande di profilazione — raccolte gia` in fase di richiesta, profilano
+// l'evento e si propagano nel questionario del matrimonio.
+const STYLE_OPTIONS = ['classico', 'elegante', 'romantico', 'boho', 'minimal', 'rustico', 'moderno', 'vintage', 'glamour', 'sul mare']
+const PRIORITY_OPTIONS = ['location', 'cibo & catering', 'fotografo', 'video', 'fiori & allestimenti', 'musica & intrattenimento', 'abito', 'viaggio di nozze']
+
 export default function PublicWpPage() {
   const { slug } = useParams<{ slug: string }>()
   const nav = useNavigate()
@@ -66,8 +71,23 @@ export default function PublicWpPage() {
     event_kind: 'matrimonio', event_date: '',
     event_location: '', guests_estimate: '',
     budget_range: 'undecided', message: '',
+    // Profilazione evento
+    story: '',
+    styles: [] as string[],
+    priorities: [] as string[],
+    must_haves: '',
+    no_thanks: '',
     honeypot: '',  // anti-bot field, must stay empty
   })
+
+  function toggleChip(key: 'styles' | 'priorities', val: string, max: number) {
+    setForm((f) => {
+      const cur = f[key]
+      if (cur.includes(val)) return { ...f, [key]: cur.filter((x) => x !== val) }
+      if (cur.length >= max) return f
+      return { ...f, [key]: [...cur, val] }
+    })
+  }
 
   useEffect(() => {
     if (!slug) return
@@ -103,6 +123,18 @@ export default function PublicWpPage() {
           p_message:        form.message.trim() || null,
           p_honeypot:       form.honeypot,
           p_source:         'public_form',
+          // Profilazione: mappata sulle chiavi del questionario matrimonio
+          // (how_met, styles, budget_priorities, must_haves, no_thanks) cosi`
+          // si propaga 1:1 nel questionario del preventivo.
+          p_profile_answers: {
+            ...(form.story.trim() ? { how_met: form.story.trim() } : {}),
+            ...(form.styles.length ? { styles: form.styles } : {}),
+            ...(form.priorities.length ? { budget_priorities: form.priorities } : {}),
+            ...(form.must_haves.trim() ? { must_haves: form.must_haves.trim() } : {}),
+            ...(form.no_thanks.trim() ? { no_thanks: form.no_thanks.trim() } : {}),
+            ...(form.guests_estimate ? { guests_estimate: Number(form.guests_estimate) } : {}),
+            ...(form.budget_range && form.budget_range !== 'undecided' ? { budget_range: form.budget_range } : {}),
+          },
         })
       if (error) throw error
       const r = data as { ok?: boolean; error?: string; id?: string }
@@ -212,19 +244,47 @@ export default function PublicWpPage() {
           </div>
         </motion.div>
 
-        {/* Bio + work style */}
-        {(wp.bio || wp.work_style) && (
-          <section className="surface p-6 mb-5">
-            <h2 className="font-display text-xl mb-3">Chi sono</h2>
-            {wp.bio && <p className="text-sm leading-relaxed">{wp.bio}</p>}
-            {wp.work_style && (
-              <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-                <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Come lavoro</p>
-                <p className="text-sm leading-relaxed italic">{wp.work_style}</p>
+        {/* Racconto / Chi sono — con copy di fallback quando il profilo e` scarno,
+            cosi` la landing "racconta" sempre qualcosa e invita alla richiesta. */}
+        <section className="surface p-6 sm:p-8 mb-5">
+          <h2 className="font-display text-xl mb-3">Chi sono</h2>
+          {wp.bio ? (
+            <p className="text-sm leading-relaxed whitespace-pre-line">{wp.bio}</p>
+          ) : (
+            <p className="text-sm leading-relaxed text-[rgb(var(--fg-muted))]">
+              Trasformo le vostre idee in un evento che vi somiglia. Mi occupo di tutto —
+              dalla scelta della location ai fornitori giusti, dal budget alla regia del
+              giorno — così voi pensate solo a viverlo. Ogni progetto parte
+              dall'ascolto: raccontatemi la vostra storia e costruiamo insieme il resto.
+            </p>
+          )}
+          <div className="mt-4 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+            <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Come lavoro</p>
+            {wp.work_style ? (
+              <p className="text-sm leading-relaxed italic">{wp.work_style}</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="surface surface-elev p-3">
+                  <p className="font-medium mb-0.5">1 · Ci raccontate</p>
+                  <p className="text-xs text-[rgb(var(--fg-muted))]">Stile, budget, must-have. Bastano pochi minuti.</p>
+                </div>
+                <div className="surface surface-elev p-3">
+                  <p className="font-medium mb-0.5">2 · Proposta su misura</p>
+                  <p className="text-xs text-[rgb(var(--fg-muted))]">Idea, fornitori selezionati e preventivo trasparente.</p>
+                </div>
+                <div className="surface surface-elev p-3">
+                  <p className="font-medium mb-0.5">3 · Pensiamo a tutto</p>
+                  <p className="text-xs text-[rgb(var(--fg-muted))]">Coordinamento e regia fino al giorno dell'evento.</p>
+                </div>
               </div>
             )}
-          </section>
-        )}
+          </div>
+          <div className="mt-5">
+            <Button variant="gold" onClick={() => setFormOpen(true)}>
+              <Send size={14} /> Raccontaci il tuo evento
+            </Button>
+          </div>
+        </section>
 
         {/* Recent posts */}
         {wp.recent_posts.length > 0 && (
@@ -304,33 +364,104 @@ export default function PublicWpPage() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               onClick={(e) => e.stopPropagation()}
               className="surface surface-lift w-full max-w-lg p-6 max-h-[90vh] overflow-auto">
-              <h3 className="font-display text-2xl mb-1">Richiedi preventivo</h3>
-              <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">A {displayName}. Risposta entro 48h.</p>
+              <h3 className="font-display text-2xl mb-1">Raccontaci il tuo evento</h3>
+              <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
+                A {displayName}. Più ci racconti, più la prima proposta sarà su misura. Risposta entro 48h.
+              </p>
 
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Nome *</Label><Input value={form.client_name} onChange={(e) => setForm((f) => ({ ...f, client_name: e.target.value }))} /></div>
-                  <div><Label>Email *</Label><Input type="email" value={form.client_email} onChange={(e) => setForm((f) => ({ ...f, client_email: e.target.value }))} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Telefono</Label><Input type="tel" value={form.client_phone} onChange={(e) => setForm((f) => ({ ...f, client_phone: e.target.value }))} /></div>
-                  <div><Label>Tipo evento</Label>
-                    <Select value={form.event_kind} onChange={(e) => setForm((f) => ({ ...f, event_kind: e.target.value }))}>
-                      {EVENT_KINDS.map((k) => <option key={k} value={k}>{eventTerm(k).Label}</option>)}
-                    </Select>
+              <div className="space-y-4">
+                {/* — Contatti — */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-600))] mb-2">I tuoi contatti</p>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Nome *</Label><Input value={form.client_name} onChange={(e) => setForm((f) => ({ ...f, client_name: e.target.value }))} placeholder="Giulia & Marco" /></div>
+                      <div><Label>Email *</Label><Input type="email" value={form.client_email} onChange={(e) => setForm((f) => ({ ...f, client_email: e.target.value }))} placeholder="voi@email.it" /></div>
+                    </div>
+                    <div><Label>Telefono</Label><Input type="tel" value={form.client_phone} onChange={(e) => setForm((f) => ({ ...f, client_phone: e.target.value }))} placeholder="+39 ..." /></div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Data evento</Label><Input type="date" value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} /></div>
-                  <div><Label>Invitati stimati</Label><Input type="number" value={form.guests_estimate} onChange={(e) => setForm((f) => ({ ...f, guests_estimate: e.target.value }))} /></div>
+
+                {/* — L'evento — */}
+                <div className="pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-600))] mb-2">L'evento</p>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Tipo evento</Label>
+                        <Select value={form.event_kind} onChange={(e) => setForm((f) => ({ ...f, event_kind: e.target.value }))}>
+                          {EVENT_KINDS.map((k) => <option key={k} value={k}>{eventTerm(k).Label}</option>)}
+                        </Select>
+                      </div>
+                      <div><Label>Data (anche indicativa)</Label><Input type="date" value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Invitati stimati</Label><Input type="number" value={form.guests_estimate} onChange={(e) => setForm((f) => ({ ...f, guests_estimate: e.target.value }))} placeholder="120" /></div>
+                      <div><Label>Zona / location ideale</Label><Input value={form.event_location} onChange={(e) => setForm((f) => ({ ...f, event_location: e.target.value }))} placeholder="Es. Cosenza, Tropea..." /></div>
+                    </div>
+                    <div><Label>Budget orientativo</Label>
+                      <Select value={form.budget_range} onChange={(e) => setForm((f) => ({ ...f, budget_range: e.target.value }))}>
+                        {BUDGETS.map((b) => <option key={b.v} value={b.v}>{b.l}</option>)}
+                      </Select>
+                    </div>
+                  </div>
                 </div>
-                <div><Label>Location ideale</Label><Input value={form.event_location} onChange={(e) => setForm((f) => ({ ...f, event_location: e.target.value }))} placeholder="Es. Cosenza, Tropea..." /></div>
-                <div><Label>Budget orientativo</Label>
-                  <Select value={form.budget_range} onChange={(e) => setForm((f) => ({ ...f, budget_range: e.target.value }))}>
-                    {BUDGETS.map((b) => <option key={b.v} value={b.v}>{b.l}</option>)}
-                  </Select>
+
+                {/* — Profilazione: la vostra storia e i gusti — */}
+                <div className="pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-600))] mb-2">Il vostro stile</p>
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Raccontateci la vostra storia / cosa immaginate</Label>
+                      <Textarea rows={3} value={form.story} onChange={(e) => setForm((f) => ({ ...f, story: e.target.value }))}
+                        placeholder="Come vi siete conosciuti, l'atmosfera che sognate, un'emozione che non deve mancare..." />
+                    </div>
+                    <div>
+                      <Label>Stile che vi piace <span className="text-[rgb(var(--fg-subtle))] font-normal">(max 3)</span></Label>
+                      <div className="flex flex-wrap gap-2 mt-1.5">
+                        {STYLE_OPTIONS.map((s) => {
+                          const on = form.styles.includes(s)
+                          return (
+                            <button key={s} type="button" onClick={() => toggleChip('styles', s, 3)}
+                              className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                              style={on
+                                ? { background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))', borderColor: 'rgb(var(--gold-500))' }
+                                : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
+                              {s}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Su cosa volete investire di più <span className="text-[rgb(var(--fg-subtle))] font-normal">(max 3)</span></Label>
+                      <div className="flex flex-wrap gap-2 mt-1.5">
+                        {PRIORITY_OPTIONS.map((p) => {
+                          const on = form.priorities.includes(p)
+                          return (
+                            <button key={p} type="button" onClick={() => toggleChip('priorities', p, 3)}
+                              className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                              style={on
+                                ? { background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))', borderColor: 'rgb(var(--gold-500))' }
+                                : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
+                              {p}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div><Label>Cosa non può mancare</Label>
+                        <Input value={form.must_haves} onChange={(e) => setForm((f) => ({ ...f, must_haves: e.target.value }))} placeholder="Es. open bar, fiori freschi" />
+                      </div>
+                      <div><Label>Cosa proprio non volete</Label>
+                        <Input value={form.no_thanks} onChange={(e) => setForm((f) => ({ ...f, no_thanks: e.target.value }))} placeholder="Es. lancio del riso" />
+                      </div>
+                    </div>
+                    <div><Label>Altro che vuoi aggiungere</Label>
+                      <Textarea rows={2} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} placeholder="Note libere..." />
+                    </div>
+                  </div>
                 </div>
-                <div><Label>Messaggio</Label><Textarea rows={3} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} placeholder="Cosa hai in mente per il tuo evento?" /></div>
 
                 {/* honeypot anti-bot, hidden field */}
                 <input type="text" tabIndex={-1} autoComplete="off" name="website_url"
