@@ -121,14 +121,17 @@ export default function PublicSupplierPage() {
     <Centered>
       <AlertCircle size={28} className="mx-auto mb-3 text-[rgb(var(--rose-500))]" />
       <p className="text-sm text-[rgb(var(--fg-muted))]">{err ?? 'Profilo non disponibile'}</p>
-      <Link to="/scopri" className="text-sm text-[rgb(var(--gold-600))] hover:underline mt-3 inline-block">← Torna al feed</Link>
+      <Link to="/" className="text-sm text-[rgb(var(--gold-600))] hover:underline mt-3 inline-block">← Torna alla home</Link>
     </Centered>
   )
 
   const subroleLabel = SUPPLIER_SUBROLES.find((s) => s.v === data.subrole)?.l ?? data.subrole
   const isOwner = user?.id === data.id
   const isFornitoreViewer = profile?.role === 'FORNITORE'
-  const isCoupleViewer = profile?.role === 'COUPLE' || !user
+  const isCoupleViewer = profile?.role === 'COUPLE'
+  // Visitatore pubblico (non loggato): nessuna navigazione dentro l'app e
+  // nessun funnel login/register. Resta pagina informativa pubblica.
+  const isPublicVisitor = !user
   // Solo i fornitori loggati che NON sono il proprietario possono "candidarsi" al capostipite —
   // ma qui siamo sul profilo di un fornitore, quindi la candidatura non si applica.
   // Mostriamo CTA "Contatta" per chi cerca il professionista.
@@ -158,8 +161,8 @@ export default function PublicSupplierPage() {
         })}</script>
       </Helmet>
       <div className="max-w-4xl mx-auto px-6 sm:px-10 py-6">
-        <Link to="/scopri" className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-4">
-          <ArrowLeft size={14} /> Tutti i fornitori
+        <Link to={isPublicVisitor ? '/' : '/scopri'} className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-4">
+          <ArrowLeft size={14} /> {isPublicVisitor ? 'Home' : 'Tutti i fornitori'}
         </Link>
 
         {/* Hero */}
@@ -195,7 +198,7 @@ export default function PublicSupplierPage() {
               </div>
               <div className="flex items-center gap-3 mt-2 flex-wrap">
                 <StarsBadge userId={data.id} size="md" />
-                <FollowButton userId={data.id} targetRole="FORNITORE" />
+                {!isPublicVisitor && <FollowButton userId={data.id} targetRole="FORNITORE" />}
               </div>
 
               {data.tagline && (
@@ -269,8 +272,12 @@ export default function PublicSupplierPage() {
                   <Link to="/register">
                     <Button variant="gold" size="sm"><Send size={14} /> Contatta tramite Planfully</Button>
                   </Link>
+                ) : isPublicVisitor ? (
+                  <p className="text-xs text-[rgb(var(--fg-subtle))]">
+                    Per lavorare con {data.business_name ?? data.full_name ?? 'questo fornitore'}, contatta il tuo wedding planner di riferimento.
+                  </p>
                 ) : null}
-                {!isOwner && <FollowButton userId={data.id} variant="outline" />}
+                {!isOwner && !isPublicVisitor && <FollowButton userId={data.id} variant="outline" />}
               </div>
             </div>
           </div>

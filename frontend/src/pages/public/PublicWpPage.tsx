@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
 import { eventTerm } from '@/lib/eventKind'
 import { FollowButton } from '@/components/feed/FollowButton'
 import { StarsBadge } from '@/components/social/StarsBadge'
@@ -60,6 +61,10 @@ const PRIORITY_OPTIONS = ['location', 'cibo & catering', 'fotografo', 'video', '
 export default function PublicWpPage() {
   const { slug } = useParams<{ slug: string }>()
   const nav = useNavigate()
+  const { user } = useAuth()
+  // Visitatore pubblico (non loggato): niente navigazione dentro l'app, niente
+  // funnel login/register. Solo contenuto pubblico + richiesta preventivo.
+  const isPublicVisitor = !user
   const [wp, setWp] = useState<WpProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -223,7 +228,7 @@ export default function PublicWpPage() {
                 <Button variant="gold" onClick={() => setFormOpen(true)}>
                   <Send size={14} /> Richiedi preventivo
                 </Button>
-                <FollowButton userId={wp.id} targetRole="WEDDING_PLANNER" variant="outline" />
+                {!isPublicVisitor && <FollowButton userId={wp.id} targetRole="WEDDING_PLANNER" variant="outline" />}
                 {wp.website && (
                   <a href={wp.website} target="_blank" rel="noreferrer"
                     className="inline-flex items-center gap-1 text-xs px-3 py-2 rounded-full border hover:bg-[rgb(var(--bg-sunken))]"
@@ -291,7 +296,7 @@ export default function PublicWpPage() {
           <section className="surface p-6 mb-5">
             <div className="flex items-baseline justify-between mb-4">
               <h2 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} /> Lavori recenti</h2>
-              <Link to="/feed" className="text-xs text-[rgb(var(--gold-600))] hover:underline">Vedi tutto →</Link>
+              {!isPublicVisitor && <Link to="/feed" className="text-xs text-[rgb(var(--gold-600))] hover:underline">Vedi tutto →</Link>}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {wp.recent_posts.map((p) => (
