@@ -55,53 +55,45 @@ export default function CalendarPage() {
   const isSupplier = profile?.role === 'FORNITORE'
   const { user } = useAuth()
 
-  type AvailStatus = 'BUSY' | 'TENTATIVE'
+  type AvailStatus = 'BUSY' | 'TENTATIVE' | 'OPTIONED' | 'UNAVAILABLE'
   type AvailSlot = { id: string; status: AvailStatus; notes?: string | null }
   const [availMap, setAvailMap] = useState<Map<string, AvailSlot>>(new Map())
-  const [availBusy, setAvailBusy] = useState(false)
+  type Appt = { id: string; kind: string; title: string; date: string; end_date: string | null; start_time: string | null; end_time: string | null; notes: string | null; location: string | null; done: boolean }
+  const [apptsByDay, setApptsByDay] = useState<Map<string, Appt[]>>(new Map())
 
   const reloadAvail = useCallback(async () => {
-    if (!isSupplier || !user) { setAvailMap(new Map()); return }
+    if (!isSupplier || !user) { setAvailMap(new Map()); setApptsByDay(new Map()); return }
     const start = `${range.from.slice(0, 7)}-01`
     const end = range.to
-    const { data, error } = await (supabase.from('supplier_availability' as any) as any)
-      .select('id, date, status, notes')
-      .eq('fornitore_id', user.id)
-      .gte('date', start)
-      .lte('date', end)
-    if (error) return
+    const av = await (supabase.from('supplier_availability' as any) as any)
+      .select('id, date, status, notes').eq('fornitore_id', user.id).gte('date', start).lte('date', end)
     const m = new Map<string, AvailSlot>()
-    for (const r of (data ?? []) as any[]) m.set(r.date, { id: r.id, status: r.status as AvailStatus, notes: r.notes })
+    for (const r of (av.data ?? []) as any[]) m.set(r.date, { id: r.id, status: r.status as AvailStatus, notes: r.notes })
     setAvailMap(m)
+    const ap = await (supabase.from('supplier_appointments' as any) as any)
+      .select('id, kind, title, date, end_date, start_time, end_time, notes, location, done')
+      .eq('owner_id', user.id).gte('date', start).lte('date', end).order('start_time', { ascending: true, nullsFirst: true })
+    const am = new Map<string, Appt[]>()
+    for (const r of (ap.data ?? []) as Appt[]) {
+      const arr = am.get(r.date) ?? []; arr.push(r); am.set(r.date, arr)
+    }
+    setApptsByDay(am)
   }, [isSupplier, user, range.from, range.to])
 
   useEffect(() => { void reloadAvail() }, [reloadAvail])
 
-  async function toggleAvail(date: string) {
-    if (!isSupplier || !user) return
-    setAvailBusy(true)
-    try {
-      const cur = availMap.get(date)
-      // cycle: nessuno (verde) → BUSY (rosso) → TENTATIVE (giallo) → nessuno (verde)
-      if (!cur) {
-        const { error } = await (supabase.from('supplier_availability' as any) as any)
-          .insert({ fornitore_id: user.id, date, status: 'BUSY' })
-        if (error) throw error
-      } else if (cur.status === 'BUSY') {
-        const { error } = await (supabase.from('supplier_availability' as any) as any)
-          .update({ status: 'TENTATIVE' }).eq('id', cur.id)
-        if (error) throw error
-      } else {
-        const { error } = await (supabase.from('supplier_availability' as any) as any)
-          .delete().eq('id', cur.id)
-        if (error) throw error
-      }
-      await reloadAvail()
-    } catch (e) {
-      toast.error((e as Error).message)
-    } finally {
-      setAvailBusy(false)
-    }
+  async function addAppointment(date: string, kind: string, title: string, start?: string, end?: string, endDate?: string) {
+    if (!user) return
+    const { error } = await (supabase.from('supplier_appointments' as any) as any).insert({
+      owner_id: user.id, date, kind, title, start_time: start || null, end_time: end || null, end_date: endDate || null,
+    })
+    if (error) { toast.error(error.message); return }
+    toast.success('Aggiunto al calendario')
+    await reloadAvail()
+  }
+  async function deleteAppointment(id: string) {
+    await (supabase.from('supplier_appointments' as any) as any).delete().eq('id', id)
+    await reloadAvail()
   }
   const entryIds = useMemo(() => (data ?? []).map((e: any) => e.id), [data])
   const { data: earnings } = useSupplierEarnings(entryIds)
@@ -178,9 +170,9 @@ export default function CalendarPage() {
               <div className="flex flex-wrap gap-3 text-[11px] px-4 py-3 border-b" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
                 <span className="text-[rgb(var(--fg-muted))] font-medium">Disponibilità:</span>
                 <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-emerald-400" /> Disponibile</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm" style={{ background: 'rgb(var(--amber-500))' }} /> Forse</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm" style={{ background: 'rgb(var(--rose-500))' }} /> Occupato</span>
-                <span className="text-[rgb(var(--fg-subtle))] ml-auto">Click sul giorno per cambiare stato</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm" style={{ background: 'rgb(var(--amber-500))' }} /> Forse/opzionato</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm" style={{ background: 'rgb(var(--rose-500))' }} /> Pieno/bloccato</span>
+                <span className="text-[rgb(var(--fg-subtle))] ml-auto">Clicca un giorno per gestire appuntamenti e blocchi</span>
               </div>
             )}
             <div className="grid grid-cols-7">
@@ -191,24 +183,22 @@ export default function CalendarPage() {
                 const isSelected = k === selectedDay
                 const isPast = k < fmtDay(new Date())
                 const slot = isSupplier ? availMap.get(k) : undefined
+                const dayAppts = isSupplier ? (apptsByDay.get(k) ?? []) : []
                 const availBg = isSupplier
-                  ? slot?.status === 'BUSY' ? 'rgb(var(--rose-500) / 0.18)'
-                    : slot?.status === 'TENTATIVE' ? 'rgb(var(--amber-500) / 0.20)'
+                  ? slot?.status === 'BUSY' || slot?.status === 'UNAVAILABLE' ? 'rgb(var(--rose-500) / 0.18)'
+                    : slot?.status === 'TENTATIVE' || slot?.status === 'OPTIONED' ? 'rgb(var(--amber-500) / 0.20)'
                     : isPast ? undefined
-                    : 'rgb(157 188 152 / 0.18)'
+                    : 'rgb(157 188 152 / 0.14)'
                   : undefined
-                const cellBgClass = isSupplier
-                  ? ''
-                  : (isSelected ? 'bg-[rgb(var(--bg-sunken))]' : 'hover:bg-[rgb(var(--bg-sunken))]')
+                const cellBgClass = isSelected ? 'bg-[rgb(var(--bg-sunken))]' : 'hover:bg-[rgb(var(--bg-sunken))]'
                 return (
                   <button
                     key={i}
-                    onClick={() => isSupplier ? void toggleAvail(k) : setSelectedDay(k)}
+                    onClick={() => setSelectedDay(k)}
                     onDoubleClick={() => canCreate && setCreating({ date: k })}
-                    disabled={isSupplier && availBusy}
-                    className={`relative min-h-24 p-2 text-left border-t border-r last:border-r-0 transition-colors ${cell.out ? 'opacity-40' : ''} ${cellBgClass} ${isSupplier ? 'hover:brightness-110' : ''} disabled:cursor-wait`}
-                    style={{ borderColor: 'rgb(var(--border))', background: availBg }}
-                    title={isSupplier ? (slot?.notes ?? (slot ? slot.status : 'Disponibile')) : undefined}
+                    className={`relative min-h-24 p-2 text-left border-t border-r last:border-r-0 transition-colors ${cell.out ? 'opacity-40' : ''} ${cellBgClass}`}
+                    style={{ borderColor: 'rgb(var(--border))', background: isSelected ? undefined : availBg }}
+                    title={isSupplier ? (slot?.notes ?? 'Disponibile') : undefined}
                   >
                     <span className={`inline-flex items-center justify-center text-xs ${isToday ? 'h-6 w-6 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))]' : ''}`}>
                       {cell.date.getDate()}
@@ -220,8 +210,14 @@ export default function CalendarPage() {
                           {e.title}
                         </div>
                       ))}
-                      {dayEvents.length > 3 && (
-                        <p className="text-[10px] text-[rgb(var(--fg-subtle))]">+{dayEvents.length - 3} altri</p>
+                      {dayAppts.slice(0, 2).map((a) => (
+                        <div key={a.id} className="text-[10px] truncate rounded px-1 py-0.5"
+                          style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+                          {a.start_time ? a.start_time.slice(0, 5) + ' ' : ''}{a.title}
+                        </div>
+                      ))}
+                      {(dayEvents.length + dayAppts.length) > 3 && (
+                        <p className="text-[10px] text-[rgb(var(--fg-subtle))]">+{dayEvents.length + dayAppts.length - 3} altri</p>
                       )}
                     </div>
                   </button>
@@ -240,6 +236,14 @@ export default function CalendarPage() {
               {!selectedDay && <p className="text-xs text-[rgb(var(--fg-subtle))]">Seleziona un giorno nella griglia</p>}
             </div>
             <CardContent className="p-0">
+              {isSupplier && selectedDay && (
+                <SupplierDayAgenda
+                  date={selectedDay}
+                  appts={apptsByDay.get(selectedDay) ?? []}
+                  onAdd={addAppointment}
+                  onDelete={deleteAppointment}
+                />
+              )}
               <AnimatePresence mode="popLayout">
                 {selectedEntries.length === 0 ? (
                   <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -312,6 +316,75 @@ export default function CalendarPage() {
 
       {(creating || editing) && (
         <EntryForm entry={editing} defaultDate={creating?.date} onClose={() => { setEditing(null); setCreating(null) }} />
+      )}
+    </div>
+  )
+}
+
+const KIND_LABEL: Record<string, string> = {
+  EVENTO: 'Evento', APPUNTAMENTO: 'Appuntamento', PERSONALE: 'Personale', BLOCCO: 'Blocco', VACANZA: 'Vacanza', TODO: 'Da fare',
+}
+
+function SupplierDayAgenda({ date, appts, onAdd, onDelete }: {
+  date: string
+  appts: { id: string; kind: string; title: string; start_time: string | null; end_time: string | null; notes: string | null }[]
+  onAdd: (date: string, kind: string, title: string, start?: string, end?: string, endDate?: string) => Promise<void>
+  onDelete: (id: string) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [kind, setKind] = useState('APPUNTAMENTO')
+  const [title, setTitle] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+
+  async function submit() {
+    if (!title.trim()) { toast.error('Inserisci un titolo'); return }
+    await onAdd(date, kind, title.trim(), start, end)
+    setTitle(''); setStart(''); setEnd(''); setOpen(false)
+  }
+
+  return (
+    <div className="px-5 py-4 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))]">La mia agenda</p>
+        <button onClick={() => setOpen((v) => !v)} className="text-xs inline-flex items-center gap-1 text-[rgb(var(--gold-600))]">
+          <Plus size={13} /> Aggiungi
+        </button>
+      </div>
+
+      {appts.length === 0 ? (
+        <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessun appuntamento. Puoi gestire più appuntamenti nello stesso giorno.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {appts.map((a) => (
+            <li key={a.id} className="flex items-start gap-2 text-sm">
+              <span className="text-xs tabular-nums text-[rgb(var(--fg-muted))] w-20 shrink-0 pt-0.5">
+                {a.start_time ? a.start_time.slice(0, 5) : '—'}{a.end_time ? `–${a.end_time.slice(0, 5)}` : ''}
+              </span>
+              <div className="min-w-0 flex-1">
+                <span className="font-medium">{a.title}</span>
+                <span className="text-[10px] ml-1.5 px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-subtle))' }}>{KIND_LABEL[a.kind] ?? a.kind}</span>
+              </div>
+              <button onClick={() => void onDelete(a.id)} className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))] text-xs">✕</button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {open && (
+        <div className="mt-3 space-y-2 p-3 rounded-lg" style={{ background: 'rgb(var(--bg-sunken))' }}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Es. Incontro sposi / Commercialista / Richiamare Tizio"
+            className="w-full text-sm px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }} />
+          <div className="flex gap-2">
+            <select value={kind} onChange={(e) => setKind(e.target.value)} className="text-sm px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }}>
+              {['APPUNTAMENTO', 'PERSONALE', 'BLOCCO', 'VACANZA', 'TODO'].map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+            </select>
+            <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="text-sm px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }} />
+            <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="text-sm px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }} />
+          </div>
+          <Button variant="gold" className="w-full" onClick={() => void submit()}>Salva</Button>
+          <p className="text-[10px] text-[rgb(var(--fg-subtle))]">“Blocco” e “Vacanza” rendono il giorno non disponibile. Gli altri sono solo promemoria.</p>
+        </div>
       )}
     </div>
   )

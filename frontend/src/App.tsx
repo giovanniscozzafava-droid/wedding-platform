@@ -62,7 +62,6 @@ const FeedArticlePage = lazy(() => import('@/pages/public/FeedArticlePage'))
 const FeedArticleEditorPage = lazy(() => import('@/pages/FeedArticleEditorPage'))
 const NetworkRewardsPage = lazy(() => import('@/pages/NetworkRewardsPage'))
 const CompositionCalculatorPage = lazy(() => import('@/pages/CompositionCalculatorPage'))
-const SupplierAvailabilityPage = lazy(() => import('@/pages/SupplierAvailabilityPage'))
 const SupplierClientsPage = lazy(() => import('@/pages/SupplierClientsPage'))
 const SupplierCapostipitiPage = lazy(() => import('@/pages/SupplierCapostipitiPage'))
 const FaqPage = lazy(() => import('@/pages/FaqPage'))
@@ -220,7 +219,8 @@ export default function App() {
           <Route path="/blog/modifica/:id" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogEditorPage /></RequireAuth>} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
-          <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
+          {/* Disponibilità accorpata nel Calendario (gestione appuntamenti/blocchi). */}
+          <Route path="/disponibilita" element={<Navigate to="/calendar" replace />} />
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />
           <Route path="/capostipiti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCapostipitiPage /></RequireAuth>} />
           <Route path="/team" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierTeamPage /></RequireAuth>} />
