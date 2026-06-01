@@ -97,6 +97,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/',           label: 'Dashboard', icon: LayoutDashboard },
   ]},
   { section: 'Pipeline', items: [
+    { to: '/richieste',   label: 'Richieste',   icon: Inbox },
     { to: '/capostipiti', label: 'Capostipiti', icon: UsersIcon },
     { to: '/clienti',     label: 'Clienti',     icon: Contact },
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
