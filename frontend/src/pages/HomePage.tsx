@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
+import { FunnelMetrics } from '@/components/dashboard/FunnelMetrics'
 
 type Stats = {
   servicesCount: number
@@ -130,6 +131,9 @@ export default function HomePage() {
             accent="ink"
           />
         </div>
+
+        {/* Funnel lead-generation: percentuali motivazionali */}
+        <FunnelMetrics />
 
         {/* Prossima mossa (workflow guidato) — solo capostipiti (WP/LOCATION/ADMIN) e con feature flag attiva */}
         {isCapostipite && nuovoModello && (
