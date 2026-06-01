@@ -212,7 +212,18 @@ Deno.serve(async (req) => {
 
     const subject = isOverride
       ? `Modifica al preventivo · ${q.title}`
-      : `Il vostro preventivo per ${q.title} · da ${wpName}`
+      : `Il tuo preventivo per ${q.title} · da ${wpName}`
+
+    // Frase di chiusura coerente col tipo evento (no "giorno più importante" per una cresima)
+    const _ek = String(q.event_kind ?? 'matrimonio').toLowerCase()
+    const closingPhrase =
+      _ek === 'matrimonio'   ? 'A presto, per il tuo giorno più importante.'
+      : _ek === 'compleanno' ? 'A presto, per la tua festa.'
+      : _ek === 'laurea'     ? 'A presto, per festeggiare insieme.'
+      : _ek === 'corporate'  ? 'A presto, per il vostro evento.'
+      : (_ek === 'battesimo' || _ek === 'comunione' || _ek === 'cresima')
+                             ? 'A presto, per questo giorno speciale.'
+      : 'A presto, per il tuo evento.'
 
     // Items preview: prime 5 voci
     const { data: itemsPreview } = await admin.from('quote_items').select('name_snapshot, line_client').eq('quote_id', body.quote_id).order('sort_order').limit(5)
@@ -333,10 +344,10 @@ Deno.serve(async (req) => {
           <td style="border-bottom:1px solid #E4DED2">&nbsp;</td>
         </tr></table>
         <div style="margin-top:24px;font-family:Georgia,serif;font-style:italic;font-size:13px;color:#787164;line-height:1.6">
-          ${owner?.bio ? escapeHtml(owner.bio).slice(0, 280) + (owner.bio.length > 280 ? '…' : '') : 'A presto, per il tuo giorno più importante.'}
+          ${owner?.bio ? escapeHtml(owner.bio).slice(0, 280) + (owner.bio.length > 280 ? '…' : '') : closingPhrase}
         </div>
         <div style="margin-top:18px;font-family:Georgia,serif;font-size:14px;color:#1A1714;font-weight:700">— ${escapeHtml(wpName)}</div>
-        <div style="font-family:Arial,sans-serif;font-size:11px;color:#A59C8E;letter-spacing:1px;text-transform:uppercase;margin-top:4px">${escapeHtml(wpBiz ?? 'Wedding planner')}</div>
+        <div style="font-family:Arial,sans-serif;font-size:11px;color:#A59C8E;letter-spacing:1px;text-transform:uppercase;margin-top:4px">${escapeHtml(wpBiz ?? roleFallback)}</div>
         ${ownerEmail || owner?.phone ? `
         <div style="margin-top:14px;font-family:Arial,sans-serif;font-size:12px;color:#787164">
           ${ownerEmail ? `<a href="mailto:${escapeHtml(ownerEmail)}" style="color:#787164;text-decoration:none">${escapeHtml(ownerEmail)}</a>` : ''}

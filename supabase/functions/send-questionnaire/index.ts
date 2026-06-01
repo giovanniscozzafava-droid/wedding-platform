@@ -62,9 +62,18 @@ Deno.serve(async (req) => {
   const { data: me } = await admin.auth.getUser(auth.slice(7))
   if (!me.user) return json({ error: 'unauthorized' }, 401)
 
-  const { data: entry } = await admin.from('calendar_entries').select('id, title, owner_id, date_from').eq('id', body.entry_id).maybeSingle()
+  const { data: entry } = await admin.from('calendar_entries').select('id, title, owner_id, date_from, event_kind').eq('id', body.entry_id).maybeSingle()
   if (!entry) return json({ error: 'wedding not found' }, 404)
   if (entry.owner_id !== me.user.id) return json({ error: 'not your wedding' }, 403)
+
+  // Terminologia coerente col tipo evento (no "matrimonio" per una cresima)
+  const _ek = String((entry as { event_kind?: string }).event_kind ?? 'matrimonio').toLowerCase()
+  const eventNoun = _ek === 'matrimonio' ? 'matrimonio'
+    : _ek === 'compleanno' ? 'compleanno' : _ek === 'laurea' ? 'laurea'
+    : _ek === 'anniversario' ? 'anniversario' : _ek === 'corporate' ? 'evento'
+    : _ek === 'battesimo' ? 'battesimo' : _ek === 'comunione' ? 'comunione'
+    : _ek === 'cresima' ? 'cresima' : 'evento'
+  const eventTitleHtml = _ek === 'matrimonio' ? 'il vostro<br>matrimonio ideale' : `il vostro<br>${eventNoun} ideale`
 
   // Recupera info WP
   const { data: owner } = await admin.from('profiles')
@@ -144,7 +153,7 @@ Deno.serve(async (req) => {
         <div style="font-family:Arial,sans-serif;font-size:11px;color:${accentColor};letter-spacing:3px;text-transform:uppercase;font-weight:600">Iniziamo a conoscerci</div>
       </td></tr>
       <tr><td style="padding:12px 40px 0 40px;text-align:center">
-        <h1 style="font-family:Georgia,serif;font-weight:700;font-size:32px;line-height:1.2;color:#1A1714;margin:0;letter-spacing:-0.02em">Raccontateci il vostro<br>matrimonio ideale</h1>
+        <h1 style="font-family:Georgia,serif;font-weight:700;font-size:32px;line-height:1.2;color:#1A1714;margin:0;letter-spacing:-0.02em">Raccontateci ${eventTitleHtml}</h1>
       </td></tr>
 
       <!-- BODY -->
@@ -209,7 +218,7 @@ Deno.serve(async (req) => {
 
   const r = await sendEmail(
     email,
-    `${wpName} vuole conoscervi · raccontateci il vostro matrimonio`,
+    `${wpName} vuole conoscervi · raccontateci il vostro ${eventNoun}`,
     html,
     { from: fromHeader, reply_to: ownerEmail ?? undefined },
   )
