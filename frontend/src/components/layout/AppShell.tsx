@@ -27,6 +27,7 @@ import {
   Inbox,
   Gift,
   Code2,
+  Coins,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -110,6 +111,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Crescita', items: [
     { to: '/feed', label: 'Feed', icon: Newspaper },
+    { to: '/crediti', label: 'Crediti rete', icon: Coins },
   ]},
   { section: 'Gestione', items: [
     { to: '/calendar', label: 'Calendario', icon: CalendarDays },

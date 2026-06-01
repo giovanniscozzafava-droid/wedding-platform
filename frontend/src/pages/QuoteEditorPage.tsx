@@ -243,10 +243,16 @@ export default function QuoteEditorPage() {
   // stesso (il dropdown e' nascosto), cosi' la card "Aggiungi voce dal
   // catalogo" elenca subito i SUOI servizi senza chiedere di scegliere.
   useEffect(() => {
-    if (isSoloProprioServizi && profile?.id && pickSupplier !== profile.id) {
+    if (pickSupplier) return
+    // SOLO_PROPRI_SERVIZI: forza i propri servizi.
+    if (isSoloProprioServizi && profile?.id) { setPickSupplier(profile.id); return }
+    // COMPLETO (WP/Location): se il capostipite ha servizi propri in catalogo,
+    // mostrali SUBITO (niente dropdown da scoprire — fix mobile: i servizi
+    // propri comparivano solo dopo aver selezionato l'erogatore).
+    if (!isFornitoreFlow && profile?.id && grouped.has(profile.id)) {
       setPickSupplier(profile.id)
     }
-  }, [isSoloProprioServizi, profile?.id, pickSupplier])
+  }, [isSoloProprioServizi, isFornitoreFlow, profile?.id, pickSupplier, grouped])
 
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!quote) return <div className="p-10 text-[rgb(var(--rose-500))]">Preventivo non trovato</div>
