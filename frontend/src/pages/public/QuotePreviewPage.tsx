@@ -1,16 +1,27 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles, Check, X, ExternalLink, Home, LogIn } from 'lucide-react'
+import { Sparkles, Check, X, ExternalLink, Home, LogIn, Lock } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { supabase } from '@/lib/supabase'
 import { publicQuoteByToken } from '@/hooks/useQuotes'
+
+const CONSENT_CLAUSES = [
+  { key: 'registration', text: 'Mi registro su Planfully per visualizzare il prezzo del preventivo.' },
+  { key: 'data_fuyue', text: 'Acconsento al trattamento dei miei dati personali da parte di Fuyue Srl, titolare del marchio Planfully, che ne diventa titolare.' },
+  { key: 'commercial_third_parties', text: 'Acconsento all’utilizzo dei miei dati anche per finalità commerciali e alla loro eventuale cessione a terzi da parte di Fuyue Srl.' },
+  { key: 'privacy_policy', text: 'Dichiaro di aver letto e compreso l’informativa privacy.' },
+]
 
 export default function QuotePreviewPage() {
   const { token } = useParams<{ token: string }>()
   const [data, setData] = useState<Awaited<ReturnType<typeof publicQuoteByToken>> | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [unlocked, setUnlocked] = useState(false)
 
   useEffect(() => {
     if (!token) return
@@ -88,29 +99,36 @@ export default function QuotePreviewPage() {
                     <p className="text-xs text-[rgb(var(--fg-subtle))]">Quantità: {Number(it.quantity)}</p>
                   </div>
                   <p className="font-display text-lg tabular-nums shrink-0">
-                    € {Number(it.line_client).toLocaleString('it-IT')}
+                    {unlocked ? `€ ${Number(it.line_client).toLocaleString('it-IT')}` : <Lock size={15} className="text-[rgb(var(--fg-subtle))]" />}
                   </p>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="px-6 sm:px-10 py-6 mt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-            <div className="flex items-baseline justify-between">
-              <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Totale</span>
-              <span className="font-display text-3xl sm:text-4xl tabular-nums" style={{ color: primary }}>
-                € {Number(data.total_client).toLocaleString('it-IT')}
-              </span>
-            </div>
-          </div>
-
-          {data.pdf_url && (
-            <div className="px-6 sm:px-10 pb-4">
-              <a href={data.pdf_url} target="_blank" rel="noreferrer" data-testid="public-pdf-link"
-                className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline">
-                Scarica versione PDF <ExternalLink size={12} />
-              </a>
-            </div>
+          {unlocked ? (
+            <>
+              <div className="px-6 sm:px-10 py-6 mt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Totale</span>
+                  <span className="font-display text-3xl sm:text-4xl tabular-nums" style={{ color: primary }}>
+                    € {Number(data.total_client).toLocaleString('it-IT')}
+                  </span>
+                </div>
+              </div>
+              {data.pdf_url && (
+                <div className="px-6 sm:px-10 pb-4">
+                  <a href={data.pdf_url} target="_blank" rel="noreferrer" data-testid="public-pdf-link"
+                    className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline">
+                    Scarica versione PDF <ExternalLink size={12} />
+                  </a>
+                </div>
+              )}
+            </>
+          ) : (
+            <PriceConsentGate token={token!} clientName={data.client_name ?? null}
+              clientEmail={(data as { client_email?: string | null }).client_email ?? null}
+              primary={primary} onUnlocked={() => setUnlocked(true)} />
           )}
 
           {data.status === 'INVIATO' && (
@@ -160,6 +178,63 @@ export default function QuotePreviewPage() {
           Powered by Planfully &middot; Documento riservato, condividere solo con persone autorizzate.
         </p>
       </motion.div>
+    </div>
+  )
+}
+
+function PriceConsentGate({ token, clientName, clientEmail, primary, onUnlocked }: {
+  token: string; clientName: string | null; clientEmail: string | null; primary: string; onUnlocked: () => void
+}) {
+  const [email, setEmail] = useState(clientEmail ?? '')
+  const [name, setName] = useState(clientName ?? '')
+  const [checks, setChecks] = useState<Record<string, boolean>>({})
+  const [sending, setSending] = useState(false)
+  const allChecked = CONSENT_CLAUSES.every((c) => checks[c.key])
+
+  async function submit() {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { toast.error('Email non valida'); return }
+    if (!allChecked) { toast.error('Devi accettare tutte le voci'); return }
+    setSending(true)
+    try {
+      const { data, error } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+        .rpc('register_quote_view', { p_token: token, p_email: email.trim(), p_name: name.trim() || null, p_consents: checks })
+      if (error) throw error
+      const r = data as { ok?: boolean; error?: string }
+      if (r.error) throw new Error(r.error === 'consents_required' ? 'Devi accettare tutte le voci' : r.error)
+      onUnlocked()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore')
+    } finally { setSending(false) }
+  }
+
+  return (
+    <div className="px-6 sm:px-10 py-6 mt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+      <div className="rounded-xl border p-4" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <Lock size={16} style={{ color: primary }} />
+          <p className="font-medium text-sm">Registrati per vedere il prezzo</p>
+        </div>
+        <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
+          Per visualizzare il totale del preventivo, registrati e accetta le condizioni qui sotto.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome e cognome" />
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="La tua email" />
+        </div>
+        <div className="space-y-2 mb-3">
+          {CONSENT_CLAUSES.map((c) => (
+            <label key={c.key} className="flex items-start gap-2 text-xs text-[rgb(var(--fg-muted))] cursor-pointer">
+              <input type="checkbox" checked={!!checks[c.key]} onChange={(e) => setChecks((s) => ({ ...s, [c.key]: e.target.checked }))}
+                className="mt-0.5 shrink-0" />
+              <span>{c.text}</span>
+            </label>
+          ))}
+        </div>
+        <Button onClick={() => void submit()} disabled={sending || !allChecked}
+          style={{ background: primary, color: '#fff' }} className="w-full">
+          {sending ? 'Attendere…' : 'Registrati e vedi il prezzo'}
+        </Button>
+      </div>
     </div>
   )
 }
