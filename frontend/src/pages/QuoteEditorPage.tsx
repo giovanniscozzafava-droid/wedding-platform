@@ -48,6 +48,18 @@ const BASIS_LABEL: Record<Basis, { label: string; icon: typeof Users }> = {
   PER_HOUR:  { label: '× ore',          icon: Clock },
 }
 
+const QUOTE_EVENT_KINDS: { v: string; l: string }[] = [
+  { v: 'matrimonio',  l: 'Matrimonio' },
+  { v: 'battesimo',   l: 'Battesimo' },
+  { v: 'comunione',   l: 'Comunione' },
+  { v: 'cresima',     l: 'Cresima' },
+  { v: 'compleanno',  l: 'Compleanno' },
+  { v: 'anniversario', l: 'Anniversario' },
+  { v: 'laurea',      l: 'Laurea' },
+  { v: 'corporate',   l: 'Evento aziendale' },
+  { v: 'altro',       l: 'Altro' },
+]
+
 type PayStatus = 'NON_PAGATO' | 'ACCONTO' | 'SALDATO' | 'STORNATO'
 const PAY_STATUSES: { key: PayStatus; label: string; tone: string; dot: string }[] = [
   { key: 'NON_PAGATO', label: 'Non pagato', tone: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200', dot: 'bg-rose-500' },
@@ -83,6 +95,7 @@ export default function QuoteEditorPage() {
   const [clientName, setClientName] = useState<string>('')
   const [clientEmail, setClientEmail] = useState<string>('')
   const [eventDate, setEventDate] = useState<string>('')
+  const [eventKind, setEventKind] = useState<string>('matrimonio')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [sendResult, setSendResult] = useState<{ access_token?: string } | null>(null)
   const [pickSupplier, setPickSupplier] = useState<string>('')
@@ -147,7 +160,9 @@ export default function QuoteEditorPage() {
   // del budget totale (tutti i fornitori terzi confermati). Ricalcolato quando
   // cambia lo stato del preventivo o le voci.
   useEffect(() => {
-    if (!id || (quote?.status !== 'ACCETTATO' && quote?.status !== 'CONVERTITO_IN_CONTRATTO')) {
+    // Il "budget" e` un concetto esclusivo dei capostipiti: per il flusso
+    // fornitore non si calcola ne` si mostra alcun gating di budget.
+    if (isFornitoreFlow || !id || (quote?.status !== 'ACCETTATO' && quote?.status !== 'CONVERTITO_IN_CONTRATTO')) {
       setBudgetReadiness(null)
       return
     }
@@ -155,7 +170,7 @@ export default function QuoteEditorPage() {
       const { data } = await (supabase.rpc as any)('quote_budget_readiness', { p_quote_id: id })
       if (data && !data.error) setBudgetReadiness(data)
     })()
-  }, [id, quote?.status, quote?.quote_items?.length])
+  }, [id, quote?.status, quote?.quote_items?.length, isFornitoreFlow])
 
   async function handleCreateContract() {
     if (!quote || !id) return
@@ -207,6 +222,7 @@ export default function QuoteEditorPage() {
       setClientName(quote.client_name ?? '')
       setClientEmail(quote.client_email ?? '')
       setEventDate(quote.event_date ?? '')
+      setEventKind(((quote as any).event_kind ?? 'matrimonio').toLowerCase())
       setPdfUrl(quote.pdf_url ?? null)
     }
   }, [quote])
@@ -300,6 +316,7 @@ export default function QuoteEditorPage() {
         client_name: clientName.trim() || null,
         client_email: clientEmail.trim() || null,
         event_date: eventDate || null,
+        event_kind: eventKind || 'matrimonio',
         default_markup_percent: Number(defaultMarkup || 0),
         guest_count: guestCount ? Number(guestCount) : null,
         table_count: tableCount ? Number(tableCount) : null,
@@ -533,6 +550,13 @@ export default function QuoteEditorPage() {
             <div className="space-y-1">
               <Label><Calendar size={12} className="inline" /> Data evento</Label>
               <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} disabled={isLocked} />
+            </div>
+            <div className="space-y-1">
+              <Label>Tipo di evento</Label>
+              <Select value={eventKind} onChange={(e) => setEventKind(e.target.value)} disabled={isLocked}>
+                {QUOTE_EVENT_KINDS.map((k) => <option key={k.v} value={k.v}>{k.l}</option>)}
+              </Select>
+              <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Determina le domande del questionario al cliente.</p>
             </div>
             <div className="space-y-1">
               <Label>Nome cliente</Label>

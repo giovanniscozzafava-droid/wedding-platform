@@ -53,10 +53,33 @@ const BUDGETS = [
   { v: '>50k',      l: 'Oltre i 50.000 €' },
 ]
 
-// Domande di profilazione — raccolte gia` in fase di richiesta, profilano
-// l'evento e si propagano nel questionario del matrimonio.
-const STYLE_OPTIONS = ['classico', 'elegante', 'romantico', 'boho', 'minimal', 'rustico', 'moderno', 'vintage', 'glamour', 'sul mare']
-const PRIORITY_OPTIONS = ['location', 'cibo & catering', 'fotografo', 'video', 'fiori & allestimenti', 'musica & intrattenimento', 'abito', 'viaggio di nozze']
+// Domande di profilazione event-aware: stile e priorità cambiano in base al
+// tipo di evento scelto, così non si chiede "viaggio di nozze" per un battesimo.
+const STYLE_COMMON = ['classico', 'elegante', 'moderno', 'minimal', 'colorato']
+const STYLE_BY_KIND: Record<string, string[]> = {
+  matrimonio:   ['classico', 'elegante', 'romantico', 'boho', 'minimal', 'rustico', 'vintage', 'glamour', 'sul mare'],
+  anniversario: ['classico', 'elegante', 'romantico', 'intimo', 'vintage', 'glamour'],
+  battesimo:    ['classico', 'tenero', 'minimal', 'colorato', 'a tema'],
+  comunione:    ['classico', 'sobrio', 'colorato', 'a tema', 'campagna'],
+  cresima:      ['classico', 'sobrio', 'moderno', 'colorato', 'a tema'],
+  compleanno:   ['festoso', 'a tema', 'elegante', 'colorato', 'anni 80/90', 'minimal'],
+  laurea:       ['festoso', 'elegante', 'sobrio', 'a tema', 'colorato'],
+  corporate:    ['professionale', 'minimal', 'moderno', 'elegante', 'brandizzato'],
+  altro:        STYLE_COMMON,
+}
+const PRIORITY_BY_KIND: Record<string, string[]> = {
+  matrimonio:   ['location', 'cibo & catering', 'fotografo', 'video', 'fiori & allestimenti', 'musica & intrattenimento', 'abito', 'viaggio di nozze'],
+  anniversario: ['location', 'cibo & catering', 'fotografo', 'musica', 'allestimenti', 'torta'],
+  battesimo:    ['location', 'cibo & catering', 'fotografo', 'allestimenti', 'torta', 'bomboniere', 'animazione bimbi'],
+  comunione:    ['location', 'cibo & catering', 'fotografo', 'allestimenti', 'torta', 'bomboniere', 'animazione bimbi'],
+  cresima:      ['location', 'cibo & catering', 'fotografo', 'allestimenti', 'torta', 'bomboniere'],
+  compleanno:   ['location', 'cibo & catering', 'intrattenimento', 'torta', 'allestimenti', 'animazione', 'fotografo'],
+  laurea:       ['location', 'cibo & catering', 'fotografo', 'intrattenimento', 'torta', 'allestimenti'],
+  corporate:    ['location', 'catering', 'audio/video', 'allestimenti', 'speaker/intrattenimento', 'gadget'],
+  altro:        ['location', 'cibo & catering', 'fotografo', 'allestimenti', 'intrattenimento'],
+}
+function styleOptionsFor(kind: string): string[] { return STYLE_BY_KIND[kind] ?? STYLE_COMMON }
+function priorityOptionsFor(kind: string): string[] { return PRIORITY_BY_KIND[kind] ?? PRIORITY_BY_KIND.altro! }
 
 export default function PublicWpPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -393,7 +416,7 @@ export default function PublicWpPage() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div><Label>Tipo evento</Label>
-                        <Select value={form.event_kind} onChange={(e) => setForm((f) => ({ ...f, event_kind: e.target.value }))}>
+                        <Select value={form.event_kind} onChange={(e) => setForm((f) => ({ ...f, event_kind: e.target.value, styles: [], priorities: [] }))}>
                           {EVENT_KINDS.map((k) => <option key={k} value={k}>{eventTerm(k).Label}</option>)}
                         </Select>
                       </div>
@@ -423,7 +446,7 @@ export default function PublicWpPage() {
                     <div>
                       <Label>Stile che vi piace <span className="text-[rgb(var(--fg-subtle))] font-normal">(max 3)</span></Label>
                       <div className="flex flex-wrap gap-2 mt-1.5">
-                        {STYLE_OPTIONS.map((s) => {
+                        {styleOptionsFor(form.event_kind).map((s) => {
                           const on = form.styles.includes(s)
                           return (
                             <button key={s} type="button" onClick={() => toggleChip('styles', s, 3)}
@@ -440,7 +463,7 @@ export default function PublicWpPage() {
                     <div>
                       <Label>Su cosa volete investire di più <span className="text-[rgb(var(--fg-subtle))] font-normal">(max 3)</span></Label>
                       <div className="flex flex-wrap gap-2 mt-1.5">
-                        {PRIORITY_OPTIONS.map((p) => {
+                        {priorityOptionsFor(form.event_kind).map((p) => {
                           const on = form.priorities.includes(p)
                           return (
                             <button key={p} type="button" onClick={() => toggleChip('priorities', p, 3)}

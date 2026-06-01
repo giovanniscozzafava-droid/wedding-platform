@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, HelpCircle, Search } from 'lucide-react'
+import { ArrowLeft, ChevronDown, HelpCircle, Search } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -184,6 +185,15 @@ export default function FaqPage() {
   return (
     <div className="min-h-full">
       <div className="max-w-3xl mx-auto px-6 sm:px-10 py-10">
+        {profile?.role === 'COUPLE' && (
+          <Link
+            to="/couple"
+            className="inline-flex items-center gap-1.5 mb-5 text-sm font-medium text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Torna alla mia dashboard
+          </Link>
+        )}
         <PageHeader
           eyebrow="Aiuto"
           title="Domande frequenti"
