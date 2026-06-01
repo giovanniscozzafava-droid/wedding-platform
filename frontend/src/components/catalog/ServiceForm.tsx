@@ -215,10 +215,19 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="cat">Categoria</Label>
-                  <Select id="cat" value={form.category_id} required
-                    onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
-                    {(cats ?? []).map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
-                  </Select>
+                  {(cats?.length ?? 0) <= 1 ? (
+                    // Specializzazione unica già dichiarata all'iscrizione: non la
+                    // richiediamo di nuovo, la mostriamo solo come riferimento.
+                    <div id="cat" className="h-10 px-3 flex items-center rounded-lg border text-sm text-[rgb(var(--fg-muted))]"
+                      style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+                      {cats?.[0]?.name ?? subrole ?? 'La tua specializzazione'}
+                    </div>
+                  ) : (
+                    <Select id="cat" value={form.category_id} required
+                      onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
+                      {(cats ?? []).map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                    </Select>
+                  )}
                 </div>
               </div>
               <div className="space-y-1">

@@ -41,6 +41,44 @@ export default function ContractsPage() {
   }, [])
 
   const [generatingPdf, setGeneratingPdf] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [draftTitle, setDraftTitle] = useState('')
+  const [draftSections, setDraftSections] = useState<Array<{ heading?: string; body?: string }>>([])
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  function startEdit() {
+    if (!selected) return
+    setDraftTitle(selected.title ?? '')
+    setDraftSections(Array.isArray(selected.sections) ? selected.sections.map((s) => ({ ...s })) : [])
+    setEditMode(true)
+  }
+  function setSection(i: number, k: 'heading' | 'body', v: string) {
+    setDraftSections((xs) => xs.map((s, j) => j === i ? { ...s, [k]: v } : s))
+  }
+  function addSection() { setDraftSections((xs) => [...xs, { heading: 'Nuova clausola', body: '' }]) }
+  function removeSection(i: number) { setDraftSections((xs) => xs.filter((_, j) => j !== i)) }
+  function moveSection(i: number, dir: -1 | 1) {
+    setDraftSections((xs) => {
+      const j = i + dir; if (j < 0 || j >= xs.length) return xs
+      const copy = [...xs]; const t = copy[i]!; copy[i] = copy[j]!; copy[j] = t; return copy
+    })
+  }
+  async function saveEdit() {
+    if (!selected) return
+    setSavingEdit(true)
+    try {
+      const { error } = await (supabase.from('contracts' as any) as any)
+        .update({ title: draftTitle.trim() || selected.title, sections: draftSections, updated_at: new Date().toISOString() })
+        .eq('id', selected.id)
+      if (error) throw error
+      setRows((rs) => rs.map((r) => r.id === selected.id ? { ...r, title: draftTitle.trim() || r.title, sections: draftSections } : r))
+      setSelected((s) => s ? { ...s, title: draftTitle.trim() || s.title, sections: draftSections } : s)
+      setEditMode(false)
+      toast.success('Contratto aggiornato. Rigenera il PDF per applicare le modifiche.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Salvataggio non riuscito')
+    } finally { setSavingEdit(false) }
+  }
 
   function copyClientLink(token: string | null | undefined) {
     if (!token) { toast.error('Nessun link cliente disponibile'); return }
@@ -173,7 +211,33 @@ export default function ContractsPage() {
                 </Card>
               )}
 
-              {Array.isArray(selected.sections) && selected.sections.length > 0 ? (
+              {editMode ? (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))]">Titolo</label>
+                    <input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)}
+                      className="w-full text-sm px-3 py-2 rounded-lg border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-display text-base">Clausole (modificabili)</h3>
+                    <button onClick={addSection} className="text-xs inline-flex items-center gap-1 text-[rgb(var(--gold-600))]">+ Aggiungi clausola</button>
+                  </div>
+                  {draftSections.map((s, i) => (
+                    <section key={i} className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'rgb(var(--border))' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[rgb(var(--fg-subtle))]">{i + 1}.</span>
+                        <input value={s.heading ?? ''} onChange={(e) => setSection(i, 'heading', e.target.value)} placeholder="Titolo clausola"
+                          className="flex-1 text-sm font-medium px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }} />
+                        <button onClick={() => moveSection(i, -1)} className="text-xs text-[rgb(var(--fg-subtle))] px-1" title="Su">↑</button>
+                        <button onClick={() => moveSection(i, 1)} className="text-xs text-[rgb(var(--fg-subtle))] px-1" title="Giù">↓</button>
+                        <button onClick={() => removeSection(i)} className="text-xs text-[rgb(var(--rose-500))] px-1" title="Elimina">✕</button>
+                      </div>
+                      <textarea value={s.body ?? ''} onChange={(e) => setSection(i, 'body', e.target.value)} rows={5}
+                        className="w-full text-sm px-2 py-1.5 rounded border bg-transparent leading-relaxed" style={{ borderColor: 'rgb(var(--border))' }} />
+                    </section>
+                  ))}
+                </div>
+              ) : Array.isArray(selected.sections) && selected.sections.length > 0 ? (
                 <div className="space-y-4">
                   <h3 className="font-display text-base">Clausole</h3>
                   {selected.sections.map((s, i) => (
@@ -184,11 +248,23 @@ export default function ContractsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-[rgb(var(--fg-subtle))] italic">Nessuna sezione inserita. Apri il contratto dalla scheda matrimonio per editarlo.</p>
+                <p className="text-sm text-[rgb(var(--fg-subtle))] italic">Nessuna sezione inserita.</p>
               )}
             </div>
 
             <div className="border-t p-4 flex flex-wrap items-center justify-end gap-2" style={{ borderColor: 'rgb(var(--border))' }}>
+              {selected.status !== 'FIRMATO' && (
+                editMode ? (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => setEditMode(false)} disabled={savingEdit}>Annulla</Button>
+                    <Button variant="gold" size="sm" onClick={saveEdit} disabled={savingEdit} className="mr-auto">
+                      {savingEdit ? 'Salvataggio…' : 'Salva modifiche'}
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={startEdit} className="mr-auto">✏️ Modifica testo</Button>
+                )
+              )}
               <Button variant="outline" size="sm" onClick={() => generatePdf(selected.id)} disabled={generatingPdf}>
                 <FileDown size={14} /> {generatingPdf ? 'Generazione…' : selected.pdf_url ? 'Rigenera PDF' : 'Genera PDF contratto'}
               </Button>

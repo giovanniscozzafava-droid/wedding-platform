@@ -67,10 +67,10 @@ export function useCategories(subrole?: string | null) {
         .from('service_categories')
         .select('*')
         .order('name', { ascending: true })
-      // Se passato subrole: SOLO categorie di quel verticale.
-      // Senza subrole: solo le categorie trasversali (subrole IS NULL) +
-      // custom dell'utente.
-      if (subrole) q = q.eq('subrole', subrole)
+      // Se passato subrole: SOLO categorie di quel verticale (match
+      // case-insensitive: in anagrafica esiste sia 'parrucchiere' che
+      // 'Parrucchiere'). Senza subrole: categorie trasversali (subrole IS NULL).
+      if (subrole) q = q.ilike('subrole', subrole)
       const { data, error } = await q
       if (error) throw error
       let rows = data ?? []

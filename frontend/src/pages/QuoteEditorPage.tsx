@@ -18,6 +18,7 @@ import {
 } from '@/hooks/useQuotes'
 import type { Database } from '@/lib/database.types'
 import { ClientBriefEditor } from '@/components/quotes/ClientBriefEditor'
+import { eventTerm } from '@/lib/eventKind'
 
 type Unit = Database['public']['Enums']['service_unit']
 type Basis = Database['public']['Enums']['quantity_basis']
@@ -191,7 +192,7 @@ export default function QuoteEditorPage() {
         .insert({
           owner_id: me.user.id,
           quote_id: id,
-          title: `Contratto matrimonio · ${quote.client_name ?? quote.title ?? ''}`.trim(),
+          title: `Contratto ${eventTerm(eventKind || 'matrimonio').label} · ${quote.client_name ?? quote.title ?? ''}`.trim(),
           client_name: quote.client_name,
           client_email: quote.client_email,
           event_date: quote.event_date,

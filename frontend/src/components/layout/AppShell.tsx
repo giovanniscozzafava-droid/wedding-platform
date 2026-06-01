@@ -31,6 +31,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
+import { NotificationBell } from '@/components/layout/NotificationBell'
 import { BetaBanner } from '@/components/BetaBanner'
 import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
 import { SupplierTutorialCards } from '@/components/SupplierTutorialCards'
@@ -173,6 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" style={{ color: 'rgb(var(--fg))' }} />
             <span className="font-display text-lg tracking-tight">Planfully</span>
           </Link>
+          <NotificationBell />
           <CandidacyInbox placement="beside" />
         </div>
 
@@ -285,6 +287,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             Planfully
           </Link>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <CandidacyInbox />
             <button onClick={toggle} aria-label="Toggle theme">
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
