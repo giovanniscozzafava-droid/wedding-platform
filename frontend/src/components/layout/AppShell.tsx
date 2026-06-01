@@ -104,6 +104,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Catalogo & lavoro', items: [
     { to: '/catalog',      label: 'Catalogo',      icon: PackageSearch },
+    { to: '/team',         label: 'Team',          icon: UsersIcon },
     { to: '/disponibilita', label: 'Disponibilità', icon: CalendarCheck },
     { to: '/calcolatore',  label: 'Calcolatore',   icon: Calculator },
   ]},

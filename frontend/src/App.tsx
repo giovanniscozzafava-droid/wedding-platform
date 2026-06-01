@@ -53,6 +53,7 @@ const EmbedLeadPage = lazy(() => import('@/pages/public/EmbedLeadPage'))
 const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage'))
 const ClientPortalPage = lazy(() => import('@/pages/client/ClientPortalPage'))
 const ClientAccessPage = lazy(() => import('@/pages/client/ClientAccessPage'))
+const SupplierTeamPage = lazy(() => import('@/pages/SupplierTeamPage'))
 const PublicSlugResolver = lazy(() => import('@/pages/public/PublicSlugResolver'))
 const WpLeadsPage = lazy(() => import('@/pages/WpLeadsPage'))
 const DiscoverProsPage = lazy(() => import('@/pages/public/DiscoverProsPage'))
@@ -221,6 +222,7 @@ export default function App() {
           <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />
           <Route path="/capostipiti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCapostipitiPage /></RequireAuth>} />
+          <Route path="/team" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierTeamPage /></RequireAuth>} />
           <Route path="/integrazione-sito" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><IntegrationsPage /></RequireAuth>} />
           <Route path="/faq" element={<RequireAuth><FaqPage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
