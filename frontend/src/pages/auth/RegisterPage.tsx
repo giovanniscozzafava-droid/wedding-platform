@@ -38,7 +38,7 @@ export default function RegisterPage() {
   const refFromUrl = params.get('ref') ?? ''
   const [form, setForm] = useState({
     full_name: '', business_name: '', email: '', password: '',
-    role: 'WEDDING_PLANNER' as AppRole, subrole: '',
+    role: 'WEDDING_PLANNER' as AppRole, subrole: '', accept_referrals: false,
     referral_code: refFromUrl.toUpperCase(),
   })
   const [busy, setBusy] = useState(false)
@@ -67,6 +67,7 @@ export default function RegisterPage() {
           data: {
             role: form.role, subrole: form.subrole || null,
             full_name: form.full_name, business_name: form.business_name || null,
+            accept_referrals: form.role === 'FORNITORE' ? form.accept_referrals : false,
           },
           emailRedirectTo: `${window.location.origin}/onboarding`,
         },
@@ -135,6 +136,16 @@ export default function RegisterPage() {
                 {subroles.map((s) => (<option key={s.v} value={s.v}>{s.l}</option>))}
               </Select>
             </div>
+          )}
+
+          {form.role === 'FORNITORE' && (
+            <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+              <input type="checkbox" checked={form.accept_referrals} className="mt-0.5 shrink-0"
+                onChange={(e) => setForm((f) => ({ ...f, accept_referrals: e.target.checked }))} />
+              <span className="text-xs text-[rgb(var(--fg-muted))]">
+                <strong className="text-[rgb(var(--fg))]">Voglio essere suggerito da altri fornitori.</strong> Riconosco un credito di <strong>39€</strong> per ogni segnalazione che si trasforma in un contratto firmato (una commissione della piattaforma sarà definita in futuro). Potrai cambiare scelta in qualsiasi momento.
+              </span>
+            </label>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

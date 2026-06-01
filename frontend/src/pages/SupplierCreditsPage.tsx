@@ -59,6 +59,8 @@ export default function SupplierCreditsPage() {
           description="Segnala un collega e ricevi un credito. Saldabile in denaro o con una segnalazione di ritorno."
           actions={<Button variant="gold" onClick={() => setShowForm((v) => !v)}><Plus size={16} /> Registra segnalazione</Button>} />
 
+        <ReferralOptIn />
+
         {showForm && <ReferralForm onDone={() => { setShowForm(false); void load() }} />}
 
         {/* Riepilogo */}
@@ -147,7 +149,7 @@ function ReferralForm({ onDone }: { onDone: () => void }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<{ id: string; full_name: string | null; business_name: string | null; subrole: string | null }[]>([])
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null)
-  const [amount, setAmount] = useState('100')
+  const [amount, setAmount] = useState('39')
   const [eventKind, setEventKind] = useState('')
   const [clientLabel, setClientLabel] = useState('')
   const [reason, setReason] = useState('')
@@ -206,6 +208,44 @@ function ReferralForm({ onDone }: { onDone: () => void }) {
       </div>
       <Input className="mt-2" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Nota (facoltativa)" />
       <Button variant="gold" className="mt-3" onClick={() => void submit()} disabled={saving || !picked}>Registra segnalazione</Button>
+    </Card>
+  )
+}
+
+function ReferralOptIn() {
+  const [on, setOn] = useState<boolean | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    void (async () => {
+      const { data: me } = await supabase.auth.getUser()
+      if (!me.user) return
+      const { data } = await supabase.from('profiles').select('accept_referrals').eq('id', me.user.id).maybeSingle()
+      setOn(!!(data as { accept_referrals?: boolean } | null)?.accept_referrals)
+    })()
+  }, [])
+
+  async function toggle() {
+    const next = !on
+    setSaving(true)
+    const { data, error } = await rpc('set_accept_referrals', { p_value: next })
+    setSaving(false)
+    if (error || (data as { error?: string })?.error) { toast.error('Errore'); return }
+    setOn(next)
+    toast.success(next ? 'Ora puoi essere suggerito dai colleghi' : 'Non sarai più suggerito')
+  }
+
+  if (on === null) return null
+  return (
+    <Card className="p-4 mb-4 flex items-start gap-3">
+      <input type="checkbox" checked={on} onChange={() => void toggle()} disabled={saving} className="mt-1 shrink-0" />
+      <div className="text-sm">
+        <p className="font-medium">Voglio essere suggerito da altri fornitori</p>
+        <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+          Riconosci <strong>39€</strong> di credito per ogni segnalazione che diventa un contratto firmato.
+          Una commissione della piattaforma sarà definita in futuro. Solo chi attiva questa opzione può essere suggerito.
+        </p>
+      </div>
     </Card>
   )
 }

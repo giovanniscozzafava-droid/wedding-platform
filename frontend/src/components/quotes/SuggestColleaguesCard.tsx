@@ -41,7 +41,9 @@ export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
     setSending(false)
     const r = data as { ok?: boolean; error?: string; suggested?: number }
     if (error || r?.error) { toast.error(r?.error || 'Errore'); return }
-    toast.success(`${r.suggested ?? 0} colleghi suggeriti al cliente`)
+    // Email al cliente coi fornitori suggeriti (fire-and-forget)
+    void supabase.functions.invoke('suggested-suppliers-notify', { body: { quote_id: quoteId } }).catch(() => {})
+    toast.success(`${r.suggested ?? 0} colleghi suggeriti al cliente (email inviata)`)
     setSel(new Set())
   }
 
@@ -54,7 +56,7 @@ export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
         <h2 className="text-xs uppercase tracking-wider text-[rgb(var(--fg-muted))]">Suggerisci colleghi al cliente</h2>
       </div>
       <p className="text-xs text-[rgb(var(--fg-subtle))] mb-3">
-        Consiglia colleghi che segui. Se il cliente firmerà un contratto con uno di loro, ricevi <strong>100€ di credito</strong> automatico.
+        Consiglia colleghi che segui (e che accettano di essere suggeriti). Se il cliente firmerà un contratto con uno di loro, ricevi <strong>39€ di credito</strong> automatico.
       </p>
 
       {list.length === 0 ? (
