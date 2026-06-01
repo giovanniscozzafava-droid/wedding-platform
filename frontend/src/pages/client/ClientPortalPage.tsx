@@ -208,7 +208,7 @@ function QuoteCard({ q, accent }: { q: Quote; accent: string }) {
       )}
 
       {/* Azioni */}
-      <div className="flex gap-2 mt-3">
+      <div className="flex flex-wrap gap-2 mt-3">
         {q.access_token && (q.status === 'INVIATO') && (
           <a href={`/p/accept/${q.access_token}`} className="text-xs font-medium px-3 py-1.5 rounded-lg text-white inline-flex items-center gap-1" style={{ background: accent }}>
             <CheckCircle2 size={13} /> Visualizza e firma

@@ -97,9 +97,9 @@ export function CandidacyInbox({ placement = 'below' }: { placement?: 'below' | 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <Card className={`absolute z-50 w-[320px] max-h-[70vh] overflow-hidden flex flex-col shadow-xl ${
+          <Card className={`absolute z-50 w-[min(92vw,320px)] max-h-[70vh] overflow-hidden flex flex-col shadow-xl ${
             placement === 'beside'
-              ? 'left-full top-0 ml-2'
+              ? 'left-0 sm:left-full top-full sm:top-0 mt-2 sm:mt-0 sm:ml-2'
               : 'right-0 top-full mt-2'
           }`}>
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'rgb(var(--border))' }}>

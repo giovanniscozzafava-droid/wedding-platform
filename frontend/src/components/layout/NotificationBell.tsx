@@ -61,7 +61,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto rounded-xl border shadow-lg z-50"
+        <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-[min(92vw,20rem)] max-h-96 overflow-y-auto rounded-xl border shadow-lg z-50"
           style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
           <div className="px-4 py-2.5 border-b text-sm font-medium" style={{ borderColor: 'rgb(var(--border))' }}>Notifiche</div>
           {items.length === 0 ? (

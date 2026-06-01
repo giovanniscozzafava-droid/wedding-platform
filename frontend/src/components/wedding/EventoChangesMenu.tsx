@@ -45,7 +45,7 @@ export function EventoChangesMenu({ entryId, onChanged }: Props) {
             aria-hidden="true"
           />
           <div
-            className="absolute right-0 mt-2 z-40 w-72 rounded-xl border shadow-xl overflow-hidden"
+            className="absolute left-0 sm:left-auto sm:right-0 mt-2 z-40 w-[min(92vw,18rem)] rounded-xl border shadow-xl overflow-hidden"
             style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
             <button
               onClick={() => {

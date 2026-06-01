@@ -73,6 +73,15 @@ export default function EmbedLeadPage() {
     must_haves: '', no_thanks: '', honeypot: '',
   })
 
+  // Viewport stretto (iframe su mobile): i campi a 2 colonne si impilano.
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const check = () => setNarrow((rootRef.current?.clientWidth ?? window.innerWidth) < 480)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   // Auto-resize: comunica l'altezza al parent (Wix & co. la usano se supportata)
   useEffect(() => {
     const post = () => {
@@ -154,7 +163,7 @@ export default function EmbedLeadPage() {
     } finally { setSending(false) }
   }
 
-  const ui = useMemo(() => makeStyles(primary), [primary])
+  const ui = useMemo(() => makeStyles(primary, narrow), [primary, narrow])
 
   if (sent) {
     return (
@@ -275,7 +284,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function makeStyles(primary: string) {
+function makeStyles(primary: string, narrow = false) {
   const input: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box', padding: '9px 11px', fontSize: 14,
     border: '1px solid #d6dae1', borderRadius: 8, background: '#fff', color: '#0f172a', outline: 'none',
@@ -290,7 +299,7 @@ function makeStyles(primary: string) {
     card: { maxWidth: 560, margin: '0 auto', background: '#fff', border: '1px solid #e6e8ec', borderRadius: 14, padding: 20, boxShadow: '0 1px 3px rgba(15,23,42,0.06)' } as React.CSSProperties,
     h2: { fontSize: 19, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' } as React.CSSProperties,
     muted: { fontSize: 13, color: '#64748b', margin: '0 0 14px' } as React.CSSProperties,
-    grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 } as React.CSSProperties,
+    grid2: { display: 'grid', gridTemplateColumns: narrow ? '1fr' : '1fr 1fr', gap: 10 } as React.CSSProperties,
     input,
     chips: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 2 } as React.CSSProperties,
     chip: chipBase,

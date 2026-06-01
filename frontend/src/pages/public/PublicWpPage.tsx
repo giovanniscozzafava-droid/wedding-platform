@@ -402,7 +402,7 @@ export default function PublicWpPage() {
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-600))] mb-2">I tuoi contatti</p>
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div><Label>Nome *</Label><Input value={form.client_name} onChange={(e) => setForm((f) => ({ ...f, client_name: e.target.value }))} placeholder="Giulia & Marco" /></div>
                       <div><Label>Email *</Label><Input type="email" value={form.client_email} onChange={(e) => setForm((f) => ({ ...f, client_email: e.target.value }))} placeholder="voi@email.it" /></div>
                     </div>
@@ -414,7 +414,7 @@ export default function PublicWpPage() {
                 <div className="pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-600))] mb-2">L'evento</p>
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div><Label>Tipo evento</Label>
                         <Select value={form.event_kind} onChange={(e) => setForm((f) => ({ ...f, event_kind: e.target.value, styles: [], priorities: [] }))}>
                           {EVENT_KINDS.map((k) => <option key={k} value={k}>{eventTerm(k).Label}</option>)}
@@ -422,7 +422,7 @@ export default function PublicWpPage() {
                       </div>
                       <div><Label>Data (anche indicativa)</Label><Input type="date" value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} /></div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div><Label>Invitati stimati</Label><Input type="number" value={form.guests_estimate} onChange={(e) => setForm((f) => ({ ...f, guests_estimate: e.target.value }))} placeholder="120" /></div>
                       <div><Label>Zona / location ideale</Label><Input value={form.event_location} onChange={(e) => setForm((f) => ({ ...f, event_location: e.target.value }))} placeholder="Es. Cosenza, Tropea..." /></div>
                     </div>

@@ -185,7 +185,7 @@ export default function ContractsPage() {
             </div>
 
             <div className="overflow-y-auto flex-1 p-5 space-y-5">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Importo totale</p>
                   <p className="font-display text-xl tabular-nums">{fmtEUR(selected.total_amount)}</p>

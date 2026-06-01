@@ -267,7 +267,7 @@ export function CoupleOnboardingWizard() {
                   <>
                     <h2 className="font-display text-xl mb-2">Il vostro stile</h2>
                     <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">Scegliete fino a 4 stili che vi rappresentano.</p>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {STYLES.map((s) => {
                         const active = form.styles.includes(s.k)
                         return (
