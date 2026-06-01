@@ -17,6 +17,7 @@ import {
   useAddQuoteItem, useGeneratePdf, useQuote, useRemoveQuoteItem, useSendQuote, useUpdateQuote, useUpdateQuoteItem,
 } from '@/hooks/useQuotes'
 import type { Database } from '@/lib/database.types'
+import { ClientBriefEditor } from '@/components/quotes/ClientBriefEditor'
 
 type Unit = Database['public']['Enums']['service_unit']
 type Basis = Database['public']['Enums']['quantity_basis']
@@ -596,6 +597,11 @@ export default function QuoteEditorPage() {
             </p>
           )}
         </Card>
+
+        {/* Brief di competenza fornitore→cliente (solo flusso fornitore, quote salvato) */}
+        {isFornitoreFlow && id && (
+          <ClientBriefEditor quoteId={id} subrole={profile?.subrole} />
+        )}
 
         {/* Modal modifica forzata */}
         {forceModal.open && (

@@ -145,6 +145,10 @@ export default function LoginPage() {
               Non hai un account?{' '}
               <Link to="/register" className="font-medium text-[rgb(var(--fg))] hover:underline">Registrati</Link>
             </p>
+            <p className="text-xs text-center text-[rgb(var(--fg-subtle))]">
+              Hai ricevuto un preventivo?{' '}
+              <Link to="/area-cliente/accedi" className="font-medium text-[rgb(var(--fg-muted))] hover:underline">Accedi alla tua area cliente</Link>
+            </p>
           </form>
           <div className="text-center pt-3">
             <a href="#scopri" className="text-xs text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--fg))] inline-flex items-center gap-1">

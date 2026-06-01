@@ -37,9 +37,10 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     return <Navigate to="/" replace />
   }
   // COUPLE: forziamo accesso a /couple (no sidebar capostipite, no /weddings, no /quotes)
-  // Eccezioni: /profile, /onboarding, /feed (community), /scopri, /fornitore (vetrine pubbliche), /faq
+  // Eccezioni: /profile, /onboarding, /feed (community), /scopri, /fornitore (vetrine pubbliche), /faq, /area-cliente
   if (profile?.role === 'COUPLE'
     && !location.pathname.startsWith('/couple')
+    && !location.pathname.startsWith('/area-cliente')
     && location.pathname !== '/profile'
     && location.pathname !== '/onboarding'
     && location.pathname !== '/feed'
@@ -48,6 +49,16 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     && !location.pathname.startsWith('/fornitore/')
     && !location.pathname.startsWith('/faq')) {
     return <Navigate to="/couple" replace />
+  }
+  // CLIENT (cliente diretto di fornitori): area dedicata aggregata. Niente
+  // sidebar professionista, niente onboarding wizard.
+  if (profile?.role === 'CLIENT'
+    && !location.pathname.startsWith('/area-cliente')
+    && location.pathname !== '/profile'
+    && !location.pathname.startsWith('/faq')
+    && !location.pathname.startsWith('/p/')
+    && !location.pathname.startsWith('/fornitore/')) {
+    return <Navigate to="/area-cliente" replace />
   }
   if (roles && profile && !roles.includes(profile.role)) {
     return (
@@ -64,6 +75,6 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
   // La sidebar AppShell e' progettata per WP/LOCATION/FORNITORE/ADMIN.
   // Per il ruolo COUPLE forziamo bare anche sulle pagine condivise (es. /faq)
   // cosi' la coppia non vede mai voci di menu da professionista.
-  if (profile?.role === 'COUPLE') return <>{children}</>
+  if (profile?.role === 'COUPLE' || profile?.role === 'CLIENT') return <>{children}</>
   return <AppShell>{children}</AppShell>
 }

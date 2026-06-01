@@ -51,6 +51,8 @@ const HomeFeedPage = lazy(() => import('@/pages/HomeFeedPage'))
 const PublicWpPage = lazy(() => import('@/pages/public/PublicWpPage'))
 const EmbedLeadPage = lazy(() => import('@/pages/public/EmbedLeadPage'))
 const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage'))
+const ClientPortalPage = lazy(() => import('@/pages/client/ClientPortalPage'))
+const ClientAccessPage = lazy(() => import('@/pages/client/ClientAccessPage'))
 const PublicSlugResolver = lazy(() => import('@/pages/public/PublicSlugResolver'))
 const WpLeadsPage = lazy(() => import('@/pages/WpLeadsPage'))
 const DiscoverProsPage = lazy(() => import('@/pages/public/DiscoverProsPage'))
@@ -226,6 +228,11 @@ export default function App() {
           <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />
           <Route path="/couple" element={
             <RequireAuth bare roles={['COUPLE', 'ADMIN']}><CoupleDashboard /></RequireAuth>
+          } />
+          {/* Area cliente diretto: accesso con magic link, vista aggregata per professionista */}
+          <Route path="/area-cliente/accedi" element={<ClientAccessPage />} />
+          <Route path="/area-cliente" element={
+            <RequireAuth bare><ClientPortalPage /></RequireAuth>
           } />
           <Route path="/" element={<HomeOrPublicHome />} />
           <Route path="/scopri-pro" element={<DiscoverProsPage />} />
