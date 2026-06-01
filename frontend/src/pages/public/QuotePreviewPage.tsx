@@ -23,14 +23,13 @@ export default function QuotePreviewPage() {
   const [loading, setLoading] = useState(true)
   const [unlocked, setUnlocked] = useState(false)
 
-  useEffect(() => {
+  const load = async () => {
     if (!token) return
-    setLoading(true)
-    publicQuoteByToken(token)
-      .then(setData)
-      .catch((e) => setErr(e?.message ?? 'Errore'))
-      .finally(() => setLoading(false))
-  }, [token])
+    try { const d = await publicQuoteByToken(token); setData(d); if (d && (d as { price_locked?: boolean }).price_locked === false) setUnlocked(true) }
+    catch (e) { setErr((e as Error)?.message ?? 'Errore') }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { setLoading(true); void load() }, [token])
 
   if (loading) {
     return (
@@ -128,7 +127,7 @@ export default function QuotePreviewPage() {
           ) : (
             <PriceConsentGate token={token!} clientName={data.client_name ?? null}
               clientEmail={(data as { client_email?: string | null }).client_email ?? null}
-              primary={primary} onUnlocked={() => setUnlocked(true)} />
+              primary={primary} onUnlocked={() => { void load() }} />
           )}
 
           {data.status === 'INVIATO' && (

@@ -62,6 +62,7 @@ export default function QuoteAcceptPage() {
   const [signature, setSignature] = useState<string | null>(null)
   const [consentTerms, setConsentTerms] = useState(false)
   const [consentPrivacy, setConsentPrivacy] = useState(false)
+  const [priceLocked, setPriceLocked] = useState(false)
   const [busy, setBusy] = useState(false)
   // Dati fiscali del cliente — richiesti per la stipula del contratto
   const [fiscalCode, setFiscalCode] = useState('')
@@ -75,14 +76,15 @@ export default function QuoteAcceptPage() {
   const [sdiCode, setSdiCode] = useState('')
   const [pecEmail, setPecEmail] = useState('')
 
-  useEffect(() => {
-    if (!token) return
-    void (async () => {
+  const load = async () => {
+      if (!token) return
       try {
         const { data, error } = await supabase.rpc('quote_get_by_token', { p_token: token })
         if (error) throw error
         if (!data) { setErr('Preventivo non trovato o link scaduto'); return }
         const q = (data as any).quote ?? data
+        if (q.error) { setErr('Questo link non è più valido. Richiedi un nuovo link al professionista.'); return }
+        setPriceLocked(!!q.price_locked)
         setQuote({
           id: q.id, title: q.title,
           client_name: q.client_name, client_email: q.client_email,
@@ -116,8 +118,8 @@ export default function QuoteAcceptPage() {
         if (q.client_name && !signerName) setSignerName(q.client_name)
       } catch (e) { setErr((e as Error).message) }
       finally { setLoading(false) }
-    })()
-  }, [token])
+  }
+  useEffect(() => { if (token) void load() }, [token])
 
   async function submit() {
     if (!token) return
@@ -198,6 +200,9 @@ export default function QuoteAcceptPage() {
   )
 
   if (!quote) return null
+
+  // Regola: prezzo (e accettazione) solo dopo registrazione + consenso dati.
+  if (priceLocked) return <AcceptPriceConsent token={token!} clientName={quote.client_name} clientEmail={quote.client_email} onUnlocked={() => { void load() }} />
 
   const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(quote.total_client)
 
@@ -510,6 +515,61 @@ function Centered({ children }: { children: React.ReactNode }) {
       <img src="/hero/success.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0" style={{ background: 'rgba(14,17,22,0.55)' }} />
       <div className="surface surface-lift w-full max-w-md p-10 text-center relative z-10">{children}</div>
+    </div>
+  )
+}
+
+const ACCEPT_CONSENTS = [
+  { key: 'registration', text: 'Mi registro su Planfully per visualizzare il prezzo del preventivo.' },
+  { key: 'data_fuyue', text: 'Acconsento al trattamento dei miei dati personali da parte di Fuyue Srl, titolare del marchio Planfully, che ne diventa titolare.' },
+  { key: 'commercial_third_parties', text: 'Acconsento all’utilizzo dei miei dati anche per finalità commerciali e alla loro eventuale cessione a terzi da parte di Fuyue Srl.' },
+  { key: 'privacy_policy', text: 'Dichiaro di aver letto e compreso l’informativa privacy.' },
+]
+
+function AcceptPriceConsent({ token, clientName, clientEmail, onUnlocked }: {
+  token: string; clientName: string | null; clientEmail: string | null; onUnlocked: () => void
+}) {
+  const [email, setEmail] = useState(clientEmail ?? '')
+  const [name, setName] = useState(clientName ?? '')
+  const [checks, setChecks] = useState<Record<string, boolean>>({})
+  const [sending, setSending] = useState(false)
+  const allChecked = ACCEPT_CONSENTS.every((c) => checks[c.key])
+
+  async function submit() {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return toast.error('Email non valida')
+    if (!allChecked) return toast.error('Devi accettare tutte le voci')
+    setSending(true)
+    try {
+      const { data, error } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+        .rpc('register_quote_view', { p_token: token, p_email: email.trim(), p_name: name.trim() || null, p_consents: checks })
+      if (error) throw error
+      if ((data as { error?: string })?.error) throw new Error('Devi accettare tutte le voci')
+      onUnlocked()
+    } catch (e) { toast.error((e as Error).message) } finally { setSending(false) }
+  }
+
+  return (
+    <div className="min-h-screen px-4 py-10 flex items-center justify-center" style={{ background: '#FDFBF6', color: '#1A1714', colorScheme: 'light' }}>
+      <div className="w-full max-w-md rounded-2xl border p-6" style={{ borderColor: '#E4DED2', background: '#fff' }}>
+        <h1 className="font-display text-xl mb-1">Registrati per vedere il preventivo</h1>
+        <p className="text-sm text-[#6B6358] mb-4">Per visualizzare il prezzo e accettare, registrati e accetta le condizioni.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome e cognome" className="text-sm px-3 py-2 rounded-lg border" style={{ borderColor: '#D6DAE1' }} />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="La tua email" className="text-sm px-3 py-2 rounded-lg border" style={{ borderColor: '#D6DAE1' }} />
+        </div>
+        <div className="space-y-2 mb-4">
+          {ACCEPT_CONSENTS.map((c) => (
+            <label key={c.key} className="flex items-start gap-2 text-xs text-[#6B6358] cursor-pointer">
+              <input type="checkbox" checked={!!checks[c.key]} onChange={(e) => setChecks((s) => ({ ...s, [c.key]: e.target.checked }))} className="mt-0.5 shrink-0" />
+              <span>{c.text}</span>
+            </label>
+          ))}
+        </div>
+        <button onClick={() => void submit()} disabled={sending || !allChecked}
+          className="w-full py-3 rounded-lg text-white font-semibold disabled:opacity-50" style={{ background: '#1A1714' }}>
+          {sending ? 'Attendere…' : 'Registrati e continua'}
+        </button>
+      </div>
     </div>
   )
 }
