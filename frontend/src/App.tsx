@@ -49,6 +49,8 @@ const BlogAdminPage = lazy(() => import('@/pages/BlogAdminPage'))
 const BlogEditorPage = lazy(() => import('@/pages/BlogEditorPage'))
 const HomeFeedPage = lazy(() => import('@/pages/HomeFeedPage'))
 const PublicWpPage = lazy(() => import('@/pages/public/PublicWpPage'))
+const EmbedLeadPage = lazy(() => import('@/pages/public/EmbedLeadPage'))
+const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage'))
 const PublicSlugResolver = lazy(() => import('@/pages/public/PublicSlugResolver'))
 const WpLeadsPage = lazy(() => import('@/pages/WpLeadsPage'))
 const DiscoverProsPage = lazy(() => import('@/pages/public/DiscoverProsPage'))
@@ -203,6 +205,9 @@ export default function App() {
           <Route path="/feed/modifica-articolo/:id" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><FeedArticleEditorPage /></RequireAuth>} />
           <Route path="/feed/post/:slug" element={<FeedArticlePage />} />
           <Route path="/p/wp/:slug" element={<PublicWpPage />} />
+          {/* Form lead embeddabile in <iframe> su siti terzi (Wix & co.) */}
+          <Route path="/embed/lead/:slug" element={<EmbedLeadPage />} />
+          <Route path="/embed/lead" element={<EmbedLeadPage />} />
           <Route path="/leads" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><WpLeadsPage /></RequireAuth>} />
           <Route path="/rewards" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><NetworkRewardsPage /></RequireAuth>} />
           <Route path="/blog" element={<BlogListPage />} />
@@ -214,6 +219,7 @@ export default function App() {
           <Route path="/disponibilita" element={<RequireAuth><SupplierAvailabilityPage /></RequireAuth>} />
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />
           <Route path="/capostipiti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCapostipitiPage /></RequireAuth>} />
+          <Route path="/integrazione-sito" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><IntegrationsPage /></RequireAuth>} />
           <Route path="/faq" element={<RequireAuth><FaqPage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
           <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />

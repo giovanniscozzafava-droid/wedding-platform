@@ -27,6 +27,7 @@ import {
   Newspaper,
   Inbox,
   Gift,
+  Code2,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -77,9 +78,10 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
   ]},
   { section: 'Impostazioni', items: [
-    { to: '/settings/brand', label: 'Brand',   icon: Palette },
-    { to: '/profile',        label: 'Profilo', icon: UserRound },
-    { to: '/faq',            label: 'FAQ',     icon: HelpCircle },
+    { to: '/settings/brand',   label: 'Brand',            icon: Palette },
+    { to: '/integrazione-sito', label: 'Integrazione sito', icon: Code2 },
+    { to: '/profile',          label: 'Profilo',          icon: UserRound },
+    { to: '/faq',              label: 'FAQ',              icon: HelpCircle },
   ]},
   { section: 'Prodotti (presto)', items: [
     { to: '/finanziamento', label: 'Finanziamento', icon: Wallet,      badge: 'SOON' },
@@ -113,9 +115,10 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
   ]},
   { section: 'Impostazioni', items: [
-    { to: '/settings/brand', label: 'Brand',   icon: Palette },
-    { to: '/profile',        label: 'Profilo', icon: UserRound },
-    { to: '/faq',            label: 'FAQ',     icon: HelpCircle },
+    { to: '/settings/brand',   label: 'Brand',            icon: Palette },
+    { to: '/integrazione-sito', label: 'Integrazione sito', icon: Code2 },
+    { to: '/profile',          label: 'Profilo',          icon: UserRound },
+    { to: '/faq',              label: 'FAQ',              icon: HelpCircle },
   ]},
 ]
 
