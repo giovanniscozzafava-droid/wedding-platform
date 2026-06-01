@@ -18,6 +18,7 @@ import {
 } from '@/hooks/useQuotes'
 import type { Database } from '@/lib/database.types'
 import { ClientBriefEditor } from '@/components/quotes/ClientBriefEditor'
+import { SuggestColleaguesCard } from '@/components/quotes/SuggestColleaguesCard'
 import { eventTerm } from '@/lib/eventKind'
 
 type Unit = Database['public']['Enums']['service_unit']
@@ -608,6 +609,11 @@ export default function QuoteEditorPage() {
         {/* Brief di competenza fornitore→cliente (solo flusso fornitore, quote salvato) */}
         {isFornitoreFlow && id && (
           <ClientBriefEditor quoteId={id} subrole={profile?.subrole} />
+        )}
+
+        {/* Suggerisci colleghi al cliente — solo dopo firma preventivo */}
+        {id && (quote?.status === 'ACCETTATO' || quote?.status === 'CONVERTITO_IN_CONTRATTO') && (
+          <SuggestColleaguesCard quoteId={id} />
         )}
 
         {/* Modal modifica forzata */}

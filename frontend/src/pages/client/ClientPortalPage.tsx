@@ -34,6 +34,7 @@ type Contract = {
   id: string; title: string; status: string; access_token: string | null
   signed_at: string | null; pdf_url: string | null
 }
+type Suggested = { suggested_id: string; name: string | null; subrole: string | null; slug: string | null; suggested_by: string | null }
 type Professional = {
   owner_id: string; business_name: string | null; role: string; subrole: string | null
   brand_logo_url: string | null; brand_primary_color: string | null; city: string | null
@@ -66,6 +67,7 @@ function fmtEuro(n: number) {
 export default function ClientPortalPage() {
   const { user, signOut } = useAuth()
   const [pros, setPros] = useState<Professional[]>([])
+  const [suggested, setSuggested] = useState<Suggested[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
 
@@ -78,6 +80,8 @@ export default function ClientPortalPage() {
         const r = data as { ok?: boolean; error?: string; professionals?: Professional[] }
         if (r.error) throw new Error(r.error)
         setPros(r.professionals ?? [])
+        const sug = await (supabase as unknown as { rpc: (f: string) => Promise<{ data: unknown }> }).rpc('client_suggested_suppliers')
+        setSuggested(((sug.data as { suppliers?: Suggested[] })?.suppliers) ?? [])
       } catch (e) {
         setErr(e instanceof Error ? e.message : 'Errore di caricamento')
       } finally { setLoading(false) }
@@ -119,6 +123,31 @@ export default function ClientPortalPage() {
           </Card>
         ) : (
           <div className="space-y-6">
+            {suggested.length > 0 && (
+              <Card className="p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[rgb(var(--gold-600))] mb-2">Fornitori consigliati per te</p>
+                <div className="space-y-2">
+                  {suggested.map((s) => {
+                    const inner = (
+                      <>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{s.name}</p>
+                          <p className="text-xs text-[rgb(var(--fg-muted))]">
+                            {s.subrole ? subroleLabel(s.subrole) : 'Fornitore'}{s.suggested_by ? ` · consigliato da ${s.suggested_by}` : ''}
+                          </p>
+                        </div>
+                        {s.slug && <span className="text-xs text-[rgb(var(--gold-600))] shrink-0">Vedi →</span>}
+                      </>
+                    )
+                    return s.slug ? (
+                      <a key={s.suggested_id} href={`/p/fornitore/${s.slug}`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[rgb(var(--bg-sunken))]">{inner}</a>
+                    ) : (
+                      <div key={s.suggested_id} className="flex items-center gap-3 p-2">{inner}</div>
+                    )
+                  })}
+                </div>
+              </Card>
+            )}
             {pros.map((p) => <ProfessionalBlock key={p.owner_id} pro={p} />)}
           </div>
         )}
