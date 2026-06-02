@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { FileSignature, Send, Plus, Lock } from 'lucide-react'
+import { FileSignature, Send, Plus, Lock, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useContractMutations, useContracts } from '@/hooks/useWedding'
+import { shareWhatsAppLink } from '@/lib/share'
 
 const STANDARD_SECTIONS = [
   { heading: 'Oggetto del contratto', body: 'Organizzazione e coordinamento dell\'evento matrimoniale come specificato nel preventivo allegato.', type: 'CLAUSULE' },
@@ -81,8 +82,15 @@ export function ContractTab({ wedding }: { wedding: any }) {
               )}
               {c.status === 'BOZZA' && <Button variant="gold" size="sm" onClick={() => sendContract(c.id)}><Send /> Invia per firma</Button>}
               {c.access_token && (
-                <a href={`/p/contract/${c.access_token}`} target="_blank" rel="noreferrer"
-                  className="text-sm self-center text-[rgb(var(--fg-muted))] hover:underline">link firma cliente</a>
+                <>
+                  <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
+                    `Ecco il contratto per ${c.client_name ?? 'te'}${c.title ? ` — ${c.title}` : ''}. Aprilo e firmalo qui:`,
+                    c.pdf_url ?? `${window.location.origin}/p/contract/${c.access_token}`)}>
+                    <MessageCircle size={13} /> WhatsApp
+                  </Button>
+                  <a href={`/p/contract/${c.access_token}`} target="_blank" rel="noreferrer"
+                    className="text-sm self-center text-[rgb(var(--fg-muted))] hover:underline">link firma cliente</a>
+                </>
               )}
               {c.status === 'FIRMATO' && (
                 <span className="inline-flex items-center gap-1 text-xs text-[rgb(var(--fg-subtle))]" title="Un contratto firmato non puo essere modificato">

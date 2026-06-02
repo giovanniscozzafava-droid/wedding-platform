@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { FileSignature, CheckCircle2, Clock, AlertCircle, Plus, Copy, ExternalLink, PenTool } from 'lucide-react'
+import { FileSignature, CheckCircle2, Clock, AlertCircle, Plus, Copy, ExternalLink, PenTool, MessageCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { shareWhatsAppLink } from '@/lib/share'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -214,6 +215,11 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
                     </div>
                     <div className="flex gap-1 flex-wrap">
                       <Button variant="outline" size="sm" onClick={() => copyLink(r.access_token)}><Copy size={12} /> Link</Button>
+                      <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
+                        `Ecco il contratto${r.title ? ` — ${r.title}` : ''}. Aprilo e firmalo qui:`,
+                        `${location.origin}/p/contract/${r.access_token}`)}>
+                        <MessageCircle size={12} /> WhatsApp
+                      </Button>
                       <Button asChild variant="ghost" size="sm">
                         <Link to={`/p/contract/${r.access_token}`} target="_blank"><ExternalLink size={12} /></Link>
                       </Button>
