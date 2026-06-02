@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
@@ -59,16 +59,42 @@ const SEASONS = [
   { v: 'inverno', l: '❄️ Inverno' },
 ]
 
-const PRIORITIES = [
-  { v: 'cibo', l: '🍽️ Cibo' },
-  { v: 'location', l: '🏛️ Location' },
-  { v: 'foto', l: '📸 Foto/Video' },
-  { v: 'musica', l: '🎵 Musica' },
-  { v: 'allestimento', l: '💐 Allestimento' },
-  { v: 'abito', l: '👗 Abito' },
-]
+// Priorità di spesa SU MISURA per tipo evento (niente "abito" a una festa aziendale).
+function prioritiesFor(kind: string): Array<{ v: string; l: string }> {
+  const base = {
+    cibo: '🍽️ Cibo / catering', location: '🏛️ Location', foto: '📸 Foto/Video',
+    musica: '🎵 Musica', intrattenimento: '🎤 Intrattenimento', allestimento: '💐 Allestimento',
+    torta: '🎂 Torta', abito: '👗 Abito', bomboniere: '🎁 Bomboniere',
+    av: '🔊 Audio/video & tech', branding: '🏷️ Branding / immagine',
+  }
+  const P = (...keys: Array<keyof typeof base>) => keys.map((k) => ({ v: k as string, l: base[k] }))
+  switch (kind) {
+    case 'matrimonio':   return P('cibo', 'location', 'foto', 'musica', 'allestimento', 'abito')
+    case 'corporate':    return P('cibo', 'location', 'intrattenimento', 'av', 'allestimento', 'branding')
+    case 'laurea':
+    case 'compleanno':
+    case 'anniversario': return P('cibo', 'location', 'intrattenimento', 'foto', 'allestimento', 'torta')
+    case 'battesimo':
+    case 'comunione':
+    case 'cresima':      return P('cibo', 'location', 'foto', 'allestimento', 'torta', 'bomboniere')
+    default:             return P('cibo', 'location', 'foto', 'musica', 'allestimento')
+  }
+}
+// Esempi (placeholder) coerenti col tipo evento.
+function examplesFor(kind: string): { must: string; no: string; vision: string } {
+  switch (kind) {
+    case 'corporate':  return { must: 'Es. open bar, speaker, premiazione, branding sul palco', no: 'Es. karaoke, giochi a premi', vision: 'Es. una serata elegante per i dipendenti, con cena placé, premiazioni e un momento di intrattenimento.' }
+    case 'laurea':     return { must: 'Es. torta a tema, photobooth, dj', no: 'Es. discorsi troppo formali', vision: 'Es. una festa allegra per celebrare la laurea, con buffet, musica e tanti amici.' }
+    case 'compleanno': return { must: 'Es. torta, animazione, palloncini', no: 'Es. sorprese imbarazzanti', vision: 'Es. una festa calorosa con cibo buono, musica e le persone a cui voglio bene.' }
+    case 'anniversario': return { must: 'Es. cena romantica, musica dal vivo, foto', no: 'Es. troppa confusione', vision: 'Es. una cena intima per festeggiare insieme alle persone più care.' }
+    case 'battesimo':
+    case 'comunione':
+    case 'cresima':    return { must: 'Es. pranzo, confettata, foto in chiesa', no: 'Es. musica troppo alta', vision: 'Es. un pranzo sereno in famiglia dopo la cerimonia, con un bel buffet e foto ricordo.' }
+    default:           return { must: "Es. fuochi d'artificio, gelato artigianale, foto polaroid", no: 'Es. coriandoli, confusione', vision: 'Es. una festa intima, in mezzo alla natura, con musica live e buon cibo.' }
+  }
+}
 
-const STEPS = ['Voi', 'Stile', 'Vision', 'Numeri', 'Pronto'] as const
+const STEPS = ['Chi', 'Stile', 'Vision', 'Numeri', 'Pronto'] as const
 
 type CoupleForm = {
   bride_name: string
@@ -113,6 +139,9 @@ export function CoupleOnboardingWizard() {
   const currentEntry = (weddings ?? []).find((w) => w.entry?.id === entryId)?.entry as any
   const eventKind = currentEntry?.event_kind ?? 'matrimonio'
   const term = eventTerm(eventKind)
+  const priorities = prioritiesFor(eventKind)
+  const ex = examplesFor(eventKind)
+  const guestsLabel = eventKind === 'corporate' ? 'Partecipanti stimati' : 'Invitati stimati'
   const progress = useMemo(() => Math.round(((step + 1) / totalSteps) * 100), [step, totalSteps])
 
   function patch<K extends keyof CoupleForm>(k: K, v: CoupleForm[K]) {
@@ -175,7 +204,7 @@ export function CoupleOnboardingWizard() {
         ...(myFirstName ? { full_name: myFirstName } : {}),
       }).eq('id', user.id)
       await refreshProfile()
-      toast.success('Preferenze salvate — la wedding planner le vedrà subito')
+      toast.success("Preferenze salvate — l'organizzatore le vedrà subito")
       nav('/couple', { replace: true })
     } catch (e) {
       toast.error((e as Error).message)
@@ -188,7 +217,7 @@ export function CoupleOnboardingWizard() {
     return (
       <div className="min-h-screen aurora flex items-center justify-center p-6">
         <div className="surface surface-lift max-w-md p-8 text-center">
-          <Heart size={32} className="mx-auto mb-3 text-[rgb(var(--gold-500))]" />
+          <img src="/brand/planfully-symbol.svg" alt="Planfully" className="h-10 w-10 mx-auto mb-3" />
           <h1 className="font-display text-2xl mb-2">Manca solo l'invito</h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
             Per iniziare, l'organizzatore deve invitarti al {term.label}.
@@ -204,9 +233,7 @@ export function CoupleOnboardingWizard() {
     <div className="min-h-screen aurora py-10 px-4">
       <div className="max-w-2xl mx-auto">
         <header className="mb-6 flex items-center gap-3">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--rose-500))', color: 'rgb(var(--bg))' }}>
-            <Heart size={18} strokeWidth={2.5} />
-          </span>
+          <img src="/brand/planfully-symbol.svg" alt="Planfully" className="h-9 w-9" />
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">{term.hasCoupleConcept ? `Il vostro ${term.label}` : `Il ${term.label}`}</p>
             <h1 className="font-display text-2xl">{term.hasCoupleConcept ? 'Raccontateci la vostra visione' : 'Raccontaci come lo immagini'}</h1>
@@ -265,8 +292,8 @@ export function CoupleOnboardingWizard() {
 
                 {step === 1 && (
                   <>
-                    <h2 className="font-display text-xl mb-2">Il vostro stile</h2>
-                    <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">Scegliete fino a 4 stili che vi rappresentano.</p>
+                    <h2 className="font-display text-xl mb-2">{term.hasCoupleConcept ? 'Il vostro stile' : 'Lo stile'}</h2>
+                    <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">{term.hasCoupleConcept ? 'Scegliete' : 'Scegli'} fino a 4 stili che {term.hasCoupleConcept ? 'vi' : 'ti'} rappresentano.</p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {STYLES.map((s) => {
                         const active = form.styles.includes(s.k)
@@ -317,19 +344,19 @@ export function CoupleOnboardingWizard() {
                       })}
                     </div>
 
-                    <Field label="La vostra vision (in 2-3 frasi)">
+                    <Field label={`${term.hasCoupleConcept ? 'La vostra' : 'La tua'} vision (in 2-3 frasi)`}>
                       <Textarea rows={4} value={form.vision_note} onChange={(e) => patch('vision_note', e.target.value)}
-                        placeholder={`Es. Vogliamo un ${term.label} intimo, in mezzo alla natura, con musica live e cibo italiano della nostra terra.`} />
+                        placeholder={ex.vision} />
                     </Field>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <Field label="Must have (separa con virgole)">
                         <Textarea rows={3} value={form.must_haves} onChange={(e) => patch('must_haves', e.target.value)}
-                          placeholder="Es. fuochi d'artificio, gelato artigianale, foto polaroid" />
+                          placeholder={ex.must} />
                       </Field>
                       <Field label="No grazie (separa con virgole)">
                         <Textarea rows={3} value={form.no_thanks} onChange={(e) => patch('no_thanks', e.target.value)}
-                          placeholder="Es. coriandoli, riso, tradizioni religiose" />
+                          placeholder={ex.no} />
                       </Field>
                     </div>
                   </>
@@ -338,7 +365,7 @@ export function CoupleOnboardingWizard() {
                 {step === 3 && (
                   <>
                     <h2 className="font-display text-xl mb-2">Numeri</h2>
-                    <Field label="Invitati stimati">
+                    <Field label={guestsLabel}>
                       <Input type="number" min={0} value={form.guests_estimate}
                         onChange={(e) => patch('guests_estimate', e.target.value === '' ? '' : Number(e.target.value))}
                         placeholder="Es. 120" />
@@ -356,7 +383,7 @@ export function CoupleOnboardingWizard() {
                     <Field label="Priorità di spesa">
                       <Select value={form.budget_priority} onChange={(e) => patch('budget_priority', e.target.value)}>
                         <option value="">Nessuna priorità</option>
-                        {PRIORITIES.map((p) => <option key={p.v} value={p.v}>{p.l}</option>)}
+                        {priorities.map((p) => <option key={p.v} value={p.v}>{p.l}</option>)}
                       </Select>
                     </Field>
                   </>
@@ -371,13 +398,13 @@ export function CoupleOnboardingWizard() {
                       Riepilogo {term.ofIt}:
                     </p>
                     <div className="rounded-lg border p-4 text-sm space-y-1" style={{ borderColor: 'rgb(var(--border))' }}>
-                      <p><strong>Coppia:</strong> {form.couple_name || `${form.bride_name} & ${form.groom_name}` || '—'}</p>
+                      <p><strong>{term.hasCoupleConcept ? 'Coppia' : 'Festeggiato/a'}:</strong> {form.couple_name || [form.bride_name, form.groom_name].filter(Boolean).join(' & ') || '—'}</p>
                       <p><strong>Stili:</strong> {form.styles.length ? form.styles.join(', ') : '—'}</p>
                       <p><strong>Stagione:</strong> {SEASONS.find((s) => s.v === form.preferred_season)?.l ?? '—'}</p>
                       <p><strong>Location:</strong> {LOCATION_KINDS.find((s) => s.v === form.location_kind)?.l ?? '—'}</p>
-                      <p><strong>Invitati:</strong> {form.guests_estimate || '—'}</p>
+                      <p><strong>{guestsLabel}:</strong> {form.guests_estimate || '—'}</p>
                       <p><strong>Budget:</strong> {form.budget_min || '—'} – {form.budget_max || '—'} €</p>
-                      <p><strong>Priorità:</strong> {PRIORITIES.find((s) => s.v === form.budget_priority)?.l ?? '—'}</p>
+                      <p><strong>Priorità:</strong> {priorities.find((s) => s.v === form.budget_priority)?.l ?? '—'}</p>
                     </div>
                   </>
                 )}

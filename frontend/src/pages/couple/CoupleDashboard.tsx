@@ -18,6 +18,7 @@ import { useTheme } from '@/lib/theme'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { eventTerm } from '@/lib/eventKind'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 import { MenuTab } from '@/components/wedding/MenuTab'
 import { GuestsTab } from '@/components/wedding/GuestsTab'
@@ -75,10 +76,10 @@ export default function CoupleDashboard() {
     return (
       <div className="min-h-screen aurora flex items-center justify-center p-6">
         <Card className="max-w-md p-10 text-center">
-          <Heart size={28} className="mx-auto mb-4 text-[rgb(var(--gold-600))]" />
-          <h1 className="font-display text-2xl mb-2">Ancora nessun matrimonio</h1>
+          <img src="/brand/planfully-symbol.svg" alt="Planfully" className="h-9 w-9 mx-auto mb-4" />
+          <h1 className="font-display text-2xl mb-2">Ancora nessun evento</h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
-            Hai bisogno di un invito dal tuo wedding planner. Hai gia` ricevuto un link?
+            Hai bisogno di un invito dall'organizzatore. Hai gia` ricevuto un link?
             Aprilo per accedere.
           </p>
           <Button variant="outline" onClick={logout}><LogOut size={14} /> Esci</Button>
@@ -149,7 +150,18 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
   const hasRestauration = quoteItems.length === 0
     ? true
     : quoteItems.some((it) => RESTAURATION_SUBROLES.has(String(it?.supplier?.subrole ?? '').toLowerCase()))
-  const visibleTabs = TABS.filter((t) => t.key !== 'menu' || hasRestauration)
+  const eventKind = wedding.event_kind ?? 'matrimonio'
+  const term = eventTerm(eventKind)
+  // "Cerimonia" ha senso solo per eventi con rito (matrimonio + religiosi).
+  // "Bomboniere" non per eventi aziendali/laurea. Filtra le tab non pertinenti.
+  const CEREMONY_EVENTS = new Set(['matrimonio', 'battesimo', 'comunione', 'cresima'])
+  const NO_FAVORS = new Set(['corporate', 'laurea'])
+  const visibleTabs = TABS.filter((t) => {
+    if (t.key === 'menu' && !hasRestauration) return false
+    if (t.key === 'cerimonia' && !CEREMONY_EVENTS.has(eventKind)) return false
+    if (t.key === 'gadgets' && NO_FAVORS.has(eventKind)) return false
+    return true
+  })
 
   return (
     <>
@@ -159,7 +171,9 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
         <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primary}DD 0%, ${primary}99 100%)` }} />
         <div className="relative max-w-4xl mx-auto px-6 py-16 text-center text-white">
           <span className="inline-flex items-center gap-1 text-xs uppercase tracking-[0.3em] text-white/80 mb-3">
-            <Heart size={11} /> Il vostro grande giorno <Heart size={11} />
+            {term.hasCoupleConcept
+              ? <><Heart size={11} /> Il vostro grande giorno <Heart size={11} /></>
+              : <><Sparkles size={11} /> {term.Label} <Sparkles size={11} /></>}
           </span>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight">{wedding.title}</h1>
           <p className="text-base text-white/85 mt-2">
@@ -242,6 +256,11 @@ function OverviewCouple({ wedding, entryId, memberRole }: { wedding: any; entryI
   const subevents = useSubEvents(entryId)
   const yes = (guests.data ?? []).filter((g: any) => g.rsvp === 'YES').length
   const nuovoModello = useNuovoModello()
+  const eventKind = wedding.event_kind ?? 'matrimonio'
+  const term = eventTerm(eventKind)
+  const orgLabel = term.hasCoupleConcept ? 'Wedding planner' : 'Organizzatore'
+  const guestsLabel = eventKind === 'corporate' ? 'Partecipanti confermati' : 'Invitati confermati'
+  const roleLabel = term.hasCoupleConcept ? memberRole : 'Referente'
 
   return (
     <div className="space-y-6">
@@ -257,24 +276,24 @@ function OverviewCouple({ wedding, entryId, memberRole }: { wedding: any; entryI
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
-          <Badge tone="gold">{memberRole}</Badge>
+          <Badge tone="gold">{roleLabel}</Badge>
           <h2 className="font-display text-xl mt-3 mb-3">Riepilogo</h2>
           <dl className="space-y-2 text-sm">
-            <Row k="Wedding planner" v={wedding.owner?.business_name ?? wedding.owner?.full_name ?? '—'} />
+            <Row k={orgLabel} v={wedding.owner?.business_name ?? wedding.owner?.full_name ?? '—'} />
             <Row k="Data" v={new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} />
-            <Row k="Invitati confermati" v={`${yes} / ${wedding.guest_count ?? '?'}`} />
+            <Row k={guestsLabel} v={`${yes} / ${wedding.guest_count ?? '?'}`} />
             <Row k="Programma" v={`${subevents.data?.length ?? 0} eventi`} />
             {wedding.is_destination && <Row k="Destination" v={wedding.destination_location ?? '—'} />}
           </dl>
         </Card>
         <Card className="p-6">
-          <h2 className="font-display text-xl mb-3">Note del planner</h2>
+          <h2 className="font-display text-xl mb-3">Note dell'organizzatore</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">
             {wedding.client_name && `Per: ${wedding.client_name}`}
           </p>
           <p className="text-sm mt-3">
-            Le info sensibili (note interne, valore economico) sono riservate al wedding planner.
-            Voi vedete tutto cio` che riguarda la vostra esperienza il giorno del matrimonio.
+            Le info sensibili (note interne, valore economico) sono riservate all'organizzatore.
+            {term.hasCoupleConcept ? ' Voi vedete' : ' Vedi'} tutto ciò che riguarda l'esperienza {term.ofIt}.
           </p>
         </Card>
       </div>
@@ -292,7 +311,7 @@ function ProgrammaCouple({ entryId }: { entryId: string }) {
     <div className="space-y-6">
       <section>
         <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
-          <h2 className="font-display text-2xl">Eventi del weekend</h2>
+          <h2 className="font-display text-2xl">Eventi collegati</h2>
           <ChangeRequestModal weddingId={entryId} entityType="SUBEVENT" defaultAction="CREATE" prefillTitle="" />
         </div>
         {hasSubevents ? (
@@ -311,7 +330,7 @@ function ProgrammaCouple({ entryId }: { entryId: string }) {
         ) : (
           <Card className="p-6 text-center">
             <p className="text-sm text-[rgb(var(--fg-muted))]">
-              Il/la tuo/a wedding planner non ha ancora aggiunto eventi pre o post matrimonio (es. rinfresco serale, brunch del giorno dopo).
+              L'organizzatore non ha ancora aggiunto eventi collegati (es. cena della vigilia, brunch del giorno dopo).
             </p>
             <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
               Usa il bottone qui sopra per suggerire un evento extra.
@@ -322,7 +341,7 @@ function ProgrammaCouple({ entryId }: { entryId: string }) {
       <section>
         <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
           <h2 className="font-display text-2xl">Scaletta giorno-X</h2>
-          <ChangeRequestModal weddingId={entryId} entityType="TIMELINE" defaultAction="UPDATE" prefillTitle="Modifica scaletta giorno matrimonio" />
+          <ChangeRequestModal weddingId={entryId} entityType="TIMELINE" defaultAction="UPDATE" prefillTitle="Modifica scaletta del giorno" />
         </div>
         {hasTimeline ? (
           <Card>
@@ -343,7 +362,7 @@ function ProgrammaCouple({ entryId }: { entryId: string }) {
         ) : (
           <Card className="p-6 text-center">
             <p className="text-sm text-[rgb(var(--fg-muted))]">
-              La scaletta del giorno-matrimonio non è ancora stata definita dal/la wedding planner.
+              La scaletta del giorno non è ancora stata definita dall'organizzatore.
             </p>
             <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">
               Vedrai qui i momenti chiave (cerimonia, aperitivo, cena, danze) appena saranno pronti. Puoi suggerire orari/cambiamenti col bottone qui sopra.
@@ -442,7 +461,7 @@ function MoodCouple({ entryId }: { entryId: string }) {
     <div>
       <h2 className="font-display text-2xl mb-2">Mood board</h2>
       <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
-        Le ispirazioni raccolte dal vostro wedding planner. Aggiungete le vostre da Pinterest, Instagram o qualsiasi pagina web.
+        Le ispirazioni raccolte dal vostro organizzatore. Aggiungete le vostre da Pinterest, Instagram o qualsiasi pagina web.
       </p>
 
       <Card className="p-4 mb-6">
@@ -582,7 +601,7 @@ function WebsiteCouple({ wedding }: { wedding: any }) {
             <Button variant="outline" className="mt-4" onClick={() => navigator.clipboard.writeText(url)}>Copia link da inviare</Button>
           </>
         ) : (
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Il sito ospiti non e&apos; ancora pubblicato. Chiedi al tuo wedding planner.</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Il sito ospiti non e&apos; ancora pubblicato. Chiedi al tuo organizzatore.</p>
         )}
       </Card>
     </div>
@@ -616,7 +635,7 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
     <div className="space-y-6">
       <div>
         <h2 className="font-display text-2xl mb-1">Documenti</h2>
-        <p className="text-sm text-[rgb(var(--fg-muted))]">Il preventivo e il contratto del vostro matrimonio.</p>
+        <p className="text-sm text-[rgb(var(--fg-muted))]">Il preventivo e il contratto del vostro evento.</p>
       </div>
 
       {loading && <p className="text-sm text-[rgb(var(--fg-subtle))]">Carico...</p>}
@@ -656,7 +675,7 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
               )}
             </div>
           ) : (
-            <p className="text-sm text-[rgb(var(--fg-subtle))]">Il preventivo non è ancora stato emesso dal wedding planner.</p>
+            <p className="text-sm text-[rgb(var(--fg-subtle))]">Il preventivo non è ancora stato emesso dal organizzatore.</p>
           )}
         </Card>
       )}
@@ -698,7 +717,7 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
               )}
             </div>
           ) : (
-            <p className="text-sm text-[rgb(var(--fg-subtle))]">Il contratto non è ancora stato preparato dal wedding planner.</p>
+            <p className="text-sm text-[rgb(var(--fg-subtle))]">Il contratto non è ancora stato preparato dal organizzatore.</p>
           )}
         </Card>
       )}
@@ -746,8 +765,8 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
         if (error) throw error
         const p = res as PreventivoData
         if (p?.error) {
-          if (p.error === 'no_quote') setErr('Il tuo wedding planner non ha ancora generato un preventivo.')
-          else if (p.error === 'not_couple_member') setErr('Non sei membro di questo matrimonio.')
+          if (p.error === 'no_quote') setErr('Il tuo organizzatore non ha ancora generato un preventivo.')
+          else if (p.error === 'not_couple_member') setErr('Non fai parte di questo evento.')
           else setErr(p.error)
           return
         }
@@ -768,7 +787,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   )
   if (!data) return null
 
-  const ownerName = data.owner?.business_name ?? data.owner?.full_name ?? 'Wedding Planner'
+  const ownerName = data.owner?.business_name ?? data.owner?.full_name ?? 'Organizzatore'
 
   return (
     <div className="space-y-5">
