@@ -245,10 +245,28 @@ export default function CatalogPage() {
           />
         )}
 
-        {/* Vista capostipite: raggruppa per fornitore */}
-        {isCapostipite && grouped && grouped.length > 0 && (
+        {/* In cima: I MIEI SERVIZI (tutti i servizi che il capostipite offre) */}
+        {isCapostipite && profile?.id && (() => {
+          const mine = (grouped ?? []).find(([sid]) => sid === profile.id)?.[1] ?? []
+          if (mine.length === 0) return null
+          return (
+            <section className="mb-12">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[rgb(var(--gold-500))]">⭐</span>
+                <h3 className="font-display text-xl">I miei servizi</h3>
+                <span className="text-xs text-[rgb(var(--fg-subtle))]">{mine.length} {mine.length === 1 ? 'voce' : 'voci'}</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {mine.map((s) => <ServiceCard key={s.id} s={s} isProvider onView={() => setViewing(s)} />)}
+              </div>
+            </section>
+          )
+        })()}
+
+        {/* Vista capostipite: raggruppa per fornitore (esclusi i miei) */}
+        {isCapostipite && grouped && grouped.filter(([sid]) => sid !== profile?.id).length > 0 && (
           <div className="space-y-12">
-            {grouped.map(([supId, items]) => {
+            {grouped.filter(([sid]) => sid !== profile?.id).map(([supId, items]) => {
               const sup = suppliers?.find((s) => s.id === supId)
               return (
                 <section key={supId}>

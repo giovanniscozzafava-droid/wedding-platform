@@ -38,11 +38,12 @@ export default function RegisterPage() {
   const refFromUrl = params.get('ref') ?? ''
   const [form, setForm] = useState({
     full_name: '', business_name: '', email: '', password: '',
-    role: 'WEDDING_PLANNER' as AppRole, subrole: '', accept_referrals: false,
+    role: 'WEDDING_PLANNER' as AppRole, subrole: '', accept_referrals: false, platform_terms: false,
     referral_code: refFromUrl.toUpperCase(),
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showTerms, setShowTerms] = useState(false)
   const nav = useNavigate()
 
   const subroles = SUBROLE_BY_ROLE[form.role]
@@ -59,6 +60,10 @@ export default function RegisterPage() {
       setError(parsed.error.issues[0]?.message ?? 'Dati non validi')
       return
     }
+    if (!form.platform_terms) {
+      setError('Devi accettare le condizioni di Planfully per registrarti')
+      return
+    }
     setBusy(true)
     try {
       const { data: signupData, error: err } = await supabase.auth.signUp({
@@ -68,6 +73,7 @@ export default function RegisterPage() {
             role: form.role, subrole: form.subrole || null,
             full_name: form.full_name, business_name: form.business_name || null,
             accept_referrals: form.role === 'FORNITORE' ? form.accept_referrals : false,
+            platform_terms: form.platform_terms,
           },
           emailRedirectTo: `${window.location.origin}/onboarding`,
         },
@@ -192,9 +198,34 @@ export default function RegisterPage() {
             </div>
           </details>
 
+          {/* Contratto con noi: condizioni piattaforma (spunta che si apre) */}
+          <div className="rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.platform_terms} className="mt-0.5 shrink-0"
+                onChange={(e) => setForm((f) => ({ ...f, platform_terms: e.target.checked }))} />
+              <span className="text-xs text-[rgb(var(--fg-muted))]">
+                <strong className="text-[rgb(var(--fg))]">Accetto il contratto di abbonamento Planfully</strong> (il contratto con noi).{' '}
+                <button type="button" onClick={(ev) => { ev.preventDefault(); setShowTerms((v) => !v) }} className="underline text-[rgb(var(--gold-600))]">
+                  {showTerms ? 'nascondi' : 'leggi il contratto'}
+                </button>
+              </span>
+            </label>
+            {showTerms && (
+              <ul className="mt-2 space-y-1.5 text-[11px] text-[rgb(var(--fg-muted))] list-disc pl-5">
+                <li><strong>Durata 12 mesi (365 giorni)</strong>, dal 1° gennaio 2027 al 31 dicembre 2027. Fino al 31/12/2026 l’uso è gratuito (beta).</li>
+                {form.role === 'FORNITORE' && (
+                  <li><strong>Canone 29€/anno</strong> (Fuyue Srl), da pagarsi in <strong>un’unica soluzione anticipata</strong> per l’intero periodo.</li>
+                )}
+                <li>Crediti tra professionisti: per ogni segnalazione che diventa un contratto firmato è riconosciuto un credito <strong>fisso di 39€</strong>.</li>
+                <li>Commissioni future: Fuyue Srl si riserva il diritto di introdurre e/o modificare commissioni e condizioni. <strong>Tutto può cambiare e ci riserviamo di farlo.</strong></li>
+                <li>Dati trattati da Fuyue Srl (titolare del marchio) secondo l’informativa privacy. Le condizioni potranno essere aggiornate; l’uso continuato vale accettazione.</li>
+              </ul>
+            )}
+          </div>
+
           {error && <p className="text-sm text-[rgb(var(--rose-500))]" role="alert" data-testid="register-error">{error}</p>}
 
-          <Button type="submit" variant="gold" className="w-full" disabled={busy}>
+          <Button type="submit" variant="gold" className="w-full" disabled={busy || !form.platform_terms}>
             {busy ? 'Creazione...' : 'Crea account'}
           </Button>
           <div className="flex items-center gap-2 my-2">
