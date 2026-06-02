@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Plus, Download } from 'lucide-react'
 import { toast } from 'sonner'
@@ -95,6 +95,31 @@ export default function CalendarPage() {
     await (supabase.from('supplier_appointments' as any) as any).delete().eq('id', id)
     await reloadAvail()
   }
+  // Blocca/sblocca la data con un click: verde = libero (nessuno slot),
+  // giallo = forse/opzionato (TENTATIVE), rosso = occupato (BUSY).
+  async function setAvailability(date: string, status: AvailStatus | null) {
+    if (!user) return
+    const existing = availMap.get(date)
+    if (status === null) {
+      if (existing) await (supabase.from('supplier_availability' as any) as any).delete().eq('id', existing.id)
+    } else if (existing) {
+      await (supabase.from('supplier_availability' as any) as any).update({ status }).eq('id', existing.id)
+    } else {
+      const { error } = await (supabase.from('supplier_availability' as any) as any)
+        .insert({ fornitore_id: user.id, date, status })
+      if (error) { toast.error(error.message); return }
+    }
+    await reloadAvail()
+  }
+
+  // Mobile: porta in vista il pannello del giorno quando se ne seleziona uno
+  // (su telefono è sotto la griglia e sembrava che il tap non facesse nulla).
+  const dayPanelRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (selectedDay && dayPanelRef.current && window.innerWidth < 1024) {
+      dayPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [selectedDay])
   const entryIds = useMemo(() => (data ?? []).map((e: any) => e.id), [data])
   const { data: earnings } = useSupplierEarnings(entryIds)
   const monthLabel = cursor.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
@@ -226,7 +251,7 @@ export default function CalendarPage() {
             </div>
           </Card>
 
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden" ref={dayPanelRef}>
             <div className="px-5 py-4 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
               <h2 className="font-display text-lg">
                 {selectedDay
@@ -234,6 +259,30 @@ export default function CalendarPage() {
                   : 'Dettagli giorno'}
               </h2>
               {!selectedDay && <p className="text-xs text-[rgb(var(--fg-subtle))]">Seleziona un giorno nella griglia</p>}
+              {/* Blocco disponibilità con un click: libero / forse / occupato */}
+              {isSupplier && selectedDay && (() => {
+                const st = availMap.get(selectedDay)?.status
+                const isFree = !st
+                const isMaybe = st === 'TENTATIVE' || st === 'OPTIONED'
+                const isBusy = st === 'BUSY' || st === 'UNAVAILABLE'
+                const base = 'flex-1 min-h-[40px] rounded-lg text-sm font-medium border transition-colors'
+                return (
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => void setAvailability(selectedDay, null)} className={base}
+                      style={{ background: isFree ? 'rgb(var(--emerald-500))' : 'transparent', color: isFree ? 'white' : 'rgb(var(--emerald-600,5_150_105))', borderColor: 'rgb(var(--emerald-500))' }}>
+                      ● Libero
+                    </button>
+                    <button onClick={() => void setAvailability(selectedDay, 'TENTATIVE')} className={base}
+                      style={{ background: isMaybe ? 'rgb(var(--amber-500))' : 'transparent', color: isMaybe ? 'white' : 'rgb(var(--amber-600,217_119_6))', borderColor: 'rgb(var(--amber-500))' }}>
+                      ● Forse
+                    </button>
+                    <button onClick={() => void setAvailability(selectedDay, 'BUSY')} className={base}
+                      style={{ background: isBusy ? 'rgb(var(--rose-500))' : 'transparent', color: isBusy ? 'white' : 'rgb(var(--rose-500))', borderColor: 'rgb(var(--rose-500))' }}>
+                      ● Occupato
+                    </button>
+                  </div>
+                )
+              })()}
             </div>
             <CardContent className="p-0">
               {isSupplier && selectedDay && (

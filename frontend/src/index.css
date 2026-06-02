@@ -139,6 +139,10 @@ html, body {
 
 body { margin: 0; }
 
+/* Mobile: niente scroll orizzontale accidentale → la pagina "fitta" sempre
+   sulla larghezza del telefono, anche se un elemento sfora. */
+html, body { max-width: 100%; overflow-x: hidden; }
+
 ::selection { background: rgb(var(--gold-300) / 0.4); color: rgb(var(--fg)); }
 
 .font-display { font-family: var(--font-display); font-feature-settings: 'ss01'; }

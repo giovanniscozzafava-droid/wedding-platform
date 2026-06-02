@@ -30,7 +30,6 @@ import {
   Coins,
   CheckSquare,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
 import { NotificationBell } from '@/components/layout/NotificationBell'
@@ -229,60 +228,64 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile sidebar */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            className="lg:hidden fixed inset-0 z-50 flex"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
-            <motion.aside
-              initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }}
-              transition={{ type: 'spring', damping: 24, stiffness: 240 }}
-              className="relative w-72 flex flex-col"
-              style={{ background: 'rgb(var(--bg-elev))', borderRight: '1px solid rgb(var(--border))' }}>
-              <div className="px-6 pt-6 pb-4 flex items-center justify-between" style={{ color: 'rgb(var(--fg))' }}>
-                <span className="font-display text-lg flex items-center gap-2">
-                  <img src="/brand/planfully-symbol.svg" alt="" className="h-7 w-7" />
-                  Planfully
-                </span>
-                <button onClick={() => setMobileOpen(false)} aria-label="Chiudi">
-                  <X size={20} />
-                </button>
-              </div>
-              <nav className="flex-1 px-3 py-2 overflow-y-auto">
-                <NavGroups groups={NAV_GROUPS} onNavigate={() => setMobileOpen(false)} />
-              </nav>
-              {/* Mobile drawer footer: user + logout */}
-              <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-                <div className="flex items-center gap-3 px-2 py-2 mb-2">
-                  <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0 p-0.5"
-                    style={{ background: avatarUrl ? 'white' : 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt="" className="max-h-full max-w-full object-contain"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                    ) : (<span>{initials}</span>)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate" style={{ color: 'rgb(var(--fg))' }}>
-                      {profile?.full_name ?? user?.email}
-                    </p>
-                    <p className="text-xs truncate" style={{ color: 'rgb(var(--fg-subtle))' }}>
-                      {ROLE_LABEL[profile?.role ?? ''] ?? '...'}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => { setMobileOpen(false); void handleLogout() }} data-testid="mobile-logout-btn"
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium hover:bg-[rgb(var(--rose-100))]"
-                  style={{ color: 'rgb(var(--rose-500))' }}>
-                  <LogOut size={14} />
-                  <span>Esci</span>
-                </button>
-              </div>
-            </motion.aside>
-          </motion.div>
+      {/* Mobile sidebar — SEMPRE montato, toggle via CSS. Da chiuso ha
+          pointer-events-none: non può MAI restare a bloccare la pagina (niente
+          race di mount/unmount delle animazioni su Safari). */}
+      <div
+        className={cn(
+          'lg:hidden fixed inset-0 z-50 transition-opacity duration-200',
+          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
         )}
-      </AnimatePresence>
+        aria-hidden={!mobileOpen}
+      >
+        <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+        <aside
+          className={cn(
+            'absolute left-0 top-0 h-full w-72 flex flex-col transition-transform duration-200 ease-out',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          )}
+          style={{ background: 'rgb(var(--bg-elev))', borderRight: '1px solid rgb(var(--border))' }}
+        >
+          <div className="px-6 pt-6 pb-4 flex items-center justify-between" style={{ color: 'rgb(var(--fg))' }}>
+            <span className="font-display text-lg flex items-center gap-2">
+              <img src="/brand/planfully-symbol.svg" alt="" className="h-7 w-7" />
+              Planfully
+            </span>
+            <button onClick={() => setMobileOpen(false)} aria-label="Chiudi">
+              <X size={20} />
+            </button>
+          </div>
+          <nav className="flex-1 px-3 py-2 overflow-y-auto">
+            <NavGroups groups={NAV_GROUPS} onNavigate={() => setMobileOpen(false)} />
+          </nav>
+          {/* Mobile drawer footer: user + logout */}
+          <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+            <div className="flex items-center gap-3 px-2 py-2 mb-2">
+              <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0 p-0.5"
+                style={{ background: avatarUrl ? 'white' : 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="max-h-full max-w-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                ) : (<span>{initials}</span>)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate" style={{ color: 'rgb(var(--fg))' }}>
+                  {profile?.full_name ?? user?.email}
+                </p>
+                <p className="text-xs truncate" style={{ color: 'rgb(var(--fg-subtle))' }}>
+                  {ROLE_LABEL[profile?.role ?? ''] ?? '...'}
+                </p>
+              </div>
+            </div>
+            <button onClick={() => { setMobileOpen(false); void handleLogout() }} data-testid="mobile-logout-btn"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium hover:bg-[rgb(var(--rose-100))]"
+              style={{ color: 'rgb(var(--rose-500))' }}>
+              <LogOut size={14} />
+              <span>Esci</span>
+            </button>
+          </div>
+        </aside>
+      </div>
 
       {/* Main area — scrollabile indipendentemente dalla sidebar fissa */}
       <div className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto">
