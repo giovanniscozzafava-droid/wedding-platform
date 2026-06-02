@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { useCollaboratingSuppliers } from '@/hooks/useCatalog'
 import { useCreateEntry, useDeleteEntry, useUpdateEntry, type EntryWithParticipants } from '@/hooks/useCalendar'
 import type { Database } from '@/lib/database.types'
+import { EVENT_KINDS, eventTerm } from '@/lib/eventKind'
 
 type Status = Database['public']['Enums']['entry_status']
 
@@ -30,6 +31,7 @@ export function EntryForm({ entry, defaultDate, onClose }: Props) {
     date_from: entry?.date_from ?? defaultDate ?? new Date().toISOString().slice(0, 10),
     date_to: entry?.date_to ?? defaultDate ?? new Date().toISOString().slice(0, 10),
     status: (entry?.status ?? 'IN_TRATTATIVA') as Status,
+    event_kind: (entry as any)?.event_kind ?? 'matrimonio',
     value_amount: entry?.value_amount?.toString() ?? '',
     notes: entry?.notes ?? '',
   })
@@ -52,9 +54,10 @@ export function EntryForm({ entry, defaultDate, onClose }: Props) {
         client_email: form.client_email || null,
         date_from: form.date_from, date_to: form.date_to,
         status: form.status,
+        event_kind: form.event_kind,
         value_amount: form.value_amount ? Number(form.value_amount) : null,
         notes: form.notes || null,
-      }
+      } as any
       if (entry) {
         await update.mutateAsync({ id: entry.id, patch: base })
         toast.success('Evento aggiornato')
@@ -83,9 +86,18 @@ export function EntryForm({ entry, defaultDate, onClose }: Props) {
             </Button>
           </header>
           <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto" data-testid="entry-form">
-            <div className="space-y-1">
-              <Label htmlFor="title">Titolo evento</Label>
-              <Input id="title" required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="title">Titolo evento</Label>
+                <Input id="title" required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="event_kind">Tipo di evento</Label>
+                <Select id="event_kind" value={form.event_kind}
+                  onChange={(e) => setForm((f) => ({ ...f, event_kind: e.target.value }))}>
+                  {EVENT_KINDS.map((k) => <option key={k} value={k}>{eventTerm(k).Label}</option>)}
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">

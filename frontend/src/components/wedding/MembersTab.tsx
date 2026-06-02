@@ -18,7 +18,7 @@ export function MembersTab({ entryId }: { entryId: string }) {
     try {
       await invite.mutateAsync(draft)
       setDraft({ email: '', full_name: '', role: 'PARTNER' })
-      toast.success('Sposo invitato. Copia il link sotto e mandalo via WhatsApp/email.')
+      toast.success('Invito creato. Copia il link sotto e mandalo via WhatsApp/email.')
     } catch (e) { toast.error((e as Error).message) }
   }
 
@@ -36,7 +36,7 @@ export function MembersTab({ entryId }: { entryId: string }) {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
           <div className="space-y-1">
             <Label>Email</Label>
-            <Input type="email" value={draft.email} onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))} placeholder="sposa@email.it" />
+            <Input type="email" value={draft.email} onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))} placeholder="nome@email.it" />
           </div>
           <div className="space-y-1">
             <Label>Nome</Label>

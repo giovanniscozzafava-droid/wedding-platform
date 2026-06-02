@@ -33,7 +33,7 @@ const THEME_PRESETS = [
 const SHAPES = ['ROUND', 'SQUARE', 'RECT', 'HEAD', 'IMPERIALE']
 const SHAPE_LABEL: Record<string, string> = {
   ROUND: 'Rotondo', SQUARE: 'Quadrato', RECT: 'Rettangolare',
-  HEAD: 'Tavolo sposi (testa)', IMPERIALE: 'Imperiale (lungo)',
+  HEAD: "Tavolo d'onore (testa)", IMPERIALE: 'Imperiale (lungo)',
 }
 
 const TABLE_FIELDS: Field[] = [
@@ -102,7 +102,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
   async function setTheme(theme: string) {
     try {
       await updateWedding.mutateAsync({ theme } as any)
-      toast.success(`Tema matrimonio: ${theme}`)
+      toast.success(`Tema evento: ${theme}`)
     } catch (e) { toast.error((e as Error).message) }
   }
 

@@ -16,7 +16,7 @@ const KINDS: Array<{ key: string; label: string; icon: typeof PartyPopper }> = [
   { key: 'CENA_PROVE',        label: 'Cena prove',         icon: Coffee },
   { key: 'REHEARSAL',         label: 'Prova cerimonia',    icon: Heart },
   { key: 'WELCOME_DINNER',    label: 'Welcome dinner',     icon: Coffee },
-  { key: 'BRUNCH_POST',       label: 'Brunch post-matrimonio', icon: Coffee },
+  { key: 'BRUNCH_POST',       label: 'Brunch del giorno dopo', icon: Coffee },
   { key: 'HONEYMOON_DEPART',  label: 'Partenza luna di miele', icon: Plane },
   { key: 'BABY_SHOWER',       label: 'Baby shower',        icon: PartyPopper },
   { key: 'ALTRO',             label: 'Altro',              icon: PartyPopper },
