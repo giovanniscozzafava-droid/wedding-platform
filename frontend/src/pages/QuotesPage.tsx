@@ -18,8 +18,28 @@ type BusyCheck = {
   entries: Array<{ id: string; title: string; status: string; kind: string }>
 }
 
+type Act = { stage: string; open_count: number; last_opened_at: string | null; registered: boolean }
+const STAGE: Record<string, { l: string; c: string }> = {
+  BOZZA: { l: 'Bozza', c: '#94a3b8' },
+  INVIATO: { l: 'Inviato', c: '#6366f1' },
+  APERTO: { l: 'Aperto dal cliente', c: '#0ea5e9' },
+  REGISTRATO: { l: 'Cliente registrato', c: '#d97706' },
+  ACCETTATO: { l: 'Accettato', c: '#16a34a' },
+  RIFIUTATO: { l: 'Rifiutato', c: '#dc2626' },
+}
+
 export default function QuotesPage() {
   const { data, isLoading } = useQuotes()
+  const [activity, setActivity] = useState<Record<string, Act>>({})
+  useEffect(() => {
+    const ids = (data ?? []).map((q) => q.id)
+    if (ids.length === 0) return
+    void (async () => {
+      const { data: r } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: unknown }> })
+        .rpc('quotes_activity_summary', { p_quote_ids: ids })
+      setActivity(((r as { map?: Record<string, Act> })?.map) ?? {})
+    })()
+  }, [data])
   const create = useCreateQuote()
   const del = useDeleteQuote()
   const nav = useNavigate()
@@ -120,7 +140,18 @@ export default function QuotesPage() {
                         v{q.revision} · {q.client_name ?? '— Cliente —'} · {q.event_date ?? 'Data libera'}
                       </p>
                     </div>
-                    <Badge status={q.status} />
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <Badge status={q.status} />
+                      {activity[q.id] && (() => {
+                        const a = activity[q.id]!; const s = STAGE[a.stage] ?? STAGE.INVIATO!
+                        return (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: s.c, background: `${s.c}1a` }}
+                            title={a.last_opened_at ? `Ultima apertura: ${new Date(a.last_opened_at).toLocaleString('it-IT')}` : undefined}>
+                            {s.l}{a.open_count > 0 ? ` · ${a.open_count}×` : ''}
+                          </span>
+                        )
+                      })()}
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
                     <div>

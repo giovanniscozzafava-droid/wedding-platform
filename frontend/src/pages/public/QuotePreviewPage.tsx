@@ -30,6 +30,7 @@ export default function QuotePreviewPage() {
     finally { setLoading(false) }
   }
   useEffect(() => { setLoading(true); void load() }, [token])
+  useEffect(() => { if (token) void (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<unknown> }).rpc('track_quote_open', { p_token: token }) }, [token])
 
   if (loading) {
     return (
