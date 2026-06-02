@@ -1254,18 +1254,53 @@ const SUBROLE_STYLE_SECTIONS: Record<string, QuestionnaireSection> = {
 // Combina domande event-specific con stile del fornitore.
 // Per matrimonio mantiene il flusso attuale (Q_* subrole cucite su matrimonio).
 // Per altri eventi (battesimo, comunione, ...) prende le domande evento + stile subrole.
+// Logistica evento (luoghi + orari): è ciò che serve a quasi tutti i fornitori,
+// in OGNI tipo di evento — fotografo, parrucchiere, noleggio auto, fuochi, ecc.
+// (es. dove si prepara il/la protagonista, luogo cerimonia, location, orari).
+function eventLogisticaSection(ek: string): QuestionnaireSection {
+  const cerimonia = (ek === 'battesimo' || ek === 'comunione' || ek === 'cresima')
+    ? 'Luogo della cerimonia (chiesa/parrocchia)'
+    : ek === 'matrimonio' ? 'Luogo della cerimonia (chiesa / comune / altro)'
+    : 'Luogo principale dell’evento'
+  return {
+    title: 'Logistica · dove e quando',
+    questions: [
+      { key: 'prep_place', label: 'Dove si prepara il/la protagonista (indirizzo)', type: 'textarea', placeholder: 'Es. casa della sposa, hotel… via e città' },
+      { key: 'ceremony_place', label: cerimonia, type: 'textarea', placeholder: 'Nome luogo, via e città' },
+      { key: 'reception_place', label: 'Luogo del ricevimento / festa', type: 'textarea', placeholder: 'Nome location, via e città' },
+      { key: 'same_place', label: 'Cerimonia e ricevimento sono nello stesso posto?', type: 'select', options: ['si', 'no', 'da_decidere'] },
+      { key: 'start_time', label: 'Orario di inizio', type: 'text', placeholder: 'Es. 16:30' },
+      { key: 'key_times', label: 'Orari/momenti chiave per te (note)', type: 'textarea', placeholder: 'Es. preparazione 9:00, cerimonia 11:00, taglio torta 21:00…' },
+    ],
+  }
+}
+
 export function getQuestionsForSupplierContext(
   subrole: string | null | undefined,
   eventKind: string | null | undefined,
   baseEventQuestions: QuestionnaireSection[],
 ): QuestionnaireSection[] {
   const ek = (eventKind ?? 'matrimonio').toLowerCase().trim()
-  if (ek === 'matrimonio') {
-    return getQuestionsForSubrole(subrole)
-  }
   const k = (subrole ?? 'altro').toLowerCase().trim()
+
+  // Capostipite (wedding planner) = questionario COMPLETO: coordina tutto.
+  if (k === 'wedding_planner') {
+    return ek === 'matrimonio' ? getQuestionsForSubrole(subrole) : [...baseEventQuestions, INSPIRATION_SECTION]
+  }
+
+  // FORNITORE = corto e SPECIFICO. In OGNI evento parte dalla logistica (luoghi
+  // e orari: dove si prepara, chiesa, location, orari chiave) che serve a tutti,
+  // poi le domande di competenza del subrole. Niente domande irrilevanti.
+  const logistica = eventLogisticaSection(ek)
+
+  if (ek === 'matrimonio') {
+    // Q_<subrole> è ricco e specifico; la logistica (che mancava) va in cima.
+    return [logistica, ...getQuestionsForSubrole(subrole)]
+  }
+
+  // Altri eventi: logistica + competenza del subrole + ispirazione.
+  const sections: QuestionnaireSection[] = [logistica]
   const styleSection = SUBROLE_STYLE_SECTIONS[k]
-  const sections: QuestionnaireSection[] = [...baseEventQuestions]
   if (styleSection) sections.push(styleSection)
   sections.push(INSPIRATION_SECTION)
   return sections
