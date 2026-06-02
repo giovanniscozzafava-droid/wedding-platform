@@ -8,6 +8,8 @@ import {
   FileText,
   TrendingUp,
   Sparkles,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -62,7 +64,15 @@ function useRecentActivity() {
         supabase.from('quotes').select('id, title, status, updated_at, total_client').order('updated_at', { ascending: false }).limit(5),
         supabase.from('calendar_entries').select('id, title, status, date_from').order('date_from', { ascending: true }).limit(5),
       ])
-      return { quotes: q.data ?? [], entries: e.data ?? [] }
+      const quotes = (q.data ?? []) as any[]
+      // Tracciamento apertura: il cliente ha aperto davvero il preventivo?
+      const ids = quotes.map((x) => x.id)
+      if (ids.length > 0) {
+        const { data: acts } = await (supabase as any).rpc('quotes_activity_summary', { p_quote_ids: ids })
+        const map = (acts?.map ?? {}) as Record<string, any>
+        for (const qq of quotes) qq.activity = map[qq.id] ?? null
+      }
+      return { quotes, entries: e.data ?? [] }
     },
   })
 }
@@ -161,9 +171,24 @@ export default function HomePage() {
                       style={{ borderColor: 'rgb(var(--border))' }}>
                       <Link to={`/quotes/${q.id}`} className="flex-1 min-w-0">
                         <p className="font-medium truncate">{q.title}</p>
-                        <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
-                          {new Date(q.updated_at).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' })}
-                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-[rgb(var(--fg-subtle))]">
+                            {new Date(q.updated_at).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </p>
+                          {/* Apertura cliente: solo se il preventivo e' stato inviato */}
+                          {q.activity && q.status !== 'BOZZA' && (
+                            q.activity.open_count > 0 ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--emerald-100))', color: 'rgb(var(--emerald-600,5_150_105))' }}
+                                title={q.activity.last_opened_at ? `Ultima apertura: ${new Date(q.activity.last_opened_at).toLocaleString('it-IT')}` : undefined}>
+                                <Eye size={11} /> Aperto{q.activity.open_count > 1 ? ` ${q.activity.open_count}×` : ''}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-subtle))' }}>
+                                <EyeOff size={11} /> Non aperto
+                              </span>
+                            )
+                          )}
+                        </div>
                       </Link>
                       <div className="flex items-center gap-3 ml-4 shrink-0">
                         <span className="font-display text-base tabular-nums">

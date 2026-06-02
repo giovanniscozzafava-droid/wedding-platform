@@ -113,6 +113,19 @@ export default function SupplierContractsPage() {
     setDraft({ title: 'Il mio contratto', category: '', sections: DEFAULT_SECTIONS })
     setEditingId('new')
   }
+  // Clona il modello di default (per il proprio mestiere, con fallback generico).
+  // Il modello contiene i segnaposto {{...}} che si riempiono da soli alla
+  // generazione del contratto: anagrafica fornitore/capostipite, dati cliente,
+  // voci del preventivo e totale.
+  async function cloneDefault() {
+    try {
+      const { data, error } = await (supabase as any).rpc('clone_suggested_contract_template', {})
+      if (error) throw error
+      if (data?.error) { toast.error('Nessun modello di default disponibile'); return }
+      toast.success('Modello di default aggiunto ai tuoi modelli')
+      await load()
+    } catch (e) { toast.error((e as Error).message) }
+  }
   function startEdit(t: Template) {
     setDraft({ title: t.title, category: t.category ?? '', sections: t.sections })
     setEditingId(t.id)
@@ -174,17 +187,29 @@ export default function SupplierContractsPage() {
         {!loading && pending.length > 0 && (
           <Card className="p-4 mb-8 flex flex-col sm:flex-row sm:items-center gap-3" style={{ background: 'rgb(var(--bg-sunken))' }}>
             <CircleDashed size={20} style={{ color: 'rgb(var(--gold-700))' }} className="shrink-0" />
-            <p className="text-sm flex-1">Hai <strong>{pending.length}</strong> voci di preventivo assegnate da un capostipite <strong>da confermare</strong> (non sono contratti).</p>
+            <p className="text-sm flex-1">Hai <strong>{new Set(pending.map((p) => p.quote_id)).size}</strong> preventivi di un capostipite <strong>da confermare</strong> (ci sei / forse / no). Non sono contratti.</p>
             <Button variant="outline" asChild className="shrink-0"><Link to="/lavori-da-confermare">Vai a confermare</Link></Button>
           </Card>
         )}
 
         {/* Templates */}
         <section className="mb-10">
-          <header className="flex items-center justify-between mb-3">
+          <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <h2 className="font-display text-xl">I miei modelli</h2>
-            <Button variant="gold" onClick={startNew}><Plus size={14} /> Nuovo modello</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={cloneDefault}><Copy size={14} /> Parti da un modello di default</Button>
+              <Button variant="gold" onClick={startNew}><Plus size={14} /> Nuovo modello</Button>
+            </div>
           </header>
+          <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
+            I modelli supportano i segnaposto che si compilano da soli alla generazione del contratto:
+            <code className="mx-1">{'{{cliente_nome}}'}</code>,
+            <code className="mx-1">{'{{fornitore_nome}}'}</code> / <code className="mx-1">{'{{fornitore_piva}}'}</code>,
+            <code className="mx-1">{'{{capostipite_nome}}'}</code>,
+            <code className="mx-1">{'{{voci_preventivo}}'}</code>,
+            <code className="mx-1">{'{{preventivo_totale}}'}</code>,
+            <code className="mx-1">{'{{evento_titolo}}'}</code>, <code className="mx-1">{'{{evento_data}}'}</code>.
+          </p>
 
           {editingId !== null && (
             <Card className="p-5 mb-4 border-2 border-[rgb(var(--gold-500))]">

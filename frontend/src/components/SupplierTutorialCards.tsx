@@ -65,6 +65,17 @@ const STEPS = [
   },
 ]
 
+// Persistenza locale: sopravvive anche se la scrittura su DB fallisce
+// (es. sessione scaduta). Una volta spuntato "Non mostrarlo più", resta chiuso.
+const dismissKey = (uid: string) => `pf_tutorial_dismissed_v1_${uid}`
+function isLocallyDismissed(uid?: string | null) {
+  if (!uid) return false
+  try { return localStorage.getItem(dismissKey(uid)) === '1' } catch { return false }
+}
+function setLocallyDismissed(uid: string) {
+  try { localStorage.setItem(dismissKey(uid), '1') } catch { /* no-op */ }
+}
+
 export function SupplierTutorialCards() {
   const { profile, user } = useAuth()
   const [state, setState] = useState<TutorialState | null>(null)
@@ -75,7 +86,9 @@ export function SupplierTutorialCards() {
     if (!profile || !user) return
     if (profile.role !== 'FORNITORE') return
     const s = (profile as any).tutorial_state as TutorialState | null
-    setState(s ?? { dismissed: false, completed_steps: [], first_offer_created: false })
+    const base = s ?? { dismissed: false, completed_steps: [], first_offer_created: false }
+    // Mai riaprire se l'utente l'ha già chiuso definitivamente (DB o locale).
+    setState({ ...base, dismissed: base.dismissed || isLocallyDismissed(user.id) })
   }, [profile, user])
 
   async function persist(patch: Partial<TutorialState>) {
@@ -86,6 +99,8 @@ export function SupplierTutorialCards() {
   }
 
   async function dismiss() {
+    if (user) setLocallyDismissed(user.id)   // immediato, a prova di sessione scaduta
+    setState((s) => (s ? { ...s, dismissed: true } : s))
     await persist({ dismissed: true, completed_at: new Date().toISOString() })
   }
 

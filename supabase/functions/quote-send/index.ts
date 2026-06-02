@@ -27,13 +27,14 @@ async function sendResend(to: string, subject: string, html: string) {
   return { error: r.error ?? 'api_error' }
 }
 
-async function sendResendCustom(opts: { from: string; to: string; subject: string; html: string; replyTo?: string }) {
+async function sendResendCustom(opts: { from: string; to: string; subject: string; html: string; replyTo?: string; headers?: Record<string, string> }) {
   const r = await sendEmailSES({
     to: opts.to,
     subject: opts.subject,
     html: opts.html,
     from: opts.from,
     reply_to: opts.replyTo,
+    headers: opts.headers,
   })
   if (r.ok) return { ok: true as const, id: r.message_id }
   if (r.reason === 'no_credentials') return { skipped: true as const }
@@ -383,12 +384,20 @@ Deno.serve(async (req) => {
     const toClientName = cleanName(q.client_name)
     const toHeader = toClientName ? `${safeName(toClientName)} <${q.client_email}>` : q.client_email
 
+    // Header anti-spam: List-Unsubscribe (Outlook/Hotmail lo premiano fortemente)
+    // + one-click RFC 8058. Riduce drasticamente il rischio "finisce in spam".
+    const unsubMail = ownerEmail ?? fromAddr
     emailResult = await sendResendCustom({
       from: fromHeader,
       to: toHeader,
       subject,
       html,
       replyTo: ownerEmail ?? undefined,
+      headers: {
+        'List-Unsubscribe': `<mailto:${unsubMail}?subject=unsubscribe>, <${APP_BASE}/unsubscribe?e=${encodeURIComponent(q.client_email)}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        'X-Entity-Ref-ID': String(q.id),
+      },
     })
   }
 

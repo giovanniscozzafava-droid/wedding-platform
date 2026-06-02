@@ -25,9 +25,27 @@ export type SendEmailInput = {
   to: string | string[]
   subject: string
   html: string
+  text?: string
   from?: string
   reply_to?: string
   attachments?: EmailAttachment[]
+  headers?: Record<string, string>
+}
+
+// Genera un fallback testo da HTML (riduce lo spam-score: gli HTML-only
+// vengono penalizzati da Outlook/Hotmail/SpamAssassin).
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<head[\s\S]*?<\/head>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|tr|div|h1|h2|h3|li)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n\s*\n+/g, '\n\n')
+    .trim()
 }
 
 export type SendEmailResult =
@@ -51,8 +69,11 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     to: recipients,
     subject: input.subject,
     html: input.html,
+    // Parte testo sempre presente → migliora deliverability (multipart/alternative).
+    text: input.text ?? htmlToText(input.html),
   }
   if (input.reply_to) payload.reply_to = input.reply_to
+  if (input.headers && Object.keys(input.headers).length > 0) payload.headers = input.headers
   if (input.attachments && input.attachments.length > 0) {
     payload.attachments = input.attachments.map((a) => ({
       filename: a.filename,

@@ -1275,6 +1275,204 @@ function eventLogisticaSection(ek: string): QuestionnaireSection {
   }
 }
 
+// Competenza del fornitore EVENT-NEUTRAL: domande del mestiere valide in OGNI
+// evento (battesimo, comunione, compleanno, laurea, aziendale…), senza riferimenti
+// matrimoniali (niente "sposa/sposo", niente domande irrilevanti per il subrole).
+// Usata per i non-matrimoni; per il matrimonio resta il flusso Q_<subrole> ricco.
+const SUBROLE_COMPETENCE: Record<string, QuestionnaireSection> = {
+  fotografo: { title: 'Servizio fotografico', questions: [
+    { key: 'fp_stile', label: 'Stile che preferisci', type: 'select', options: ['reportage / naturale', 'classico / posato', 'fine art', 'editoriale', 'misto', 'non so'] },
+    { key: 'fp_ore', label: 'Ore di copertura desiderate', type: 'text', placeholder: 'Es. 4 ore, mezza giornata…' },
+    { key: 'fp_momenti', label: 'Momenti che non devono mancare', type: 'textarea', placeholder: 'Es. preparazione, cerimonia, foto di gruppo, taglio torta…' },
+    { key: 'fp_consegna', label: 'Cosa vuoi ricevere', type: 'multiselect', options: ['foto digitali', 'album stampato', 'stampe fine art', 'gallery online'] },
+    { key: 'fp_drone', label: 'Riprese con drone?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+  ] },
+  videomaker: { title: 'Servizio video', questions: [
+    { key: 'vd_stile', label: 'Stile del video', type: 'select', options: ['cinematografico', 'documentaristico', 'social / dinamico', 'classico', 'non so'] },
+    { key: 'vd_durata', label: 'Durata del montato finale', type: 'text', placeholder: 'Es. trailer 3 min + film 20 min' },
+    { key: 'vd_momenti', label: 'Momenti chiave da riprendere', type: 'textarea' },
+    { key: 'vd_consegna', label: 'Consegna', type: 'multiselect', options: ['video full', 'trailer breve', 'clip per social', 'audio/discorsi'] },
+    { key: 'vd_drone', label: 'Riprese con drone?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+  ] },
+  fioraio: { title: 'Fiori e decorazioni floreali', questions: [
+    { key: 'fl_dove', label: 'Dove servono i fiori', type: 'multiselect', options: ['ingresso', 'cerimonia', 'tavoli', 'sala', 'auto', 'bouquet/centrotavola', 'altro'] },
+    { key: 'fl_palette', label: 'Colori / palette', type: 'tags', placeholder: 'es. bianco, verde, pesca' },
+    { key: 'fl_preferenze', label: 'Fiori preferiti o da evitare', type: 'textarea' },
+    { key: 'fl_stile', label: 'Stile dell’allestimento', type: 'select', options: ['romantico', 'minimal', 'rustico', 'lussuoso', 'selvatico/naturale', 'non so'] },
+  ] },
+  catering: { title: 'Catering e ristorazione', questions: [
+    { key: 'ct_formato', label: 'Formato del servizio', type: 'select', options: ['servito al tavolo', 'buffet', 'finger food', 'solo aperitivo', 'misto'] },
+    { key: 'ct_ospiti', label: 'Numero ospiti', type: 'number' },
+    { key: 'ct_fasce', label: 'Pasti / fasce previste', type: 'multiselect', options: ['aperitivo', 'pranzo', 'cena', 'dolce', 'open bar'] },
+    { key: 'ct_allergie', label: 'Allergie, intolleranze, menù speciali', type: 'textarea', placeholder: 'celiaci, vegani, bambini…' },
+    { key: 'ct_bevande', label: 'Bevande incluse?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+  ] },
+  pasticcere: { title: 'Torta e dolci', questions: [
+    { key: 'ps_prodotto', label: 'Cosa ti serve', type: 'multiselect', options: ['torta', 'sweet table', 'monoporzioni', 'confetti', 'altro'] },
+    { key: 'ps_porzioni', label: 'Numero porzioni', type: 'number' },
+    { key: 'ps_gusti', label: 'Gusti preferiti', type: 'tags' },
+    { key: 'ps_allergie', label: 'Allergie / intolleranze', type: 'textarea' },
+    { key: 'ps_tema', label: 'Tema o decoro desiderato', type: 'textarea' },
+  ] },
+  musica: { title: 'Musica e intrattenimento', questions: [
+    { key: 'mu_tipo', label: 'Tipo di servizio', type: 'select', options: ['DJ', 'band dal vivo', 'musica di sottofondo', 'DJ + live', 'non so'] },
+    { key: 'mu_generi', label: 'Generi graditi', type: 'tags', placeholder: 'es. pop, anni 80, lounge' },
+    { key: 'mu_must', label: 'Brani che vuoi assolutamente', type: 'textarea' },
+    { key: 'mu_no', label: 'Brani / generi da evitare', type: 'textarea' },
+    { key: 'mu_momenti', label: 'Momenti musicali da curare', type: 'multiselect', options: ['ingresso', 'taglio torta', 'primo ballo', 'festa', 'sottofondo cena'] },
+    { key: 'mu_audio', label: 'Serve impianto audio / microfoni?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+  ] },
+  allestimenti: { title: 'Allestimenti e scenografie', questions: [
+    { key: 'al_cosa', label: 'Cosa allestire', type: 'multiselect', options: ['ingresso', 'sala', 'tavoli', 'cerimonia', 'area foto', 'esterno', 'altro'] },
+    { key: 'al_stile', label: 'Stile / tema', type: 'text' },
+    { key: 'al_strutture', label: 'Servono strutture (gazebo, tensostrutture, pedane)?', type: 'textarea' },
+    { key: 'al_sedute', label: 'Numero tavoli / sedute', type: 'text' },
+  ] },
+  make_up: { title: 'Make-up', questions: [
+    { key: 'mk_perchi', label: 'Per chi è il trucco', type: 'multiselect', options: ['protagonista/festeggiato', 'familiari', 'invitati'] },
+    { key: 'mk_persone', label: 'Quante persone', type: 'number' },
+    { key: 'mk_prova', label: 'Vuoi una prova prima?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+    { key: 'mk_pelle', label: 'Allergie / tipo di pelle / preferenze', type: 'textarea' },
+  ] },
+  parrucchiere: { title: 'Acconciatura', questions: [
+    { key: 'pr_perchi', label: 'Per chi', type: 'multiselect', options: ['protagonista/festeggiato', 'familiari', 'invitati'] },
+    { key: 'pr_persone', label: 'Quante persone', type: 'number' },
+    { key: 'pr_dove', label: 'Dove', type: 'select', options: ['sul posto', 'in salone', 'da_decidere'] },
+    { key: 'pr_acconciatura', label: 'Acconciatura desiderata', type: 'textarea' },
+  ] },
+  abiti: { title: 'Abiti e accessori', questions: [
+    { key: 'ab_tipo', label: 'Tipo di abito / capo', type: 'text' },
+    { key: 'ab_misure', label: 'Taglia / misure', type: 'text' },
+    { key: 'ab_prova', label: 'Numero prove previste', type: 'text' },
+    { key: 'ab_accessori', label: 'Accessori richiesti', type: 'tags' },
+  ] },
+  location: { title: 'Location e spazi', questions: [
+    { key: 'lo_ospiti', label: 'Numero ospiti', type: 'number' },
+    { key: 'lo_spazi', label: 'Spazi richiesti', type: 'select', options: ['interno', 'esterno', 'entrambi', 'da_valutare'] },
+    { key: 'lo_allestimento', label: 'Allestimento incluso o autonomo?', type: 'select', options: ['incluso', 'autonomo', 'da_valutare'] },
+    { key: 'lo_vincoli', label: 'Vincoli orari / rumore / parcheggio / pernotto', type: 'textarea' },
+  ] },
+  auto: { title: 'Auto e trasporti', questions: [
+    { key: 'au_veicolo', label: 'Tipo di veicolo', type: 'text', placeholder: 'es. auto d’epoca, berlina, van' },
+    { key: 'au_persone', label: 'Persone da trasportare', type: 'number' },
+    { key: 'au_tratte', label: 'Punti di ritiro e consegna', type: 'textarea' },
+    { key: 'au_deco', label: 'Decorazione auto?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+  ] },
+  animazione: { title: 'Animazione e intrattenimento', questions: [
+    { key: 'an_perchi', label: 'Per chi', type: 'select', options: ['bambini', 'adulti', 'entrambi'] },
+    { key: 'an_tipo', label: 'Tipo di intrattenimento', type: 'text', placeholder: 'es. baby parking, mago, giochi' },
+    { key: 'an_durata', label: 'Durata', type: 'text' },
+    { key: 'an_partecipanti', label: 'Numero partecipanti', type: 'number' },
+  ] },
+  celebrante: { title: 'Cerimonia', questions: [
+    { key: 'ce_tipo', label: 'Tipo di cerimonia', type: 'select', options: ['civile', 'simbolica', 'religiosa', 'non so'] },
+    { key: 'ce_lingua', label: 'Lingua', type: 'text' },
+    { key: 'ce_durata', label: 'Durata desiderata', type: 'text' },
+    { key: 'ce_riti', label: 'Letture, rituali o personalizzazioni', type: 'textarea' },
+  ] },
+  fuochista: { title: 'Spettacolo pirotecnico', questions: [
+    { key: 'fu_tipo', label: 'Tipo di spettacolo', type: 'multiselect', options: ['fuochi d’artificio', 'cascata', 'fontane', 'fumi colorati', 'altro'] },
+    { key: 'fu_durata', label: 'Durata', type: 'text' },
+    { key: 'fu_luogo', label: 'Luogo dello sparo e vincoli', type: 'textarea', placeholder: 'spazio disponibile, autorizzazioni, vicinanza abitazioni…' },
+    { key: 'fu_orario', label: 'Orario previsto', type: 'text' },
+  ] },
+  luci: { title: 'Luci e illuminazione', questions: [
+    { key: 'lu_tipo', label: 'Tipo di illuminazione', type: 'multiselect', options: ['architetturale', 'pista da ballo', 'ambient', 'proiezioni', 'altro'] },
+    { key: 'lu_aree', label: 'Aree da illuminare', type: 'textarea' },
+    { key: 'lu_corrente', label: 'Alimentazione elettrica disponibile?', type: 'select', options: ['si', 'no', 'da_verificare'] },
+  ] },
+  bartender: { title: 'Bar e drink', questions: [
+    { key: 'ba_formato', label: 'Formato', type: 'select', options: ['open bar', 'cocktail bar', 'aperitivo', 'da_valutare'] },
+    { key: 'ba_ospiti', label: 'Numero ospiti', type: 'number' },
+    { key: 'ba_signature', label: 'Signature drink / richieste', type: 'textarea' },
+    { key: 'ba_analcolici', label: 'Analcolici / drink per bambini?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+    { key: 'ba_banco', label: 'Serve banco/attrezzatura sul posto?', type: 'select', options: ['si', 'no', 'da_verificare'] },
+  ] },
+  stampe: { title: 'Stampe e grafica', questions: [
+    { key: 'st_cosa', label: 'Cosa ti serve', type: 'multiselect', options: ['inviti / partecipazioni', 'tableau', 'menu', 'segnaposto', 'cartelli', 'ringraziamenti', 'altro'] },
+    { key: 'st_quantita', label: 'Quantità', type: 'text' },
+    { key: 'st_tema', label: 'Tema / colori', type: 'tags' },
+    { key: 'st_testi', label: 'Testi da inserire', type: 'textarea' },
+  ] },
+  bomboniere: { title: 'Bomboniere', questions: [
+    { key: 'bo_tipo', label: 'Tipo di bomboniera', type: 'text' },
+    { key: 'bo_quantita', label: 'Quantità', type: 'number' },
+    { key: 'bo_personal', label: 'Personalizzazione', type: 'textarea' },
+    { key: 'bo_confezione', label: 'Confezionamento desiderato', type: 'text' },
+  ] },
+  photobooth: { title: 'Photobooth', questions: [
+    { key: 'pb_tipo', label: 'Tipo', type: 'select', options: ['booth classico', 'cabina', '360', 'specchio magico', 'non so'] },
+    { key: 'pb_stampe', label: 'Stampe illimitate?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+    { key: 'pb_props', label: 'Props / tema', type: 'textarea' },
+    { key: 'pb_durata', label: 'Durata del noleggio', type: 'text' },
+  ] },
+  estetista: { title: 'Trattamenti beauty', questions: [
+    { key: 'es_trattamenti', label: 'Trattamenti richiesti', type: 'tags' },
+    { key: 'es_perchi', label: 'Per chi', type: 'multiselect', options: ['protagonista/festeggiato', 'familiari', 'invitati'] },
+    { key: 'es_persone', label: 'Quante persone', type: 'number' },
+    { key: 'es_quando', label: 'Quando / tempistiche', type: 'text' },
+  ] },
+  maitre: { title: 'Servizio di sala', questions: [
+    { key: 'ma_ospiti', label: 'Numero ospiti', type: 'number' },
+    { key: 'ma_formato', label: 'Formato del servizio', type: 'select', options: ['servito', 'buffet', 'misto'] },
+    { key: 'ma_staff', label: 'Personale di sala richiesto', type: 'text' },
+    { key: 'ma_dress', label: 'Dress code dello staff', type: 'text' },
+  ] },
+  chef: { title: 'Cucina', questions: [
+    { key: 'ch_ospiti', label: 'Numero ospiti', type: 'number' },
+    { key: 'ch_menu', label: 'Menù / portate desiderate', type: 'textarea' },
+    { key: 'ch_show', label: 'Show cooking dal vivo?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+    { key: 'ch_allergie', label: 'Allergie / intolleranze', type: 'textarea' },
+    { key: 'ch_cucina', label: 'Cucina disponibile sul posto?', type: 'select', options: ['si', 'no', 'da_verificare'] },
+  ] },
+  food_truck: { title: 'Food truck', questions: [
+    { key: 'ft_cibo', label: 'Tipo di cibo', type: 'text' },
+    { key: 'ft_ospiti', label: 'Numero ospiti', type: 'number' },
+    { key: 'ft_fascia', label: 'Fascia oraria', type: 'text' },
+    { key: 'ft_allacci', label: 'Allacci disponibili (corrente/acqua) e spazio mezzo', type: 'textarea' },
+  ] },
+  sommelier: { title: 'Vini e degustazione', questions: [
+    { key: 'so_ospiti', label: 'Numero ospiti', type: 'number' },
+    { key: 'so_servizio', label: 'Tipo di servizio', type: 'select', options: ['abbinamento vini', 'degustazione guidata', 'servizio al tavolo', 'da_valutare'] },
+    { key: 'so_cantina', label: 'Vini forniti da te o dal cliente?', type: 'select', options: ['fornitore', 'cliente', 'da_decidere'] },
+  ] },
+  sweet_table: { title: 'Sweet table / confettata', questions: [
+    { key: 'sw_tipo', label: 'Tipo', type: 'select', options: ['sweet table', 'confettata', 'candy bar', 'misto'] },
+    { key: 'sw_ospiti', label: 'Numero ospiti', type: 'number' },
+    { key: 'sw_gusti', label: 'Gusti / tema', type: 'tags' },
+    { key: 'sw_allestimento', label: 'Allestimento incluso?', type: 'select', options: ['si', 'no', 'da_valutare'] },
+  ] },
+  hostess: { title: 'Accoglienza e staff', questions: [
+    { key: 'ho_numero', label: 'Quante hostess / steward', type: 'number' },
+    { key: 'ho_mansioni', label: 'Mansioni', type: 'multiselect', options: ['accoglienza', 'guardaroba', 'tableau / segnaposto', 'gestione regali', 'altro'] },
+    { key: 'ho_fasce', label: 'Fasce orarie di presenza', type: 'text' },
+    { key: 'ho_dress', label: 'Dress code', type: 'text' },
+  ] },
+  valet: { title: 'Parcheggio', questions: [
+    { key: 'va_auto', label: 'Numero auto attese', type: 'number' },
+    { key: 'va_orari', label: 'Orari di servizio', type: 'text' },
+    { key: 'va_spazio', label: 'Spazio parcheggio disponibile', type: 'textarea' },
+  ] },
+  navetta: { title: 'Navetta e transfer', questions: [
+    { key: 'na_passeggeri', label: 'Numero passeggeri', type: 'number' },
+    { key: 'na_tratte', label: 'Tratte e punti di raccolta', type: 'textarea' },
+    { key: 'na_orari', label: 'Orari / numero corse', type: 'text' },
+  ] },
+}
+
+// Alias subrole → chiave canonica della competenza.
+const SUBROLE_ALIAS: Record<string, string> = {
+  dj: 'musica', band: 'musica',
+  hairstylist: 'parrucchiere',
+  pirotecnico: 'fuochista',
+  illuminotecnica: 'luci',
+  open_bar: 'bartender',
+  inviti: 'stampe',
+  beauty: 'estetista',
+  show_cooking: 'chef',
+  confettata: 'sweet_table',
+}
+
 export function getQuestionsForSupplierContext(
   subrole: string | null | undefined,
   eventKind: string | null | undefined,
@@ -1298,10 +1496,11 @@ export function getQuestionsForSupplierContext(
     return [logistica, ...getQuestionsForSubrole(subrole)]
   }
 
-  // Altri eventi: logistica + competenza del subrole + ispirazione.
+  // Altri eventi: logistica + competenza EVENT-NEUTRAL del subrole + ispirazione.
   const sections: QuestionnaireSection[] = [logistica]
-  const styleSection = SUBROLE_STYLE_SECTIONS[k]
-  if (styleSection) sections.push(styleSection)
+  const ck = SUBROLE_ALIAS[k] ?? k
+  const competence = SUBROLE_COMPETENCE[ck] ?? SUBROLE_STYLE_SECTIONS[ck]
+  if (competence) sections.push(competence)
   sections.push(INSPIRATION_SECTION)
   return sections
 }

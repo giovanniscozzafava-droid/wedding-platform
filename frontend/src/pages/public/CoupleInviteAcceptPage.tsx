@@ -31,6 +31,8 @@ export default function CoupleInviteAcceptPage() {
 
   useEffect(() => {
     if (!token) return
+    // Il cliente ha aperto davvero il preventivo (anche se nuovo): traccialo.
+    void (supabase.rpc as any)('track_quote_open_by_invite', { p_invite_token: token })
     void (async () => {
       const { data, error } = await (supabase.rpc as any)('resolve_couple_invite', { p_token: token })
       if (error) { setLoadErr(error.message); return }
@@ -66,7 +68,10 @@ export default function CoupleInviteAcceptPage() {
       } else {
         toast.success(`Benvenut* nel vostro matrimonio: ${info.wedding_title}`)
       }
-      nav('/onboarding', { replace: true })
+      // Il cliente arriva da un lead: ha già dato i suoi dati. NON rifargli
+      // compilare il questionario di onboarding → dritto al suo matrimonio,
+      // dove trova subito il preventivo.
+      nav('/couple', { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore registrazione')
     } finally { setBusy(false) }
