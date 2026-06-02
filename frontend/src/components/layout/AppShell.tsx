@@ -1,5 +1,5 @@
-import { type ReactNode, useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { type ReactNode, useState, useEffect } from 'react'
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   PackageSearch,
@@ -146,6 +146,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { profile, user, signOut } = useAuth()
   const { theme, toggle } = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const location = useLocation()
+  // Mobile: chiudi SEMPRE il drawer quando cambia pagina (su Safari l'onClick del
+  // link a volte non basta → il menu restava aperto e copriva la pagina).
+  useEffect(() => { setMobileOpen(false) }, [location.pathname])
   const nav = useNavigate()
 
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
