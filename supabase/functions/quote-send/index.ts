@@ -372,6 +372,40 @@ Deno.serve(async (req) => {
 </table>
 </body></html>`
 
+    // ── Template SOBRIO (text-forward) per i provider Microsoft (Outlook/Hotmail/
+    //    Live/MSN): SmartScreen penalizza l'HTML "promozionale" (immagini grandi,
+    //    bottoni colorati). Stessi contenuti, ma minimale: pesa molto meno sullo
+    //    spam-score e arriva in inbox anche con dominio giovane.
+    const recipientDomain = (q.client_email.split('@')[1] ?? '').toLowerCase()
+    const isMicrosoftInbox = /(^|\.)(hotmail|outlook|live|msn|passport|windowslive)\./.test(recipientDomain + '.')
+      || ['hotmail.it','hotmail.com','outlook.it','outlook.com','live.it','live.com','msn.com','hotmail.co.uk','outlook.es','outlook.fr','outlook.de'].includes(recipientDomain)
+
+    const itemsText = (itemsPreview ?? []).map((it: any) =>
+      `• ${escapeHtml(it.name_snapshot)} — ${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(it.line_client))}`
+    ).join('<br>')
+
+    const soberHtml = `<!doctype html>
+<html lang="it"><body style="font-family:Arial,Helvetica,sans-serif;color:#1A1714;background:#ffffff;margin:0;padding:24px 16px;font-size:15px;line-height:1.6">
+<div style="max-width:560px;margin:0 auto">
+  <p style="margin:0 0 16px">Ciao${cleanName(q.client_name) ? ' ' + escapeHtml(cleanName(q.client_name)!) : ''},</p>
+  ${isNewCouple ? `
+  <p style="margin:0 0 16px">${escapeHtml(wpName)} ti ha preparato il preventivo per <strong>${escapeHtml(q.title)}</strong>${eventDateFmt ? ` (${escapeHtml(eventDateFmt)})` : ''}.</p>
+  <p style="margin:0 0 16px">Per vederlo nel dettaglio, accettarlo con firma e seguire l'organizzazione, crea il tuo account riservato qui:</p>
+  <p style="margin:0 0 20px"><a href="${link}" style="color:#1A2E4F;font-weight:bold">Crea l'account e apri il preventivo →</a></p>
+  ` : `
+  <p style="margin:0 0 16px">${escapeHtml(wpName)} ti ha inviato il preventivo per <strong>${escapeHtml(q.title)}</strong>${eventDateFmt ? ` (${escapeHtml(eventDateFmt)})` : ''}.</p>
+  ${itemsText ? `<p style="margin:0 0 8px"><strong>Cosa è incluso:</strong></p><p style="margin:0 0 16px">${itemsText}</p>` : ''}
+  <p style="margin:0 0 16px"><strong>Totale: ${totFmt}</strong> (IVA inclusa salvo diversa indicazione).</p>
+  <p style="margin:0 0 20px"><a href="${link}" style="color:#1A2E4F;font-weight:bold">Apri il preventivo e accettalo →</a></p>
+  `}
+  ${isOverride && customNote ? `<p style="margin:0 0 16px">Nota di aggiornamento: ${escapeHtml(customNote)}</p>` : ''}
+  <p style="margin:0 0 4px">${escapeHtml(closingPhrase)}</p>
+  <p style="margin:0 0 2px">— ${escapeHtml(wpName)}${wpBiz ? `, ${escapeHtml(wpBiz)}` : ''}</p>
+  ${ownerEmail || owner?.phone ? `<p style="margin:0 0 16px;color:#787164;font-size:13px">${ownerEmail ? escapeHtml(ownerEmail) : ''}${ownerEmail && owner?.phone ? ' · ' : ''}${owner?.phone ? escapeHtml(owner.phone) : ''}</p>` : ''}
+  <p style="margin:24px 0 0;color:#A59C8E;font-size:12px">Powered by Planfully · Un progetto Fuyue Srl. Se non ti aspettavi questa email, ignorala pure.</p>
+</div>
+</body></html>`
+
     // From: usa SOLO business_name se presente, altrimenti wpName. NO email-like.
     // Format: "Nome Business via Planfully <noreply@planfully.it>"
     // Escape virgolette nel display name per evitare header injection.
@@ -391,7 +425,8 @@ Deno.serve(async (req) => {
       from: fromHeader,
       to: toHeader,
       subject,
-      html,
+      // Microsoft (Outlook/Hotmail/Live): versione sobria text-forward → inbox.
+      html: isMicrosoftInbox ? soberHtml : html,
       replyTo: ownerEmail ?? undefined,
       headers: {
         'List-Unsubscribe': `<mailto:${unsubMail}?subject=unsubscribe>, <${APP_BASE}/unsubscribe?e=${encodeURIComponent(q.client_email)}>`,
