@@ -28,6 +28,7 @@ import {
   Gift,
   Code2,
   Coins,
+  CheckSquare,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -76,6 +77,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Gestione', items: [
     { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+    { to: '/team',     label: 'Team',       icon: UsersIcon },
     { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
   ]},
   { section: 'Impostazioni', items: [
@@ -102,6 +104,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/capostipiti', label: 'Capostipiti', icon: UsersIcon },
     { to: '/clienti',     label: 'Clienti',     icon: Contact },
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
+    { to: '/lavori-da-confermare', label: 'Da confermare', icon: CheckSquare },
     { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
   ]},
   { section: 'Catalogo & lavoro', items: [

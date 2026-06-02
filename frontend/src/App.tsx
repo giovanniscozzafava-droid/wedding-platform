@@ -55,6 +55,7 @@ const ClientPortalPage = lazy(() => import('@/pages/client/ClientPortalPage'))
 const ClientAccessPage = lazy(() => import('@/pages/client/ClientAccessPage'))
 const SupplierTeamPage = lazy(() => import('@/pages/SupplierTeamPage'))
 const SupplierLeadsPage = lazy(() => import('@/pages/SupplierLeadsPage'))
+const SupplierPendingPage = lazy(() => import('@/pages/SupplierPendingPage'))
 const SupplierCreditsPage = lazy(() => import('@/pages/SupplierCreditsPage'))
 const PublicSlugResolver = lazy(() => import('@/pages/public/PublicSlugResolver'))
 const WpLeadsPage = lazy(() => import('@/pages/WpLeadsPage'))
@@ -224,9 +225,10 @@ export default function App() {
           <Route path="/disponibilita" element={<Navigate to="/calendar" replace />} />
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />
           <Route path="/capostipiti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCapostipitiPage /></RequireAuth>} />
-          <Route path="/team" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierTeamPage /></RequireAuth>} />
+          <Route path="/team" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SupplierTeamPage /></RequireAuth>} />
           <Route path="/crediti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCreditsPage /></RequireAuth>} />
           <Route path="/richieste" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierLeadsPage /></RequireAuth>} />
+          <Route path="/lavori-da-confermare" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierPendingPage /></RequireAuth>} />
           <Route path="/integrazione-sito" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><IntegrationsPage /></RequireAuth>} />
           <Route path="/faq" element={<RequireAuth><FaqPage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />

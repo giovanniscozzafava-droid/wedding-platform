@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CheckCircle2, CircleDashed } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { shareWhatsAppLink } from '@/lib/share'
+import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CircleDashed, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -67,8 +68,6 @@ export default function SupplierContractsPage() {
   const [draft, setDraft] = useState<{ title: string; category: string; sections: Section[] }>({
     title: '', category: '', sections: DEFAULT_SECTIONS,
   })
-  const [searchParams, setSearchParams] = useSearchParams()
-  const confirmId = searchParams.get('confirm')
 
   async function load() {
     setLoading(true)
@@ -109,27 +108,6 @@ export default function SupplierContractsPage() {
     } finally { setLoading(false) }
   }
   useEffect(() => { void load() }, [])
-
-  async function confirmItem(itemId: string) {
-    try {
-      const { error } = await (supabase as any).rpc('supplier_confirm_quote_item', { p_item_id: itemId })
-      if (error) throw error
-      toast.success('Voce confermata')
-      // pulisci eventuale ?confirm=...
-      if (confirmId === itemId) {
-        searchParams.delete('confirm')
-        setSearchParams(searchParams, { replace: true })
-      }
-      await load()
-    } catch (e) { toast.error((e as Error).message) }
-  }
-
-  // Se arrivi con ?confirm=<id>, scrolla alla card.
-  useEffect(() => {
-    if (!confirmId) return
-    const el = document.getElementById(`pending-${confirmId}`)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [confirmId, pending.length])
 
   function startNew() {
     setDraft({ title: 'Il mio contratto', category: '', sections: DEFAULT_SECTIONS })
@@ -189,57 +167,16 @@ export default function SupplierContractsPage() {
   return (
     <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-8">
-        <PageHeader eyebrow="Strumenti fornitore" title="Contratti" description="Crea modelli personalizzati e gestisci i contratti firmati con clienti o wedding planner." />
+        <PageHeader eyebrow="Strumenti fornitore" title="Contratti"
+          description="Qui trovi i contratti che firmi col cliente. Due casi: (1) clienti tuoi diretti, dopo che hanno firmato il preventivo si passa alla contrattualizzazione; (2) clienti che arrivano da un capostipite che NON gestisce l'intero budget, in cui firmi tu col cliente (il capostipite supervisiona)." />
 
-        {/* Da confermare: voci preventivo assegnate al fornitore in attesa di conferma */}
+        {/* Voci preventivo del capostipite da confermare: NON sono contratti → pagina dedicata */}
         {!loading && pending.length > 0 && (
-          <section className="mb-10">
-            <header className="mb-3 flex items-center justify-between">
-              <div>
-                <h2 className="font-display text-xl">Da confermare</h2>
-                <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">
-                  Voci di preventivo assegnate da un wedding planner. Conferma per essere conteggiato sul lavoro.
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
-                style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-                {pending.length} in attesa
-              </span>
-            </header>
-            <div className="space-y-2">
-              {pending.map((it) => {
-                const highlight = confirmId === it.id
-                return (
-                  <Card key={it.id} id={`pending-${it.id}`}
-                    className={`p-4 ${highlight ? 'border-2' : ''}`}
-                    style={highlight ? { borderColor: 'rgb(var(--gold-500))' } : undefined}>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="self-start min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full"
-                        style={{ background: 'rgb(var(--bg-sunken))' }}>
-                        <CircleDashed size={20} style={{ color: 'rgb(var(--gold-700))' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm">{it.name_snapshot}</h3>
-                        {it.description_snapshot && (
-                          <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 line-clamp-2">{it.description_snapshot}</p>
-                        )}
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-[rgb(var(--fg-subtle))]">
-                          {it.entry_title && <span>{it.entry_title}</span>}
-                          {it.event_date && <span>· {new Date(it.event_date).toLocaleDateString('it-IT')}</span>}
-                          {it.client_name && <span>· {it.client_name}</span>}
-                          <span>· qty {Number(it.quantity)}</span>
-                          <span>· € {Number(it.line_client).toLocaleString('it-IT', { maximumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
-                      <Button variant="gold" onClick={() => confirmItem(it.id)} className="min-h-[44px] w-full sm:w-auto">
-                        <CheckCircle2 size={14} /> Conferma
-                      </Button>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-          </section>
+          <Card className="p-4 mb-8 flex flex-col sm:flex-row sm:items-center gap-3" style={{ background: 'rgb(var(--bg-sunken))' }}>
+            <CircleDashed size={20} style={{ color: 'rgb(var(--gold-700))' }} className="shrink-0" />
+            <p className="text-sm flex-1">Hai <strong>{pending.length}</strong> voci di preventivo assegnate da un capostipite <strong>da confermare</strong> (non sono contratti).</p>
+            <Button variant="outline" asChild className="shrink-0"><Link to="/lavori-da-confermare">Vai a confermare</Link></Button>
+          </Card>
         )}
 
         {/* Templates */}
@@ -346,9 +283,14 @@ export default function SupplierContractsPage() {
                       {c.countersign_at && <span className="text-[10px] ml-2 text-[rgb(var(--fg-subtle))]">controfirmato il {new Date(c.countersign_at).toLocaleDateString('it-IT')}</span>}
                     </p>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => copyLink(c.access_token)}>
                       <Copy size={12} /> Link firma
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
+                      `Ciao, ecco il contratto da firmare${c.client_name ? ' per ' + c.client_name : ''}:`,
+                      `${location.origin}/p/contract/${c.access_token}`)}>
+                      <MessageCircle size={12} /> WhatsApp
                     </Button>
                     <Button asChild variant="ghost" size="sm">
                       <Link to={`/p/contract/${c.access_token}`} target="_blank">

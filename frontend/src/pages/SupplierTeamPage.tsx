@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Users, Plus, Trash2, CalendarPlus, FileDown, Check, X, HelpCircle, ChevronLeft } from 'lucide-react'
+import { Users, Plus, Trash2, CalendarPlus, FileDown, Check, X, HelpCircle, ChevronLeft, MessageCircle } from 'lucide-react'
+import { shareFileOrWhatsApp } from '@/lib/share'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -219,7 +220,7 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
     }, { onConflict: 'event_id,member_id' })
   }
 
-  async function exportPdf() {
+  async function exportPdf(share = false) {
     const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     let y = 18
@@ -242,7 +243,14 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
       y += 7
       if (y > 280) { doc.addPage(); y = 18 }
     }
-    doc.save(`team-${event.title.replace(/\s+/g, '-').toLowerCase()}.pdf`)
+    const fname = `team-${event.title.replace(/\s+/g, '-').toLowerCase()}.pdf`
+    if (share) {
+      const blob = doc.output('blob') as Blob
+      const file = new File([blob], fname, { type: 'application/pdf' })
+      await shareFileOrWhatsApp(file, `Foglio presenze · ${event.title}${event.event_date ? ' · ' + new Date(event.event_date).toLocaleDateString('it-IT') : ''}`)
+    } else {
+      doc.save(fname)
+    }
   }
 
   if (loading) return <div className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">Carico…</div>
@@ -259,7 +267,8 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
             {[event.event_date && new Date(event.event_date).toLocaleDateString('it-IT'), event.call_time && `Ritrovo ${event.call_time}`, event.location].filter(Boolean).join(' · ') || '—'}
           </p>
         </div>
-        <Button variant="outline" onClick={exportPdf}><FileDown size={15} className="mr-1" /> Esporta PDF</Button>
+        <Button variant="outline" onClick={() => void exportPdf(false)}><FileDown size={15} className="mr-1" /> Esporta PDF</Button>
+        <Button variant="outline" onClick={() => void exportPdf(true)}><MessageCircle size={15} className="mr-1" /> WhatsApp</Button>
       </div>
 
       {members.length === 0 ? (

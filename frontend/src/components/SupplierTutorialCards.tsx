@@ -186,6 +186,11 @@ export function SupplierTutorialCards() {
                   />
                 ))}
               </div>
+              <div className="text-center pt-2">
+                <button onClick={() => void dismiss()} className="text-[11px] text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--fg-muted))] underline">
+                  Non mostrarlo più
+                </button>
+              </div>
             </div>
           </motion.div>
         ) : (

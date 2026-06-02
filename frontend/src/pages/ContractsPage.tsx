@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileSignature, FileDown, X, Copy, Mail } from 'lucide-react'
+import { FileSignature, FileDown, X, Copy, Mail, MessageCircle } from 'lucide-react'
+import { shareWhatsAppLink } from '@/lib/share'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -279,6 +280,13 @@ export default function ContractsPage() {
                   style={{ borderColor: 'rgb(var(--border-strong))' }}>
                   <Mail size={14} /> Email cliente
                 </a>
+              )}
+              {(selected.pdf_url || selected.access_token) && (
+                <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
+                  `Ciao${selected.client_name ? ' ' + selected.client_name : ''}, ecco il contratto:`,
+                  selected.pdf_url ?? `${window.location.origin}/p/contract/${selected.access_token}`)}>
+                  <MessageCircle size={14} /> WhatsApp
+                </Button>
               )}
               {selected.pdf_url && (
                 <a href={selected.pdf_url} target="_blank" rel="noreferrer"
