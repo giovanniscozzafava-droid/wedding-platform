@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
+import { eventTerm } from '@/lib/eventKind'
 
 type InviteInfo = {
   email: string
@@ -15,6 +16,7 @@ type InviteInfo = {
   wedding_title: string
   wedding_date: string
   planner_name: string
+  event_kind?: string | null
   error?: string
 }
 
@@ -66,7 +68,7 @@ export default function CoupleInviteAcceptPage() {
       if (claimed !== true) {
         toast.error('Account creato ma invito non collegato. Contatta la wedding planner.')
       } else {
-        toast.success(`Benvenut* nel vostro matrimonio: ${info.wedding_title}`)
+        toast.success(`Benvenut*: ${info.wedding_title}`)
       }
       // Il cliente arriva da un lead: ha già dato i suoi dati. NON rifargli
       // compilare il questionario di onboarding → dritto al suo matrimonio,
@@ -86,7 +88,7 @@ export default function CoupleInviteAcceptPage() {
       if (loginErr) throw loginErr
       const { data: claimed } = await supabase.rpc('couple_accept_invite', { p_token: token })
       if (claimed === true) {
-        toast.success('Collegato al vostro matrimonio')
+        toast.success('Collegato al vostro evento')
         nav('/couple', { replace: true })
       } else {
         toast.error('Login OK ma invito non collegato (email diverse?). Contatta la wedding planner.')
@@ -121,7 +123,7 @@ export default function CoupleInviteAcceptPage() {
           <CheckCircle2 size={32} className="mx-auto mb-3 text-[rgb(var(--rose-500))]" />
           <h1 className="font-display text-2xl mb-2">Quasi fatto</h1>
           <p className="text-sm text-[rgb(var(--fg-muted))]">
-            Abbiamo inviato una email di conferma a <strong>{info.email}</strong>. Cliccala per attivare l'account e accedere al matrimonio.
+            Abbiamo inviato una email di conferma a <strong>{info.email}</strong>. Cliccala per attivare l'account e accedere al tuo evento.
           </p>
         </div>
       </div>
@@ -129,6 +131,10 @@ export default function CoupleInviteAcceptPage() {
   }
 
   const weddingDate = new Date(info.wedding_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+  const term = eventTerm(info.event_kind ?? 'matrimonio')
+  const headline = term.hasCoupleConcept
+    ? `Il vostro ${term.label} sta prendendo forma`
+    : `Il tuo ${term.label} sta prendendo forma`
 
   return (
     <div className="min-h-screen flex items-center justify-center aurora py-12 px-4">
@@ -143,7 +149,7 @@ export default function CoupleInviteAcceptPage() {
           </div>
           <h1 className="font-display text-2xl tracking-tight">
             <Sparkles size={20} className="inline mr-2 text-[rgb(var(--gold-500))]" />
-            Il vostro matrimonio sta prendendo forma
+            {headline}
           </h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mt-2">
             <strong>{info.planner_name}</strong> ti invita a partecipare a:

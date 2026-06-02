@@ -144,7 +144,7 @@ export function CoupleOnboardingWizard() {
 
   async function save() {
     if (!user) return
-    if (!entryId) { toast.error('Nessun matrimonio collegato — chiedi alla wedding planner di invitarti'); return }
+    if (!entryId) { toast.error(`Nessun ${term.label} collegato — chiedi all'organizzatore di invitarti`); return }
     setBusy(true)
     try {
       const payload = {
@@ -191,7 +191,7 @@ export function CoupleOnboardingWizard() {
           <Heart size={32} className="mx-auto mb-3 text-[rgb(var(--gold-500))]" />
           <h1 className="font-display text-2xl mb-2">Manca solo l'invito</h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
-            Per iniziare l'onboarding, la tua wedding planner deve invitarti al vostro matrimonio.
+            Per iniziare, l'organizzatore deve invitarti al {term.label}.
             Quando ricevi l'email, clicca sul link e torna qui.
           </p>
           <Button variant="ghost" onClick={() => nav('/couple')}>Vai alla dashboard</Button>
@@ -319,7 +319,7 @@ export function CoupleOnboardingWizard() {
 
                     <Field label="La vostra vision (in 2-3 frasi)">
                       <Textarea rows={4} value={form.vision_note} onChange={(e) => patch('vision_note', e.target.value)}
-                        placeholder="Es. Vogliamo un matrimonio intimo, in mezzo alla natura, con musica live e cibo italiano della nostra terra." />
+                        placeholder={`Es. Vogliamo un ${term.label} intimo, in mezzo alla natura, con musica live e cibo italiano della nostra terra.`} />
                     </Field>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -368,7 +368,7 @@ export function CoupleOnboardingWizard() {
                       <Sparkles size={20} className="text-[rgb(var(--gold-500))]" /> Tutto pronto
                     </h2>
                     <p className="text-sm text-[rgb(var(--fg-muted))]">
-                      Riepilogo del vostro matrimonio:
+                      Riepilogo {term.ofIt}:
                     </p>
                     <div className="rounded-lg border p-4 text-sm space-y-1" style={{ borderColor: 'rgb(var(--border))' }}>
                       <p><strong>Coppia:</strong> {form.couple_name || `${form.bride_name} & ${form.groom_name}` || '—'}</p>
