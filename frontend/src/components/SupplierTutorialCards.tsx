@@ -65,15 +65,16 @@ const STEPS = [
   },
 ]
 
-// Persistenza locale: sopravvive anche se la scrittura su DB fallisce
-// (es. sessione scaduta). Una volta spuntato "Non mostrarlo più", resta chiuso.
-const dismissKey = (uid: string) => `pf_tutorial_dismissed_v1_${uid}`
-function isLocallyDismissed(uid?: string | null) {
-  if (!uid) return false
-  try { return localStorage.getItem(dismissKey(uid)) === '1' } catch { return false }
+// Gate SINCRONO su localStorage (chiave globale): letto al PRIMO render, prima
+// che profilo/auth si risolvano. Una volta premuto "Non mostrarlo più", la card
+// non può più riapparire — nemmeno al reload, nemmeno se il DB fallisce
+// (sessione scaduta) o se l'auth ricarica un profilo "stale".
+const DISMISS_KEY = 'pf_tutorial_dismissed_v2'
+function readDismissed(): boolean {
+  try { return localStorage.getItem(DISMISS_KEY) === '1' } catch { return false }
 }
-function setLocallyDismissed(uid: string) {
-  try { localStorage.setItem(dismissKey(uid), '1') } catch { /* no-op */ }
+function writeDismissed() {
+  try { localStorage.setItem(DISMISS_KEY, '1') } catch { /* no-op */ }
 }
 
 export function SupplierTutorialCards() {
@@ -81,14 +82,17 @@ export function SupplierTutorialCards() {
   const [state, setState] = useState<TutorialState | null>(null)
   const [stepIdx, setStepIdx] = useState(0)
   const [collapsed, setCollapsed] = useState(false)
+  // Sincrono: se già chiuso, è true dal primissimo render → niente flash, niente ritorno.
+  const [killed, setKilled] = useState<boolean>(() => readDismissed())
 
   useEffect(() => {
     if (!profile || !user) return
     if (profile.role !== 'FORNITORE') return
     const s = (profile as any).tutorial_state as TutorialState | null
     const base = s ?? { dismissed: false, completed_steps: [], first_offer_created: false }
-    // Mai riaprire se l'utente l'ha già chiuso definitivamente (DB o locale).
-    setState({ ...base, dismissed: base.dismissed || isLocallyDismissed(user.id) })
+    // Sincronizza: se il DB dice "chiuso", ricordalo anche localmente.
+    if (base.dismissed) { writeDismissed(); setKilled(true) }
+    setState(base)
   }, [profile, user])
 
   async function persist(patch: Partial<TutorialState>) {
@@ -98,10 +102,10 @@ export function SupplierTutorialCards() {
     await supabase.from('profiles').update({ tutorial_state: next as any }).eq('id', user.id)
   }
 
-  async function dismiss() {
-    if (user) setLocallyDismissed(user.id)   // immediato, a prova di sessione scaduta
-    setState((s) => (s ? { ...s, dismissed: true } : s))
-    await persist({ dismissed: true, completed_at: new Date().toISOString() })
+  function dismiss() {
+    writeDismissed()      // sincrono: chiuso PER SEMPRE, indipendente da rete/DB
+    setKilled(true)       // nasconde subito e non torna
+    void persist({ dismissed: true, completed_at: new Date().toISOString() }) // best effort
   }
 
   async function markCompleted(stepKey: string) {
@@ -111,6 +115,7 @@ export function SupplierTutorialCards() {
     }
   }
 
+  if (killed) return null
   if (!profile || profile.role !== 'FORNITORE') return null
   if (!state) return null
   if (state.dismissed) return null
