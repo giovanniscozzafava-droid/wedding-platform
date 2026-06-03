@@ -105,6 +105,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
     { to: '/lavori-da-confermare', label: 'Da confermare', icon: CheckSquare },
     { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
+    { to: '/weddings',    label: 'Eventi',      icon: Heart },
   ]},
   { section: 'Catalogo & lavoro', items: [
     { to: '/catalog',      label: 'Catalogo',      icon: PackageSearch },

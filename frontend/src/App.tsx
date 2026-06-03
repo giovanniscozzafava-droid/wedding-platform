@@ -180,7 +180,7 @@ export default function App() {
           <Route
             path="/weddings"
             element={
-              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}>
                 <WeddingsPage />
               </RequireAuth>
             }
@@ -188,7 +188,7 @@ export default function App() {
           <Route
             path="/weddings/:id"
             element={
-              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}>
                 <WeddingDashboard />
               </RequireAuth>
             }
