@@ -55,6 +55,24 @@ const TABS: Array<{ key: Tab; label: string; icon: any }> = [
 
 const RESTAURATION_SUBROLES = new Set(['location', 'catering', 'chef', 'food_truck', 'pasticcere', 'sweet_table', 'bartender', 'sommelier'])
 
+// Quali tab mostrare per tipo evento. Le tab "base" (overview, preventivo,
+// documenti, programma, invitati, tavoli) ci sono sempre; le altre dipendono
+// dal tipo. Così tutta la dashboard è centrata sull'evento.
+function isTabVisible(tab: Tab, eventKind: string, hasRestauration: boolean): boolean {
+  const religious = eventKind === 'battesimo' || eventKind === 'comunione' || eventKind === 'cresima'
+  switch (tab) {
+    case 'menu':      return hasRestauration
+    case 'cerimonia': return eventKind === 'matrimonio' || religious
+    case 'alloggi':                                        // pernottamenti: solo grandi eventi
+    case 'trasporti': return eventKind === 'matrimonio'
+    case 'mood':      return eventKind === 'matrimonio' || eventKind === 'compleanno' || eventKind === 'anniversario' || eventKind === 'laurea'
+    case 'playlist':  return !religious                    // i riti religiosi non hanno "playlist"
+    case 'gadgets':   return eventKind === 'matrimonio' || religious   // bomboniere
+    case 'website':   return eventKind === 'matrimonio' || eventKind === 'corporate'
+    default:          return true                          // overview, preventivo, documenti, programma, invitati, tavoli
+  }
+}
+
 export default function CoupleDashboard() {
   const { data: weddings } = useMyWeddings()
   const { profile, user, signOut } = useAuth()
@@ -152,16 +170,10 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
     : quoteItems.some((it) => RESTAURATION_SUBROLES.has(String(it?.supplier?.subrole ?? '').toLowerCase()))
   const eventKind = wedding.event_kind ?? 'matrimonio'
   const term = eventTerm(eventKind)
-  // "Cerimonia" ha senso solo per eventi con rito (matrimonio + religiosi).
-  // "Bomboniere" non per eventi aziendali/laurea. Filtra le tab non pertinenti.
-  const CEREMONY_EVENTS = new Set(['matrimonio', 'battesimo', 'comunione', 'cresima'])
-  const NO_FAVORS = new Set(['corporate', 'laurea'])
-  const visibleTabs = TABS.filter((t) => {
-    if (t.key === 'menu' && !hasRestauration) return false
-    if (t.key === 'cerimonia' && !CEREMONY_EVENTS.has(eventKind)) return false
-    if (t.key === 'gadgets' && NO_FAVORS.has(eventKind)) return false
-    return true
-  })
+  // Tutta la dashboard è centrata sul tipo evento: mostriamo SOLO le tab
+  // pertinenti. Es. per un battesimo niente Alloggi/Trasporti/Mood/Playlist/Sito;
+  // per un corporate niente Cerimonia/Bomboniere/Mood; ecc.
+  const visibleTabs = TABS.filter((t) => isTabVisible(t.key, eventKind, hasRestauration))
 
   return (
     <>
