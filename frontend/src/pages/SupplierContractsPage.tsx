@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { shareWhatsAppLink } from '@/lib/share'
-import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CircleDashed, MessageCircle } from 'lucide-react'
+import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CircleDashed, MessageCircle, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -176,6 +176,14 @@ export default function SupplierContractsPage() {
     void navigator.clipboard.writeText(url)
     toast.success('Link firma copiato')
   }
+  async function emailClient(contractId: string) {
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-send', { body: { contract_id: contractId } })
+      if (error) throw error
+      if ((data as any)?.skipped) toast.message('Email non configurata: usa il link o WhatsApp.')
+      else toast.success('Email inviata al cliente')
+    } catch (e) { toast.error((e as Error).message) }
+  }
 
   return (
     <div className="min-h-full">
@@ -311,6 +319,9 @@ export default function SupplierContractsPage() {
                   <div className="flex gap-2 shrink-0 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => copyLink(c.access_token)}>
                       <Copy size={12} /> Link firma
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => emailClient(c.id)}>
+                      <Mail size={12} /> Email cliente
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
                       `Ciao, ecco il contratto da firmare${c.client_name ? ' per ' + c.client_name : ''}:`,

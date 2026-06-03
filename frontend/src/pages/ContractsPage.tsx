@@ -87,6 +87,19 @@ export default function ContractsPage() {
     navigator.clipboard.writeText(url).then(() => toast.success('Link copiato negli appunti')).catch(() => toast.error('Impossibile copiare'))
   }
 
+  const [sendingEmail, setSendingEmail] = useState(false)
+  async function emailClient(contractId: string) {
+    setSendingEmail(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-send', { body: { contract_id: contractId } })
+      if (error) throw error
+      if ((data as any)?.skipped) toast.message('Email non configurata: usa il link firma o WhatsApp.')
+      else toast.success('Email inviata al cliente con il link di firma')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Invio email fallito')
+    } finally { setSendingEmail(false) }
+  }
+
   async function generatePdf(contractId: string) {
     setGeneratingPdf(true)
     try {
@@ -275,11 +288,9 @@ export default function ContractsPage() {
                 </Button>
               )}
               {selected.client_email && (
-                <a href={`mailto:${selected.client_email}?subject=${encodeURIComponent(selected.title ?? 'Contratto')}${selected.pdf_url ? `&body=${encodeURIComponent('In allegato il contratto. Puoi anche scaricarlo qui: ' + selected.pdf_url)}` : ''}`}
-                  className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium border hover:bg-[rgb(var(--bg-sunken))]"
-                  style={{ borderColor: 'rgb(var(--border-strong))' }}>
-                  <Mail size={14} /> Email cliente
-                </a>
+                <Button variant="outline" size="sm" onClick={() => emailClient(selected.id)} disabled={sendingEmail}>
+                  <Mail size={14} /> {sendingEmail ? 'Invio…' : 'Email cliente'}
+                </Button>
               )}
               {(selected.pdf_url || selected.access_token) && (
                 <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
