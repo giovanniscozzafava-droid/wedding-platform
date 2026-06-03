@@ -28,10 +28,24 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
+  // Autenticazione + ownership: solo il proprietario del contratto (o un admin)
+  // può inviarlo. Senza questo gate, qualunque utente autenticato potrebbe
+  // generare un access_token e mandare email su contratti altrui (IDOR).
+  const authHeader = req.headers.get('authorization') ?? ''
+  if (!authHeader.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401)
+  const { data: callerData, error: callerErr } = await admin.auth.getUser(authHeader.slice(7))
+  if (callerErr || !callerData.user) return json({ error: 'unauthorized' }, 401)
+  const callerId = callerData.user.id
+
   const { data: c } = await admin.from('contracts')
     .select('id, title, client_name, client_email, total_amount, status, access_token, owner_id, pdf_url')
     .eq('id', body.contract_id).single()
   if (!c) return json({ error: 'contract not found' }, 404)
+
+  if (c.owner_id !== callerId) {
+    const { data: callerProfile } = await admin.from('profiles').select('role').eq('id', callerId).maybeSingle()
+    if (callerProfile?.role !== 'ADMIN') return json({ error: 'forbidden' }, 403)
+  }
   if (!c.client_email) return json({ error: 'no_client_email' }, 400)
 
   // Assicura un access_token per il link di firma.

@@ -137,8 +137,24 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
+  // Auth caller: owner dell'evento, membro coppia o admin (anti-IDOR cross-tenant).
+  const auth = req.headers.get('authorization') ?? ''
+  if (!auth.startsWith('Bearer ')) return json({ error: 'missing bearer' }, 401)
+  const { data: me } = await admin.auth.getUser(auth.slice(7))
+  if (!me.user) return json({ error: 'unauthorized' }, 401)
+  const meId = me.user.id
+
   const { data: entry } = await admin.from('calendar_entries').select('*').eq('id', body.entry_id).maybeSingle()
   if (!entry) return json({ error: 'wedding not found' }, 404)
+
+  if (entry.owner_id !== meId) {
+    const { data: member } = await admin.from('wedding_couple_members')
+      .select('user_id').eq('entry_id', entry.id).eq('user_id', meId).maybeSingle()
+    if (!member) {
+      const { data: prof } = await admin.from('profiles').select('role').eq('id', meId).maybeSingle()
+      if (prof?.role !== 'ADMIN') return json({ error: 'not your wedding' }, 403)
+    }
+  }
 
   const { data: images } = await admin.from('mood_images').select('*').eq('entry_id', body.entry_id).order('ord', { ascending: true })
   if (!images || images.length === 0) return json({ error: 'no images yet' }, 400)
