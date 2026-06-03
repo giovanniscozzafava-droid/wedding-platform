@@ -58,6 +58,41 @@ function absUrl(maybeUrl: string | null, baseUrl: string): string | null {
   } catch { return null }
 }
 
+// Anti-SSRF robusto: la blocklist su stringa-host è aggirabile (172.16/12, IPv6,
+// IP numerici/ottali/hex, DNS-rebinding). Risolviamo il DNS e validiamo l'IP.
+function isPrivateIp(ip: string): boolean {
+  const s = ip.toLowerCase()
+  if (s === '::1' || s === '::' || s === '0.0.0.0') return true
+  if (s.startsWith('fe80:') || s.startsWith('fc') || s.startsWith('fd')) return true
+  const mapped = s.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+  const v4 = mapped ? mapped[1] : (/^\d+\.\d+\.\d+\.\d+$/.test(s) ? s : null)
+  if (v4) {
+    const p = v4.split('.').map(Number)
+    if (p[0] === 10 || p[0] === 127 || p[0] === 0) return true
+    if (p[0] === 169 && p[1] === 254) return true
+    if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return true
+    if (p[0] === 192 && p[1] === 168) return true
+    if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return true
+    if (p[0] >= 224) return true
+  }
+  return false
+}
+async function assertPublicHost(urlStr: string): Promise<void> {
+  let h: string
+  try { h = new URL(urlStr).hostname } catch { throw new Error('invalid url') }
+  const bare = h.replace(/^\[|\]$/g, '')
+  if (bare === 'localhost' || bare.endsWith('.localhost') || bare.endsWith('.local') || bare.endsWith('.internal')) throw new Error('blocked host')
+  if (/^[\d.]+$/.test(bare) || bare.includes(':')) {
+    if (isPrivateIp(bare)) throw new Error('blocked private ip')
+    return
+  }
+  const v4 = await Deno.resolveDns(bare, 'A').catch(() => [] as string[])
+  const v6 = await Deno.resolveDns(bare, 'AAAA').catch(() => [] as string[])
+  const addrs = [...v4, ...v6]
+  if (addrs.length === 0) throw new Error('dns no records')
+  for (const a of addrs) if (isPrivateIp(a)) throw new Error('blocked private ip')
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
@@ -67,21 +102,8 @@ Deno.serve(async (req) => {
   const url = body.url?.trim()
   if (!url || !/^https?:\/\//.test(url)) return json({ error: 'invalid_url' }, 400)
 
-  // Anti-SSRF: blocca IP locali e indirizzi privati
-  let parsed: URL
-  try { parsed = new URL(url) } catch { return json({ error: 'invalid_url' }, 400) }
-  const host = parsed.hostname.toLowerCase()
-  if (
-    host === 'localhost' ||
-    host.startsWith('127.') ||
-    host.startsWith('10.') ||
-    host.startsWith('192.168.') ||
-    host.startsWith('169.254.') ||
-    host === '0.0.0.0' ||
-    host.endsWith('.local')
-  ) {
-    return json({ error: 'forbidden_host' }, 400)
-  }
+  // Anti-SSRF: valida l'IP risolto (no IP privati/loopback/metadata).
+  try { await assertPublicHost(url) } catch (e) { return json({ error: 'forbidden_host', detail: String((e as Error)?.message ?? e) }, 400) }
 
   try {
     const ac = new AbortController()
@@ -96,6 +118,9 @@ Deno.serve(async (req) => {
       redirect: 'follow',
     })
     clearTimeout(timer)
+    // Dopo eventuali redirect, l'URL finale potrebbe puntare a un host interno:
+    // rivalida prima di leggere il body (anti-SSRF redirect).
+    try { await assertPublicHost(res.url) } catch { return json({ ok: false, error: 'forbidden_redirect', url }) }
     if (!res.ok) return json({ ok: false, error: `fetch_failed_${res.status}`, url })
     const ct = res.headers.get('content-type') || ''
     if (!ct.includes('text/html') && !ct.includes('application/xhtml')) {
