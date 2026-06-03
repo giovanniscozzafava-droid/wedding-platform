@@ -10,11 +10,13 @@ import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useInviteCapostipite, type InviteCapostipiteResult } from '@/hooks/useInviteCapostipite'
 
+const DEFAULT_CAP_MESSAGE = 'Ciao! Ti invito su Planfully: organizziamo gli eventi in rete, con preventivi e contratti gestiti insieme, senza marketplace né commissioni. Iscriviti dal link e ci colleghiamo.'
+
 export function InviteCapostipiteCard() {
   const invite = useInviteCapostipite()
   const [email, setEmail] = useState('')
   const [targetRole, setTargetRole] = useState<'WEDDING_PLANNER' | 'LOCATION'>('WEDDING_PLANNER')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(DEFAULT_CAP_MESSAGE)
   const [result, setResult] = useState<InviteCapostipiteResult | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -43,7 +45,7 @@ export function InviteCapostipiteCard() {
   function reset() {
     setResult(null)
     setEmail('')
-    setMessage('')
+    setMessage(DEFAULT_CAP_MESSAGE)
     setTargetRole('WEDDING_PLANNER')
   }
 

@@ -24,6 +24,11 @@ const SUBROLE_TONE: Record<string, 'gold' | 'sage' | 'rose' | 'sky' | 'amber' | 
 // ProviderOnboardingWizard e altri form. Vedi lib/supplierSubroles.ts.
 const SUBROLE_OPTS = [{ v: '', l: 'Qualsiasi' }, ...SUPPLIER_SUBROLES]
 
+// Messaggio pre-compilato: spiega in poche righe la logica di Planfully.
+const DEFAULT_INVITE_MESSAGE = `Ciao! Ti invito su Planfully, lo strumento che uso per organizzare i miei eventi.
+Planfully mette in rete chi organizza (wedding planner, location) e i fornitori: gestisci catalogo, preventivi e contratti in un unico posto, e collaboriamo direttamente — niente marketplace, niente commissioni. Per i professionisti è gratis.
+Iscriviti dal link qui sotto e ci colleghiamo subito.`
+
 export default function SuppliersPage() {
   const { data, isLoading } = useSuppliers()
   const { data: invites } = useSupplierInvites()
@@ -33,7 +38,7 @@ export default function SuppliersPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [subrole, setSubrole] = useState('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(DEFAULT_INVITE_MESSAGE)
   const [linkResult, setLinkResult] = useState<{ url: string; email: string } | null>(null)
 
   async function submitInvite(opts: { skipEmail?: boolean } = {}) {
@@ -44,14 +49,14 @@ export default function SuppliersPage() {
       })
       if (r.mode === 'collab_direct') {
         toast.success(`${email} è già su Planfully — collaboration creata in PENDING.`)
-        setInviteOpen(false); setEmail(''); setSubrole(''); setMessage('')
+        setInviteOpen(false); setEmail(''); setSubrole(''); setMessage(DEFAULT_INVITE_MESSAGE)
       } else if (r.accept_url) {
         // link-only o email_sent: in entrambi i casi mostra il link copiabile
         setLinkResult({ url: r.accept_url, email })
         if (r.mode === 'email_sent') toast.success(`Email inviata a ${email}.`)
         else if (r.mode === 'email_failed_link_fallback') toast.message('Email non inviata, usa il link sotto.')
         else toast.success('Link invito generato.')
-        setInviteOpen(false); setEmail(''); setSubrole(''); setMessage('')
+        setInviteOpen(false); setEmail(''); setSubrole(''); setMessage(DEFAULT_INVITE_MESSAGE)
       }
     } catch (e) {
       toast.error((e as Error).message)
