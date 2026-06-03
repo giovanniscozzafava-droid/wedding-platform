@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { useContractMutations, useContracts } from '@/hooks/useWedding'
 import { shareWhatsAppLink } from '@/lib/share'
 import { supabase } from '@/lib/supabase'
+import { HelpDot } from '@/components/help/HelpDot'
 
 const STANDARD_SECTIONS = [
   { heading: 'Oggetto del contratto', body: 'Organizzazione e coordinamento dell\'evento matrimoniale come specificato nel preventivo allegato.', type: 'CLAUSULE' },
@@ -57,7 +58,10 @@ export function ContractTab({ wedding }: { wedding: any }) {
           <h2 className="font-display text-2xl">Contratto</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Genera il contratto dal preventivo e inviane il link per la firma.</p>
         </div>
-        <Button variant="gold" onClick={createFromQuote} disabled={create.isPending}><Plus /> Nuova bozza</Button>
+        <span className="inline-flex items-center gap-1">
+          <Button variant="gold" onClick={createFromQuote} disabled={create.isPending}><Plus /> Nuova bozza</Button>
+          <HelpDot id="contract.nuovo" />
+        </span>
       </header>
 
       <div className="space-y-4">
@@ -85,7 +89,12 @@ export function ContractTab({ wedding }: { wedding: any }) {
               ) : (
                 <Button variant="outline" size="sm" onClick={() => setEditing(c)}>Modifica sezioni</Button>
               )}
-              {c.status === 'BOZZA' && <Button variant="gold" size="sm" onClick={() => sendContract(c.id)}><Send /> Invia per firma</Button>}
+              {c.status === 'BOZZA' && (
+                <span className="inline-flex items-center gap-1">
+                  <Button variant="gold" size="sm" onClick={() => sendContract(c.id)}><Send /> Invia per firma</Button>
+                  <HelpDot id="contract.invia" />
+                </span>
+              )}
               {c.access_token && (
                 <>
                   <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(

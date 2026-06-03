@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Plus, Download } from 'lucide-react'
 import { toast } from 'sonner'
+import { HelpDot } from '@/components/help/HelpDot'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -286,6 +287,7 @@ export default function CalendarPage() {
                       style={{ background: isBusy ? 'rgb(var(--rose-500))' : 'transparent', color: isBusy ? 'white' : 'rgb(var(--rose-500))', borderColor: 'rgb(var(--rose-500))' }}>
                       ● Occupato
                     </button>
+                    <span className="self-center"><HelpDot id="calendar.disponibilita" /></span>
                   </div>
                 )
               })()}

@@ -19,6 +19,7 @@ import {
 import type { Database } from '@/lib/database.types'
 import { ClientBriefEditor } from '@/components/quotes/ClientBriefEditor'
 import { SuggestColleaguesCard } from '@/components/quotes/SuggestColleaguesCard'
+import { HelpDot } from '@/components/help/HelpDot'
 import { eventTerm } from '@/lib/eventKind'
 
 type Unit = Database['public']['Enums']['service_unit']
@@ -507,19 +508,28 @@ export default function QuoteEditorPage() {
               {quote.event_date && <span>· {new Date(quote.event_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span>}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => handlePdf('NEUTRA')} disabled={genPdf.isPending} data-testid="pdf-neutra">
-              <FileDown /> PDF Neutra
-            </Button>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="inline-flex items-center gap-1">
+              <Button variant="outline" onClick={() => handlePdf('NEUTRA')} disabled={genPdf.isPending} data-testid="pdf-neutra">
+                <FileDown /> PDF Neutra
+              </Button>
+              <HelpDot id="quote.pdf" />
+            </span>
             <Button variant="outline" onClick={() => handlePdf('PREMIUM')} disabled={genPdf.isPending} data-testid="pdf-premium">
               <Sparkles /> PDF Premium
             </Button>
-            <Button variant="outline" onClick={handleSendQuestionnaire}>
-              📋 Invia questionario
-            </Button>
-            <Button variant="gold" onClick={handleSend} disabled={sendQ.isPending} data-testid="send-quote-btn">
-              <Send /> {sendQ.isPending ? 'Invio...' : 'Invia al cliente'}
-            </Button>
+            <span className="inline-flex items-center gap-1">
+              <Button variant="outline" onClick={handleSendQuestionnaire}>
+                📋 Invia questionario
+              </Button>
+              <HelpDot id="quote.questionario" />
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Button variant="gold" onClick={handleSend} disabled={sendQ.isPending} data-testid="send-quote-btn">
+                <Send /> {sendQ.isPending ? 'Invio...' : 'Invia al cliente'}
+              </Button>
+              <HelpDot id="quote.invia" />
+            </span>
           </div>
         </div>
 

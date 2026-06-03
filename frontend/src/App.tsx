@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { lazyWithRetry } from '@/lib/lazyWithRetry'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/lib/auth'
+import { HelpModeProvider } from '@/lib/helpMode'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { CookieBanner } from '@/components/CookieBanner'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
@@ -82,6 +83,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <HelpModeProvider>
         <RouteErrorBoundary>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
@@ -256,6 +258,7 @@ export default function App() {
         </Suspense>
         </RouteErrorBoundary>
         <CookieBanner />
+        </HelpModeProvider>
       </AuthProvider>
     </BrowserRouter>
   )

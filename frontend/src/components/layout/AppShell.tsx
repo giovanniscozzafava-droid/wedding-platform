@@ -33,6 +33,7 @@ import {
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
 import { NotificationBell } from '@/components/layout/NotificationBell'
+import { HelpModeToggle } from '@/components/help/HelpDot'
 import { BetaBanner } from '@/components/BetaBanner'
 import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
 import { SupplierTutorialCards } from '@/components/SupplierTutorialCards'
@@ -187,6 +188,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NotificationBell align="start" />
           <CandidacyInbox placement="beside" />
         </div>
+        <div className="px-4 pb-2"><HelpModeToggle /></div>
 
         <nav className="flex-1 px-3 py-2 overflow-y-auto">
           <NavGroups groups={NAV_GROUPS} />
@@ -301,6 +303,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             Planfully
           </Link>
           <div className="flex items-center gap-2">
+            <HelpModeToggle compact />
             <NotificationBell />
             <CandidacyInbox />
             <button onClick={toggle} aria-label="Toggle theme">
