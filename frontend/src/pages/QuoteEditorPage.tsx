@@ -201,6 +201,12 @@ export default function QuoteEditorPage() {
           status: 'BOZZA',
           access_token: crypto.randomUUID(),
           sections: sections ?? [],
+          // Preventivo fornitore→cliente diretto: il contratto deve ereditare
+          // direct_client_id e party_kind, sennò la rubrica non conta i firmati
+          // e il trigger enforce_contract_party_kind rifiuta l'insert.
+          ...((quote as any).direct_client_id
+            ? { direct_client_id: (quote as any).direct_client_id, party_kind: 'SUPPLIER_CLIENT' }
+            : {}),
         })
         .select('id, status')
         .single()
