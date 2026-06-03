@@ -184,7 +184,7 @@ export default function BilancioPage() {
           <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
             Quando il primo cliente firmerà il preventivo, l'importo apparirà qui.
           </p>
-          <Link to="/quotes/new" className="inline-flex items-center gap-1 mt-4 text-sm font-medium text-[rgb(var(--gold-600))] hover:underline">
+          <Link to="/quotes" className="inline-flex items-center gap-1 mt-4 text-sm font-medium text-[rgb(var(--gold-600))] hover:underline">
             Crea il primo preventivo <ExternalLink size={12} />
           </Link>
         </section>

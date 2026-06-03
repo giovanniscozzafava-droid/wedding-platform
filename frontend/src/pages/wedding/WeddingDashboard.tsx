@@ -46,7 +46,7 @@ import { useQueryClient } from '@tanstack/react-query'
 
 type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat'
 
-type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean }
+type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean }
 
 const TABS: Array<TabDef> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
@@ -67,12 +67,12 @@ const TABS: Array<TabDef> = [
   { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale, nuovoModelloOnly: true },
   { key: 'chat',           label: 'Chat',         icon: MessageCircle, nuovoModelloOnly: true },
   { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
-  { key: 'contract',       label: 'Contratto',    icon: FileSignature },
-  { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature },
-  { key: 'website',        label: 'Sito evento', icon: Globe },
-  { key: 'members',        label: 'Clienti',      icon: Heart },
+  { key: 'contract',       label: 'Contratto',    icon: FileSignature, capostipiteOnly: true },
+  { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature, capostipiteOnly: true },
+  { key: 'website',        label: 'Sito evento', icon: Globe, capostipiteOnly: true },
+  { key: 'members',        label: 'Clienti',      icon: Heart, capostipiteOnly: true },
   { key: 'docs',           label: 'Documenti',    icon: FolderOpen },
-  { key: 'analytics', label: 'Analytics',  icon: BarChart3 },
+  { key: 'analytics', label: 'Analytics',  icon: BarChart3, capostipiteOnly: true },
 ]
 
 export default function WeddingDashboard() {
@@ -99,10 +99,12 @@ export default function WeddingDashboard() {
 
   // Se la tab attiva e' stata nascosta dal gating, torno a overview.
   useEffect(() => {
-    const hidden = (effectiveAmbito === 'SOLO_COORDINAMENTO') &&
-      (tab === 'contract' || tab === 'contracts_net' || tab === 'budget')
+    const capostipiteTab = ['contract', 'contracts_net', 'website', 'members', 'analytics'].includes(tab)
+    const hidden = ((effectiveAmbito === 'SOLO_COORDINAMENTO') &&
+      (tab === 'contract' || tab === 'contracts_net' || tab === 'budget'))
+      || (isFornitore && capostipiteTab)
     if (hidden) setTab('overview')
-  }, [effectiveAmbito, tab])
+  }, [effectiveAmbito, tab, isFornitore])
 
   // La modale appare per l'owner del calendar_entry quando lo stato e`
   // INCARICO_FIRMATO (o successivo, se non l'aveva ancora scelto) e ambito = null.
@@ -122,6 +124,9 @@ export default function WeddingDashboard() {
     () =>
       TABS.filter((t) => {
         if (t.nuovoModelloOnly && !nuovoModello) return false
+        // Un fornitore lavora solo sull'operativo del SUO evento: niente tab da
+        // capostipite (contratto-quadro, contratti rete, sito, clienti, analytics).
+        if (t.capostipiteOnly && isFornitore) return false
         // Gating per ambito incarico.
         if (effectiveAmbito === 'SOLO_COORDINAMENTO') {
           // Niente preventivi/contratti/contratti-rete: il capostipite coordina solo.
@@ -129,7 +134,7 @@ export default function WeddingDashboard() {
         }
         return true
       }),
-    [nuovoModello, effectiveAmbito],
+    [nuovoModello, effectiveAmbito, isFornitore],
   )
 
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>

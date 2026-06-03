@@ -208,14 +208,22 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
         )
       )}
 
-      {/* Event link */}
+      {/* Event link — /weddings/:id non è accessibile a coppia/cliente: per quei
+          ruoli mostro il chip non cliccabile (niente redirect a vuoto). */}
       {post.event_id && post.event_title && (
         <div className="px-4 pb-3">
-          <Link to={`/weddings/${post.event_id}`}
-            className="inline-block text-xs px-2 py-1 rounded-full hover:underline"
-            style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
-            📅 {post.event_title}
-          </Link>
+          {profile?.role === 'COUPLE' || profile?.role === 'CLIENT' ? (
+            <span className="inline-block text-xs px-2 py-1 rounded-full"
+              style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+              📅 {post.event_title}
+            </span>
+          ) : (
+            <Link to={`/weddings/${post.event_id}`}
+              className="inline-block text-xs px-2 py-1 rounded-full hover:underline"
+              style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+              📅 {post.event_title}
+            </Link>
+          )}
         </div>
       )}
 

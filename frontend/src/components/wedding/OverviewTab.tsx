@@ -6,9 +6,14 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { useBudget, useGuests, useMood, usePlaylist, useTables, useTasks, useTimeline } from '@/hooks/useWedding'
 import { useChangeRequests, useReviewChangeRequest, entityLabel } from '@/hooks/useChangeRequests'
+import { useAuth } from '@/lib/auth'
 
 export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: string) => void }) {
   const eid = wedding.id
+  const { profile } = useAuth()
+  // /suppliers/:id è riservata ai capostipiti/admin: per un fornitore il link
+  // porterebbe a un vicolo cieco "accesso non consentito".
+  const canOpenSupplier = ['WEDDING_PLANNER', 'LOCATION', 'ADMIN'].includes(profile?.role ?? '')
   const tl = useTimeline(eid)
   const gu = useGuests(eid)
   const tb = useTables(eid)
@@ -129,7 +134,7 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
                     <p className="font-medium text-sm">{p.user?.business_name ?? p.user?.full_name}</p>
                     <p className="text-xs text-[rgb(var(--fg-subtle))]">{p.user?.subrole} · {p.role_in_entry}</p>
                   </div>
-                  <Link to={`/suppliers/${p.user?.id}`} className="text-xs text-[rgb(var(--fg-muted))] hover:underline">apri →</Link>
+                  {canOpenSupplier && <Link to={`/suppliers/${p.user?.id}`} className="text-xs text-[rgb(var(--fg-muted))] hover:underline">apri →</Link>}
                 </li>
               ))}
             </ul>
