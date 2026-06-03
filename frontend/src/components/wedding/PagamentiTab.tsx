@@ -66,8 +66,8 @@ export function PagamentiTab({ entryId }: { entryId: string }) {
   }
   const [draft, setDraft] = useState(emptyDraft)
 
-  async function load() {
-    setLoading(true)
+  async function load(silent = false) {
+    if (!silent) setLoading(true)
     try {
       const { data, error } = await (supabase.from as any)('scadenzario_voci')
         .select('*')
@@ -96,7 +96,13 @@ export function PagamentiTab({ entryId }: { entryId: string }) {
       setLoading(false)
     }
   }
-  useEffect(() => { void load() }, [entryId])
+  useEffect(() => {
+    void load()
+    // Polling silenzioso: scadenze/pagamenti aggiornati da altri attori dell'evento.
+    const t = setInterval(() => { void load(true) }, 20000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryId])
 
   async function addVoce() {
     if (!draft.titolo.trim()) return toast.error('Titolo richiesto')

@@ -41,8 +41,8 @@ export function ChatEvento({ entryId }: { entryId: string }) {
   const [me, setMe] = useState<string | null>(null)
   const listEndRef = useRef<HTMLDivElement | null>(null)
 
-  async function load() {
-    setLoading(true)
+  async function load(silent = false) {
+    if (!silent) setLoading(true)
     try {
       const { data: u } = await supabase.auth.getUser()
       setMe(u.user?.id ?? null)
@@ -91,6 +91,10 @@ export function ChatEvento({ entryId }: { entryId: string }) {
   }
   useEffect(() => {
     void load()
+    // Polling silenzioso: la chat è collaborativa (WP, sposi, fornitori) ma senza
+    // realtime i messaggi altrui non comparivano fino a un reload manuale.
+    const t = setInterval(() => { void load(true) }, 15000)
+    return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryId])
 

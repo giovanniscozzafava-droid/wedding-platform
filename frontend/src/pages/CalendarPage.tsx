@@ -14,13 +14,18 @@ import { supabase } from '@/lib/supabase'
 
 const WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
 
+// Formattazione data in fuso LOCALE: toISOString() converte in UTC e in Italia
+// (UTC+1/+2) sposta la mezzanotte al giorno prima → celle/eventi sfasati di un
+// giorno. Usiamo i getter locali per allineare griglia, range e match eventi.
+function localYmd(x: Date) {
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+}
 function monthRange(d: Date) {
   const from = new Date(d.getFullYear(), d.getMonth(), 1)
   const to   = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-  const fmt = (x: Date) => x.toISOString().slice(0, 10)
-  return { from: fmt(from), to: fmt(to) }
+  return { from: localYmd(from), to: localYmd(to) }
 }
-function fmtDay(d: Date) { return d.toISOString().slice(0, 10) }
+function fmtDay(d: Date) { return localYmd(d) }
 function monthGrid(d: Date) {
   const first = new Date(d.getFullYear(), d.getMonth(), 1)
   const last = new Date(d.getFullYear(), d.getMonth() + 1, 0)
@@ -128,8 +133,9 @@ export default function CalendarPage() {
   const entriesByDay = useMemo(() => {
     const map = new Map<string, EntryWithParticipants[]>()
     for (const e of data ?? []) {
-      const start = new Date(e.date_from)
-      const end = new Date(e.date_to)
+      // Parse date-only come mezzanotte LOCALE (non UTC) per coerenza con la griglia.
+      const start = new Date(`${e.date_from}T00:00:00`)
+      const end = new Date(`${e.date_to ?? e.date_from}T00:00:00`)
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const k = fmtDay(d)
         const arr = map.get(k) ?? []

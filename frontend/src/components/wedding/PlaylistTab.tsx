@@ -37,11 +37,19 @@ export function PlaylistTab({ entryId }: { entryId: string }) {
     const presets = PLAYLIST_PRESETS[groupName] ?? []
     if (!presets.length) return
     try {
+      // Dedup su Set locale aggiornato a ogni insert: `songs` è uno snapshot stale
+      // durante il loop (la query si rinfresca solo a fine batch), quindi senza
+      // questo un doppio-click o titoli ripetuti creerebbero duplicati.
+      const seen = new Set((songs ?? []).map((s: any) => `${s.moment}|${s.song_title}`))
+      let added = 0
       for (const p of presets) {
-        const exists = (songs ?? []).some((s: any) => s.song_title === p.song_title && s.moment === p.moment)
-        if (!exists) await add.mutateAsync(p)
+        const k = `${p.moment}|${p.song_title}`
+        if (seen.has(k)) continue
+        await add.mutateAsync(p)
+        seen.add(k)
+        added++
       }
-      toast.success(`${presets.length} brani aggiunti da preset "${groupName}"`)
+      toast.success(`${added} brani aggiunti da preset "${groupName}"`)
     } catch (e) { toast.error((e as Error).message) }
   }
 
