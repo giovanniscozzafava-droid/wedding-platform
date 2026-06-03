@@ -65,7 +65,7 @@ function isTabVisible(tab: Tab, eventKind: string, hasRestauration: boolean): bo
     case 'cerimonia': return eventKind === 'matrimonio' || religious
     case 'alloggi':                                        // pernottamenti: solo grandi eventi
     case 'trasporti': return eventKind === 'matrimonio'
-    case 'mood':      return eventKind === 'matrimonio' || eventKind === 'compleanno' || eventKind === 'anniversario' || eventKind === 'laurea'
+    case 'mood':      return true                          // il mood board serve a ogni tipo evento
     case 'playlist':  return !religious                    // i riti religiosi non hanno "playlist"
     case 'gadgets':   return eventKind === 'matrimonio' || religious   // bomboniere
     case 'website':   return eventKind === 'matrimonio' || eventKind === 'corporate'
