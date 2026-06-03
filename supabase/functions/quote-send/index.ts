@@ -226,6 +226,19 @@ Deno.serve(async (req) => {
                              ? 'A presto, per questo giorno speciale.'
       : 'A presto, per il tuo evento.'
 
+    // Etichetta evento + cosa il cliente trova nella sua area, coerenti col tipo.
+    const eventLabel =
+      _ek === 'matrimonio'  ? 'matrimonio'
+      : _ek === 'corporate' ? 'evento aziendale'
+      : _ek === 'compleanno'? 'compleanno'
+      : _ek === 'laurea'    ? 'festa di laurea'
+      : _ek === 'anniversario' ? 'anniversario'
+      : (_ek === 'battesimo' || _ek === 'comunione' || _ek === 'cresima') ? _ek
+      : 'evento'
+    const areaFeatures = _ek === 'matrimonio'
+      ? 'Preventivo dettagliato · Firma sicura · Programma e scaletta<br>Tavoli e invitati · Alloggi e trasporti · Mood board'
+      : 'Preventivo dettagliato · Firma sicura · Programma dell’evento<br>Documenti · Aggiornamenti in tempo reale'
+
     // Items preview: prime 5 voci
     const { data: itemsPreview } = await admin.from('quote_items').select('name_snapshot, line_client').eq('quote_id', body.quote_id).order('sort_order').limit(5)
     const itemsHtml = (itemsPreview ?? []).map((it: any) => `
@@ -304,15 +317,14 @@ Deno.serve(async (req) => {
         <p style="font-family:Georgia,serif;font-size:15px;color:#4a5568;line-height:1.7;margin:0">
           Il tuo preventivo personalizzato è pronto.<br>
           Crea il tuo account riservato per visualizzarlo nel dettaglio,<br>
-          accettarlo digitalmente e seguire l'organizzazione del giorno-X.
+          accettarlo digitalmente e seguire l'organizzazione ${eventLabel === 'evento' ? "dell'evento" : 'del ' + eventLabel}.
         </p>
       </td></tr>
       <tr><td style="padding:18px 40px 0 40px;text-align:center">
         <div style="display:inline-block;padding:14px 22px;border-radius:10px;background:#F8F5EE;border:1px solid #E4DED2">
           <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:6px">Cosa trovi nella tua area</div>
           <div style="font-family:Georgia,serif;font-size:13px;color:#1A1714;line-height:1.7">
-            Preventivo dettagliato · Firma sicura · Programma e scaletta<br>
-            Tavoli e invitati · Alloggi e trasporti · Mood board
+            ${areaFeatures}
           </div>
         </div>
       </td></tr>
