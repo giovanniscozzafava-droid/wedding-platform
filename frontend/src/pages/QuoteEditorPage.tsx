@@ -424,17 +424,22 @@ export default function QuoteEditorPage() {
     } catch (e) { toast.error((e as Error).message) }
   }
   // Sconto sulla singola voce (% sul prezzo cliente; negativo = maggiorazione).
+  // Clamp [-1000, 100]: oltre 100 azzererebbe sotto costo (vincolo anche lato DB).
   async function handleChangeItemDiscount(itemId: string, pct: number) {
     if (!id) return
+    const safe = Math.max(-1000, Math.min(100, Number.isFinite(pct) ? pct : 0))
     try {
-      await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { item_discount_percent: pct } as any })
+      await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { item_discount_percent: safe } as any })
     } catch (e) { toast.error((e as Error).message) }
   }
   // Sconto sul TOTALE del preventivo (% e/o € fisso).
   async function handleTotalDiscount(patch: { total_discount_percent?: number; total_discount_amount?: number }) {
     if (!id) return
+    const safe: any = { ...patch }
+    if (safe.total_discount_percent != null) safe.total_discount_percent = Math.max(-1000, Math.min(100, Number.isFinite(safe.total_discount_percent) ? safe.total_discount_percent : 0))
+    if (safe.total_discount_amount != null) safe.total_discount_amount = Math.max(0, Number.isFinite(safe.total_discount_amount) ? safe.total_discount_amount : 0)
     try {
-      await update.mutateAsync({ id, patch: patch as any })
+      await update.mutateAsync({ id, patch: safe })
     } catch (e) { toast.error((e as Error).message) }
   }
 

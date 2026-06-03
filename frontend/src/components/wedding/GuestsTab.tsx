@@ -169,7 +169,7 @@ export function GuestsTab({ entryId }: { entryId: string }) {
                 </td>
                 <td className="px-4 py-2">
                   <Input type="number" min="1" className="h-8 w-16 text-sm" defaultValue={g.party_size}
-                    onBlur={(e) => { const n = Number(e.target.value); if (n !== g.party_size) update.mutate({ id: g.id, patch: { party_size: n } }) }} />
+                    onBlur={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 1) { e.target.value = String(g.party_size ?? 1); return } if (n !== g.party_size) update.mutate({ id: g.id, patch: { party_size: n } }) }} />
                 </td>
                 <td className="px-4 py-2">
                   <select className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
