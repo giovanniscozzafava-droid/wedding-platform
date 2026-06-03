@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, Users, Mail, Phone, Calendar, Trash2, Pencil, FileText, X } from 'lucide-react'
+import { Plus, Users, Mail, Phone, Calendar, Trash2, Pencil, FileText, X, CalendarHeart } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -235,9 +235,20 @@ export default function SupplierClientsPage() {
                   </div>
 
                   <div className="flex items-center gap-2 pt-2">
-                    <Button size="sm" variant="gold" onClick={() => handleNewQuoteFor(c)} disabled={createQuote.isPending}>
-                      <FileText size={14} /> Preventivo
-                    </Button>
+                    {c.event_entry_id ? (
+                      <>
+                        <Button size="sm" variant="gold" onClick={() => nav(`/weddings/${c.event_entry_id}`)}>
+                          <CalendarHeart size={14} /> Gestisci evento
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleNewQuoteFor(c)} disabled={createQuote.isPending} title="Nuovo preventivo">
+                          <FileText size={14} />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="gold" onClick={() => handleNewQuoteFor(c)} disabled={createQuote.isPending}>
+                        <FileText size={14} /> Preventivo
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                       <Pencil size={14} />
                     </Button>

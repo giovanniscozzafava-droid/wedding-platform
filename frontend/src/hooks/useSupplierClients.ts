@@ -10,6 +10,7 @@ export type SupplierClientWithStats = ClientRow & {
   quote_count: number
   quoted_amount: number
   signed_contracts: number
+  event_entry_id: string | null
 }
 
 export function useSupplierClients() {
