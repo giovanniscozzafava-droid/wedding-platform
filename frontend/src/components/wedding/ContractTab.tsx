@@ -7,6 +7,7 @@ import { Input, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useContractMutations, useContracts } from '@/hooks/useWedding'
 import { shareWhatsAppLink } from '@/lib/share'
+import { supabase } from '@/lib/supabase'
 
 const STANDARD_SECTIONS = [
   { heading: 'Oggetto del contratto', body: 'Organizzazione e coordinamento dell\'evento matrimoniale come specificato nel preventivo allegato.', type: 'CLAUSULE' },
@@ -40,8 +41,12 @@ export function ContractTab({ wedding }: { wedding: any }) {
   async function sendContract(id: string) {
     try {
       const token = await send.mutateAsync(id)
+      // Invio email brandizzato al cliente (come il preventivo), non più mailto.
+      const { data, error } = await supabase.functions.invoke('contract-send', { body: { contract_id: id } })
       await navigator.clipboard.writeText(`${window.location.origin}/p/contract/${token}`).catch(() => {})
-      toast.success('Link firma copiato negli appunti')
+      if (error) { toast.message('Contratto pronto. Email non inviata: usa il link copiato o WhatsApp.'); return }
+      if ((data as any)?.skipped) toast.message('Contratto pronto. Email non configurata: usa il link copiato o WhatsApp.')
+      else toast.success('Contratto inviato via email al cliente (link firma copiato)')
     } catch (e) { toast.error((e as Error).message) }
   }
 

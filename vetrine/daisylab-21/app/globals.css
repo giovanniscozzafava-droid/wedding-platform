@@ -1,0 +1,61 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-cream: #f8f5f0;
+  --color-cream-2: #f1ebe1;
+  --color-ink: #1f1a16;
+  --color-ink-soft: #4a4036;
+  --color-sage: #9aa687;
+  --color-sage-deep: #6b7a5a;
+  --color-gold: #b89968;
+  --color-gold-deep: #8a6f44;
+  --color-rose: #d9a5a0;
+
+  --font-display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-script: 'Italianno', cursive;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.875rem 1.75rem;
+    border-radius: 9999px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: var(--color-ink);
+    color: var(--color-cream);
+  }
+  .btn-primary:hover {
+    background: var(--color-gold-deep);
+  }
+  .btn-outline {
+    border: 1px solid var(--color-ink);
+    color: var(--color-ink);
+  }
+  .btn-outline:hover {
+    background: var(--color-ink);
+    color: var(--color-cream);
+  }
+}
