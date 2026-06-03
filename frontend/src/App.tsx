@@ -1,8 +1,10 @@
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
+import { lazyWithRetry } from '@/lib/lazyWithRetry'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { CookieBanner } from '@/components/CookieBanner'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 
 // Eager: pagine sul critical path (auth + home pubblica + dashboard interna).
 import HomePage from '@/pages/HomePage'
@@ -11,62 +13,62 @@ import RegisterPage from '@/pages/auth/RegisterPage'
 import PublicHomePage from '@/pages/public/PublicHomePage'
 
 // Lazy: tutto il resto (60+ pagine). Scaricate on-demand.
-const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
-const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
-const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage'))
-const ProfilePage = lazy(() => import('@/pages/auth/ProfilePage'))
-const CatalogPage = lazy(() => import('@/pages/CatalogPage'))
-const CalendarPage = lazy(() => import('@/pages/CalendarPage'))
-const SuppliersPage = lazy(() => import('@/pages/SuppliersPage'))
-const SupplierDetailPage = lazy(() => import('@/pages/SupplierDetailPage'))
-const QuotesPage = lazy(() => import('@/pages/QuotesPage'))
-const QuoteEditorPage = lazy(() => import('@/pages/QuoteEditorPage'))
-const ContractsPage = lazy(() => import('@/pages/ContractsPage'))
-const SupplierContractsPage = lazy(() => import('@/pages/SupplierContractsPage'))
-const FinancePage = lazy(() => import('@/pages/FinancePage'))
-const BilancioPage = lazy(() => import('@/pages/BilancioPage'))
-const InsurancePage = lazy(() => import('@/pages/InsurancePage'))
-const BrandSettingsPage = lazy(() => import('@/pages/BrandSettingsPage'))
-const QuotePreviewPage = lazy(() => import('@/pages/public/QuotePreviewPage'))
-const QuoteAcceptPage = lazy(() => import('@/pages/public/QuoteAcceptPage'))
-const QuoteRejectPage = lazy(() => import('@/pages/public/QuoteRejectPage'))
-const ContractSignPage = lazy(() => import('@/pages/public/ContractSignPage'))
-const WeddingSitePage = lazy(() => import('@/pages/public/WeddingSitePage'))
-const WeddingsPage = lazy(() => import('@/pages/WeddingsPage'))
-const WeddingDashboard = lazy(() => import('@/pages/wedding/WeddingDashboard'))
-const CoupleDashboard = lazy(() => import('@/pages/couple/CoupleDashboard'))
-const CoupleAcceptPage = lazy(() => import('@/pages/couple/CoupleAcceptPage'))
-const SupplierInviteAcceptPage = lazy(() => import('@/pages/public/SupplierInviteAcceptPage'))
-const CapostipiteInviteAcceptPage = lazy(() => import('@/pages/public/CapostipiteInviteAcceptPage'))
-const CoupleInviteAcceptPage = lazy(() => import('@/pages/public/CoupleInviteAcceptPage'))
-const PrivacyPage = lazy(() => import('@/pages/public/PrivacyPage'))
-const CookiePage = lazy(() => import('@/pages/public/CookiePage'))
-const DiscoverPage = lazy(() => import('@/pages/public/DiscoverPage'))
-const PublicSupplierPage = lazy(() => import('@/pages/public/PublicSupplierPage'))
-const BlogListPage = lazy(() => import('@/pages/public/BlogListPage'))
-const BlogPostPage = lazy(() => import('@/pages/public/BlogPostPage'))
-const BlogAdminPage = lazy(() => import('@/pages/BlogAdminPage'))
-const BlogEditorPage = lazy(() => import('@/pages/BlogEditorPage'))
-const HomeFeedPage = lazy(() => import('@/pages/HomeFeedPage'))
-const PublicWpPage = lazy(() => import('@/pages/public/PublicWpPage'))
-const EmbedLeadPage = lazy(() => import('@/pages/public/EmbedLeadPage'))
-const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage'))
-const ClientPortalPage = lazy(() => import('@/pages/client/ClientPortalPage'))
-const ClientAccessPage = lazy(() => import('@/pages/client/ClientAccessPage'))
-const SupplierTeamPage = lazy(() => import('@/pages/SupplierTeamPage'))
-const SupplierLeadsPage = lazy(() => import('@/pages/SupplierLeadsPage'))
-const SupplierPendingPage = lazy(() => import('@/pages/SupplierPendingPage'))
-const SupplierCreditsPage = lazy(() => import('@/pages/SupplierCreditsPage'))
-const PublicSlugResolver = lazy(() => import('@/pages/public/PublicSlugResolver'))
-const WpLeadsPage = lazy(() => import('@/pages/WpLeadsPage'))
-const DiscoverProsPage = lazy(() => import('@/pages/public/DiscoverProsPage'))
-const FeedArticlePage = lazy(() => import('@/pages/public/FeedArticlePage'))
-const FeedArticleEditorPage = lazy(() => import('@/pages/FeedArticleEditorPage'))
-const NetworkRewardsPage = lazy(() => import('@/pages/NetworkRewardsPage'))
-const CompositionCalculatorPage = lazy(() => import('@/pages/CompositionCalculatorPage'))
-const SupplierClientsPage = lazy(() => import('@/pages/SupplierClientsPage'))
-const SupplierCapostipitiPage = lazy(() => import('@/pages/SupplierCapostipitiPage'))
-const FaqPage = lazy(() => import('@/pages/FaqPage'))
+const ForgotPasswordPage = lazyWithRetry(() => import('@/pages/auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazyWithRetry(() => import('@/pages/auth/ResetPasswordPage'))
+const OnboardingPage = lazyWithRetry(() => import('@/pages/auth/OnboardingPage'))
+const ProfilePage = lazyWithRetry(() => import('@/pages/auth/ProfilePage'))
+const CatalogPage = lazyWithRetry(() => import('@/pages/CatalogPage'))
+const CalendarPage = lazyWithRetry(() => import('@/pages/CalendarPage'))
+const SuppliersPage = lazyWithRetry(() => import('@/pages/SuppliersPage'))
+const SupplierDetailPage = lazyWithRetry(() => import('@/pages/SupplierDetailPage'))
+const QuotesPage = lazyWithRetry(() => import('@/pages/QuotesPage'))
+const QuoteEditorPage = lazyWithRetry(() => import('@/pages/QuoteEditorPage'))
+const ContractsPage = lazyWithRetry(() => import('@/pages/ContractsPage'))
+const SupplierContractsPage = lazyWithRetry(() => import('@/pages/SupplierContractsPage'))
+const FinancePage = lazyWithRetry(() => import('@/pages/FinancePage'))
+const BilancioPage = lazyWithRetry(() => import('@/pages/BilancioPage'))
+const InsurancePage = lazyWithRetry(() => import('@/pages/InsurancePage'))
+const BrandSettingsPage = lazyWithRetry(() => import('@/pages/BrandSettingsPage'))
+const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreviewPage'))
+const QuoteAcceptPage = lazyWithRetry(() => import('@/pages/public/QuoteAcceptPage'))
+const QuoteRejectPage = lazyWithRetry(() => import('@/pages/public/QuoteRejectPage'))
+const ContractSignPage = lazyWithRetry(() => import('@/pages/public/ContractSignPage'))
+const WeddingSitePage = lazyWithRetry(() => import('@/pages/public/WeddingSitePage'))
+const WeddingsPage = lazyWithRetry(() => import('@/pages/WeddingsPage'))
+const WeddingDashboard = lazyWithRetry(() => import('@/pages/wedding/WeddingDashboard'))
+const CoupleDashboard = lazyWithRetry(() => import('@/pages/couple/CoupleDashboard'))
+const CoupleAcceptPage = lazyWithRetry(() => import('@/pages/couple/CoupleAcceptPage'))
+const SupplierInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/SupplierInviteAcceptPage'))
+const CapostipiteInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/CapostipiteInviteAcceptPage'))
+const CoupleInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/CoupleInviteAcceptPage'))
+const PrivacyPage = lazyWithRetry(() => import('@/pages/public/PrivacyPage'))
+const CookiePage = lazyWithRetry(() => import('@/pages/public/CookiePage'))
+const DiscoverPage = lazyWithRetry(() => import('@/pages/public/DiscoverPage'))
+const PublicSupplierPage = lazyWithRetry(() => import('@/pages/public/PublicSupplierPage'))
+const BlogListPage = lazyWithRetry(() => import('@/pages/public/BlogListPage'))
+const BlogPostPage = lazyWithRetry(() => import('@/pages/public/BlogPostPage'))
+const BlogAdminPage = lazyWithRetry(() => import('@/pages/BlogAdminPage'))
+const BlogEditorPage = lazyWithRetry(() => import('@/pages/BlogEditorPage'))
+const HomeFeedPage = lazyWithRetry(() => import('@/pages/HomeFeedPage'))
+const PublicWpPage = lazyWithRetry(() => import('@/pages/public/PublicWpPage'))
+const EmbedLeadPage = lazyWithRetry(() => import('@/pages/public/EmbedLeadPage'))
+const IntegrationsPage = lazyWithRetry(() => import('@/pages/IntegrationsPage'))
+const ClientPortalPage = lazyWithRetry(() => import('@/pages/client/ClientPortalPage'))
+const ClientAccessPage = lazyWithRetry(() => import('@/pages/client/ClientAccessPage'))
+const SupplierTeamPage = lazyWithRetry(() => import('@/pages/SupplierTeamPage'))
+const SupplierLeadsPage = lazyWithRetry(() => import('@/pages/SupplierLeadsPage'))
+const SupplierPendingPage = lazyWithRetry(() => import('@/pages/SupplierPendingPage'))
+const SupplierCreditsPage = lazyWithRetry(() => import('@/pages/SupplierCreditsPage'))
+const PublicSlugResolver = lazyWithRetry(() => import('@/pages/public/PublicSlugResolver'))
+const WpLeadsPage = lazyWithRetry(() => import('@/pages/WpLeadsPage'))
+const DiscoverProsPage = lazyWithRetry(() => import('@/pages/public/DiscoverProsPage'))
+const FeedArticlePage = lazyWithRetry(() => import('@/pages/public/FeedArticlePage'))
+const FeedArticleEditorPage = lazyWithRetry(() => import('@/pages/FeedArticleEditorPage'))
+const NetworkRewardsPage = lazyWithRetry(() => import('@/pages/NetworkRewardsPage'))
+const CompositionCalculatorPage = lazyWithRetry(() => import('@/pages/CompositionCalculatorPage'))
+const SupplierClientsPage = lazyWithRetry(() => import('@/pages/SupplierClientsPage'))
+const SupplierCapostipitiPage = lazyWithRetry(() => import('@/pages/SupplierCapostipitiPage'))
+const FaqPage = lazyWithRetry(() => import('@/pages/FaqPage'))
 
 function RouteFallback() {
   return (
@@ -80,6 +82,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <RouteErrorBoundary>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -251,6 +254,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        </RouteErrorBoundary>
         <CookieBanner />
       </AuthProvider>
     </BrowserRouter>

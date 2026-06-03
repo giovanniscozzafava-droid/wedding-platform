@@ -7,6 +7,18 @@ import App from './App.tsx'
 import { ThemeProvider } from './lib/theme.tsx'
 import './index.css'
 
+// Backstop: se un import dinamico (chunk) fallisce dopo un deploy, Vite emette
+// 'vite:preloadError' → ricarica la pagina una sola volta per prendere i nuovi
+// chunk. Evita la "pagina bianca" cliccando una sezione subito dopo un aggiornamento.
+window.addEventListener('vite:preloadError', (e) => {
+  e.preventDefault()
+  try {
+    if (sessionStorage.getItem('pf_chunk_reloaded') === '1') return
+    sessionStorage.setItem('pf_chunk_reloaded', '1')
+  } catch { /* no-op */ }
+  location.reload()
+})
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
