@@ -57,11 +57,21 @@ export default function SupplierPendingPage() {
       }
       const quoteIds = Array.from(byQuote.keys())
       if (quoteIds.length > 0) {
+        // Qui devono arrivare SOLO i preventivi dei capostipiti: escludo quelli
+        // di cui il fornitore stesso è il proprietario (i suoi preventivi diretti).
+        const { data: quotes } = await (supabase.from as any)('quotes')
+          .select('id, title, owner_id, event_date').in('id', quoteIds)
+        for (const q of (quotes ?? []) as any[]) {
+          if (q.owner_id === me) { byQuote.delete(q.id); continue }
+          const g = byQuote.get(q.id)
+          if (g) { g.entry_title = q.title; g.event_date = q.event_date } // fallback dal preventivo
+        }
+        // Titolo/dettagli più precisi dall'evento in calendario, se presente.
         const { data: events } = await (supabase.from as any)('calendar_entries')
-          .select('id, title, date_from, client_name, quote_id').in('quote_id', quoteIds)
+          .select('id, title, date_from, client_name, quote_id').in('quote_id', Array.from(byQuote.keys()))
         for (const e of (events ?? []) as any[]) {
           const g = byQuote.get(e.quote_id)
-          if (g) { g.entry_title = e.title; g.event_date = e.date_from; g.client_name = e.client_name }
+          if (g) { g.entry_title = e.title ?? g.entry_title; g.event_date = e.date_from ?? g.event_date; g.client_name = e.client_name }
         }
       }
       setGroups(Array.from(byQuote.values()))
