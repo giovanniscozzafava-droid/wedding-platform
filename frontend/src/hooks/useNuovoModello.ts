@@ -30,8 +30,9 @@ async function fetchFlag(uid: string): Promise<boolean> {
     .select('nuovo_modello_attivo')
     .eq('id', uid)
     .maybeSingle()
-  if (error) return false
-  return Boolean(data?.nuovo_modello_attivo)
+  if (error) return true // default ON: un errore non deve nascondere le feature
+  // Default ON: solo un opt-out esplicito (=== false) le disattiva.
+  return data?.nuovo_modello_attivo !== false
 }
 
 /**
@@ -44,7 +45,7 @@ export function useNuovoModello(): boolean {
   const [value, setValue] = useState<boolean>(() => {
     if (!user?.id) return false
     if (cached && cached.uid === user.id) return cached.value
-    return false
+    return true // default ON in attesa del fetch (evita flash di feature nascoste)
   })
 
   useEffect(() => {
