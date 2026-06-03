@@ -75,7 +75,7 @@ export function ChecklistTab({ entryId }: { entryId: string }) {
       }
     }
     exportTableToPdf({
-      title: 'Checklist matrimonio',
+      title: 'Checklist evento',
       subtitle: `${done}/${tot} completati (${pct}%)`,
       filename: 'checklist.pdf',
       columns: [

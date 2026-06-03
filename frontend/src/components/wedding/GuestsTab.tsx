@@ -8,8 +8,16 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useGuests, useGuestMutations, useTables } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { GuestsCsvImport } from '@/components/wedding/GuestsCsvImport'
+import { eventTerm } from '@/lib/eventKind'
 
-export function GuestsTab({ entryId }: { entryId: string }) {
+export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?: string }) {
+  // Le opzioni "Lato" hanno senso come Sposa/Sposo solo per eventi con due
+  // protagonisti (matrimonio). Per gli altri usiamo etichette neutre, mantenendo
+  // i value DB (SPOSA/SPOSO/ENTRAMBI) per non rompere i dati.
+  const couple = eventTerm(eventKind ?? 'matrimonio').hasCoupleConcept
+  const sideLabels = couple
+    ? { SPOSA: 'Sposa', SPOSO: 'Sposo', ENTRAMBI: 'Entrambi' }
+    : { SPOSA: 'Lato A', SPOSO: 'Lato B', ENTRAMBI: 'Entrambi' }
   const { data: guests } = useGuests(entryId)
   const { data: tables } = useTables(entryId)
   const { add, update, remove } = useGuestMutations(entryId)
@@ -155,9 +163,9 @@ export function GuestsTab({ entryId }: { entryId: string }) {
                   <select className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
                     value={g.side ?? ''} onChange={(e) => update.mutate({ id: g.id, patch: { side: e.target.value || null } })}>
                     <option value="">—</option>
-                    <option value="SPOSA">Sposa</option>
-                    <option value="SPOSO">Sposo</option>
-                    <option value="ENTRAMBI">Entrambi</option>
+                    <option value="SPOSA">{sideLabels.SPOSA}</option>
+                    <option value="SPOSO">{sideLabels.SPOSO}</option>
+                    <option value="ENTRAMBI">{sideLabels.ENTRAMBI}</option>
                   </select>
                 </td>
                 <td className="px-4 py-2">

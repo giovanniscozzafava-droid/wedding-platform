@@ -48,10 +48,10 @@ export default function CoupleAcceptPage() {
               </span>
               <h1 className="font-display text-3xl tracking-tight">Benvenuti!</h1>
               <p className="text-sm text-[rgb(var(--fg-muted))] mt-2 mb-6">
-                Sei stato/a aggiunto/a al matrimonio. Ora puoi vedere tutto quello che riguarda il tuo grande giorno.
+                Sei stato/a aggiunto/a all'evento. Ora puoi vedere tutto quello che lo riguarda.
               </p>
               <Button asChild variant="gold">
-                <Link to="/couple">Vai al tuo matrimonio</Link>
+                <Link to="/couple">Vai al tuo evento</Link>
               </Button>
             </>
           )}

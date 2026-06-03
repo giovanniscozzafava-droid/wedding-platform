@@ -192,11 +192,11 @@ export default function WeddingSitePage() {
         )}
 
         {w.data?.gift_registry_url && (
-          <Section title="Lista nozze" primary={primary} icon={Gift}>
+          <Section title="Lista regali" primary={primary} icon={Gift}>
             <a href={w.data.gift_registry_url} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-lg px-5 py-3 text-white font-medium"
               style={{ background: primary }}>
-              Apri la lista nozze <ExternalLink size={14} />
+              Apri la lista regali <ExternalLink size={14} />
             </a>
           </Section>
         )}
@@ -235,7 +235,7 @@ export default function WeddingSitePage() {
               </div>
               <Input placeholder="Allergie/restrizioni alimentari" value={rsvp.diet}
                 onChange={(e) => setRsvp((r) => ({ ...r, diet: e.target.value }))} />
-              <Textarea rows={2} placeholder="Messaggio per gli sposi" value={rsvp.notes}
+              <Textarea rows={2} placeholder="Lascia un messaggio" value={rsvp.notes}
                 onChange={(e) => setRsvp((r) => ({ ...r, notes: e.target.value }))} />
               {err && <p className="text-sm text-[rgb(var(--rose-500))]">{err}</p>}
               <Button type="submit" className="w-full text-white" style={{ background: primary }}>Conferma RSVP</Button>
@@ -245,7 +245,7 @@ export default function WeddingSitePage() {
       </main>
 
       <footer className="border-t mt-12 py-8 text-center text-xs text-[rgb(var(--fg-subtle))]" style={{ borderColor: 'rgb(var(--border))' }}>
-        Planfully · Sito personalizzato per il nostro grande giorno.
+        Planfully · Sito personalizzato per il tuo evento.
       </footer>
     </div>
   )

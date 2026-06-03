@@ -242,7 +242,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             {tab === 'programma' && <ProgrammaCouple entryId={entryId} />}
             {tab === 'alloggi' && <AlloggiCouple entryId={entryId} />}
             {tab === 'trasporti' && <TrasportiCouple entryId={entryId} />}
-            {tab === 'invitati' && <GuestsTab entryId={entryId} />}
+            {tab === 'invitati' && <GuestsTab entryId={entryId} eventKind={eventKind} />}
             {tab === 'tavoli' && <TablesTab entryId={entryId} />}
             {tab === 'menu' && (
               <div className="space-y-4">
@@ -252,8 +252,8 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
                 <MenuTab entryId={entryId} readOnly />
               </div>
             )}
-            {tab === 'mood' && <MoodCouple entryId={entryId} />}
-            {tab === 'playlist' && <PlaylistCouple entryId={entryId} />}
+            {tab === 'mood' && <MoodCouple entryId={entryId} eventKind={eventKind} />}
+            {tab === 'playlist' && <PlaylistCouple entryId={entryId} eventKind={eventKind} />}
             {tab === 'gadgets' && <GadgetsCouple entryId={entryId} />}
             {tab === 'website' && <WebsiteCouple wedding={wedding} />}
           </motion.div>
@@ -440,13 +440,19 @@ function TrasportiCouple({ entryId }: { entryId: string }) {
   )
 }
 
-function MoodCouple({ entryId }: { entryId: string }) {
+function MoodCouple({ entryId, eventKind }: { entryId: string; eventKind?: string }) {
   const { data } = useMood(entryId)
   const { add, remove } = useMoodMutations(entryId)
+  // Categorie mood coerenti col tipo evento: niente "vestito"/"torta" (nuziali)
+  // per corporate/battesimo/compleanno.
+  const TAGS = eventKind === 'corporate'
+    ? ['allestimento', 'branding', 'catering', 'location', 'altro']
+    : eventTerm(eventKind ?? 'matrimonio').hasCoupleConcept
+      ? ['vestito', 'fiori', 'location', 'torta', 'allestimento', 'altro']
+      : ['allestimento', 'fiori', 'location', 'altro']
   const [pinUrl, setPinUrl] = useState('')
-  const [tag, setTag] = useState('fiori')
+  const [tag, setTag] = useState(TAGS[0])
   const [busy, setBusy] = useState(false)
-  const TAGS = ['vestito', 'fiori', 'location', 'torta', 'allestimento', 'altro']
 
   async function importFromUrl() {
     const trimmed = pinUrl.trim()
@@ -519,7 +525,7 @@ function MoodCouple({ entryId }: { entryId: string }) {
   )
 }
 
-function PlaylistCouple({ entryId }: { entryId: string }) {
+function PlaylistCouple({ entryId, eventKind }: { entryId: string; eventKind?: string }) {
   const { data: songs } = usePlaylist(entryId)
   const { add, remove } = usePlaylistMutations(entryId)
   const [title, setTitle] = useState('')
@@ -536,7 +542,16 @@ function PlaylistCouple({ entryId }: { entryId: string }) {
   }
 
   const by = (m: string) => (songs ?? []).filter((s: any) => s.moment === m)
-  const MOMS = [{ k: 'CERIMONIA', l: 'Cerimonia' }, { k: 'APERITIVO', l: 'Aperitivo' }, { k: 'CENA', l: 'Cena' }, { k: 'TAGLIO_TORTA', l: 'Taglio torta' }, { k: 'PRIMA_DANZA', l: 'Prima danza' }, { k: 'FESTA', l: 'Festa' }]
+  // Momenti coerenti col tipo evento: "Taglio torta"/"Prima danza" solo per
+  // eventi wedding-like; per gli altri momenti generici.
+  const isWeddingLike = eventTerm(eventKind ?? 'matrimonio').hasCoupleConcept
+  const baseMoms = isWeddingLike
+    ? [{ k: 'CERIMONIA', l: 'Cerimonia' }, { k: 'APERITIVO', l: 'Aperitivo' }, { k: 'CENA', l: 'Cena' }, { k: 'TAGLIO_TORTA', l: 'Taglio torta' }, { k: 'PRIMA_DANZA', l: 'Prima danza' }, { k: 'FESTA', l: 'Festa' }]
+    : [{ k: 'INGRESSO', l: 'Ingresso' }, { k: 'APERITIVO', l: 'Aperitivo' }, { k: 'CENA', l: 'Cena' }, { k: 'BRINDISI', l: 'Brindisi' }, { k: 'FESTA', l: 'Festa' }]
+  // Non perdere brani salvati su momenti non più in elenco: aggiungili come "Altro".
+  const known = new Set(baseMoms.map((m) => m.k))
+  const orphan = Array.from(new Set((songs ?? []).map((s: any) => s.moment))).filter((m) => m && !known.has(m as string))
+  const MOMS = [...baseMoms, ...orphan.map((m) => ({ k: m as string, l: m as string }))]
 
   return (
     <div>

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { publicQuoteByToken } from '@/hooks/useQuotes'
+import { eventLabel } from '@/lib/eventKind'
 
 const CONSENT_CLAUSES = [
   { key: 'registration', text: 'Mi registro su Planfully per visualizzare il prezzo del preventivo.' },
@@ -150,7 +151,7 @@ export default function QuotePreviewPage() {
             <div className="px-6 sm:px-10 pb-8 flex flex-col sm:flex-row gap-3">
               <Button asChild variant="gold" className="flex-1">
                 <Link to="/login?next=/couple" data-testid="couple-portal-btn">
-                  <LogIn /> Vai al portale matrimonio
+                  <LogIn /> Vai al portale {eventLabel((data as any).event_kind)}
                 </Link>
               </Button>
               <Button asChild variant="outline" className="flex-1">
