@@ -51,6 +51,7 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
   const { user, profile } = useAuth()
   const [liked, setLiked] = useState(post.liked_by_me)
   const [likeCount, setLikeCount] = useState(post.like_count)
+  const [liking, setLiking] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [loadingComments, setLoadingComments] = useState(false)
@@ -74,23 +75,30 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
 
   async function toggleLike() {
     if (!user) { toast.info('Accedi per mettere like'); return }
-    // Optimistic
-    setLiked((v) => !v)
-    setLikeCount((c) => liked ? c - 1 : c + 1)
+    if (liking) return // guard anti doppio-click: niente toggle concorrenti
+    setLiking(true)
+    const prevLiked = liked
+    const prevCount = likeCount
+    const nextLiked = !prevLiked
+    setLiked(nextLiked)
+    setLikeCount((c) => c + (nextLiked ? 1 : -1))
     try {
       const { data, error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
         .rpc('post_toggle_like', { p_post_id: post.id })
       if (error) throw error
-      const r = data as { liked?: boolean }
-      // Allineamento server
-      if (typeof r.liked === 'boolean') {
+      const r = data as { liked?: boolean; error?: string }
+      if (r.error) throw new Error(r.error === 'forbidden' ? 'Non puoi interagire con questo post' : r.error === 'auth_required' ? 'Accedi per mettere like' : r.error)
+      // Riconcilia col server: se non concorda con l'ottimistico, correggi anche il conteggio.
+      if (typeof r.liked === 'boolean' && r.liked !== nextLiked) {
         setLiked(r.liked)
+        setLikeCount((c) => c + (r.liked ? 1 : -1) - (nextLiked ? 1 : -1))
       }
     } catch (e) {
-      // Rollback
-      setLiked(post.liked_by_me)
-      setLikeCount(post.like_count)
+      setLiked(prevLiked)
+      setLikeCount(prevCount)
       toast.error((e as Error).message)
+    } finally {
+      setLiking(false)
     }
   }
 
