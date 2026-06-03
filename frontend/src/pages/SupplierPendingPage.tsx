@@ -39,11 +39,12 @@ export default function SupplierPendingPage() {
     try {
       const me = (await supabase.auth.getUser()).data.user?.id
       if (!me) { setGroups([]); return }
-      // Mostra i preventivi NON ancora confermati "Si`": presenza null o "Forse".
+      // Mostra solo i preventivi ANCORA DA DECIDERE: presenza null o "Forse".
+      // "Ci sono" (SI) e "Non ci sono" (NO) escono dalla lista.
       const { data } = await (supabase.from as any)('quote_items')
         .select('id, name_snapshot, description_snapshot, quantity, line_client, quote_id, supplier_presence, supplier_confirmed_at')
         .eq('supplier_id', me).is('supplier_confirmed_at', null).order('created_at', { ascending: false })
-      const items = ((data ?? []) as Item[]).filter((x) => x.supplier_presence !== 'SI')
+      const items = ((data ?? []) as Item[]).filter((x) => x.supplier_presence == null || x.supplier_presence === 'FORSE')
 
       // Raggruppa per preventivo.
       const byQuote = new Map<string, Group>()
