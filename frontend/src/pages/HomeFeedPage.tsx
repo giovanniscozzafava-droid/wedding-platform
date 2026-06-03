@@ -17,33 +17,62 @@ const TABS: { v: FilterTab; l: string }[] = [
   { v: 'MINE',      l: 'I miei post' },
 ]
 
+const PAGE = 20
+
 export default function HomeFeedPage() {
   const { profile } = useAuth()
   const [filter, setFilter] = useState<FilterTab>('DISCOVER')
   const [posts, setPosts] = useState<FeedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   const canPost = !!profile?.role && ['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'FORNITORE', 'COUPLE'].includes(profile.role)
 
+  const fetchPage = useCallback(async (offset: number) => {
+    const rpc = (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> }).rpc
+    const { data, error } = filter === 'DISCOVER'
+      ? await rpc('feed_discover_trending', { p_limit: PAGE, p_offset: offset })
+      : await rpc('feed_home', { p_limit: PAGE, p_offset: offset, p_filter: filter })
+    if (error) throw error
+    return (data as FeedPost[]) ?? []
+  }, [filter])
+
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
+    setError(null)
     try {
-      const rpcCall = filter === 'DISCOVER'
-        ? (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-            .rpc('feed_discover_trending', { p_limit: 30, p_offset: 0 })
-        : (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-            .rpc('feed_home', { p_limit: 30, p_offset: 0, p_filter: filter })
-      const { data, error } = await rpcCall
-      if (error) throw error
-      setPosts((data as FeedPost[]) ?? [])
-    } catch {
-      setPosts([])
+      const batch = await fetchPage(0)
+      setPosts(batch)
+      setHasMore(batch.length === PAGE)
+    } catch (e) {
+      setError((e as Error)?.message ?? 'Impossibile caricare il feed')
+      if (!silent) setPosts([])
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [filter])
+  }, [fetchPage])
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+    try {
+      const batch = await fetchPage(posts.length)
+      // Dedup difensivo (l'ordinamento trending può spostare elementi tra pagine).
+      setPosts((prev) => {
+        const seen = new Set(prev.map((p) => p.id))
+        return [...prev, ...batch.filter((p) => !seen.has(p.id))]
+      })
+      setHasMore(batch.length === PAGE)
+    } catch (e) {
+      setError((e as Error)?.message ?? 'Errore nel caricare altri post')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   useEffect(() => { void load() }, [load])
 
@@ -87,9 +116,30 @@ export default function HomeFeedPage() {
         {/* Composer */}
         {canPost && <PostComposer onPosted={() => void load(true)} />}
 
+        {/* Errore di rete */}
+        {error && !loading && (
+          <div className="surface p-4 mb-4 text-center">
+            <p className="text-sm text-[rgb(var(--rose-500))] mb-2">{error}</p>
+            <Button variant="outline" size="sm" onClick={() => void load()}>
+              <RefreshCw size={14} /> Riprova
+            </Button>
+          </div>
+        )}
+
         {/* Feed */}
         {loading && (
-          <div className="text-center py-10 text-sm text-[rgb(var(--fg-muted))]">Caricamento...</div>
+          <div className="space-y-5">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="surface p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="skeleton h-10 w-10 rounded-full" />
+                  <div className="flex-1 space-y-2"><div className="skeleton h-3 w-1/3" /><div className="skeleton h-2 w-1/4" /></div>
+                </div>
+                <div className="skeleton h-3 w-full mb-2" />
+                <div className="skeleton h-40 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
         )}
 
         {!loading && posts.length === 0 && (
@@ -116,6 +166,14 @@ export default function HomeFeedPage() {
         <div className="space-y-5">
           {posts.map((p) => <PostCard key={p.id} post={p} onChanged={() => void load(true)} />)}
         </div>
+
+        {!loading && hasMore && (
+          <div className="text-center mt-6">
+            <Button variant="outline" size="sm" onClick={() => void loadMore()} disabled={loadingMore}>
+              {loadingMore ? 'Carico…' : 'Carica altri'}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

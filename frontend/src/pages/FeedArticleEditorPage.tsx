@@ -99,6 +99,7 @@ export default function FeedArticleEditorPage() {
     if (!user) return
     if (!article.title.trim()) { toast.error('Aggiungi un titolo'); return }
     if (!article.body_html || article.body_html.length < 20) { toast.error('Scrivi qualcosa nel corpo dell\'articolo'); return }
+    if (uploadingCover) { toast.error('Attendi il caricamento della copertina'); return }
     const setBusy = opts.publish ? setPublishing : setSaving
     setBusy(true)
     try {
@@ -118,6 +119,11 @@ export default function FeedArticleEditorPage() {
         media_urls:       [],
         tagged_supplier_ids: [],
       }
+      // Stato pubblicazione: Pubblica → PUBLISHED; nuova bozza → DRAFT (nascosta nel
+      // feed finché non pubblicata). In modifica, un semplice "Salva" preserva lo
+      // stato corrente (non ri-bozza un articolo già pubblicato).
+      if (opts.publish) payload.moderation_status = 'PUBLISHED'
+      else if (!article.id) payload.moderation_status = 'DRAFT'
 
       if (article.id) {
         const { error } = await sb.from('posts').update(payload).eq('id', article.id)
@@ -156,10 +162,10 @@ export default function FeedArticleEditorPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => save()} disabled={saving || publishing}>
-              <Save size={14} /> {saving ? 'Salvataggio…' : 'Salva'}
+            <Button variant="outline" onClick={() => save()} disabled={saving || publishing || uploadingCover}>
+              <Save size={14} /> {saving ? 'Salvataggio…' : 'Salva bozza'}
             </Button>
-            <Button variant="gold" onClick={() => save({ publish: true })} disabled={saving || publishing}>
+            <Button variant="gold" onClick={() => save({ publish: true })} disabled={saving || publishing || uploadingCover}>
               <Send size={14} /> {publishing ? 'Pubblicazione…' : 'Pubblica'}
             </Button>
           </div>
