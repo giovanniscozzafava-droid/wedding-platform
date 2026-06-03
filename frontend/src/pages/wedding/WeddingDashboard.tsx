@@ -82,7 +82,8 @@ export default function WeddingDashboard() {
   const [rateOpen, setRateOpen] = useState(false)
   const [ambitoSkipped, setAmbitoSkipped] = useState(false)
   const nuovoModello = useNuovoModello()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isFornitore = profile?.role === 'FORNITORE'
   const qc = useQueryClient()
 
   // REVISIONE C: ambito incarico (COMPLETO | SOLO_COORDINAMENTO | SOLO_PROPRI_SERVIZI).
@@ -170,7 +171,9 @@ export default function WeddingDashboard() {
                   {ambito === 'SOLO_PROPRI_SERVIZI' && 'Ambito: solo propri servizi'}
                 </span>
               )}
-              <BusinessModelToggle wedding={wedding} />
+              {/* "Tutto WP" è una scelta commerciale da capostipite/WP (contratto unico
+                  + sub-appalto fornitori). Un fornitore non la gestisce. */}
+              {!isFornitore && <BusinessModelToggle wedding={wedding} />}
               {wedding.value_amount && (
                 <span className="font-display text-2xl tabular-nums" style={{ color: 'rgb(var(--gold-700))' }}>
                   € {Number(wedding.value_amount).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
