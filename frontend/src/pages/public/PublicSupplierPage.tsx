@@ -26,6 +26,7 @@ type PublicProfile = {
   bio: string | null
   work_style: string | null
   service_radius_km: number | null
+  service_regions: string[] | null
   website: string | null
   instagram: string | null
   facebook: string | null
@@ -211,9 +212,11 @@ export default function PublicSupplierPage() {
                     <MapPin size={14} /> {data.city}{data.province && ` (${data.province})`}
                   </span>
                 )}
-                {data.service_radius_km && (
+                {data.service_regions && data.service_regions.length > 0 ? (
+                  <span>{data.service_regions.length >= 20 ? 'Tutta Italia' : `Zone: ${data.service_regions.join(', ')}`}</span>
+                ) : data.service_radius_km ? (
                   <span>Raggio servizio: {data.service_radius_km} km</span>
-                )}
+                ) : null}
                 {data.in_pancia_count > 0 && (
                   <span className="inline-flex items-center gap-1">
                     <Users size={14} /> In pancia a {data.in_pancia_count} {data.in_pancia_count === 1 ? 'capostipite' : 'capostipiti'}

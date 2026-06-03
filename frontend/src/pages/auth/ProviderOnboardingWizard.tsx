@@ -39,6 +39,7 @@ type ProviderForm = {
   tiktok: string
   bio: string
   service_radius_km: number | ''
+  service_regions: string[]
   years_active: number | ''
   modalita_incasso_default: ModalitaIncasso
   parcella_default: number | ''
@@ -61,6 +62,13 @@ const LEGAL_FORM_OPTIONS: Array<{ v: LegalForm; label: string; hint?: string }> 
 const STEPS_BASE = ['Identità', 'Professione', 'Azienda', 'Contatti', 'Immagine', 'Pronto'] as const
 const STEPS_WP_LOC = ['Identità', 'Professione', 'Azienda', 'Contatti', 'Modus operandi', 'Immagine', 'Pronto'] as const
 
+const ITALIAN_REGIONS = [
+  'Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna',
+  'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche',
+  'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana',
+  "Trentino-Alto Adige", 'Umbria', "Valle d'Aosta", 'Veneto',
+]
+
 export function ProviderOnboardingWizard() {
   const { user, profile, refreshProfile } = useAuth()
   const nav = useNavigate()
@@ -75,7 +83,7 @@ export function ProviderOnboardingWizard() {
     phone: '',
     vat_number: '', fiscal_code: '', address: '', city: '', zip: '', province: '', country: 'Italia',
     website: '', instagram: '', facebook: '', tiktok: '', bio: '',
-    service_radius_km: '', years_active: '',
+    service_radius_km: '', service_regions: [], years_active: '',
     modalita_incasso_default: '', parcella_default: '', applica_ricarico_default: true,
   })
   const [showPackPicker, setShowPackPicker] = useState(false)
@@ -151,6 +159,7 @@ export function ProviderOnboardingWizard() {
         tiktok: form.tiktok || null,
         bio: form.bio || null,
         service_radius_km: form.service_radius_km === '' ? null : form.service_radius_km,
+        service_regions: form.service_regions.length ? form.service_regions : null,
         years_active: form.years_active === '' ? null : form.years_active,
         ...(isWpOrLocation ? {
           modalita_incasso_default: form.modalita_incasso_default || null,
@@ -361,10 +370,35 @@ export function ProviderOnboardingWizard() {
                         <Input value={form.country} onChange={(e) => patch('country', e.target.value)} />
                       </Field>
                     </div>
-                    <Field label="Raggio di servizio (km)">
-                      <Input type="number" min={0} value={form.service_radius_km}
-                        onChange={(e) => patch('service_radius_km', e.target.value === '' ? '' : Number(e.target.value))}
-                        placeholder="Es. 200" />
+                    <Field label="In quale regione vorresti lavorare?">
+                      <div className="space-y-2">
+                        <button type="button"
+                          onClick={() => patch('service_regions',
+                            form.service_regions.length === ITALIAN_REGIONS.length ? [] : [...ITALIAN_REGIONS])}
+                          className={`text-xs rounded-full px-3 py-1.5 border transition-colors ${
+                            form.service_regions.length === ITALIAN_REGIONS.length
+                              ? 'bg-[rgb(var(--gold-500))] text-white border-[rgb(var(--gold-500))]'
+                              : 'border-[rgb(var(--border-strong))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                          🇮🇹 Tutta Italia
+                        </button>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ITALIAN_REGIONS.map((r) => {
+                            const active = form.service_regions.includes(r)
+                            return (
+                              <button key={r} type="button"
+                                onClick={() => patch('service_regions',
+                                  active ? form.service_regions.filter((x) => x !== r) : [...form.service_regions, r])}
+                                className={`text-xs rounded-full px-3 py-1.5 border transition-colors ${
+                                  active
+                                    ? 'bg-[rgb(var(--rose-100))] border-[rgb(var(--rose-500))]'
+                                    : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                                {r}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Scegli una o più regioni, oppure “Tutta Italia”.</p>
+                      </div>
                     </Field>
                   </>
                 )}
