@@ -10,6 +10,16 @@ import { useWedding, useUpdateWedding, useMood, useMoodMutations } from '@/hooks
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 import { Lock } from 'lucide-react'
 
+// Valore per <input type="datetime-local"> in ora LOCALE. Con toISOString() si
+// otterrebbe l'ora UTC → in Italia (+1/+2) la cerimonia "tornava indietro" di 1-2h.
+function toLocalInput(v: string | null | undefined): string {
+  if (!v) return ''
+  const d = new Date(v)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 type CeremonyType = 'RELIGIOUS' | 'CIVIL' | 'SYMBOLIC' | 'ELOPEMENT' | 'MIXED' | 'OTHER'
 type CeremonyStatus = 'TO_DEFINE' | 'EVALUATING' | 'REQUESTED' | 'BOOKED' | 'CANCELLED'
 
@@ -66,7 +76,7 @@ export function CeremonyTab({ entryId, readOnly = false }: { entryId: string; re
       ceremony_venue_name: w.ceremony_venue_name ?? '',
       ceremony_venue_address: w.ceremony_venue_address ?? '',
       ceremony_city: w.ceremony_city ?? '',
-      ceremony_date: w.ceremony_date ? new Date(w.ceremony_date).toISOString().slice(0, 16) : '',
+      ceremony_date: toLocalInput(w.ceremony_date),
       ceremony_contact_name:  w.ceremony_contact_name ?? '',
       ceremony_contact_phone: w.ceremony_contact_phone ?? '',
       ceremony_contact_email: w.ceremony_contact_email ?? '',
@@ -224,7 +234,7 @@ export function CeremonyTab({ entryId, readOnly = false }: { entryId: string; re
             <Input
               type="datetime-local"
               disabled={readOnly}
-              value={form.ceremony_date || (eventDateOfficial ? new Date(eventDateOfficial).toISOString().slice(0, 16) : '')}
+              value={form.ceremony_date || toLocalInput(eventDateOfficial)}
               onChange={(e) => setForm((f) => ({ ...f, ceremony_date: e.target.value }))}
             />
             {readOnly && (
