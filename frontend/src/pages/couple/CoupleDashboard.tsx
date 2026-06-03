@@ -15,7 +15,7 @@ import { useMyWeddings } from '@/hooks/useCouple'
 import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTimeline, useTransport, useMoodMutations, usePlaylistMutations, useWedding } from '@/hooks/useWedding'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { eventTerm } from '@/lib/eventKind'
@@ -78,8 +78,11 @@ export default function CoupleDashboard() {
   const { profile, user, signOut } = useAuth()
   const { theme, toggle } = useTheme()
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('overview')
+  // Tab iniziale leggibile da URL (?tab=preventivo) — es. atterraggio post-questionario.
+  const wantedTab = searchParams.get('tab') as Tab | null
+  const [tab, setTab] = useState<Tab>(wantedTab ?? 'overview')
 
   const list = weddings ?? []
   const wid = selectedId ?? list[0]?.entry?.id ?? null

@@ -205,7 +205,8 @@ export function CoupleOnboardingWizard() {
       }).eq('id', user.id)
       await refreshProfile()
       toast.success("Preferenze salvate — l'organizzatore le vedrà subito")
-      nav('/couple', { replace: true })
+      // Dopo il questionario il cliente deve vedere il PREVENTIVO, non la dashboard.
+      nav('/couple?tab=preventivo', { replace: true })
     } catch (e) {
       toast.error((e as Error).message)
     } finally { setBusy(false) }
