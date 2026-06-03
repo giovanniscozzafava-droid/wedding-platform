@@ -9,6 +9,27 @@ import { Label } from '@/components/ui/label'
 import { useTimeline, useTimelineMutations } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
 
+// Un evento può sforare la mezzanotte: orari prima delle 05:00 contano come
+// "giorno dopo" e vanno in CODA, non in testa. Senza questo, 00:30 (taglio torta)
+// finirebbe prima delle 09:00 (preparativi) e la scaletta si sballa.
+const ROLLOVER_HOUR = 5
+function chronoMinutes(t?: string | null): number | null {
+  if (!t) return null
+  const [hh, mm] = String(t).split(':')
+  const h = Number(hh), m = Number(mm)
+  if (Number.isNaN(h) || Number.isNaN(m)) return null
+  const mins = h * 60 + m
+  return h < ROLLOVER_HOUR ? mins + 24 * 60 : mins
+}
+/** Ordina cronologicamente (mezzanotte-aware). Le voci senza ora restano in coda per ord. */
+function sortByTime(list: any[]): any[] {
+  const timed = list.filter((it) => it.start_time)
+  const untimed = list.filter((it) => !it.start_time)
+  timed.sort((a, b) => (chronoMinutes(a.start_time) ?? 0) - (chronoMinutes(b.start_time) ?? 0))
+  untimed.sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0))
+  return [...timed, ...untimed]
+}
+
 export function TimelineTab({ entryId }: { entryId: string }) {
   const { data, isLoading } = useTimeline(entryId)
   const { add, update, remove } = useTimelineMutations(entryId)
@@ -19,9 +40,15 @@ export function TimelineTab({ entryId }: { entryId: string }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
   const [reordering, setReordering] = useState(false)
 
-  // Mantieni una copia locale ordinata per ord (così posso riordinare ottimisticamente)
+  // Copia locale sempre ordinata cronologicamente (mezzanotte-aware). Se l'ordine
+  // per ora diverge dall'ord salvato, lo riallineo da solo sul DB: così la scaletta
+  // si posiziona da sola fino in fondo, anche oltre la mezzanotte.
   useEffect(() => {
-    setItems(((data ?? []) as any[]).slice().sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0)))
+    const sorted = sortByTime(((data ?? []) as any[]).slice())
+    setItems(sorted)
+    const needsPersist = sorted.some((it, i) => (it.ord ?? 0) !== i + 1)
+    if (needsPersist && sorted.length > 0 && !reordering) void persistOrder(sorted)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
   async function handleAdd() {
@@ -58,6 +85,16 @@ export function TimelineTab({ entryId }: { entryId: string }) {
     }
   }
 
+  /** Cambia l'ora di una voce esistente → si riposiziona da sola in scaletta. */
+  async function changeTime(id: string, value: string) {
+    const next = sortByTime(items.map((it) => (it.id === id ? { ...it, start_time: value || null } : it)))
+    setItems(next) // ottimistico: salta subito nella posizione giusta
+    try {
+      await update.mutateAsync({ id, patch: { start_time: value || null } } as any)
+      await persistOrder(next)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
   function onDragStart(idx: number) {
     setDragIdx(idx)
   }
@@ -82,11 +119,8 @@ export function TimelineTab({ entryId }: { entryId: string }) {
   }
 
   async function sortChronological() {
-    // Ordina per start_time ASC; le righe senza ora vanno in coda mantenendo il loro ord relativo.
-    const withTime = items.filter((it) => it.start_time)
-    const withoutTime = items.filter((it) => !it.start_time)
-    withTime.sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))
-    const next = [...withTime, ...withoutTime]
+    // Mezzanotte-aware: gli orari dopo le 05:00 fanno fede, quelli notturni vanno in coda.
+    const next = sortByTime(items)
     setItems(next)
     await persistOrder(next)
     toast.success('Scaletta riordinata per ora')
@@ -119,7 +153,7 @@ export function TimelineTab({ entryId }: { entryId: string }) {
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="font-display text-2xl">Scaletta evento</h2>
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Trascina le card per riordinare, o ordina per ora con un click.</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Imposta l'ora di ogni voce: si riposiziona da sola in ordine cronologico, anche oltre la mezzanotte. Le voci senza ora le trascini a mano.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={sortChronological} disabled={reordering || items.length < 2}>
@@ -200,9 +234,16 @@ export function TimelineTab({ entryId }: { entryId: string }) {
                     <GripVertical size={14} />
                   </span>
                   <div className="sm:absolute sm:left-7 sm:top-1/2 sm:-translate-y-1/2 flex items-center gap-2 mb-2 sm:mb-0">
-                    <span className="font-display text-lg tabular-nums" style={{ color: s.is_critical ? 'rgb(var(--rose-500))' : 'rgb(var(--gold-700))' }}>
-                      {s.start_time?.slice(0, 5) ?? '—'}
-                    </span>
+                    <input
+                      type="time"
+                      value={s.start_time?.slice(0, 5) ?? ''}
+                      onChange={(e) => void changeTime(s.id, e.target.value)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      draggable={false}
+                      title="Imposta l'ora: la voce si riposiziona da sola"
+                      className="w-[5.5rem] bg-transparent border border-transparent hover:border-[rgb(var(--border))] focus:border-[rgb(var(--gold-500))] rounded-md px-1 py-0.5 font-display text-lg tabular-nums outline-none cursor-text"
+                      style={{ color: s.is_critical ? 'rgb(var(--rose-500))' : 'rgb(var(--gold-700))' }}
+                    />
                     <span className="sm:absolute sm:left-[4.75rem] sm:top-1/2 sm:-translate-y-1/2 inline-flex h-2.5 w-2.5 rounded-full hidden sm:inline-flex"
                       style={{ background: s.is_critical ? 'rgb(var(--rose-500))' : 'rgb(var(--gold-500))' }} />
                   </div>

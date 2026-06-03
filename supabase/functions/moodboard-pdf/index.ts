@@ -25,15 +25,33 @@ function hexToRgb(hex: string | null | undefined, fb: [number, number, number] =
 }
 
 async function fetchImage(url: string): Promise<{ data: Uint8Array; format: 'PNG' | 'JPEG' } | null> {
+  // Timeout duro: un URL pastato (Pinterest/Instagram/blog) che non risponde
+  // non deve bloccare l'intera export. Header UA/Accept: alcuni host danno 403 senza.
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 8000)
   try {
-    const r = await fetch(url)
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; PlanfullyBot/1.0; +https://planfully.it)',
+        'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*',
+      },
+    })
     if (!r.ok) return null
-    const ct = r.headers.get('content-type') ?? ''
+    const ct = (r.headers.get('content-type') ?? '').toLowerCase()
     const buf = new Uint8Array(await r.arrayBuffer())
+    if (buf.byteLength === 0) return null
     if (ct.includes('png')) return { data: buf, format: 'PNG' }
-    if (ct.includes('jpeg') || ct.includes('jpg') || ct.includes('webp')) return { data: buf, format: 'JPEG' }
+    if (ct.includes('jpeg') || ct.includes('jpg')) return { data: buf, format: 'JPEG' }
+    // jsPDF 2.x non supporta webp/avif/gif/svg: meglio saltare (placeholder) che
+    // passare byte non validi e rischiare di corrompere la pagina.
+    if (ct.includes('webp') || ct.includes('avif') || ct.includes('gif') || ct.includes('svg')) return null
+    // Content-type assente ma magic bytes JPEG/PNG: riconoscili comunque.
+    if (buf[0] === 0xFF && buf[1] === 0xD8) return { data: buf, format: 'JPEG' }
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return { data: buf, format: 'PNG' }
     return null
   } catch { return null }
+  finally { clearTimeout(timer) }
 }
 
 const safeText = (s: any) => String(s ?? '').trim()
@@ -113,6 +131,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
+  try {
   const body = (await req.json().catch(() => ({}))) as { entry_id?: string }
   if (!body.entry_id) return json({ error: 'entry_id required' }, 400)
 
@@ -523,4 +542,8 @@ Deno.serve(async (req) => {
   if (signed.error) return json({ error: 'signed url failed', detail: signed.error.message }, 500)
 
   return json({ ok: true, url: signed.data.signedUrl, count: images.length, chapters: sortedTags.length })
+  } catch (e) {
+    console.error('moodboard-pdf error', e)
+    return json({ error: 'pdf_failed', detail: String((e as Error)?.message ?? e) }, 500)
+  }
 })
