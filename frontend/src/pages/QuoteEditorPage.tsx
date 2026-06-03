@@ -417,6 +417,20 @@ export default function QuoteEditorPage() {
       await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { quantity: qty } })
     } catch (e) { toast.error((e as Error).message) }
   }
+  // Sconto sulla singola voce (% sul prezzo cliente; negativo = maggiorazione).
+  async function handleChangeItemDiscount(itemId: string, pct: number) {
+    if (!id) return
+    try {
+      await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { item_discount_percent: pct } as any })
+    } catch (e) { toast.error((e as Error).message) }
+  }
+  // Sconto sul TOTALE del preventivo (% e/o € fisso).
+  async function handleTotalDiscount(patch: { total_discount_percent?: number; total_discount_amount?: number }) {
+    if (!id) return
+    try {
+      await update.mutateAsync({ id, patch: patch as any })
+    } catch (e) { toast.error((e as Error).message) }
+  }
 
   async function handlePdf(variant: 'NEUTRA' | 'PREMIUM') {
     if (!id) return
@@ -727,6 +741,12 @@ export default function QuoteEditorPage() {
                           disabled={basis === 'PER_GUEST' || basis === 'PER_TABLE'}
                           className="h-8 w-24 text-xs" />
                         <span className="text-xs text-[rgb(var(--fg-subtle))]">{it.unit_snapshot.toLowerCase()}</span>
+                        <span className="text-xs text-[rgb(var(--fg-subtle))] ml-2">sconto</span>
+                        <Input type="number" step="1" value={Number((it as any).item_discount_percent ?? 0)}
+                          onChange={(e) => handleChangeItemDiscount(it.id, Number(e.target.value))}
+                          title="Sconto % su questa voce (negativo = maggiorazione)"
+                          className="h-8 w-16 text-xs" />
+                        <span className="text-xs text-[rgb(var(--fg-subtle))]">%</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         <Wallet size={12} className="text-[rgb(var(--fg-subtle))]" />
@@ -754,9 +774,26 @@ export default function QuoteEditorPage() {
                 })}
               </motion.ul>
             </div>
-            <div className="px-6 py-4 border-t bg-[rgb(var(--bg-sunken))]" style={{ borderColor: 'rgb(var(--border))' }}>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div className="px-6 py-4 border-t bg-[rgb(var(--bg-sunken))] space-y-3" style={{ borderColor: 'rgb(var(--border))' }}>
+              {/* Sconto sul totale: % e/o € fisso. Negativo = maggiorazione. */}
+              <div className="flex items-center gap-2 flex-wrap text-sm">
+                <span className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Sconto sul totale</span>
+                <Input type="number" step="1" defaultValue={Number((quote as any).total_discount_percent ?? 0)}
+                  onBlur={(e) => handleTotalDiscount({ total_discount_percent: Number(e.target.value) })}
+                  title="Sconto % sul totale (negativo = maggiorazione)"
+                  className="h-8 w-20 text-xs" />
+                <span className="text-xs text-[rgb(var(--fg-subtle))]">%</span>
+                <Input type="number" step="10" defaultValue={Number((quote as any).total_discount_amount ?? 0)}
+                  onBlur={(e) => handleTotalDiscount({ total_discount_amount: Number(e.target.value) })}
+                  title="Sconto fisso in € sul totale"
+                  className="h-8 w-24 text-xs" />
+                <span className="text-xs text-[rgb(var(--fg-subtle))]">€ fissi</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
                 <Totals label="Costo" value={quote.total_cost} />
+                {(quote as any).subtotal_client != null && Number((quote as any).subtotal_client) !== Number(quote.total_client) && (
+                  <Totals label="Subtotale" value={(quote as any).subtotal_client} />
+                )}
                 <Totals label="Cliente" value={quote.total_client} accent />
                 <Totals label="Margine" value={quote.margin_amount} />
                 <Totals label="Margine %" value={`${Number(quote.margin_percent).toFixed(2)}%`} raw />
