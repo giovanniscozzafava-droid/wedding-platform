@@ -14,6 +14,51 @@ function json(b: unknown, s = 200) {
   })
 }
 
+// ── Anti-SSRF ───────────────────────────────────────────────────────────────
+// La function fa fetch server-side di URL forniti dall'utente: senza guardia un
+// attaccante autenticato potrebbe colpire IP interni/metadata (169.254.169.254,
+// localhost, range privati). Risolviamo il DNS dell'host e rifiutiamo gli IP
+// non pubblici, sia sull'URL iniziale sia su quello finale dopo i redirect.
+function isPrivateIp(ip: string): boolean {
+  const s = ip.toLowerCase()
+  if (s === '::1' || s === '::' || s === '0.0.0.0') return true
+  if (s.startsWith('fe80:') || s.startsWith('fc') || s.startsWith('fd')) return true // link-local / ULA
+  // IPv4-mapped IPv6 ::ffff:a.b.c.d
+  const mapped = s.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+  const v4 = mapped ? mapped[1] : (/^\d+\.\d+\.\d+\.\d+$/.test(s) ? s : null)
+  if (v4) {
+    const p = v4.split('.').map(Number)
+    if (p[0] === 10) return true
+    if (p[0] === 127) return true
+    if (p[0] === 0) return true
+    if (p[0] === 169 && p[1] === 254) return true                 // link-local / cloud metadata
+    if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return true
+    if (p[0] === 192 && p[1] === 168) return true
+    if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return true    // CGNAT
+    if (p[0] >= 224) return true                                  // multicast / reserved
+  }
+  return false
+}
+async function assertPublicHost(urlStr: string): Promise<void> {
+  let h: string
+  try { h = new URL(urlStr).hostname } catch { throw new Error('invalid url') }
+  const bare = h.replace(/^\[|\]$/g, '')
+  if (bare === 'localhost' || bare.endsWith('.localhost') || bare.endsWith('.internal')) throw new Error('blocked host')
+  // Se è già un IP letterale, valida direttamente.
+  if (/^[\d.]+$/.test(bare) || bare.includes(':')) {
+    if (isPrivateIp(bare)) throw new Error('blocked private ip')
+    return
+  }
+  let addrs: string[] = []
+  try {
+    const v4 = await Deno.resolveDns(bare, 'A').catch(() => [] as string[])
+    const v6 = await Deno.resolveDns(bare, 'AAAA').catch(() => [] as string[])
+    addrs = [...v4, ...v6]
+  } catch { throw new Error('dns error') }
+  if (addrs.length === 0) throw new Error('dns no records')
+  for (const a of addrs) if (isPrivateIp(a)) throw new Error('blocked private ip')
+}
+
 function pickMeta(html: string, ...names: string[]) {
   for (const name of names) {
     // og:image, og:title, twitter:image, etc.
@@ -73,6 +118,9 @@ Deno.serve(async (req) => {
     { tag: 'twitter', ua: 'Twitterbot/1.0' },
     { tag: 'chrome', ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' },
   ]
+  // Guardia SSRF sull'URL iniziale (prima di qualsiasi fetch).
+  try { await assertPublicHost(finalUrl) } catch (e: any) { return json({ error: 'blocked_url', detail: String(e?.message ?? e) }, 400) }
+
   let lastErr = ''
   let ok = false
   for (const att of uaAttempts) {
@@ -90,6 +138,9 @@ Deno.serve(async (req) => {
       })
       clearTimeout(htmlTimeout)
       if (!r.ok) { lastErr = `${att.tag}:HTTP_${r.status}`; continue }
+      // Dopo i redirect, l'URL finale potrebbe puntare a un host interno: rivalida
+      // prima di leggere/restituire il body (anti-SSRF redirect).
+      try { await assertPublicHost(r.url) } catch { lastErr = `${att.tag}:blocked_redirect`; continue }
       finalUrl = r.url
       html = await r.text()
       ok = true
@@ -245,9 +296,11 @@ Deno.serve(async (req) => {
       const ac = new AbortController()
       const timeout = setTimeout(() => ac.abort(), 8000)
       try {
+        try { await assertPublicHost(att.url) } catch { imageFetchError = `${att.tag}:blocked_url`; continue }
         const ir = await fetch(att.url, { redirect: 'follow', signal: ac.signal, headers: att.headers })
         clearTimeout(timeout)
         if (!ir.ok) { imageFetchError = `${att.tag}:HTTP_${ir.status}`; continue }
+        try { await assertPublicHost(ir.url) } catch { imageFetchError = `${att.tag}:blocked_redirect`; continue }
         // Validazione content_type: deve essere image/*, no HTML (login wall).
         const ct = (ir.headers.get('content-type') ?? '').toLowerCase()
         if (!ct.startsWith('image/')) {
