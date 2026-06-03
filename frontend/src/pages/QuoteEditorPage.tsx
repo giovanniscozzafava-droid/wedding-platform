@@ -620,11 +620,6 @@ export default function QuoteEditorPage() {
           )}
         </Card>
 
-        {/* Brief di competenza fornitore→cliente (solo flusso fornitore, quote salvato) */}
-        {isFornitoreFlow && id && (
-          <ClientBriefEditor quoteId={id} subrole={profile?.subrole} />
-        )}
-
         {/* Suggerisci colleghi al cliente — solo dopo firma preventivo */}
         {id && (quote?.status === 'ACCETTATO' || quote?.status === 'CONVERTITO_IN_CONTRATTO') && (
           <SuggestColleaguesCard quoteId={id} />
@@ -912,6 +907,14 @@ export default function QuoteEditorPage() {
             </div>
           </Card>
         </div>
+
+        {/* Brief di competenza fornitore→cliente: SOTTO il preventivo, così in
+            cima il fornitore ha subito le voci e il catalogo. */}
+        {isFornitoreFlow && id && (
+          <div className="mt-6">
+            <ClientBriefEditor quoteId={id} subrole={profile?.subrole} />
+          </div>
+        )}
       </div>
     </div>
   )
