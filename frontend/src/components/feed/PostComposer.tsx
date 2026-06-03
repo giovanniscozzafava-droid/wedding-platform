@@ -112,7 +112,10 @@ export function PostComposer({ onPosted }: Props) {
           media_urls:          media,
           tagged_supplier_ids: tagged.map((t) => t.id),
           visibility,
-          link_url:            linkUrl,
+          // link_url e link_preview vanno SEMPRE insieme: PostCard mostra la card
+          // (con foto og:image) solo se entrambi presenti. Se l'anteprima non è
+          // pronta/valida, non salvo nemmeno il link_url.
+          link_url:            linkPreview && linkPreview.ok ? linkUrl : null,
           link_preview:        linkPreview && linkPreview.ok ? {
             url:         linkPreview.url,
             title:       linkPreview.title,
@@ -289,8 +292,8 @@ export function PostComposer({ onPosted }: Props) {
               <Button variant="ghost" size="sm" onClick={() => { setOpen(false); setBody(''); setMedia([]); setTagged([]) }}>
                 Annulla
               </Button>
-              <Button variant="gold" size="sm" disabled={posting || (!body.trim() && media.length === 0)} onClick={submit}>
-                <Send size={14} /> {posting ? 'Pubblico…' : 'Pubblica'}
+              <Button variant="gold" size="sm" disabled={posting || uploading || fetchingPreview || (!body.trim() && media.length === 0)} onClick={submit}>
+                <Send size={14} /> {posting ? 'Pubblico…' : uploading ? 'Caricamento foto…' : fetchingPreview ? 'Anteprima…' : 'Pubblica'}
               </Button>
             </div>
           </div>

@@ -232,7 +232,9 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
         <a href={post.link_url} target="_blank" rel="noopener noreferrer"
           className="block mx-4 mb-3 surface surface-elev overflow-hidden hover:surface-lift transition-all">
           {post.link_preview.image && (
-            <img src={post.link_preview.image} alt="" className="w-full aspect-[1.91/1] object-cover" />
+            <img src={post.link_preview.image} alt={post.link_preview.title ?? post.link_preview.site_name ?? 'Anteprima link'}
+              loading="lazy" className="w-full aspect-[1.91/1] object-cover"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
           )}
           <div className="p-3">
             {post.link_preview.site_name && (
@@ -249,8 +251,10 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
       {/* Media carousel — solo per post SHORT (l'articolo ha già la cover) */}
       {post.post_type !== 'ARTICLE' && post.media_urls.length > 0 && (
         <div className="relative bg-[rgb(var(--bg-sunken))]">
-          <img src={post.media_urls[carouselIdx]!} alt=""
-            className="w-full max-h-[600px] object-cover" />
+          <img src={post.media_urls[carouselIdx]!}
+            alt={`Foto di ${post.author_business ?? post.author_name ?? 'un professionista'}`}
+            loading="lazy" className="w-full max-h-[600px] object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.2' }} />
           {post.media_urls.length > 1 && (
             <>
               <div className="absolute inset-y-0 left-0 flex items-center">
