@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import { LifeBuoy, Send, CheckCircle2, Clock, Loader2, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
@@ -25,7 +26,8 @@ const REPARTO_LABEL: Record<string, string> = {
 }
 
 export default function AdminSupportPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isStaff = profile?.is_support_staff || profile?.role === 'ADMIN'
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [profs, setProfs] = useState<Record<string, Prof>>({})
   const [filter, setFilter] = useState<string>('APERTO')
@@ -99,6 +101,8 @@ export default function AdminSupportPage() {
     const p = profs[t.user_id]
     return p?.business_name ?? p?.full_name ?? 'Utente'
   }
+
+  if (profile && !isStaff) return <Navigate to="/" replace />
 
   return (
     <div className="min-h-full">

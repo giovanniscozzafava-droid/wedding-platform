@@ -43,6 +43,9 @@ Deno.serve(async (req) => {
   let subject: string
   let intro: string
   if (body.to_role === 'CUSTOMER') {
+    // Solo lo staff può scrivere al cliente.
+    const { data: cp } = await admin.from('profiles').select('role, is_support_staff').eq('id', caller.id).maybeSingle()
+    if (!(cp?.is_support_staff || cp?.role === 'ADMIN')) return json({ error: 'forbidden' }, 403)
     const { data: cu } = await admin.auth.admin.getUserById(t.user_id)
     to = cu?.user?.email ?? ''
     if (!to) return json({ error: 'no customer email' }, 400)

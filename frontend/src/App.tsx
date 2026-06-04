@@ -239,7 +239,7 @@ export default function App() {
           <Route path="/integrazione-sito" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><IntegrationsPage /></RequireAuth>} />
           <Route path="/faq" element={<RequireAuth><FaqPage /></RequireAuth>} />
           <Route path="/assistenza" element={<RequireAuth><SupportPage /></RequireAuth>} />
-          <Route path="/admin/assistenza" element={<RequireAuth roles={['ADMIN']}><AdminSupportPage /></RequireAuth>} />
+          <Route path="/admin/assistenza" element={<RequireAuth><AdminSupportPage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
           <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />
           <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />

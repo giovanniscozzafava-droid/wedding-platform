@@ -18,6 +18,7 @@ export type Profile = {
   default_markup_percent: number
   onboarding_complete: boolean
   onboarding_completato_il: string | null
+  is_support_staff?: boolean
 }
 
 type AuthContextValue = {
@@ -35,7 +36,7 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
     .select(
-      'id, role, subrole, full_name, business_name, phone, subscription_tier, brand_logo_url, brand_primary_color, brand_secondary_color, default_markup_percent, onboarding_complete, onboarding_completato_il',
+      'id, role, subrole, full_name, business_name, phone, subscription_tier, brand_logo_url, brand_primary_color, brand_secondary_color, default_markup_percent, onboarding_complete, onboarding_completato_il, is_support_staff',
     )
     .eq('id', userId)
     .maybeSingle()

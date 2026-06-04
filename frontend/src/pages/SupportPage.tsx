@@ -23,7 +23,7 @@ type Ticket = { id: string; reparto: string; subject: string; message: string; s
 
 export default function SupportPage() {
   const { user, profile } = useAuth()
-  const isAdmin = profile?.role === 'ADMIN'
+  const isAdmin = profile?.is_support_staff || profile?.role === 'ADMIN'
   const [reparto, setReparto] = useState('GENERALE')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
