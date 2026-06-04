@@ -32,10 +32,12 @@ export default function HomeFeedPage() {
   const canPost = !!profile?.role && ['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'FORNITORE', 'COUPLE'].includes(profile.role)
 
   const fetchPage = useCallback(async (offset: number) => {
-    const rpc = (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> }).rpc
+    // NB: chiamare .rpc come METODO (niente destrutturazione: perderebbe `this`
+    // del client supabase → "Cannot read properties of undefined (reading 'rest')").
+    const sb = supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> }
     const { data, error } = filter === 'DISCOVER'
-      ? await rpc('feed_discover_trending', { p_limit: PAGE, p_offset: offset })
-      : await rpc('feed_home', { p_limit: PAGE, p_offset: offset, p_filter: filter })
+      ? await sb.rpc('feed_discover_trending', { p_limit: PAGE, p_offset: offset })
+      : await sb.rpc('feed_home', { p_limit: PAGE, p_offset: offset, p_filter: filter })
     if (error) throw error
     return (data as FeedPost[]) ?? []
   }, [filter])
