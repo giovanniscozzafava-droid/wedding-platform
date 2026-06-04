@@ -35,6 +35,7 @@ import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { HelpModeToggle } from '@/components/help/HelpDot'
+import { ReportProblemWidget } from '@/components/ReportProblemWidget'
 import { BetaBanner } from '@/components/BetaBanner'
 import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
 import { useAuth } from '@/lib/auth'
@@ -332,6 +333,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <AppFooter />
         </main>
       </div>
+      <ReportProblemWidget />
     </div>
   )
 }

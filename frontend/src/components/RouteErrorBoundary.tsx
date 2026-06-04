@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { reportError } from '@/lib/errorReporting'
 
 type Props = { children: ReactNode }
 type State = { hasError: boolean; isChunkError: boolean }
@@ -21,6 +22,8 @@ export class RouteErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(err: unknown) {
+    // Segnala al monitoraggio (escludi i chunk-error da deploy, sono rumore).
+    if (!looksLikeChunkError(err)) void reportError(err, 'REACT')
     if (looksLikeChunkError(err)) {
       let already = false
       try { already = sessionStorage.getItem(RELOAD_KEY) === '1' } catch { /* no-op */ }

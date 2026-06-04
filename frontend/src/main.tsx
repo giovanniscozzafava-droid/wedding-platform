@@ -5,7 +5,11 @@ import { HelmetProvider } from 'react-helmet-async'
 import { Toaster } from 'sonner'
 import App from './App.tsx'
 import { ThemeProvider } from './lib/theme.tsx'
+import { installErrorReporting } from './lib/errorReporting'
 import './index.css'
+
+// Monitoraggio errori client (errori JS + promise non gestite) → pannello admin.
+installErrorReporting()
 
 // Backstop: se un import dinamico (chunk) fallisce dopo un deploy, Vite emette
 // 'vite:preloadError' → ricarica la pagina una sola volta per prendere i nuovi
