@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useCreateQuote, useDeleteQuote, useQuotes } from '@/hooks/useQuotes'
+import { HelpDot } from '@/components/help/HelpDot'
 
 type BusyCheck = {
   busy: boolean
@@ -98,9 +99,12 @@ export default function QuotesPage() {
           title="Le tue offerte"
           description="Crea, invia e monitora i preventivi. Stato e margine aggiornati in tempo reale."
           actions={
-            <Button variant="gold" onClick={() => setOpenNew(true)} data-testid="new-quote-btn">
-              <Plus /> Nuovo preventivo
-            </Button>
+            <span className="inline-flex items-center gap-1.5">
+              <Button variant="gold" onClick={() => setOpenNew(true)} data-testid="new-quote-btn">
+                <Plus /> Nuovo preventivo
+              </Button>
+              <HelpDot id="quotes.nuovo" />
+            </span>
           }
         />
 
@@ -141,7 +145,10 @@ export default function QuotesPage() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      <Badge status={q.status} />
+                      <span className="inline-flex items-center gap-1">
+                        {idx === 0 && <HelpDot id="quotes.stato" />}
+                        <Badge status={q.status} />
+                      </span>
                       {activity[q.id] && (() => {
                         const a = activity[q.id]!; const s = STAGE[a.stage] ?? STAGE.INVIATO!
                         return (
@@ -161,7 +168,7 @@ export default function QuotesPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Margine</p>
+                      <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] inline-flex items-center gap-1">Margine {idx === 0 && <HelpDot id="quotes.margine" />}</p>
                       <p className="font-display text-lg tabular-nums">
                         € {Number(q.margin_amount).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
                       </p>

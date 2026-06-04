@@ -31,6 +31,20 @@ export const HELP_CONTENT: Record<string, HelpEntry> = {
     body: 'Consiglia al cliente fornitori che segui. Se il cliente firma con uno di loro, ricevi 39€ di credito. Compaiono qui solo i colleghi che segui dalle loro vetrine.',
   },
 
+  // ── Lista preventivi ─────────────────────────────────────────────────────
+  'quotes.nuovo': {
+    title: 'Nuovo preventivo',
+    body: 'Crea una nuova offerta per un cliente. Aggiungi voci dal catalogo o servizi tuoi, applica sconti, poi invialo via email o genera il PDF.',
+  },
+  'quotes.stato': {
+    title: 'Stato del preventivo',
+    body: 'Dove sta l\'offerta: Bozza (la stai preparando) → Inviato → Accettato dal cliente → Convertito in contratto. Vedi anche se il cliente l\'ha aperto.',
+  },
+  'quotes.margine': {
+    title: 'Margine',
+    body: 'Il tuo guadagno: differenza tra quanto paga il cliente e i costi (servizi di terzi). Per i tuoi servizi senza ricarico il margine è 0, è normale.',
+  },
+
   // ── Agenda / Calendario ──────────────────────────────────────────────────
   'calendar.disponibilita': {
     title: 'Blocca la data',
