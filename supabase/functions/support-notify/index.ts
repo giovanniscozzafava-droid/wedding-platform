@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     .select('id, user_id, subject, reparto').eq('id', body.ticket_id).maybeSingle()
   if (!t) return json({ error: 'ticket not found' }, 404)
 
-  let to: string
+  let to: string | string[]
   let replyTo: string | undefined
   let subject: string
   let intro: string
@@ -55,7 +55,13 @@ Deno.serve(async (req) => {
   } else {
     // Cliente → staff: solo il proprietario del ticket può notificare lo staff.
     if (t.user_id !== caller.id) return json({ error: 'forbidden' }, 403)
-    to = STAFF_EMAIL
+    const set = new Set<string>([STAFF_EMAIL])
+    const { data: staff } = await admin.from('profiles').select('id').eq('is_support_staff', true)
+    for (const s of (staff ?? [])) {
+      const { data: su } = await admin.auth.admin.getUserById(s.id)
+      if (su?.user?.email) set.add(su.user.email)
+    }
+    to = Array.from(set)
     replyTo = caller.email ?? undefined
     subject = `Nuova risposta del cliente · ${t.subject}`
     intro = `${esc(caller.email ?? 'Il cliente')} ha aggiunto un messaggio:`

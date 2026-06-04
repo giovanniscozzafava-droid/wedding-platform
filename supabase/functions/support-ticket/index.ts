@@ -15,6 +15,17 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json', ...cors } })
+
+// Destinatari staff: tutti i profili is_support_staff + la casella generale.
+async function staffRecipients(admin: any): Promise<string[]> {
+  const set = new Set<string>([STAFF_EMAIL])
+  const { data: staff } = await admin.from('profiles').select('id').eq('is_support_staff', true)
+  for (const s of (staff ?? [])) {
+    const { data: u } = await admin.auth.admin.getUserById(s.id)
+    if (u?.user?.email) set.add(u.user.email)
+  }
+  return Array.from(set)
+}
 const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 const REPARTO_LABEL: Record<string, string> = {
@@ -63,7 +74,7 @@ Deno.serve(async (req) => {
   </body></html>`
 
   const r = await sendEmail({
-    to: STAFF_EMAIL,
+    to: await staffRecipients(admin),
     subject: `[Assistenza · ${repartoLabel}] ${subject}`,
     html,
     text: htmlToText(html),
