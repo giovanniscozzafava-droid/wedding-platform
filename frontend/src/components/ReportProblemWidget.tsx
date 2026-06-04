@@ -35,6 +35,10 @@ export function ReportProblemWidget() {
       const { error } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ error: Error | null }> })
         .rpc('log_bug_report', { p_message: msg.trim(), p_url: location.pathname + location.search, p_context: context, p_severity: sev })
       if (error) throw error
+      // Problemi gravi: avvisa subito lo staff via email (non deve controllare il pannello).
+      if (sev === 'ALTA' || sev === 'BLOCCANTE') {
+        await supabase.functions.invoke('bug-notify', { body: { message: msg.trim(), url: location.pathname + location.search, severity: sev } }).catch(() => {})
+      }
       toast.success('Segnalazione inviata. Grazie! La guardiamo subito.')
       setMsg(''); setSev('NORMALE'); setOpen(false)
     } catch (e) { toast.error((e as Error).message) }
