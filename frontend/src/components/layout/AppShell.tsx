@@ -158,11 +158,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isFornitore = profile?.role === 'FORNITORE'
-  const NAV_GROUPS = isCapostipite
+  const isStaff = (profile as any)?.is_support_staff || profile?.role === 'ADMIN'
+  const baseGroups = isCapostipite
     ? NAV_CAPOSTIPITE_GROUPS
     : isFornitore
     ? NAV_FORNITORE_GROUPS
     : NAV_FALLBACK_GROUPS
+  // Gruppo riservato a staff/admin (gestione piattaforma + ticket).
+  const NAV_GROUPS: NavGroup[] = isStaff
+    ? [...baseGroups, { section: 'Staff', items: [
+        { to: '/admin', label: 'Pannello Admin', icon: LifeBuoy },
+        { to: '/admin/assistenza', label: 'Ticket assistenza', icon: LifeBuoy },
+      ] }]
+    : baseGroups
 
   const initials =
     (profile?.full_name ?? user?.email ?? '?')
