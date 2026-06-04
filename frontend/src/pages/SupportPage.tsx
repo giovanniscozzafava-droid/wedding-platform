@@ -44,10 +44,15 @@ export default function SupportPage() {
     if (!user) { toast.error('Devi essere connesso'); return }
     setSending(true)
     try {
-      const { error } = await (supabase.from as any)('support_tickets')
-        .insert({ user_id: user.id, reparto, subject: subject.trim(), message: message.trim() })
+      // La function salva il ticket E avvisa lo staff via email (con reply-to).
+      const { data, error } = await supabase.functions.invoke('support-ticket', {
+        body: { reparto, subject: subject.trim(), message: message.trim() },
+      })
       if (error) throw error
-      toast.success('Richiesta inviata! Ti rispondiamo via email il prima possibile.')
+      const emailed = (data as any)?.emailed !== false
+      toast.success(emailed
+        ? 'Richiesta inviata! È arrivata al nostro staff, ti rispondiamo via email.'
+        : 'Richiesta registrata. Ti ricontattiamo via email a breve.')
       setSubject(''); setMessage(''); setReparto('GENERALE')
       void loadTickets()
     } catch (err) {
