@@ -70,6 +70,7 @@ const CompositionCalculatorPage = lazyWithRetry(() => import('@/pages/Compositio
 const SupplierClientsPage = lazyWithRetry(() => import('@/pages/SupplierClientsPage'))
 const SupplierCapostipitiPage = lazyWithRetry(() => import('@/pages/SupplierCapostipitiPage'))
 const FaqPage = lazyWithRetry(() => import('@/pages/FaqPage'))
+const SupportPage = lazyWithRetry(() => import('@/pages/SupportPage'))
 
 function RouteFallback() {
   return (
@@ -236,6 +237,7 @@ export default function App() {
           <Route path="/lavori-da-confermare" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierPendingPage /></RequireAuth>} />
           <Route path="/integrazione-sito" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><IntegrationsPage /></RequireAuth>} />
           <Route path="/faq" element={<RequireAuth><FaqPage /></RequireAuth>} />
+          <Route path="/assistenza" element={<RequireAuth><SupportPage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
           <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />
           <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />

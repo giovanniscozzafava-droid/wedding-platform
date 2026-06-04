@@ -294,22 +294,13 @@ export default function ProfilePage() {
             </form>
           </Card>
 
-          {/* Tutorial — solo fornitori */}
+          {/* Aiuto contestuale — sostituisce il vecchio tutorial a card */}
           {profile?.role === 'FORNITORE' && (
             <Card className="p-6 mt-6">
-              <h3 className="font-display text-lg mb-1">Tutorial di benvenuto</h3>
-              <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">
-                Le card che ti guidano nei primi passi su Planfully. Se le hai chiuse e vuoi rivederle, riattivale qui.
+              <h3 className="font-display text-lg mb-1">Hai bisogno di una mano?</h3>
+              <p className="text-sm text-[rgb(var(--fg-muted))]">
+                Attiva la <strong>modalità Aiuto</strong> dal pulsante <em>“? Aiuto”</em> in alto: ogni elemento mostra un pallino che spiega a cosa serve e come usarlo. Per assistenza diretta vai nella sezione <strong>Assistenza</strong>.
               </p>
-              <Button variant="outline" size="sm" onClick={async () => {
-                if (!user) return
-                await supabase.from('profiles').update({
-                  tutorial_state: { dismissed: false, completed_steps: [], first_offer_created: false, started_at: new Date().toISOString() }
-                }).eq('id', user.id)
-                location.reload()
-              }}>
-                Riattiva tutorial
-              </Button>
             </Card>
           )}
 

@@ -21,6 +21,7 @@ import {
   FileSignature,
   Contact,
   HelpCircle,
+  LifeBuoy,
   Sparkles,
   PenSquare,
   Newspaper,
@@ -36,7 +37,6 @@ import { NotificationBell } from '@/components/layout/NotificationBell'
 import { HelpModeToggle } from '@/components/help/HelpDot'
 import { BetaBanner } from '@/components/BetaBanner'
 import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
-import { SupplierTutorialCards } from '@/components/SupplierTutorialCards'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -84,6 +84,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/settings/brand',   label: 'Brand',            icon: Palette },
     { to: '/integrazione-sito', label: 'Integrazione sito', icon: Code2 },
     { to: '/profile',          label: 'Profilo',          icon: UserRound },
+    { to: '/assistenza',       label: 'Assistenza',       icon: LifeBuoy },
     { to: '/faq',              label: 'FAQ',              icon: HelpCircle },
   ]},
   { section: 'Prodotti (presto)', items: [
@@ -126,6 +127,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/settings/brand',   label: 'Brand',            icon: Palette },
     { to: '/integrazione-sito', label: 'Integrazione sito', icon: Code2 },
     { to: '/profile',          label: 'Profilo',          icon: UserRound },
+    { to: '/assistenza',       label: 'Assistenza',       icon: LifeBuoy },
     { to: '/faq',              label: 'FAQ',              icon: HelpCircle },
   ]},
 ]
@@ -139,6 +141,7 @@ const NAV_FALLBACK_GROUPS: NavGroup[] = [
   ]},
   { section: 'Impostazioni', items: [
     { to: '/profile', label: 'Profilo', icon: UserRound },
+    { to: '/assistenza', label: 'Assistenza', icon: LifeBuoy },
     { to: '/faq',     label: 'FAQ',     icon: HelpCircle },
   ]},
 ]
@@ -321,7 +324,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <AppFooter />
         </main>
       </div>
-      <SupplierTutorialCards />
     </div>
   )
 }
