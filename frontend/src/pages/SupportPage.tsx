@@ -19,24 +19,53 @@ const REPARTI = [
   { v: 'SUGGERIMENTO', l: 'Suggerimento / idea' },
 ]
 
-type Ticket = { id: string; reparto: string; subject: string; status: string; created_at: string }
+type Ticket = { id: string; reparto: string; subject: string; message: string; status: string; created_at: string }
 
 export default function SupportPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isAdmin = profile?.role === 'ADMIN'
   const [reparto, setReparto] = useState('GENERALE')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [tickets, setTickets] = useState<Ticket[]>([])
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [msgs, setMsgs] = useState<{ id: string; is_staff: boolean; body: string; created_at: string }[]>([])
+  const [reply, setReply] = useState('')
+  const [replying, setReplying] = useState(false)
 
   async function loadTickets() {
     if (!user) return
     const { data } = await (supabase.from as any)('support_tickets')
-      .select('id, reparto, subject, status, created_at')
+      .select('id, reparto, subject, message, status, created_at')
       .order('created_at', { ascending: false }).limit(10)
     setTickets((data ?? []) as Ticket[])
   }
   useEffect(() => { void loadTickets() }, [user])
+
+  async function openTicket(t: Ticket) {
+    if (openId === t.id) { setOpenId(null); return }
+    setOpenId(t.id); setMsgs([]); setReply('')
+    const { data } = await (supabase.from as any)('support_ticket_messages')
+      .select('id, is_staff, body, created_at').eq('ticket_id', t.id).order('created_at', { ascending: true })
+    setMsgs((data ?? []) as any)
+  }
+
+  async function sendReply(t: Ticket) {
+    if (!reply.trim() || !user) return
+    setReplying(true)
+    try {
+      const { error } = await (supabase.from as any)('support_ticket_messages')
+        .insert({ ticket_id: t.id, author_id: user.id, body: reply.trim() })
+      if (error) throw error
+      await supabase.functions.invoke('support-notify', { body: { ticket_id: t.id, body: reply.trim(), to_role: 'STAFF' } }).catch(() => {})
+      toast.success('Messaggio inviato')
+      setReply('')
+      await openTicket(t); await openTicket(t) // ricarica thread
+      void loadTickets()
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setReplying(false) }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -67,6 +96,9 @@ export default function SupportPage() {
           eyebrow="Centro assistenza"
           title="Siamo qui per te"
           description="Una domanda, un dubbio, un'idea? Scrivici: nessuna richiesta è troppo piccola. Ti rispondiamo con calma e in italiano."
+          actions={isAdmin && (
+            <Link to="/admin/assistenza"><Button variant="outline" size="sm"><LifeBuoy size={14} /> Gestione staff</Button></Link>
+          )}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -134,16 +166,42 @@ export default function SupportPage() {
                 <ul className="space-y-2">
                   {tickets.map((t) => (
                     <li key={t.id} className="text-sm border-b pb-2 last:border-0" style={{ borderColor: 'rgb(var(--border))' }}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium truncate">{t.subject}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0"
-                          style={{ background: t.status === 'CHIUSO' ? 'rgb(var(--sage-100))' : 'rgb(var(--gold-100))', color: 'rgb(var(--fg-muted))' }}>
-                          {t.status === 'APERTO' ? 'In attesa' : t.status === 'IN_LAVORAZIONE' ? 'In lavorazione' : 'Chiuso'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[rgb(var(--fg-subtle))] flex items-center gap-1 mt-0.5">
-                        <Clock size={10} /> {new Date(t.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <button onClick={() => void openTicket(t)} className="w-full text-left">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium truncate">{t.subject}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0"
+                            style={{ background: t.status === 'CHIUSO' ? 'rgb(var(--sage-100))' : 'rgb(var(--gold-100))', color: 'rgb(var(--fg-muted))' }}>
+                            {t.status === 'APERTO' ? 'In attesa' : t.status === 'IN_LAVORAZIONE' ? 'In lavorazione' : 'Chiuso'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[rgb(var(--fg-subtle))] flex items-center gap-1 mt-0.5">
+                          <Clock size={10} /> {new Date(t.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {openId === t.id ? ' · chiudi' : ' · apri conversazione'}
+                        </p>
+                      </button>
+                      {openId === t.id && (
+                        <div className="mt-2 space-y-2">
+                          <div className="rounded-lg p-2.5 text-xs" style={{ background: 'rgb(var(--bg-elev))', border: '1px solid rgb(var(--border))' }}>
+                            <p className="text-[9px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-0.5">Tu</p>
+                            <p className="whitespace-pre-wrap">{t.message}</p>
+                          </div>
+                          {msgs.map((m) => (
+                            <div key={m.id} className="rounded-lg p-2.5 text-xs"
+                              style={{ background: m.is_staff ? 'rgb(var(--gold-100))' : 'rgb(var(--bg-elev))', border: '1px solid rgb(var(--border))' }}>
+                              <p className="text-[9px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-0.5">{m.is_staff ? 'Staff Planfully' : 'Tu'}</p>
+                              <p className="whitespace-pre-wrap">{m.body}</p>
+                            </div>
+                          ))}
+                          {t.status !== 'CHIUSO' && (
+                            <div className="flex gap-2">
+                              <Input value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Scrivi una risposta…" />
+                              <Button size="sm" variant="gold" onClick={() => void sendReply(t)} disabled={replying || !reply.trim()}>
+                                <Send size={13} />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
