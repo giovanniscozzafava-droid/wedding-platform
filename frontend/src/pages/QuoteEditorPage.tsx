@@ -193,6 +193,19 @@ export default function QuoteEditorPage() {
       if (error) throw error
       if (!data) { toast.error('Operazione non riuscita (permessi).'); return }
       await qc.invalidateQueries({ queryKey: ['quote', id] })
+
+      // Alla chiusura: se le voci accettate divergono dal contratto firmato,
+      // genera un addendum e invialo al cliente da firmare.
+      if (close) {
+        try {
+          const { data: add } = await (supabase.rpc as any)('addendum_create_if_changed', { p_quote_id: id })
+          if (add?.created && add?.addendum_id) {
+            await supabase.functions.invoke('addendum-send', { body: { addendum_id: add.addendum_id } })
+            toast.success('Preventivo chiuso · addendum generato e inviato al cliente per la firma')
+            return
+          }
+        } catch { /* la chiusura è comunque andata a buon fine */ }
+      }
       toast.success(close ? 'Preventivo chiuso' : 'Preventivo riaperto')
     } catch (e) {
       toast.error((e as Error).message)
@@ -678,8 +691,9 @@ export default function QuoteEditorPage() {
           )}
         </Card>
 
-        {/* Suggerisci colleghi al cliente — solo dopo firma preventivo */}
-        {id && (quote?.status === 'ACCETTATO' || quote?.status === 'CONVERTITO_IN_CONTRATTO') && (
+        {/* Suggerisci colleghi al cliente — SOLO fornitori (non capostipiti/WP),
+            e solo dopo la firma del preventivo */}
+        {id && isFornitoreFlow && (quote?.status === 'ACCETTATO' || quote?.status === 'CONVERTITO_IN_CONTRATTO') && (
           <SuggestColleaguesCard quoteId={id} />
         )}
 

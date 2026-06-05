@@ -34,6 +34,7 @@ const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreview
 const QuoteAcceptPage = lazyWithRetry(() => import('@/pages/public/QuoteAcceptPage'))
 const QuoteRejectPage = lazyWithRetry(() => import('@/pages/public/QuoteRejectPage'))
 const ContractSignPage = lazyWithRetry(() => import('@/pages/public/ContractSignPage'))
+const AddendumSignPage = lazyWithRetry(() => import('@/pages/public/AddendumSignPage'))
 const WeddingSitePage = lazyWithRetry(() => import('@/pages/public/WeddingSitePage'))
 const WeddingsPage = lazyWithRetry(() => import('@/pages/WeddingsPage'))
 const WeddingDashboard = lazyWithRetry(() => import('@/pages/wedding/WeddingDashboard'))
@@ -202,6 +203,7 @@ export default function App() {
           <Route path="/p/accept/:token" element={<QuoteAcceptPage />} />
           <Route path="/p/reject/:token" element={<QuoteRejectPage />} />
           <Route path="/p/contract/:token" element={<ContractSignPage />} />
+          <Route path="/p/addendum/:token" element={<AddendumSignPage />} />
           <Route path="/w/:slug" element={<WeddingSitePage />} />
           <Route path="/couple/accept/:token" element={
             <RequireAuth bare><CoupleAcceptPage /></RequireAuth>
