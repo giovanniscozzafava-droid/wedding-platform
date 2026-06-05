@@ -173,6 +173,16 @@ Deno.serve(async (req) => {
     const primaryColor = isPremium && owner?.brand_primary_color ? owner.brand_primary_color : '#1A2E4F'
     const accentColor = isPremium && owner?.brand_secondary_color ? owner.brand_secondary_color : '#C49A5C'
     const logoUrl = isPremium && owner?.brand_logo_url ? owner.brand_logo_url : 'https://planfully.it/brand/planfully-symbol.png'
+    // Contrasto bottone CTA: se il brand color è troppo chiaro il pulsante diventa
+    // bianco-su-bianco (illeggibile). In quel caso usa un fondo scuro sicuro.
+    const luminance = (hex: string): number => {
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+      if (!m) return 0
+      const n = parseInt(m[1], 16)
+      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    }
+    const ctaBg = luminance(primaryColor) > 0.62 ? '#1A2E4F' : primaryColor
 
     const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(q.total_client))
     const eventDateFmt = q.event_date ? new Date(q.event_date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : null
@@ -347,7 +357,7 @@ Deno.serve(async (req) => {
 
       <!-- CTA -->
       <tr><td style="padding:32px 40px;text-align:center">
-        <a href="${link}" style="display:inline-block;background:${primaryColor};color:#FDFBF6;padding:16px 40px;border-radius:50px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px;letter-spacing:1.5px;text-transform:uppercase">${isNewCouple ? 'Crea il tuo account · vedi il preventivo' : 'Apri il preventivo'}</a>
+        <a href="${link}" style="display:inline-block;background:${ctaBg};color:#FFFFFF;padding:16px 40px;border-radius:50px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px;letter-spacing:1.5px;text-transform:uppercase">${isNewCouple ? 'Crea il tuo account · vedi il preventivo' : 'Apri il preventivo'}</a>
         <div style="margin-top:16px;font-family:Arial,sans-serif;font-size:11px;color:#A59C8E">${isNewCouple ? 'Crea un account in 30 secondi → troverai il preventivo nella tua area personale, potrai accettarlo con firma sicura' : 'Potrai accettarlo digitalmente con firma sicura'}</div>
       </td></tr>
 

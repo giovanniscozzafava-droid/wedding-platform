@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Sparkles, Users, Table, Clock, Package, Wallet, Calendar } from 'lucide-react'
@@ -77,6 +78,8 @@ export default function QuoteEditorPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const { data: quote, isLoading } = useQuote(id ?? null)
+  const qc = useQueryClient()
+  const [closingQuote, setClosingQuote] = useState(false)
   // Flusso fornitore (sia direct quote sia owner ruolo FORNITORE): nasconde
   // campi WP-only (tavoli, invitati, markup, suggerimenti basis, dropdown
   // selezione fornitore).
@@ -117,7 +120,12 @@ export default function QuoteEditorPage() {
     supplier_items: number; confirmed_supplier_items: number
   } | null>(null)
 
-  const isLocked = (quote?.status === 'ACCETTATO') && !forceUnlocked
+  // Preventivo VIVO: dopo l'accettazione il preventivo resta editabile (il WP
+  // aggiunge voci che il cliente vede e decide live). Si blocca SOLO quando il
+  // WP lo chiude (closed_at). "Modifica forzata" resta per i preventivi chiusi.
+  const isClosed = !!(quote as { closed_at?: string | null } | null)?.closed_at
+  const isLive = (quote?.status === 'ACCETTATO' || quote?.status === 'CONVERTITO_IN_CONTRATTO') && !isClosed
+  const isLocked = isClosed && !forceUnlocked
   // SOLO_PROPRI_SERVIZI vale solo se l'utente puo' effettivamente erogare
   // (WP/LOCATION). Per il flusso fornitore (direct quote o role=FORNITORE)
   // resta il comportamento standard.
@@ -175,6 +183,21 @@ export default function QuoteEditorPage() {
       if (data && !data.error) setBudgetReadiness(data)
     })()
   }, [id, quote?.status, quote?.quote_items?.length, isFornitoreFlow])
+
+  async function handleCloseQuote(close: boolean) {
+    if (!id) return
+    if (close && !confirm('Chiudere il preventivo? Il cliente non potrà più accettare/rifiutare voci. Potrai riaprirlo quando vuoi.')) return
+    setClosingQuote(true)
+    try {
+      const { data, error } = await (supabase.rpc as any)(close ? 'quote_close' : 'quote_reopen', { p_quote_id: id })
+      if (error) throw error
+      if (!data) { toast.error('Operazione non riuscita (permessi).'); return }
+      await qc.invalidateQueries({ queryKey: ['quote', id] })
+      toast.success(close ? 'Preventivo chiuso' : 'Preventivo riaperto')
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally { setClosingQuote(false) }
+  }
 
   async function handleCreateContract() {
     if (!quote || !id) return
@@ -538,13 +561,17 @@ export default function QuoteEditorPage() {
           <Card className="p-4 mb-4 border-l-4" style={{ borderLeftColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">🔒 Preventivo {quote.status === 'CONVERTITO_IN_CONTRATTO' ? 'convertito in contratto' : 'accettato dal cliente'} · rev. v{quote.revision}</p>
+                <p className="font-medium text-sm">
+                  {isClosed
+                    ? `🔒 Preventivo chiuso · rev. v${quote.revision}`
+                    : `✨ Preventivo vivo — ${quote.status === 'CONVERTITO_IN_CONTRATTO' ? 'convertito in contratto' : 'accettato dal cliente'} · rev. v${quote.revision}`}
+                </p>
                 <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
-                  {contractInfo
-                    ? `Contratto collegato (stato ${contractInfo.status}). Apri Contratti per gestirlo.`
-                    : forceUnlocked
-                      ? 'Stai modificando un preventivo firmato. Salva con "Applica" — verrà inviata una notifica al cliente con il motivo della modifica.'
-                      : 'I campi sono in sola lettura. Per modificarli devi giustificare il motivo e notificare il cliente via email.'}
+                  {isClosed
+                    ? (forceUnlocked
+                        ? 'Preventivo chiuso, modifica forzata attiva. Salva con "Applica".'
+                        : 'Preventivo chiuso: campi in sola lettura. Riaprilo per modificarlo, oppure usa la modifica forzata.')
+                    : 'Aggiungi pure altre voci, anche di altri fornitori: il cliente le vede live nella sua area e accetta o rifiuta la singola voce. Quando avete definito tutto, premi "Chiudi preventivo".'}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -572,7 +599,17 @@ export default function QuoteEditorPage() {
                     <FileSignature size={14} /> Apri contratto
                   </Button>
                 )}
-                {!forceUnlocked && !contractInfo && (
+                {!isClosed && (
+                  <Button variant="outline" size="sm" disabled={closingQuote} onClick={() => void handleCloseQuote(true)} data-testid="close-quote-btn">
+                    {closingQuote ? '…' : 'Chiudi preventivo'}
+                  </Button>
+                )}
+                {isClosed && (
+                  <Button variant="gold" size="sm" disabled={closingQuote} onClick={() => void handleCloseQuote(false)} data-testid="reopen-quote-btn">
+                    {closingQuote ? '…' : 'Riapri preventivo'}
+                  </Button>
+                )}
+                {isClosed && !forceUnlocked && !contractInfo && (
                   <Button variant="outline" size="sm" onClick={() => setForceModal({ open: true, reason: '' })}>
                     Modifica forzata
                   </Button>
@@ -727,6 +764,19 @@ export default function QuoteEditorPage() {
                                 ⭐ Mio servizio
                               </span>
                             )}
+                            {(isLive || isClosed) && (() => {
+                              const dec = (it as any).client_decision as string | undefined
+                              const map: Record<string, { l: string; c: string }> = {
+                                ACCETTATO: { l: '✓ Accettata dal cliente', c: '#16a34a' },
+                                RIFIUTATO: { l: '✕ Rifiutata dal cliente', c: '#dc2626' },
+                                IN_ATTESA: { l: '⏳ In attesa cliente', c: '#d97706' },
+                              }
+                              const m = map[dec ?? 'IN_ATTESA'] ?? map.IN_ATTESA
+                              return (
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                  style={{ color: m.c, background: `${m.c}1a` }}>{m.l}</span>
+                              )
+                            })()}
                           </div>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
                             € {Number(it.snapshot_price).toFixed(2)} {it.unit_snapshot.toLowerCase()}

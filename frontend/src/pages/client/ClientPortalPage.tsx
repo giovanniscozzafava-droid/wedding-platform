@@ -25,10 +25,16 @@ type Brief = {
   note: string | null
 } | null
 
+type QuoteItem = {
+  id: string; name: string; qty: number; unit: string; line_client: number
+  supplier: string | null; client_decision: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO'
+  decline_reason: string | null
+}
 type Quote = {
   id: string; title: string; status: string; event_kind: string | null
   event_date: string | null; event_location: string | null; total_client: number
   access_token: string | null; revision: number; pdf_url: string | null; brief: Brief
+  closed_at: string | null; items: QuoteItem[]
 }
 type Contract = {
   id: string; title: string; status: string; access_token: string | null
@@ -71,15 +77,19 @@ export default function ClientPortalPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
 
+  async function loadOverview() {
+    const { data, error } = await (supabase as unknown as { rpc: (fn: string, a?: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+      .rpc('client_portal_overview')
+    if (error) throw error
+    const r = data as { ok?: boolean; error?: string; professionals?: Professional[] }
+    if (r.error) throw new Error(r.error)
+    setPros(r.professionals ?? [])
+  }
+
   useEffect(() => {
     void (async () => {
       try {
-        const { data, error } = await (supabase as unknown as { rpc: (fn: string, a?: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-          .rpc('client_portal_overview')
-        if (error) throw error
-        const r = data as { ok?: boolean; error?: string; professionals?: Professional[] }
-        if (r.error) throw new Error(r.error)
-        setPros(r.professionals ?? [])
+        await loadOverview()
         const sug = await (supabase as unknown as { rpc: (f: string) => Promise<{ data: unknown }> }).rpc('client_suggested_suppliers')
         setSuggested(((sug.data as { suppliers?: Suggested[] })?.suppliers) ?? [])
       } catch (e) {
@@ -148,7 +158,7 @@ export default function ClientPortalPage() {
                 </div>
               </Card>
             )}
-            {pros.map((p) => <ProfessionalBlock key={p.owner_id} pro={p} />)}
+            {pros.map((p) => <ProfessionalBlock key={p.owner_id} pro={p} onChanged={() => void loadOverview()} />)}
           </div>
         )}
       </div>
@@ -156,7 +166,7 @@ export default function ClientPortalPage() {
   )
 }
 
-function ProfessionalBlock({ pro }: { pro: Professional }) {
+function ProfessionalBlock({ pro, onChanged }: { pro: Professional; onChanged: () => void }) {
   const accent = pro.brand_primary_color || 'rgb(var(--gold-500))'
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
@@ -181,7 +191,7 @@ function ProfessionalBlock({ pro }: { pro: Professional }) {
           <Section icon={<FileText size={15} />} title="Preventivi">
             {pro.quotes.length === 0
               ? <Empty>Nessun preventivo.</Empty>
-              : pro.quotes.map((q) => <QuoteCard key={q.id} q={q} accent={accent} />)}
+              : pro.quotes.map((q) => <QuoteCard key={q.id} q={q} accent={accent} onChanged={onChanged} />)}
           </Section>
 
           {/* Contratti (sempre presenti) */}
@@ -196,9 +206,36 @@ function ProfessionalBlock({ pro }: { pro: Professional }) {
   )
 }
 
-function QuoteCard({ q, accent }: { q: Quote; accent: string }) {
+function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChanged: () => void }) {
   const st = QUOTE_STATUS[q.status] ?? { l: q.status, c: '#94a3b8' }
   const brief = q.brief
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  // Il preventivo è "vivo" (interattivo per-voce) quando è già stato accettato
+  // dal cliente ma il WP non l'ha ancora chiuso.
+  const isLive = !q.closed_at && (q.status === 'ACCETTATO' || q.status === 'CONVERTITO_IN_CONTRATTO')
+  const items = q.items ?? []
+  const pending = items.filter((it) => it.client_decision === 'IN_ATTESA')
+  const acceptedTotal = items.filter((it) => it.client_decision === 'ACCETTATO').reduce((s, it) => s + Number(it.line_client || 0), 0)
+
+  async function decide(it: QuoteItem, decision: 'ACCETTATO' | 'RIFIUTATO') {
+    let reason: string | null = null
+    if (decision === 'RIFIUTATO') {
+      reason = window.prompt(`Vuoi aggiungere un motivo per "${it.name}"? (facoltativo)`) || null
+    }
+    setBusyId(it.id)
+    try {
+      const { data, error } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+        .rpc('client_decide_quote_item', { p_item_id: it.id, p_decision: decision, p_reason: reason })
+      if (error) throw error
+      const r = data as { error?: string }
+      if (r?.error) throw new Error(r.error)
+      onChanged()
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Errore')
+    } finally { setBusyId(null) }
+  }
+
   return (
     <div className="rounded-xl border p-3.5 mb-2 last:mb-0" style={{ borderColor: 'rgb(var(--border))' }}>
       <div className="flex items-start gap-3">
@@ -212,6 +249,60 @@ function QuoteCard({ q, accent }: { q: Quote; accent: string }) {
         </div>
         <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: st.c, background: `${st.c}1a` }}>{st.l}</span>
       </div>
+
+      {/* Preventivo vivo: voci con decisione per-voce */}
+      {isLive && items.length > 0 && (
+        <div className="mt-3 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: accent }}>
+              <Sparkles size={13} /> Le voci del preventivo
+            </p>
+            {pending.length > 0 && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>
+                {pending.length} {pending.length === 1 ? 'nuova proposta' : 'nuove proposte'}
+              </span>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            {items.map((it) => (
+              <div key={it.id} className="flex items-center gap-2 text-xs">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate">
+                    {it.name}
+                    {it.qty > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{it.qty}</span>}
+                    {it.supplier && <span className="text-[rgb(var(--fg-subtle))]"> · {it.supplier}</span>}
+                  </p>
+                  {it.client_decision === 'RIFIUTATO' && it.decline_reason && (
+                    <p className="text-[10px] text-[rgb(var(--fg-subtle))] italic truncate">Motivo: {it.decline_reason}</p>
+                  )}
+                </div>
+                <span className="shrink-0 tabular-nums text-[rgb(var(--fg-muted))]">{fmtEuro(it.line_client)}</span>
+                {it.client_decision === 'IN_ATTESA' ? (
+                  <div className="flex gap-1 shrink-0">
+                    <button disabled={busyId === it.id} onClick={() => void decide(it, 'ACCETTATO')}
+                      className="px-2 py-1 rounded-md text-white text-[11px] font-medium disabled:opacity-50" style={{ background: '#16a34a' }}>Accetta</button>
+                    <button disabled={busyId === it.id} onClick={() => void decide(it, 'RIFIUTATO')}
+                      className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>Rifiuta</button>
+                  </div>
+                ) : (
+                  <button disabled={busyId === it.id}
+                    onClick={() => void decide(it, it.client_decision === 'ACCETTATO' ? 'RIFIUTATO' : 'ACCETTATO')}
+                    className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full disabled:opacity-50"
+                    style={it.client_decision === 'ACCETTATO'
+                      ? { color: '#16a34a', background: '#16a34a1a' }
+                      : { color: '#dc2626', background: '#dc26261a' }}>
+                    {it.client_decision === 'ACCETTATO' ? '✓ Accettata' : '✕ Rifiutata'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-2.5 pt-2.5 border-t flex items-center justify-between text-xs" style={{ borderColor: 'rgb(var(--border))' }}>
+            <span className="text-[rgb(var(--fg-muted))]">Totale confermato finora</span>
+            <span className="font-semibold tabular-nums" style={{ color: accent }}>{fmtEuro(acceptedTotal)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Brief di competenza (ciò che il fornitore comunica) */}
       {brief && (brief.headline || brief.delivery_date || (brief.items && brief.items.length) || brief.note) && (
