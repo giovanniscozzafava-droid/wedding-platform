@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Link } from 'react-router-dom'
-import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard } from 'lucide-react'
+import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -97,6 +97,21 @@ export default function AdminPage() {
     toast.success('Piano aggiornato')
     setForn((prev) => prev.map((x) => x.id === f.id ? { ...x, subscription_plan: plan } : x))
     void loadSubs()
+  }
+  async function deleteUser(u: UserRow) {
+    const name = u.business_name ?? u.full_name ?? u.email
+    if (!confirm(`Eliminare DEFINITIVAMENTE "${name}" (${roleLabel(u.role)})?\n\nVerranno cancellati per sempre l'account e TUTTI i suoi dati (preventivi, eventi, servizi, contratti…). Operazione irreversibile.`)) return
+    if (!confirm(`Conferma finale: digitando OK cancelli "${name}". Procedere?`)) return
+    setBusy(u.id)
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', { body: { user_id: u.id } })
+      if (error) throw error
+      if ((data as any)?.error) throw new Error((data as any).error)
+      toast.success(`Eliminato: ${name}`)
+      setUsers((prev) => prev.filter((x) => x.id !== u.id))
+      void loadOverview()
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setBusy(null) }
   }
   async function saveCap() {
     const n = capInput.trim() === '' ? null : Math.max(1, Math.min(50, parseInt(capInput, 10) || 0))
@@ -318,9 +333,15 @@ export default function AdminPage() {
                   <p className="font-medium truncate">{u.business_name ?? u.full_name ?? u.email}</p>
                   <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">{u.email} · {roleLabel(u.role)}</p>
                 </div>
-                <Button size="sm" variant={u.is_support_staff ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleStaff(u)}>
-                  {u.is_support_staff ? 'Staff ✓' : 'Rendi staff'}
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button size="sm" variant={u.is_support_staff ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleStaff(u)}>
+                    {u.is_support_staff ? 'Staff ✓' : 'Rendi staff'}
+                  </Button>
+                  {!u.is_support_staff && u.role !== 'ADMIN' && (
+                    <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => void deleteUser(u)} title="Elimina definitivamente"
+                      className="text-[rgb(var(--rose-500))]"><Trash2 size={14} /></Button>
+                  )}
+                </div>
               </Card>
             ))}
             {users.length === 0 && <Card className="p-8 text-center text-sm text-[rgb(var(--fg-muted))]">Nessun utente trovato.</Card>}
