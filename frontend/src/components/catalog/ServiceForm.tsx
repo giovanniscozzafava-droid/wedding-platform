@@ -38,6 +38,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     unit: (service?.unit ?? 'PEZZO') as Unit,
     category_id: service?.category_id ?? '',
     is_active: service?.is_active ?? true,
+    tags: ((service as { tags?: string[] } | null)?.tags ?? []).join(', '),
   })
   const [busy, setBusy] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(service?.id ?? null)
@@ -60,7 +61,8 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
         unit: form.unit,
         category_id: form.category_id,
         is_active: form.is_active,
-      }
+        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      } as any
       if (Number.isNaN(payload.base_price) || payload.base_price < 0) {
         throw new Error('Prezzo non valido')
       }
@@ -234,6 +236,12 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                 <Label htmlFor="description">Descrizione</Label>
                 <Textarea id="description" rows={3}
                   value={form.description ?? ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="tags">Tag di ricerca</Label>
+                <Input id="tags" value={form.tags} placeholder="es. noleggio, pedana, allestimento, palco"
+                  onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} />
+                <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Parole chiave separate da virgola. Aiutano a trovare questo servizio in Catalogo e in Scopri.</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">

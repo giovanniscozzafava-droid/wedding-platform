@@ -67,7 +67,8 @@ export default function CatalogPage() {
       if (t && !(
         s.name.toLowerCase().includes(t) ||
         (s.description ?? '').toLowerCase().includes(t) ||
-        (s.service_categories?.name ?? '').toLowerCase().includes(t)
+        (s.service_categories?.name ?? '').toLowerCase().includes(t) ||
+        (((s as { tags?: string[] }).tags) ?? []).some((tag) => tag.toLowerCase().includes(t))
       )) return false
       if (filters.unit && s.unit !== filters.unit) return false
       if (filters.hasPhoto && s.service_photos.length === 0) return false

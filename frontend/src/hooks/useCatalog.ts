@@ -27,7 +27,7 @@ export function useServices(opts?: { onlyActive?: boolean }) {
       let q = supabase
         .from('services')
         .select(
-          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
+          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
         )
         .order('display_order', { ascending: true })
         .order('updated_at', { ascending: false })
@@ -47,7 +47,7 @@ export function useServicesBySupplier(supplierId: string | null) {
       const { data, error } = await supabase
         .from('services')
         .select(
-          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
+          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
         )
         .eq('fornitore_id', supplierId!)
         .eq('is_active', true)
@@ -63,27 +63,25 @@ export function useCategories(subrole?: string | null) {
   return useQuery<CategoryRow[]>({
     queryKey: ['categories', subrole ?? 'all'],
     queryFn: async () => {
+      // I capostipiti possono estendere oltre il loro standard (es. noleggio
+      // attrezzatura). Carichiamo il proprio verticale + le trasversali (NULL)
+      // + TUTTE le categorie standard, così la tendina non è più limitata.
       let q = supabase
         .from('service_categories')
         .select('*')
         .order('name', { ascending: true })
-      // Se passato subrole: SOLO categorie di quel verticale (match
-      // case-insensitive: in anagrafica esiste sia 'parrucchiere' che
-      // 'Parrucchiere'). Senza subrole: categorie trasversali (subrole IS NULL).
-      if (subrole) q = q.ilike('subrole', subrole)
+      if (subrole) q = q.or(`subrole.ilike.${subrole},subrole.is.null,is_standard.eq.true`)
       const { data, error } = await q
       if (error) throw error
       let rows = data ?? []
-      // Fallback: se per il subrole non ci sono categorie standard,
-      // mostriamo quelle trasversali (subrole IS NULL) per non lasciare
-      // il dropdown vuoto.
-      if (subrole && rows.length === 0) {
-        const fb = await supabase
-          .from('service_categories')
-          .select('*')
-          .is('subrole', null)
-          .order('name', { ascending: true })
-        if (!fb.error) rows = fb.data ?? []
+      // Ordina: prima il proprio verticale, poi le trasversali, poi le altre.
+      if (subrole) {
+        const sr = subrole.toLowerCase()
+        const rank = (c: CategoryRow) => {
+          const s = String((c as { subrole?: string | null }).subrole ?? '').toLowerCase()
+          return s === sr ? 0 : s === '' ? 1 : 2
+        }
+        rows = [...rows].sort((a, b) => rank(a) - rank(b) || String(a.name).localeCompare(String(b.name)))
       }
       return rows
     },
