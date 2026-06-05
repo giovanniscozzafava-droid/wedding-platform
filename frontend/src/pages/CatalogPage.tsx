@@ -257,7 +257,15 @@ export default function CatalogPage() {
                 <span className="text-xs text-[rgb(var(--fg-subtle))]">{mine.length} {mine.length === 1 ? 'voce' : 'voci'}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mine.map((s) => <ServiceCard key={s.id} s={s} isProvider onView={() => setViewing(s)} />)}
+                {mine.map((s) => (
+                  <ServiceCard key={s.id} s={s} isProvider
+                    onEdit={() => setEditing(s)}
+                    onDelete={async () => {
+                      if (!confirm(`Eliminare "${s.name}"?`)) return
+                      try { await del.mutateAsync(s.id); toast.success('Eliminato') }
+                      catch (e) { toast.error((e as Error).message) }
+                    }} />
+                ))}
               </div>
             </section>
           )
