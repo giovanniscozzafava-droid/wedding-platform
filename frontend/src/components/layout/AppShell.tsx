@@ -36,6 +36,7 @@ import { CandidacyInbox } from '@/components/social/CandidacyInbox'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { HelpModeToggle } from '@/components/help/HelpDot'
 import { ReportProblemWidget } from '@/components/ReportProblemWidget'
+import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { BetaBanner } from '@/components/BetaBanner'
 import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
 import { useAuth } from '@/lib/auth'
@@ -334,6 +335,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <ReportProblemWidget />
+      <ImpersonationBanner />
     </div>
   )
 }

@@ -8,6 +8,8 @@ import { Input, Textarea } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { startImpersonation } from '@/lib/impersonation'
+import { Eye } from 'lucide-react'
 
 type Tab = 'overview' | 'inbox' | 'errors' | 'bugs' | 'subs' | 'team' | 'funnel'
 type MailRow = { id: string; from_addr: string; to_addr: string; subject: string; status: string; received_at: string; snippet: string }
@@ -103,6 +105,12 @@ export default function AdminPage() {
     toast.success('Piano aggiornato')
     setForn((prev) => prev.map((x) => x.id === f.id ? { ...x, subscription_plan: plan } : x))
     void loadSubs()
+  }
+  async function impersonate(u: UserRow) {
+    const name = u.business_name ?? u.full_name ?? u.email
+    if (!confirm(`Accedere come "${name}"? Vedrai l'app esattamente come la vede lui. L'azione viene registrata nell'audit log.`)) return
+    setBusy(u.id)
+    try { await startImpersonation(u.id) } catch (e) { toast.error((e as Error).message); setBusy(null) }
   }
   async function deleteUser(u: UserRow) {
     const name = u.business_name ?? u.full_name ?? u.email
@@ -412,8 +420,11 @@ export default function AdminPage() {
                     {u.is_support_staff ? 'Staff ✓' : 'Rendi staff'}
                   </Button>
                   {!u.is_support_staff && u.role !== 'ADMIN' && (
-                    <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => void deleteUser(u)} title="Elimina definitivamente"
-                      className="text-[rgb(var(--rose-500))]"><Trash2 size={14} /></Button>
+                    <>
+                      <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => void impersonate(u)} title="Accedi come (supporto)"><Eye size={14} /></Button>
+                      <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => void deleteUser(u)} title="Elimina definitivamente"
+                        className="text-[rgb(var(--rose-500))]"><Trash2 size={14} /></Button>
+                    </>
                   )}
                 </div>
               </Card>
