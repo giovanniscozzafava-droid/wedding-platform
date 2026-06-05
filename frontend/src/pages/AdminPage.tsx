@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Link } from 'react-router-dom'
-import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,18 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
-type Tab = 'overview' | 'errors' | 'bugs' | 'team' | 'funnel'
+type Tab = 'overview' | 'errors' | 'bugs' | 'subs' | 'team' | 'funnel'
+type Subs = { by_plan: Record<string, number>; fornitori_total: number; paying: number; mrr: number; pricing: { presence: number; region: number; national: number }; belly: { cap_per_category: number | null; cap_total: number | null } }
+type FornRow = { id: string; full_name: string | null; business_name: string | null; subrole: string | null; email: string; subscription_plan: string; subscription_status: string; service_regions: string[] | null }
+const PLAN_LABEL: Record<string, string> = { NONE: 'Nessuno', PRESENCE: 'Presenza · 29€', REGION: 'Regione · 59€', NATIONAL: 'Italia · 79€' }
+const PLANS = ['NONE', 'PRESENCE', 'REGION', 'NATIONAL']
+// Etichette ruolo leggibili: COUPLE/CLIENT non sono solo "coppie di sposi" →
+// sono clienti finali di qualsiasi tipo di evento.
+const ROLE_LABEL: Record<string, string> = {
+  COUPLE: 'Cliente', CLIENT: 'Cliente', FORNITORE: 'Fornitore',
+  WEDDING_PLANNER: 'Wedding Planner', LOCATION: 'Location', ADMIN: 'Admin',
+}
+const roleLabel = (r: string) => ROLE_LABEL[r] ?? r
 type Overview = {
   users_total: number; users_by_role: Record<string, number>; staff_count: number
   quotes_total: number; quotes_by_status: Record<string, number>
@@ -44,6 +55,10 @@ export default function AdminPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [bugs, setBugs] = useState<BugRow[]>([])
   const [bugFilter, setBugFilter] = useState('NUOVO')
+  const [subs, setSubs] = useState<Subs | null>(null)
+  const [forn, setForn] = useState<FornRow[]>([])
+  const [fornSearch, setFornSearch] = useState('')
+  const [capInput, setCapInput] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
 
   async function loadOverview() {
@@ -64,8 +79,34 @@ export default function AdminPage() {
     const { data, error } = await rpc('admin_bug_reports', { p_status: bugFilter })
     if (error) toast.error(error.message); else setBugs((data ?? []) as BugRow[])
   }
+  async function loadSubs() {
+    const { data, error } = await rpc('admin_subscriptions')
+    if (error) { toast.error(error.message); return }
+    const s = data as Subs; setSubs(s); setCapInput(String(s.belly?.cap_per_category ?? ''))
+    void loadForn()
+  }
+  async function loadForn() {
+    const { data, error } = await rpc('admin_list_fornitori', { p_search: fornSearch, p_plan: null })
+    if (error) toast.error(error.message); else setForn((data ?? []) as FornRow[])
+  }
+  async function setPlan(f: FornRow, plan: string) {
+    setBusy(f.id)
+    const { error } = await rpc('admin_set_subscription_plan', { p_user_id: f.id, p_plan: plan })
+    setBusy(null)
+    if (error) { toast.error(error.message); return }
+    toast.success('Piano aggiornato')
+    setForn((prev) => prev.map((x) => x.id === f.id ? { ...x, subscription_plan: plan } : x))
+    void loadSubs()
+  }
+  async function saveCap() {
+    const n = capInput.trim() === '' ? null : Math.max(1, Math.min(50, parseInt(capInput, 10) || 0))
+    const { error } = await rpc('admin_set_setting', { p_key: 'belly', p_value: { cap_per_category: n, cap_total: null } })
+    if (error) { toast.error(error.message); return }
+    toast.success('Limite pancia salvato')
+    void loadSubs()
+  }
   useEffect(() => { void loadOverview() }, [])
-  useEffect(() => { if (tab === 'team') void loadUsers(); if (tab === 'errors') void loadErrors(); if (tab === 'bugs') void loadBugs() /* eslint-disable-next-line */ }, [tab])
+  useEffect(() => { if (tab === 'team') void loadUsers(); if (tab === 'errors') void loadErrors(); if (tab === 'bugs') void loadBugs(); if (tab === 'subs') void loadSubs() /* eslint-disable-next-line */ }, [tab])
   useEffect(() => { if (tab === 'errors') void loadErrors() /* eslint-disable-next-line */ }, [errFilter])
   useEffect(() => { if (tab === 'bugs') void loadBugs() /* eslint-disable-next-line */ }, [bugFilter])
 
@@ -105,6 +146,7 @@ export default function AdminPage() {
     ['overview', 'Panoramica', LayoutDashboard, 0],
     ['errors', 'Errori', AlertTriangle, ov?.errors_new ?? 0],
     ['bugs', 'Segnalazioni', Bug, ov?.bugs_new ?? 0],
+    ['subs', 'Abbonamenti', CreditCard, 0],
     ['team', 'Team & staff', Users, 0],
     ['funnel', 'Funnel', Zap, 0],
   ] as const
@@ -143,7 +185,7 @@ export default function AdminPage() {
               <h3 className="font-display text-lg mb-3">Utenti per ruolo</h3>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(ov.users_by_role).map(([r, n]) => (
-                  <span key={r} className="text-xs px-3 py-1 rounded-full" style={{ background: 'rgb(var(--bg-sunken))' }}>{r}: <strong>{n}</strong></span>
+                  <span key={r} className="text-xs px-3 py-1 rounded-full" style={{ background: 'rgb(var(--bg-sunken))' }}>{roleLabel(r)}: <strong>{n}</strong></span>
                 ))}
               </div>
             </Card>
@@ -215,6 +257,54 @@ export default function AdminPage() {
             ))}
           </div>
 
+        ) : tab === 'subs' && subs ? (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Stat label="MRR stimato" value={subs.mrr} sub="€/mese" />
+              <Stat label="Fornitori paganti" value={subs.paying} sub={`su ${subs.fornitori_total}`} />
+              <Stat label="Regione (59€)" value={subs.by_plan?.REGION ?? 0} />
+              <Stat label="Italia (79€)" value={subs.by_plan?.NATIONAL ?? 0} />
+            </div>
+            <Card className="p-5">
+              <h3 className="font-display text-lg mb-1">Limite "pancia" per capostipite</h3>
+              <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">Quanti fornitori per <strong>categoria</strong> può avere ogni capostipite nel pool suggerimenti. Più è basso, più scarsità → spinge gli upgrade. In fase di crescita tienilo alto per riempire il mercato.</p>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={1} max={50} value={capInput} onChange={(e) => setCapInput(e.target.value)} className="w-28" />
+                <span className="text-sm text-[rgb(var(--fg-muted))]">per categoria</span>
+                <Button size="sm" variant="gold" onClick={() => void saveCap()}>Salva</Button>
+              </div>
+            </Card>
+            <Card className="p-5">
+              <h3 className="font-display text-lg mb-3">Prezzi attuali</h3>
+              <div className="flex flex-wrap gap-2 text-sm">
+                <span className="px-3 py-1 rounded-full" style={{ background: 'rgb(var(--bg-sunken))' }}>Presenza <strong>{subs.pricing.presence}€</strong></span>
+                <span className="px-3 py-1 rounded-full" style={{ background: 'rgb(var(--bg-sunken))' }}>Regione <strong>{subs.pricing.region}€</strong></span>
+                <span className="px-3 py-1 rounded-full" style={{ background: 'rgb(var(--bg-sunken))' }}>Italia <strong>{subs.pricing.national}€</strong></span>
+              </div>
+            </Card>
+            <div>
+              <form onSubmit={(e) => { e.preventDefault(); void loadForn() }} className="flex gap-2 mb-3">
+                <Input value={fornSearch} onChange={(e) => setFornSearch(e.target.value)} placeholder="Cerca fornitore…" />
+                <Button variant="outline" size="sm" type="submit"><Search size={14} /></Button>
+              </form>
+              <div className="space-y-2">
+                {forn.map((f) => (
+                  <Card key={f.id} className="p-4 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{f.business_name ?? f.full_name ?? f.email}</p>
+                      <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">{f.subrole ?? '—'} · {(f.service_regions ?? []).join(', ') || 'nessuna regione'}</p>
+                    </div>
+                    <select value={f.subscription_plan} disabled={busy === f.id} onChange={(e) => void setPlan(f, e.target.value)}
+                      className="h-9 px-2 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))] text-xs shrink-0">
+                      {PLANS.map((p) => <option key={p} value={p}>{PLAN_LABEL[p]}</option>)}
+                    </select>
+                  </Card>
+                ))}
+                {forn.length === 0 && <Card className="p-8 text-center text-sm text-[rgb(var(--fg-muted))]">Nessun fornitore.</Card>}
+              </div>
+            </div>
+          </div>
+
         ) : tab === 'team' ? (
           <div className="space-y-3">
             <form onSubmit={(e) => { e.preventDefault(); void loadUsers() }} className="flex gap-2">
@@ -226,7 +316,7 @@ export default function AdminPage() {
               <Card key={u.id} className="p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium truncate">{u.business_name ?? u.full_name ?? u.email}</p>
-                  <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">{u.email} · {u.role}</p>
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">{u.email} · {roleLabel(u.role)}</p>
                 </div>
                 <Button size="sm" variant={u.is_support_staff ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleStaff(u)}>
                   {u.is_support_staff ? 'Staff ✓' : 'Rendi staff'}
