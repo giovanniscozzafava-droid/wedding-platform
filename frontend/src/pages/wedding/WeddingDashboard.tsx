@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -310,10 +311,14 @@ function BusinessModelToggle({ wedding }: { wedding: any }) {
         title="Cambia modello di business">
         {current === 'GLOBAL' ? '🏛 Tutto WP' : '🤝 Clienti diretti'}
       </button>
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)}>
-          <div className="bg-[rgb(var(--bg-elev))] w-full max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl border p-5" style={{ borderColor: 'rgb(var(--border))' }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-lg mb-1">Modello di business</h3>
+      {open && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
+          <div className="bg-[rgb(var(--bg-elev))] w-full max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl border p-5" style={{ borderColor: 'rgb(var(--border-strong))' }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="font-display text-lg">Modello di business</h3>
+              <button onClick={() => setOpen(false)} aria-label="Chiudi"
+                className="shrink-0 -mr-1 -mt-1 h-8 w-8 inline-flex items-center justify-center rounded-full text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]">✕</button>
+            </div>
             <p className="text-xs text-[rgb(var(--fg-muted))] mb-4">Come gestirai questo matrimonio dal punto di vista commerciale.</p>
             <div className="space-y-2">
               <button onClick={() => set('GLOBAL')}
@@ -328,7 +333,8 @@ function BusinessModelToggle({ wedding }: { wedding: any }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
