@@ -286,7 +286,8 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
             {savedId && (
               <>
                 <div className="border-t pt-5" style={{ borderColor: 'rgb(var(--border))' }}>
-                  <h3 className="font-medium text-sm mb-3">Modificatori prezzo</h3>
+                  <h3 className="font-medium text-sm mb-1">Modificatori prezzo</h3>
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] mb-3">Variazioni opzionali sul prezzo base (in % o in €): es. supplemento weekend, alta stagione, urgenza, oppure sconti.</p>
                   <ul className="space-y-2 mb-4">
                     {(service?.service_modifiers ?? []).map((m) => (
                       <li key={m.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -303,7 +304,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                     ))}
                   </ul>
                   <div className="grid grid-cols-12 gap-2">
-                    <Input className="col-span-6" placeholder="Es. Tema bianco" value={newMod.name}
+                    <Input className="col-span-6" placeholder="Es. Supplemento weekend" value={newMod.name}
                       onChange={(e) => setNewMod((m) => ({ ...m, name: e.target.value }))} />
                     <Select className="col-span-3" value={newMod.type}
                       onChange={(e) => setNewMod((m) => ({ ...m, type: e.target.value as ModType }))}>

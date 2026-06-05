@@ -702,7 +702,7 @@ export default function QuoteEditorPage() {
         {/* Banner disponibilità fornitori (mostra conflitti BUSY/TENTATIVE).
             excludeQuoteId: il quote stesso ha generato i BUSY se ACCETTATO -> escludo. */}
         <AvailabilityBanner
-          date={quote.event_date ?? null}
+          date={eventDate || quote.event_date || null}
           supplierIds={Array.from(new Set((quote.quote_items ?? []).map((it: any) => it.supplier_id).filter(Boolean)))}
           excludeQuoteId={quote.id}
         />
