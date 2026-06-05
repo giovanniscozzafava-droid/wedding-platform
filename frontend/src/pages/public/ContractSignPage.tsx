@@ -19,6 +19,14 @@ type ContractData = {
   sections: Array<{ heading: string; body: string; type?: string }>
   signed_at: string | null
   owner: { full_name: string | null; business_name: string | null; brand_primary_color: string | null }
+  prefill?: {
+    client_name?: string | null
+    client_fiscal_code?: string | null
+    doc_type?: string | null
+    doc_number?: string | null
+    doc_issued_by?: string | null
+    from_quote?: boolean
+  }
 }
 
 export default function ContractSignPage() {
@@ -37,6 +45,7 @@ export default function ContractSignPage() {
   const [signature, setSignature] = useState<string | null>(null)
   const [consentTerms, setConsentTerms] = useState(false)
   const [consentPrivacy, setConsentPrivacy] = useState(false)
+  const [fromQuote, setFromQuote] = useState(false)
 
   async function load() {
     if (!token) return
@@ -45,7 +54,14 @@ export default function ContractSignPage() {
     if (!d) { setErr('Contratto non trovato.'); return }
     setData(d as unknown as ContractData)
     if ((d as any).signed_at) setSigned(true)
-    if ((d as any).client_name && !signerName) setSignerName((d as any).client_name)
+    // Niente ripetizioni: riprendi nome + CF + documento dalla firma del preventivo.
+    const pf = (d as any).prefill ?? {}
+    if (!signerName) setSignerName(pf.client_name ?? (d as any).client_name ?? '')
+    if (!signerFiscal && pf.client_fiscal_code) setSignerFiscal(pf.client_fiscal_code)
+    if (pf.doc_type) setDocType(pf.doc_type)
+    if (!docNumber && pf.doc_number) setDocNumber(pf.doc_number)
+    if (!docIssuedBy && pf.doc_issued_by) setDocIssuedBy(pf.doc_issued_by)
+    if (pf.from_quote) setFromQuote(true)
   }
 
   useEffect(() => { void load() }, [token])
@@ -140,6 +156,13 @@ export default function ContractSignPage() {
                 <p className="text-sm text-[rgb(var(--fg-muted))]">
                   Compila i tuoi dati, il documento d'identità e firma nel riquadro. La firma ha lo stesso valore di quella del preventivo.
                 </p>
+                {fromQuote && (
+                  <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm"
+                    style={{ background: 'rgb(var(--emerald-100))', color: 'rgb(var(--emerald-700))' }}>
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+                    <span>I tuoi dati sono già stati ripresi dalla firma del preventivo. Controllali e firma — non serve reinserirli.</span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
