@@ -775,9 +775,15 @@ type PreventivoData = {
   total_client: number | null
   pdf_url: string | null
   accepted_at: string | null
+  closed_at: string | null
   business_model: 'GLOBAL' | 'BROKER'
   owner: { full_name?: string | null; business_name?: string | null }
-  items: Array<{ name_snapshot: string; quantity: number; unit_snapshot: string; line_client: number; supplier_id?: string | null; created_at?: string | null }>
+  items: Array<{
+    id: string; name_snapshot: string; quantity: number; unit_snapshot: string; line_client: number
+    supplier_id?: string | null; created_at?: string | null
+    client_decision?: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO' | 'FORSE'
+    client_decline_reason?: string | null; contracted_at?: string | null
+  }>
   error?: string
 }
 
@@ -786,26 +792,60 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [signed, setSigned] = useState(false)
+  const [busyItem, setBusyItem] = useState<string | null>(null)
+  const [concluding, setConcluding] = useState(false)
 
-  useEffect(() => {
-    setLoading(true)
-    void (async () => {
-      try {
-        const { data: res, error } = await (supabase.rpc as any)('couple_get_quote_for_entry', { p_entry_id: entryId })
-        if (error) throw error
-        const p = res as PreventivoData
-        if (p?.error) {
-          if (p.error === 'no_quote') setErr('Il tuo organizzatore non ha ancora generato un preventivo.')
-          else if (p.error === 'not_couple_member') setErr('Non fai parte di questo evento.')
-          else setErr(p.error)
-          return
-        }
-        setData(p)
-        if (p.accepted_at) setSigned(true)
-      } catch (e) { setErr((e as Error).message) }
-      finally { setLoading(false) }
-    })()
-  }, [entryId])
+  async function load(initial = false) {
+    if (initial) setLoading(true)
+    try {
+      const { data: res, error } = await (supabase.rpc as any)('couple_get_quote_for_entry', { p_entry_id: entryId })
+      if (error) throw error
+      const p = res as PreventivoData
+      if (p?.error) {
+        if (p.error === 'no_quote') setErr('Il tuo organizzatore non ha ancora generato un preventivo.')
+        else if (p.error === 'not_couple_member') setErr('Non fai parte di questo evento.')
+        else setErr(p.error)
+        return
+      }
+      setData(p)
+      if (p.accepted_at) setSigned(true)
+    } catch (e) { setErr((e as Error).message) }
+    finally { if (initial) setLoading(false) }
+  }
+
+  useEffect(() => { void load(true) }, [entryId])
+
+  async function decide(itemId: string, decision: 'ACCETTATO' | 'RIFIUTATO' | 'FORSE') {
+    let reason: string | null = null
+    if (decision === 'RIFIUTATO') reason = window.prompt('Vuoi indicare un motivo? (facoltativo)') || null
+    setBusyItem(itemId)
+    try {
+      const { data: r, error } = await (supabase.rpc as any)('client_decide_quote_item', { p_item_id: itemId, p_decision: decision, p_reason: reason })
+      if (error) throw error
+      if ((r as any)?.error) throw new Error((r as any).error)
+      await load()
+    } catch (e) { window.alert((e as Error).message) }
+    finally { setBusyItem(null) }
+  }
+
+  async function conclude() {
+    if (!data) return
+    if (!window.confirm('Concludere il preventivo? Le voci approvate verranno integrate nel contratto con un addendum da firmare.')) return
+    setConcluding(true)
+    try {
+      const { data: r, error } = await (supabase.rpc as any)('quote_conclude_by_client', { p_quote_id: data.id })
+      if (error) throw error
+      const res = r as any
+      if (res?.error) throw new Error(res.error)
+      if (res?.addendum?.created && res?.addendum?.token) {
+        window.location.href = `/p/addendum/${res.addendum.token}`
+        return
+      }
+      await load()
+      window.alert('Preventivo concluso. Nessuna modifica al contratto da firmare.')
+    } catch (e) { window.alert((e as Error).message) }
+    finally { setConcluding(false) }
+  }
 
   if (loading) return <div className="text-sm text-[rgb(var(--fg-muted))]">Carico il preventivo…</div>
   if (err) return (
@@ -818,6 +858,17 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   if (!data) return null
 
   const ownerName = data.owner?.business_name ?? data.owner?.full_name ?? 'Organizzatore'
+  const liveItems = data.items.filter((it) => !it.contracted_at)
+  const hasLive = liveItems.length > 0
+  const isClosed = !!data.closed_at
+  const confirmedTotal = data.items
+    .filter((it) => it.contracted_at || it.client_decision === 'ACCETTATO')
+    .reduce((s, it) => s + Number(it.line_client || 0), 0)
+  const fmtAddTime = (d?: string | null) => {
+    if (!d) return null
+    try { return new Date(d).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }
+    catch { return null }
+  }
 
   return (
     <div className="space-y-5">
@@ -858,25 +909,72 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
           )}
         </div>
 
-        <h3 className="font-display text-lg mb-2">Servizi inclusi</h3>
+        <h3 className="font-display text-lg mb-2">Servizi</h3>
+        {hasLive && (
+          <p className="text-xs mb-3 rounded-lg px-3 py-2" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+            Le voci con <strong>✓ Firmato nel preventivo</strong> sono già nel contratto firmato. Le altre sono <strong>integrazioni</strong> aggiunte dopo: puoi approvarle, metterle in forse o non accettarle. Nulla entra nel contratto finché non concludi e firmi.
+          </p>
+        )}
         <ul className="divide-y mb-4" style={{ borderColor: 'rgb(var(--border))' }}>
-          {data.items.map((it, i) => (
-            <li key={i} className="py-3 flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{it.name_snapshot}</p>
-                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">
-                  {it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}
-                  {it.created_at && (
-                    <span className="ml-2 text-[10px] text-[rgb(var(--fg-subtle))]">
-                      · aggiunta il {new Date(it.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
-                    </span>
+          {data.items.map((it) => {
+            const dec = it.client_decision ?? 'IN_ATTESA'
+            const isContracted = !!it.contracted_at
+            return (
+              <li key={it.id} className="py-3 flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium text-sm">{it.name_snapshot}</p>
+                    {isContracted ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>✓ Firmato nel preventivo</span>
+                    ) : (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>Integrazione</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">
+                    {it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}
+                    {it.created_at && <span className="ml-2 text-[10px]">· aggiunta il {fmtAddTime(it.created_at)}</span>}
+                  </p>
+                  {dec === 'RIFIUTATO' && it.client_decline_reason && (
+                    <p className="text-[10px] italic text-[rgb(var(--fg-subtle))] mt-0.5">Motivo: {it.client_decline_reason}</p>
                   )}
-                </p>
-              </div>
-              <p className="font-medium text-sm whitespace-nowrap">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-            </li>
-          ))}
+                  {/* Decisione per-voce (solo integrazioni live, preventivo non concluso) */}
+                  {!isContracted && !isClosed && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {dec === 'IN_ATTESA' ? (
+                        <>
+                          <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'ACCETTATO')} className="px-2 py-1 rounded-md text-white text-[11px] font-medium disabled:opacity-50" style={{ background: '#16a34a' }}>Approva</button>
+                          <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'FORSE')} className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>In forse</button>
+                          <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'RIFIUTATO')} className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>Non accetto</button>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={
+                            dec === 'ACCETTATO' ? { color: '#16a34a', background: '#16a34a1a' }
+                            : dec === 'FORSE' ? { color: '#7c3aed', background: '#7c3aed1a' }
+                            : { color: '#dc2626', background: '#dc26261a' }}>
+                            {dec === 'ACCETTATO' ? '✓ Approvata' : dec === 'FORSE' ? '? In forse' : '✕ Non accettata'}
+                          </span>
+                          <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'IN_ATTESA' as any)} className="text-[10px] underline text-[rgb(var(--fg-subtle))] disabled:opacity-50">cambia</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="font-medium text-sm whitespace-nowrap">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+              </li>
+            )
+          })}
         </ul>
+        {hasLive && !isClosed && (
+          <div className="rounded-lg border p-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ borderColor: 'rgb(var(--border))' }}>
+            <div className="text-xs text-[rgb(var(--fg-muted))]">
+              Totale confermato finora: <strong className="text-[rgb(var(--fg))]">€ {confirmedTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong>
+            </div>
+            <Button variant="gold" disabled={concluding} onClick={() => void conclude()}>
+              {concluding ? 'Concludo…' : 'Concludi preventivo e firma'}
+            </Button>
+          </div>
+        )}
 
         {data.pdf_url && (
           <a href={data.pdf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-[rgb(var(--gold-600))] hover:underline mb-4">
