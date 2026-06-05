@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Link } from 'react-router-dom'
-import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard, Trash2 } from 'lucide-react'
+import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard, Trash2, Mail, ArrowLeft, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Input, Textarea } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
-type Tab = 'overview' | 'errors' | 'bugs' | 'subs' | 'team' | 'funnel'
+type Tab = 'overview' | 'inbox' | 'errors' | 'bugs' | 'subs' | 'team' | 'funnel'
+type MailRow = { id: string; from_addr: string; to_addr: string; subject: string; status: string; received_at: string; snippet: string }
+type MailFull = { id: string; from_addr: string; to_addr: string; subject: string; text: string | null; html: string | null; received_at: string; status: string }
 type Subs = { by_plan: Record<string, number>; fornitori_total: number; paying: number; mrr: number; pricing: { presence: number; region: number; national: number }; belly: { cap_per_category: number | null; cap_total: number | null } }
 type FornRow = { id: string; full_name: string | null; business_name: string | null; subrole: string | null; email: string; subscription_plan: string; subscription_status: string; service_regions: string[] | null }
 const PLAN_LABEL: Record<string, string> = { NONE: 'Nessuno', PRESENCE: 'Presenza · 29€', REGION: 'Regione · 59€', NATIONAL: 'Italia · 79€' }
@@ -28,7 +30,7 @@ type Overview = {
   tickets_open: number; tickets_total: number
   funnel_active: boolean; funnel_active_quotes: number
   errors_new: number; errors_total: number; error_occurrences: number
-  bugs_new: number; bugs_total: number
+  bugs_new: number; bugs_total: number; inbox_unread: number
 }
 type UserRow = { id: string; full_name: string | null; business_name: string | null; role: string; email: string; is_support_staff: boolean }
 type ErrRow = { id: string; fingerprint: string; message: string; stack: string | null; source: string; severity: string; status: string; count: number; url: string | null; last_seen: string; first_seen: string; last_user_agent: string | null }
@@ -59,6 +61,10 @@ export default function AdminPage() {
   const [forn, setForn] = useState<FornRow[]>([])
   const [fornSearch, setFornSearch] = useState('')
   const [capInput, setCapInput] = useState('')
+  const [mails, setMails] = useState<MailRow[]>([])
+  const [mailFilter, setMailFilter] = useState('UNREAD')
+  const [selMail, setSelMail] = useState<MailFull | null>(null)
+  const [mailReply, setMailReply] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
 
   async function loadOverview() {
@@ -113,6 +119,32 @@ export default function AdminPage() {
     } catch (e) { toast.error((e as Error).message) }
     finally { setBusy(null) }
   }
+  async function loadMails() {
+    const { data, error } = await rpc('admin_inbox_list', { p_status: mailFilter })
+    if (error) toast.error(error.message); else setMails((data ?? []) as MailRow[])
+  }
+  async function openMail(m: MailRow) {
+    const { data, error } = await rpc('admin_inbox_get', { p_id: m.id })
+    if (error) { toast.error(error.message); return }
+    const arr = (data ?? []) as MailFull[]
+    setSelMail(arr[0] ?? null); setMailReply('')
+    void loadMails(); void loadOverview()
+  }
+  async function sendMailReply() {
+    if (!selMail || !mailReply.trim()) return
+    setBusy('mail')
+    try {
+      const { data, error } = await supabase.functions.invoke('inbox-reply', { body: { inbound_id: selMail.id, body: mailReply.trim() } })
+      if (error) throw error
+      if ((data as any)?.ok === false) throw new Error('Invio non riuscito')
+      toast.success('Risposta inviata'); setMailReply(''); setSelMail(null); void loadMails()
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setBusy(null) }
+  }
+  async function setMailStatus(id: string, status: string) {
+    await rpc('admin_set_inbox_status', { p_id: id, p_status: status })
+    setSelMail(null); void loadMails(); void loadOverview()
+  }
   async function saveCap() {
     const n = capInput.trim() === '' ? null : Math.max(1, Math.min(50, parseInt(capInput, 10) || 0))
     const { error } = await rpc('admin_set_setting', { p_key: 'belly', p_value: { cap_per_category: n, cap_total: null } })
@@ -121,7 +153,8 @@ export default function AdminPage() {
     void loadSubs()
   }
   useEffect(() => { void loadOverview() }, [])
-  useEffect(() => { if (tab === 'team') void loadUsers(); if (tab === 'errors') void loadErrors(); if (tab === 'bugs') void loadBugs(); if (tab === 'subs') void loadSubs() /* eslint-disable-next-line */ }, [tab])
+  useEffect(() => { if (tab === 'team') void loadUsers(); if (tab === 'errors') void loadErrors(); if (tab === 'bugs') void loadBugs(); if (tab === 'subs') void loadSubs(); if (tab === 'inbox') void loadMails() /* eslint-disable-next-line */ }, [tab])
+  useEffect(() => { if (tab === 'inbox') void loadMails() /* eslint-disable-next-line */ }, [mailFilter])
   useEffect(() => { if (tab === 'errors') void loadErrors() /* eslint-disable-next-line */ }, [errFilter])
   useEffect(() => { if (tab === 'bugs') void loadBugs() /* eslint-disable-next-line */ }, [bugFilter])
 
@@ -159,6 +192,7 @@ export default function AdminPage() {
 
   const TABS = [
     ['overview', 'Panoramica', LayoutDashboard, 0],
+    ['inbox', 'Posta', Mail, ov?.inbox_unread ?? 0],
     ['errors', 'Errori', AlertTriangle, ov?.errors_new ?? 0],
     ['bugs', 'Segnalazioni', Bug, ov?.bugs_new ?? 0],
     ['subs', 'Abbonamenti', CreditCard, 0],
@@ -192,6 +226,7 @@ export default function AdminPage() {
               <Stat label="Preventivi" value={ov.quotes_total} />
               <Stat label="Eventi" value={ov.events_total} sub={`${ov.events_confirmed} confermati`} />
               <Stat label="Ticket aperti" value={ov.tickets_open} sub={`${ov.tickets_total} totali`} />
+              <Stat label="Posta non letta" value={ov.inbox_unread} alert={ov.inbox_unread > 0} onClick={() => setTab('inbox')} />
               <Stat label="Errori nuovi" value={ov.errors_new} sub={`${ov.error_occurrences} occorrenze`} alert={ov.errors_new > 0} onClick={() => setTab('errors')} />
               <Stat label="Segnalazioni" value={ov.bugs_new} sub={`${ov.bugs_total} totali`} alert={ov.bugs_new > 0} onClick={() => setTab('bugs')} />
               <Stat label="Funnel" value={ov.funnel_active_quotes} sub={ov.funnel_active ? 'acceso' : 'in pausa'} />
@@ -206,6 +241,45 @@ export default function AdminPage() {
             </Card>
             <Link to="/admin/assistenza"><Button variant="outline" size="sm"><LifeBuoy size={14} /> Vai ai ticket ({ov.tickets_open} aperti)</Button></Link>
           </div>
+
+        ) : tab === 'inbox' ? (
+          selMail ? (
+            <Card className="p-0 overflow-hidden">
+              <div className="p-5 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+                <button onClick={() => setSelMail(null)} className="text-xs text-[rgb(var(--fg-muted))] hover:underline inline-flex items-center gap-1 mb-2"><ArrowLeft size={12} /> Posta in arrivo</button>
+                <h2 className="font-display text-xl">{selMail.subject}</h2>
+                <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">da <strong>{selMail.from_addr}</strong> → {selMail.to_addr} · {new Date(selMail.received_at).toLocaleString('it-IT')}</p>
+              </div>
+              <div className="p-3 text-sm" style={{ background: 'rgb(var(--bg-sunken))' }}>
+                {selMail.html
+                  ? <iframe title="email" sandbox="" srcDoc={selMail.html} className="w-full rounded-lg bg-white" style={{ height: '45vh', border: '1px solid rgb(var(--border))' }} />
+                  : <pre className="whitespace-pre-wrap font-sans max-h-[45vh] overflow-y-auto p-2">{selMail.text ?? '(vuoto)'}</pre>}
+              </div>
+              <div className="p-5 border-t space-y-2" style={{ borderColor: 'rgb(var(--border))' }}>
+                <Textarea rows={4} value={mailReply} onChange={(e) => setMailReply(e.target.value)} placeholder={`Rispondi da ${selMail.to_addr}…`} />
+                <div className="flex justify-between">
+                  <Button variant="ghost" size="sm" onClick={() => void setMailStatus(selMail.id, 'ARCHIVED')}>Archivia</Button>
+                  <Button variant="gold" size="sm" onClick={() => void sendMailReply()} disabled={busy === 'mail' || !mailReply.trim()}><Send size={14} /> {busy === 'mail' ? 'Invio…' : 'Rispondi'}</Button>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              <Filters options={['UNREAD', 'READ', 'ARCHIVED']} labels={{ UNREAD: 'Non lette', READ: 'Lette', ARCHIVED: 'Archiviate' }} value={mailFilter} onChange={setMailFilter} />
+              {mails.length === 0 ? (
+                <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]"><Mail className="mx-auto mb-2 opacity-40" size={24} />Nessuna email {mailFilter === 'UNREAD' ? 'non letta' : ''}. <span className="block text-[11px] mt-2">Le email per planfully.it arrivano qui una volta configurato Resend Inbound.</span></Card>
+              ) : mails.map((m) => (
+                <Card key={m.id} className={`p-4 cursor-pointer hover:shadow-[var(--shadow-lift)] transition-shadow ${m.status === 'UNREAD' ? 'border-l-2' : ''}`}
+                  style={m.status === 'UNREAD' ? { borderLeftColor: 'rgb(var(--gold-500))' } : undefined} onClick={() => void openMail(m)}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`truncate ${m.status === 'UNREAD' ? 'font-semibold' : 'font-medium'}`}>{m.subject}</p>
+                    <span className="text-[11px] text-[rgb(var(--fg-subtle))] shrink-0">{new Date(m.received_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</span>
+                  </div>
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">da {m.from_addr} · {m.snippet}</p>
+                </Card>
+              ))}
+            </div>
+          )
 
         ) : tab === 'errors' ? (
           <div className="space-y-3">
