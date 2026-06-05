@@ -785,7 +785,7 @@ export default function QuoteEditorPage() {
                                 RIFIUTATO: { l: '✕ Rifiutata dal cliente', c: '#dc2626' },
                                 IN_ATTESA: { l: '⏳ In attesa cliente', c: '#d97706' },
                               }
-                              const m = map[dec ?? 'IN_ATTESA'] ?? map.IN_ATTESA
+                              const m = map[dec ?? 'IN_ATTESA'] ?? { l: '⏳ In attesa cliente', c: '#d97706' }
                               return (
                                 <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                   style={{ color: m.c, background: `${m.c}1a` }}>{m.l}</span>

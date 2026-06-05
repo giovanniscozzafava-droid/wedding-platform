@@ -41,7 +41,7 @@ export default function AddendumSignPage() {
 
   async function load() {
     if (!token) return
-    const { data: d, error } = await supabase.rpc('addendum_get_by_token', { p_token: token })
+    const { data: d, error } = await (supabase.rpc as any)('addendum_get_by_token', { p_token: token })
     if (error) { setErr(error.message); return }
     if (!d) { setErr('Addendum non trovato.'); return }
     if ((d as any).error === 'expired') { setErr('Il link di questo addendum è scaduto. Richiedine uno nuovo.'); return }
