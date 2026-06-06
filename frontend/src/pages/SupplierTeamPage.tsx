@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 type Member = { id: string; full_name: string; role_label: string | null; phone: string | null; active: boolean }
 type Event = { id: string; title: string; event_date: string | null; call_time: string | null; location: string | null; notes: string | null; quote_id: string | null }
 type Assignment = { id: string; event_id: string; member_id: string; presence: string; role_label: string | null }
+type SharedEvent = { collab_id: string; status: string; can_edit: boolean; owner_name: string; event: Event }
 type RunItem = { id: string; event_id: string; start_time: string | null; title: string; role_label: string | null; note: string | null; ord: number }
 type PackItem = { id: string; event_id: string; name: string; category: string | null; qty: number; checked: boolean; ord: number }
 
@@ -42,14 +43,21 @@ export default function SupplierTeamPage() {
   const [tab, setTab] = useState<'team' | 'turni' | 'magazzino'>('team')
   const [members, setMembers] = useState<Member[]>([])
   const [events, setEvents] = useState<Event[]>([])
+  const [shared, setShared] = useState<SharedEvent[]>([])
   const [openEvent, setOpenEvent] = useState<Event | null>(null)
+  const [openShared, setOpenShared] = useState<SharedEvent | null>(null)
   const [loading, setLoading] = useState(true)
 
+  async function loadShared() {
+    const { data } = await (supabase.rpc as unknown as (f: string) => Promise<{ data: unknown }>)('list_shared_events')
+    setShared((data as SharedEvent[]) ?? [])
+  }
   async function loadAll() {
     if (!uid) return
     const [m, e] = await Promise.all([
       db().from('supplier_team_members').select('id, full_name, role_label, phone, active').eq('supplier_id', uid).order('created_at'),
       db().from('supplier_team_events').select('id, title, event_date, call_time, location, notes, quote_id').eq('supplier_id', uid).order('event_date', { ascending: false, nullsFirst: false }),
+      loadShared(),
     ])
     setMembers((m.data as Member[]) ?? [])
     setEvents((e.data as Event[]) ?? [])
@@ -62,7 +70,11 @@ export default function SupplierTeamPage() {
   return (
     <div className="min-h-full">
       <div className="max-w-3xl mx-auto px-6 sm:px-10 py-10">
-        {openEvent ? (
+        {openShared ? (
+          <EventRoster event={openShared.event} members={[]} readOnly
+            supplierName={openShared.owner_name}
+            onBack={() => setOpenShared(null)} />
+        ) : openEvent ? (
           <EventRoster event={openEvent} members={members.filter((m) => m.active)}
             supplierName={profile?.business_name || profile?.full_name || 'Team'}
             onBack={() => setOpenEvent(null)} />
@@ -78,7 +90,7 @@ export default function SupplierTeamPage() {
             </div>
 
             {tab === 'team' && <TeamTab uid={uid!} members={members} reload={loadAll} />}
-            {tab === 'turni' && <TurniTab uid={uid!} events={events} reload={loadAll} onOpen={setOpenEvent} />}
+            {tab === 'turni' && <TurniTab uid={uid!} events={events} reload={loadAll} onOpen={setOpenEvent} shared={shared} onOpenShared={setOpenShared} reloadShared={loadShared} />}
             {tab === 'magazzino' && <MagazzinoTab uid={uid!} />}
           </>
         )}
@@ -177,7 +189,7 @@ function TeamTab({ uid, members, reload }: { uid: string; members: Member[]; rel
   )
 }
 
-function TurniTab({ uid, events, reload, onOpen }: { uid: string; events: Event[]; reload: () => Promise<void>; onOpen: (e: Event) => void }) {
+function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadShared }: { uid: string; events: Event[]; reload: () => Promise<void>; onOpen: (e: Event) => void; shared: SharedEvent[]; onOpenShared: (s: SharedEvent) => void; reloadShared: () => Promise<void> }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [callTime, setCallTime] = useState('')
@@ -195,8 +207,38 @@ function TurniTab({ uid, events, reload, onOpen }: { uid: string; events: Event[
     setTitle(''); setDate(''); setCallTime(''); setLocation(''); await reload()
   }
 
+  async function respond(collabId: string, accept: boolean) {
+    await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<unknown>)('respond_event_invite', { p_collab_id: collabId, p_accept: accept })
+    await reloadShared(); toast.success(accept ? 'Invito accettato' : 'Invito rifiutato')
+  }
+
   return (
     <div className="space-y-4">
+      {shared.length > 0 && (
+        <Card className="p-4">
+          <h2 className="font-medium mb-2 flex items-center gap-2"><Users size={16} className="text-[rgb(var(--gold-600))]" /> Condivisi con me</h2>
+          <div className="space-y-2">
+            {shared.map((s) => (
+              <div key={s.collab_id} className="flex items-center gap-3 p-2 rounded-lg border" style={{ borderColor: 'rgb(var(--border))' }}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{s.event.title}</p>
+                  <p className="text-xs text-[rgb(var(--fg-muted))]">
+                    da {s.owner_name}{s.event.event_date ? ` · ${new Date(s.event.event_date).toLocaleDateString('it-IT')}` : ''}
+                  </p>
+                </div>
+                {s.status === 'INVITATO' ? (
+                  <div className="flex gap-1.5">
+                    <Button size="sm" variant="gold" onClick={() => void respond(s.collab_id, true)}>Accetta</Button>
+                    <Button size="sm" variant="outline" onClick={() => void respond(s.collab_id, false)}>Rifiuta</Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => onOpenShared(s)}>Apri programma →</Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       <Card className="p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input placeholder="Titolo (es. Matrimonio Rossi)" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -228,14 +270,44 @@ function TurniTab({ uid, events, reload, onOpen }: { uid: string; events: Event[
   )
 }
 
-function EventRoster({ event, members, supplierName, onBack }: { event: Event; members: Member[]; supplierName: string; onBack: () => void }) {
+type Collab = { id: string; collaborator_id: string; status: string; can_edit: boolean; name: string }
+
+function EventRoster({ event, members, supplierName, onBack, readOnly = false }: { event: Event; members: Member[]; supplierName: string; onBack: () => void; readOnly?: boolean }) {
   const [assign, setAssign] = useState<Record<string, Assignment>>({})
   const [runItems, setRunItems] = useState<RunItem[]>([])
   const [packing, setPacking] = useState<PackItem[]>([])
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState<string | null>(null)
+  const [collabs, setCollabs] = useState<Collab[]>([])
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
   const { profile } = useAuth()
   const sid = profile?.id
+
+  async function loadCollabs() {
+    if (readOnly) return
+    const { data } = await db().from('supplier_event_collaborators')
+      .select('id, collaborator_id, status, can_edit, collaborator:profiles!supplier_event_collaborators_collaborator_id_fkey(business_name, full_name)')
+      .eq('event_id', event.id)
+    setCollabs(((data as Array<{ id: string; collaborator_id: string; status: string; can_edit: boolean; collaborator: { business_name: string | null; full_name: string | null } | null }>) ?? [])
+      .map((c) => ({ id: c.id, collaborator_id: c.collaborator_id, status: c.status, can_edit: c.can_edit, name: c.collaborator?.business_name || c.collaborator?.full_name || 'Collega' })))
+  }
+  async function invite() {
+    const email = inviteEmail.trim()
+    if (!email) return
+    setInviting(true)
+    try {
+      const { data } = await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown }>)('invite_event_collaborator', { p_event_id: event.id, p_email: email })
+      const r = data as { ok?: boolean; error?: string }
+      if (r?.error) {
+        toast.error(r.error === 'user_not_found' ? 'Nessun fornitore Planfully con questa email' : r.error === 'not_owner' ? 'Non sei il proprietario' : r.error === 'cannot_invite_self' ? 'Non puoi invitare te stesso' : 'Invito non riuscito')
+        return
+      }
+      setInviteEmail(''); await loadCollabs(); toast.success('Invito inviato')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setInviting(false) }
+  }
+  async function removeCollab(id: string) { await db().from('supplier_event_collaborators').delete().eq('id', id); await loadCollabs() }
 
   async function loadRun() {
     const { data } = await db().from('supplier_team_event_items').select('id, event_id, start_time, title, role_label, note, ord').eq('event_id', event.id).order('ord').order('start_time')
@@ -250,7 +322,7 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
     void (async () => {
       const [a] = await Promise.all([
         db().from('supplier_team_assignments').select('id, event_id, member_id, presence, role_label').eq('event_id', event.id),
-        loadRun(), loadPack(),
+        loadRun(), loadPack(), loadCollabs(),
       ])
       const map: Record<string, Assignment> = {}
       for (const x of (a.data as Assignment[]) ?? []) map[x.member_id] = x
@@ -356,16 +428,32 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
         <Button variant="outline" disabled={!!exporting} onClick={() => void doExport('operativo', true)}><MessageCircle size={15} className="mr-1" /> WhatsApp</Button>
       </div>
 
+      {readOnly && (
+        <Card className="p-3 mb-4 text-xs text-[rgb(var(--fg-muted))]">
+          Programma condiviso da <strong>{supplierName}</strong> — sola lettura. Puoi consultarlo ed esportarlo.
+        </Card>
+      )}
+
       {/* RUN-SHEET */}
       <Card className="p-4 mb-4">
         <div className="flex items-center gap-2 mb-3">
           <Clock size={16} className="text-[rgb(var(--gold-600))]" />
           <h2 className="font-medium flex-1">Programma operativo</h2>
-          {event.quote_id && <Button size="sm" variant="ghost" onClick={() => void importProgram()}><Download size={13} className="mr-1" /> Dal programma evento</Button>}
-          <Button size="sm" variant="ghost" onClick={() => void loadRunTemplate()}><Sparkles size={13} className="mr-1" /> Modello</Button>
+          {!readOnly && event.quote_id && <Button size="sm" variant="ghost" onClick={() => void importProgram()}><Download size={13} className="mr-1" /> Dal programma evento</Button>}
+          {!readOnly && <Button size="sm" variant="ghost" onClick={() => void loadRunTemplate()}><Sparkles size={13} className="mr-1" /> Modello</Button>}
         </div>
         {runItems.length === 0 ? (
-          <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessun momento. Carica un modello o aggiungi le righe della giornata.</p>
+          <p className="text-xs text-[rgb(var(--fg-subtle))] italic">{readOnly ? 'Nessun momento ancora inserito.' : 'Nessun momento. Carica un modello o aggiungi le righe della giornata.'}</p>
+        ) : readOnly ? (
+          <div className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+            {runItems.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 py-2 text-sm">
+                <span className="w-16 font-medium text-[rgb(var(--gold-700))]">{r.start_time || '—'}</span>
+                <span className="flex-1">{r.title}</span>
+                {r.role_label && <span className="text-xs text-[rgb(var(--fg-muted))]">{r.role_label}</span>}
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="space-y-1.5">
             {runItems.map((r) => (
@@ -378,10 +466,11 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
             ))}
           </div>
         )}
-        <Button size="sm" variant="outline" className="mt-3" onClick={() => void addRun()}><Plus size={14} className="mr-1" /> Aggiungi momento</Button>
+        {!readOnly && <Button size="sm" variant="outline" className="mt-3" onClick={() => void addRun()}><Plus size={14} className="mr-1" /> Aggiungi momento</Button>}
       </Card>
 
       {/* CHECKLIST ATTREZZATURA */}
+      {!readOnly && (
       <Card className="p-4 mb-4">
         <div className="flex items-center gap-2 mb-3">
           <Package size={16} className="text-[rgb(var(--gold-600))]" />
@@ -410,8 +499,42 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
         )}
         <Button size="sm" variant="outline" className="mt-3" onClick={() => void addPack()}><Plus size={14} className="mr-1" /> Aggiungi voce</Button>
       </Card>
+      )}
+
+      {/* COLLEGHI SULL'EVENTO */}
+      {!readOnly && (
+      <Card className="p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Users size={16} className="text-[rgb(var(--gold-600))]" />
+          <h2 className="font-medium flex-1">Colleghi sull'evento</h2>
+        </div>
+        <p className="text-xs text-[rgb(var(--fg-subtle))] mb-3">
+          Invita un altro fornitore Planfully (es. il videografo) a condividere questo programma. Vedrà la timeline in sola lettura.
+        </p>
+        <div className="flex gap-2">
+          <Input className="flex-1 text-sm" type="email" placeholder="email del collega" value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void invite() }} />
+          <Button variant="gold" disabled={inviting} onClick={() => void invite()}><Plus size={14} className="mr-1" /> Invita</Button>
+        </div>
+        {collabs.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {collabs.map((c) => (
+              <div key={c.id} className="flex items-center gap-2 text-sm">
+                <span className="flex-1 truncate">{c.name}</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style={c.status === 'ATTIVO' ? { color: '#16a34a', background: '#16a34a1a' } : c.status === 'RIFIUTATO' ? { color: '#dc2626', background: '#dc26261a' } : { color: '#d97706', background: '#d977061a' }}>
+                  {c.status === 'ATTIVO' ? 'Attivo' : c.status === 'RIFIUTATO' ? 'Rifiutato' : 'In attesa'}
+                </span>
+                <button onClick={() => void removeCollab(c.id)} className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      )}
 
       {/* PRESENZE */}
+      {!readOnly && (
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <Users size={16} className="text-[rgb(var(--gold-600))]" />
@@ -447,6 +570,7 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
           </div>
         )}
       </Card>
+      )}
     </div>
   )
 }
