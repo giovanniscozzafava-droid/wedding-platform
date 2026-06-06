@@ -30,6 +30,7 @@ import {
   Code2,
   Coins,
   CheckSquare,
+  TicketPercent,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -108,6 +109,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/clienti',     label: 'Clienti',     icon: Contact },
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
     { to: '/lavori-da-confermare', label: 'Da confermare', icon: CheckSquare },
+    { to: '/voci-da-rivedere', label: 'Da rivedere', icon: TicketPercent },
     { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
     { to: '/weddings',    label: 'Eventi',      icon: Heart },
   ]},

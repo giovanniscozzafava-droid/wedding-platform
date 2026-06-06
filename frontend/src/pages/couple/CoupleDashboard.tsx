@@ -861,6 +861,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   const liveItems = data.items.filter((it) => !it.contracted_at)
   const hasLive = liveItems.length > 0
   const isClosed = !!data.closed_at
+  const pendingCount = liveItems.filter((it) => (it.client_decision ?? 'IN_ATTESA') === 'IN_ATTESA').length
   const confirmedTotal = data.items
     .filter((it) => it.contracted_at || it.client_decision === 'ACCETTATO')
     .reduce((s, it) => s + Number(it.line_client || 0), 0)
@@ -872,6 +873,14 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
 
   return (
     <div className="space-y-5">
+      {pendingCount > 0 && !isClosed && (
+        <Card className="p-4 flex items-center gap-3" style={{ background: 'rgb(var(--gold-100))', borderColor: 'rgb(var(--gold-500))' }}>
+          <span className="text-xl">✨</span>
+          <p className="text-sm">
+            Hai <strong>{pendingCount} {pendingCount === 1 ? 'nuova proposta' : 'nuove proposte'}</strong> dal tuo organizzatore da rivedere qui sotto: approva, metti in forse o non accettare.
+          </p>
+        </Card>
+      )}
       <Card className="p-6 sm:p-8">
         <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
           <div className="min-w-0">

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { ServiceForm } from '@/components/catalog/ServiceForm'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { useDeleteService, useReorderServices, useServices, type ServiceWithExtras } from '@/hooks/useCatalog'
+import { useCreateService, useDeleteService, useReorderServices, useServices, type ServiceWithExtras } from '@/hooks/useCatalog'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProfessione } from '@/hooks/useProfessione'
 import { PackImportPicker } from '@/components/professione/PackImportPicker'
@@ -30,6 +30,21 @@ export default function CatalogPage() {
   const { data: suppliers } = useSuppliers()
   const { data: professione } = useProfessione()
   const del = useDeleteService()
+  const dup = useCreateService()
+  async function handleDuplicate(s: ServiceWithExtras) {
+    try {
+      await dup.mutateAsync({
+        name: `${s.name} (copia)`,
+        description: s.description,
+        base_price: s.base_price,
+        unit: s.unit,
+        category_id: s.category_id,
+        is_active: s.is_active,
+        tags: (s as { tags?: string[] }).tags ?? [],
+      } as any)
+      toast.success('Servizio duplicato')
+    } catch (e) { toast.error((e as Error).message) }
+  }
   const [editing, setEditing] = useState<ServiceWithExtras | null>(null)
   const [viewing, setViewing] = useState<ServiceWithExtras | null>(null)
   const [creating, setCreating] = useState(false)
@@ -261,6 +276,7 @@ export default function CatalogPage() {
                 {mine.map((s) => (
                   <ServiceCard key={s.id} s={s} isProvider
                     onEdit={() => setEditing(s)}
+                    onDuplicate={() => void handleDuplicate(s)}
                     onDelete={async () => {
                       if (!confirm(`Eliminare "${s.name}"?`)) return
                       try { await del.mutateAsync(s.id); toast.success('Eliminato') }
@@ -344,6 +360,7 @@ export default function CatalogPage() {
                   {items.map((s) => (
                     <ServiceCard key={s.id} s={s} isProvider={isProvider}
                       onEdit={() => setEditing(s)}
+                      onDuplicate={() => void handleDuplicate(s)}
                       onDelete={async () => {
                         if (!confirm(`Eliminare "${s.name}"?`)) return
                         try { await del.mutateAsync(s.id); toast.success('Eliminato') }
@@ -430,11 +447,12 @@ function ServiceDetailModal({ s, onClose }: { s: ServiceWithExtras; onClose: () 
   )
 }
 
-function ServiceCard({ s, isProvider, onEdit, onDelete, onView }: {
+function ServiceCard({ s, isProvider, onEdit, onDelete, onDuplicate, onView }: {
   s: ServiceWithExtras
   isProvider: boolean
   onEdit?: () => void
   onDelete?: () => void
+  onDuplicate?: () => void
   onView?: () => void
 }) {
   // La card intera è cliccabile: per fornitore apre l'edit, per WP apre dettaglio read-only.
@@ -483,8 +501,9 @@ function ServiceCard({ s, isProvider, onEdit, onDelete, onView }: {
           </div>
         )}
         {isProvider && onEdit && onDelete && (
-          <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-wrap gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
             <Button variant="outline" size="sm" onClick={onEdit} data-testid={`edit-${s.id}`}>Modifica</Button>
+            {onDuplicate && <Button variant="outline" size="sm" onClick={onDuplicate}>Duplica</Button>}
             <Button variant="ghost" size="sm" onClick={onDelete}>Elimina</Button>
           </div>
         )}

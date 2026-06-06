@@ -60,6 +60,7 @@ const ClientAccessPage = lazyWithRetry(() => import('@/pages/client/ClientAccess
 const SupplierTeamPage = lazyWithRetry(() => import('@/pages/SupplierTeamPage'))
 const SupplierLeadsPage = lazyWithRetry(() => import('@/pages/SupplierLeadsPage'))
 const SupplierPendingPage = lazyWithRetry(() => import('@/pages/SupplierPendingPage'))
+const SupplierReviewItemsPage = lazyWithRetry(() => import('@/pages/SupplierReviewItemsPage'))
 const SupplierCreditsPage = lazyWithRetry(() => import('@/pages/SupplierCreditsPage'))
 const PublicSlugResolver = lazyWithRetry(() => import('@/pages/public/PublicSlugResolver'))
 const WpLeadsPage = lazyWithRetry(() => import('@/pages/WpLeadsPage'))
@@ -239,6 +240,7 @@ export default function App() {
           <Route path="/crediti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCreditsPage /></RequireAuth>} />
           <Route path="/richieste" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierLeadsPage /></RequireAuth>} />
           <Route path="/lavori-da-confermare" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierPendingPage /></RequireAuth>} />
+          <Route path="/voci-da-rivedere" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierReviewItemsPage /></RequireAuth>} />
           <Route path="/integrazione-sito" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><IntegrationsPage /></RequireAuth>} />
           <Route path="/faq" element={<RequireAuth><FaqPage /></RequireAuth>} />
           <Route path="/assistenza" element={<RequireAuth><SupportPage /></RequireAuth>} />
