@@ -38,7 +38,7 @@ type PublicProfile = {
     id: string
     name: string
     description: string | null
-    base_price: number
+    base_price: number | null
     unit: string
     category: string | null
     photos: Array<{ url: string; caption: string | null }>
@@ -287,7 +287,6 @@ export default function PublicSupplierPage() {
                     Per lavorare con {data.business_name ?? data.full_name ?? 'questo fornitore'}, contatta il tuo wedding planner di riferimento.
                   </p>
                 ) : null}
-                {!isOwner && !isPublicVisitor && <FollowButton userId={data.id} variant="outline" />}
               </div>
             </div>
           </div>
@@ -324,7 +323,9 @@ export default function PublicSupplierPage() {
                   <h3 className="font-medium mt-0.5">{s.name}</h3>
                   {s.description && <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 line-clamp-3">{s.description}</p>}
                   <p className="text-sm font-medium mt-2 tabular-nums">
-                    da € {Number(s.base_price).toLocaleString('it-IT', { maximumFractionDigits: 0 })} <span className="text-xs text-[rgb(var(--fg-subtle))]">/ {s.unit.toLowerCase()}</span>
+                    {s.base_price == null
+                      ? <span className="text-[rgb(var(--fg-muted))]">Prezzo su richiesta</span>
+                      : <>da € {Number(s.base_price).toLocaleString('it-IT', { maximumFractionDigits: 0 })} <span className="text-xs text-[rgb(var(--fg-subtle))]">/ {s.unit.toLowerCase()}</span></>}
                   </p>
                 </div>
               ))}
