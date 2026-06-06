@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
-  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Church,
+  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Church, Package,
 } from 'lucide-react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -29,8 +29,9 @@ import { AppFooter } from '@/components/layout/AppFooter'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { SaluteEventoBadge } from '@/components/wedding/SaluteEventoBadge'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
+import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
 
-type Tab = 'overview' | 'preventivo' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
+type Tab = 'overview' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website'
 
 // La tab "Questionario" (planning) e' stata rimossa dalla coppia:
 // le domande sono gia` raccolte nel questionario di presentazione iniziale
@@ -39,6 +40,7 @@ type Tab = 'overview' | 'preventivo' | 'planning' | 'cerimonia' | 'documenti' | 
 const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'overview',   label: 'Overview',     icon: Heart },
   { key: 'preventivo', label: 'Preventivo',   icon: FileSignature },
+  { key: 'fornitori',  label: 'I miei fornitori', icon: Package },
   { key: 'cerimonia',  label: 'Cerimonia',    icon: Church },
   { key: 'documenti',  label: 'Documenti',    icon: FileText },
   { key: 'programma', label: 'Programma',    icon: CalendarClock },
@@ -239,6 +241,15 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewCouple wedding={wedding} entryId={entryId} memberRole={memberRole} />}
             {tab === 'preventivo' && <PreventivoCouple entryId={entryId} />}
+            {tab === 'fornitori' && (
+              <div>
+                <h2 className="font-display text-2xl mb-1">I miei fornitori</h2>
+                <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
+                  Preventivi, contratti e comunicazioni di ogni professionista — anche quelli che hai contattato per conto tuo, fuori dalla rete dell'organizzatore.
+                </p>
+                <ClientProfessionalsView />
+              </div>
+            )}
             {tab === 'planning' && <CouplePlanningTab entryId={entryId} />}
             {tab === 'cerimonia' && <CeremonyTab entryId={entryId} readOnly />}
             {tab === 'documenti' && <DocumentiCouple wedding={wedding} entryId={entryId} />}
