@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Trash2, Save, Calculator, TrendingUp } from 'lucide-react'
+import { Plus, Trash2, Save, Calculator, TrendingUp, Flower2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { borsaStarter } from '@/lib/borsaTemplates'
 
 type Comp = { id?: string; name: string; unit_price: number; quantity: number; unit: string; notes?: string }
+type Ingredient = { id: string; name: string; unit: string; unit_cost: number; category: string | null; active: boolean; ord: number }
 
 const UNITS = ['pz', 'gambo', 'mazzo', 'kg', 'g', 'l', 'ml', 'h', 'm', 'altro']
 
@@ -161,12 +163,33 @@ export default function CompositionCalculatorPage() {
   const [customName, setCustomName] = useState('')
   const [isCustom, setIsCustom] = useState(false)
   const [markup, setMarkup] = useState(40)
+  const [waste, setWaste] = useState(10)            // scarto % (fiori che si rovinano, sfrido)
   const [marketHints, setMarketHints] = useState<any[]>([])
+  const [borsa, setBorsa] = useState<Ingredient[]>([])
+  const isFiorista = (profile?.subrole ?? '').toLowerCase() === 'fioraio'
+  const borsaLabel = isFiorista ? 'Borsa del fiore' : 'Listino acquisto'
 
-  // Costo totale (somma componenti)
-  const cost = useMemo(() => components.reduce((s, c) => s + Number(c.unit_price) * Number(c.quantity), 0), [components])
+  // Food-cost: materiali + scarto → prezzo; incidenza = quanto pesa il materiale sul prezzo.
+  const materials = useMemo(() => components.reduce((s, c) => s + Number(c.unit_price) * Number(c.quantity), 0), [components])
+  const cost = useMemo(() => materials * (1 + waste / 100), [materials, waste])
   const sale = useMemo(() => cost * (1 + markup / 100), [cost, markup])
   const margin = sale - cost
+  const foodCostPct = sale > 0 ? (cost / sale) * 100 : 0
+
+  async function loadBorsa() {
+    if (!user) return
+    const { data } = await (supabase.from('supplier_cost_ingredients' as any) as any)
+      .select('id, name, unit, unit_cost, category, active, ord').eq('supplier_id', user.id).eq('active', true).order('ord')
+    setBorsa((data as Ingredient[]) ?? [])
+  }
+  useEffect(() => { void loadBorsa() }, [user?.id])
+
+  // Se il nome del componente combacia con una voce della borsa, precompila costo+unità.
+  function applyBorsaMatch(i: number, name: string) {
+    const hit = borsa.find((b) => b.name.toLowerCase() === name.toLowerCase())
+    if (hit) updateComp(i, { name, unit_price: Number(hit.unit_cost), unit: hit.unit })
+    else updateComp(i, { name })
+  }
 
   // Hint borsino
   useEffect(() => {
@@ -178,6 +201,27 @@ export default function CompositionCalculatorPage() {
   }, [profile?.subrole])
 
   const presets = PRESETS_BY_SUBROLE[profile?.subrole ?? ''] ?? []
+
+  // ---- Borsa del fiore / listino acquisto ----
+  async function addIngredient() {
+    if (!user) return
+    await (supabase.from('supplier_cost_ingredients' as any) as any).insert({ supplier_id: user.id, name: '', unit: isFiorista ? 'gambo' : 'pz', unit_cost: 0, ord: borsa.length })
+    await loadBorsa()
+  }
+  async function patchIngredient(id: string, patch: Partial<Ingredient>) {
+    setBorsa((s) => s.map((b) => b.id === id ? { ...b, ...patch } : b))
+    await (supabase.from('supplier_cost_ingredients' as any) as any).update(patch).eq('id', id)
+  }
+  async function delIngredient(id: string) {
+    await (supabase.from('supplier_cost_ingredients' as any) as any).delete().eq('id', id); await loadBorsa()
+  }
+  async function loadBorsaStarter() {
+    if (!user) return
+    const seeds = borsaStarter(profile?.subrole)
+    if (!seeds.length) { toast.info('Nessuna borsa di partenza per la tua categoria'); return }
+    await (supabase.from('supplier_cost_ingredients' as any) as any).insert(seeds.map((s, i) => ({ supplier_id: user.id, name: s.name, unit: s.unit, unit_cost: s.unit_cost, category: s.category ?? null, ord: borsa.length + i })))
+    await loadBorsa(); toast.success('Borsa di partenza caricata — aggiorna i costi col tuo fornitore')
+  }
 
   function addComp() {
     setComponents((c) => [...c, { name: '', unit_price: 0, quantity: 1, unit: 'pz' }])
@@ -261,8 +305,43 @@ export default function CompositionCalculatorPage() {
           </Card>
         )}
 
+        {/* BORSA DEL FIORE / LISTINO ACQUISTO */}
         <Card className="p-4 sm:p-6 mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Flower2 size={18} className="text-[rgb(var(--gold-600))]" />
+            <h2 className="font-medium flex-1">{borsaLabel}</h2>
+            <Button size="sm" variant="ghost" onClick={() => void loadBorsaStarter()}><Sparkles size={13} className="mr-1" /> Borsa di partenza</Button>
+            <Button size="sm" variant="outline" onClick={() => void addIngredient()}><Plus size={13} className="mr-1" /> Voce</Button>
+          </div>
+          <p className="text-xs text-[rgb(var(--fg-subtle))] mb-3">
+            Il tuo listino d'acquisto: costo per {isFiorista ? 'stelo/mazzo' : 'unità'}. Da qui il calcolatore precompila i costi quando costruisci una composizione.
+          </p>
+          {borsa.length === 0 ? (
+            <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Borsa vuota. Carica la borsa di partenza o aggiungi le tue voci.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-72 overflow-auto">
+              {borsa.map((b) => (
+                <div key={b.id} className="flex items-center gap-2">
+                  <Input className="flex-1 text-sm" placeholder="Es. Rosa David Austin" value={b.name} onChange={(e) => patchIngredient(b.id, { name: e.target.value })} />
+                  <Input className="w-20 text-sm" placeholder="unità" value={b.unit} onChange={(e) => patchIngredient(b.id, { unit: e.target.value })} />
+                  <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-[rgb(var(--fg-subtle))]">€</span>
+                    <Input className="w-24 text-sm pl-5" type="number" step="0.01" min={0} value={b.unit_cost} onChange={(e) => patchIngredient(b.id, { unit_cost: Number(e.target.value || 0) })} />
+                  </div>
+                  <button onClick={() => void delIngredient(b.id)} className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"><Trash2 size={15} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* datalist condiviso per l'autocomplete dei componenti dalla borsa */}
+        <datalist id="borsa-list">
+          {borsa.map((b) => <option key={b.id} value={b.name}>{`€${b.unit_cost}/${b.unit}`}</option>)}
+        </datalist>
+
+        <Card className="p-4 sm:p-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div className="space-y-1">
               <Label htmlFor="comp-name">Nome servizio</Label>
               {SERVICE_NAMES_BY_SUBROLE[profile?.subrole ?? '']?.length ? (
@@ -294,7 +373,11 @@ export default function CompositionCalculatorPage() {
               )}
             </div>
             <div className="space-y-1">
-              <Label htmlFor="markup">Markup %</Label>
+              <Label htmlFor="waste">Scarto %</Label>
+              <Input id="waste" type="number" min={0} value={waste} onChange={(e) => setWaste(Number(e.target.value || 0))} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="markup">Ricarico %</Label>
               <Input id="markup" type="number" min={0} value={markup} onChange={(e) => setMarkup(Number(e.target.value || 0))} />
             </div>
           </div>
@@ -319,7 +402,7 @@ export default function CompositionCalculatorPage() {
               <div key={i} className="grid grid-cols-12 gap-2 items-end">
                 <div className="col-span-12 sm:col-span-4 space-y-1">
                   <Label className="text-[10px] uppercase tracking-wider">Componente</Label>
-                  <Input value={c.name} onChange={(e) => updateComp(i, { name: e.target.value })} placeholder="Es. Rosa David Austin" />
+                  <Input list="borsa-list" value={c.name} onChange={(e) => applyBorsaMatch(i, e.target.value)} placeholder="Es. Rosa David Austin" />
                 </div>
                 <div className="col-span-4 sm:col-span-2 space-y-1">
                   <Label className="text-[10px] uppercase tracking-wider">Quantità</Label>
@@ -349,16 +432,18 @@ export default function CompositionCalculatorPage() {
         </Card>
 
         <Card className="p-6">
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <Stat label="Costo materiali" value={`€ ${cost.toFixed(2)}`} />
-            <Stat label="Markup" value={`+${markup}%`} tone="gold" />
-            <Stat label="Prezzo vendita" value={`€ ${sale.toFixed(2)}`} tone="emerald" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <Stat label="Materiali" value={`€ ${materials.toFixed(2)}`} />
+            <Stat label={`Costo +scarto ${waste}%`} value={`€ ${cost.toFixed(2)}`} tone="gold" />
+            <Stat label="Prezzo consigliato" value={`€ ${sale.toFixed(2)}`} tone="emerald" />
+            <Stat label="Incidenza materiali" value={`${foodCostPct.toFixed(0)}%`} />
           </div>
           <p className="text-sm text-center text-[rgb(var(--fg-muted))]">
             Margine: <strong>€ {margin.toFixed(2)}</strong>
+            {foodCostPct > 0 && <> · incidenza materiali <strong>{foodCostPct.toFixed(0)}%</strong>{foodCostPct > 45 ? ' (alta: valuta di alzare il prezzo o ridurre i costi)' : foodCostPct < 25 ? ' (ottima marginalità)' : ''}</>}
           </p>
           <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-end">
-            <Button variant="outline" onClick={() => { setName(''); setCustomName(''); setIsCustom(false); setComponents([]); setMarkup(40) }}>
+            <Button variant="outline" onClick={() => { setName(''); setCustomName(''); setIsCustom(false); setComponents([]); setMarkup(40); setWaste(10) }}>
               <Calculator size={14} /> Resetta
             </Button>
             <Button variant="gold" onClick={saveAsService}>
