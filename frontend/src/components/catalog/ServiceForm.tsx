@@ -11,6 +11,7 @@ import {
   useUploadPhoto, useDeletePhoto, type ServiceWithExtras,
 } from '@/hooks/useCatalog'
 import { presetsFor, type ServicePreset } from '@/lib/service-presets'
+import { CategoryPicker } from '@/components/catalog/CategoryPicker'
 import type { Database } from '@/lib/database.types'
 
 type Unit = Database['public']['Enums']['service_unit']
@@ -44,11 +45,24 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
   const [savedId, setSavedId] = useState<string | null>(service?.id ?? null)
   const [newMod, setNewMod] = useState({ name: '', type: 'PERCENT' as ModType, value: '' })
 
+  // Auto-suggerimento categoria dal titolo: niente più default su cats[0]
+  // (che sceglieva una categoria a caso). Se il titolo combacia con una
+  // categoria e nessuna è ancora scelta, la impostiamo automaticamente.
   useEffect(() => {
-    if (!form.category_id && cats?.length) {
-      setForm((f) => ({ ...f, category_id: cats[0]!.id }))
+    if (form.category_id || !cats?.length) return
+    const n = form.name.trim().toLowerCase()
+    if (n.length < 3) return
+    let best: { id: string; name: string } | null = null
+    let bestLen = 0
+    for (const c of cats) {
+      const cn = c.name.toLowerCase()
+      if (n.includes(cn) || cn.includes(n)) {
+        const len = Math.min(cn.length, n.length)
+        if (len > bestLen) { best = c; bestLen = len }
+      }
     }
-  }, [cats, form.category_id])
+    if (best) setForm((f) => ({ ...f, category_id: best!.id }))
+  }, [cats, form.category_id, form.name])
 
   async function handleSave(e: FormEvent) {
     e.preventDefault()
@@ -225,10 +239,12 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                       {cats?.[0]?.name ?? subrole ?? 'La tua specializzazione'}
                     </div>
                   ) : (
-                    <Select id="cat" value={form.category_id} required
-                      onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
-                      {(cats ?? []).map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
-                    </Select>
+                    <CategoryPicker
+                      cats={(cats ?? []) as { id: string; name: string; subrole?: string | null }[]}
+                      value={form.category_id}
+                      onChange={(id) => setForm((f) => ({ ...f, category_id: id }))}
+                      nameHint={form.name}
+                    />
                   )}
                 </div>
               </div>
