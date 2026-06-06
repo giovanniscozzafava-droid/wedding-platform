@@ -193,16 +193,23 @@ export default function ProfilePage() {
               )}
 
               {profile?.role === 'LOCATION' && (
-                <label className="flex items-start gap-3 p-3 rounded-lg border" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
-                  <input type="checkbox" className="mt-1" checked={form.offers_full_dining}
-                    onChange={(e) => setForm((f) => ({ ...f, offers_full_dining: e.target.checked }))} />
-                  <div className="text-sm">
-                    <p className="font-medium">Ristorazione interna</p>
-                    <p className="text-xs text-[rgb(var(--fg-muted))]">
-                      Spunta se la location offre il servizio di ristorazione direttamente (affitto sala + menu inclusi, no catering esterno).
-                    </p>
+                <div className="space-y-2">
+                  <Label>Tipo di location</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button type="button"
+                      onClick={() => setForm((f) => ({ ...f, offers_full_dining: false }))}
+                      className={`text-left p-3 rounded-lg border transition-colors ${!form.offers_full_dining ? 'border-[rgb(var(--gold))] bg-[rgb(var(--bg-sunken))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                      <p className="font-medium text-sm">Solo noleggio</p>
+                      <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">Affitti gli spazi. La ristorazione la porta un catering esterno.</p>
+                    </button>
+                    <button type="button"
+                      onClick={() => setForm((f) => ({ ...f, offers_full_dining: true }))}
+                      className={`text-left p-3 rounded-lg border transition-colors ${form.offers_full_dining ? 'border-[rgb(var(--gold))] bg-[rgb(var(--bg-sunken))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                      <p className="font-medium text-sm">Con ristorazione interna</p>
+                      <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">Affitto sala + menu inclusi, cucina tua. Abilita la brigata completa nel Team.</p>
+                    </button>
                   </div>
-                </label>
+                </div>
               )}
 
               {/* === Dati fiscali — riusati su ogni contratto === */}

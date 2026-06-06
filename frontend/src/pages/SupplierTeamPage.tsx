@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { teamRoleSuggestions } from '@/lib/teamRoleSuggestions'
 import { toast } from 'sonner'
 
 // ============================================================================
@@ -92,6 +93,11 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 }
 
 function TeamTab({ uid, members, reload }: { uid: string; members: Member[]; reload: () => Promise<void> }) {
+  const { profile } = useAuth()
+  const suggestions = teamRoleSuggestions({
+    role: profile?.role, subrole: profile?.subrole,
+    offersFullDining: (profile as { offers_full_dining?: boolean | null } | null)?.offers_full_dining,
+  })
   const [name, setName] = useState('')
   const [role, setRole] = useState('')
   const [phone, setPhone] = useState('')
@@ -119,9 +125,26 @@ function TeamTab({ uid, members, reload }: { uid: string; members: Member[]; rel
       <Card className="p-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Input placeholder="Nome e cognome" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input placeholder="Ruolo (es. Chitarra)" value={role} onChange={(e) => setRole(e.target.value)} />
+          <Input placeholder="Ruolo / mansione" value={role} onChange={(e) => setRole(e.target.value)} />
           <Input placeholder="Telefono" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </div>
+        {suggestions.length > 0 && (
+          <div className="mt-2">
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Ruoli per la tua attività · tocca per inserire</p>
+            <div className="flex flex-wrap gap-1.5">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setRole(s)}
+                  className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${role === s ? 'bg-[rgb(var(--gold))] text-black border-transparent' : 'border-[rgb(var(--border-strong))] hover:bg-[rgb(var(--bg-sunken))]'}`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <Button variant="gold" className="mt-3" onClick={add} disabled={saving}><Plus size={15} className="mr-1" /> Aggiungi al team</Button>
       </Card>
 
