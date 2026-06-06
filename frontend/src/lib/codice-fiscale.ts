@@ -54,3 +54,26 @@ export function describeCodiceFiscaleError(input: string): string | null {
   if (cf[15] !== expected) return `Carattere di controllo errato (atteso "${expected}").`
   return null
 }
+
+/**
+ * Codice fiscale di una PERSONA GIURIDICA (società, associazione): è di 11
+ * CIFRE numeriche (coincide quasi sempre con la partita IVA), NON 16 caratteri.
+ */
+export function describeCompanyFiscalError(input: string): string | null {
+  if (!input || input.trim() === '') return null
+  const v = input.replace(/\s+/g, '')
+  if (!/^[0-9]{11}$/.test(v)) {
+    return `Per le società il codice fiscale è di 11 cifre numeriche (attuali: ${v.length}).`
+  }
+  return null
+}
+
+/** Validazione "secondo il tipo": persona fisica (16) o società/ente (11). */
+export function describeFiscalErrorByType(
+  input: string,
+  variant: 'person' | 'company',
+): string | null {
+  return variant === 'company'
+    ? describeCompanyFiscalError(input)
+    : describeCodiceFiscaleError(input)
+}

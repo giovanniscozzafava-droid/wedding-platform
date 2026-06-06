@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { describeCodiceFiscaleError } from '@/lib/codice-fiscale'
+import { describeFiscalErrorByType } from '@/lib/codice-fiscale'
 import { cn } from '@/lib/utils'
 
 export type CodiceFiscaleInputProps = {
@@ -13,6 +13,8 @@ export type CodiceFiscaleInputProps = {
   disabled?: boolean
   /** Mostra messaggio di errore inline (default: true) */
   showError?: boolean
+  /** 'person' = persona fisica (16 char), 'company' = società/ente (11 cifre). Default 'person'. */
+  variant?: 'person' | 'company'
 }
 
 /**
@@ -24,19 +26,22 @@ export type CodiceFiscaleInputProps = {
 export function CodiceFiscaleInput({
   value,
   onChange,
-  placeholder = 'RSSMRA80A01H501Z',
+  placeholder,
   className,
   id,
   required,
   disabled,
   showError = true,
+  variant = 'person',
 }: CodiceFiscaleInputProps) {
   const [touched, setTouched] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isCompany = variant === 'company'
+  const ph = placeholder ?? (isCompany ? '01234567890' : 'RSSMRA80A01H501Z')
 
   useEffect(() => {
-    if (touched) setError(describeCodiceFiscaleError(value))
-  }, [value, touched])
+    if (touched) setError(describeFiscalErrorByType(value, variant))
+  }, [value, touched, variant])
 
   const valid = touched && !error && value.trim().length > 0
 
@@ -47,13 +52,13 @@ export function CodiceFiscaleInput({
           id={id}
           type="text"
           value={value}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          onChange={(e) => onChange((isCompany ? e.target.value.replace(/[^0-9]/g, '') : e.target.value.toUpperCase()))}
           onBlur={() => {
             setTouched(true)
-            setError(describeCodiceFiscaleError(value))
+            setError(describeFiscalErrorByType(value, variant))
           }}
-          placeholder={placeholder}
-          maxLength={16}
+          placeholder={ph}
+          maxLength={isCompany ? 11 : 16}
           autoComplete="off"
           required={required}
           disabled={disabled}

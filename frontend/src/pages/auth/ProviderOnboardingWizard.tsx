@@ -342,6 +342,7 @@ export function ProviderOnboardingWizard() {
                         <CodiceFiscaleInput
                           value={form.fiscal_code}
                           onChange={(v) => patch('fiscal_code', v)}
+                          variant={form.legal_form && form.legal_form !== 'INDIVIDUAL' ? 'company' : 'person'}
                         />
                       </Field>
                     </div>
