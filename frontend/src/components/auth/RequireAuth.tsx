@@ -26,8 +26,11 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
   if (!session) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
-  // Onboarding gate: utente autenticato ma profile non completato → forza wizard
+  // Onboarding gate: utente autenticato ma profile non completato → forza wizard.
+  // SOLO per i professionisti: COUPLE e CLIENT NON fanno il wizard (il questionario
+  // è già stato raccolto in fase di lead) e atterrano direttamente nella loro area.
   if (profile && !profile.onboarding_complete
+    && profile.role !== 'COUPLE' && profile.role !== 'CLIENT'
     && location.pathname !== '/onboarding'
     && !location.pathname.startsWith('/couple/accept')) {
     return <Navigate to="/onboarding" replace />

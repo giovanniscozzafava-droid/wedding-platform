@@ -36,6 +36,11 @@ const schema = z.object({
 export default function RegisterPage() {
   const [params] = useSearchParams()
   const refFromUrl = params.get('ref') ?? ''
+  // Se l'utente arriva da un preventivo/invito (?next=...), dopo la registrazione
+  // atterra lì (es. il preventivo) e NON sull'onboarding: il questionario è già
+  // stato compilato in fase di lead, non va ripetuto.
+  const nextUrl = params.get('next')
+  const destAfterSignup = nextUrl && nextUrl.startsWith('/') ? nextUrl : '/onboarding'
   const [form, setForm] = useState({
     full_name: '', business_name: '', email: '', password: '',
     role: 'WEDDING_PLANNER' as AppRole, subrole: '', accept_referrals: false, platform_terms: false,
@@ -75,7 +80,7 @@ export default function RegisterPage() {
             accept_referrals: form.role === 'FORNITORE' ? form.accept_referrals : false,
             platform_terms: form.platform_terms,
           },
-          emailRedirectTo: `${window.location.origin}/onboarding`,
+          emailRedirectTo: `${window.location.origin}${destAfterSignup}`,
         },
       })
       if (err) throw err
@@ -90,7 +95,7 @@ export default function RegisterPage() {
         // Email confirmation pending → memorizza per dopo conferma
         try { localStorage.setItem('pending_ref_code', code) } catch { /* ignore */ }
       }
-      nav('/onboarding', { replace: true })
+      nav(destAfterSignup, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore inatteso')
     } finally { setBusy(false) }

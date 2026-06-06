@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Coins, ArrowUpRight, ArrowDownRight, Plus, Check, X, Handshake, Search } from 'lucide-react'
+import { Coins, ArrowUpRight, ArrowDownRight, Plus, Check, X, Handshake } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -145,32 +145,61 @@ export default function SupplierCreditsPage() {
   )
 }
 
+type Colleague = { id: string; name: string | null; subrole: string | null }
+type EventRef = { id: string; title: string; event_kind: string | null; client_name: string | null; event_date: string | null }
+
+function refErrLabel(code?: string) {
+  return code === 'debtor_not_referrable'
+      ? 'Questo collega non ha attivato "voglio essere suggerito": non puoi registrare un credito a suo carico.'
+    : code === 'debtor_not_supplier' ? 'Puoi segnalare solo fornitori.'
+    : code === 'invalid_debtor' ? 'Collega non valido.'
+    : code === 'auth_required' ? 'Sessione scaduta, rientra.'
+    : code || 'Errore'
+}
+
 function ReferralForm({ onDone }: { onDone: () => void }) {
   const [q, setQ] = useState('')
-  const [results, setResults] = useState<{ id: string; full_name: string | null; business_name: string | null; subrole: string | null }[]>([])
+  const [colleagues, setColleagues] = useState<Colleague[]>([])
+  const [events, setEvents] = useState<EventRef[]>([])
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null)
   const [amount, setAmount] = useState('39')
-  const [eventKind, setEventKind] = useState('')
-  const [clientLabel, setClientLabel] = useState('')
+  const [eventId, setEventId] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
 
-  async function search() {
-    if (q.trim().length < 2) return
-    const { data } = await rpc('discover_suppliers', { p_search: q.trim(), p_limit: 8 })
-    setResults((data as typeof results) ?? [])
-  }
+  // Solo colleghi che ACCETTANO di essere segnalati (così niente debtor_not_referrable).
+  useEffect(() => {
+    void (async () => {
+      const { data } = await rpc('followed_suppliers')
+      setColleagues(((data as { suppliers?: Colleague[] })?.suppliers) ?? [])
+    })()
+  }, [])
+  // Riferimento = SOLO eventi reali sulla piattaforma (i miei preventivi/eventi).
+  useEffect(() => {
+    void (async () => {
+      const { data } = await (supabase as unknown as { from: (t: string) => any })
+        .from('quotes').select('id, title, event_kind, client_name, event_date').order('event_date', { ascending: false, nullsFirst: false }).limit(100)
+      setEvents((data as EventRef[]) ?? [])
+    })()
+  }, [])
+
+  const filtered = q.trim().length === 0 ? colleagues
+    : colleagues.filter((c) => (c.name ?? '').toLowerCase().includes(q.trim().toLowerCase()) || (c.subrole ?? '').toLowerCase().includes(q.trim().toLowerCase()))
+  const selEvent = events.find((e) => e.id === eventId)
 
   async function submit() {
     if (!picked) { toast.error('Scegli il collega segnalato'); return }
+    if (!eventId) { toast.error('Scegli l\'evento di riferimento'); return }
     setSaving(true)
     const { data, error } = await rpc('log_supplier_referral', {
-      p_debtor_id: picked.id, p_amount: Number(amount) || 100,
-      p_reason: reason.trim() || null, p_event_kind: eventKind.trim() || null, p_client_label: clientLabel.trim() || null,
+      p_debtor_id: picked.id, p_amount: Number(amount) || 39,
+      p_reason: reason.trim() || null,
+      p_event_kind: selEvent?.event_kind || null,
+      p_client_label: selEvent ? [selEvent.client_name, selEvent.title].filter(Boolean).join(' · ') : null,
     })
     setSaving(false)
     const r = data as { ok?: boolean; error?: string }
-    if (error || r?.error) { toast.error(r?.error || 'Errore'); return }
+    if (error || r?.error) { toast.error(refErrLabel(r?.error)); return }
     toast.success('Segnalazione registrata'); onDone()
   }
 
@@ -184,30 +213,37 @@ function ReferralForm({ onDone }: { onDone: () => void }) {
         </div>
       ) : (
         <div className="mb-3">
-          <div className="flex gap-2">
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca il collega (nome attività)…"
-              onKeyDown={(e) => { if (e.key === 'Enter') void search() }} />
-            <Button variant="outline" onClick={() => void search()}><Search size={15} /></Button>
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca tra i colleghi che segui…" />
+          <div className="mt-2 space-y-1 max-h-56 overflow-auto">
+            {colleagues.length === 0 && (
+              <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessun collega segnalabile. Segui colleghi che hanno attivato "voglio essere suggerito".</p>
+            )}
+            {filtered.map((r) => (
+              <button key={r.id} onClick={() => setPicked({ id: r.id, name: r.name || 'Collega' })}
+                className="w-full text-left text-sm px-3 py-2 rounded-lg border hover:bg-[rgb(var(--bg-sunken))]" style={{ borderColor: 'rgb(var(--border))' }}>
+                {r.name} {r.subrole && <span className="text-xs text-[rgb(var(--fg-subtle))]">· {r.subrole}</span>}
+              </button>
+            ))}
           </div>
-          {results.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {results.map((r) => (
-                <button key={r.id} onClick={() => { setPicked({ id: r.id, name: r.business_name || r.full_name || 'Collega' }); setResults([]) }}
-                  className="w-full text-left text-sm px-3 py-2 rounded-lg border hover:bg-[rgb(var(--bg-sunken))]" style={{ borderColor: 'rgb(var(--border))' }}>
-                  {r.business_name || r.full_name} {r.subrole && <span className="text-xs text-[rgb(var(--fg-subtle))]">· {r.subrole}</span>}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div><label className="text-xs text-[rgb(var(--fg-muted))]">Credito (€)</label><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
-        <div><label className="text-xs text-[rgb(var(--fg-muted))]">Tipo evento</label><Input value={eventKind} onChange={(e) => setEventKind(e.target.value)} placeholder="matrimonio, battesimo…" /></div>
-        <div><label className="text-xs text-[rgb(var(--fg-muted))]">Riferimento cliente</label><Input value={clientLabel} onChange={(e) => setClientLabel(e.target.value)} placeholder="Es. Rossi / 12 lug" /></div>
+        <div>
+          <label className="text-xs text-[rgb(var(--fg-muted))]">Evento di riferimento</label>
+          <select value={eventId} onChange={(e) => setEventId(e.target.value)}
+            className="w-full text-sm border rounded-lg px-2 py-2 bg-transparent" style={{ borderColor: 'rgb(var(--border))' }}>
+            <option value="">— Scegli un evento —</option>
+            {events.map((e) => (
+              <option key={e.id} value={e.id}>
+                {[e.client_name, e.title].filter(Boolean).join(' · ')}{e.event_date ? ` (${new Date(e.event_date).toLocaleDateString('it-IT')})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <Input className="mt-2" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Nota (facoltativa)" />
-      <Button variant="gold" className="mt-3" onClick={() => void submit()} disabled={saving || !picked}>Registra segnalazione</Button>
+      <Button variant="gold" className="mt-3" onClick={() => void submit()} disabled={saving || !picked || !eventId}>Registra segnalazione</Button>
     </Card>
   )
 }
