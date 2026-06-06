@@ -41,7 +41,8 @@ export const SUPPLIER_SUBROLES: SubroleOption[] = [
   { v: 'animazione',    l: 'Animazione bambini' },
   { v: 'animali',       l: 'Falconiere / Animali cerimonia' },
   // Logistica
-  { v: 'location',      l: 'Location / Villa' },
+  // NB: 'location' e 'wedding_planner' NON sono fornitori: sono CAPOSTIPITI
+  // (ruoli a sé, alternativi). Si registrano dal ruolo top-level, non qui.
   { v: 'auto',          l: 'Auto / Trasporti' },
   { v: 'navetta',       l: 'Navetta ospiti' },
   { v: 'valet',         l: 'Valet parking' },
@@ -54,8 +55,6 @@ export const SUPPLIER_SUBROLES: SubroleOption[] = [
   { v: 'stampe',        l: 'Stampe / Inviti / Tableau' },
   { v: 'calligrafo',    l: 'Calligrafo' },
   { v: 'bomboniere',    l: 'Bomboniere' },
-  // Pianificazione
-  { v: 'wedding_planner', l: 'Wedding planner' },
   // Altro
   { v: 'altro',         l: 'Altro' },
 ]
