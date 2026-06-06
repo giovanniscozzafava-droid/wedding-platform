@@ -14,6 +14,18 @@ function hello(name?: string | null) {
   return n ? `Ciao ${n} 👋` : 'Ciao 👋'
 }
 
+/** Preventivo inviato al cliente — raccomanda WhatsApp perché la mail può finire in spam. */
+export function waQuoteToClient(opts: { clientName?: string | null; title?: string | null }) {
+  const t = opts.title ? ` "${opts.title}"` : ''
+  return [
+    hello(opts.clientName),
+    `ti mando qui il preventivo${t}, così sei sicuro di riceverlo: a volte via email finisce nello spam.`,
+    'Aprilo dal link qui sotto: lo leggi con calma, lo controlli e lo accetti direttamente online.',
+    'Per qualsiasi dubbio rispondi pure a questo messaggio.',
+    SIGN,
+  ].join('\n')
+}
+
 /** Contratto inviato al cliente perché lo apra e lo firmi online. */
 export function waContractToClient(opts: { clientName?: string | null; title?: string | null }) {
   const t = opts.title ? ` per "${opts.title}"` : ''

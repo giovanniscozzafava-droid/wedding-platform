@@ -271,6 +271,7 @@ function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadSha
 }
 
 type Collab = { id: string; collaborator_id: string; status: string; can_edit: boolean; name: string }
+type FollowedColleague = { id: string; name: string; subrole: string | null; role: string; city: string | null }
 
 function EventRoster({ event, members, supplierName, onBack, readOnly = false }: { event: Event; members: Member[]; supplierName: string; onBack: () => void; readOnly?: boolean }) {
   const [assign, setAssign] = useState<Record<string, Assignment>>({})
@@ -279,7 +280,8 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState<string | null>(null)
   const [collabs, setCollabs] = useState<Collab[]>([])
-  const [inviteEmail, setInviteEmail] = useState('')
+  const [followed, setFollowed] = useState<FollowedColleague[]>([])
+  const [query, setQuery] = useState('')
   const [inviting, setInviting] = useState(false)
   const { profile } = useAuth()
   const sid = profile?.id
@@ -292,18 +294,34 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
     setCollabs(((data as Array<{ id: string; collaborator_id: string; status: string; can_edit: boolean; collaborator: { business_name: string | null; full_name: string | null } | null }>) ?? [])
       .map((c) => ({ id: c.id, collaborator_id: c.collaborator_id, status: c.status, can_edit: c.can_edit, name: c.collaborator?.business_name || c.collaborator?.full_name || 'Collega' })))
   }
-  async function invite() {
-    const email = inviteEmail.trim()
-    if (!email) return
+  async function loadFollowed() {
+    if (readOnly) return
+    const { data } = await (supabase.rpc as unknown as (f: string) => Promise<{ data: unknown }>)('followed_colleagues')
+    setFollowed((data as FollowedColleague[]) ?? [])
+  }
+  function inviteErr(code?: string) {
+    return code === 'user_not_found' ? 'Nessun fornitore Planfully con questa email'
+      : code === 'not_owner' ? 'Non sei il proprietario'
+      : code === 'cannot_invite_self' ? 'Non puoi invitare te stesso' : 'Invito non riuscito'
+  }
+  async function inviteById(collabId: string) {
     setInviting(true)
     try {
-      const { data } = await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown }>)('invite_event_collaborator', { p_event_id: event.id, p_email: email })
+      const { data } = await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown }>)('invite_event_collaborator_by_id', { p_event_id: event.id, p_collab_id: collabId })
       const r = data as { ok?: boolean; error?: string }
-      if (r?.error) {
-        toast.error(r.error === 'user_not_found' ? 'Nessun fornitore Planfully con questa email' : r.error === 'not_owner' ? 'Non sei il proprietario' : r.error === 'cannot_invite_self' ? 'Non puoi invitare te stesso' : 'Invito non riuscito')
-        return
-      }
-      setInviteEmail(''); await loadCollabs(); toast.success('Invito inviato')
+      if (r?.error) { toast.error(inviteErr(r.error)); return }
+      setQuery(''); await loadCollabs(); toast.success('Invito inviato')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setInviting(false) }
+  }
+  async function inviteByEmail(email: string) {
+    if (!email.trim()) return
+    setInviting(true)
+    try {
+      const { data } = await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown }>)('invite_event_collaborator', { p_event_id: event.id, p_email: email.trim() })
+      const r = data as { ok?: boolean; error?: string }
+      if (r?.error) { toast.error(inviteErr(r.error)); return }
+      setQuery(''); await loadCollabs(); toast.success('Invito inviato via email')
     } catch (e) { toast.error((e as Error).message) }
     finally { setInviting(false) }
   }
@@ -322,7 +340,7 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
     void (async () => {
       const [a] = await Promise.all([
         db().from('supplier_team_assignments').select('id, event_id, member_id, presence, role_label').eq('event_id', event.id),
-        loadRun(), loadPack(), loadCollabs(),
+        loadRun(), loadPack(), loadCollabs(), loadFollowed(),
       ])
       const map: Record<string, Assignment> = {}
       for (const x of (a.data as Assignment[]) ?? []) map[x.member_id] = x
@@ -509,13 +527,41 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
           <h2 className="font-medium flex-1">Colleghi sull'evento</h2>
         </div>
         <p className="text-xs text-[rgb(var(--fg-subtle))] mb-3">
-          Invita un altro fornitore Planfully (es. il videografo) a condividere questo programma. Vedrà la timeline in sola lettura.
+          Cerca tra i colleghi che segui e invitalo a condividere questo programma (sola lettura). Se non lo trovi perché non ancora iscritto, invitalo via email.
         </p>
-        <div className="flex gap-2">
-          <Input className="flex-1 text-sm" type="email" placeholder="email del collega" value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void invite() }} />
-          <Button variant="gold" disabled={inviting} onClick={() => void invite()}><Plus size={14} className="mr-1" /> Invita</Button>
-        </div>
+        <Input className="text-sm" placeholder="Cerca un collega che segui, o scrivi un'email…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        {(() => {
+          const q = query.trim().toLowerCase()
+          const invitedIds = new Set(collabs.map((c) => c.collaborator_id))
+          const matches = q.length === 0 ? [] : followed.filter((f) =>
+            !invitedIds.has(f.id) && (f.name.toLowerCase().includes(q) || (f.subrole ?? '').toLowerCase().includes(q) || (f.city ?? '').toLowerCase().includes(q)))
+          const isEmail = /\S+@\S+\.\S+/.test(query.trim())
+          return (
+            <div className="mt-2 space-y-1">
+              {matches.slice(0, 6).map((f) => (
+                <button key={f.id} type="button" disabled={inviting} onClick={() => void inviteById(f.id)}
+                  className="w-full flex items-center gap-2 p-2 rounded-lg border text-left hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{f.name}</p>
+                    <p className="text-xs text-[rgb(var(--fg-muted))]">{[f.subrole, f.city].filter(Boolean).join(' · ') || (f.role === 'LOCATION' ? 'Location' : f.role === 'WEDDING_PLANNER' ? 'Wedding planner' : 'Fornitore')}</p>
+                  </div>
+                  <span className="text-xs text-[rgb(var(--gold-600))] shrink-0"><Plus size={13} className="inline" /> Invita</span>
+                </button>
+              ))}
+              {q.length > 0 && matches.length === 0 && (
+                isEmail ? (
+                  <button type="button" disabled={inviting} onClick={() => void inviteByEmail(query)}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg border text-left hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>
+                    <span className="text-sm flex-1 truncate">Invita <strong>{query.trim()}</strong> via email</span>
+                    <span className="text-xs text-[rgb(var(--gold-600))] shrink-0"><Plus size={13} className="inline" /> Invita</span>
+                  </button>
+                ) : (
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] italic px-1">Nessun collega seguito corrisponde. Se non è iscritto, scrivi la sua email per invitarlo.</p>
+                )
+              )}
+            </div>
+          )
+        })()}
         {collabs.length > 0 && (
           <div className="mt-3 space-y-1.5">
             {collabs.map((c) => (

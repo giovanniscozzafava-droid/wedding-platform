@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, MessageCircle, Globe, Users as UsersIcon, Lock, Send, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Heart, MessageCircle, Globe, Users as UsersIcon, Lock, Send, MoreHorizontal, Trash2, Share2, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -59,7 +59,28 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
   const [submittingComment, setSubmittingComment] = useState(false)
   const [carouselIdx, setCarouselIdx] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [deleted, setDeleted] = useState(false)
+
+  // Link pubblico del post + testo per la condivisione social.
+  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://planfully.it'}/feed/post/${post.slug ?? post.id}`
+  const shareText = post.title ? `${post.title} — su Planfully` : `Guarda questo lavoro su Planfully`
+  function shareTo(network: 'whatsapp' | 'facebook' | 'x' | 'linkedin') {
+    const u = encodeURIComponent(shareUrl); const t = encodeURIComponent(shareText)
+    const map: Record<string, string> = {
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(shareText + '\n' + shareUrl)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${u}`,
+      x: `https://twitter.com/intent/tweet?text=${t}&url=${u}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
+    }
+    window.open(map[network], '_blank', 'noopener,width=600,height=600')
+    setShareOpen(false)
+  }
+  async function copyShareLink() {
+    try { await navigator.clipboard.writeText(shareUrl); toast.success('Link copiato') }
+    catch { toast.error('Impossibile copiare') }
+    setShareOpen(false)
+  }
 
   async function deletePost() {
     if (!confirm('Eliminare definitivamente questo post? L\'azione non è reversibile.')) return
@@ -310,6 +331,27 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
           <MessageCircle size={16} className="text-[rgb(var(--fg-muted))]" />
           <span className="text-sm text-[rgb(var(--fg-muted))]">Commenta</span>
         </button>
+        <div className="relative flex-1">
+          <button onClick={() => setShareOpen((v) => !v)}
+            className="w-full inline-flex items-center justify-center gap-2 py-2 rounded-md hover:bg-[rgb(var(--bg-sunken))] transition-colors">
+            <Share2 size={16} className="text-[rgb(var(--fg-muted))]" />
+            <span className="text-sm text-[rgb(var(--fg-muted))]">Condividi</span>
+          </button>
+          {shareOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShareOpen(false)} />
+              <div className="absolute z-50 bottom-full mb-1 right-0 w-52 rounded-lg border shadow-lg py-1"
+                style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
+                <ShareItem icon={<MessageCircle size={15} style={{ color: '#25D366' }} />} label="WhatsApp" onClick={() => shareTo('whatsapp')} />
+                <ShareItem icon={<span className="text-sm font-bold" style={{ color: '#1877F2' }}>f</span>} label="Facebook" onClick={() => shareTo('facebook')} />
+                <ShareItem icon={<span className="text-sm font-bold">𝕏</span>} label="X (Twitter)" onClick={() => shareTo('x')} />
+                <ShareItem icon={<span className="text-[11px] font-bold" style={{ color: '#0A66C2' }}>in</span>} label="LinkedIn" onClick={() => shareTo('linkedin')} />
+                <div className="my-1 border-t" style={{ borderColor: 'rgb(var(--border))' }} />
+                <ShareItem icon={<Link2 size={15} className="text-[rgb(var(--fg-muted))]" />} label="Copia link" onClick={copyShareLink} />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Comments */}
@@ -383,4 +425,14 @@ function timeAgo(iso: string): string {
     if (diff < 604800) return `${Math.floor(diff/86400)}g`
     return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
   } catch { return iso }
+}
+
+function ShareItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[rgb(var(--bg-sunken))] text-left">
+      <span className="w-4 flex items-center justify-center">{icon}</span>
+      {label}
+    </button>
+  )
 }

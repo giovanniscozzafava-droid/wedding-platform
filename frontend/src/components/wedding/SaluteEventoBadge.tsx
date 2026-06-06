@@ -163,8 +163,11 @@ export function SaluteEventoBadge({
             color: 'rgb(var(--fg))',
           }}
         >
-          <p className="font-medium text-sm mb-1.5" style={{ color: tone.fg }}>
+          <p className="font-medium text-sm mb-1" style={{ color: tone.fg }}>
             {tone.label}
+          </p>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1.5 leading-snug">
+            Salute dell'evento: un colpo d'occhio su quanto è in ordine. Si basa su blocchi aperti (cose da sistemare), avvicinarsi della data e ultimo controllo automatico.
           </p>
           <dl className="space-y-1">
             <div className="flex justify-between gap-3">

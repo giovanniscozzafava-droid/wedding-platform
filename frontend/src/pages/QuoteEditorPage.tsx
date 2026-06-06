@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Users, Table, Clock, Package, Wallet, Calendar } from 'lucide-react'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -18,6 +18,8 @@ import {
   useAddQuoteItem, useGeneratePdf, useQuote, useRemoveQuoteItem, useSendQuote, useUpdateQuote, useUpdateQuoteItem,
 } from '@/hooks/useQuotes'
 import type { Database } from '@/lib/database.types'
+import { shareWhatsAppLink } from '@/lib/share'
+import { waQuoteToClient } from '@/lib/waMessages'
 import { ClientBriefEditor } from '@/components/quotes/ClientBriefEditor'
 import { SuggestColleaguesCard } from '@/components/quotes/SuggestColleaguesCard'
 import { HelpDot } from '@/components/help/HelpDot'
@@ -500,6 +502,22 @@ export default function QuoteEditorPage() {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  // Invio su WhatsApp: assicura il link cliente (se serve genera/invia), poi apre
+  // WhatsApp con messaggio + link. Consigliato perché la mail può finire in spam.
+  async function handleSendWhatsApp() {
+    if (!id || !quote) return
+    try {
+      let token = (quote as any).access_token ?? sendResult?.access_token
+      if (!token) {
+        const r = await sendQ.mutateAsync(id)
+        setSendResult(r); setPdfUrl(r.pdf_url ?? pdfUrl); token = r.access_token
+      }
+      if (!token) { toast.error('Non riesco a generare il link cliente'); return }
+      const url = `${window.location.origin}/p/accept/${token}`
+      shareWhatsAppLink(waQuoteToClient({ clientName: quote.client_name, title: quote.title }), url)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
@@ -526,11 +544,15 @@ export default function QuoteEditorPage() {
               <HelpDot id="quote.pdf" />
             </span>
             <span className="inline-flex items-center gap-1">
-              <Button variant="gold" onClick={handleSend} disabled={sendQ.isPending} data-testid="send-quote-btn">
-                <Send /> {sendQ.isPending ? 'Invio...' : 'Invia al cliente'}
+              <Button variant="outline" onClick={handleSend} disabled={sendQ.isPending} data-testid="send-quote-btn">
+                <Send /> {sendQ.isPending ? 'Invio...' : 'Invia via email'}
               </Button>
               <HelpDot id="quote.invia" />
             </span>
+            <Button variant="gold" onClick={handleSendWhatsApp} disabled={sendQ.isPending}
+              style={{ background: '#25D366', borderColor: '#25D366' }} title="Consigliato: l'email può finire in spam">
+              <MessageCircle /> Invia su WhatsApp
+            </Button>
           </div>
         </div>
 

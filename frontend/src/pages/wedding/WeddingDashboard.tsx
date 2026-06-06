@@ -148,7 +148,7 @@ export default function WeddingDashboard() {
       {/* Hero header */}
       <div className="aurora relative">
         <div className="absolute inset-0 dotted opacity-20 pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8 relative z-30">
           <Link to="/weddings" className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-3">
             <ArrowLeft size={14} /> Tutti gli eventi
           </Link>

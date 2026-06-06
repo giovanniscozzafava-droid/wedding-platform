@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Inbox, Calendar, MapPin, Users, ArrowRight, Filter } from 'lucide-react'
+import { Inbox, Calendar, MapPin, Users, ArrowRight, Filter, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -49,6 +49,14 @@ export default function SupplierLeadsPage() {
 
   async function setStatus(lead: Lead, status: string) {
     await db().from('supplier_leads').update({ status }).eq('id', lead.id)
+    await load()
+  }
+
+  async function del(lead: Lead) {
+    if (!window.confirm('Eliminare questa richiesta? L\'azione non è reversibile.')) return
+    const { error } = await db().from('supplier_leads').delete().eq('id', lead.id)
+    if (error) { toast.error('Errore eliminazione'); return }
+    toast.success('Richiesta eliminata')
     await load()
   }
 
@@ -117,6 +125,10 @@ export default function SupplierLeadsPage() {
                   <Button variant="gold" onClick={() => void convert(l)}>
                     {l.converted_quote_id ? 'Apri preventivo' : 'Crea preventivo'} <ArrowRight size={14} className="ml-1" />
                   </Button>
+                  <button onClick={() => void del(l)} title="Elimina richiesta"
+                    className="ml-auto inline-flex items-center gap-1 text-xs text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))] px-2 py-1.5 rounded-lg">
+                    <Trash2 size={14} /> Elimina
+                  </button>
                 </div>
               </Card>
             ))}
