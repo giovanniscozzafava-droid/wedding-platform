@@ -228,6 +228,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                 <div className="sm:col-span-2 space-y-1">
                   <Label htmlFor="name">Nome</Label>
                   <Input id="name" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+                  <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Sii specifico: cosa offri + un dettaglio chiave. Es. “Servizio fotografico full day · 12 ore” anziché solo “Foto”. Più è chiaro, più ti trovano.</p>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="cat">Categoria</Label>
@@ -246,12 +247,14 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                       nameHint={form.name}
                     />
                   )}
+                  <p className="text-[10px] text-[rgb(var(--fg-subtle))]">È così che il servizio viene raggruppato e cercato nella rete: scegli la categoria che un cliente userebbe per cercarlo.</p>
                 </div>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="description">Descrizione</Label>
                 <Textarea id="description" rows={3}
                   value={form.description ?? ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+                <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Spiega cosa è incluso e cosa no, per chi è adatto, durata e numero di persone, eventuali trasferte. Frasi brevi: aiuta il cliente a capire e a confrontare.</p>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="tags">Tag di ricerca</Label>
