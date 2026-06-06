@@ -15,6 +15,7 @@ import { ReviewsList } from '@/components/social/ReviewsList'
 type PublicProfile = {
   id: string
   slug: string
+  role: string
   full_name: string | null
   business_name: string | null
   brand_logo_url: string | null
@@ -130,6 +131,12 @@ export default function PublicSupplierPage() {
   const isOwner = user?.id === data.id
   const isFornitoreViewer = profile?.role === 'FORNITORE'
   const isCoupleViewer = profile?.role === 'COUPLE'
+  // Chi può essere subordinato: un WP può aggiungere fornitori E location; una
+  // location può aggiungere solo fornitori. (Specchio della RPC capostipite_add_supplier.)
+  const canAddTarget =
+    profile?.role === 'WEDDING_PLANNER' ? (data.role === 'FORNITORE' || data.role === 'LOCATION')
+    : profile?.role === 'LOCATION' ? data.role === 'FORNITORE'
+    : false
   // Visitatore pubblico (non loggato): nessuna navigazione dentro l'app e
   // nessun funnel login/register. Resta pagina informativa pubblica.
   const isPublicVisitor = !user
@@ -255,7 +262,7 @@ export default function PublicSupplierPage() {
                   <Link to="/profile">
                     <Button variant="outline" size="sm">Modifica il tuo profilo</Button>
                   </Link>
-                ) : profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' ? (
+                ) : canAddTarget ? (
                   existingCollab === 'ACTIVE' ? (
                     <Button variant="outline" size="sm" disabled className="text-emerald-600">
                       <Heart size={14} className="fill-emerald-600" /> Già nel tuo team
