@@ -1,34 +1,19 @@
 import { type FormEvent, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Sparkles, Upload } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
 export default function BrandSettingsPage() {
   const { profile, user, refreshProfile } = useAuth()
-  const isPremium = profile?.subscription_tier === 'PREMIUM'
   const [primary, setPrimary] = useState(profile?.brand_primary_color ?? '#1A2E4F')
   const [secondary, setSecondary] = useState(profile?.brand_secondary_color ?? '#D4AF37')
   const [busy, setBusy] = useState(false)
-
-  async function upgrade() {
-    if (!user) return
-    setBusy(true)
-    try {
-      const { error } = await supabase.from('profiles').update({ subscription_tier: 'PREMIUM' }).eq('id', user.id)
-      if (error) throw error
-      await refreshProfile()
-      toast.success('Benvenut* in PREMIUM ✨')
-    } catch (e) { toast.error((e as Error).message) }
-    finally { setBusy(false) }
-  }
 
   async function saveColors(e: FormEvent) {
     e.preventDefault()
@@ -70,46 +55,10 @@ export default function BrandSettingsPage() {
         <PageHeader
           eyebrow="Brand"
           title="Identità del tuo studio"
-          description="Logo e colori finiscono sui PDF Premium dei tuoi preventivi."
-          actions={<Badge status={profile?.subscription_tier} tone={isPremium ? 'gold' : 'neutral'} />}
+          description="Logo e colori finiscono sui PDF e nelle email dei tuoi preventivi. In beta è incluso per tutti."
         />
 
-        {!isPremium && (
-          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="aurora overflow-hidden">
-              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                <div>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
-                    style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-                    <Sparkles size={12} /> PREMIUM
-                  </span>
-                  <h2 className="font-display text-2xl mt-3 mb-1">Sblocca i PDF brandizzati</h2>
-                  <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
-                    Aggiungi il tuo logo, scegli i colori, e i preventivi che mandi avranno la tua identità — non quella generica della piattaforma.
-                  </p>
-                  <Button variant="gold" onClick={upgrade} disabled={busy} data-testid="upgrade-btn">
-                    {busy ? 'Aggiornamento...' : 'Diventa PREMIUM (demo)'}
-                  </Button>
-                </div>
-                <div className="relative">
-                  <div className="surface surface-lift rounded-xl overflow-hidden">
-                    <div className="h-3" style={{ background: primary }} />
-                    <div className="p-6 space-y-2">
-                      <div className="skeleton h-5 w-32" />
-                      <div className="skeleton h-3 w-44" />
-                      <div className="skeleton h-3 w-40" />
-                      <div className="skeleton h-12 w-full" />
-                    </div>
-                    <div className="h-3" style={{ background: secondary }} />
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        )}
-
-        {isPremium && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
             <Card className="p-6 space-y-3">
               <h3 className="font-display text-lg">Logo</h3>
               {profile?.brand_logo_url ? (
@@ -156,7 +105,6 @@ export default function BrandSettingsPage() {
               </div>
             </Card>
           </div>
-        )}
       </div>
     </div>
   )

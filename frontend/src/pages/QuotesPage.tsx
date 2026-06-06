@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useCreateQuote, useDeleteQuote, useQuotes } from '@/hooks/useQuotes'
 import { HelpDot } from '@/components/help/HelpDot'
+import { useAuth } from '@/lib/auth'
 
 type BusyCheck = {
   busy: boolean
@@ -31,6 +32,8 @@ const STAGE: Record<string, { l: string; c: string }> = {
 
 export default function QuotesPage() {
   const { data, isLoading } = useQuotes()
+  const { profile } = useAuth()
+  const isLocation = profile?.role === 'LOCATION'
   const [activity, setActivity] = useState<Record<string, Act>>({})
   useEffect(() => {
     const ids = (data ?? []).map((q) => q.id)
@@ -267,8 +270,10 @@ export default function QuotesPage() {
                   <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Verifica disponibilità...</p>
                 )}
                 <div className="space-y-1">
-                  <Label htmlFor="eloc">Location evento</Label>
-                  <Input id="eloc" value={form.event_location} onChange={(e) => setForm((f) => ({ ...f, event_location: e.target.value }))} placeholder="Es. Villa Rosa - Tropea" />
+                  <Label htmlFor="eloc">{isLocation ? 'Zona (dove vogliono sposarsi)' : 'Location evento'}</Label>
+                  <Input id="eloc" value={form.event_location} onChange={(e) => setForm((f) => ({ ...f, event_location: e.target.value }))}
+                    placeholder={isLocation ? 'Es. Tropea, costa cosentina…' : 'Es. Villa Rosa - Tropea'} />
+                  {isLocation && <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Tu sei già la sede: indica al massimo la zona di interesse della coppia.</p>}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="ekind">Tipo evento</Label>
