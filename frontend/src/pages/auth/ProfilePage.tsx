@@ -31,6 +31,39 @@ export default function ProfilePage() {
   })
   const [busy, setBusy] = useState(false)
   const [deletionPending, setDeletionPending] = useState<boolean>(false)
+  // Account e accesso: email + password.
+  const [accEmail, setAccEmail] = useState('')
+  const [newPass, setNewPass] = useState('')
+  const [accBusy, setAccBusy] = useState(false)
+
+  async function updateEmail() {
+    const next = accEmail.trim().toLowerCase()
+    if (!next || next === (user?.email ?? '').toLowerCase()) { toast.error('Inserisci una nuova email diversa'); return }
+    setAccBusy(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ email: next })
+      if (error) throw error
+      toast.success('Email di conferma inviata al nuovo indirizzo. Il cambio è attivo dopo che clicchi il link.')
+    } catch (e) { toast.error((e as Error).message) } finally { setAccBusy(false) }
+  }
+  async function changePassword() {
+    if (newPass.length < 8) { toast.error('La password deve avere almeno 8 caratteri'); return }
+    setAccBusy(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPass })
+      if (error) throw error
+      setNewPass(''); toast.success('Password aggiornata')
+    } catch (e) { toast.error((e as Error).message) } finally { setAccBusy(false) }
+  }
+  async function recoverPassword() {
+    if (!user?.email) return
+    setAccBusy(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: `${window.location.origin}/login` })
+      if (error) throw error
+      toast.success('Ti ho inviato un link per reimpostare la password via email.')
+    } catch (e) { toast.error((e as Error).message) } finally { setAccBusy(false) }
+  }
 
   useEffect(() => {
     if (!user) return
@@ -129,11 +162,11 @@ export default function ProfilePage() {
                     onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="business_name">Nome pubblico / brand</Label>
-                  <Input id="business_name" value={form.business_name}
+                  <Label htmlFor="business_name">Nome pubblico / brand *</Label>
+                  <Input id="business_name" required value={form.business_name}
                     onChange={(e) => setForm((f) => ({ ...f, business_name: e.target.value }))}
                     placeholder="es. Black Mamba · Villa Klopè · Gisko Photographer" />
-                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Compare su preventivi, vetrina e PDF. La ragione sociale legale è nei "Dati fiscali" sotto.</p>
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">È il nome che vedono tutti (sidebar, preventivi, vetrina, PDF): obbligatorio. Il nome e cognome resta privato; la ragione sociale legale è nei "Dati fiscali" sotto.</p>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="phone">Telefono</Label>
@@ -292,6 +325,33 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </form>
+          </Card>
+
+          {/* Account e accesso: email + password */}
+          <Card className="p-6 mt-6">
+            <h3 className="font-display text-lg mb-1">Account e accesso</h3>
+            <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">Email attuale: <strong>{user?.email}</strong></p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="acc_email">Nuova email</Label>
+                <div className="flex gap-2">
+                  <Input id="acc_email" type="email" value={accEmail} placeholder={user?.email ?? 'nuova@email.it'}
+                    onChange={(e) => setAccEmail(e.target.value)} />
+                  <Button type="button" variant="outline" disabled={accBusy} onClick={() => void updateEmail()}>Aggiorna</Button>
+                </div>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Riceverai un'email di conferma al nuovo indirizzo.</p>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="acc_pass">Nuova password</Label>
+                <div className="flex gap-2">
+                  <Input id="acc_pass" type="password" value={newPass} placeholder="almeno 8 caratteri"
+                    onChange={(e) => setNewPass(e.target.value)} />
+                  <Button type="button" variant="outline" disabled={accBusy} onClick={() => void changePassword()}>Cambia</Button>
+                </div>
+                <button type="button" onClick={() => void recoverPassword()} disabled={accBusy}
+                  className="text-[11px] text-[rgb(var(--gold-600))] hover:underline">Non la ricordi? Invia link di recupero via email</button>
+              </div>
+            </div>
           </Card>
 
           {/* Aiuto contestuale — sostituisce il vecchio tutorial a card */}

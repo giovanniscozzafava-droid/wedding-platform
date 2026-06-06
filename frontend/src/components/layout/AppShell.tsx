@@ -177,7 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     : baseGroups
 
   const initials =
-    (profile?.full_name ?? user?.email ?? '?')
+    (profile?.business_name ?? profile?.full_name ?? user?.email ?? '?')
       .split(/\s+|@/)
       .filter(Boolean)
       .slice(0, 2)
@@ -222,7 +222,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate" style={{ color: 'rgb(var(--fg))' }}>
-                {profile?.full_name ?? user?.email}
+                {profile?.business_name ?? profile?.full_name ?? user?.email}
               </p>
               <p className="text-xs truncate" style={{ color: 'rgb(var(--fg-subtle))' }}>
                 {ROLE_LABEL[profile?.role ?? ''] ?? '...'}
@@ -288,7 +288,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate" style={{ color: 'rgb(var(--fg))' }}>
-                  {profile?.full_name ?? user?.email}
+                  {profile?.business_name ?? profile?.full_name ?? user?.email}
                 </p>
                 <p className="text-xs truncate" style={{ color: 'rgb(var(--fg-subtle))' }}>
                   {ROLE_LABEL[profile?.role ?? ''] ?? '...'}
