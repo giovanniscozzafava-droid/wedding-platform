@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { shareWhatsAppLink } from '@/lib/share'
+import { waContractToClient } from '@/lib/waMessages'
 import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CircleDashed, MessageCircle, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
@@ -324,7 +325,7 @@ export default function SupplierContractsPage() {
                       <Mail size={12} /> Email cliente
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
-                      `Ciao, ecco il contratto da firmare${c.client_name ? ' per ' + c.client_name : ''}:`,
+                      waContractToClient({ clientName: c.client_name }),
                       `${location.origin}/p/contract/${c.access_token}`)}>
                       <MessageCircle size={12} /> WhatsApp
                     </Button>

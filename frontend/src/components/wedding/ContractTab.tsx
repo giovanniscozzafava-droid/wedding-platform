@@ -7,6 +7,7 @@ import { Input, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useContractMutations, useContracts } from '@/hooks/useWedding'
 import { shareWhatsAppLink } from '@/lib/share'
+import { waContractToClient } from '@/lib/waMessages'
 import { supabase } from '@/lib/supabase'
 import { HelpDot } from '@/components/help/HelpDot'
 
@@ -98,7 +99,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
               {c.access_token && (
                 <>
                   <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
-                    `Ecco il contratto per ${c.client_name ?? 'te'}${c.title ? ` — ${c.title}` : ''}. Aprilo e firmalo qui:`,
+                    waContractToClient({ clientName: c.client_name, title: c.title }),
                     c.pdf_url ?? `${window.location.origin}/p/contract/${c.access_token}`)}>
                     <MessageCircle size={13} /> WhatsApp
                   </Button>

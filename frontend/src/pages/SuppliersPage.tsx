@@ -15,6 +15,7 @@ import {
   useSupplierInvites, useCancelSupplierInvite,
 } from '@/hooks/useSuppliers'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
+import { waSupplierInvite } from '@/lib/waMessages'
 
 const SUBROLE_TONE: Record<string, 'gold' | 'sage' | 'rose' | 'sky' | 'amber' | 'neutral'> = {
   fioraio: 'rose', fotografo: 'sky', catering: 'amber', musicisti: 'sage', musica: 'sage',
@@ -264,7 +265,7 @@ export default function SuppliersPage() {
                 <Copy size={14} /> Copia link
               </Button>
               <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Ciao! Ti ho invitato come fornitore su Planfully. Crea il tuo account qui: ${linkResult.url}`)}`}
+                href={`https://wa.me/?text=${encodeURIComponent(`${waSupplierInvite()}\n${linkResult.url}`)}`}
                 target="_blank" rel="noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-[rgb(var(--border))] px-3 py-2 text-sm hover:bg-[rgb(var(--bg-sunken))]">
                 WhatsApp

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FileSignature, FileDown, X, Copy, Mail, MessageCircle } from 'lucide-react'
 import { shareWhatsAppLink } from '@/lib/share'
+import { waContractToClient } from '@/lib/waMessages'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -294,7 +295,7 @@ export default function ContractsPage() {
               )}
               {(selected.pdf_url || selected.access_token) && (
                 <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
-                  `Ciao${selected.client_name ? ' ' + selected.client_name : ''}, ecco il contratto:`,
+                  waContractToClient({ clientName: selected.client_name, title: selected.title }),
                   selected.pdf_url ?? `${window.location.origin}/p/contract/${selected.access_token}`)}>
                   <MessageCircle size={14} /> WhatsApp
                 </Button>

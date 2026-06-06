@@ -7,6 +7,7 @@ import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { useCoupleMembers, useCoupleMemberMutations } from '@/hooks/useCouple'
+import { waMemberInvite } from '@/lib/waMessages'
 
 export function MembersTab({ entryId }: { entryId: string }) {
   const { data: members } = useCoupleMembers(entryId)
@@ -67,7 +68,7 @@ export function MembersTab({ entryId }: { entryId: string }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(members ?? []).map((m) => {
           const inviteUrl = `${window.location.origin}/invito-coppia/${m.invite_token}`
-          const waText = `Ciao ${m.full_name ?? ''}! Ti invito al vostro evento su Planfully. Apri questo link e crea il tuo account: ${inviteUrl}`
+          const waText = `${waMemberInvite({ memberName: m.full_name })}\n${inviteUrl}`
           return (
             <Card key={m.id} className="p-5">
               <div className="flex items-start justify-between gap-3 mb-3">

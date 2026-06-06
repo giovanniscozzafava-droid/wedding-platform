@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Users, Plus, Trash2, CalendarPlus, FileDown, Check, X, HelpCircle, ChevronLeft, MessageCircle } from 'lucide-react'
 import { shareFileOrWhatsApp } from '@/lib/share'
+import { waTeamSheet } from '@/lib/waMessages'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -270,7 +271,7 @@ function EventRoster({ event, members, supplierName, onBack }: { event: Event; m
     if (share) {
       const blob = doc.output('blob') as Blob
       const file = new File([blob], fname, { type: 'application/pdf' })
-      await shareFileOrWhatsApp(file, `Foglio presenze · ${event.title}${event.event_date ? ' · ' + new Date(event.event_date).toLocaleDateString('it-IT') : ''}`)
+      await shareFileOrWhatsApp(file, waTeamSheet({ eventTitle: event.title, eventDate: event.event_date }))
     } else {
       doc.save(fname)
     }
