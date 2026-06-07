@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Users, Send, Check } from 'lucide-react'
+import { Users, Send, Check, Mail } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 
@@ -19,8 +20,25 @@ type Sup = { id: string; name: string | null; subrole: string | null; city: stri
 export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
   const [list, setList] = useState<Sup[]>([])
   const [sel, setSel] = useState<Set<string>>(new Set())
+  const [query, setQuery] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+
+  const filtered = query.trim().length === 0 ? list
+    : list.filter((s) => (s.name ?? '').toLowerCase().includes(query.trim().toLowerCase()) || (s.subrole ?? '').toLowerCase().includes(query.trim().toLowerCase()))
+
+  // Invita un collega non ancora su Planfully via email (link di registrazione).
+  function inviteByEmail() {
+    const email = inviteEmail.trim()
+    if (!/\S+@\S+\.\S+/.test(email)) { toast.error('Email non valida'); return }
+    const url = `${window.location.origin}/register`
+    const subject = encodeURIComponent('Ti invito su Planfully')
+    const body = encodeURIComponent(`Ciao,\nti invito su Planfully, lo strumento con cui gestisco preventivi, contratti ed eventi. Iscriviti qui: ${url}\nUna volta registrato potrò suggerirti ai miei clienti.\n— inviato con Planfully`)
+    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
+    setInviteEmail('')
+    toast.success('Email di invito pronta')
+  }
 
   useEffect(() => {
     void (async () => {
@@ -59,12 +77,15 @@ export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
         Consiglia colleghi che segui (e che accettano di essere suggeriti). Se il cliente firmerà un contratto con uno di loro, ricevi <strong>39€ di credito</strong> automatico.
       </p>
 
+      {list.length > 0 && (
+        <Input className="mb-2 text-sm" placeholder="Cerca tra i colleghi che segui…" value={query} onChange={(e) => setQuery(e.target.value)} />
+      )}
       {list.length === 0 ? (
-        <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Non segui ancora nessun collega fornitore. Seguili dalle loro vetrine per poterli suggerire.</p>
+        <p className="text-xs text-[rgb(var(--fg-subtle))] italic mb-3">Non segui ancora nessun collega fornitore. Seguili dalle loro vetrine per poterli suggerire — oppure invita qui sotto un collega a iscriversi.</p>
       ) : (
         <>
-          <div className="space-y-1.5 mb-3">
-            {list.map((s) => {
+          <div className="space-y-1.5 mb-3 max-h-60 overflow-auto">
+            {filtered.map((s) => {
               const on = sel.has(s.id)
               return (
                 <button key={s.id} type="button" onClick={() => toggle(s.id)}
@@ -78,12 +99,23 @@ export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
                 </button>
               )
             })}
+            {filtered.length === 0 && <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessun collega seguito corrisponde alla ricerca.</p>}
           </div>
           <Button variant="gold" onClick={() => void send()} disabled={sending || sel.size === 0}>
             <Send size={15} className="mr-1" /> Suggerisci al cliente ({sel.size})
           </Button>
         </>
       )}
+
+      {/* Invito a un collega non ancora iscritto */}
+      <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+        <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-2">Il collega non è ancora su Planfully? Invitalo a iscriversi:</p>
+        <div className="flex gap-2">
+          <Input className="flex-1 text-sm" type="email" placeholder="email del collega" value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') inviteByEmail() }} />
+          <Button variant="outline" onClick={inviteByEmail}><Mail size={15} className="mr-1" /> Invita</Button>
+        </div>
+      </div>
     </Card>
   )
 }

@@ -16,8 +16,10 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const nav = useNavigate()
-  const loc = useLocation() as { state?: { from?: { pathname?: string } } }
-  const next = loc.state?.from?.pathname ?? '/'
+  const loc = useLocation() as { state?: { from?: { pathname?: string } }; search?: string }
+  // Priorità: ?next= nell'URL (es. atterraggio diretto sul preventivo) → state.from → home.
+  const qsNext = new URLSearchParams(loc.search ?? window.location.search).get('next')
+  const next = (qsNext && qsNext.startsWith('/')) ? qsNext : (loc.state?.from?.pathname ?? '/')
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

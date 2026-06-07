@@ -52,6 +52,10 @@ export default function QuotePreviewPage() {
   }
 
   const primary = data.owner?.brand_primary_color ?? '#1A2E4F'
+  // Se il preventivo è già stato accettato/firmato, il prezzo NON è più segreto:
+  // il cliente si è già registrato e ha firmato. Niente gate di registrazione.
+  const alreadyDecided = data.status === 'ACCETTATO' || data.status === 'CONVERTITO_IN_CONTRATTO'
+  const showPrice = unlocked || alreadyDecided
 
   return (
     <div className="min-h-screen py-8 sm:py-14 px-4 relative" style={{ background: 'rgb(var(--bg))' }}>
@@ -100,14 +104,14 @@ export default function QuotePreviewPage() {
                     <p className="text-xs text-[rgb(var(--fg-subtle))]">Quantità: {Number(it.quantity)}</p>
                   </div>
                   <p className="font-display text-lg tabular-nums shrink-0">
-                    {unlocked ? `€ ${Number(it.line_client).toLocaleString('it-IT')}` : <Lock size={15} className="text-[rgb(var(--fg-subtle))]" />}
+                    {showPrice ? `€ ${Number(it.line_client).toLocaleString('it-IT')}` : <Lock size={15} className="text-[rgb(var(--fg-subtle))]" />}
                   </p>
                 </li>
               ))}
             </ul>
           </div>
 
-          {unlocked ? (
+          {showPrice ? (
             <>
               <div className="px-6 sm:px-10 py-6 mt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
                 <div className="flex items-baseline justify-between">
@@ -150,7 +154,7 @@ export default function QuotePreviewPage() {
           {data.status === 'ACCETTATO' && (
             <div className="px-6 sm:px-10 pb-8 flex flex-col sm:flex-row gap-3">
               <Button asChild variant="gold" className="flex-1">
-                <Link to="/login?next=/couple" data-testid="couple-portal-btn">
+                <Link to={`/login?next=${encodeURIComponent('/couple?tab=preventivo')}`} data-testid="couple-portal-btn">
                   <LogIn /> Vai al portale {eventLabel((data as any).event_kind)}
                 </Link>
               </Button>

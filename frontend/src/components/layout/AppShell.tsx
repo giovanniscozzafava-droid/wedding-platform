@@ -1,5 +1,6 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
 import {
   LayoutDashboard,
   PackageSearch,
@@ -154,7 +155,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { profile, user, signOut } = useAuth()
   const { theme, toggle } = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [unreadDots, setUnreadDots] = useState<Set<string>>(new Set())
   const location = useLocation()
+
+  // Pallino rosso accanto alla voce di menu che ha notifiche non lette: mappa il
+  // `link` di ogni notifica non letta sulla voce di nav col prefisso più lungo.
+  useEffect(() => {
+    let alive = true
+    async function loadDots() {
+      try {
+        const { data } = await (supabase.rpc as unknown as (f: string, a?: Record<string, unknown>) => Promise<{ data: unknown }>)('list_notifications', { p_limit: 50 })
+        const notifs = (data as Array<{ link: string | null; read_at: string | null }>) ?? []
+        const tos = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.to)).filter((t) => t !== '/')
+        const dots = new Set<string>()
+        for (const n of notifs) {
+          if (n.read_at || !n.link) continue
+          const match = tos.filter((t) => n.link!.startsWith(t)).sort((a, b) => b.length - a.length)[0]
+          if (match) dots.add(match)
+        }
+        if (alive) setUnreadDots(dots)
+      } catch { /* non bloccante */ }
+    }
+    void loadDots()
+    const id = setInterval(loadDots, 60000)
+    return () => { alive = false; clearInterval(id) }
+  }, [location.pathname])
   // Mobile: chiudi SEMPRE il drawer quando cambia pagina (su Safari l'onClick del
   // link a volte non basta → il menu restava aperto e copriva la pagina).
   useEffect(() => { setMobileOpen(false) }, [location.pathname])
@@ -206,7 +231,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="px-4 pb-2"><HelpModeToggle /></div>
 
         <nav className="flex-1 px-3 py-2 overflow-y-auto">
-          <NavGroups groups={NAV_GROUPS} />
+          <NavGroups groups={NAV_GROUPS} dots={unreadDots} />
         </nav>
 
         <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -274,7 +299,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
           </div>
           <nav className="flex-1 px-3 py-2 overflow-y-auto">
-            <NavGroups groups={NAV_GROUPS} onNavigate={() => setMobileOpen(false)} />
+            <NavGroups groups={NAV_GROUPS} dots={unreadDots} onNavigate={() => setMobileOpen(false)} />
           </nav>
           {/* Mobile drawer footer: user + logout */}
           <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -342,7 +367,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   )
 }
 
-function NavGroups({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
+function NavGroups({ groups, onNavigate, dots }: { groups: NavGroup[]; onNavigate?: () => void; dots?: Set<string> }) {
   return (
     <div className="space-y-3">
       {groups.map((g, gi) => (
@@ -369,6 +394,7 @@ function NavGroups({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: ()
             >
               <n.icon size={18} strokeWidth={1.8} />
               <span className="flex-1">{n.label}</span>
+              {dots?.has(n.to) && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} aria-label="Nuove notifiche" />}
               {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
             </NavLink>
           ))}
