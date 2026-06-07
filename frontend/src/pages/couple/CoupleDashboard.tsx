@@ -788,7 +788,7 @@ type PreventivoData = {
   accepted_at: string | null
   closed_at: string | null
   business_model: 'GLOBAL' | 'BROKER'
-  owner: { full_name?: string | null; business_name?: string | null }
+  owner: { full_name?: string | null; business_name?: string | null; role?: string | null }
   items: Array<{
     id: string; name_snapshot: string; quantity: number; unit_snapshot: string; line_client: number
     supplier_id?: string | null; created_at?: string | null
@@ -868,7 +868,10 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   )
   if (!data) return null
 
-  const ownerName = data.owner?.business_name ?? data.owner?.full_name ?? 'Organizzatore'
+  // Fornitore (non capostipite) → preventivo "à la carte": il cliente sceglie le
+  // voci, il totale è la somma di quelle approvate; niente logica organizzatore.
+  const isFornitore = (data.owner?.role ?? '').toUpperCase() === 'FORNITORE'
+  const ownerName = data.owner?.business_name ?? data.owner?.full_name ?? (isFornitore ? 'Il fornitore' : 'Organizzatore')
   const liveItems = data.items.filter((it) => !it.contracted_at)
   const hasLive = liveItems.length > 0
   const isClosed = !!data.closed_at
@@ -888,7 +891,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
         <Card className="p-4 flex items-center gap-3" style={{ background: 'rgb(var(--gold-100))', borderColor: 'rgb(var(--gold-500))' }}>
           <span className="text-xl">✨</span>
           <p className="text-sm">
-            Hai <strong>{pendingCount} {pendingCount === 1 ? 'nuova proposta' : 'nuove proposte'}</strong> dal tuo organizzatore da rivedere qui sotto: approva, metti in forse o non accettare.
+            Hai <strong>{pendingCount} {pendingCount === 1 ? 'nuova proposta' : 'nuove proposte'}</strong> {isFornitore ? `da ${ownerName}` : 'dal tuo organizzatore'} da rivedere qui sotto: approva, metti in forse o non accettare.
           </p>
         </Card>
       )}
@@ -921,7 +924,12 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
               <p className="font-medium mt-0.5">{data.guest_count}</p>
             </div>
           )}
-          {data.total_client != null && (
+          {isFornitore ? (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Totale selezionato</p>
+              <p className="font-display text-2xl mt-0.5">€ {confirmedTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+            </div>
+          ) : data.total_client != null && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Totale</p>
               <p className="font-display text-2xl mt-0.5">€ {Number(data.total_client).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
@@ -930,7 +938,11 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
         </div>
 
         <h3 className="font-display text-lg mb-2">Servizi</h3>
-        {hasLive && (
+        {isFornitore ? (
+          <p className="text-xs mb-3 rounded-lg px-3 py-2" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+            Scegli i servizi che preferisci: il <strong>totale</strong> è la somma di quelli che approvi. Niente è vincolante finché non firmi. {ownerName} può applicare uno sconto, che vedrai qui prima della firma.
+          </p>
+        ) : hasLive && (
           <p className="text-xs mb-3 rounded-lg px-3 py-2" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
             Le voci con <strong>✓ Firmato nel preventivo</strong> sono già nel contratto firmato. Le altre sono <strong>integrazioni</strong> aggiunte dopo: puoi approvarle, metterle in forse o non accettarle. Nulla entra nel contratto finché non concludi e firmi.
           </p>
@@ -944,7 +956,9 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium text-sm">{it.name_snapshot}</p>
-                    {isContracted ? (
+                    {isFornitore ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--fg-muted))', background: 'rgb(var(--bg-sunken))' }}>Opzione</span>
+                    ) : isContracted ? (
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>✓ Firmato nel preventivo</span>
                     ) : (
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>Integrazione</span>
@@ -985,14 +999,19 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
             )
           })}
         </ul>
-        {hasLive && !isClosed && (
+        {hasLive && !isClosed && (!isFornitore || signed) && (
           <div className="rounded-lg border p-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ borderColor: 'rgb(var(--border))' }}>
             <div className="text-xs text-[rgb(var(--fg-muted))]">
-              Totale confermato finora: <strong className="text-[rgb(var(--fg))]">€ {confirmedTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong>
+              {isFornitore ? 'Totale selezionato' : 'Totale confermato finora'}: <strong className="text-[rgb(var(--fg))]">€ {confirmedTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong>
             </div>
             <Button variant="gold" disabled={concluding} onClick={() => void conclude()}>
               {concluding ? 'Concludo…' : 'Concludi preventivo e firma'}
             </Button>
+          </div>
+        )}
+        {isFornitore && !signed && (
+          <div className="rounded-lg border p-3 mb-4 text-xs text-[rgb(var(--fg-muted))]" style={{ borderColor: 'rgb(var(--border))' }}>
+            Totale selezionato: <strong className="text-[rgb(var(--fg))]">€ {confirmedTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong> — somma delle voci che hai approvato. Procedi alla firma qui sotto.
           </div>
         )}
 
