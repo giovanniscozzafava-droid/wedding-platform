@@ -65,6 +65,9 @@ export default function EmbedLeadPage() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+  // Disponibilità del professionista per la data scelta (check pubblico).
+  const [avail, setAvail] = useState<{ available: boolean; checked: boolean }>({ available: true, checked: false })
+  const [callbackPref, setCallbackPref] = useState('indifferente')
   const [form, setForm] = useState({
     client_name: '', client_email: '', client_phone: '',
     event_kind: 'matrimonio', event_date: '', event_location: '', guests_estimate: '',
@@ -108,6 +111,22 @@ export default function EmbedLeadPage() {
     })()
   }, [slug])
 
+  // Appena cambia la data, verifica la capienza del professionista per quel giorno.
+  useEffect(() => {
+    if (!slug || !form.event_date) { setAvail({ available: true, checked: false }); return }
+    let alive = true
+    void (async () => {
+      try {
+        const { data } = await (supabase as unknown as AnyRpc).rpc('public_check_availability', { p_slug: slug, p_date: form.event_date })
+        const r = data as { available?: boolean; unknown?: boolean }
+        if (alive) setAvail({ available: r?.available !== false, checked: !r?.unknown })
+      } catch { if (alive) setAvail({ available: true, checked: false }) }
+    })()
+    return () => { alive = false }
+  }, [slug, form.event_date])
+
+  const dateUnavailable = avail.checked && !avail.available
+
   function toggleChip(key: 'styles' | 'priorities', val: string, max: number) {
     setForm((f) => {
       const cur = f[key]
@@ -122,6 +141,7 @@ export default function EmbedLeadPage() {
     if (!slug) { setError('Configurazione mancante (slug).'); return }
     if (!form.client_name.trim()) { setError('Inserisci il tuo nome.'); return }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.client_email.trim())) { setError('Email non valida.'); return }
+    if (dateUnavailable) { setError(`${proName || 'Il professionista'} non è disponibile per quella data. Prova un'altra data.`); return }
     setSending(true)
     try {
       const { data, error } = await (supabase as unknown as AnyRpc).rpc('submit_public_lead', {
@@ -145,6 +165,7 @@ export default function EmbedLeadPage() {
           ...(form.no_thanks.trim() ? { no_thanks: form.no_thanks.trim() } : {}),
           ...(form.guests_estimate ? { guests_estimate: Number(form.guests_estimate) } : {}),
           ...(form.budget_range && form.budget_range !== 'undecided' ? { budget_range: form.budget_range } : {}),
+          callback_pref: callbackPref,
         },
       })
       if (error) throw error
@@ -173,8 +194,9 @@ export default function EmbedLeadPage() {
             <div style={{ fontSize: 40, lineHeight: 1 }}>✓</div>
             <h2 style={{ ...ui.h2, marginTop: 12 }}>Richiesta inviata!</h2>
             <p style={ui.muted}>
-              Grazie{form.client_name ? `, ${form.client_name.split(' ')[0]}` : ''}. {proName || 'Il professionista'} ti
-              risponderà al più presto via email.
+              Grazie{form.client_name ? `, ${form.client_name.split(' ')[0]}` : ''}! La data è disponibile.
+              {' '}{proName || 'Il professionista'} ti <strong>ricontatterà telefonicamente</strong>
+              {callbackPref !== 'indifferente' ? ` in fascia ${callbackPref}` : ' al più presto'} per fissare una chiamata conoscitiva.
             </p>
           </div>
         </div>
@@ -213,6 +235,24 @@ export default function EmbedLeadPage() {
             <input style={ui.input} type="date" value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} />
           </Field>
         </div>
+        {dateUnavailable && (
+          <div style={{ marginTop: -2, marginBottom: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, background: 'rgba(220,38,38,0.08)', color: '#b91c1c' }}>
+            Spiacenti, {proName || 'il professionista'} <strong>non è disponibile</strong> per il {new Date(form.event_date).toLocaleDateString('it-IT')}. Prova un'altra data per inviare la richiesta.
+          </div>
+        )}
+        {avail.checked && avail.available && form.event_date && (
+          <div style={{ marginTop: -2, marginBottom: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, background: 'rgba(22,163,74,0.08)', color: '#15803d' }}>
+            Ottimo, {proName || 'il professionista'} è <strong>disponibile</strong> per il {new Date(form.event_date).toLocaleDateString('it-IT')}. Lascia i tuoi dati: ti ricontatteremo per fissare una chiamata.
+          </div>
+        )}
+        <Field label="Quando preferisci essere ricontattato?">
+          <select style={ui.input} value={callbackPref} onChange={(e) => setCallbackPref(e.target.value)}>
+            <option value="indifferente">Indifferente</option>
+            <option value="mattina">Mattina (9–13)</option>
+            <option value="pomeriggio">Pomeriggio (14–18)</option>
+            <option value="sera">Sera (18–21)</option>
+          </select>
+        </Field>
         <div style={ui.grid2}>
           <Field label="Invitati stimati">
             <input style={ui.input} type="number" value={form.guests_estimate} onChange={(e) => setForm((f) => ({ ...f, guests_estimate: e.target.value }))} placeholder="120" />
@@ -264,8 +304,8 @@ export default function EmbedLeadPage() {
 
         {error && <p style={ui.error}>{error}</p>}
 
-        <button type="submit" disabled={sending} style={{ ...ui.submit, opacity: sending ? 0.6 : 1 }}>
-          {sending ? 'Invio…' : 'Invia richiesta'}
+        <button type="submit" disabled={sending || dateUnavailable} style={{ ...ui.submit, opacity: (sending || dateUnavailable) ? 0.5 : 1, cursor: dateUnavailable ? 'not-allowed' : 'pointer' }}>
+          {sending ? 'Invio…' : dateUnavailable ? 'Data non disponibile' : 'Invia richiesta'}
         </button>
         <p style={ui.legal}>
           Inviando accetti il trattamento dei dati per essere ricontattato. Powered by Planfully.
