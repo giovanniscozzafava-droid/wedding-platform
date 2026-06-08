@@ -252,7 +252,7 @@ export default function PublicHomePage() {
                 </Link>
               </div>
               <p className="text-xs text-[rgb(var(--fg-subtle))] mt-4">
-                Gratis per tutti i professionisti fino a ottobre 2026.
+                Gratis per tutti i professionisti fino a dicembre 2026.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">

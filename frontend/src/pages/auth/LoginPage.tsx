@@ -204,7 +204,7 @@ export default function LoginPage() {
                   un team. Status game, non corsa al ribasso.
                 </p>
                 <ul className="space-y-2.5 text-sm">
-                  <Bullet text="Gratis per tutti i professionisti fino a ottobre 2026" />
+                  <Bullet text="Gratis per tutti i professionisti fino a dicembre 2026" />
                   <Bullet text="Network privato: scegli tu chi fa parte della tua rete" />
                   <Bullet text="Nessuna commissione sugli eventi, nessuna esclusiva" />
                   <Bullet text="I tuoi dati restano tuoi: GDPR-first, export sempre disponibile" />

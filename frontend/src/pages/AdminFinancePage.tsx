@@ -141,9 +141,11 @@ export default function AdminFinancePage() {
 type Metrics = ReturnType<typeof deriveMetrics>
 function deriveMetrics(ov: Overview, months: Month[]) {
   const paying = (ov.subs_by_status.PLUS ?? 0) + (ov.subs_by_status.PREMIUM ?? 0)
-  // MRR si aggiorna DA SOLO: abbonati reali × prezzo del piano + entrate ricorrenti
-  // manuali + commissioni medie mensili incassate. Cresce coi dati, senza inserimenti.
-  const mrrAbbon = (ov.subs_by_status.PLUS ?? 0) * 59 + (ov.subs_by_status.PREMIUM ?? 0) * 79
+  // Periodo gratuito: tutti gratis fino al 31/12/2026. Gli abbonamenti (e quindi
+  // l'MRR da abbonamento) partono da gennaio 2027 — prima sono solo account di test.
+  const paidEra = new Date() >= new Date('2027-01-01')
+  // MRR si aggiorna DA SOLO: abbonati reali × prezzo + entrate ricorrenti + commissioni.
+  const mrrAbbon = paidEra ? (ov.subs_by_status.PLUS ?? 0) * 59 + (ov.subs_by_status.PREMIUM ?? 0) * 79 : 0
   const commMese = ov.commissioni_incassate / 12      // commissioni incassate spalmate sull'anno
   const mrr = mrrAbbon + ov.entrate_ricorrenti_mese + commMese
   const arr = mrr * 12
@@ -198,7 +200,7 @@ function Panoramica({ ov, M }: { ov: Overview; M: Metrics }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="rounded-lg p-4" style={{ background: 'rgb(var(--bg-sunken))' }}>
             <p className="font-medium text-sm mb-1">1 · Abbonamenti fornitori</p>
-            <p className="text-xs text-[rgb(var(--fg-muted))] mb-2">Pacchetti {PLANS.map((p) => `${p.label} ${p.price}€`).join(' · ')} (da gen 2027). Capostipiti e clienti non pagano.</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))] mb-2"><strong>Tutti gratis fino a dicembre 2026.</strong> Abbonamenti da gennaio 2027 (valori provvisori: {PLANS.map((p) => `${p.price}€`).join(' / ')}). Capostipiti e clienti non pagano.</p>
             <Row k="MRR da abbonamenti" v={fmtE(M.mrr)} />
             <Row k="ARPA (ricavo medio per abbonato)" v={fmtE(M.arpa)} />
           </div>

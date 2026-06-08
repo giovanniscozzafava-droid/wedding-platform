@@ -19,7 +19,7 @@ const FAQ_GENERIC: FaqSection = {
     },
     {
       q: 'Quanto costa?',
-      a: 'Durante la beta privata è gratuito. Per i wedding planner partner fondatori resterà gratuito. Per i fornitori sarà attivo un piano Pro da €29/mese a partire da ottobre 2026 (€0 fino ad allora). Le coppie non pagano mai.',
+      a: 'Durante la beta privata è gratuito. Per i wedding planner partner fondatori resterà gratuito. Per i fornitori sarà attivo un piano Pro da €29/mese a partire da gennaio 2027 (gratis per tutti fino a dicembre 2026). Le coppie non pagano mai.',
     },
     {
       q: 'Come funziona la firma elettronica?',
