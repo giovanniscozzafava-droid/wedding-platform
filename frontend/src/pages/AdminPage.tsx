@@ -34,7 +34,7 @@ type Overview = {
   errors_new: number; errors_total: number; error_occurrences: number
   bugs_new: number; bugs_total: number; inbox_unread: number
 }
-type UserRow = { id: string; full_name: string | null; business_name: string | null; role: string; email: string; is_support_staff: boolean }
+type UserRow = { id: string; full_name: string | null; business_name: string | null; role: string; email: string; is_support_staff: boolean; is_verified_customer?: boolean }
 type ErrRow = { id: string; fingerprint: string; message: string; stack: string | null; source: string; severity: string; status: string; count: number; url: string | null; last_seen: string; first_seen: string; last_user_agent: string | null }
 type BugRow = { id: string; message: string; url: string | null; severity: string; status: string; admin_notes: string | null; created_at: string; reporter: string | null }
 
@@ -173,6 +173,14 @@ export default function AdminPage() {
     if (error) { toast.error(error.message); return }
     toast.success(!u.is_support_staff ? `${u.full_name ?? 'Utente'} è ora staff` : 'Rimosso dallo staff')
     setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, is_support_staff: !x.is_support_staff } : x))
+  }
+  async function toggleVerified(u: UserRow) {
+    setBusy(u.id)
+    const { error } = await rpc('admin_set_verified', { p_user_id: u.id, p_value: !u.is_verified_customer })
+    setBusy(null)
+    if (error) { toast.error(error.message); return }
+    toast.success(!u.is_verified_customer ? `${u.full_name ?? 'Cliente'} verificato` : 'Verifica rimossa')
+    setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, is_verified_customer: !x.is_verified_customer } : x))
   }
   async function setErrStatus(e: ErrRow, status: string) {
     await rpc('admin_set_error_status', { p_id: e.id, p_status: status })
@@ -412,10 +420,15 @@ export default function AdminPage() {
             {users.map((u) => (
               <Card key={u.id} className="p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium truncate">{u.business_name ?? u.full_name ?? u.email}</p>
+                  <p className="font-medium truncate">{u.business_name ?? u.full_name ?? u.email}
+                    {u.is_verified_customer && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full align-middle" style={{ color: 'rgb(var(--emerald-600))', background: 'rgb(var(--emerald-100))' }}>✓ Verificato</span>}
+                  </p>
                   <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">{u.email} · {roleLabel(u.role)}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button size="sm" variant={u.is_verified_customer ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleVerified(u)} title="Cliente reale verificato">
+                    {u.is_verified_customer ? 'Verificato ✓' : 'Verifica'}
+                  </Button>
                   <Button size="sm" variant={u.is_support_staff ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleStaff(u)}>
                     {u.is_support_staff ? 'Staff ✓' : 'Rendi staff'}
                   </Button>
