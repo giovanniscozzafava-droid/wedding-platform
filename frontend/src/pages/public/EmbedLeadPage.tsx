@@ -137,6 +137,25 @@ export default function EmbedLeadPage() {
   }, [slug, form.event_date])
 
   const dateUnavailable = avail.checked && !avail.available
+  const [altSent, setAltSent] = useState(false)
+
+  // Data bloccata: invece di un vicolo cieco, mandiamo al cliente 2 alternative
+  // dello stesso settore, libere, con i contatti. Da lì il giro ricomincia.
+  async function requestAlternatives() {
+    setError('')
+    if (!form.client_name.trim()) { setError('Inserisci il tuo nome.'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.client_email.trim())) { setError('Email non valida.'); return }
+    setSending(true)
+    try {
+      await supabase.functions.invoke('suggest-alternatives', {
+        body: { slug, date: form.event_date, client_name: form.client_name.trim(), client_email: form.client_email.trim() },
+      })
+      setAltSent(true)
+      window.parent?.postMessage({ type: 'planfully:embed-submitted' }, '*')
+    } catch {
+      setError('Invio non riuscito. Riprova tra poco.')
+    } finally { setSending(false) }
+  }
 
   function toggleChip(key: 'styles' | 'priorities', val: string, max: number) {
     setForm((f) => {
@@ -197,6 +216,22 @@ export default function EmbedLeadPage() {
 
   const ui = useMemo(() => makeStyles(primary, narrow), [primary, narrow])
 
+  if (altSent) {
+    return (
+      <div ref={rootRef} style={{ ...ui.page, background: transparent ? 'transparent' : ui.page.background }}>
+        <div style={ui.card}>
+          <div style={{ textAlign: 'center', padding: '24px 8px' }}>
+            <div style={{ fontSize: 40, lineHeight: 1 }}>✉️</div>
+            <h2 style={{ ...ui.h2, marginTop: 12 }}>Ti abbiamo scritto!</h2>
+            <p style={ui.muted}>
+              Grazie{form.client_name ? `, ${form.client_name.split(' ')[0]}` : ''}! {proName || 'Il professionista'} non è disponibile per quella data,
+              ma ti abbiamo inviato via email <strong>due colleghi dello stesso settore</strong> liberi in quel giorno, con i loro contatti. Controlla la posta.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
   if (sent) {
     return (
       <div ref={rootRef} style={{ ...ui.page, background: transparent ? 'transparent' : ui.page.background }}>
@@ -335,8 +370,10 @@ export default function EmbedLeadPage() {
 
         {error && <p style={ui.error}>{error}</p>}
 
-        <button type="submit" disabled={sending || dateUnavailable} style={{ ...ui.submit, opacity: (sending || dateUnavailable) ? 0.5 : 1, cursor: dateUnavailable ? 'not-allowed' : 'pointer' }}>
-          {sending ? 'Invio…' : dateUnavailable ? 'Data non disponibile' : 'Invia richiesta'}
+        <button type={dateUnavailable ? 'button' : 'submit'} disabled={sending}
+          onClick={dateUnavailable ? () => void requestAlternatives() : undefined}
+          style={{ ...ui.submit, opacity: sending ? 0.5 : 1, cursor: 'pointer' }}>
+          {sending ? 'Invio…' : dateUnavailable ? 'Ricevi 2 alternative via email' : 'Invia richiesta'}
         </button>
         <p style={ui.legal}>
           Inviando accetti il trattamento dei dati per essere ricontattato. Powered by Planfully.
