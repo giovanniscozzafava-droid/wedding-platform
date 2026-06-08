@@ -5,7 +5,6 @@ import { Mail, Lock, Users, Network, Calendar, FileText, ShieldCheck, Sparkles, 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GoogleButton } from '@/components/auth/GoogleButton'
 import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
@@ -128,12 +127,6 @@ export default function LoginPage() {
             <Button type="submit" variant="gold" className="w-full" disabled={busy}>
               {busy ? 'Attendi...' : magicMode ? 'Invia magic link' : 'Accedi'}
             </Button>
-            <div className="flex items-center gap-2 my-2">
-              <div className="flex-1 h-px bg-[rgb(var(--border))]" />
-              <span className="text-xs text-[rgb(var(--fg-subtle))]">oppure</span>
-              <div className="flex-1 h-px bg-[rgb(var(--border))]" />
-            </div>
-            <GoogleButton />
             <div className="flex justify-between text-sm">
               <button type="button" className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:underline"
                 onClick={() => { setMagicMode((m) => !m); setError(null); setInfo(null) }}>

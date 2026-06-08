@@ -6,7 +6,6 @@ import {  Heart, Building2, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GoogleButton } from '@/components/auth/GoogleButton'
 import { supabase } from '@/lib/supabase'
 import type { AppRole } from '@/lib/auth'
 import { cn } from '@/lib/utils'
@@ -31,6 +30,8 @@ const schema = z.object({
   password: z.string().min(6, 'Almeno 6 caratteri'),
   role: z.enum(['WEDDING_PLANNER', 'LOCATION', 'FORNITORE']),
   subrole: z.string().optional(),
+  // Beta: ci si iscrive solo su invito → codice obbligatorio.
+  referral_code: z.string().trim().min(4, 'Inserisci il codice invito che hai ricevuto'),
 })
 
 export default function RegisterPage() {
@@ -71,6 +72,15 @@ export default function RegisterPage() {
     }
     setBusy(true)
     try {
+      // Beta a inviti: il codice deve corrispondere a un capostipite reale.
+      const code = form.referral_code.trim().toUpperCase()
+      const { data: chk } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
+        .rpc('invite_code_valid', { p_code: code })
+      if (!(chk as { valid?: boolean })?.valid) {
+        setError('Codice invito non valido. In questa fase beta ci si iscrive solo su invito.')
+        setBusy(false)
+        return
+      }
       const { data: signupData, error: err } = await supabase.auth.signUp({
         email: form.email, password: form.password,
         options: {
@@ -85,7 +95,6 @@ export default function RegisterPage() {
       })
       if (err) throw err
       // Se l'auth è già stabilito (no email confirm flow), prova subito a redimere il codice
-      const code = form.referral_code.trim().toUpperCase()
       if (code && signupData.session) {
         try {
           await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
@@ -185,23 +194,16 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <details open={!!form.referral_code} className="text-sm">
-            <summary className="cursor-pointer text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]">
-              Hai un codice invito? <span className="text-[rgb(var(--gold-600))]">(opzionale)</span>
-            </summary>
-            <div className="space-y-1 mt-2">
-              <Label htmlFor="referral_code">Codice invito</Label>
-              <Input id="referral_code" value={form.referral_code} maxLength={16}
-                onChange={(e) => setForm((f) => ({ ...f, referral_code: e.target.value.toUpperCase() }))}
-                placeholder="Es. ABC123"
-                className="uppercase tracking-widest" />
-              {form.referral_code && (
-                <p className="text-[10px] text-[rgb(var(--fg-subtle))]">
-                  Sarai collegato a chi ti ha invitato e farai parte della sua rete.
-                </p>
-              )}
-            </div>
-          </details>
+          <div className="space-y-1 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--gold-600))', background: 'rgb(var(--bg-sunken))' }}>
+            <Label htmlFor="referral_code">Codice invito <span className="text-[rgb(var(--gold-600))]">(obbligatorio)</span></Label>
+            <Input id="referral_code" value={form.referral_code} maxLength={16} required
+              onChange={(e) => setForm((f) => ({ ...f, referral_code: e.target.value.toUpperCase() }))}
+              placeholder="Es. ABC123"
+              className="uppercase tracking-widest" />
+            <p className="text-[10px] text-[rgb(var(--fg-subtle))]">
+              In questa fase beta ci si iscrive solo su invito. Inserisci il codice che ti ha dato chi ti ha invitato: sarai collegato a lui e farai parte della sua rete.
+            </p>
+          </div>
 
           {/* Contratto con noi: condizioni piattaforma (spunta che si apre) */}
           <div className="rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
@@ -233,12 +235,6 @@ export default function RegisterPage() {
           <Button type="submit" variant="gold" className="w-full" disabled={busy || !form.platform_terms}>
             {busy ? 'Creazione...' : 'Crea account'}
           </Button>
-          <div className="flex items-center gap-2 my-2">
-            <div className="flex-1 h-px bg-[rgb(var(--border))]" />
-            <span className="text-xs text-[rgb(var(--fg-subtle))]">oppure</span>
-            <div className="flex-1 h-px bg-[rgb(var(--border))]" />
-          </div>
-          <GoogleButton label="Registrati con Google" />
           <p className="text-sm text-center text-[rgb(var(--fg-muted))]">
             Hai già un account? <Link to="/login" className="font-medium text-[rgb(var(--fg))] hover:underline">Accedi</Link>
           </p>

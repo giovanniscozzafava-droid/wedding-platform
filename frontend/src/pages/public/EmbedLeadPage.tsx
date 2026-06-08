@@ -65,11 +65,8 @@ export default function EmbedLeadPage() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
-  // Disponibilità del professionista per la data scelta (check pubblico).
-  const [avail, setAvail] = useState<{ available: boolean; checked: boolean }>({ available: true, checked: false })
   const [callbackPref, setCallbackPref] = useState('indifferente')
-  type Alt = { name: string | null; slug: string | null; subrole: string | null; city: string | null; role?: string | null }
-  const [suggest, setSuggest] = useState<{ message: string | null; endorser: string | null; alts: Alt[] } | null>(null)
+  const [altSent, setAltSent] = useState(false)
   const [form, setForm] = useState({
     client_name: '', client_email: '', client_phone: '',
     event_kind: 'matrimonio', event_date: '', event_location: '', guests_estimate: '',
@@ -113,50 +110,6 @@ export default function EmbedLeadPage() {
     })()
   }, [slug])
 
-  // Appena cambia la data, verifica la capienza del professionista per quel giorno.
-  useEffect(() => {
-    if (!slug || !form.event_date) { setAvail({ available: true, checked: false }); setSuggest(null); return }
-    let alive = true
-    void (async () => {
-      try {
-        const { data } = await (supabase as unknown as AnyRpc).rpc('public_check_availability', { p_slug: slug, p_date: form.event_date })
-        const r = data as { available?: boolean; unknown?: boolean }
-        const ok = r?.available !== false
-        if (alive) setAvail({ available: ok, checked: !r?.unknown })
-        // Se occupato, prova a suggerire 2 colleghi simili e disponibili.
-        if (!ok && !r?.unknown) {
-          try {
-            const { data: sg } = await (supabase as unknown as AnyRpc).rpc('public_suggest_alternatives', { p_slug: slug, p_date: form.event_date })
-            const s = sg as { enabled?: boolean; message?: string | null; endorser?: string | null; suggestions?: Alt[] }
-            if (alive) setSuggest(s?.enabled && (s.suggestions?.length ?? 0) > 0 ? { message: s.message ?? null, endorser: s.endorser ?? null, alts: s.suggestions ?? [] } : null)
-          } catch { if (alive) setSuggest(null) }
-        } else if (alive) setSuggest(null)
-      } catch { if (alive) { setAvail({ available: true, checked: false }); setSuggest(null) } }
-    })()
-    return () => { alive = false }
-  }, [slug, form.event_date])
-
-  const dateUnavailable = avail.checked && !avail.available
-  const [altSent, setAltSent] = useState(false)
-
-  // Data bloccata: invece di un vicolo cieco, mandiamo al cliente 2 alternative
-  // dello stesso settore, libere, con i contatti. Da lì il giro ricomincia.
-  async function requestAlternatives() {
-    setError('')
-    if (!form.client_name.trim()) { setError('Inserisci il tuo nome.'); return }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.client_email.trim())) { setError('Email non valida.'); return }
-    setSending(true)
-    try {
-      await supabase.functions.invoke('suggest-alternatives', {
-        body: { slug, date: form.event_date, client_name: form.client_name.trim(), client_email: form.client_email.trim() },
-      })
-      setAltSent(true)
-      window.parent?.postMessage({ type: 'planfully:embed-submitted' }, '*')
-    } catch {
-      setError('Invio non riuscito. Riprova tra poco.')
-    } finally { setSending(false) }
-  }
-
   function toggleChip(key: 'styles' | 'priorities', val: string, max: number) {
     setForm((f) => {
       const cur = f[key]
@@ -171,9 +124,25 @@ export default function EmbedLeadPage() {
     if (!slug) { setError('Configurazione mancante (slug).'); return }
     if (!form.client_name.trim()) { setError('Inserisci il tuo nome.'); return }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.client_email.trim())) { setError('Email non valida.'); return }
-    if (dateUnavailable) { setError(`${proName || 'Il professionista'} non è disponibile per quella data. Prova un'altra data.`); return }
     setSending(true)
     try {
+      // Il form NON mostra la disponibilità: la verifichiamo in silenzio. Se la
+      // data è occupata, dirottiamo sull'email con 2 alternative (lo dice la mail).
+      if (form.event_date) {
+        try {
+          const { data: av } = await (supabase as unknown as AnyRpc).rpc('public_check_availability', { p_slug: slug, p_date: form.event_date })
+          const a = av as { available?: boolean; unknown?: boolean }
+          if (a?.available === false && !a?.unknown) {
+            await supabase.functions.invoke('suggest-alternatives', {
+              body: { slug, date: form.event_date, client_name: form.client_name.trim(), client_email: form.client_email.trim(), event_kind: form.event_kind },
+            })
+            setAltSent(true)
+            window.parent?.postMessage({ type: 'planfully:embed-submitted' }, '*')
+            setSending(false)
+            return
+          }
+        } catch { /* in caso di errore nel check, procediamo col lead normale */ }
+      }
       const { data, error } = await (supabase as unknown as AnyRpc).rpc('submit_public_lead', {
         p_slug: slug,
         p_client_name: form.client_name.trim(),
@@ -281,36 +250,6 @@ export default function EmbedLeadPage() {
             <input style={ui.input} type="date" value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} />
           </Field>
         </div>
-        {dateUnavailable && (
-          <div style={{ marginTop: -2, marginBottom: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, background: 'rgba(220,38,38,0.08)', color: '#b91c1c' }}>
-            Spiacenti, {proName || 'il professionista'} <strong>non è disponibile</strong> per il {new Date(form.event_date).toLocaleDateString('it-IT')}.
-            {suggest ? ' Ma ti consiglia due colleghi liberi in quella data:' : ' Prova un\'altra data per inviare la richiesta.'}
-          </div>
-        )}
-        {dateUnavailable && suggest && (
-          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.25)' }}>
-            {suggest.message && (
-              <p style={{ margin: '0 0 8px', fontSize: 13, fontStyle: 'italic', color: '#15803d' }}>
-                “{suggest.message}”{suggest.endorser ? <span style={{ fontStyle: 'normal', color: '#4b5563' }}> — {suggest.endorser}</span> : null}
-              </p>
-            )}
-            <div style={{ display: 'grid', gap: 6 }}>
-              {suggest.alts.map((a, i) => (
-                <a key={i} href={`${window.location.origin}/p/${a.role === 'WEDDING_PLANNER' ? 'wp' : 'fornitore'}/${a.slug}`} target="_blank" rel="noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: '#fff', border: '1px solid #e5e7eb', textDecoration: 'none', color: '#111' }}>
-                  <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{a.name}</span>
-                  <span style={{ fontSize: 12, color: '#6b7280' }}>{[a.subrole, a.city].filter(Boolean).join(' · ')}</span>
-                  <span style={{ fontSize: 12, color: primary, fontWeight: 600 }}>Vedi →</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-        {avail.checked && avail.available && form.event_date && (
-          <div style={{ marginTop: -2, marginBottom: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, background: 'rgba(22,163,74,0.08)', color: '#15803d' }}>
-            Ottimo, {proName || 'il professionista'} è <strong>disponibile</strong> per il {new Date(form.event_date).toLocaleDateString('it-IT')}. Lascia i tuoi dati: ti ricontatteremo per fissare una chiamata.
-          </div>
-        )}
         <Field label="Quando preferisci essere ricontattato?">
           <select style={ui.input} value={callbackPref} onChange={(e) => setCallbackPref(e.target.value)}>
             <option value="indifferente">Indifferente</option>
@@ -370,10 +309,9 @@ export default function EmbedLeadPage() {
 
         {error && <p style={ui.error}>{error}</p>}
 
-        <button type={dateUnavailable ? 'button' : 'submit'} disabled={sending}
-          onClick={dateUnavailable ? () => void requestAlternatives() : undefined}
+        <button type="submit" disabled={sending}
           style={{ ...ui.submit, opacity: sending ? 0.5 : 1, cursor: 'pointer' }}>
-          {sending ? 'Invio…' : dateUnavailable ? 'Ricevi 2 alternative via email' : 'Invia richiesta'}
+          {sending ? 'Invio…' : 'Invia richiesta'}
         </button>
         <p style={ui.legal}>
           Inviando accetti il trattamento dei dati per essere ricontattato. Powered by Planfully.

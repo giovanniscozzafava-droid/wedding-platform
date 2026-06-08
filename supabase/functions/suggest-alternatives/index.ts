@@ -12,16 +12,17 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
 const esc = (s: unknown) => String(s ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]!))
 
-type Alt = { id: string; name: string | null; slug: string | null; subrole: string | null; city: string | null; phone: string | null; role: string }
+type Alt = { id: string | null; name: string | null; full_name: string | null; subrole: string | null; city: string | null; phone: string | null; email: string | null }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
-  let body: { slug?: string; date?: string; client_name?: string; client_email?: string }
+  let body: { slug?: string; date?: string; client_name?: string; client_email?: string; event_kind?: string }
   try { body = await req.json() } catch { return json({ error: 'invalid_json' }, 400) }
   const { slug, date, client_email } = body
   const clientName = (body.client_name ?? '').trim()
+  const eventKind = (body.event_kind ?? '').trim()
   if (!slug || !date || !client_email) return json({ error: 'missing_params' }, 400)
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
@@ -32,14 +33,15 @@ Deno.serve(async (req) => {
   if (!r?.found || alts.length === 0) return json({ ok: true, sent: false, reason: 'no_alternatives' })
 
   const dateIt = new Date(date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+  // Contatti DIRETTI (nome, email, telefono). Niente link al profilo: la
+  // piattaforma è riservata ai fornitori, non aperta al pubblico.
   const cards = alts.map((a) => {
     const sector = [a.subrole, a.city].filter(Boolean).join(' · ')
-    const url = `${APP_BASE}/p/${a.role === 'WEDDING_PLANNER' ? 'wp' : 'fornitore'}/${a.slug}`
     return `<div style="background:#FDFBF6;border:1px solid #E4DED2;border-radius:12px;padding:16px;margin:10px 0">
-      <p style="margin:0 0 4px;font-weight:600;font-size:16px">${esc(a.name)}</p>
-      ${sector ? `<p style="margin:0 0 8px;font-size:13px;color:#6E6E6E">${esc(sector)}</p>` : ''}
-      ${a.phone ? `<p style="margin:0 0 8px;font-size:14px">📞 <a href="tel:${esc(a.phone)}" style="color:#C49A5C">${esc(a.phone)}</a></p>` : ''}
-      <a href="${url}" style="display:inline-block;background:#C49A5C;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600;font-size:13px">Vedi profilo e richiedi</a>
+      <p style="margin:0 0 4px;font-weight:600;font-size:16px">${esc(a.full_name ?? a.name)}</p>
+      ${sector ? `<p style="margin:0 0 10px;font-size:13px;color:#6E6E6E">${esc(sector)}</p>` : ''}
+      ${a.phone ? `<p style="margin:0 0 6px;font-size:14px">📞 <a href="tel:${esc(a.phone)}" style="color:#C49A5C;text-decoration:none">${esc(a.phone)}</a></p>` : ''}
+      ${a.email ? `<p style="margin:0;font-size:14px">✉️ <a href="mailto:${esc(a.email)}" style="color:#C49A5C;text-decoration:none">${esc(a.email)}</a></p>` : ''}
     </div>`
   }).join('')
 
@@ -60,5 +62,18 @@ Deno.serve(async (req) => {
   </div></body></html>`
 
   const res = await sendEmail({ to: client_email, subject: `Due alternative per il ${dateIt} · Planfully`, html, text: htmlToText(html) })
+
+  // AGGANCIO: lega il cliente ai colleghi suggeriti. Se uno di loro firmerà un
+  // contratto con questo cliente (stessa email), scatta il credito automatico
+  // (trigger autocredit_on_referred_contract): lo paga il suggerito, lo incassa
+  // il professionista occupato che ha girato il lead.
+  const suggestedIds = alts.map((a) => a.id).filter(Boolean)
+  if (suggestedIds.length > 0) {
+    await admin.rpc('record_auto_suggestions', {
+      p_slug: slug, p_client_email: client_email, p_client_name: clientName,
+      p_event_kind: eventKind || null, p_suggested_ids: suggestedIds,
+    }).catch(() => {})
+  }
+
   return json({ ok: true, sent: (res as { ok: boolean }).ok, count: alts.length })
 })
