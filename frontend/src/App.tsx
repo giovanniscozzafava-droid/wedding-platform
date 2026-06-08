@@ -75,6 +75,7 @@ const FaqPage = lazyWithRetry(() => import('@/pages/FaqPage'))
 const SupportPage = lazyWithRetry(() => import('@/pages/SupportPage'))
 const AdminSupportPage = lazyWithRetry(() => import('@/pages/AdminSupportPage'))
 const AdminPage = lazyWithRetry(() => import('@/pages/AdminPage'))
+const AdminFinancePage = lazyWithRetry(() => import('@/pages/AdminFinancePage'))
 
 function RouteFallback() {
   return (
@@ -246,6 +247,7 @@ export default function App() {
           <Route path="/assistenza" element={<RequireAuth><SupportPage /></RequireAuth>} />
           <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
           <Route path="/admin/assistenza" element={<RequireAuth><AdminSupportPage /></RequireAuth>} />
+          <Route path="/admin/finance" element={<RequireAuth><AdminFinancePage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
           <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />
           <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />

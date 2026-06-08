@@ -197,6 +197,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const NAV_GROUPS: NavGroup[] = isStaff
     ? [...baseGroups, { section: 'Staff', items: [
         { to: '/admin', label: 'Pannello Admin', icon: LifeBuoy },
+        { to: '/admin/finance', label: 'Finance', icon: Wallet },
         { to: '/admin/assistenza', label: 'Ticket assistenza', icon: LifeBuoy },
       ] }]
     : baseGroups
