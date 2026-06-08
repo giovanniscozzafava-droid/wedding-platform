@@ -276,6 +276,7 @@ type FollowedColleague = { id: string; name: string; subrole: string | null; rol
 function EventRoster({ event, members, supplierName, onBack, readOnly = false }: { event: Event; members: Member[]; supplierName: string; onBack: () => void; readOnly?: boolean }) {
   const [assign, setAssign] = useState<Record<string, Assignment>>({})
   const [collabAssign, setCollabAssign] = useState<Record<string, string>>({})
+  const [importedTeam, setImportedTeam] = useState<Array<{ id: string; full_name: string; role_label: string | null; collaborator_name: string }>>([])
   const [runItems, setRunItems] = useState<RunItem[]>([])
   const [packing, setPacking] = useState<PackItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -349,7 +350,12 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
         if (x.member_id) map[x.member_id] = x
         else if (x.collaborator_id) cmap[x.collaborator_id] = x.presence
       }
-      setAssign(map); setCollabAssign(cmap); setLoading(false)
+      setAssign(map); setCollabAssign(cmap)
+      try {
+        const { data: it } = await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown }>)('event_imported_team', { p_event_id: event.id })
+        setImportedTeam((it as typeof importedTeam) ?? [])
+      } catch { /* non bloccante */ }
+      setLoading(false)
     })()
   }, [event.id])
 
@@ -638,6 +644,30 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
                       const on = cur === p.v
                       return (
                         <button key={p.v} onClick={() => void setCollabPresence(c.collaborator_id, p.v)}
+                          className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border"
+                          style={on ? { background: p.color, borderColor: p.color, color: '#fff' } : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
+                          <p.icon size={13} /> <span className="hidden sm:inline">{p.l}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+            {/* Team portato in dote dai collaboratori (i loro membri) */}
+            {importedTeam.map((m) => {
+              const cur = assign[m.id]?.presence
+              return (
+                <div key={`imp-${m.id}`} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{m.full_name}</p>
+                    <p className="text-xs text-[rgb(var(--fg-muted))]">{[m.role_label, `team di ${m.collaborator_name}`].filter(Boolean).join(' · ')}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {PRESENCE.map((p) => {
+                      const on = cur === p.v
+                      return (
+                        <button key={p.v} onClick={() => void setPresence({ id: m.id, full_name: m.full_name, role_label: m.role_label, phone: null, active: true }, p.v)}
                           className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border"
                           style={on ? { background: p.color, borderColor: p.color, color: '#fff' } : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
                           <p.icon size={13} /> <span className="hidden sm:inline">{p.l}</span>
