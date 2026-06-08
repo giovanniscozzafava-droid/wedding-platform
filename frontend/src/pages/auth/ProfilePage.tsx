@@ -197,6 +197,29 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {(profile?.role === 'FORNITORE' || profile?.role === 'LOCATION' || profile?.role === 'WEDDING_PLANNER') && (
+                <div className="space-y-2 p-3 rounded-lg border" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+                  <label className="flex items-start gap-3">
+                    <input type="checkbox" className="mt-1" checked={form.auto_suggest_when_busy}
+                      onChange={(e) => setForm((f) => ({ ...f, auto_suggest_when_busy: e.target.checked }))} />
+                    <div className="text-sm">
+                      <p className="font-medium">Suggerisci colleghi quando sono occupato</p>
+                      <p className="text-xs text-[rgb(var(--fg-muted))]">
+                        Se un cliente chiede una data in cui sei pieno, il form proporrà in automatico 2 colleghi simili e liberi in quel giorno.
+                      </p>
+                    </div>
+                  </label>
+                  {form.auto_suggest_when_busy && (
+                    <div className="space-y-1 pl-7">
+                      <Label htmlFor="auto_suggest_message">Messaggio di presentazione</Label>
+                      <Input id="auto_suggest_message" value={form.auto_suggest_message}
+                        onChange={(e) => setForm((f) => ({ ...f, auto_suggest_message: e.target.value }))}
+                        placeholder="Es. Fidati, sono bravi come me!" />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {profile?.role === 'LOCATION' && (
                 <div className="space-y-2">
                   <Label>Tipo di location</Label>
