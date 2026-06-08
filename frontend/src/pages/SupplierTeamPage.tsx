@@ -194,17 +194,38 @@ function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadSha
   const [date, setDate] = useState('')
   const [callTime, setCallTime] = useState('')
   const [location, setLocation] = useState('')
+  const [quoteId, setQuoteId] = useState('')
+  const [myEvents, setMyEvents] = useState<Array<{ id: string; title: string; event_date: string | null; client_name: string | null; event_location: string | null }>>([])
   const [saving, setSaving] = useState(false)
+
+  // I miei eventi (preventivi): per importare il turno senza riscrivere tutto.
+  useEffect(() => {
+    void (async () => {
+      const { data } = await db().from('quotes').select('id, title, event_date, client_name, event_location').eq('owner_id', uid).order('event_date', { ascending: false, nullsFirst: false }).limit(100)
+      setMyEvents((data as typeof myEvents) ?? [])
+    })()
+  }, [uid])
+
+  function importEvent(id: string) {
+    setQuoteId(id)
+    const ev = myEvents.find((e) => e.id === id)
+    if (ev) {
+      setTitle([ev.client_name, ev.title].filter(Boolean).join(' · ') || ev.title)
+      setDate(ev.event_date ? ev.event_date.slice(0, 10) : '')
+      setLocation(ev.event_location ?? '')
+    }
+  }
 
   async function add() {
     if (!title.trim()) { toast.error('Inserisci un titolo'); return }
     setSaving(true)
     const { error } = await db().from('supplier_team_events').insert({
       supplier_id: uid, title: title.trim(), event_date: date || null, call_time: callTime.trim() || null, location: location.trim() || null,
+      quote_id: quoteId || null,
     })
     setSaving(false)
     if (error) { toast.error('Errore'); return }
-    setTitle(''); setDate(''); setCallTime(''); setLocation(''); await reload()
+    setTitle(''); setDate(''); setCallTime(''); setLocation(''); setQuoteId(''); await reload()
   }
 
   async function respond(collabId: string, accept: boolean) {
@@ -240,12 +261,27 @@ function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadSha
         </Card>
       )}
       <Card className="p-4">
+        {myEvents.length > 0 && (
+          <div className="mb-3">
+            <label className="text-xs text-[rgb(var(--fg-muted))]">Importa da un tuo evento (così non riscrivi nulla)</label>
+            <select value={quoteId} onChange={(e) => importEvent(e.target.value)}
+              className="w-full text-sm border rounded-lg px-2 py-2 bg-transparent mt-1" style={{ borderColor: 'rgb(var(--border))' }}>
+              <option value="">— Nuovo turno manuale —</option>
+              {myEvents.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {[e.client_name, e.title].filter(Boolean).join(' · ')}{e.event_date ? ` (${new Date(e.event_date).toLocaleDateString('it-IT')})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input placeholder="Titolo (es. Matrimonio Rossi)" value={title} onChange={(e) => setTitle(e.target.value)} />
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <Input placeholder="Ritrovo (es. 16:30)" value={callTime} onChange={(e) => setCallTime(e.target.value)} />
           <Input placeholder="Luogo" value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
+        {quoteId && <p className="text-[11px] text-[rgb(var(--emerald-600))] mt-2">✓ Collegato all'evento: potrai importare il programma e vedere la disponibilità.</p>}
         <Button variant="gold" className="mt-3" onClick={add} disabled={saving}><CalendarPlus size={15} className="mr-1" /> Crea turno</Button>
       </Card>
 
@@ -293,8 +329,12 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
     const { data } = await db().from('supplier_event_collaborators')
       .select('id, collaborator_id, status, can_edit, collaborator:profiles!supplier_event_collaborators_collaborator_id_fkey(business_name, full_name)')
       .eq('event_id', event.id)
-    setCollabs(((data as Array<{ id: string; collaborator_id: string; status: string; can_edit: boolean; collaborator: { business_name: string | null; full_name: string | null } | null }>) ?? [])
-      .map((c) => ({ id: c.id, collaborator_id: c.collaborator_id, status: c.status, can_edit: c.can_edit, name: c.collaborator?.business_name || c.collaborator?.full_name || 'Collega' })))
+    setCollabs(((data as Array<{ id: string; collaborator_id: string; status: string; can_edit: boolean; collaborator: { business_name: string | null; full_name: string | null } | { business_name: string | null; full_name: string | null }[] | null }>) ?? [])
+      .map((c) => {
+        // L'embed FK può tornare oggetto o array: normalizziamo per avere sempre il nome.
+        const p = Array.isArray(c.collaborator) ? c.collaborator[0] : c.collaborator
+        return { id: c.id, collaborator_id: c.collaborator_id, status: c.status, can_edit: c.can_edit, name: p?.business_name || p?.full_name || 'Collega' }
+      }))
   }
   async function loadFollowed() {
     if (readOnly) return
