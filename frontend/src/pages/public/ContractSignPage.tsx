@@ -18,6 +18,9 @@ type ContractData = {
   status: string
   sections: Array<{ heading: string; body: string; type?: string }>
   signed_at: string | null
+  signer_name?: string | null
+  countersign_at?: string | null
+  countersign_name?: string | null
   owner: { full_name: string | null; business_name: string | null; brand_primary_color: string | null }
   prefill?: {
     client_name?: string | null
@@ -143,10 +146,24 @@ export default function ContractSignPage() {
                   <CheckCircle2 size={28} />
                 </span>
                 <h2 className="font-display text-2xl">Contratto firmato</h2>
-                <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
-                  {data.signed_at && `Il ${new Date(data.signed_at).toLocaleString('it-IT')}`}
-                </p>
-                <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">Una copia firmata è stata registrata. Riceverai conferma via email.</p>
+                {/* Atto bilaterale: firma di entrambe le parti */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-left max-w-md mx-auto">
+                  <div className="rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
+                    <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Il professionista</p>
+                    <p className="text-sm font-medium mt-0.5">{data.countersign_name ?? data.owner?.business_name ?? data.owner?.full_name ?? '—'}</p>
+                    <p className="text-xs mt-1" style={{ color: data.countersign_at ? 'rgb(var(--emerald-600))' : 'rgb(var(--fg-subtle))' }}>
+                      {data.countersign_at ? `✓ Firmato il ${new Date(data.countersign_at).toLocaleDateString('it-IT')}` : 'In attesa di controfirma'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
+                    <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Il cliente</p>
+                    <p className="text-sm font-medium mt-0.5">{data.signer_name ?? data.client_name ?? '—'}</p>
+                    <p className="text-xs mt-1" style={{ color: 'rgb(var(--emerald-600))' }}>
+                      {data.signed_at ? `✓ Firmato il ${new Date(data.signed_at).toLocaleDateString('it-IT')}` : '✓ Firmato'}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-[rgb(var(--fg-subtle))] mt-3">Una copia firmata è stata registrata. Riceverai conferma via email.</p>
               </div>
             ) : (
               <form onSubmit={submit} className="space-y-4">
