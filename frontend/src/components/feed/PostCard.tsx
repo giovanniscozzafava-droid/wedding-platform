@@ -81,6 +81,17 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
     catch { toast.error('Impossibile copiare') }
     setShareOpen(false)
   }
+  // Instagram non ha un link di condivisione web: su mobile usiamo lo share nativo
+  // (che include IG); altrimenti copiamo il link e apriamo Instagram per incollarlo.
+  async function shareInstagram() {
+    const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> }
+    try {
+      if (nav.share) { await nav.share({ title: shareText, text: shareText, url: shareUrl }); setShareOpen(false); return }
+    } catch { /* annullato */ }
+    try { await navigator.clipboard.writeText(shareUrl); toast.success('Link copiato — incollalo nella tua storia o nei DM') } catch { /* ignore */ }
+    window.open('https://www.instagram.com', '_blank', 'noopener')
+    setShareOpen(false)
+  }
 
   async function deletePost() {
     if (!confirm('Eliminare definitivamente questo post? L\'azione non è reversibile.')) return
@@ -345,6 +356,7 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
                 <ShareItem icon={<MessageCircle size={15} style={{ color: '#25D366' }} />} label="WhatsApp" onClick={() => shareTo('whatsapp')} />
                 <ShareItem icon={<span className="text-sm font-bold" style={{ color: '#1877F2' }}>f</span>} label="Facebook" onClick={() => shareTo('facebook')} />
                 <ShareItem icon={<span className="text-sm font-bold">𝕏</span>} label="X (Twitter)" onClick={() => shareTo('x')} />
+                <ShareItem icon={<span className="text-sm font-bold" style={{ background: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>◙</span>} label="Instagram" onClick={() => void shareInstagram()} />
                 <ShareItem icon={<span className="text-[11px] font-bold" style={{ color: '#0A66C2' }}>in</span>} label="LinkedIn" onClick={() => shareTo('linkedin')} />
                 <div className="my-1 border-t" style={{ borderColor: 'rgb(var(--border))' }} />
                 <ShareItem icon={<Link2 size={15} className="text-[rgb(var(--fg-muted))]" />} label="Copia link" onClick={copyShareLink} />

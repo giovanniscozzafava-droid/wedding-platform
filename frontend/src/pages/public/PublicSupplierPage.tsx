@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { MapPin, Users, Sparkles, Briefcase, Globe, Heart, ArrowLeft, AlertCircle, Send } from 'lucide-react'
+import { MapPin, Users, Sparkles, Briefcase, Globe, Heart, ArrowLeft, AlertCircle, Send, BadgeCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -16,6 +16,7 @@ type PublicProfile = {
   id: string
   slug: string
   role: string
+  verified?: boolean
   full_name: string | null
   business_name: string | null
   brand_logo_url: string | null
@@ -188,8 +189,13 @@ export default function PublicSupplierPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <h1 className="font-display text-3xl sm:text-4xl tracking-tight">
+                  <h1 className="font-display text-3xl sm:text-4xl tracking-tight inline-flex items-center gap-2 flex-wrap">
                     {data.business_name ?? data.full_name ?? 'Fornitore'}
+                    {data.verified && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ color: 'rgb(var(--emerald-600))', background: 'rgb(var(--emerald-100))' }}>
+                        <BadgeCheck size={14} /> Verificato
+                      </span>
+                    )}
                   </h1>
                   {subroleLabel && (
                     <p className="text-sm font-medium uppercase tracking-wider mt-1" style={{ color: 'rgb(var(--gold-600))' }}>
