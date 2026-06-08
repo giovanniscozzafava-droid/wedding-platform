@@ -275,6 +275,7 @@ type FollowedColleague = { id: string; name: string; subrole: string | null; rol
 
 function EventRoster({ event, members, supplierName, onBack, readOnly = false }: { event: Event; members: Member[]; supplierName: string; onBack: () => void; readOnly?: boolean }) {
   const [assign, setAssign] = useState<Record<string, Assignment>>({})
+  const [collabAssign, setCollabAssign] = useState<Record<string, string>>({})
   const [runItems, setRunItems] = useState<RunItem[]>([])
   const [packing, setPacking] = useState<PackItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -339,12 +340,16 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
   useEffect(() => {
     void (async () => {
       const [a] = await Promise.all([
-        db().from('supplier_team_assignments').select('id, event_id, member_id, presence, role_label').eq('event_id', event.id),
+        db().from('supplier_team_assignments').select('id, event_id, member_id, collaborator_id, presence, role_label').eq('event_id', event.id),
         loadRun(), loadPack(), loadCollabs(), loadFollowed(),
       ])
       const map: Record<string, Assignment> = {}
-      for (const x of (a.data as Assignment[]) ?? []) map[x.member_id] = x
-      setAssign(map); setLoading(false)
+      const cmap: Record<string, string> = {}
+      for (const x of (a.data as Array<Assignment & { collaborator_id?: string | null }>) ?? []) {
+        if (x.member_id) map[x.member_id] = x
+        else if (x.collaborator_id) cmap[x.collaborator_id] = x.presence
+      }
+      setAssign(map); setCollabAssign(cmap); setLoading(false)
     })()
   }, [event.id])
 
@@ -354,6 +359,12 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
     await db().from('supplier_team_assignments').upsert({
       event_id: event.id, member_id: member.id, supplier_id: sid, presence, role_label: member.role_label,
     }, { onConflict: 'event_id,member_id' })
+  }
+  async function setCollabPresence(collabId: string, presence: string) {
+    setCollabAssign((s) => ({ ...s, [collabId]: presence }))
+    await db().from('supplier_team_assignments').upsert({
+      event_id: event.id, collaborator_id: collabId, supplier_id: sid, presence, role_label: 'Collega esterno',
+    }, { onConflict: 'event_id,collaborator_id' })
   }
 
   // ---- Run-sheet ----
@@ -586,8 +597,8 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
           <Users size={16} className="text-[rgb(var(--gold-600))]" />
           <h2 className="font-medium">Presenze squadra</h2>
         </div>
-        {members.length === 0 ? (
-          <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessun membro attivo. Aggiungili dalla scheda “Team”.</p>
+        {members.length === 0 && collabs.filter((c) => c.status === 'ATTIVO').length === 0 ? (
+          <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessun membro attivo. Aggiungili dalla scheda “Team” o invita un collega qui sopra.</p>
         ) : (
           <div className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
             {members.map((m) => {
@@ -603,6 +614,30 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
                       const on = cur === p.v
                       return (
                         <button key={p.v} onClick={() => setPresence(m, p.v)}
+                          className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border"
+                          style={on ? { background: p.color, borderColor: p.color, color: '#fff' } : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
+                          <p.icon size={13} /> <span className="hidden sm:inline">{p.l}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+            {/* Collaboratori esterni ATTIVI: nel team SOLO per questo evento */}
+            {collabs.filter((c) => c.status === 'ATTIVO').map((c) => {
+              const cur = collabAssign[c.collaborator_id]
+              return (
+                <div key={`col-${c.id}`} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{c.name} <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-1" style={{ color: 'rgb(var(--gold-700))', background: 'rgb(var(--gold-100))' }}>collega</span></p>
+                    <p className="text-xs text-[rgb(var(--fg-muted))]">Collaboratore sull'evento</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {PRESENCE.map((p) => {
+                      const on = cur === p.v
+                      return (
+                        <button key={p.v} onClick={() => void setCollabPresence(c.collaborator_id, p.v)}
                           className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border"
                           style={on ? { background: p.color, borderColor: p.color, color: '#fff' } : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
                           <p.icon size={13} /> <span className="hidden sm:inline">{p.l}</span>
