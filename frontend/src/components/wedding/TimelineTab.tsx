@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useTimeline, useTimelineMutations } from '@/hooks/useWedding'
+import { timelinePreset } from '@/lib/timelinePresets'
 import { exportTableToPdf } from '@/lib/pdf-export'
 
 // Un evento può sforare la mezzanotte: orari prima delle 05:00 contano come
@@ -30,10 +31,31 @@ function sortByTime(list: any[]): any[] {
   return [...timed, ...untimed]
 }
 
-export function TimelineTab({ entryId }: { entryId: string }) {
+export function TimelineTab({ entryId, eventKind }: { entryId: string; eventKind?: string | null }) {
   const { data, isLoading } = useTimeline(entryId)
   const { add, update, remove } = useTimelineMutations(entryId)
   const [openNew, setOpenNew] = useState(false)
+  const [seeding, setSeeding] = useState(false)
+
+  const presets = timelinePreset(eventKind)
+  async function addPreset(p: { start_time: string; title: string; duration_min?: number }) {
+    try {
+      await add.mutateAsync({ title: p.title, start_time: p.start_time || null, duration_min: p.duration_min ?? null, location: null, is_critical: false, ord: (data?.length ?? 0) + 1 } as any)
+      toast.success(`"${p.title}" aggiunto`)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+  async function loadFullPreset() {
+    setSeeding(true)
+    try {
+      let ord = (data?.length ?? 0)
+      for (const p of presets) {
+        ord += 1
+        await add.mutateAsync({ title: p.title, start_time: p.start_time || null, duration_min: p.duration_min ?? null, location: null, is_critical: false, ord } as any)
+      }
+      toast.success('Scaletta tipo caricata')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setSeeding(false) }
+  }
   const [draft, setDraft] = useState({ start_time: '', title: '', duration_min: '', location: '', is_critical: false })
   const [items, setItems] = useState<any[]>([])
   const [dragIdx, setDragIdx] = useState<number | null>(null)
@@ -165,6 +187,25 @@ export function TimelineTab({ entryId }: { entryId: string }) {
           </Button>
         </div>
       </header>
+
+      {/* Momenti tipici pre-impostati: pianifica in pochi click */}
+      <Card className="p-4 mb-6">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))] flex-1">Momenti tipici · tocca per aggiungere</p>
+          <Button variant="outline" size="sm" disabled={seeding} onClick={() => void loadFullPreset()}>
+            <Plus size={13} className="mr-1" /> Carica scaletta tipo
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {presets.map((p) => (
+            <button key={p.title} type="button" onClick={() => void addPreset(p)}
+              className="px-2.5 py-1 rounded-full text-xs border hover:bg-[rgb(var(--bg-sunken))]"
+              style={{ borderColor: 'rgb(var(--border))' }}>
+              <span className="text-[rgb(var(--gold-700))] font-medium">{p.start_time}</span> {p.title}
+            </button>
+          ))}
+        </div>
+      </Card>
 
       {openNew && (
         <Card className="p-5 mb-6">

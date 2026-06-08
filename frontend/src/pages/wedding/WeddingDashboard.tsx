@@ -249,7 +249,7 @@ export default function WeddingDashboard() {
             {tab === 'overview' && <OverviewTab wedding={wedding} onTab={setTab as any} />}
             {tab === 'planning' && <CouplePlanningTab entryId={wedding.id} readOnly />}
             {tab === 'ceremony' && <CeremonyTab entryId={wedding.id} />}
-            {tab === 'timeline' && <TimelineTab entryId={wedding.id} />}
+            {tab === 'timeline' && <TimelineTab entryId={wedding.id} eventKind={(wedding as any).event_kind} />}
             {tab === 'tables' && <TablesTab entryId={wedding.id} />}
             {tab === 'guests' && <GuestsTab entryId={wedding.id} eventKind={wedding.event_kind} />}
             {tab === 'menu' && <MenuTab entryId={wedding.id} />}
