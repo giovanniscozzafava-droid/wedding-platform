@@ -6,7 +6,8 @@ alter table public.profiles
   add column if not exists is_verified_customer boolean not null default false;
 comment on column public.profiles.is_verified_customer is 'Cliente reale verificato dallo staff (non un account di test).';
 
--- admin_list_users: include il flag verificato.
+-- admin_list_users: include il flag verificato (cambia la RETURNS TABLE → drop+create).
+drop function if exists public.admin_list_users(text);
 create or replace function public.admin_list_users(p_search text default null)
 returns table (
   id uuid, full_name text, business_name text, role text, email text,
