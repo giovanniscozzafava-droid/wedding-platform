@@ -62,14 +62,11 @@ export function TimelineTab({ entryId, eventKind }: { entryId: string; eventKind
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
   const [reordering, setReordering] = useState(false)
 
-  // Copia locale sempre ordinata cronologicamente (mezzanotte-aware). Se l'ordine
-  // per ora diverge dall'ord salvato, lo riallineo da solo sul DB: così la scaletta
-  // si posiziona da sola fino in fondo, anche oltre la mezzanotte.
+  // Copia locale nell'ORDINE MANUALE (ord): così le voci spostate con la manina
+  // restano dove le metti. Per riallineare cronologicamente c'è "Ordina per ora".
   useEffect(() => {
-    const sorted = sortByTime(((data ?? []) as any[]).slice())
-    setItems(sorted)
-    const needsPersist = sorted.some((it, i) => (it.ord ?? 0) !== i + 1)
-    if (needsPersist && sorted.length > 0 && !reordering) void persistOrder(sorted)
+    const ordered = ((data ?? []) as any[]).slice().sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0))
+    setItems(ordered)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
@@ -107,13 +104,11 @@ export function TimelineTab({ entryId, eventKind }: { entryId: string; eventKind
     }
   }
 
-  /** Cambia l'ora di una voce esistente → si riposiziona da sola in scaletta. */
+  /** Cambia l'ora di una voce: aggiorna il valore SENZA riordinare (ordine manuale). */
   async function changeTime(id: string, value: string) {
-    const next = sortByTime(items.map((it) => (it.id === id ? { ...it, start_time: value || null } : it)))
-    setItems(next) // ottimistico: salta subito nella posizione giusta
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, start_time: value || null } : it)))
     try {
       await update.mutateAsync({ id, patch: { start_time: value || null } } as any)
-      await persistOrder(next)
     } catch (e) { toast.error((e as Error).message) }
   }
 
