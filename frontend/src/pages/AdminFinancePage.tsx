@@ -20,6 +20,7 @@ type Overview = {
   entrate_ricorrenti_mese: number; costi_ricorrenti_mese: number; netto_ricorrente_mese: number
   commissioni_totali: number; commissioni_incassate: number; commissioni_da_incassare: number
   users_by_role: Record<string, number>; subs_by_status: Record<string, number>; fornitori_totali: number
+  fornitori_verificati?: number; clienti_verificati?: number
 }
 type Entry = { id: string; direction: string; category: string | null; label: string; amount: number; recurrence: string; entry_date: string; notes: string | null }
 type Month = { mese: string; entrate: number; costi: number }
@@ -166,9 +167,10 @@ function deriveMetrics(ov: Overview, months: Month[]) {
   else if (paying >= 1) stageIdx = 1
   else stageIdx = 0
 
+  const fornVerif = ov.fornitori_verificati ?? 0
   const milestones = [
-    { label: '10 fornitori attivi', done: ov.fornitori_totali >= 10, hint: 'Offerta minima per attrarre clienti' },
-    { label: '50 fornitori attivi', done: ov.fornitori_totali >= 50, hint: 'Massa critica della rete' },
+    { label: '10 fornitori verificati', done: fornVerif >= 10, hint: 'Offerta reale minima (solo account verificati, non di test)' },
+    { label: '50 fornitori verificati', done: fornVerif >= 50, hint: 'Massa critica della rete' },
     { label: 'Primo abbonato pagante', done: paying >= 1, hint: 'Validi la monetizzazione' },
     { label: '10 abbonati', done: paying >= 10, hint: 'Ripetibilità del valore' },
     { label: 'MRR € 1.000', done: mrr >= 1000, hint: 'Traction iniziale' },

@@ -34,6 +34,9 @@ export function BetaBanner() {
   const [dismissed, setDismissed] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
+  // I capostipiti (wedding planner / location) sono SEMPRE gratis: non vedono la
+  // dicitura "gratis fino a…". La vedono solo i NON capostipiti (es. fornitori).
+  const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION'
   const roleKey = profile?.role ? ROLE_MAP[profile.role] : null
   const dismissKey = roleKey ? `beta_banner_dismissed_${roleKey}` : null
 
@@ -57,6 +60,7 @@ export function BetaBanner() {
     }
   }, [roleKey, dismissKey])
 
+  if (isCapostipite) return null
   if (!status || !status.is_beta || dismissed || !status.message_short) return null
 
   function close() {

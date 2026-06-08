@@ -201,7 +201,10 @@ function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadSha
   // I miei eventi (preventivi): per importare il turno senza riscrivere tutto.
   useEffect(() => {
     void (async () => {
-      const { data } = await db().from('quotes').select('id, title, event_date, client_name, event_location').eq('owner_id', uid).order('event_date', { ascending: false, nullsFirst: false }).limit(100)
+      // Solo eventi REALI: preventivo accettato e/o contrattualizzato. Non i preventivi semplici.
+      const { data } = await db().from('quotes').select('id, title, event_date, client_name, event_location')
+        .eq('owner_id', uid).in('status', ['ACCETTATO', 'CONVERTITO_IN_CONTRATTO'])
+        .order('event_date', { ascending: false, nullsFirst: false }).limit(100)
       setMyEvents((data as typeof myEvents) ?? [])
     })()
   }, [uid])
