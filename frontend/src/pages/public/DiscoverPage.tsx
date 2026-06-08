@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase } from 'lucide-react'
+import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase, BadgeCheck } from 'lucide-react'
 import { StarsBadge } from '@/components/social/StarsBadge'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
@@ -23,6 +23,7 @@ type DiscoverSupplier = {
   discover_tier: 'STANDARD' | 'BOOST' | 'PREMIUM' | null
   in_pancia_count: number
   services_count: number
+  verified?: boolean
   created_at: string
 }
 
@@ -144,8 +145,9 @@ export default function DiscoverPage() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-display text-lg leading-tight truncate">
-                      {s.business_name ?? s.full_name ?? 'Fornitore'}
+                    <h3 className="font-display text-lg leading-tight truncate flex items-center gap-1.5">
+                      <span className="truncate">{s.business_name ?? s.full_name ?? 'Fornitore'}</span>
+                      {s.verified && <BadgeCheck size={16} className="shrink-0" style={{ color: 'rgb(var(--emerald-600))' }} aria-label="Verificato" />}
                     </h3>
                     {s.subrole && (
                       <p className="text-xs text-[rgb(var(--gold-600))] font-medium uppercase tracking-wider mt-0.5">
