@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Wallet, TrendingUp, TrendingDown, Plus, Trash2, Target, Sparkles, Rocket,
-  Compass, BarChart3, Info, CheckCircle2, Circle, Flag, Users, Repeat, Megaphone, Zap,
+  Compass, BarChart3, BookOpen, CheckCircle2, Circle, Flag, Users, Repeat, Megaphone, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
@@ -41,8 +41,6 @@ export default function AdminFinancePage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [tab, setTab] = useState<Tab>('panoramica')
-  const [adoption, setAdoption] = useState(20)
-  const [planPrice, setPlanPrice] = useState(29)
 
   async function load() {
     try {
@@ -57,7 +55,14 @@ export default function AdminFinancePage() {
     } catch (e) { setErr((e as Error).message) }
     finally { setLoading(false) }
   }
-  useEffect(() => { void load() }, [])
+  // Si aggiorna da solo: ricarica i dati reali ogni 60s (e a ogni ritorno sulla pagina).
+  useEffect(() => {
+    void load()
+    const id = setInterval(() => void load(), 60000)
+    const onFocus = () => void load()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus) }
+  }, [])
 
   const M = useMemo(() => ov ? deriveMetrics(ov, months) : null, [ov, months])
 
@@ -66,7 +71,6 @@ export default function AdminFinancePage() {
   if (!ov || !M) return null
 
   const stageIdx = M.stageIdx
-  const mrrProiettato = Math.round((ov.fornitori_totali * (adoption / 100)) * planPrice)
   const TABS: Array<{ k: Tab; label: string; icon: typeof Wallet }> = [
     { k: 'panoramica', label: 'Panoramica', icon: BarChart3 },
     { k: 'stadio', label: 'Stadio & Roadmap', icon: Compass },
@@ -114,7 +118,7 @@ export default function AdminFinancePage() {
 
         {tab === 'panoramica' && <Panoramica ov={ov} M={M} />}
         {tab === 'stadio' && <Stadio M={M} ov={ov} />}
-        {tab === 'strategia' && <Strategia M={M} ov={ov} adoption={adoption} setAdoption={setAdoption} planPrice={planPrice} setPlanPrice={setPlanPrice} mrrProiettato={mrrProiettato} />}
+        {tab === 'strategia' && <Strategia M={M} ov={ov} />}
         {tab === 'conti' && (
           <div className="space-y-6">
             <Card className="p-5">
@@ -137,10 +141,14 @@ export default function AdminFinancePage() {
 type Metrics = ReturnType<typeof deriveMetrics>
 function deriveMetrics(ov: Overview, months: Month[]) {
   const paying = (ov.subs_by_status.PLUS ?? 0) + (ov.subs_by_status.PREMIUM ?? 0)
-  const mrr = ov.entrate_ricorrenti_mese            // entrate ricorrenti reali registrate
+  // MRR si aggiorna DA SOLO: abbonati reali × prezzo del piano + entrate ricorrenti
+  // manuali + commissioni medie mensili incassate. Cresce coi dati, senza inserimenti.
+  const mrrAbbon = (ov.subs_by_status.PLUS ?? 0) * 59 + (ov.subs_by_status.PREMIUM ?? 0) * 79
+  const commMese = ov.commissioni_incassate / 12      // commissioni incassate spalmate sull'anno
+  const mrr = mrrAbbon + ov.entrate_ricorrenti_mese + commMese
   const arr = mrr * 12
-  const arpa = paying > 0 ? mrr / paying : 0
-  const burn = Math.max(0, ov.costi_ricorrenti_mese - ov.entrate_ricorrenti_mese)
+  const arpa = paying > 0 ? mrrAbbon / paying : 0
+  const burn = Math.max(0, ov.costi_ricorrenti_mese - mrr)
   const runway = burn > 0 ? ov.cassetto / burn : Infinity
   const conv = ov.fornitori_totali > 0 ? (paying / ov.fornitori_totali) * 100 : 0
   // crescita MoM sulle entrate
@@ -280,12 +288,33 @@ const PLAYBOOK: Record<number, { vision: string; pillars: { icon: any; title: st
     ],
   },
 }
-function Strategia({ M, ov, adoption, setAdoption, planPrice, setPlanPrice, mrrProiettato }: {
-  M: Metrics; ov: Overview; adoption: number; setAdoption: (n: number) => void; planPrice: number; setPlanPrice: (n: number) => void; mrrProiettato: number
-}) {
+function Strategia({ M, ov }: { M: Metrics; ov: Overview }) {
   const pb = PLAYBOOK[M.stageIdx]!
-  const breakEvenSubs = planPrice > 0 ? Math.ceil(ov.costi_ricorrenti_mese / planPrice) : 0
-  const nettoMese = mrrProiettato + ov.entrate_ricorrenti_mese - ov.costi_ricorrenti_mese
+  // Simulatore in SOLDI: base abbonamenti MISTA (quanti a 29/59/79, prezzi editabili
+  // perché i pacchetti sono provvisori) + ricavo da PERCENTUALI sui matrimoni.
+  const [n29, setN29] = useState(0); const [n59, setN59] = useState(0); const [n79, setN79] = useState(0)
+  const [p29, setP29] = useState(29); const [p59, setP59] = useState(59); const [p79, setP79] = useState(79)
+  const [matrimoniMese, setMatrimoniMese] = useState(0)
+  const [valoreMedio, setValoreMedio] = useState(20000)
+  const [commPct, setCommPct] = useState(3)
+
+  const mrrAbbon = n29 * p29 + n59 * p59 + n79 * p79
+  const ricavoPercMese = matrimoniMese * valoreMedio * (commPct / 100)
+  const ricavoMese = mrrAbbon + ricavoPercMese
+  const nettoMese = ricavoMese - ov.costi_ricorrenti_mese
+  const totAbbonati = n29 + n59 + n79
+  const arpa = totAbbonati > 0 ? mrrAbbon / totAbbonati : 0
+
+  const Num = ({ v, set, label, prefix }: { v: number; set: (n: number) => void; label: string; prefix?: string }) => (
+    <div>
+      <label className="text-[11px] text-[rgb(var(--fg-muted))]">{label}</label>
+      <div className="relative">
+        {prefix && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-[rgb(var(--fg-subtle))]">{prefix}</span>}
+        <Input className={`text-sm ${prefix ? 'pl-5' : ''}`} type="number" min={0} value={v} onChange={(e) => set(Math.max(0, Number(e.target.value) || 0))} />
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-6">
       <Card className="p-5">
@@ -308,26 +337,41 @@ function Strategia({ M, ov, adoption, setAdoption, planPrice, setPlanPrice, mrrP
       </div>
 
       <Card className="p-5">
-        <h2 className="font-display text-lg mb-3 flex items-center gap-2"><Sparkles size={18} className="text-[rgb(var(--gold-600))]" /> Simulatore: e se i fornitori sottoscrivessero?</h2>
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div>
-            <label className="text-xs text-[rgb(var(--fg-muted))]">% fornitori che sottoscrivono</label>
-            <input type="range" min={0} max={100} value={adoption} onChange={(e) => setAdoption(Number(e.target.value))} className="w-full accent-[rgb(var(--gold-500))]" />
-            <p className="text-sm font-medium">{adoption}% di {ov.fornitori_totali} fornitori</p>
-          </div>
-          <div>
-            <label className="text-xs text-[rgb(var(--fg-muted))]">Piano medio</label>
-            <select value={planPrice} onChange={(e) => setPlanPrice(Number(e.target.value))} className="w-full text-sm border rounded-lg px-2 py-2 bg-transparent mt-1" style={{ borderColor: 'rgb(var(--border))' }}>
-              {PLANS.map((p) => <option key={p.k} value={p.price}>{p.label} · {p.price}€</option>)}
-            </select>
-          </div>
+        <h2 className="font-display text-lg mb-1 flex items-center gap-2"><Sparkles size={18} className="text-[rgb(var(--gold-600))]" /> Simulatore di budget</h2>
+        <p className="text-xs text-[rgb(var(--fg-subtle))] mb-4">Ragiona in soldi: una base di abbonamenti <strong>mista</strong> (chi 29, chi 59, chi 79 — prezzi modificabili) più le <strong>percentuali sui matrimoni</strong>.</p>
+
+        <p className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))] mb-2">1 · Abbonamenti (mix)</p>
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          <Num v={n29} set={setN29} label="N° abbonati fascia A" />
+          <Num v={n59} set={setN59} label="N° abbonati fascia B" />
+          <Num v={n79} set={setN79} label="N° abbonati fascia C" />
+          <Num v={p29} set={setP29} label="Prezzo A" prefix="€" />
+          <Num v={p59} set={setP59} label="Prezzo B" prefix="€" />
+          <Num v={p79} set={setP79} label="Prezzo C" prefix="€" />
         </div>
+
+        <p className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))] mt-4 mb-2">2 · Percentuali sui matrimoni</p>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <Num v={matrimoniMese} set={setMatrimoniMese} label="Matrimoni / mese" />
+          <Num v={valoreMedio} set={setValoreMedio} label="Valore medio" prefix="€" />
+          <Num v={commPct} set={setCommPct} label="% commissione" />
+        </div>
+
         <div className="rounded-lg p-3 text-sm" style={{ background: 'rgb(var(--bg-sunken))' }}>
-          <Row k="MRR proiettato" v={fmtE(mrrProiettato)} />
-          <Row k="ARR proiettato" v={fmtE(mrrProiettato * 12)} />
-          <Row k="Netto mensile proiettato" v={fmtE(nettoMese)} />
-          <Row k="Break-even: abbonati necessari" v={`${breakEvenSubs}`} />
+          <Row k="Ricavo abbonamenti / mese" v={fmtE(mrrAbbon)} />
+          <Row k="Ricavo percentuali / mese" v={fmtE(ricavoPercMese)} />
+          <div className="border-t my-1.5" style={{ borderColor: 'rgb(var(--border))' }} />
+          <Row k="Ricavo mensile TOTALE" v={fmtE(ricavoMese)} />
+          <Row k="Ricavo annuo (ARR)" v={fmtE(ricavoMese * 12)} />
+          <Row k="ARPA (per abbonato)" v={fmtE(arpa)} />
+          <Row k="Costi ricorrenti / mese" v={fmtE(ov.costi_ricorrenti_mese)} />
+          <div className="border-t my-1.5" style={{ borderColor: 'rgb(var(--border))' }} />
+          <div className="flex justify-between gap-3 py-1 text-sm font-semibold">
+            <span>Netto mensile</span>
+            <span className="tabular-nums" style={{ color: nettoMese >= 0 ? 'rgb(var(--emerald-600))' : 'rgb(var(--rose-500))' }}>{fmtE(nettoMese)}</span>
+          </div>
         </div>
+        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">{nettoMese >= 0 ? '✓ Sopra il break-even: il modello copre i costi ricorrenti.' : `Sotto break-even: mancano ${fmtE(-nettoMese)}/mese. Aumenta abbonati, prezzo medio o volume matrimoni.`}</p>
       </Card>
     </div>
   )
@@ -362,6 +406,31 @@ function Report({ months, M }: { months: Month[]; M: Metrics }) {
         <Row k="Crescita entrate MoM" v={`${M.growth >= 0 ? '+' : ''}${M.growth.toFixed(0)}%`} />
         <Row k="Runway" v={M.runway === Infinity ? 'illimitato (no burn)' : `${M.runway.toFixed(0)} mesi`} />
         <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-3">Riferimenti SaaS: LTV/CAC ≥ 3 · churn &lt; 3%/mese · costi ricorrenti &lt; 50% delle entrate ricorrenti · burn multiple &lt; 1 in scala.</p>
+      </Card>
+
+      <Card className="p-5">
+        <h2 className="font-display text-lg mb-3 flex items-center gap-2"><BookOpen size={18} className="text-[rgb(var(--gold-600))]" /> Glossario in parole semplici</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
+          {[
+            ['MRR', 'I soldi che incassi ogni mese in modo ricorrente (abbonamenti). È lo "stipendio fisso" dell\'azienda.'],
+            ['ARR', 'L\'MRR moltiplicato per 12: quanto incassi in un anno se nulla cambia.'],
+            ['Cassetto', 'I soldi che hai in cassa adesso, qui e ora.'],
+            ['Runway', 'Per quanti mesi puoi andare avanti con i soldi che hai, se continui a spendere così. "∞" = non stai bruciando cassa.'],
+            ['Burn', 'Quanto perdi al mese (esci più di quanto entra). Se è 0, sei in pari.'],
+            ['ARPA', 'Quanto paga in media ogni abbonato. Più sale, meglio è.'],
+            ['Conversione', 'Su 100 fornitori, quanti diventano paganti. In partenza, 5-10% è già buono.'],
+            ['Churn', 'Quanti clienti ti lasciano ogni mese. Vuoi tenerlo basso (sotto il 3%).'],
+            ['CAC', 'Quanto spendi per acquisire UN cliente nuovo (pubblicità, tempo, ecc.).'],
+            ['LTV', 'Quanto ti rende UN cliente in tutta la sua "vita" con te. Deve valere almeno 3 volte il CAC.'],
+            ['Crescita MoM', '"Month over Month": di quanto cresci ogni mese rispetto al precedente.'],
+            ['Break-even', 'Il punto in cui le entrate coprono esattamente i costi: da lì in poi guadagni.'],
+          ].map(([t, d]) => (
+            <div key={t}>
+              <p className="text-sm font-medium">{t}</p>
+              <p className="text-xs text-[rgb(var(--fg-muted))]">{d}</p>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   )
@@ -414,12 +483,10 @@ function Kpi({ icon, label, value, tone, help }: { icon: React.ReactNode; label:
   const c = tone === 'emerald' ? 'rgb(var(--emerald-600))' : tone === 'rose' ? 'rgb(var(--rose-500))' : 'rgb(var(--fg))'
   return (
     <Card className="p-4">
-      <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] inline-flex items-center gap-1.5">{icon} {label}
-        {help && <span className="group relative"><Info size={12} className="text-[rgb(var(--fg-subtle))] cursor-help" />
-          <span className="hidden group-hover:block absolute z-20 left-1/2 -translate-x-1/2 mt-1 w-52 text-[11px] normal-case tracking-normal p-2 rounded-lg shadow-lg" style={{ background: 'rgb(var(--bg-elev))', border: '1px solid rgb(var(--border))', color: 'rgb(var(--fg))' }}>{help}</span>
-        </span>}
-      </p>
+      <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] inline-flex items-center gap-1.5">{icon} {label}</p>
       <p className="font-display text-2xl mt-1 tabular-nums" style={{ color: c }}>{value}</p>
+      {/* Spiegazione sempre visibile, in parole semplici */}
+      {help && <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-1 leading-snug">{help}</p>}
     </Card>
   )
 }
