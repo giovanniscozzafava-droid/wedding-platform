@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState({
     full_name: '', business_name: '', phone: '', subrole: '',
     work_style: '', offers_full_dining: false,
+    auto_suggest_when_busy: false, auto_suggest_message: '',
     // Dati fiscali — riusati su ogni contratto generato
     business_legal_name: '',
     legal_form: '',
@@ -69,7 +70,7 @@ export default function ProfilePage() {
     if (!user) return
     void (async () => {
       const { data } = await (supabase.from('profiles') as any)
-        .select('full_name, business_name, phone, subrole, work_style, offers_full_dining, deletion_requested_at, business_legal_name, legal_form, vat_number, fiscal_code, address, city, zip, province, country, sdi_code, pec_email')
+        .select('full_name, business_name, phone, subrole, work_style, offers_full_dining, auto_suggest_when_busy, auto_suggest_message, deletion_requested_at, business_legal_name, legal_form, vat_number, fiscal_code, address, city, zip, province, country, sdi_code, pec_email')
         .eq('id', user.id).maybeSingle()
       if (data) {
         setForm({
@@ -79,6 +80,8 @@ export default function ProfilePage() {
           subrole: data.subrole ?? '',
           work_style: (data as any).work_style ?? '',
           offers_full_dining: !!(data as any).offers_full_dining,
+          auto_suggest_when_busy: !!(data as any).auto_suggest_when_busy,
+          auto_suggest_message: (data as any).auto_suggest_message ?? '',
           business_legal_name: (data as any).business_legal_name ?? '',
           legal_form: (data as any).legal_form ?? '',
           vat_number: (data as any).vat_number ?? '',
@@ -108,6 +111,8 @@ export default function ProfilePage() {
         subrole: form.subrole || null,
         work_style: form.work_style || null,
         offers_full_dining: form.offers_full_dining,
+        auto_suggest_when_busy: form.auto_suggest_when_busy,
+        auto_suggest_message: form.auto_suggest_message || null,
         business_legal_name: form.business_legal_name || null,
         legal_form: form.legal_form || null,
         vat_number: form.vat_number || null,

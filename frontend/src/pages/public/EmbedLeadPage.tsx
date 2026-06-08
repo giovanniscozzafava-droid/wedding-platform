@@ -68,6 +68,8 @@ export default function EmbedLeadPage() {
   // Disponibilità del professionista per la data scelta (check pubblico).
   const [avail, setAvail] = useState<{ available: boolean; checked: boolean }>({ available: true, checked: false })
   const [callbackPref, setCallbackPref] = useState('indifferente')
+  type Alt = { name: string | null; slug: string | null; subrole: string | null; city: string | null; role?: string | null }
+  const [suggest, setSuggest] = useState<{ message: string | null; endorser: string | null; alts: Alt[] } | null>(null)
   const [form, setForm] = useState({
     client_name: '', client_email: '', client_phone: '',
     event_kind: 'matrimonio', event_date: '', event_location: '', guests_estimate: '',
@@ -113,14 +115,23 @@ export default function EmbedLeadPage() {
 
   // Appena cambia la data, verifica la capienza del professionista per quel giorno.
   useEffect(() => {
-    if (!slug || !form.event_date) { setAvail({ available: true, checked: false }); return }
+    if (!slug || !form.event_date) { setAvail({ available: true, checked: false }); setSuggest(null); return }
     let alive = true
     void (async () => {
       try {
         const { data } = await (supabase as unknown as AnyRpc).rpc('public_check_availability', { p_slug: slug, p_date: form.event_date })
         const r = data as { available?: boolean; unknown?: boolean }
-        if (alive) setAvail({ available: r?.available !== false, checked: !r?.unknown })
-      } catch { if (alive) setAvail({ available: true, checked: false }) }
+        const ok = r?.available !== false
+        if (alive) setAvail({ available: ok, checked: !r?.unknown })
+        // Se occupato, prova a suggerire 2 colleghi simili e disponibili.
+        if (!ok && !r?.unknown) {
+          try {
+            const { data: sg } = await (supabase as unknown as AnyRpc).rpc('public_suggest_alternatives', { p_slug: slug, p_date: form.event_date })
+            const s = sg as { enabled?: boolean; message?: string | null; endorser?: string | null; suggestions?: Alt[] }
+            if (alive) setSuggest(s?.enabled && (s.suggestions?.length ?? 0) > 0 ? { message: s.message ?? null, endorser: s.endorser ?? null, alts: s.suggestions ?? [] } : null)
+          } catch { if (alive) setSuggest(null) }
+        } else if (alive) setSuggest(null)
+      } catch { if (alive) { setAvail({ available: true, checked: false }); setSuggest(null) } }
     })()
     return () => { alive = false }
   }, [slug, form.event_date])
@@ -237,7 +248,27 @@ export default function EmbedLeadPage() {
         </div>
         {dateUnavailable && (
           <div style={{ marginTop: -2, marginBottom: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, background: 'rgba(220,38,38,0.08)', color: '#b91c1c' }}>
-            Spiacenti, {proName || 'il professionista'} <strong>non è disponibile</strong> per il {new Date(form.event_date).toLocaleDateString('it-IT')}. Prova un'altra data per inviare la richiesta.
+            Spiacenti, {proName || 'il professionista'} <strong>non è disponibile</strong> per il {new Date(form.event_date).toLocaleDateString('it-IT')}.
+            {suggest ? ' Ma ti consiglia due colleghi liberi in quella data:' : ' Prova un\'altra data per inviare la richiesta.'}
+          </div>
+        )}
+        {dateUnavailable && suggest && (
+          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.25)' }}>
+            {suggest.message && (
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontStyle: 'italic', color: '#15803d' }}>
+                “{suggest.message}”{suggest.endorser ? <span style={{ fontStyle: 'normal', color: '#4b5563' }}> — {suggest.endorser}</span> : null}
+              </p>
+            )}
+            <div style={{ display: 'grid', gap: 6 }}>
+              {suggest.alts.map((a, i) => (
+                <a key={i} href={`${window.location.origin}/p/${a.role === 'WEDDING_PLANNER' ? 'wp' : 'fornitore'}/${a.slug}`} target="_blank" rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: '#fff', border: '1px solid #e5e7eb', textDecoration: 'none', color: '#111' }}>
+                  <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{a.name}</span>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>{[a.subrole, a.city].filter(Boolean).join(' · ')}</span>
+                  <span style={{ fontSize: 12, color: primary, fontWeight: 600 }}>Vedi →</span>
+                </a>
+              ))}
+            </div>
           </div>
         )}
         {avail.checked && avail.available && form.event_date && (
