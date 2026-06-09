@@ -46,8 +46,26 @@ Implementato lo **split PII** scelto da te. Dettaglio in fondo ("Chiusura P5").
 - **Edge writers adattati:** `quote-send` (insert base + upsert privato), nessun altro writer SQL/edge delle 4 colonne (grep).
 - **Prova rosso→verde:** `P5` (cols PII rimosse dalla base · fornitore 0 su `_private` · ma vede l'evento) + `P5b` (owner legge `client_name` da `_private`). Regressione `rls_tests` 8/8 verde.
 
+## 🧹 Sweep Edge Functions (punto 4) — fatto, READ-ONLY + 1 fix sicuro
+Esaminate tutte le **33** funzioni (fail-open gate / no-auth+service_role / enumeration-relay / CORS / signed URL).
+
+**🔴 Confermato e CHIUSO (1):**
+- **`inbound-email`** — *fail-open gate*. `if (SECRET && key !== SECRET) return 401` (riga 18): se `INBOUND_WEBHOOK_SECRET` non è settato il webhook accettava **chiunque** e scriveva `inbound_emails` con SERVICE_ROLE (injection di email inbound fasulle). → **fail-closed**: `if (!SECRET) return 503; if (key !== SECRET) return 401`. *(Branch-only: prima del deploy assicurati che `INBOUND_WEBHOOK_SECRET` sia impostato lato Resend, altrimenti l'endpoint risponde 503 — è il comportamento voluto.)*
+
+**🟢 Verificati e già OK (fix notte 1 ancora presenti):** `funnel-cron` (fail-closed), `suggest-alternatives` (rate-limit IP+email), `quote-accept-sign` (firma come key, URL 15 min).
+
+**⚪️ Falsi positivi dell'audit automatico (verificati a mano, NESSUN bug):**
+- `instagram-import` — *non* è no-auth: richiede `getUser()` (401) e carica il token `where profile_id = user.id` (riga 20) → un chiamante usa solo il **proprio** token; `media_id` è risolto contro quel token (l'API IG ritorna solo i media del proprietario). Nessun accesso cross-utente.
+- `instagram-oauth-callback` — *non* è CSRF: lo `state` è 128-bit random generato server-side da un utente autenticato, salvato con `profile_id`, **single-use** (delete riga 48); il token viene legato a `st.profile_id` **salvato**, non a input del chiamante. HMAC sarebbe difesa-in-profondità marginale → non aggiunto (rischio di rompere il flusso).
+
+**🟡 Findings che restano (decisione/tuning, non toccati per non rompere flussi legittimi):**
+- **Signed URL lunghi su PDF**: `contract-generate-pdf` **365 gg** (dati fiscali) · `moodboard-pdf` 30 gg · `quote-generate-pdf` 7 gg. Sono documenti che il cliente riapre dall'email → accorciarli è una scelta di prodotto (per quanto tempo un cliente deve poter riaprire il suo PDF?). Dimmi le scadenze volute e le imposto.
+- **`suggest-alternatives` / `lead-notify`**: rate-limit presente; si può irrobustire (normalizzare email lowercase prima del match, finestra più stretta). Tuning, non buco.
+
+**Non fatto (punto 5):** endpoint permanente `/atto/{token}` per ri-scaricare l'atto firmato — resta da implementare (oggi l'URL è a 15 min).
+
 ## Dove mi sono fermato e perché
-- **Punti 3–7**: ⏸ per scope. Cifratura PII (3) e domini core (7) richiedono una tua decisione (sopra). Lo **sweep completo delle 33 Edge Functions** (4) e l'endpoint permanente `/atto` (5) restano i prossimi: stanotte coperti solo `funnel-cron`, `suggest-alternatives`, `quote-accept-sign` (notte 1).
+- **Punti 3, 7**: ⏸ richiedono una tua decisione (cifratura PII e domini core, sopra).
 
 ## File del commit (branch)
 ```
@@ -56,6 +74,7 @@ frontend/src/hooks/useCalendar.ts                   (read+write split)
 frontend/src/hooks/useWedding.ts                    (read+write split)
 frontend/src/hooks/useCouple.ts                     (read split)
 supabase/functions/quote-send/index.ts             (writer split)
+supabase/functions/inbound-email/index.ts          (fail-closed webhook secret)
 tests/sql/pii_isolation_tests.sql                   (P5 rosso→verde + P5b)
 tests/sql/rls_tests.sql                             (bootstrap + TEST 5 su _private)
 docs/SECURITY-RLS-AUDIT.md                          (+ esiti live, P5 chiuso)

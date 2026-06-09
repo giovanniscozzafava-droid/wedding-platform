@@ -14,8 +14,11 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   // Gate: secret nell'URL (Resend permette di impostare l'endpoint con query).
+  // FAIL-CLOSED: senza secret configurato l'endpoint NON accetta nulla (scrive con
+  // SERVICE_ROLE → un webhook aperto permetterebbe injection di email inbound fasulle).
   const key = new URL(req.url).searchParams.get('key') ?? ''
-  if (SECRET && key !== SECRET) return json({ error: 'unauthorized' }, 401)
+  if (!SECRET) return json({ error: 'secret_not_configured' }, 503)
+  if (key !== SECRET) return json({ error: 'unauthorized' }, 401)
 
   const evt = (await req.json().catch(() => ({}))) as any
   if (evt?.type !== 'email.received' || !evt?.data?.email_id) return json({ ok: true, skipped: true })
