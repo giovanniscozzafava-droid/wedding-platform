@@ -216,6 +216,48 @@ function NetworkMock({ rete }: { rete: string }) {
   )
 }
 
+function CapostipiteMock() {
+  return (
+    <Device url="La rete di un capostipite">
+      <div style={{ background: 'linear-gradient(135deg,#322b23,#14110e)', color: '#F4EDE0', borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#C49A5C', fontWeight: 700 }}>Wedding Planner / Location</div>
+        <div style={{ ...serif, fontSize: 18, marginTop: 4 }}>Porta gli eventi</div>
+      </div>
+      <div style={{ textAlign: 'center', color: '#C49A5C', fontSize: 18, margin: '4px 0' }}>↓</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {['Fotografo', 'Fioraio', 'Tu', 'Band'].map((r, k) => (
+          <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, border: '1px solid #E7E1D5', background: k === 2 ? 'rgba(196,154,92,.14)' : '#fff', fontSize: 13, fontWeight: k === 2 ? 700 : 400 }}>
+            <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#d9c8a6,#bfa06f)' }} />
+            {r}{k === 2 && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#A97F3F', fontWeight: 700 }}>in pancia ✓</span>}
+          </div>
+        ))}
+      </div>
+    </Device>
+  )
+}
+
+function RentMock() {
+  const items: [string, string, string][] = [
+    ['📷', 'Reflex + obiettivo', '45€/g'],
+    ['💄', 'Postazione make-up', '60€/g'],
+    ['🕯️', 'Candelabri (set)', '20€/g'],
+    ['🌸', 'Porta-fiori / vasi', '15€/g'],
+    ['🔊', 'Casse + luci', '80€/g'],
+  ]
+  return (
+    <Device url="Noleggio · tra colleghi">
+      {items.map((it, k) => (
+        <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: k ? '1px solid #E7E1D5' : 'none', fontSize: 13.5 }}>
+          <span style={{ fontSize: 18 }}>{it[0]}</span>
+          <span style={{ color: '#4a443a' }}>{it[1]}</span>
+          <span style={{ marginLeft: 'auto', fontWeight: 700, color: '#A97F3F' }}>{it[2]}</span>
+        </div>
+      ))}
+      <div style={{ marginTop: 12, background: '#C49A5C', color: '#fff', textAlign: 'center', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 700 }}>Incassi anche senza eventi</div>
+    </Device>
+  )
+}
+
 // ── proiezione demografica ISTAT ──
 function DemoChart() {
   const data = [{ y: '2023', v: 59.0 }, { y: '2050', v: 54.7 }, { y: '2070', v: 47.6 }]
@@ -289,32 +331,85 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
       <h1 style={h1}>Meno eventi.<br />E i portali che te li rubano.</h1>
       <p style={sub(true)}>Le multinazionali del wedding ti vendono come “lead” e ti fanno pagare per comparire. La risposta è avere <b style={{ color: '#fff' }}>un sistema tuo</b> e <b style={{ color: '#fff' }}>una rete</b> che lavora con te.</p>
     </>) },
-    // 4 — AGENDA / mappa (così non confonde)
+    // 4 — la logica in una frase
+    { dark: true, center: true, tag, content: (<>
+      <p style={kicker(true)}>La logica, una sola</p>
+      <h1 style={h1}>Il lavoro non si perde.<br />Circola nella rete.</h1>
+      <p style={sub(true)}>E ogni passaggio lascia un valore: o ti porta lavoro un <b style={{ color: '#fff' }}>capostipite</b> (e lo riconosci con una %), o te lo scambi coi <b style={{ color: '#fff' }}>colleghi</b> (e lo riconosci con un pegno). Il cliente resta nella rete — non finisce a un portale.</p>
+    </>) },
+    // 5 — due vie
     { tag, content: (<>
-      <p style={kicker()}>Ecco Planfully, in 5 mosse</p>
-      <h2 style={h2}>Tutti gli strumenti, una logica sola.</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginTop: 30 }}>
+      <p style={kicker()}>Da dove arriva il lavoro</p>
+      <h2 style={h2}>Due strade. Tutte e due verso di te.</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 30 }}>
+        <div style={{ background: '#fff', border: '1px solid #E7E1D5', borderRadius: 16, padding: 24 }}>
+          <div style={{ ...serif, fontSize: 23 }}>① In pancia a un capostipite</div>
+          <p style={{ margin: '8px 0 0', fontSize: 16, color: '#7a7468', lineHeight: 1.5 }}>Un wedding planner o una location ti prende nella sua rete e ti <b style={{ color: '#1A1714' }}>porta gli eventi</b>. Lui organizza, tu esegui.</p>
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #E7E1D5', borderRadius: 16, padding: 24 }}>
+          <div style={{ ...serif, fontSize: 23 }}>② Tra colleghi, col pegno</div>
+          <p style={{ margin: '8px 0 0', fontSize: 16, color: '#7a7468', lineHeight: 1.5 }}>Niente capostipite? I colleghi si <b style={{ color: '#1A1714' }}>scambiano il lavoro</b>. Chi riceve riconosce un pegno a chi gliel’ha passato.</p>
+        </div>
+      </div>
+    </>) },
+    // 6 — via 1: in pancia ai capostipiti
+    { tag, content: (
+      <Split
+        left={<>
+          <p style={kicker()}>Via 1 · Verticale</p>
+          <h2 style={{ ...h2, fontSize: 33 }}>Entra in pancia a un capostipite.</h2>
+          <Feat items={[
+            { t: 'Loro generano la domanda', d: 'Wedding planner e location organizzano i matrimoni: gli eventi nascono da lì.' },
+            { t: 'Ti portano lavoro', d: 'Entri nella loro rete col codice invito e ricevi gli incarichi.' },
+            { t: 'Interessi allineati', d: 'Il capostipite guadagna una % se cresci: è il primo a volerti dare clienti.' },
+          ]} />
+        </>}
+        right={<CapostipiteMock />}
+      />
+    ) },
+    // 7 — via 2: tra colleghi col pegno
+    { tag, content: (
+      <Split
+        left={<>
+          <p style={kicker()}>Via 2 · Orizzontale</p>
+          <h2 style={{ ...h2, fontSize: 33 }}>Scambia lavoro coi colleghi, col pegno.</h2>
+          <Feat items={[
+            { t: 'Un collega pieno passa a te', d: spec.rete },
+            { t: 'Nessuno regala niente', d: 'Chi riceve riconosce un pegno: un credito a chi gli ha dato il lavoro.' },
+            { t: 'Saldi come vuoi', d: 'In denaro, o reciproco — restituendo una segnalazione la volta dopo.' },
+          ]} />
+        </>}
+        right={<NetworkMock rete={spec.rete} />}
+      />
+    ) },
+    // 8 — il funnel
+    { tag, content: (<>
+      <p style={kicker()}>Come il contatto diventa contratto</p>
+      <h2 style={h2}>Il funnel, dall’inizio alla firma.</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 34 }}>
         {[
-          ['1', 'Ti trovano', 'Profilo & pagina'],
-          ['2', 'Chiudi', 'Preventivo & contratto'],
-          ['3', 'Organizzi', 'Calendario & catalogo'],
-          ['4', 'Rete', 'Eventi dai colleghi'],
-          ['5', 'Cresci', 'Brand & community'],
-        ].map(([n, t, d]) => (
-          <div key={n} style={{ background: '#fff', border: '1px solid #E7E1D5', borderRadius: 14, padding: '18px 14px' }}>
-            <div style={{ fontFamily: 'Georgia,serif', color: '#A97F3F', fontWeight: 700, fontSize: 15 }}>{n}</div>
-            <div style={{ ...serif, fontSize: 18, marginTop: 8 }}>{t}</div>
-            <div style={{ fontSize: 13, color: '#7a7468', marginTop: 4, lineHeight: 1.35 }}>{d}</div>
+          ['La tua pagina', 'Il cliente compila il form'],
+          ['Lead', 'Arriva già qualificato'],
+          ['Preventivo', 'Brandizzato, accettato online'],
+          ['Contratto', 'Nasce da sé, firmato'],
+          ['Data bloccata', 'Il calendario si aggiorna'],
+        ].map((s, k, arr) => (
+          <div key={k} style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+            <div style={{ flex: 1, background: '#fff', border: '1px solid #E7E1D5', borderRadius: 12, padding: '16px 10px', textAlign: 'center' }}>
+              <div style={{ ...serif, fontSize: 15.5 }}>{s[0]}</div>
+              <div style={{ fontSize: 12, color: '#7a7468', marginTop: 5, lineHeight: 1.35 }}>{s[1]}</div>
+            </div>
+            {k < arr.length - 1 && <div style={{ color: '#C49A5C', fontSize: 20, padding: '0 5px' }}>→</div>}
           </div>
         ))}
       </div>
-      <span style={pill()}>Niente caos: ogni cosa al suo posto, e si parla da sola.</span>
+      <span style={pill()}>E un’automazione email nutre i lead finché non sono pronti a firmare.</span>
     </>) },
     // 5 — pilastro 1: ti trovano
     { tag, content: (
       <Split
         left={<>
-          <p style={kicker()}>1 · Ti trovano</p>
+          <p style={kicker()}>Ti trovano</p>
           <h2 style={{ ...h2, fontSize: 33 }}>Una pagina tua, che porta clienti.</h2>
           <Feat items={[
             { t: 'Profilo-portfolio col tuo nome', d: spec.profilo },
@@ -329,7 +424,7 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
     { tag, content: (
       <Split
         left={<>
-          <p style={kicker()}>2 · Chiudi senza fatica</p>
+          <p style={kicker()}>Chiudi senza fatica</p>
           <h2 style={{ ...h2, fontSize: 33 }}>Dalla richiesta alla firma, in un filo.</h2>
           <Feat items={[
             { t: 'Preventivo col tuo brand', d: spec.preventivo },
@@ -344,7 +439,7 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
     { tag, content: (
       <Split
         left={<>
-          <p style={kicker()}>3 · Organizzi tutto</p>
+          <p style={kicker()}>Organizzi tutto</p>
           <h2 style={{ ...h2, fontSize: 33 }}>Mai più “quella data era libera?”.</h2>
           <Feat items={[
             { t: 'Calendario & disponibilità', d: spec.disponibilita },
@@ -355,24 +450,24 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
         right={<CalMock />}
       />
     ) },
-    // 8 — pilastro 4: rete
+    // — Scopri + Noleggio: guadagni anche da fermo
     { tag, content: (
       <Split
         left={<>
-          <p style={kicker()}>4 · La rete ti porta lavoro</p>
-          <h2 style={{ ...h2, fontSize: 33 }}>Quando un collega è pieno, tocca a te.</h2>
+          <p style={kicker()}>Anche da fermo</p>
+          <h2 style={{ ...h2, fontSize: 32 }}>Sei in “Scopri”. E guadagni anche quando non lavori.</h2>
           <Feat items={[
-            { t: 'Eventi che arrivano da soli', d: spec.rete },
-            { t: 'Contatto diretto con la coppia', d: 'Niente asta al ribasso: arrivi tu, con nome e dettagli.' },
-            { t: 'Crediti tra colleghi', d: 'Segnali e vieni segnalato: ogni contratto chiuso vale.' },
+            { t: 'Entri in Scopri', d: 'Capostipiti e colleghi ti trovano per settore e zona, anche senza conoscerti.' },
+            { t: 'Noleggi quello che hai', d: 'Metti a noleggio attrezzi e servizi: la macchina fotografica, un porta-fiori, un candelabro, una postazione make-up, casse e luci…' },
+            { t: 'Reddito passivo', d: 'Chi non ha quello strumento lo prende da te. Incassi anche nei giorni senza eventi.' },
           ]} />
         </>}
-        right={<NetworkMock rete={spec.rete} />}
+        right={<RentMock />}
       />
     ) },
     // 9 — pilastro 5: cresci
     { tag, content: (<>
-      <p style={kicker()}>5 · Cresci</p>
+      <p style={kicker()}>Cresci</p>
       <h2 style={h2}>Il tuo brand. La tua community.</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 30 }}>
         <div style={{ background: '#fff', border: '1px solid #E7E1D5', borderRadius: 16, padding: 24 }}>
