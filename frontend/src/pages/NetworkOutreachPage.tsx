@@ -19,7 +19,7 @@ type Prospect = {
   registered_profile_id: string | null; logs: Log[]
 }
 type Counts = { totale: number; da_contattare: number; richiami_oggi: number; iscritti: number }
-type Earnings = { earned_total: number; available: number; today: number; pending: number; active: number; payout_threshold: number; payout_eligible: boolean }
+type Earnings = { earned_total: number; available: number; today: number; pending: number; waiting: number; active: number; payout_threshold: number; payout_eligible: boolean; program_active: boolean }
 
 const rpc = (fn: string, args?: Record<string, unknown>) =>
   (supabase as unknown as { rpc: (f: string, a?: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc(fn, args)
@@ -66,7 +66,12 @@ export default function NetworkOutreachPage() {
     void (async () => {
       const { data } = await supabase.from('profiles').select('referral_code').eq('id', user.id).single()
       setRefCode((data as { referral_code?: string } | null)?.referral_code ?? null)
-      const { data: e } = await rpc('my_recruiting_earnings')
+      let { data: e } = await rpc('my_recruiting_earnings')
+      // Dal 2027 il programma è attivo: matura i premi in attesa, poi ricarica.
+      if (e && (e as Earnings).program_active) {
+        await rpc('recruiting_settle_due')
+        const r = await rpc('my_recruiting_earnings'); e = r.data
+      }
       if (e && !(e as { error?: string }).error) setEarn(e as Earnings)
     })()
   }, [user])
@@ -182,6 +187,11 @@ export default function NetworkOutreachPage() {
             <p className="text-sm mt-2" style={{ color: '#cdbfa8' }}>
               <b className="text-white">20€</b> per ogni professionista che porti e che <b className="text-white">diventa attivo</b> — fino a <b className="text-white">100€/giorno</b>. Pagamento via bonifico al raggiungimento di <b className="text-white">200€</b>.
             </p>
+            {earn && !earn.program_active && (
+              <p className="text-sm mt-2 rounded-lg px-3 py-2" style={{ background: 'rgba(196,154,92,.16)', color: '#EAD9B6' }}>
+                Il programma matura da <b className="text-white">gennaio 2027</b>, quando i fornitori iniziano a pagare. Intanto recluta: ogni iscritto che diventa attivo è già <b className="text-white">in attesa</b> e maturerà all’avvio.
+              </p>
+            )}
           </div>
           <div className="flex gap-3 flex-wrap">
             {[
