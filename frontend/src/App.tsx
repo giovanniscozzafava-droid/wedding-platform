@@ -68,6 +68,7 @@ const DiscoverProsPage = lazyWithRetry(() => import('@/pages/public/DiscoverPros
 const FeedArticlePage = lazyWithRetry(() => import('@/pages/public/FeedArticlePage'))
 const FeedArticleEditorPage = lazyWithRetry(() => import('@/pages/FeedArticleEditorPage'))
 const NetworkRewardsPage = lazyWithRetry(() => import('@/pages/NetworkRewardsPage'))
+const NetworkOutreachPage = lazyWithRetry(() => import('@/pages/NetworkOutreachPage'))
 const CompositionCalculatorPage = lazyWithRetry(() => import('@/pages/CompositionCalculatorPage'))
 const SupplierClientsPage = lazyWithRetry(() => import('@/pages/SupplierClientsPage'))
 const SupplierCapostipitiPage = lazyWithRetry(() => import('@/pages/SupplierCapostipitiPage'))
@@ -227,6 +228,7 @@ export default function App() {
           <Route path="/embed/lead" element={<EmbedLeadPage />} />
           <Route path="/leads" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><WpLeadsPage /></RequireAuth>} />
           <Route path="/rewards" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><NetworkRewardsPage /></RequireAuth>} />
+          <Route path="/recruiting" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><NetworkOutreachPage /></RequireAuth>} />
           <Route path="/blog" element={<BlogListPage />} />
           <Route path="/blog/admin" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogAdminPage /></RequireAuth>} />
           <Route path="/blog/nuovo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogEditorPage /></RequireAuth>} />

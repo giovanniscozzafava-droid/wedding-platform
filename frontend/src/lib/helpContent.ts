@@ -91,6 +91,10 @@ export const HELP_CONTENT: Record<string, HelpEntry> = {
     title: 'Premi della rete',
     body: 'I riconoscimenti che ottieni facendo crescere la rete. Più professionisti porti, più la community cresce — e tu con lei.',
   },
+  'page.recruiting': {
+    title: 'Recruiting',
+    body: 'La tua agenda per costruire la rete: aggiungi i professionisti da contattare, chiamali o scrivigli, programma richiami e appuntamenti, e falli iscrivere con il tuo link. Quando si registrano col tuo codice, entrano nella tua rete.',
+  },
   'page.assistenza': {
     title: 'Siamo qui per te',
     body: 'Hai un dubbio o un problema? Apri una richiesta e ti rispondiamo via email. Trovi anche le FAQ e il contatto diretto. Nessuna domanda è troppo piccola.',

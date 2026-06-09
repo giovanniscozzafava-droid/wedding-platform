@@ -28,6 +28,7 @@ import {
   Newspaper,
   Inbox,
   Gift,
+  PhoneCall,
   Code2,
   Coins,
   CheckSquare,
@@ -76,6 +77,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
   { section: 'Crescita', items: [
     { to: '/feed',       label: 'Feed',    icon: Newspaper },
     { to: '/blog/admin', label: 'Blog',    icon: PenSquare },
+    { to: '/recruiting', label: 'Recruiting', icon: PhoneCall },
     { to: '/rewards',    label: 'Rewards', icon: Gift },
   ]},
   { section: 'Gestione', items: [

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planfully · Presentazione</title>
+<style>
+  :root{
+    --cream:#FDFBF6; --paper:#fff; --ink:#1A1714; --muted:#7a7468;
+    --gold:#C49A5C; --gold-600:#A97F3F; --line:#E7E1D5; --rose:#B05A5A; --green:#3F7A56;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:#211d19;color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .display{font-family:Georgia,"Times New Roman",serif;font-weight:600;letter-spacing:-.5px}
+
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  .slide{position:absolute;width:min(96vw,1280px);height:min(96vh,720px);
+    background:var(--cream);border-radius:18px;overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+    padding:54px 72px;display:none;flex-direction:column;
+    opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s}
+  .slide.active{display:flex;opacity:1;transform:none}
+  .slide.dark{background:radial-gradient(120% 120% at 80% 0%,#322b23 0%,#141009 70%);color:#F4EDE0}
+  .slide.dark .muted{color:#cdbfa8}
+
+  .logo svg{height:23px;width:auto;display:block}
+  .slide.dark .logo path{fill:#F4EDE0}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}
+  .topbar .tag{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .slide.dark .topbar .tag{color:#b7a98f}
+
+  .kicker{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-600);font-weight:800;margin:0 0 16px}
+  .slide.dark .kicker{color:var(--gold)}
+  h1{font-size:62px;line-height:1.03;margin:0}
+  h2{font-size:42px;line-height:1.08;margin:0}
+  .split h2{font-size:38px}
+  .sub{font-size:20px;line-height:1.5;color:var(--muted);margin:18px 0 0;max-width:58ch;font-weight:400}
+  .sub b{color:var(--ink)} .slide.dark .sub b{color:#fff}
+
+  .center{justify-content:center}
+  .body{display:flex;flex-direction:column;flex:1;min-height:0}
+
+  ul.pts{list-style:none;padding:0;margin:30px 0 0;display:flex;flex-direction:column;gap:18px}
+  ul.pts li{font-size:27px;line-height:1.2;padding-left:38px;position:relative;font-weight:500}
+  ul.pts li::before{content:"";position:absolute;left:0;top:.42em;width:13px;height:13px;border-radius:50%;background:var(--gold)}
+  ul.pts.pain li::before{background:var(--rose)} ul.pts.win li::before{background:var(--green)}
+  ul.pts small{display:block;font-size:15.5px;color:var(--muted);font-weight:400;margin-top:5px}
+
+  /* statistiche grandi */
+  .stats{display:flex;gap:30px;margin-top:36px}
+  .stat{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 24px}
+  .slide.dark .stat{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}
+  .stat .n{font-family:Georgia,serif;font-size:50px;line-height:1;color:var(--ink)}
+  .slide.dark .stat .n{color:#fff}
+  .stat .n .dn{color:var(--rose);font-size:30px;font-weight:700;vertical-align:2px}
+  .stat .l{font-size:14.5px;color:var(--muted);margin-top:12px;line-height:1.4}
+  .src{font-size:11.5px;color:var(--muted);margin-top:22px;letter-spacing:.02em}
+
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:38px}
+  .tile{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 22px}
+  .slide.dark .tile{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}
+  .tile .t{font-family:Georgia,serif;font-size:23px;font-weight:600;margin:0 0 8px}
+  .tile .d{font-size:15.5px;line-height:1.45;color:var(--muted);margin:0}
+  .tile .k{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-600);font-weight:800;margin:0 0 13px}
+
+  .pill{display:inline-block;align-self:flex-start;background:rgba(196,154,92,.14);color:var(--gold-600);
+    border:1px solid rgba(196,154,92,.4);border-radius:999px;padding:9px 17px;font-size:14.5px;font-weight:700;margin-top:26px}
+  .slide.dark .pill{color:#EAD9B6;background:rgba(196,154,92,.18)}
+  .free{color:var(--gold)}
+
+  /* split prodotto: testo + mockup */
+  .split{display:grid;grid-template-columns:1.02fr .98fr;gap:46px;align-items:center;flex:1;min-height:0}
+  .split .copy{align-self:center}
+
+  /* mockup app */
+  .device{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:0 18px 40px rgba(40,30,15,.16);width:100%}
+  .chrome{display:flex;align-items:center;gap:7px;padding:11px 14px;background:#F2ECE0;border-bottom:1px solid var(--line)}
+  .chrome i{width:10px;height:10px;border-radius:50%;background:#d8cdb8;display:block}
+  .chrome .url{margin-left:8px;font-size:11px;color:#9a907f;background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 10px;flex:1}
+  .scr{padding:16px 16px}
+  .scr h4{margin:0 0 12px;font-family:Georgia,serif;font-size:16px}
+  .fld{border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:9px;font-size:12.5px;color:#9a9182;background:#fdfaf4}
+  .fld b{color:var(--ink);font-weight:600}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 10px}
+  .chip{font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:5px 11px;color:#7d7567;background:#fff}
+  .chip.on{background:var(--gold);border-color:var(--gold);color:#fff}
+  .btn{background:var(--gold);color:#fff;text-align:center;border-radius:9px;padding:10px;font-size:13px;font-weight:700;margin-top:4px}
+
+  /* chat coppia */
+  .bubbles{display:flex;flex-direction:column;gap:9px}
+  .bub{max-width:78%;font-size:12.5px;line-height:1.4;padding:9px 12px;border-radius:13px}
+  .bub.them{background:#F2ECE0;color:#3a352d;border-bottom-left-radius:4px;align-self:flex-start}
+  .bub.me{background:var(--gold);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
+  .meta{font-size:10.5px;color:#a89e8c;margin:2px 2px 0}
+
+  /* calendario + team */
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:14px}
+  .cal .d{aspect-ratio:1;border:1px solid var(--line);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#8c8474;background:#fff}
+  .cal .d.busy{background:rgba(176,90,90,.16);border-color:rgba(176,90,90,.4);color:var(--rose);font-weight:700}
+  .cal .d.ok{background:rgba(63,122,86,.14);border-color:rgba(63,122,86,.4);color:var(--green);font-weight:700}
+  .team .m{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:12.5px}
+  .team .m:first-child{border-top:none}
+  .team .av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#d9c8a6,#bfa06f);flex:none}
+  .team .st{margin-left:auto;font-size:11px;font-weight:700}
+  .st.free{color:var(--green)} .st.full{color:var(--rose)}
+
+  /* preventivo */
+  .qi{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line);color:#4a443a}
+  .qi:first-of-type{border-top:none}
+  .qtot{display:flex;justify-content:space-between;font-size:15px;font-weight:700;margin-top:10px;padding-top:11px;border-top:2px solid var(--ink)}
+  .stamp{margin-top:14px;border:2px solid var(--green);color:var(--green);border-radius:9px;text-align:center;
+    padding:8px;font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;transform:rotate(-2deg)}
+
+  footer{margin-top:auto;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--muted);padding-top:20px}
+
+  #hud{position:fixed;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.08);z-index:10}
+  #bar{height:100%;width:0;background:var(--gold);transition:width .35s}
+  #count{position:fixed;right:18px;bottom:13px;color:#cdbfa8;font-size:12px;z-index:11;letter-spacing:.08em}
+  .nav{position:fixed;bottom:13px;left:18px;z-index:11;display:flex;gap:8px}
+  .nav button{background:rgba(255,255,255,.08);color:#e7dcc8;border:1px solid rgba(255,255,255,.14);border-radius:8px;width:34px;height:30px;cursor:pointer;font-size:15px}
+  .nav button:hover{background:rgba(196,154,92,.3)}
+  .hint{position:fixed;top:13px;right:18px;color:#8d8377;font-size:12px;z-index:11}
+
+  @media print{
+    body{background:#fff}@page{size:1280px 720px;margin:0}
+    #hud,#count,.nav,.hint{display:none}
+    #stage{position:static;display:block}
+    .slide{position:relative;display:flex!important;opacity:1!important;transform:none!important;
+      width:1280px;height:720px;border-radius:0;box-shadow:none;page-break-after:always;margin:0}
+  }
+</style>
+</head>
+<body>
+<template id="logo">
+<span class="logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236.8 100.0" fill="none">
+<svg x="0" y="0" width="100.0" height="100.0" viewBox="391.7 294.1 457.5 457.5"><path d="M620.0 719.27 C615.3 718.4 615.0 717.51 615.0 704.44 C615.0 697.66 615.41 691.86 615.91 691.55 C616.42 691.24 623.95 690.81 632.66 690.6 C655.16 690.04 672.91 686.09 692.5 677.27 C739.35 656.17 773.17 613.8 784.1 562.5 C788.4 542.32 787.71 511.73 782.5 492.01 C780.76 485.41 781.13 484.88 789.13 482.61 C792.22 481.74 797.09 479.41 799.95 477.44 C803.96 474.68 805.45 474.13 806.5 475.0 C807.89 476.15 812.08 492.4 813.99 504.0 C814.57 507.57 815.32 516.58 815.65 524.0 C817.05 555.24 810.11 586.31 794.98 616.5 C765.6 675.16 707.31 714.25 642.11 719.02 C628.94 719.98 624.18 720.04 620.0 719.27 Z M566.33 707.95 C554.94 704.1 532.31 692.24 521.07 684.22 C510.24 676.5 492.88 660.24 484.43 649.91 C475.93 639.53 466.67 625.0 460.56 612.5 C423.79 537.23 441.53 446.48 504.0 390.26 C565.1 335.27 653.11 325.61 722.25 366.33 C740.31 376.96 765.12 397.71 763.22 400.58 C762.82 401.18 759.65 403.17 756.17 405.01 C752.69 406.85 748.38 410.08 746.58 412.18 C744.78 414.28 742.78 416.0 742.13 416.0 C741.49 416.0 737.28 412.82 732.78 408.93 C711.69 390.7 687.83 378.91 659.66 372.8 C644.93 369.6 615.07 369.6 600.34 372.8 C577.89 377.67 559.7 385.3 541.5 397.46 C504.96 421.88 481.15 458.75 472.35 504.5 C469.74 518.09 469.97 544.08 472.84 558.7 C478.58 587.94 491.98 615.13 511.61 637.35 C522.55 649.73 544.38 667.12 546.98 665.51 C547.66 665.09 548.0 643.31 548.0 601.12 C548.0 530.77 548.35 525.66 554.15 511.05 C562.34 490.39 578.53 473.71 598.63 465.21 C638.63 448.29 682.87 464.66 702.12 503.5 C713.84 527.15 713.83 552.95 702.09 576.5 C693.6 593.55 682.54 604.73 666.5 612.47 C653.92 618.55 646.09 620.3 630.91 620.41 C621.61 620.48 617.89 620.14 616.66 619.13 C615.28 617.98 615.0 615.71 615.0 605.44 C615.0 596.97 615.37 592.89 616.19 592.38 C616.85 591.98 622.01 591.76 627.67 591.9 C639.29 592.19 645.93 590.72 655.2 585.8 C663.21 581.55 672.24 571.8 676.5 562.82 C684.03 546.92 683.87 532.99 675.97 516.42 C672.95 510.1 670.61 506.93 665.18 501.81 C657.1 494.18 650.37 490.6 639.98 488.4 C614.8 483.06 587.63 499.65 579.91 525.08 C577.56 532.81 577.32 543.24 577.12 647.64 C577.03 696.35 576.73 709.89 575.75 710.25 C575.06 710.5 570.82 709.47 566.33 707.95 Z" fill="#1A1714"/><circle cx="776" cy="442" r="22" fill="#C49A5C"/></svg>
+<svg x="110.0" y="33.0" width="126.8" height="34.0" viewBox="70.0 -790.0 3767.0 1010.0"><path d="M150 220V-460H70V220ZM535 -230Q535 -305 504.0 -358.5Q473 -412 421.5 -441.0Q370 -470 307 -470Q250 -470 206.5 -441.0Q163 -412 138.5 -358.5Q114 -305 114 -230Q114 -156 138.5 -102.0Q163 -48 206.5 -19.0Q250 10 307 10Q370 10 421.5 -19.0Q473 -48 504.0 -102.0Q535 -156 535 -230ZM454 -230Q454 -177 432.5 -140.0Q411 -103 375.5 -84.0Q340 -65 297 -65Q262 -65 228.0 -84.0Q194 -103 172.0 -140.0Q150 -177 150 -230Q150 -283 172.0 -320.0Q194 -357 228.0 -376.0Q262 -395 297 -395Q340 -395 375.5 -376.0Q411 -357 432.5 -320.0Q454 -283 454 -230ZM685.0 -780V0H765.0V-780ZM991.0 -142Q991.0 -167 1003.0 -185.0Q1015.0 -203 1039.5 -213.0Q1064.0 -223 1103.0 -223Q1145.0 -223 1182.0 -212.5Q1219.0 -202 1254.0 -178V-225Q1247.0 -234 1227.0 -248.5Q1207.0 -263 1173.5 -274.5Q1140.0 -286 1090.0 -286Q1005.0 -286 957.5 -245.5Q910.0 -205 910.0 -138Q910.0 -91 932.0 -58.0Q954.0 -25 990.5 -7.5Q1027.0 10 1069.0 10Q1107.0 10 1145.5 -4.0Q1184.0 -18 1210.5 -47.0Q1237.0 -76 1237.0 -120L1221.0 -180Q1221.0 -144 1203.5 -116.5Q1186.0 -89 1156.5 -74.0Q1127.0 -59 1090.0 -59Q1061.0 -59 1038.5 -68.5Q1016.0 -78 1003.5 -97.0Q991.0 -116 991.0 -142ZM979.0 -354Q990.0 -362 1009.0 -373.0Q1028.0 -384 1055.5 -392.0Q1083.0 -400 1117.0 -400Q1138.0 -400 1157.0 -396.0Q1176.0 -392 1190.5 -383.0Q1205.0 -374 1213.0 -358.5Q1221.0 -343 1221.0 -319V0H1301.0V-330Q1301.0 -375 1278.5 -406.0Q1256.0 -437 1215.5 -453.5Q1175.0 -470 1121.0 -470Q1057.0 -470 1011.5 -451.0Q966.0 -432 940.0 -413ZM1771.0 -280V0H1851.0V-290Q1851.0 -373 1808.5 -421.5Q1766.0 -470 1693.0 -470Q1648.0 -470 1613.5 -450.0Q1579.0 -430 1556.0 -388V-460H1476.0V0H1556.0V-280Q1556.0 -314 1570.5 -340.0Q1585.0 -366 1611.5 -380.5Q1638.0 -395 1673.0 -395Q1721.0 -395 1746.0 -366.0Q1771.0 -337 1771.0 -280ZM2006.0 -460V-385H2236.0V-460ZM2228.0 -684 2272.0 -750Q2265.0 -760 2252.5 -769.0Q2240.0 -778 2223.0 -784.0Q2206.0 -790 2184.0 -790Q2142.0 -790 2112.5 -772.5Q2083.0 -755 2067.0 -720.0Q2051.0 -685 2051.0 -630V0H2131.0V-620Q2131.0 -653 2137.0 -673.0Q2143.0 -693 2153.5 -701.5Q2164.0 -710 2179.0 -710Q2191.0 -710 2204.5 -705.5Q2218.0 -701 2228.0 -684ZM2447.0 -180V-460H2367.0V-170Q2367.0 -88 2410.0 -39.0Q2453.0 10 2525.0 10Q2571.0 10 2605.0 -10.5Q2639.0 -31 2662.0 -72V0H2742.0V-460H2662.0V-180Q2662.0 -146 2647.5 -120.0Q2633.0 -94 2606.5 -79.5Q2580.0 -65 2545.0 -65Q2497.0 -65 2472.0 -95.0Q2447.0 -125 2447.0 -180ZM2932.0 -780V0H3012.0V-780ZM3202.0 -780V0H3282.0V-780ZM3837.0 -460H3747.0L3605.0 -104L3638.0 -100L3492.0 -460H3397.0L3573.0 -65L3447.0 220H3537.0Z" fill="#1A1714"/></svg>
+</svg></span>
+</template>
+
+<div id="stage">
+
+  <!-- 1 · COVER -->
+  <section class="slide dark center" data-logo="big">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Incontro di presentazione</span></div>
+    <div style="margin:auto 0">
+      <p class="kicker">Per chi organizza matrimoni</p>
+      <h1 class="display">Il mercato si restringe.<br>La rete ci fa vincere.</h1>
+      <p class="sub">Perché oggi una Wedding Planner deve cambiare strumenti — e come Planfully trasforma la tua rete nel tuo vantaggio competitivo.</p>
+    </div>
+    <footer><span>Planfully</span><span>Fuyue Srl</span></footer>
+  </section>
+
+  <!-- 2 · IL MERCATO IN NUMERI -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Le premesse · Il rischio</span></div>
+    <p class="kicker">Il mercato, senza giri di parole</p>
+    <h2 class="display">Ci si sposa sempre meno. Ed è un calo strutturale.</h2>
+    <div class="stats">
+      <div class="stat"><div class="n">184.207</div><div class="l">matrimoni in Italia nel 2023, <b style="color:var(--rose)">−2,6%</b> in un solo anno.</div></div>
+      <div class="stat"><div class="n"><span class="dn">−4,3%</span></div><div class="l">i primi matrimoni: calano <b>più in fretta</b> del totale.</div></div>
+      <div class="stat"><div class="n">Minimo</div><div class="l">nascite ai minimi storici: meno coppie, meno matrimoni domani.</div></div>
+    </div>
+    <p class="src">Fonte: ISTAT — “Matrimoni, unioni civili, separazioni e divorzi”, dati 2023 (nov. 2024) · ISTAT, Natalità 2023.</p>
+  </section>
+
+  <!-- 3 · COSA SIGNIFICA -->
+  <section class="slide dark center">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Le premesse · Il rischio</span></div>
+    <div style="margin:auto 0">
+      <p class="kicker">Cosa significa per te</p>
+      <h1 class="display">Ogni evento perso<br>pesa il doppio.</h1>
+      <p class="sub">La torta si rimpicciolisce, ma i professionisti restano. Più concorrenza per ogni coppia. Non puoi più permetterti di lasciarne andare nemmeno una: <b>devi massimizzare ogni singola opportunità.</b></p>
+    </div>
+  </section>
+
+  <!-- 4 · LE MULTINAZIONALI -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Le premesse · Il rischio</span></div>
+    <p class="kicker">Il secondo rischio, più silenzioso</p>
+    <h2 class="display">Le multinazionali hanno monopolizzato la domanda.</h2>
+    <div class="stats">
+      <div class="stat"><div class="n">1 gruppo</div><div class="l">The Knot Worldwide controlla Matrimonio.com, Bodas.net, Mariages.net, WeddingWire e ha inglobato Zankyou.</div></div>
+      <div class="stat"><div class="n">4 mln+</div><div class="l">coppie l'anno incanalate nei loro portali.</div></div>
+      <div class="stat"><div class="n">900k+</div><div class="l">fornitori che pagano per comparire nelle loro vetrine.</div></div>
+    </div>
+    <p class="src">Fonte: The Knot Worldwide — comunicati ufficiali e acquisizione Zankyou, 2023.</p>
+  </section>
+
+  <!-- 5 · DISINTERMEDIAZIONE -->
+  <section class="slide dark center">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Le premesse · Il rischio</span></div>
+    <div style="margin:auto 0">
+      <p class="kicker">Il punto scomodo</p>
+      <h1 class="display">Non ti aiutano.<br>Si mettono in mezzo.</h1>
+      <p class="sub">Quei portali si infilano <b>tra te e la coppia</b>: catturano la domanda, la vendono al miglior offerente e ti trasformano in un “lead” da ricomprare. Si sostituiscono alla Wedding Planner. Tu paghi per esistere — e perdi la relazione che era già tua.</p>
+    </div>
+  </section>
+
+  <!-- 6 · LA TESI -->
+  <section class="slide dark center">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">La risposta</span></div>
+    <div style="margin:auto 0">
+      <p class="kicker">La risposta non è competere da soli</p>
+      <h1 class="display">Da soli, sul loro terreno,<br>si perde. Insieme, no.</h1>
+      <p class="sub">La risposta a un mercato che si stringe e a chi vuole disintermediarti è una sola: <b>recuperare il valore di fare rete.</b> Non un fornitore contro l'altro — una rete che lavora come un corpo unico.</p>
+    </div>
+  </section>
+
+  <!-- 7 · LA RETE COMPATTA -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">La risposta</span></div>
+    <p class="kicker">La tesi, in concreto</p>
+    <h2 class="display">Se la rete si muove compatta, gli eventi non si perdono.</h2>
+    <ul class="pts win">
+      <li>Chi è pieno passa il cliente a chi è libero.<small>L'evento resta dentro il gruppo, non esce verso un portale.</small></li>
+      <li>Nessuna coppia cade nel vuoto.<small>Una data occupata diventa un'opportunità per un collega — e un ricavo per te.</small></li>
+      <li>Si lavora — e si guadagna — tutti insieme.<small>Il valore della segnalazione torna a chi l'ha generata.</small></li>
+    </ul>
+  </section>
+
+  <!-- 8 · ECCO PLANFULLY -->
+  <section class="slide dark center">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">La soluzione</span></div>
+    <div style="margin:auto 0">
+      <p class="kicker">Lo strumento che fa muovere la rete</p>
+      <h1 class="display">Ecco Planfully.</h1>
+      <p class="sub">Il posto dove ricevi i clienti, duetti con la coppia, coordini i fornitori e fai girare il lavoro dentro la tua rete. Tutto facile, tutto automatico. <b>Tu resti il centro — non un lead da rivendere.</b></p>
+    </div>
+  </section>
+
+  <!-- 9 · RICEVI (mock form) -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Il prodotto · Ricevi</span></div>
+    <div class="split">
+      <div class="copy">
+        <p class="kicker">La tua porta d'ingresso</p>
+        <h2 class="display">Un link tuo. La coppia compila, a te arriva tutto pronto.</h2>
+        <p class="sub">Una pagina col tuo nome, come un portfolio, da mettere in bio e nelle mail. Niente più richieste sparse su quattro app: data, budget, stile e invitati ti arrivano già in ordine.</p>
+        <span class="pill">Il cliente entra dalla tua porta, non da un portale.</span>
+      </div>
+      <div class="device">
+        <div class="chrome"><i></i><i></i><i></i><span class="url">planfully.it/tuo-studio</span></div>
+        <div class="scr">
+          <h4>Raccontaci il vostro matrimonio</h4>
+          <div class="row2"><div class="fld"><b>Sara &amp; Luca</b></div><div class="fld"><b>12 set 2026</b></div></div>
+          <div class="fld">Budget · <b>25–35.000 €</b></div>
+          <div class="chips"><span class="chip on">Elegante</span><span class="chip on">Botanico</span><span class="chip">Boho</span><span class="chip">Minimal</span></div>
+          <div class="fld">Invitati · <b>120</b> · Location · <b>Toscana</b></div>
+          <div class="btn">Invia richiesta</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · DUETTA CON LA COPPIA (mock chat) -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Il prodotto · La coppia</span></div>
+    <div class="split">
+      <div class="copy">
+        <p class="kicker">Duetta con gli sposi</p>
+        <h2 class="display">Un'unica stanza con la coppia. Niente più rincorse.</h2>
+        <p class="sub">Messaggi, moodboard, scelte di stile, preventivo condiviso e area cliente: tutto in un posto. La coppia partecipa, approva e firma online — tu guidi, con ordine.</p>
+        <span class="pill">Meno avanti-e-indietro. Più sì.</span>
+      </div>
+      <div class="device">
+        <div class="chrome"><i></i><i></i><i></i><span class="url">Area sposi · Sara &amp; Luca</span></div>
+        <div class="scr">
+          <div class="bubbles">
+            <div class="bub them">Ci piacciono i toni salvia e avorio 🌿</div>
+            <div class="bub me">Perfetto, ho aggiornato la moodboard e il preventivo fiori.</div>
+            <div class="chips" style="align-self:flex-start;margin:2px 0"><span class="chip on">Salvia</span><span class="chip on">Avorio</span><span class="chip">Oro</span></div>
+            <div class="bub them">Approviamo il preventivo! ✅</div>
+          </div>
+          <div class="meta">Preventivo accettato online · contratto generato</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 · GESTISCI I FORNITORI (mock calendario+team) -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Il prodotto · Organizza</span></div>
+    <div class="split">
+      <div class="copy">
+        <p class="kicker">Coordina la tua rete</p>
+        <h2 class="display">Fornitori, disponibilità e team in un colpo d'occhio.</h2>
+        <p class="sub">Vedi chi è libero e chi è pieno, blocchi le date, assegni i fornitori all'evento. La disponibilità si aggiorna da sola quando un preventivo viene accettato.</p>
+        <span class="pill">Basta «quella data era libera?».</span>
+      </div>
+      <div class="device">
+        <div class="chrome"><i></i><i></i><i></i><span class="url">Disponibilità · Settembre</span></div>
+        <div class="scr">
+          <div class="cal">
+            <div class="d">8</div><div class="d ok">9</div><div class="d">10</div><div class="d busy">11</div><div class="d ok">12</div><div class="d">13</div><div class="d busy">14</div>
+          </div>
+          <div class="team">
+            <div class="m"><span class="av"></span> Fioraio · Giuseppe Aras <span class="st free">Libero 12/9</span></div>
+            <div class="m"><span class="av"></span> Fotografo · Gisko <span class="st full">Pieno 11/9</span></div>
+            <div class="m"><span class="av"></span> Band · Black Mamba <span class="st free">Libero 12/9</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 · LA DATA GIRA ALLA RETE -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Il prodotto · Organizza</span></div>
+    <p class="kicker">Il meccanismo che cambia tutto</p>
+    <h2 class="display">Sei occupata? Il cliente non esce dalla rete.</h2>
+    <ul class="pts win">
+      <li>Il sistema legge il tuo calendario e capisce che quel giorno sei piena.</li>
+      <li>Propone alla coppia 2 colleghi della rete, stesso settore, liberi in quella data.</li>
+      <li>Se chiudono, il collega ti riconosce un credito — in automatico.</li>
+    </ul>
+    <span class="pill">Una data piena diventa un ricavo, non un'occasione persa.</span>
+  </section>
+
+  <!-- 13 · PREVENTIVO → CONTRATTO (mock) -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Il prodotto · Organizza</span></div>
+    <div class="split">
+      <div class="copy">
+        <p class="kicker">Dal sì alla firma</p>
+        <h2 class="display">Preventivo e contratto, in un filo solo.</h2>
+        <p class="sub">Crei il preventivo col tuo brand, la coppia lo accetta online, il contratto nasce da sé e la data si blocca. Zero doppio lavoro, zero sovrapposizioni.</p>
+        <span class="pill">Tutto collegato. Tutto automatico.</span>
+      </div>
+      <div class="device">
+        <div class="chrome"><i></i><i></i><i></i><span class="url">Preventivo · Sara &amp; Luca</span></div>
+        <div class="scr">
+          <div class="qi"><span>Coordinamento &amp; regia evento</span><span>3.500 €</span></div>
+          <div class="qi"><span>Allestimento floreale</span><span>4.200 €</span></div>
+          <div class="qi"><span>Fotografo (giornata intera)</span><span>2.800 €</span></div>
+          <div class="qtot"><span>Totale</span><span>10.500 €</span></div>
+          <div class="stamp">✓ Accettato dalla coppia</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 · TUTTO AUTOMATICO -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Il prodotto · Organizza</span></div>
+    <p class="kicker">Quello che fa da solo, mentre lavori</p>
+    <h2 class="display">Il pilota automatico del tuo studio.</h2>
+    <div class="tiles">
+      <div class="tile"><p class="k">Date</p><p class="t">Si bloccano</p><p class="d">Accetti un evento? Il calendario si aggiorna da solo.</p></div>
+      <div class="tile"><p class="k">Lead pieni</p><p class="t">Girano</p><p class="d">Email automatica alla coppia con 2 colleghi liberi.</p></div>
+      <div class="tile"><p class="k">Crediti</p><p class="t">Si tracciano</p><p class="d">La segnalazione che si chiude diventa un tuo credito.</p></div>
+    </div>
+    <span class="pill">Tu pensi alle coppie. Al resto pensa Planfully.</span>
+  </section>
+
+  <!-- 15 · LA RETE TI PAGA -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Il modello</span></div>
+    <p class="kicker">Il guadagno</p>
+    <h2 class="display">La rete che hai già, finalmente ti rende.</h2>
+    <div class="tiles">
+      <div class="tile"><p class="k">Porti un fornitore</p><p class="t">% ogni mese</p><p class="d">Una parte del suo abbonamento, finché resta con te.</p></div>
+      <div class="tile"><p class="k">Segnali un collega</p><p class="t">39€ a contratto</p><p class="d">Tracciato in automatico quando la coppia firma.</p></div>
+      <div class="tile"><p class="k">Passi un cliente</p><p class="t">Compenso</p><p class="d">Anche un evento che non segui ti viene riconosciuto.</p></div>
+    </div>
+  </section>
+
+  <!-- 16 · GRATIS + CONTRAPPOSIZIONE -->
+  <section class="slide dark center">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Il modello</span></div>
+    <div style="margin:auto 0">
+      <p class="kicker">E qui la differenza</p>
+      <h1 class="display">Loro ti fanno pagare per esistere.<br>Noi ti paghiamo per fare rete.</h1>
+      <p class="sub">Per Wedding Planner e Location <b class="free">è gratis. Sempre.</b> Sei tu il centro: la piattaforma vive di chi entra grazie a te. I tuoi interessi e i nostri vanno nella stessa direzione.</p>
+    </div>
+  </section>
+
+  <!-- 17 · DOVE SIAMO -->
+  <section class="slide">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Dove siamo</span></div>
+    <p class="kicker">Adesso</p>
+    <h2 class="display">Beta. Solo su invito.</h2>
+    <ul class="pts win">
+      <li>Gratis per tutti fino a dicembre 2026.<small>I fornitori iniziano a pagare solo da gennaio 2027.</small></li>
+      <li>Chi entra ora è founding member.<small>Condizioni di rete migliori — e restano nel tempo.</small></li>
+      <li>Community selezionata, non un elenco gonfiato.<small>Costruiamo la rete con chi ci crede. Tu porti la tua gente.</small></li>
+    </ul>
+  </section>
+
+  <!-- 18 · CTA -->
+  <section class="slide dark center">
+    <div class="topbar"><span class="logoslot"></span><span class="tag">Partiamo</span></div>
+    <div style="margin:auto 0">
+      <h1 class="display">Partiamo?</h1>
+      <p class="sub">Ti do il codice invito. In dieci minuti configuriamo la tua pagina e il calendario. Da domani le coppie entrano dalla tua porta — e la rete inizia a lavorare per te.</p>
+      <span class="pill">Una rete. Un sistema. Tutto torna a te.</span>
+    </div>
+    <footer><span>Grazie.</span><span>Planfully · Fuyue Srl</span></footer>
+  </section>
+
+</div>
+
+<div id="hud"><div id="bar"></div></div>
+<div id="count">1 / 18</div>
+<div class="nav"><button id="prev">‹</button><button id="next">›</button></div>
+<div class="hint">← → naviga · F schermo intero · stampa → PDF</div>
+
+<script>
+  const tpl=document.getElementById('logo').content;
+  document.querySelectorAll('.logoslot').forEach(s=>s.replaceWith(tpl.cloneNode(true)));
+  document.querySelectorAll('[data-logo="big"] .logo svg').forEach(s=>{s.style.height='33px'});
+
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  const bar=document.getElementById('bar'), count=document.getElementById('count');
+  function show(n){i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    bar.style.width=((i+1)/slides.length*100)+'%';count.textContent=(i+1)+' / '+slides.length}
+  const next=()=>show(i+1), prev=()=>show(i-1);
+  document.getElementById('next').onclick=next;
+  document.getElementById('prev').onclick=prev;
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();next()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev()}
+    else if(e.key==='Home')show(0); else if(e.key==='End')show(slides.length-1);
+    else if(e.key.toLowerCase()==='f')document.documentElement.requestFullscreen?.();
+  });
+  document.getElementById('stage').addEventListener('click',e=>{
+    if(e.target.closest('button'))return;(e.clientX/window.innerWidth>0.5?next:prev)();
+  });
+  show(0);
+</script>
+</body>
+</html>

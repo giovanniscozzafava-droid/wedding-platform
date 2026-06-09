@@ -34,6 +34,7 @@ const ROUTE_HELP: Record<string, string> = {
   '/suppliers': 'page.scopri',
   '/crediti': 'page.crediti',
   '/rewards': 'page.rewards',
+  '/recruiting': 'page.recruiting',
   '/calendar': 'page.calendario',
   '/bilancio': 'page.bilancio',
   '/settings/brand': 'page.brand',
