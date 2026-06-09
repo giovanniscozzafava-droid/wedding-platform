@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { X, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
+import { supabase } from '@/lib/supabase'
+
+// Query Pexels (in inglese: risultati migliori) per specializzazione.
+const PEXELS_QUERY: Record<string, string> = {
+  fotografo: 'wedding photographer', videomaker: 'wedding videographer', musica: 'wedding band live music',
+  fioraio: 'wedding flowers bouquet', allestimenti: 'wedding decoration', catering: 'wedding catering food',
+  chef: 'chef plating dish', food_truck: 'food truck event', pasticcere: 'wedding cake', sweet_table: 'dessert table',
+  bartender: 'cocktail bar wedding', sommelier: 'wine tasting', make_up: 'bridal makeup', parrucchiere: 'bridal hairstyle',
+  estetista: 'manicure spa', luci: 'event lighting', fuochista: 'fireworks wedding', auto: 'wedding vintage car',
+  celebrante: 'wedding ceremony', stampe: 'wedding invitation', abiti: 'wedding dress atelier', bomboniere: 'wedding favors',
+  magia: 'magician show', animazione: 'kids party', photobooth: 'photo booth party', maitre: 'elegant table setting',
+}
+const pexelsQuery = (subrole: string) => PEXELS_QUERY[subrole] ?? 'wedding celebration'
 
 /**
  * Presentazione a schermo intero, NEUTRA (parla di Planfully) e PARAMETRIZZATA
@@ -12,7 +25,19 @@ export function RecruitingDeck({ subrole, inviteCode, inviteUrl, onClose }: {
   subrole: string; inviteCode: string | null; inviteUrl: string | null; onClose: () => void
 }) {
   const [i, setI] = useState(0)
-  const slides = buildSlides({ subrole, inviteCode, inviteUrl })
+  const [photos, setPhotos] = useState<string[]>([])
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const { data } = await supabase.functions.invoke('pexels-search', { body: { query: pexelsQuery(subrole), per_page: 10, orientation: 'landscape' } })
+        const ph = (data as { photos?: { src?: { large?: string; medium?: string } }[] } | null)?.photos ?? []
+        if (alive) setPhotos(ph.map(p => p.src?.large || p.src?.medium || '').filter(Boolean))
+      } catch { /* niente immagini: restano i fallback */ }
+    })()
+    return () => { alive = false }
+  }, [subrole])
+  const slides = buildSlides({ subrole, inviteCode, inviteUrl, photos })
   const n = slides.length
   const next = useCallback(() => setI(v => Math.min(n - 1, v + 1)), [n])
   const prev = useCallback(() => setI(v => Math.max(0, v - 1)), [])
@@ -51,14 +76,20 @@ export function RecruitingDeck({ subrole, inviteCode, inviteUrl, onClose }: {
           color: dark ? '#F4EDE0' : '#1A1714',
           fontFamily: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif',
         }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 26 }}>
+        {slide.bg && (
+          <>
+            <img src={slide.bg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(15,11,6,.92) 0%, rgba(15,11,6,.78) 45%, rgba(15,11,6,.42) 100%)' }} />
+          </>
+        )}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 26 }}>
           <img src="/brand/planfully-logo-horizontal.svg" alt="Planfully" height={22}
             style={{ height: 22, filter: dark ? 'brightness(0) invert(1)' : 'none' }} />
           <span style={{ fontSize: 11.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: dark ? '#b7a98f' : '#7a7468' }}>
             {slide.tag}
           </span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: slide.center ? 'center' : 'flex-start', flex: 1, minHeight: 0 }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: slide.center ? 'center' : 'flex-start', flex: 1, minHeight: 0 }}>
           {slide.content}
         </div>
       </div>
@@ -122,12 +153,16 @@ function Device({ url, children }: { url: string; children: React.ReactNode }) {
     </div>
   )
 }
-function ProfileMock({ label }: { label: string }) {
+function ProfileMock({ label, photos }: { label: string; photos: string[] }) {
+  const fallback = ['#D9C8A6', '#cdbfa8', '#e3d6bb', '#c9b48a', '#ddd0b6', '#d2c09a']
   return (
     <Device url="planfully.it/tuo-profilo">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 7, marginBottom: 12 }}>
-        {['#D9C8A6', '#cdbfa8', '#e3d6bb', '#c9b48a', '#ddd0b6', '#d2c09a'].map((c, k) =>
-          <div key={k} style={{ aspectRatio: '1', borderRadius: 8, background: `linear-gradient(135deg,${c},#bfa06f)` }} />)}
+        {fallback.map((c, k) => (
+          <div key={k} style={{ aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: `linear-gradient(135deg,${c},#bfa06f)` }}>
+            {photos[k] && <img src={photos[k]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+          </div>
+        ))}
       </div>
       <div style={{ ...serif, fontSize: 16 }}>Il tuo studio · <span style={{ color: '#A97F3F' }}>{label}</span></div>
       <div style={{ display: 'flex', gap: 6, margin: '8px 0 12px' }}>
@@ -230,13 +265,13 @@ function specFor(subrole: string, label: string): Spec {
   }
 }
 
-function buildSlides({ subrole, inviteCode, inviteUrl }: { subrole: string; inviteCode: string | null; inviteUrl: string | null }) {
+function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: string; inviteCode: string | null; inviteUrl: string | null; photos: string[] }) {
   const label = SUPPLIER_SUBROLES.find(s => s.v === subrole)?.l ?? 'Professionista'
   const spec = specFor(subrole, label)
   const tag = `Per: ${label}`
   return [
     // 1 — cover
-    { dark: true, center: true, tag, content: (<>
+    { dark: true, center: true, tag, bg: photos[0], content: (<>
       <p style={kicker(true)}>La rete dei professionisti del matrimonio</p>
       <h1 style={h1}>Tutto il tuo lavoro,<br />in un posto solo.</h1>
       <p style={sub(true)}>Ti mostro in cinque minuti cosa fa Planfully per un <b style={{ color: '#fff' }}>{label.toLowerCase()}</b>: come ti trovano, come chiudi, come la rete ti porta lavoro.</p>
@@ -287,7 +322,7 @@ function buildSlides({ subrole, inviteCode, inviteUrl }: { subrole: string; invi
             { t: 'Lead già qualificati', d: 'Data, budget, stile, invitati: apri e sei pronto a proporre.' },
           ]} />
         </>}
-        right={<ProfileMock label={label} />}
+        right={<ProfileMock label={label} photos={photos.slice(1, 7)} />}
       />
     ) },
     // 6 — pilastro 2: chiudi
@@ -358,7 +393,7 @@ function buildSlides({ subrole, inviteCode, inviteUrl }: { subrole: string; invi
       <p style={sub(true)}>Provi tutto senza spendere. Chi entra adesso è <b style={{ color: '#fff' }}>founding member</b>: condizioni migliori, per sempre.</p>
     </>) },
     // 11 — CTA
-    { dark: true, center: true, tag, content: (<>
+    { dark: true, center: true, tag, bg: photos[2] || photos[0], content: (<>
       <p style={kicker(true)}>Facciamolo adesso</p>
       <h1 style={h1}>Entra nella rete.</h1>
       <p style={sub(true)}>Ti aiuto io a creare il tuo account ora. Bastano un’email e una password.</p>
