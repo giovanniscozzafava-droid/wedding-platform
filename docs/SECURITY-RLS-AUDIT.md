@@ -23,7 +23,8 @@
 | `budget_categories` | sì | 3 | — | — | 🟢OK |  |
 | `budget_entries` | sì | 3 | — | — | 🟢OK |  |
 | `bug_reports` | sì | 2 | — | — | 🟢OK |  |
-| `calendar_entries` | sì | 9 | client_email, client_name | — | 🟢OK | PII protetta da RLS+policy |
+| `calendar_entries` | sì | 5 | — | — | 🟢OK | PII spostata in `calendar_entries_private` (split P5, mig. 20260610010000) |
+| `calendar_entries_private` | sì | 6 | client_email, client_name, value_amount, notes | — | 🟢OK | RLS owner/couple/admin; fornitore NON legge (P5 verde) |
 | `calendar_entry_participants` | sì | 3 | — | — | 🟢OK |  |
 | `calendar_export_tokens` | sì | 2 | — | — | 🟢OK |  |
 | `chat_messaggi` | sì | 3 | — | authenticated:SELECT, INSERT, UPDATE | 🟢OK |  |
@@ -712,10 +713,11 @@ Hanno RLS abilitata e policy (vedi *Dettaglio policy*); le predicate sembrano le
 
 > Stavolta il DB locale è partito (`supabase start` + `db reset`). Test eseguiti contro Postgres reale. Sostituiscono i `DA-VERIFICARE` per i punti coperti.
 
-### 🔴 BUCO #1 — `calendar_entries` espone PII cliente ai fornitori *(APERTO — decisione Giovanni)*
-- **Prova:** `tests/sql/pii_isolation_tests.sql` › **P5 ROSSO**: un *participant/fornitore* legge `client_name`/`notes`/`value_amount` dalla **tabella base** `calendar_entries`.
-- **Causa (live `pg_policies`):** le policy SELECT `calentry_select_participant` (`is_entry_participant(id)`) e `ce_select_collab_supplier` (`is_collab_supplier_of_entry(id)`) ritornano la **riga intera**. La vista ridotta `calendar_entries_for_participants` (security_invoker) esiste apposta, ma la tabella base resta leggibile.
-- **Perché NON l'ho chiuso:** rimuovere quelle policy toglie accesso **legittimo** (i fornitori leggono `calendar_entries` per **calendario** e **guadagni** — `useSupplierEarnings`, `useCalendar`). RLS è per-riga, non per-colonna: non si nasconde `client_name` tenendo data/valore. → **Serve la tua decisione** (quali colonne può vedere un fornitore / separare le colonne PII in una tabella `*_private` owner-only / instradare i fornitori solo sulla vista ridotta). Vedi `NOTTE-REPORT.md`.
+### 🟢 BUCO #1 — `calendar_entries` esponeva PII cliente ai fornitori *(CHIUSO e provato — split strutturale, opzione a)*
+- **Era (P5 ROSSO):** un *participant/fornitore* leggeva `client_name`/`client_email`/`notes`/`value_amount` dalla **tabella base** `calendar_entries` via `calentry_select_participant`/`ce_select_collab_supplier` (RLS per-riga → riga intera).
+- **Fix (mig. `20260610010000_split_calendar_entries_private.sql`):** le 4 colonne PII sono state **spostate** in **`calendar_entries_private`** (PK `entry_id`→`calendar_entries`, RLS `cep_select_owner_couple_admin` = owner/couple/admin, write owner/admin) e **droppate** dalla base. Trigger `ensure_calendar_entry_private` crea la riga privata vuota all'insert dell'evento.
+- **Prova rosso→verde:** `pii_isolation_tests.sql` › **P5** (cols PII assenti dalla base · fornitore **0/denied** su `_private` · ma vede ancora data/stato dell'evento) + **P5b** (owner legge `client_name` da `_private`). Regressione `rls_tests.sql` **8/8 verde**.
+- **Accesso legittimo intatto:** owner/coppia leggono tutto via embed PostgREST `calendar_entries_private(...)` (verificato live); i guadagni del fornitore (`useSupplierEarnings`) non usavano `value_amount` (vengono da `quote_items.line_client` propri). Frontend (`useCalendar`/`useWedding`/`useCouple`) ed edge (`quote-send`) adattati; `tsc`/`build` verdi.
 
 ### 🟢 BUCO #2 — `v_salute_evento` leggibile da anon cross-tenant *(CHIUSO e provato)*
 - **Prova rosso→verde:** `tests/sql/views_isolation_tests.sql` › V1. Prima: anon leggeva **1 riga** per-evento (la vista era `security_invoker` **off** → girava come owner, bypassando la RLS). Dopo: anon **negato**, owner vede i propri (V2), aggregato pubblico intatto (V3).

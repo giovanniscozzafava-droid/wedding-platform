@@ -2,7 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 
-export type WeddingRow = Database['public']['Tables']['calendar_entries']['Row'] & {
+// Campi sensibili spostati in calendar_entries_private (split P5): ri-appiattiti
+// nel risultato per i consumer owner/coppia.
+type WeddingPrivate = { client_name: string | null; client_email: string | null; notes: string | null; value_amount: number | null }
+const PRIV_SELECT = 'calendar_entries_private(client_name, client_email, notes, value_amount)'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function flattenPrivate(row: any): any {
+  if (!row) return row
+  const { calendar_entries_private: p, ...rest } = row
+  return { ...rest, ...(p ?? {}) }
+}
+
+export type WeddingRow = Database['public']['Tables']['calendar_entries']['Row'] & Partial<WeddingPrivate> & {
   quote: (Pick<Database['public']['Tables']['quotes']['Row'],
     'id' | 'title' | 'status' | 'total_client' | 'access_token' | 'pdf_url' | 'revision'> & {
     quote_items?: Array<{ count: number }>
@@ -17,12 +28,13 @@ export function useWeddings() {
         .from('calendar_entries')
         .select(`
           *,
+          ${PRIV_SELECT},
           quote:quotes!calendar_entries_quote_fk(id, title, status, total_client, access_token, pdf_url, revision)
         `)
         .in('status', ['OPZIONATA', 'CONFERMATA', 'IN_TRATTATIVA'])
         .order('date_from', { ascending: true })
       if (error) throw error
-      return (data ?? []) as unknown as WeddingRow[]
+      return (data ?? []).map((r) => flattenPrivate(r as Record<string, unknown>)) as unknown as WeddingRow[]
     },
   })
 }
@@ -36,6 +48,7 @@ export function useWedding(entryId: string | null) {
         .from('calendar_entries')
         .select(`
           *,
+          ${PRIV_SELECT},
           owner:profiles!calendar_entries_owner_id_fkey(id, full_name, business_name, subrole, role),
           quote:quotes!calendar_entries_quote_fk(id, owner_id, title, client_name, client_email, event_date, guest_count, status, revision, access_token, total_client, pdf_url, pdf_variant, sent_at, accepted_at, rejected_at, rejection_reason, sent_email_log, client_response_log, created_at, updated_at, table_count, direct_client_id, event_location, event_kind, access_token_expires_at, forced_without_questionnaire, token_hash, token_revoked_at, token_consumed_at, quote_origin, quote_context, first_opened_at, last_opened_at, open_count, total_discount_percent, total_discount_amount, subtotal_client, followup_count, last_followup_at, archived_at, date_contested_notified_at, funnel_paused, closed_at, quote_items(id, quote_id, service_id, supplier_id, name_snapshot, description_snapshot, unit_snapshot, quantity, modifiers_applied, line_client, sort_order, created_at, updated_at, quantity_basis, is_optional, alternative_group, selected_by_client, client_selected_at, payment_status, paid_amount, paid_at, payment_method, supplier_confirmed_at, supplier_confirmed_by, erogatore_e_capostipite, supplier_presence, item_discount_percent, client_decision, client_decided_at, client_decline_reason, supplier:profiles!quote_items_supplier_id_fkey(id, full_name, business_name, subrole))),
           calendar_entry_participants(*, user:profiles!calendar_entry_participants_user_id_fkey(id, full_name, business_name, subrole))
@@ -43,7 +56,7 @@ export function useWedding(entryId: string | null) {
         .eq('id', entryId!)
         .maybeSingle()
       if (error) throw error
-      return data
+      return flattenPrivate(data as Record<string, unknown> | null)
     },
   })
 }
@@ -207,8 +220,18 @@ export function useUpdateWedding(entryId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (patch: any) => {
-      const { error } = await supabase.from('calendar_entries').update(patch).eq('id', entryId)
-      if (error) throw error
+      // Split P5: i campi sensibili vanno in calendar_entries_private.
+      const PK = ['client_name', 'client_email', 'notes', 'value_amount']
+      const priv: any = {}; const base: any = {}
+      for (const k of Object.keys(patch ?? {})) { (PK.includes(k) ? priv : base)[k] = patch[k] }
+      if (Object.keys(priv).length > 0) {
+        const { error: pe } = await (supabase.from('calendar_entries_private' as any) as any).upsert({ entry_id: entryId, ...priv })
+        if (pe) throw pe
+      }
+      if (Object.keys(base).length > 0) {
+        const { error } = await supabase.from('calendar_entries').update(base).eq('id', entryId)
+        if (error) throw error
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wedding', entryId] }),
   })

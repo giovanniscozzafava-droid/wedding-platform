@@ -22,10 +22,14 @@ declare
   v_entry uuid := 'bbbbbbbb-0000-0000-0000-000000000001';
   v_quote uuid := 'cccccccc-0000-0000-0000-000000000001';
 begin
-  insert into calendar_entries (id, owner_id, title, client_name, client_email, date_from, date_to, status, value_amount, notes)
-  values (v_entry, '00000000-aaaa-0000-0000-000000000002', 'Matrimonio De Luca', 'Famiglia De Luca', 'deluca@cliente-test.it',
-          '2026-09-15','2026-09-15','IN_TRATTATIVA', 25000, 'Nota privata: cliente VIP.')
+  insert into calendar_entries (id, owner_id, title, date_from, date_to, status)
+  values (v_entry, '00000000-aaaa-0000-0000-000000000002', 'Matrimonio De Luca', '2026-09-15','2026-09-15','IN_TRATTATIVA')
   on conflict (id) do nothing;
+  -- Campi sensibili nella tabella privata (split P5)
+  insert into calendar_entries_private (entry_id, client_name, client_email, value_amount, notes)
+  values (v_entry, 'Famiglia De Luca', 'deluca@cliente-test.it', 25000, 'Nota privata: cliente VIP.')
+  on conflict (entry_id) do update set client_name = excluded.client_name, client_email = excluded.client_email,
+    value_amount = excluded.value_amount, notes = excluded.notes;
   insert into calendar_entry_participants (entry_id, user_id, role_in_entry)
   values (v_entry, '00000000-aaaa-0000-0000-000000000005', 'fotografo') on conflict do nothing;
 
@@ -124,26 +128,42 @@ begin
   end if;
 end$$;
 
--- ── TEST P5: il participant NON legge i dati PII dell'evento dalla tabella base
---   ⚠️ BUCO CONFERMATO / APERTO (vedi NOTTE-REPORT, punto 1): le policy
---   `calentry_select_participant` e `ce_select_collab_supplier` espongono la
---   riga INTERA (client_name/notes/value) ai fornitori. Il fix corretto toglie
---   colonne PII mantenendo l'accesso legittimo (calendario/guadagni) → richiede
---   una decisione di Giovanni (quali colonne può vedere un fornitore / split PII).
---   Questo test resta ROSSO finché la decisione non è presa.
+-- ── TEST P5 (split P5 — CHIUSO): il fornitore NON legge i PII cliente ───────
+--   I campi sensibili sono stati spostati in calendar_entries_private (mig.
+--   20260610010000). Il fornitore-participant non ha policy su quella tabella.
 do $$
-declare v int;
+declare v_priv int; v_base int; v_cols int;
 begin
+  -- (0) le colonne PII NON esistono più sulla tabella base leggibile dal fornitore
+  select count(*) into v_cols from information_schema.columns
+   where table_schema='public' and table_name='calendar_entries'
+     and column_name in ('client_name','client_email','notes','value_amount');
   perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000005","role":"authenticated"}', true);
   set local role authenticated;
-  -- Mario è participant dell'evento ma NON deve poter leggere client_name/valore dalla tabella base
-  select count(*) into v from calendar_entries
-   where id = 'bbbbbbbb-0000-0000-0000-000000000001' and client_name is not null;
+  begin
+    select count(*) into v_priv from calendar_entries_private where entry_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+  exception when insufficient_privilege then v_priv := -1; end;
+  select count(*) into v_base from calendar_entries where id = 'bbbbbbbb-0000-0000-0000-000000000001';  -- accesso legittimo (data/stato)
   reset role;
-  if v = 0 then
-    raise notice 'TEST P5 OK (il participant non legge i PII cliente dalla tabella base)';
+  if v_cols = 0 and v_priv <= 0 and v_base = 1 then
+    raise notice 'TEST P5 OK (split): colonne PII rimosse dalla base; fornitore non legge _private (%); ma vede l''evento (% righe)', v_priv, v_base;
   else
-    raise exception 'TEST P5 FAIL: il participant legge i PII dell''evento dalla tabella base (% righe) — usare la view ridotta', v;
+    raise exception 'TEST P5 FAIL: cols_pii_su_base=% priv_visti_dal_fornitore=% base_visti=%', v_cols, v_priv, v_base;
+  end if;
+end$$;
+
+-- ── TEST P5b (positivo): l'OWNER legge i campi sensibili da _private ─────────
+do $$
+declare v_name text;
+begin
+  perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000002","role":"authenticated"}', true);
+  set local role authenticated;
+  select client_name into v_name from calendar_entries_private where entry_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+  reset role;
+  if v_name is not null then
+    raise notice 'TEST P5b OK (owner legge i PII cliente da _private: %)', v_name;
+  else
+    raise exception 'TEST P5b FAIL: l''owner non legge i PII cliente da _private (accesso legittimo rotto)';
   end if;
 end$$;
 

@@ -25,19 +25,20 @@ declare
   v_token uuid := 'dddddddd-0000-0000-0000-000000000001';
 begin
   insert into calendar_entries (
-    id, owner_id, title, client_name, client_email,
-    date_from, date_to, status, value_amount, notes
+    id, owner_id, title, date_from, date_to, status
   ) values (
     v_entry,
     '00000000-aaaa-0000-0000-000000000002',  -- Giulia
     'Matrimonio De Luca',
-    'Famiglia De Luca',
-    'deluca@cliente-test.it',
     '2026-09-15','2026-09-15',
-    'IN_TRATTATIVA',
-    25000,
-    'Nota privata: cliente VIP, da non condividere con fornitori.'
+    'IN_TRATTATIVA'
   ) on conflict (id) do nothing;
+  -- Campi sensibili nella tabella privata (split P5)
+  insert into calendar_entries_private (entry_id, client_name, client_email, value_amount, notes)
+  values (v_entry, 'Famiglia De Luca', 'deluca@cliente-test.it', 25000, 'Nota privata: cliente VIP, da non condividere con fornitori.')
+  on conflict (entry_id) do update set
+    client_name = excluded.client_name, client_email = excluded.client_email,
+    value_amount = excluded.value_amount, notes = excluded.notes;
 
   insert into calendar_entry_participants (entry_id, user_id, role_in_entry)
   values
@@ -149,10 +150,11 @@ begin
   perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000002","role":"authenticated"}', true);
   set local role authenticated;
   select count(*) into v_count from calendar_entries;
-  select notes into v_notes from calendar_entries where id = 'bbbbbbbb-0000-0000-0000-000000000001';
+  -- I campi sensibili ora vivono in calendar_entries_private (split P5): l'owner li vede.
+  select notes into v_notes from calendar_entries_private where entry_id = 'bbbbbbbb-0000-0000-0000-000000000001';
   reset role;
   if v_count = 1 and v_notes is not null then
-    raise notice 'TEST 5 OK (Giulia owner vede 1 entry con notes)';
+    raise notice 'TEST 5 OK (Giulia owner vede 1 entry + notes da _private)';
   else
     raise exception 'TEST 5 FAIL: count=% notes=%', v_count, coalesce(v_notes,'<null>');
   end if;

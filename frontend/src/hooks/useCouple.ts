@@ -62,11 +62,17 @@ export function useMyWeddings() {
         .from('wedding_couple_members')
         .select(`
           id, role, accepted_at,
-          entry:calendar_entries(*, owner:profiles!calendar_entries_owner_id_fkey(full_name, business_name, brand_primary_color))
+          entry:calendar_entries(*, calendar_entries_private(client_name, client_email, notes, value_amount), owner:profiles!calendar_entries_owner_id_fkey(full_name, business_name, brand_primary_color))
         `)
         .eq('user_id', me.user.id)
       if (error) throw error
-      return (data ?? []) as Array<{
+      // La coppia (cliente) vede i propri campi sensibili: ri-appiattiti dall'embed.
+      return (data ?? []).map((row: any) => {
+        if (row?.entry?.calendar_entries_private) {
+          row.entry = { ...row.entry, ...row.entry.calendar_entries_private }
+        }
+        return row
+      }) as Array<{
         id: string
         role: CoupleMember['role']
         accepted_at: string | null

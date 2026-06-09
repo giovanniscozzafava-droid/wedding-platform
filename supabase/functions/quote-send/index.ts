@@ -111,15 +111,18 @@ Deno.serve(async (req) => {
       const created = await admin.from('calendar_entries').insert({
         owner_id: q.owner_id,
         title: q.title,
-        client_name: q.client_name,
-        client_email: q.client_email,
         date_from: q.event_date,
         date_to: q.event_date,
         status: 'IN_TRATTATIVA',
-        value_amount: q.total_client,
         quote_id: body.quote_id,
       }).select('id').single()
       entryId = created.data?.id
+      // Campi sensibili (cliente + valore TOTALE) nella tabella privata (split P5).
+      if (entryId) {
+        await admin.from('calendar_entries_private').upsert({
+          entry_id: entryId, client_name: q.client_name, client_email: q.client_email, value_amount: q.total_client,
+        })
+      }
     }
     if (entryId) {
       const { data: suppliers } = await admin
