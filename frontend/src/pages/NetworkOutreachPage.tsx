@@ -19,6 +19,7 @@ type Prospect = {
   registered_profile_id: string | null; logs: Log[]
 }
 type Counts = { totale: number; da_contattare: number; richiami_oggi: number; iscritti: number }
+type Earnings = { earned_total: number; available: number; today: number; pending: number; active: number; payout_threshold: number; payout_eligible: boolean }
 
 const rpc = (fn: string, args?: Record<string, unknown>) =>
   (supabase as unknown as { rpc: (f: string, a?: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc(fn, args)
@@ -45,6 +46,7 @@ export default function NetworkOutreachPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'ALL' | 'RICHIAMI' | Status>('ALL')
   const [refCode, setRefCode] = useState<string | null>(null)
+  const [earn, setEarn] = useState<Earnings | null>(null)
   const [copied, setCopied] = useState(false)
   const [form, setForm] = useState({ name: '', subrole: '', phone: '', email: '', city: '' })
   const [adding, setAdding] = useState(false)
@@ -64,6 +66,8 @@ export default function NetworkOutreachPage() {
     void (async () => {
       const { data } = await supabase.from('profiles').select('referral_code').eq('id', user.id).single()
       setRefCode((data as { referral_code?: string } | null)?.referral_code ?? null)
+      const { data: e } = await rpc('my_recruiting_earnings')
+      if (e && !(e as { error?: string }).error) setEarn(e as Earnings)
     })()
   }, [user])
 
@@ -168,6 +172,38 @@ export default function NetworkOutreachPage() {
           onClose={() => setDeckSubrole(null)}
         />
       )}
+
+      {/* Programma recruiting: guadagni */}
+      <div className="rounded-2xl p-5 mt-4 text-[#F4EDE0]" style={{ background: 'radial-gradient(120% 120% at 90% 0%,#322b23,#141009)' }}>
+        <div className="flex flex-wrap items-center gap-5">
+          <div className="flex-1 min-w-[240px]">
+            <div className="text-xs uppercase tracking-widest font-bold" style={{ color: '#C49A5C' }}>Guadagna con noi</div>
+            <div className="font-display text-2xl mt-1">Recluta colleghi, fatti un secondo stipendio.</div>
+            <p className="text-sm mt-2" style={{ color: '#cdbfa8' }}>
+              <b className="text-white">20€</b> per ogni professionista che porti e che <b className="text-white">diventa attivo</b> — fino a <b className="text-white">100€/giorno</b>. Pagamento via bonifico al raggiungimento di <b className="text-white">200€</b>.
+            </p>
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            {[
+              ['Maturato', `${Number(earn?.available ?? 0)}€`],
+              ['Oggi', `${Number(earn?.today ?? 0)}€ / 100€`],
+              ['In attesa di attivazione', `${earn?.pending ?? 0}`],
+              ['Totale guadagnato', `${Number(earn?.earned_total ?? 0)}€`],
+            ].map(([l, v]) => (
+              <div key={l} className="rounded-xl px-4 py-3 text-center" style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', minWidth: 120 }}>
+                <div className="font-display text-2xl leading-none">{v}</div>
+                <div className="text-[11px] mt-1" style={{ color: '#b7a98f' }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.12)' }}>
+          <div style={{ height: '100%', width: `${Math.min(100, (Number(earn?.available ?? 0) / 200) * 100)}%`, background: '#C49A5C' }} />
+        </div>
+        <div className="text-[11px] mt-1.5" style={{ color: '#b7a98f' }}>
+          {earn?.payout_eligible ? '✓ Hai raggiunto i 200€: il bonifico è in arrivo.' : `Mancano ${Math.max(0, 200 - Number(earn?.available ?? 0))}€ al bonifico.`}
+        </div>
+      </div>
 
       {/* Contatori + link iscrizione */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">

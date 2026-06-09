@@ -96,10 +96,10 @@ export default function RegisterPage() {
       if (err) throw err
       // Se l'auth è già stabilito (no email confirm flow), prova subito a redimere il codice
       if (code && signupData.session) {
-        try {
-          await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-            .rpc('referral_redeem_code', { p_code: code })
-        } catch { /* il redeem può fallire silenziosamente, non blocca il signup */ }
+        const rpc = (fn: string) => (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> }).rpc(fn, { p_code: code })
+        try { await rpc('referral_redeem_code') } catch { /* capostipite %: può fallire, non blocca */ }
+        // Recruiting (tutti i professionisti): attribuisce e premia il reclutatore
+        try { await rpc('recruiting_attribute') } catch { /* non blocca il signup */ }
       } else if (code) {
         // Email confirmation pending → memorizza per dopo conferma
         try { localStorage.setItem('pending_ref_code', code) } catch { /* ignore */ }

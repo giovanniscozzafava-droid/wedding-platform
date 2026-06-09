@@ -228,7 +228,7 @@ export default function App() {
           <Route path="/embed/lead" element={<EmbedLeadPage />} />
           <Route path="/leads" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><WpLeadsPage /></RequireAuth>} />
           <Route path="/rewards" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><NetworkRewardsPage /></RequireAuth>} />
-          <Route path="/recruiting" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><NetworkOutreachPage /></RequireAuth>} />
+          <Route path="/recruiting" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><NetworkOutreachPage /></RequireAuth>} />
           <Route path="/blog" element={<BlogListPage />} />
           <Route path="/blog/admin" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogAdminPage /></RequireAuth>} />
           <Route path="/blog/nuovo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogEditorPage /></RequireAuth>} />
