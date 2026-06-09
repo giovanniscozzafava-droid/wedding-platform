@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Sparkles, Mail, ArrowRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -12,6 +13,10 @@ import { supabase } from '@/lib/supabase'
 // ============================================================================
 
 export default function ClientAccessPage() {
+  const [params] = useSearchParams()
+  // Dopo il login il cliente atterra dove serve (es. la pagina del preventivo).
+  const nextParam = params.get('next')
+  const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/area-cliente'
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
@@ -27,7 +32,7 @@ export default function ClientAccessPage() {
         options: {
           shouldCreateUser: true,
           data: { role: 'CLIENT' },
-          emailRedirectTo: `${window.location.origin}/area-cliente`,
+          emailRedirectTo: `${window.location.origin}${dest}`,
         },
       })
       if (error) throw error

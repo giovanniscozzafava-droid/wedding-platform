@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { publicQuoteByToken } from '@/hooks/useQuotes'
+import { QuoteAuthGate } from '@/components/QuoteAuthGate'
 import { eventLabel } from '@/lib/eventKind'
 
 const CONSENT_CLAUSES = [
@@ -18,6 +19,10 @@ const CONSENT_CLAUSES = [
 ]
 
 export default function QuotePreviewPage() {
+  return <QuoteAuthGate><QuotePreviewPageInner /></QuoteAuthGate>
+}
+
+function QuotePreviewPageInner() {
   const { token } = useParams<{ token: string }>()
   const [data, setData] = useState<Awaited<ReturnType<typeof publicQuoteByToken>> | null>(null)
   const [err, setErr] = useState<string | null>(null)

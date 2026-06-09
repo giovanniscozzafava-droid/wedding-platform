@@ -192,7 +192,9 @@ Deno.serve(async (req) => {
     // - Se client_email NON e' un utente registrato → invito coppia con registrazione
     //   (crea wedding_couple_members con token; dopo signup li trova nella loro dashboard)
     // - Se utente esiste → link preview pubblico standard
-    let link = `${APP_BASE}/p/preview/${accessToken}`
+    // Regola: niente cifre/accettazione fuori dalla piattaforma. Il link porta
+    // SEMPRE all'accesso cliente, poi atterra sul preventivo nella sua area.
+    let link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/p/preview/' + accessToken)}`
     let isNewCouple = false
     try {
       const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
@@ -339,20 +341,22 @@ Deno.serve(async (req) => {
         </div>
       </td></tr>
       ` : `
-      <!-- TOTALE HERO -->
-      <tr><td style="padding:36px 40px 32px 40px;text-align:center">
-        <div style="font-family:Arial,sans-serif;font-size:10px;color:#A59C8E;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:10px">Investimento totale</div>
-        <div style="font-family:Georgia,serif;font-size:42px;font-weight:700;color:${primaryColor};letter-spacing:-0.02em">${totFmt}</div>
-        <div style="font-family:Arial,sans-serif;font-size:11px;color:#A59C8E;margin-top:6px;font-style:italic">IVA inclusa salvo diversa indicazione</div>
+      <!-- UTENTE REGISTRATO: niente cifre nell'email. Si accede per vederle. -->
+      <tr><td style="padding:24px 40px 8px 40px;text-align:center">
+        <p style="font-family:Georgia,serif;font-size:15px;color:#4a5568;line-height:1.7;margin:0">
+          Il tuo preventivo${isOverride ? ' aggiornato' : ''} è pronto.<br>
+          Per riservatezza, importi e accettazione sono visibili solo nella tua area riservata.<br>
+          Accedi per vederlo nel dettaglio e accettarlo.
+        </p>
       </td></tr>
-
-      ${itemsHtml ? `
-      <!-- ITEMS PREVIEW -->
-      <tr><td style="padding:0 40px 16px 40px">
-        <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:2.5px;text-transform:uppercase;font-weight:600;margin-bottom:14px">Cosa è incluso</div>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${itemsHtml}</table>
-        ${(itemsPreview?.length ?? 0) >= 5 ? `<div style="text-align:center;padding-top:14px;font-family:Georgia,serif;font-size:12px;color:#A59C8E;font-style:italic">...e altre voci nel dettaglio</div>` : ''}
-      </td></tr>` : ''}
+      <tr><td style="padding:18px 40px 0 40px;text-align:center">
+        <div style="display:inline-block;padding:14px 22px;border-radius:10px;background:#F8F5EE;border:1px solid #E4DED2">
+          <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:6px">Cosa trovi nella tua area</div>
+          <div style="font-family:Georgia,serif;font-size:13px;color:#1A1714;line-height:1.7">
+            ${areaFeatures}
+          </div>
+        </div>
+      </td></tr>
       `}
 
       <!-- CTA -->
@@ -416,9 +420,8 @@ Deno.serve(async (req) => {
   <p style="margin:0 0 20px"><a href="${link}" style="color:#1A2E4F;font-weight:bold">Crea l'account e apri il preventivo →</a></p>
   ` : `
   <p style="margin:0 0 16px">${escapeHtml(wpName)} ti ha inviato il preventivo per <strong>${escapeHtml(q.title)}</strong>${eventDateFmt ? ` (${escapeHtml(eventDateFmt)})` : ''}.</p>
-  ${itemsText ? `<p style="margin:0 0 8px"><strong>Cosa è incluso:</strong></p><p style="margin:0 0 16px">${itemsText}</p>` : ''}
-  <p style="margin:0 0 16px"><strong>Totale: ${totFmt}</strong> (IVA inclusa salvo diversa indicazione).</p>
-  <p style="margin:0 0 20px"><a href="${link}" style="color:#1A2E4F;font-weight:bold">Apri il preventivo e accettalo →</a></p>
+  <p style="margin:0 0 16px">Per riservatezza, importi e accettazione sono visibili solo nella tua area riservata.</p>
+  <p style="margin:0 0 20px"><a href="${link}" style="color:#1A2E4F;font-weight:bold">Accedi e apri il preventivo →</a></p>
   `}
   ${isOverride && customNote ? `<p style="margin:0 0 16px">Nota di aggiornamento: ${escapeHtml(customNote)}</p>` : ''}
   <p style="margin:0 0 4px">${escapeHtml(closingPhrase)}</p>

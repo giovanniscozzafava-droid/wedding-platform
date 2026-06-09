@@ -122,8 +122,11 @@ export default function EmbedLeadPage() {
   async function submit() {
     setError('')
     if (!slug) { setError('Configurazione mancante (slug).'); return }
-    if (!form.client_name.trim()) { setError('Inserisci il tuo nome.'); return }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.client_email.trim())) { setError('Email non valida.'); return }
+    if (!form.client_name.trim()) { setError('Inserisci nome e cognome.'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.client_email.trim())) { setError('Inserisci un’email valida.'); return }
+    if (form.client_phone.trim().replace(/[^\d+]/g, '').length < 6) { setError('Inserisci un numero di telefono.'); return }
+    if (!form.event_kind) { setError('Scegli il tipo di evento.'); return }
+    if (!form.event_date) { setError('Indica la data dell’evento (anche indicativa).'); return }
     setSending(true)
     try {
       // Il form NON mostra la disponibilità: la verifichiamo in silenzio. Se la
@@ -224,6 +227,11 @@ export default function EmbedLeadPage() {
       <form
         style={ui.card}
         onSubmit={(e) => { e.preventDefault(); void submit() }}
+        onKeyDown={(e) => {
+          // Evita l'invio accidentale premendo Invio in un campo a riga singola.
+          // L'invio avviene solo col pulsante; Invio resta attivo nelle textarea.
+          if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') e.preventDefault()
+        }}
       >
         <h2 style={ui.h2}>Richiedi un preventivo{proName ? ` a ${proName}` : ''}</h2>
         <p style={ui.muted}>Raccontaci il tuo evento: ti ricontatteremo con una proposta su misura.</p>
@@ -236,17 +244,17 @@ export default function EmbedLeadPage() {
             <input style={ui.input} type="email" value={form.client_email} onChange={(e) => setForm((f) => ({ ...f, client_email: e.target.value }))} placeholder="mario@email.it" />
           </Field>
         </div>
-        <Field label="Telefono">
+        <Field label="Telefono *">
           <input style={ui.input} type="tel" value={form.client_phone} onChange={(e) => setForm((f) => ({ ...f, client_phone: e.target.value }))} placeholder="+39 ..." />
         </Field>
 
         <div style={ui.grid2}>
-          <Field label="Tipo di evento">
+          <Field label="Tipo di evento *">
             <select style={ui.input} value={form.event_kind} onChange={(e) => setForm((f) => ({ ...f, event_kind: e.target.value, styles: [], priorities: [] }))}>
               {EVENT_KINDS.map((k) => <option key={k.v} value={k.v}>{k.l}</option>)}
             </select>
           </Field>
-          <Field label="Data (anche indicativa)">
+          <Field label="Data (anche indicativa) *">
             <input style={ui.input} type="date" value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} />
           </Field>
         </div>

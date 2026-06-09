@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
+import { QuoteAuthGate } from '@/components/QuoteAuthGate'
 import { getQuestionsFor, getMoodboardSectionsForCapostipite, extractInspirationsFromAnswers } from '@/lib/eventQuestions'
 import { getQuestionsForSupplierContext, subroleLabel } from '@/lib/supplierQuestions'
 import { eventTerm } from '@/lib/eventKind'
@@ -36,6 +37,10 @@ type QuoteItem = {
 }
 
 export default function QuoteAcceptPage() {
+  return <QuoteAuthGate><QuoteAcceptPageInner /></QuoteAuthGate>
+}
+
+function QuoteAcceptPageInner() {
   const { token } = useParams<{ token: string }>()
   const [loading, setLoading] = useState(true)
   const [quote, setQuote] = useState<QuoteInfo | null>(null)

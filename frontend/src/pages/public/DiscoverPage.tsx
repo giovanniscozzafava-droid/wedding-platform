@@ -11,6 +11,7 @@ import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 type DiscoverSupplier = {
   id: string
   slug: string
+  role?: 'FORNITORE' | 'WEDDING_PLANNER' | 'LOCATION'
   full_name: string | null
   business_name: string | null
   brand_logo_url: string | null
@@ -134,7 +135,7 @@ export default function DiscoverPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i, 12) * 0.03 }}>
-              <Link to={`/p/fornitore/${s.slug}`} className="block surface surface-elev p-5 hover:surface-lift transition-all">
+              <Link to={`${s.role === 'WEDDING_PLANNER' || s.role === 'LOCATION' ? '/p/wp' : '/p/fornitore'}/${s.slug}`} className="block surface surface-elev p-5 hover:surface-lift transition-all">
                 <div className="flex items-start gap-3 mb-3">
                   {s.brand_logo_url ? (
                     <img src={s.brand_logo_url} alt="" className="w-12 h-12 rounded-full object-cover" />

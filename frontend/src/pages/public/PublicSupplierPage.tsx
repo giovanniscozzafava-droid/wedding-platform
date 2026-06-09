@@ -66,10 +66,16 @@ export default function PublicSupplierPage() {
     if (!slug) return
     void (async () => {
       try {
-        const { data, error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
-          .rpc('get_supplier_public_profile', { p_slug: slug })
+        const rpc = (fn: string) => (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> }).rpc(fn, { p_slug: slug })
+        const { data, error } = await rpc('get_supplier_public_profile')
         if (error) throw error
-        if (!data) { setErr('Fornitore non trovato'); return }
+        if (!data) {
+          // Potrebbe essere un capostipite (WP/Location) — anche con servizi compare
+          // in Scopri: la sua "casa" è /p/wp/:slug. Reindirizza invece di dare 404.
+          const { data: wp } = await rpc('get_wp_public_profile')
+          if (wp) { nav(`/p/wp/${slug}`, { replace: true }); return }
+          setErr('Profilo non trovato'); return
+        }
         setData(data as PublicProfile)
       } catch (e) {
         setErr((e as Error).message)
