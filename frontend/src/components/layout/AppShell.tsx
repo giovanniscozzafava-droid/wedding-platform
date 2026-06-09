@@ -174,6 +174,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           const match = tos.filter((t) => n.link!.startsWith(t)).sort((a, b) => b.length - a.length)[0]
           if (match) dots.add(match)
         }
+        // Promemoria recruiting: richiami scaduti → pallino su /recruiting
+        try {
+          const { data: due } = await (supabase.rpc as unknown as (f: string) => Promise<{ data: unknown }>)('network_recall_due_count')
+          if (typeof due === 'number' && due > 0) dots.add('/recruiting')
+        } catch { /* non bloccante */ }
         if (alive) setUnreadDots(dots)
       } catch { /* non bloccante */ }
     }
