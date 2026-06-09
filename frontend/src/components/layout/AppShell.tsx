@@ -122,6 +122,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Crescita', items: [
     { to: '/feed', label: 'Feed', icon: Newspaper },
+    { to: '/blog/admin', label: 'Blog', icon: PenSquare },
     { to: '/scopri', label: 'Scopri fornitori', icon: Sparkles },
     { to: '/recruiting', label: 'Recruiting', icon: PhoneCall },
     { to: '/crediti', label: 'Crediti rete', icon: Coins },

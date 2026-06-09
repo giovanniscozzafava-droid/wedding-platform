@@ -230,9 +230,9 @@ export default function App() {
           <Route path="/rewards" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><NetworkRewardsPage /></RequireAuth>} />
           <Route path="/recruiting" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><NetworkOutreachPage /></RequireAuth>} />
           <Route path="/blog" element={<BlogListPage />} />
-          <Route path="/blog/admin" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogAdminPage /></RequireAuth>} />
-          <Route path="/blog/nuovo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogEditorPage /></RequireAuth>} />
-          <Route path="/blog/modifica/:id" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','ADMIN']}><BlogEditorPage /></RequireAuth>} />
+          <Route path="/blog/admin" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><BlogAdminPage /></RequireAuth>} />
+          <Route path="/blog/nuovo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><BlogEditorPage /></RequireAuth>} />
+          <Route path="/blog/modifica/:id" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><BlogEditorPage /></RequireAuth>} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
           {/* Disponibilità accorpata nel Calendario (gestione appuntamenti/blocchi). */}

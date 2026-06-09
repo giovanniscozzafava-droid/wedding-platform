@@ -47,7 +47,42 @@ const EMPTY: PostState = {
 
 export default function BlogEditorPage() {
   const { id } = useParams<{ id?: string }>()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const [aiInput, setAiInput] = useState('')
+  const [generating, setGenerating] = useState(false)
+
+  async function generateFromAI() {
+    const txt = aiInput.trim()
+    if (!txt) { toast.error('Incolla la caption del post (o un link/tema)'); return }
+    const isUrl = /^https?:\/\//i.test(txt)
+    setGenerating(true)
+    try {
+      const invoke = (supabase as unknown as { functions: { invoke: (n: string, o: { body: unknown }) => Promise<{ data: unknown; error: Error | null }> } }).functions.invoke
+      const { data, error } = await invoke('blog-generate', {
+        body: {
+          [isUrl ? 'post_url' : 'caption']: txt,
+          author_name: profile?.business_name || profile?.full_name || null,
+          subrole: profile?.subrole || null,
+        },
+      })
+      if (error) throw error
+      const r = data as { ok?: boolean; error?: string; hint?: string; draft?: Record<string, unknown> }
+      if (r.error) throw new Error(r.hint || (r.error === 'no_ai_key' ? 'AI non configurata (manca la chiave).' : r.error))
+      const d = r.draft ?? {}
+      setPost((p) => ({
+        ...p,
+        title: (d.title as string) ?? p.title,
+        slug: p.id ? p.slug : autoSlug((d.title as string) ?? p.title),
+        excerpt: (d.excerpt as string) ?? p.excerpt,
+        body_html: (d.body_html as string) ?? p.body_html,
+        tags: Array.isArray(d.tags) ? (d.tags as string[]).join(', ') : p.tags,
+        seo_title: (d.seo_title as string) ?? p.seo_title,
+        seo_description: (d.seo_description as string) ?? p.seo_description,
+      }))
+      toast.success('Bozza generata — rivedila e pubblica')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setGenerating(false) }
+  }
   const nav = useNavigate()
   const [post, setPost] = useState<PostState>(EMPTY)
   const [cats, setCats] = useState<Category[]>([])
@@ -216,6 +251,22 @@ export default function BlogEditorPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Editor principale */}
           <div className="lg:col-span-2 space-y-4">
+            {/* Genera con AI da Instagram / caption */}
+            <div className="rounded-2xl p-5 text-[#F4EDE0]" style={{ background: 'radial-gradient(120% 120% at 90% 0%,#322b23,#141009)' }}>
+              <div className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: '#C49A5C' }}>Genera con l’AI</div>
+              <p className="text-sm mb-3" style={{ color: '#cdbfa8' }}>
+                Incolla la <b className="text-white">caption</b> di un tuo post Instagram (o il <b className="text-white">link</b> del post, o un tema): l’AI scrive una bozza d’articolo pronta da rivedere.
+              </p>
+              <Textarea rows={3} value={aiInput} onChange={(e) => setAiInput(e.target.value)}
+                placeholder="Es. incolla qui la caption del carosello… oppure https://www.instagram.com/p/..."
+                style={{ background: 'rgba(255,255,255,.06)', color: '#fff', borderColor: 'rgba(255,255,255,.18)' }} />
+              <div className="flex justify-end mt-3">
+                <Button variant="gold" onClick={() => void generateFromAI()} disabled={generating}>
+                  {generating ? 'Genero…' : '✨ Genera bozza'}
+                </Button>
+              </div>
+            </div>
+
             <div className="surface p-5 space-y-3">
               <div>
                 <Label htmlFor="title">Titolo</Label>
