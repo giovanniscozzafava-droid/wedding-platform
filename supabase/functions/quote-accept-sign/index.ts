@@ -168,8 +168,10 @@ Deno.serve(async (req) => {
     contentType: 'image/png', upsert: false,
   })
   if (upSig.error) return json({ error: 'upload firma fallito', detail: upSig.error.message }, 500)
-  const { data: sigSigned } = await admin.storage.from('quote-signatures').createSignedUrl(sigKey, 60 * 60 * 24 * 365 * 10)
-  const signatureUrl = sigSigned?.signedUrl ?? sigKey
+  // Sicurezza: NON persistiamo un signed URL di lunga durata. Salviamo la KEY
+  // di storage (bucket privato); l'eventuale URL di lettura si genera on-demand
+  // ed effimero. Il PDF dell'atto incorpora la firma dai bytes, non dall'URL.
+  const signatureUrl = sigKey
 
   // 4. IP + User-Agent
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('cf-connecting-ip') ?? null
@@ -436,7 +438,9 @@ async function generateAcceptancePdf(
       contentType: 'application/pdf', upsert: false,
     })
     if (up.error) return null
-    const { data: signed } = await admin.storage.from('quote-signatures').createSignedUrl(key, 60 * 60 * 24 * 365 * 10)
+    // URL di LETTURA effimero (15 min). Il PDF resta nel bucket privato; per
+    // riaprirlo in seguito va rigenerato un link on-demand (vedi NOTTE-REPORT).
+    const { data: signed } = await admin.storage.from('quote-signatures').createSignedUrl(key, 60 * 15)
     return signed?.signedUrl ?? null
   } catch { return null }
 }

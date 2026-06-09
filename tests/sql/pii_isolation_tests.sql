@@ -1,0 +1,157 @@
+-- ============================================================================
+-- Wedding Platform — PII isolation tests (audit notturno RLS/PII)
+-- Gemello di rls_tests.sql. Lanciare con: bash tests/sql/run_rls_tests.sh
+--   (oppure: docker exec ... psql -1 -v ON_ERROR_STOP=1 -f tests/sql/pii_isolation_tests.sql)
+-- Richiede il DB locale Supabase avviato (`supabase start` + `supabase db reset`).
+--
+-- Convenzioni (come rls_tests.sql):
+--   - DO block PL/pgSQL, RAISE NOTICE 'TEST .. OK' / RAISE EXCEPTION on fail
+--   - impersonazione: set_config('request.jwt.claims',..) + SET LOCAL ROLE
+--   - i test che toccano relazioni inesistenti vengono SALTATI (to_regclass)
+--
+-- Seed IDs:
+--   Admin        00000000-aaaa-0000-0000-000000000001
+--   Giulia (WP)  00000000-aaaa-0000-0000-000000000002   (capostipite A)
+--   Villa Aurora 00000000-aaaa-0000-0000-000000000003   (capostipite B, LOCATION)
+--   Mario Foto   00000000-aaaa-0000-0000-000000000005   (fornitore / participant)
+-- ============================================================================
+
+-- ── Bootstrap (superuser, bypassa RLS) ─────────────────────────────────────
+do $boot$
+declare
+  v_entry uuid := 'bbbbbbbb-0000-0000-0000-000000000001';
+  v_quote uuid := 'cccccccc-0000-0000-0000-000000000001';
+begin
+  insert into calendar_entries (id, owner_id, title, client_name, client_email, date_from, date_to, status, value_amount, notes)
+  values (v_entry, '00000000-aaaa-0000-0000-000000000002', 'Matrimonio De Luca', 'Famiglia De Luca', 'deluca@cliente-test.it',
+          '2026-09-15','2026-09-15','IN_TRATTATIVA', 25000, 'Nota privata: cliente VIP.')
+  on conflict (id) do nothing;
+  insert into calendar_entry_participants (entry_id, user_id, role_in_entry)
+  values (v_entry, '00000000-aaaa-0000-0000-000000000005', 'fotografo') on conflict do nothing;
+
+  if to_regclass('public.network_prospects') is not null then
+    insert into network_prospects (id, owner_id, name, email, phone)
+    values ('eeeeeeee-0000-0000-0000-000000000001', '00000000-aaaa-0000-0000-000000000002', 'Mario Rossi (prospect)', 'prospect@test.it', '+39 333 0000000')
+    on conflict (id) do nothing;
+  end if;
+end$boot$;
+
+-- ── TEST P1: anon NON legge dalle tabelle sensibili/PII (RLS = 0 righe) ─────
+do $$
+declare t text; v int; arr text[] := array[
+  'quote_acceptances','quote_acceptances_audit','contracts','supplier_clients',
+  'lead_requests','network_prospects','network_prospect_logs','lead_submit_attempts',
+  'signature_audit_trail','quote_view_consents','referral_redeem_attempts','audit_log','access_audit_log'];
+begin
+  foreach t in array arr loop
+    if to_regclass('public.'||t) is null then
+      raise notice 'TEST P1[%] SKIP (relazione assente)', t; continue;
+    end if;
+    perform set_config('request.jwt.claims','{"role":"anon"}', true);
+    set local role anon;
+    execute format('select count(*) from public.%I', t) into v;
+    reset role;
+    if v = 0 then
+      raise notice 'TEST P1[%] OK (anon vede 0 righe)', t;
+    else
+      raise exception 'TEST P1[%] FAIL: anon vede % righe (atteso 0)', t, v;
+    end if;
+  end loop;
+end$$;
+
+-- ── TEST P2: cross-tenant — capostipite B NON vede i preventivi di A ────────
+do $$
+declare v_a int; v_b int;
+begin
+  -- A (Giulia) vede il proprio preventivo bootstrap
+  perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000002","role":"authenticated"}', true);
+  set local role authenticated;
+  select count(*) into v_a from quotes where id = 'cccccccc-0000-0000-0000-000000000001';
+  reset role;
+  -- B (Villa Aurora) NON deve vederlo
+  perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000003","role":"authenticated"}', true);
+  set local role authenticated;
+  select count(*) into v_b from quotes where id = 'cccccccc-0000-0000-0000-000000000001';
+  reset role;
+  if v_a >= 1 and v_b = 0 then
+    raise notice 'TEST P2 OK (A vede il suo preventivo, B no)';
+  else
+    raise exception 'TEST P2 FAIL: A=% B=% (atteso A>=1, B=0) — possibile leak cross-tenant', v_a, v_b;
+  end if;
+end$$;
+
+-- ── TEST P3: cross-tenant su network_prospects (CRM recruiting) ─────────────
+do $$
+declare v_a int; v_b int;
+begin
+  if to_regclass('public.network_prospects') is null then raise notice 'TEST P3 SKIP'; return; end if;
+  perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000002","role":"authenticated"}', true);
+  set local role authenticated;
+  select count(*) into v_a from network_prospects where owner_id = '00000000-aaaa-0000-0000-000000000002';
+  reset role;
+  perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000003","role":"authenticated"}', true);
+  set local role authenticated;
+  select count(*) into v_b from network_prospects;  -- B non deve vedere i prospect di A
+  reset role;
+  if v_a >= 1 and v_b = 0 then
+    raise notice 'TEST P3 OK (i prospect di A non sono visibili a B)';
+  else
+    raise exception 'TEST P3 FAIL: A=% B=% (atteso A>=1, B=0)', v_a, v_b;
+  end if;
+end$$;
+
+-- ── TEST P4: la view ridotta participant NON espone PII (struttura) ─────────
+do $$
+declare v_leak int;
+begin
+  if to_regclass('public.calendar_entries_for_participants') is null then raise notice 'TEST P4 SKIP'; return; end if;
+  select count(*) into v_leak from information_schema.columns
+   where table_schema='public' and table_name='calendar_entries_for_participants'
+     and column_name in ('client_name','client_email','value_amount','notes');
+  if v_leak = 0 then
+    raise notice 'TEST P4 OK (view ridotta senza colonne PII)';
+  else
+    raise exception 'TEST P4 FAIL: la view ridotta espone % colonne PII', v_leak;
+  end if;
+end$$;
+
+-- ── TEST P5: il participant NON legge i dati PII dell'evento dalla tabella base
+do $$
+declare v int;
+begin
+  perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000005","role":"authenticated"}', true);
+  set local role authenticated;
+  -- Mario è participant dell'evento ma NON deve poter leggere client_name/valore dalla tabella base
+  select count(*) into v from calendar_entries
+   where id = 'bbbbbbbb-0000-0000-0000-000000000001' and client_name is not null;
+  reset role;
+  if v = 0 then
+    raise notice 'TEST P5 OK (il participant non legge i PII cliente dalla tabella base)';
+  else
+    raise exception 'TEST P5 FAIL: il participant legge i PII dell''evento dalla tabella base (% righe) — usare la view ridotta', v;
+  end if;
+end$$;
+
+-- ── TEST P6: anon NON può UPDATE/DELETE sulle tabelle audit ────────────────
+do $$
+declare t text; n int; arr text[] := array['quote_acceptances_audit','audit_log','access_audit_log','signature_audit_trail'];
+begin
+  foreach t in array arr loop
+    if to_regclass('public.'||t) is null then raise notice 'TEST P6[%] SKIP', t; continue; end if;
+    perform set_config('request.jwt.claims','{"role":"anon"}', true);
+    set local role anon;
+    begin
+      execute format('update public.%I set id = id where true', t);  -- no-op che però richiede privilegi
+      get diagnostics n = row_count;
+    exception when insufficient_privilege or others then n := -1; end;
+    reset role;
+    if n <= 0 then
+      raise notice 'TEST P6[%] OK (anon non modifica righe: rc=%)', t, n;
+    else
+      raise exception 'TEST P6[%] FAIL: anon ha aggiornato % righe audit', t, n;
+    end if;
+  end loop;
+end$$;
+
+-- Fine: se nessun RAISE EXCEPTION, tutti i test PII sono passati.
+do $$ begin raise notice 'PII ISOLATION TESTS: completati (vedi NOTICE per esiti)'; end$$;

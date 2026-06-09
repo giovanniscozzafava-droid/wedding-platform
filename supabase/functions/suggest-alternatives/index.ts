@@ -26,6 +26,21 @@ Deno.serve(async (req) => {
   if (!slug || !date || !client_email) return json({ error: 'missing_params' }, 400)
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+
+  // Rate-limit anti-abuso (IP + email) su finestra di 1 ora.
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('cf-connecting-ip') ?? null
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const IP_MAX = 8, EMAIL_MAX = 4
+  try {
+    if (ip) {
+      const { count } = await admin.from('suggest_attempts').select('*', { count: 'exact', head: true }).gte('attempted_at', since).eq('ip_address', ip)
+      if ((count ?? 0) >= IP_MAX) return json({ error: 'rate_limited' }, 429)
+    }
+    const { count: ec } = await admin.from('suggest_attempts').select('*', { count: 'exact', head: true }).gte('attempted_at', since).ilike('email', client_email)
+    if ((ec ?? 0) >= EMAIL_MAX) return json({ error: 'rate_limited' }, 429)
+    await admin.from('suggest_attempts').insert({ ip_address: ip, email: client_email })
+  } catch { /* se la tabella non esiste ancora, non bloccare il flusso */ }
+
   const { data, error } = await admin.rpc('suggest_alternatives_full', { p_slug: slug, p_date: date })
   if (error) return json({ error: error.message }, 500)
   const r = data as { found?: boolean; busy_name?: string; message?: string | null; alternatives?: Alt[] }

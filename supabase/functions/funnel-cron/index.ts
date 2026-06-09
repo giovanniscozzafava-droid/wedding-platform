@@ -80,7 +80,12 @@ function followupCopy(step: number, opened: boolean) {
 }
 
 Deno.serve(async (req) => {
-  if (CRON_SECRET && req.headers.get('x-cron-secret') !== CRON_SECRET) {
+  // Fail-closed: senza CRON_SECRET configurato la funzione NON deve girare;
+  // e l'header deve combaciare. (Prima, se il secret mancava, il gate veniva saltato.)
+  if (!CRON_SECRET) {
+    return new Response('cron secret not configured', { status: 401 })
+  }
+  if (req.headers.get('x-cron-secret') !== CRON_SECRET) {
     return new Response('unauthorized', { status: 401 })
   }
   const now = Date.now()
