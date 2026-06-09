@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Phone, MessageCircle, Mail, CalendarClock, UserPlus, Plus, Trash2, Copy, Check, PhoneCall, Clock } from 'lucide-react'
+import { Phone, MessageCircle, Mail, CalendarClock, UserPlus, Plus, Trash2, Copy, Check, PhoneCall, Clock, Presentation } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { RecruitingDeck } from '@/components/recruiting/RecruitingDeck'
 
 type Status = 'DA_CONTATTARE' | 'CONTATTATO' | 'RICHIAMARE' | 'APPUNTAMENTO' | 'ISCRITTO' | 'NON_INTERESSATO'
 type Log = { id: string; kind: string; note: string | null; created_at: string }
@@ -35,7 +36,8 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleString('it-IT', { 
 const onlyDigits = (s: string | null) => (s ?? '').replace(/[^\d+]/g, '')
 
 export default function NetworkOutreachPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const [showDeck, setShowDeck] = useState(false)
   const [list, setList] = useState<Prospect[]>([])
   const [counts, setCounts] = useState<Counts | null>(null)
   const [loading, setLoading] = useState(true)
@@ -135,7 +137,17 @@ export default function NetworkOutreachPage() {
         eyebrow="Rete"
         title="Recruiting"
         description="La tua agenda per chiamare, contattare e far iscrivere i professionisti nella tua rete."
+        actions={<Button variant="gold" onClick={() => setShowDeck(true)}><Presentation size={15} /> Presenta</Button>}
       />
+
+      {showDeck && (
+        <RecruitingDeck
+          studio={profile?.business_name || profile?.full_name || 'la mia rete'}
+          inviteCode={refCode}
+          inviteUrl={inviteUrl}
+          onClose={() => setShowDeck(false)}
+        />
+      )}
 
       {/* Contatori + link iscrizione */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
