@@ -705,3 +705,29 @@ Hanno RLS abilitata e policy (vedi *Dettaglio policy*); le predicate sembrano le
 `access_audit_log`, `admin_audit`, `audit_log`, `contracts_legacy_audit`, `quote_acceptances_audit`, `signature_audit_trail`, `lead_submit_attempts`: **RLS abilitata, nessun GRANT ad anon/authenticated, policy assenti o solo service-role** → di fatto **deny-all** alle sessioni client. Coerente con `audit_tables_lockdown` (1 giugno).
 
 > **Metodo:** mappa derivata da parsing statico delle migrazioni (`docs`-only, nessuna connessione al DB di produzione). Per la conferma definitiva: avviare il DB locale (`supabase start` + `db reset`) e interrogare `pg_policies`, `information_schema.role_table_grants`, `pg_views`.
+
+---
+
+## ESITI DINAMICI LIVE (notte 2 — DB locale avviato, `pg_policies` reale)
+
+> Stavolta il DB locale è partito (`supabase start` + `db reset`). Test eseguiti contro Postgres reale. Sostituiscono i `DA-VERIFICARE` per i punti coperti.
+
+### 🔴 BUCO #1 — `calendar_entries` espone PII cliente ai fornitori *(APERTO — decisione Giovanni)*
+- **Prova:** `tests/sql/pii_isolation_tests.sql` › **P5 ROSSO**: un *participant/fornitore* legge `client_name`/`notes`/`value_amount` dalla **tabella base** `calendar_entries`.
+- **Causa (live `pg_policies`):** le policy SELECT `calentry_select_participant` (`is_entry_participant(id)`) e `ce_select_collab_supplier` (`is_collab_supplier_of_entry(id)`) ritornano la **riga intera**. La vista ridotta `calendar_entries_for_participants` (security_invoker) esiste apposta, ma la tabella base resta leggibile.
+- **Perché NON l'ho chiuso:** rimuovere quelle policy toglie accesso **legittimo** (i fornitori leggono `calendar_entries` per **calendario** e **guadagni** — `useSupplierEarnings`, `useCalendar`). RLS è per-riga, non per-colonna: non si nasconde `client_name` tenendo data/valore. → **Serve la tua decisione** (quali colonne può vedere un fornitore / separare le colonne PII in una tabella `*_private` owner-only / instradare i fornitori solo sulla vista ridotta). Vedi `NOTTE-REPORT.md`.
+
+### 🟢 BUCO #2 — `v_salute_evento` leggibile da anon cross-tenant *(CHIUSO e provato)*
+- **Prova rosso→verde:** `tests/sql/views_isolation_tests.sql` › V1. Prima: anon leggeva **1 riga** per-evento (la vista era `security_invoker` **off** → girava come owner, bypassando la RLS). Dopo: anon **negato**, owner vede i propri (V2), aggregato pubblico intatto (V3).
+- **Fix:** `supabase/migrations/20260609020000_fix_view_salute_evento_invoker.sql` → `alter view ... set (security_invoker = on)` + `revoke select ... from anon`.
+
+### 🟢 Viste — verdetto live
+- `v_salute_evento` → **corretto** a `security_invoker=on`.
+- `v_riconciliazione_evento`, `calendar_entries_for_participants` → già `security_invoker=on`.
+- `user_rating_summary` → **aggregato pubblico voluto** (`avg(stars), count(*) group by rated_id`): nessuna colonna identificativa/cross-tenant. **OK.**
+
+### 🟢 Isolamento confermato live
+- **anon negato** (0 righe o *permission denied*) su tutte le 13 tabelle PII/audit testate (P1 ✅).
+- **cross-tenant** OK: capostipite B non vede preventivi né prospect di A (P2/P3 ✅).
+- **participant** via vista ridotta senza PII (P4 ✅); anon non modifica gli audit (P6 ✅).
+- **regression**: gli 8 test `rls_tests.sql` esistenti restano verdi.

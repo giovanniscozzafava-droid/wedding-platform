@@ -39,7 +39,8 @@ select '1d0177ba-bfd9-4e2e-a997-7201f9273d55'::uuid,
        $st$Fotografo matrimonio Calabria: reportage d'istinto | Gisko$st$,
        $sd$Reportage di matrimonio in Calabria: niente pose, solo attimi veri. Lo stile narrativo di Gisko, fotografo a Catanzaro.$sd$,
        4, now()
-where not exists (select 1 from blog_posts where slug = 'reportage-matrimonio-calabria-gisko');
+where not exists (select 1 from blog_posts where slug = 'reportage-matrimonio-calabria-gisko')
+  and exists (select 1 from profiles where id = '1d0177ba-bfd9-4e2e-a997-7201f9273d55'::uuid);
 
 -- 2) DaisyLab_21 — coordinati grafici fatti a mano
 insert into blog_posts (author_id, category_id, slug, title, excerpt, body_html, tags, status, seo_title, seo_description, reading_minutes, published_at)
@@ -70,4 +71,5 @@ select '1d5b5670-1e36-43a5-9219-d680f01ad889'::uuid,
        $st$Coordinato grafico matrimonio fatto a mano | DaisyLab_21$st$,
        $sd$Partecipazioni, tableau e menu di matrimonio fatti a mano: il coordinato grafico su misura di DaisyLab_21 in Calabria.$sd$,
        4, now()
-where not exists (select 1 from blog_posts where slug = 'coordinato-grafico-matrimonio-fatto-a-mano-daisylab');
+where not exists (select 1 from blog_posts where slug = 'coordinato-grafico-matrimonio-fatto-a-mano-daisylab')
+  and exists (select 1 from profiles where id = '1d5b5670-1e36-43a5-9219-d680f01ad889'::uuid);

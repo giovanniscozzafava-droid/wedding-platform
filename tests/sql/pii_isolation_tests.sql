@@ -29,6 +29,12 @@ begin
   insert into calendar_entry_participants (entry_id, user_id, role_in_entry)
   values (v_entry, '00000000-aaaa-0000-0000-000000000005', 'fotografo') on conflict do nothing;
 
+  -- Preventivo di Giulia (per il cross-tenant P2)
+  insert into quotes (id, owner_id, title, client_name, client_email, event_date, status, access_token)
+  values (v_quote, '00000000-aaaa-0000-0000-000000000002', 'Preventivo De Luca v1', 'Famiglia De Luca',
+          'deluca@cliente-test.it', '2026-09-15', 'INVIATO', 'dddddddd-0000-0000-0000-000000000001')
+  on conflict (id) do nothing;
+
   if to_regclass('public.network_prospects') is not null then
     insert into network_prospects (id, owner_id, name, email, phone)
     values ('eeeeeeee-0000-0000-0000-000000000001', '00000000-aaaa-0000-0000-000000000002', 'Mario Rossi (prospect)', 'prospect@test.it', '+39 333 0000000')
@@ -49,12 +55,15 @@ begin
     end if;
     perform set_config('request.jwt.claims','{"role":"anon"}', true);
     set local role anon;
-    execute format('select count(*) from public.%I', t) into v;
+    begin
+      execute format('select count(*) from public.%I', t) into v;
+    exception when insufficient_privilege then v := -1;  -- privilege negato = ancora più sicuro
+    end;
     reset role;
-    if v = 0 then
-      raise notice 'TEST P1[%] OK (anon vede 0 righe)', t;
+    if v <= 0 then
+      raise notice 'TEST P1[%] OK (anon: % righe / privilege negato)', t, v;
     else
-      raise exception 'TEST P1[%] FAIL: anon vede % righe (atteso 0)', t, v;
+      raise exception 'TEST P1[%] FAIL: anon vede % righe (atteso 0 o permission denied)', t, v;
     end if;
   end loop;
 end$$;
@@ -116,6 +125,12 @@ begin
 end$$;
 
 -- ── TEST P5: il participant NON legge i dati PII dell'evento dalla tabella base
+--   ⚠️ BUCO CONFERMATO / APERTO (vedi NOTTE-REPORT, punto 1): le policy
+--   `calentry_select_participant` e `ce_select_collab_supplier` espongono la
+--   riga INTERA (client_name/notes/value) ai fornitori. Il fix corretto toglie
+--   colonne PII mantenendo l'accesso legittimo (calendario/guadagni) → richiede
+--   una decisione di Giovanni (quali colonne può vedere un fornitore / split PII).
+--   Questo test resta ROSSO finché la decisione non è presa.
 do $$
 declare v int;
 begin
