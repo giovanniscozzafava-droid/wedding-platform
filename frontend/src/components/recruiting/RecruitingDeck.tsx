@@ -300,22 +300,22 @@ function NetworkSchema() {
   )
 }
 
-// ── proiezione demografica ISTAT ──
+// ── proiezione matrimoni 2025→2027 (trend ISTAT) + eventi in crescita ──
 function DemoChart() {
-  const data = [{ y: '2023', v: 59.0 }, { y: '2050', v: 54.7 }, { y: '2070', v: 47.6 }]
-  const max = 62
+  const data = [{ y: '2025', v: 175 }, { y: '2026', v: 170 }, { y: '2027', v: 166 }]
+  const max = 195
   return (
-    <div style={{ marginTop: 22, display: 'flex', gap: 28, alignItems: 'flex-end', height: 210 }}>
-      {data.map((d, k) => (
-        <div key={d.y} style={{ textAlign: 'center', flex: '0 0 94px' }}>
-          <div style={{ fontFamily: 'Georgia,serif', fontSize: 19, marginBottom: 8, color: k === 0 ? '#1A1714' : '#B05A5A' }}>{d.v.toFixed(1)}M</div>
-          <div style={{ height: (d.v / max) * 170, background: k === 0 ? 'linear-gradient(180deg,#D9C8A6,#C49A5C)' : 'linear-gradient(180deg,#C77,#B05A5A)', borderRadius: '8px 8px 0 0' }} />
-          <div style={{ fontSize: 14, color: '#7a7468', marginTop: 8 }}>{d.y}</div>
+    <div style={{ marginTop: 20, display: 'flex', gap: 26, alignItems: 'flex-end', height: 195 }}>
+      {data.map((d) => (
+        <div key={d.y} style={{ textAlign: 'center', flex: '0 0 88px' }}>
+          <div style={{ fontFamily: 'Georgia,serif', fontSize: 19, marginBottom: 8, color: '#B05A5A' }}>{d.v}k</div>
+          <div style={{ height: (d.v / max) * 155, background: 'linear-gradient(180deg,#C77,#B05A5A)', borderRadius: '8px 8px 0 0' }} />
+          <div style={{ fontSize: 13.5, color: '#7a7468', marginTop: 7 }}>{d.y}<span style={{ fontSize: 10, display: 'block', color: '#a89e8c' }}>proiezione</span></div>
         </div>
       ))}
-      <div style={{ alignSelf: 'center', marginLeft: 8 }}>
-        <div style={{ fontFamily: 'Georgia,serif', fontSize: 42, color: '#B05A5A', lineHeight: 1 }}>−11 milioni</div>
-        <div style={{ fontSize: 14, color: '#7a7468', marginTop: 6, maxWidth: '24ch' }}>di residenti entro il 2070. I giovani in età da matrimonio calano ancora più in fretta.</div>
+      <div style={{ alignSelf: 'center', marginLeft: 14, borderLeft: '1px solid #E7E1D5', paddingLeft: 22 }}>
+        <div style={{ fontFamily: 'Georgia,serif', fontSize: 34, color: '#3F7A56', lineHeight: 1 }}>▲ Eventi</div>
+        <div style={{ fontSize: 14, color: '#7a7468', marginTop: 8, maxWidth: '24ch' }}>Battesimi, lauree, 18°, aziendali: <b style={{ color: '#1A1714' }}>in crescita</b>. Il lavoro si sposta lì — e tu ci sei.</div>
       </div>
     </div>
   )
@@ -363,14 +363,14 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
     // 2 — demografia (perché)
     { tag, content: (<>
       <p style={kicker()}>Prima il perché</p>
-      <h2 style={h2}>I matrimoni crollano. Ed è strutturale.</h2>
+      <h2 style={h2}>I matrimoni calano. Gli eventi salgono.</h2>
       <DemoChart />
-      <div style={{ display: 'flex', gap: 28, marginTop: 16, flexWrap: 'wrap' }}>
-        {[['184.207', 'matrimoni nel 2023'], ['−2,6%', 'in un solo anno'], ['−4,3%', 'i primi matrimoni'], ['−8,2%', 'quelli religiosi']].map(([n, l]) => (
+      <div style={{ display: 'flex', gap: 28, marginTop: 14, flexWrap: 'wrap' }}>
+        {[['~170.000', 'matrimoni nel 2026 (proiez.)'], ['~166.000', 'nel 2027 (proiez.)'], ['−2,5%', 'all’anno, di media']].map(([n, l]) => (
           <span key={l} style={{ fontSize: 13.5, color: '#7a7468' }}><b style={{ color: '#B05A5A', fontFamily: 'Georgia,serif', fontSize: 19, marginRight: 6 }}>{n}</b>{l}</span>
         ))}
       </div>
-      <p style={{ fontSize: 11.5, color: '#7a7468', marginTop: 12 }}>ISTAT — Matrimoni 2023 e Previsioni popolazione (base 2024): 59,0M → 54,7M (2050) → 47,6M (2070); over-65 dal 24% al 35%.</p>
+      <p style={{ fontSize: 11.5, color: '#7a7468', marginTop: 11 }}>Proiezione su trend ISTAT (matrimoni: 189.140 nel 2022 → 184.207 nel 2023, −2,6%). Mentre i matrimoni scendono, gli altri eventi crescono.</p>
     </>) },
     // 3 — tutti gli eventi (la buona notizia)
     { tag, content: (<>
@@ -547,8 +547,26 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
       </div>
       <span style={pill()}>Più la rete cresce, più lavoro gira — anche per te.</span>
     </>) },
+    // — proteggiamo il tuo business (rendite passive e automatiche)
+    { dark: true, tag, content: (<>
+      <p style={kicker(true)}>La promessa</p>
+      <h2 style={h2}>Mentre il mercato si stringe, tu costruisci entrate che arrivano da sole.</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginTop: 28 }}>
+        {[
+          ['In pancia ai capostipiti', 'Il lavoro ti arriva in automatico: sono loro a portartelo.'],
+          ['Crediti tra colleghi', 'Le segnalazioni ti rendono — un pegno per ogni evento passato.'],
+          ['Noleggio', 'Incassi anche nei giorni senza eventi: reddito passivo.'],
+        ].map(([t, d]) => (
+          <div key={t} style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 14, padding: '20px 18px' }}>
+            <div style={{ ...serif, fontSize: 19, color: '#EAD9B6' }}>{t}</div>
+            <div style={{ fontSize: 14.5, color: '#cdbfa8', marginTop: 8, lineHeight: 1.45 }}>{d}</div>
+          </div>
+        ))}
+      </div>
+      <span style={pill(true)}>È la logica dei capostipiti: la rete protegge il tuo business con rendite passive e automatiche.</span>
+    </>) },
     // 10 — gratis
-    { dark: true, center: true, tag, content: (<>
+    { dark: true, center: true, tag, bg: photos[3] || undefined, content: (<>
       <p style={kicker(true)}>L’offerta</p>
       <h1 style={h1}>Gratis fino a dicembre 2026.</h1>
       <p style={sub(true)}>Provi tutto senza spendere. Chi entra adesso è <b style={{ color: '#fff' }}>founding member</b>: condizioni migliori, per sempre.</p>
