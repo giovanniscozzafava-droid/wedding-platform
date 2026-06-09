@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { RecruitingDeck } from '@/components/recruiting/RecruitingDeck'
+import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 type Status = 'DA_CONTATTARE' | 'CONTATTATO' | 'RICHIAMARE' | 'APPUNTAMENTO' | 'ISCRITTO' | 'NON_INTERESSATO'
 type Log = { id: string; kind: string; note: string | null; created_at: string }
@@ -36,8 +37,9 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleString('it-IT', { 
 const onlyDigits = (s: string | null) => (s ?? '').replace(/[^\d+]/g, '')
 
 export default function NetworkOutreachPage() {
-  const { user, profile } = useAuth()
-  const [showDeck, setShowDeck] = useState(false)
+  const { user } = useAuth()
+  const [deckSubrole, setDeckSubrole] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [list, setList] = useState<Prospect[]>([])
   const [counts, setCounts] = useState<Counts | null>(null)
   const [loading, setLoading] = useState(true)
@@ -137,15 +139,33 @@ export default function NetworkOutreachPage() {
         eyebrow="Rete"
         title="Recruiting"
         description="La tua agenda per chiamare, contattare e far iscrivere i professionisti nella tua rete."
-        actions={<Button variant="gold" onClick={() => setShowDeck(true)}><Presentation size={15} /> Presenta</Button>}
+        actions={
+          <div className="relative">
+            <Button variant="gold" onClick={() => setPickerOpen(o => !o)}><Presentation size={15} /> Presenta</Button>
+            {pickerOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} />
+                <div className="absolute right-0 mt-2 z-50 w-72 max-h-80 overflow-auto surface rounded-xl p-2 shadow-xl">
+                  <div className="text-xs text-[rgb(var(--fg-muted))] px-2 py-1.5">Scegli la specializzazione da presentare</div>
+                  {SUPPLIER_SUBROLES.filter(s => s.v !== 'altro').map(s => (
+                    <button key={s.v} onClick={() => { setDeckSubrole(s.v); setPickerOpen(false) }}
+                      className="w-full text-left text-sm px-2 py-2 rounded-lg hover:bg-[rgb(var(--bg-sunken))]">
+                      {s.l}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        }
       />
 
-      {showDeck && (
+      {deckSubrole && (
         <RecruitingDeck
-          studio={profile?.business_name || profile?.full_name || 'la mia rete'}
+          subrole={deckSubrole}
           inviteCode={refCode}
           inviteUrl={inviteUrl}
-          onClose={() => setShowDeck(false)}
+          onClose={() => setDeckSubrole(null)}
         />
       )}
 
