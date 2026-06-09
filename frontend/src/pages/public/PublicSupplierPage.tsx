@@ -61,6 +61,18 @@ export default function PublicSupplierPage() {
   const [err, setErr] = useState<string | null>(null)
   const [requesting, setRequesting] = useState(false)
   const [existingCollab, setExistingCollab] = useState<'ACTIVE' | 'PENDING' | 'REVOKED' | null>(null)
+  const [articles, setArticles] = useState<Array<{ slug: string; title: string; excerpt: string | null; hero_image_url: string | null }>>([])
+
+  // Articoli del professionista: traffico SEO che torna sulla sua pagina.
+  useEffect(() => {
+    if (!data?.id) return
+    void (async () => {
+      const { data: rows } = await (supabase.from as unknown as (t: string) => {
+        select: (s: string) => { eq: (k: string, v: string) => { eq: (k: string, v: string) => { order: (c: string, o: { ascending: boolean }) => { limit: (n: number) => Promise<{ data: unknown }> } } } }
+      })('blog_posts').select('slug,title,excerpt,hero_image_url').eq('author_id', data.id).eq('status', 'PUBLISHED').order('published_at', { ascending: false }).limit(6)
+      setArticles((rows as typeof articles) ?? [])
+    })()
+  }, [data?.id])
 
   useEffect(() => {
     if (!slug) return
@@ -290,19 +302,33 @@ export default function PublicSupplierPage() {
                   )
                 ) : isFornitoreViewer ? (
                   <p className="text-xs text-[rgb(var(--fg-subtle))]">Sei un fornitore. Solo i wedding planner e le location possono aggiungerti al loro team.</p>
-                ) : isCoupleViewer ? (
-                  <Link to="/register">
-                    <Button variant="gold" size="sm"><Send size={14} /> Contatta tramite Planfully</Button>
+                ) : (isCoupleViewer || isPublicVisitor) ? (
+                  <Link to={`/embed/lead/${slug}`}>
+                    <Button variant="gold" size="sm"><Send size={14} /> Richiedi un preventivo</Button>
                   </Link>
-                ) : isPublicVisitor ? (
-                  <p className="text-xs text-[rgb(var(--fg-subtle))]">
-                    Per lavorare con {data.business_name ?? data.full_name ?? 'questo fornitore'}, contatta il tuo wedding planner di riferimento.
-                  </p>
                 ) : null}
               </div>
             </div>
           </div>
         </motion.div>
+
+        {/* Articoli del professionista (SEO + contenuti) */}
+        {articles.length > 0 && (
+          <section className="surface p-6 mb-6">
+            <h2 className="font-display text-xl mb-4">Dal blog di {data.business_name ?? data.full_name}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {articles.map((a) => (
+                <Link key={a.slug} to={`/blog/${a.slug}`} className="block rounded-xl overflow-hidden border hover:shadow-md transition-shadow" style={{ borderColor: 'rgb(var(--border))' }}>
+                  {a.hero_image_url && <img src={a.hero_image_url} alt="" className="w-full h-36 object-cover" />}
+                  <div className="p-3">
+                    <p className="font-medium text-sm line-clamp-2">{a.title}</p>
+                    {a.excerpt && <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 line-clamp-2">{a.excerpt}</p>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Bio + lavoro */}
         {(data.bio || data.work_style) && (
