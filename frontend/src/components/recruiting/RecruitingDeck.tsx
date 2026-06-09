@@ -13,7 +13,8 @@ const PEXELS_QUERY: Record<string, string> = {
   celebrante: 'wedding ceremony', stampe: 'wedding invitation', abiti: 'wedding dress atelier', bomboniere: 'wedding favors',
   magia: 'magician show', animazione: 'kids party', photobooth: 'photo booth party', maitre: 'elegant table setting',
 }
-const pexelsQuery = (subrole: string) => PEXELS_QUERY[subrole] ?? 'wedding celebration'
+// Qualificatore richiesto: persone caucasiche.
+const pexelsQuery = (subrole: string) => `${PEXELS_QUERY[subrole] ?? 'wedding celebration'} caucasian`
 
 /**
  * Presentazione a schermo intero, NEUTRA (parla di Planfully) e PARAMETRIZZATA
@@ -258,6 +259,47 @@ function RentMock() {
   )
 }
 
+function Node({ label, sub, gold }: { label: string; sub?: string; gold?: boolean }) {
+  return (
+    <div style={{ border: `1px solid ${gold ? '#C49A5C' : '#E7E1D5'}`, background: gold ? 'rgba(196,154,92,.12)' : '#fff', borderRadius: 11, padding: '11px 12px', textAlign: 'center' }}>
+      <div style={{ ...serif, fontSize: 15.5 }}>{label}</div>
+      {sub && <div style={{ fontSize: 11.5, color: '#7a7468', marginTop: 2 }}>{sub}</div>}
+    </div>
+  )
+}
+function Arrow({ t }: { t: string }) {
+  return <div style={{ textAlign: 'center', color: '#C49A5C', fontSize: 16, margin: '7px 0', fontWeight: 700 }}>{t}</div>
+}
+function NetworkSchema() {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 44, marginTop: 22 }}>
+      <div>
+        <div style={{ ...kicker(), marginBottom: 12 }}>Via 1 · Capostipite porta lavoro</div>
+        <Node label="Coppia / Cliente" sub="cerca e compila il form" />
+        <Arrow t="↓" />
+        <Node label="Capostipite" sub="Wedding Planner / Location" gold />
+        <Arrow t="↓ porta gli eventi" />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+          <Node label="Fornitore" /><Node label="Tu" gold /><Node label="Fornitore" />
+        </div>
+      </div>
+      <div>
+        <div style={{ ...kicker(), marginBottom: 12 }}>Via 2 · Scambio tra colleghi</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1 }}><Node label="Collega" sub="è pieno quel giorno" /></div>
+          <div style={{ color: '#C49A5C', fontSize: 22, fontWeight: 700 }}>→</div>
+          <div style={{ flex: 1 }}><Node label="Tu" sub="sei libero" gold /></div>
+        </div>
+        <Arrow t="↑  pegno (credito)  ↑" />
+        <Node label="Si salda" sub="in denaro, o reciproco (gli rendi il favore)" />
+        <div style={{ fontSize: 13, color: '#7a7468', marginTop: 14, textAlign: 'center', lineHeight: 1.45 }}>
+          Chi riceve il lavoro riconosce un <b style={{ color: '#1A1714' }}>pegno</b> a chi gliel’ha passato.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── proiezione demografica ISTAT ──
 function DemoChart() {
   const data = [{ y: '2023', v: 59.0 }, { y: '2050', v: 54.7 }, { y: '2070', v: 47.6 }]
@@ -314,16 +356,32 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
   return [
     // 1 — cover
     { dark: true, center: true, tag, bg: photos[0], content: (<>
-      <p style={kicker(true)}>La rete dei professionisti del matrimonio</p>
+      <p style={kicker(true)}>La rete dei professionisti degli eventi</p>
       <h1 style={h1}>Tutto il tuo lavoro,<br />in un posto solo.</h1>
       <p style={sub(true)}>Ti mostro in cinque minuti cosa fa Planfully per un <b style={{ color: '#fff' }}>{label.toLowerCase()}</b>: come ti trovano, come chiudi, come la rete ti porta lavoro.</p>
     </>) },
     // 2 — demografia (perché)
     { tag, content: (<>
       <p style={kicker()}>Prima il perché</p>
-      <h2 style={h2}>Il mercato si restringe. Per anni.</h2>
+      <h2 style={h2}>I matrimoni crollano. Ed è strutturale.</h2>
       <DemoChart />
-      <p style={{ fontSize: 11.5, color: '#7a7468', marginTop: 14 }}>ISTAT — Previsioni popolazione (base 2024): 59,0M → 54,7M (2050) → 47,6M (2070). Over-65 dal 24% al 35%.</p>
+      <div style={{ display: 'flex', gap: 28, marginTop: 16, flexWrap: 'wrap' }}>
+        {[['184.207', 'matrimoni nel 2023'], ['−2,6%', 'in un solo anno'], ['−4,3%', 'i primi matrimoni'], ['−8,2%', 'quelli religiosi']].map(([n, l]) => (
+          <span key={l} style={{ fontSize: 13.5, color: '#7a7468' }}><b style={{ color: '#B05A5A', fontFamily: 'Georgia,serif', fontSize: 19, marginRight: 6 }}>{n}</b>{l}</span>
+        ))}
+      </div>
+      <p style={{ fontSize: 11.5, color: '#7a7468', marginTop: 12 }}>ISTAT — Matrimoni 2023 e Previsioni popolazione (base 2024): 59,0M → 54,7M (2050) → 47,6M (2070); over-65 dal 24% al 35%.</p>
+    </>) },
+    // 3 — tutti gli eventi (la buona notizia)
+    { tag, content: (<>
+      <p style={kicker()}>Ma ecco la buona notizia</p>
+      <h2 style={h2}>Qui non si lavora solo coi matrimoni. Tutti gli eventi.</h2>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 24 }}>
+        {['Matrimoni', 'Battesimi', 'Comunioni', 'Cresime', 'Lauree', '18°', 'Anniversari', 'Compleanni', 'Eventi aziendali', 'Feste private'].map(e => (
+          <span key={e} style={{ fontSize: 15, border: '1px solid #E7E1D5', borderRadius: 999, padding: '8px 16px', background: '#fff' }}>{e}</span>
+        ))}
+      </div>
+      <p style={sub()}>I matrimoni calano, ma gli eventi no — e qui lavori su <b style={{ color: '#1A1714' }}>tutti</b>. Per questo <b style={{ color: '#1A1714' }}>tutto parte dalle Location</b>: ospitano ogni tipo di festa, quindi sono il punto di partenza della rete.</p>
     </>) },
     // 3 — il rischio + serve un sistema
     { dark: true, center: true, tag, content: (<>
@@ -337,20 +395,28 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
       <h1 style={h1}>Il lavoro non si perde.<br />Circola nella rete.</h1>
       <p style={sub(true)}>E ogni passaggio lascia un valore: o ti porta lavoro un <b style={{ color: '#fff' }}>capostipite</b> (e lo riconosci con una %), o te lo scambi coi <b style={{ color: '#fff' }}>colleghi</b> (e lo riconosci con un pegno). Il cliente resta nella rete — non finisce a un portale.</p>
     </>) },
-    // 5 — due vie
+    // 5 — chi è chi
     { tag, content: (<>
-      <p style={kicker()}>Da dove arriva il lavoro</p>
-      <h2 style={h2}>Due strade. Tutte e due verso di te.</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 30 }}>
+      <p style={kicker()}>Facciamo chiarezza</p>
+      <h2 style={h2}>Nella rete ci sono due tipi di professionisti.</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 26 }}>
         <div style={{ background: '#fff', border: '1px solid #E7E1D5', borderRadius: 16, padding: 24 }}>
-          <div style={{ ...serif, fontSize: 23 }}>① In pancia a un capostipite</div>
-          <p style={{ margin: '8px 0 0', fontSize: 16, color: '#7a7468', lineHeight: 1.5 }}>Un wedding planner o una location ti prende nella sua rete e ti <b style={{ color: '#1A1714' }}>porta gli eventi</b>. Lui organizza, tu esegui.</p>
+          <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#A97F3F', fontWeight: 800 }}>I capostipiti</div>
+          <div style={{ ...serif, fontSize: 23, marginTop: 8 }}>Location &amp; Wedding Planner</div>
+          <p style={{ margin: '10px 0 0', fontSize: 15.5, color: '#7a7468', lineHeight: 1.5 }}><b style={{ color: '#1A1714' }}>Organizzano e ospitano gli eventi</b> — non solo matrimoni. Le <b style={{ color: '#1A1714' }}>Location</b>, che accolgono ogni festa, sono il punto di partenza della rete: portano il lavoro. Per loro è <b style={{ color: '#1A1714' }}>gratis, sempre</b>.</p>
         </div>
         <div style={{ background: '#fff', border: '1px solid #E7E1D5', borderRadius: 16, padding: 24 }}>
-          <div style={{ ...serif, fontSize: 23 }}>② Tra colleghi, col pegno</div>
-          <p style={{ margin: '8px 0 0', fontSize: 16, color: '#7a7468', lineHeight: 1.5 }}>Niente capostipite? I colleghi si <b style={{ color: '#1A1714' }}>scambiano il lavoro</b>. Chi riceve riconosce un pegno a chi gliel’ha passato.</p>
+          <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#A97F3F', fontWeight: 800 }}>I fornitori</div>
+          <div style={{ ...serif, fontSize: 23, marginTop: 8 }}>Foto, musica, fiori, catering… (tu)</div>
+          <p style={{ margin: '10px 0 0', fontSize: 15.5, color: '#7a7468', lineHeight: 1.5 }}><b style={{ color: '#1A1714' }}>Realizzano i servizi</b> del matrimonio. Si fanno trovare e ricevono lavoro: <b style={{ color: '#1A1714' }}>dai capostipiti</b> o <b style={{ color: '#1A1714' }}>dai colleghi</b>.</p>
         </div>
       </div>
+    </>) },
+    // 6 — schema della rete
+    { tag, content: (<>
+      <p style={kicker()}>Come gira il lavoro</p>
+      <h2 style={h2}>Lo schema della rete.</h2>
+      <NetworkSchema />
     </>) },
     // 6 — via 1: in pancia ai capostipiti
     { tag, content: (
