@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { MapPin, Users, Sparkles, Briefcase, Globe, Heart, ArrowLeft, AlertCircle, Send, BadgeCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Input, Textarea } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
@@ -62,6 +64,42 @@ export default function PublicSupplierPage() {
   const [requesting, setRequesting] = useState(false)
   const [existingCollab, setExistingCollab] = useState<'ACTIVE' | 'PENDING' | 'REVOKED' | null>(null)
   const [articles, setArticles] = useState<Array<{ slug: string; title: string; excerpt: string | null; hero_image_url: string | null }>>([])
+
+  // Modulo di contatto + certificazione (sid = riga di suggerimento, se arrivi da una segnalazione)
+  const [sp] = useSearchParams()
+  const sid = sp.get('sid')
+  const [cForm, setCForm] = useState({ client_name: '', client_email: '', client_phone: '', event_date: '', message: '', hp: '' })
+  const [cSending, setCSending] = useState(false)
+  const [cSent, setCSent] = useState(false)
+  const [cReceipt, setCReceipt] = useState<string>('')
+
+  async function submitContact() {
+    if (!cForm.client_name.trim()) { toast.error('Inserisci il tuo nome'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cForm.client_email.trim())) { toast.error('Email non valida'); return }
+    setCSending(true)
+    try {
+      const { data: res, error } = await supabase.functions.invoke('public-contact', {
+        body: {
+          slug,
+          client_name: cForm.client_name.trim(),
+          client_email: cForm.client_email.trim(),
+          client_phone: cForm.client_phone.trim() || null,
+          event_kind: 'matrimonio',
+          event_date: cForm.event_date || null,
+          message: cForm.message.trim() || null,
+          honeypot: cForm.hp,
+          source: 'public_profile',
+          ref_id: sid || null,
+        },
+      })
+      if (error) throw error
+      const r = res as { ok?: boolean; error?: string; receipt?: string | null }
+      if (r?.error) throw new Error(r.error)
+      setCReceipt(r?.receipt ?? '')
+      setCSent(true)
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setCSending(false) }
+  }
 
   // Articoli del professionista: traffico SEO che torna sulla sua pagina.
   useEffect(() => {
@@ -368,6 +406,53 @@ export default function PublicSupplierPage() {
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* Contatta — modulo che CERTIFICA il contatto cliente↔fornitore */}
+        {!isOwner && (
+          <section id="contatta" className="surface p-6 mb-6">
+            <h2 className="font-display text-xl mb-1 flex items-center gap-2">
+              <Send size={18} /> Contatta {data.business_name ?? data.full_name}
+            </h2>
+            <p className="text-xs text-[rgb(var(--fg-muted))] mb-4">Lascia i tuoi dati: il professionista li riceve subito e ti ricontatta.</p>
+            {cSent ? (
+              <div className="rounded-lg p-4 text-sm flex items-start gap-2" style={{ background: 'rgb(var(--emerald-100))', color: 'rgb(var(--emerald-700))' }}>
+                <BadgeCheck size={18} className="mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium">Contatto registrato.</p>
+                  <p className="text-xs mt-0.5">
+                    {data.business_name ?? 'Il professionista'} ti ricontatterà.
+                    {cReceipt && <> Ricevuta di contatto certificato: <strong>{cReceipt}</strong>.</>}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 max-w-xl">
+                <input type="text" value={cForm.hp} onChange={(e) => setCForm((f) => ({ ...f, hp: e.target.value }))}
+                  className="hidden" tabIndex={-1} autoComplete="off" aria-hidden />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1"><Label>Nome e cognome *</Label>
+                    <Input value={cForm.client_name} onChange={(e) => setCForm((f) => ({ ...f, client_name: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Email *</Label>
+                    <Input type="email" value={cForm.client_email} onChange={(e) => setCForm((f) => ({ ...f, client_email: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Telefono</Label>
+                    <Input value={cForm.client_phone} onChange={(e) => setCForm((f) => ({ ...f, client_phone: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Data evento</Label>
+                    <Input type="date" value={cForm.event_date} onChange={(e) => setCForm((f) => ({ ...f, event_date: e.target.value }))} /></div>
+                </div>
+                <div className="space-y-1"><Label>Messaggio</Label>
+                  <Textarea rows={3} value={cForm.message} onChange={(e) => setCForm((f) => ({ ...f, message: e.target.value }))} placeholder="Raccontagli del tuo evento…" /></div>
+                {sid && (
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))] flex items-center gap-1">
+                    <BadgeCheck size={12} /> Arrivi da una segnalazione di un collega: questo contatto verrà <strong>certificato</strong>.
+                  </p>
+                )}
+                <Button variant="gold" disabled={cSending} onClick={submitContact}>
+                  <Send size={14} /> {cSending ? 'Invio…' : 'Invia richiesta'}
+                </Button>
+              </div>
+            )}
           </section>
         )}
 

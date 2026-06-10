@@ -37,12 +37,17 @@ Deno.serve(async (req) => {
 
   // Segnalazioni per questo cliente da parte dell'owner del preventivo
   const { data: refs } = await admin.from('supplier_referrals')
-    .select('suggested_id')
+    .select('id, suggested_id')
     .eq('referrer_id', q.owner_id)
     .eq('client_email', String(q.client_email).toLowerCase())
     .in('status', ['SUGGESTED', 'CONVERTED'])
   const ids = [...new Set((refs ?? []).map((r: { suggested_id: string }) => r.suggested_id))]
   if (ids.length === 0) return json({ ok: true, sent: false, reason: 'no_suggestions' })
+  // sid = id della segnalazione, per certificare il contatto al click sul profilo
+  const sidByForn = new Map<string, string>()
+  for (const r of (refs ?? []) as Array<{ id: string; suggested_id: string }>) {
+    if (!sidByForn.has(r.suggested_id)) sidByForn.set(r.suggested_id, r.id)
+  }
 
   const { data: sup } = await admin.from('profiles')
     .select('id, full_name, business_name, subrole, slug, city')
@@ -51,9 +56,10 @@ Deno.serve(async (req) => {
     .select('full_name, business_name').eq('id', q.owner_id).maybeSingle()
   const referrerName = referrer?.business_name ?? referrer?.full_name ?? 'Il tuo professionista'
 
-  const cards = (sup ?? []).map((s: { business_name: string | null; full_name: string | null; subrole: string | null; slug: string | null; city: string | null }) => {
+  const cards = (sup ?? []).map((s: { id: string; business_name: string | null; full_name: string | null; subrole: string | null; slug: string | null; city: string | null }) => {
     const name = s.business_name ?? s.full_name ?? 'Fornitore'
-    const link = s.slug ? `${APP_BASE}/p/fornitore/${s.slug}` : APP_BASE
+    const sid = sidByForn.get(s.id)
+    const link = s.slug ? `${APP_BASE}/p/fornitore/${s.slug}${sid ? `?sid=${sid}` : ''}` : APP_BASE
     return `
       <tr><td style="padding:12px 0;border-bottom:1px solid #EFEAE0">
         <div style="font-family:Georgia,serif;font-size:16px;color:#1A1714;font-weight:700">${esc(name)}</div>
