@@ -1,6 +1,11 @@
 -- ============================================================================
 -- ADVERSARIAL — Famiglia B (concorrenza e doppi click)  [EXPECTED-FAIL]
 -- ----------------------------------------------------------------------------
+-- ✅ RISOLTI (Cluster 3, mig. 20260611030000) → VERDI in
+--    tests/sql/cluster3_bounds_concorrenza.sql: B-01 (exclusion constraint +
+--    opziona_data clean error), B-03 (colonna version + quote_save_guarded).
+--    B-02 resisteva già. → Famiglia B chiusa.
+-- ----------------------------------------------------------------------------
 -- Questi blocchi DOCUMENTANO rotture: fanno `raise exception` QUANDO la rottura
 -- e' presente. NON vanno nel runner della build verde. Eseguire a mano:
 --   docker exec -i supabase_db_wedding-platform psql -U postgres -d postgres \

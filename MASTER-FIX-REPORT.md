@@ -7,7 +7,7 @@
 |---|---|---|---|
 | 1 | "FIRMATO è terminale" | `fix/1-firmato-terminale` | ✅ **chiuso e provato** |
 | 2 | "Numeri accettati congelati" | `fix/2-snapshot-prezzi` | ✅ **chiuso e provato** |
-| 3 | "Limiti economici e concorrenza" | `fix/3-bounds-concorrenza` | ⏸ da fare |
+| 3 | "Limiti economici e concorrenza" | `fix/3-bounds-concorrenza` | ✅ **chiuso e provato** |
 | 4 | "Contabilità: congelare" | `fix/4-freeze-contabilita` | ⏸ da fare |
 | 5 | "Cifratura/ritenzione PII: verifica" | — (solo verifica) | ⏸ da fare |
 
@@ -59,3 +59,27 @@ Invariante: una volta ACCETTATO/CONVERTITO_IN_CONTRATTO gli importi concordati s
 **Regressione completa verde:** `rls_tests` 9/9 · `pii_isolation_tests` 22/22 · `views_isolation_tests` 3/3 · `cluster1` 7/7 · `tsc+vite build` ✅.
 
 **Dove mi sono fermato:** fine cluster 2. Prossimo: `fix/3-bounds-concorrenza`.
+
+---
+
+## CLUSTER 3 — "Limiti economici e concorrenza" ✅
+Branch `fix/3-bounds-concorrenza` · mig. `supabase/migrations/20260611030000_fix_cluster3_bounds_concorrenza.sql`.
+
+| BRK | Fix | Test verde |
+|---|---|---|
+| D-01 / D-04 | CHECK sconto voce/totale `0..100` (prima ammettevano -1000 → prezzo 11×) | C3-T1 |
+| D-02 | CHECK markup `0..1000` (no markup negativo); negativo bloccato anche dal sotto-costo | C3-T2 |
+| D-06 | tipi `item_markup_percent`/`markup_percent` allargati a `numeric(6,2)` → markup 1000 storabile, CHECK coerente | C3-T3 |
+| D-03 / D-14 | `quote_items_recalc_lines_v2`: voce di terzi non può finire sotto-costo (`item_below_cost`) | C3-T4 |
+| D-18 / D-17 | `quotes_recalc_totals`: lo sconto non azzera più il costo proprio reale → `total_cost` resta, la perdita è VISIBILE nel margine | C3-T5 |
+| D-07 | `opziona_data`: range invertito rifiutato (`invalid_range`) | C3-T6 |
+| B-01 | exclusion constraint `sdo_no_overlap_active` (btree_gist) + `opziona_data` ritorna `date_already_optioned` | C3-T6 |
+| B-03 | colonna `quotes.version` + trigger di bump + RPC `quote_save_guarded` (lost-update → `stale_version`) | C3-T7 |
+
+**Ciclo rosso→verde provato:** dopo la migrazione nessun BRK-D in scope né BRK-B fa più rosso; verdi permanenti in `tests/sql/cluster3_bounds_concorrenza.sql` (7/7) con i **positivi** (sconto 10% ok, markup 1000 ok, voce sopra-costo ok, data libera opzionabile, save a versione corretta ok).
+
+**Regressione completa verde:** `rls_tests` 9/9 · `pii_isolation_tests` 22/22 · `views_isolation_tests` 3/3 · `cluster1` 7/7 · `cluster2` 5/5 · `tsc+vite build` ✅. Catena migrazioni valida su `db reset` pulito.
+
+**Lasciati aperti (non in questo cluster per il piano):** D-08 (data passata), D-09 (cap range opzione), D-11 (validazione email/CF), D-16 (arrotondamento per-riga, ⚪). Da assegnare a un cluster date/validazione futuro.
+
+**Dove mi sono fermato:** fine cluster 3. Prossimo: `fix/4-freeze-contabilita` (congelare, NON patchare la matematica dei soldi).

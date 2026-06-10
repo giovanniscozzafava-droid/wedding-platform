@@ -1,6 +1,12 @@
 -- ============================================================================
 -- ADVERSARIAL — Famiglia D (confini e input spazzatura)  [EXPECTED-FAIL]
 -- ----------------------------------------------------------------------------
+-- ✅ RISOLTI (Cluster 3, mig. 20260611030000) → VERDI in
+--    tests/sql/cluster3_bounds_concorrenza.sql: D-01, D-02, D-03, D-04, D-06,
+--    D-07, D-14, D-18 (e D-17 mitigato: la perdita ora è visibile nel margine).
+-- ⏳ ANCORA APERTI (non assegnati a questo cluster dal piano): D-08 (data
+--    passata), D-09 (cap range opzione), D-11 (validazione email/CF), D-16 (round).
+-- ----------------------------------------------------------------------------
 -- DIAGNOSI, non riparazione. Ogni blocco DOCUMENTA una rottura: fa
 -- `raise exception 'BRK-D-NN: ...'` SOLO quando la rottura e' presente.
 -- Tutti i blocchi sono autonomi (`begin; ... rollback;`) e NON lasciano
