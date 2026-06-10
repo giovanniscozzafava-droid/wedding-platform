@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'
-import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CircleDashed, MessageCircle, Mail } from 'lucide-react'
+import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CircleDashed, MessageCircle, Mail, PenLine, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -69,6 +69,14 @@ export default function SupplierContractsPage() {
   const [draft, setDraft] = useState<{ title: string; category: string; sections: Section[] }>({
     title: '', category: '', sections: DEFAULT_SECTIONS,
   })
+  // Anagrafica fornitore (per pre-compilare la controfirma)
+  const [profile, setProfile] = useState<{ business_name: string | null; full_name: string | null; fiscal_code: string | null; vat_number: string | null } | null>(null)
+  // Controfirma: contratto bersaglio + form
+  const [csTarget, setCsTarget] = useState<Contract | null>(null)
+  const [csName, setCsName] = useState('')
+  const [csFiscal, setCsFiscal] = useState('')
+  const [csConsent, setCsConsent] = useState(false)
+  const [csBusy, setCsBusy] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -86,6 +94,12 @@ export default function SupplierContractsPage() {
       ])
       setTemplates((t ?? []) as Template[])
       setContracts((c ?? []) as Contract[])
+
+      if (me) {
+        const { data: prof } = await (supabase.from as any)('profiles')
+          .select('business_name, full_name, fiscal_code, vat_number').eq('id', me).maybeSingle()
+        if (prof) setProfile(prof)
+      }
 
       // Arricchisce le righe pending con dati evento (best effort)
       const items = (pendingResp.data ?? []) as PendingItem[]
@@ -184,6 +198,37 @@ export default function SupplierContractsPage() {
       if ((data as any)?.skipped) toast.message('Email non configurata: usa il link o WhatsApp.')
       else toast.success('Email inviata al cliente')
     } catch (e) { toast.error((e as Error).message) }
+  }
+
+  // Apre la modale di controfirma, pre-compilando nome e codice fiscale dal profilo.
+  function openCountersign(c: Contract) {
+    setCsTarget(c)
+    setCsName(profile?.business_name || profile?.full_name || '')
+    setCsFiscal(profile?.fiscal_code || profile?.vat_number || '')
+    setCsConsent(false)
+  }
+  async function doCountersign() {
+    if (!csTarget) return
+    if (!csName.trim()) { toast.error('Nome / ragione sociale obbligatorio'); return }
+    if (!csFiscal.trim()) { toast.error('Codice fiscale / P.IVA obbligatorio'); return }
+    if (!csConsent) { toast.error('Conferma di voler controfirmare'); return }
+    setCsBusy(true)
+    try {
+      const { error } = await (supabase as any).rpc('countersign_contract', {
+        p_contract_id: csTarget.id, p_signer_name: csName.trim(), p_signer_fiscal: csFiscal.trim().toUpperCase(),
+      })
+      if (error) {
+        const m = (error.message || '').toLowerCase()
+        if (m.includes('contract_not_signed_yet')) throw new Error('Il cliente non ha ancora firmato: non puoi controfirmare prima.')
+        if (m.includes('already_countersigned') || m.includes('not_authorized')) throw new Error('Contratto già controfirmato (o non sei autorizzato).')
+        if (m.includes('unauthorized')) throw new Error('Sessione scaduta: rientra e riprova.')
+        throw error
+      }
+      toast.success('Contratto controfirmato')
+      setCsTarget(null)
+      await load()
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setCsBusy(false) }
   }
 
   return (
@@ -334,6 +379,11 @@ export default function SupplierContractsPage() {
                         <ExternalLink size={12} /> Apri
                       </Link>
                     </Button>
+                    {c.status === 'FIRMATO' && !c.countersign_at && (
+                      <Button variant="gold" size="sm" onClick={() => openCountersign(c)}>
+                        <PenLine size={12} /> Controfirma
+                      </Button>
+                    )}
                   </div>
                 </Card>
               )
@@ -341,6 +391,44 @@ export default function SupplierContractsPage() {
           </div>
         </section>
       </div>
+
+      {/* Modale controfirma del fornitore */}
+      {csTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !csBusy && setCsTarget(null)}>
+          <Card className="w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <ShieldCheck size={22} style={{ color: 'rgb(var(--gold-700))' }} className="shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-display text-lg">Controfirma il contratto</h3>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                  «{csTarget.title}» con <strong>{csTarget.client_name ?? 'il cliente'}</strong>
+                  {csTarget.signed_at && <> · firmato dal cliente il {new Date(csTarget.signed_at).toLocaleDateString('it-IT')}</>}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Nome / ragione sociale *</Label>
+                <Input value={csName} onChange={(e) => setCsName(e.target.value)} placeholder="Come firmi l'atto" />
+              </div>
+              <div className="space-y-1">
+                <Label>Codice fiscale / P.IVA *</Label>
+                <Input value={csFiscal} onChange={(e) => setCsFiscal(e.target.value)} placeholder="Il tuo CF o P.IVA" />
+              </div>
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input type="checkbox" className="mt-1" checked={csConsent} onChange={(e) => setCsConsent(e.target.checked)} />
+                <span>Confermo di voler <strong>controfirmare</strong> questo contratto come mia parte. La controfirma è un atto definitivo.</span>
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <Button variant="ghost" onClick={() => setCsTarget(null)} disabled={csBusy}>Annulla</Button>
+              <Button variant="gold" onClick={doCountersign} disabled={csBusy || !csConsent}>
+                <PenLine size={14} /> {csBusy ? 'Controfirmo…' : 'Controfirma ora'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
