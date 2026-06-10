@@ -554,7 +554,8 @@ Deno.serve(async (req) => {
   })
   if (up.error) return json({ error: 'upload failed', detail: up.error.message }, 500)
 
-  const signed = await admin.storage.from('quote-pdfs').createSignedUrl(key, 60 * 60 * 24 * 30)
+  // URL firmato breve (7 gg): il moodboard si rigenera al volo, niente link quasi-permanenti.
+  const signed = await admin.storage.from('quote-pdfs').createSignedUrl(key, 60 * 60 * 24 * 7)
   if (signed.error) return json({ error: 'signed url failed', detail: signed.error.message }, 500)
 
   return json({ ok: true, url: signed.data.signedUrl, count: images.length, chapters: sortedTags.length })

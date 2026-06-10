@@ -1,57 +1,97 @@
 -- ============================================================================
--- ⛔️ NON APPLICARE — in attesa di decisione su KEY MANAGEMENT.
+-- DECISION RECORD — Cifratura PII a riposo (quote_acceptances)
+-- Stato: DECISO (vedi sotto). ⛔️ ANCORA NON APPLICATO in prod.
 -- ----------------------------------------------------------------------------
--- Questo file è VOLUTAMENTE fuori da `supabase/migrations/` (cartella
--- `migrations-pending/`): NON viene incluso da `supabase db push` / reset.
--- Cifratura a riposo di `doc_number` e `client_fiscal_code` in
--- `quote_acceptances`. Testare SOLO sul seed locale.
+-- Fuori da `supabase/migrations/` di proposito: NON entra in `db push`/reset.
+-- Cifra a riposo `doc_number` e `client_fiscal_code` di `quote_acceptances`.
 --
--- DECISIONI APERTE (servono prima di attivare):
---   (a) DOVE vive la chiave: secret della Edge Function (cifratura applicativa,
---       il DB non vede mai il plaintext) vs `app.settings` / Vault Postgres
---       (pgcrypto lato DB). Consigliato: cifratura APPLICATIVA nelle Edge
---       Function → il DB conserva solo bytea, la chiave non tocca Postgres.
---   (b) SE conservare il numero documento o solo un flag "identità verificata":
---       per molti casi d'uso basta `identity_verified boolean` + hash, senza
---       custodire il documento (minimizzazione GDPR).
---   (c) DATA-MIGRATION delle righe esistenti: NON inclusa qui — richiede la
---       chiave e una finestra controllata; va pianificata a parte.
+-- Giovanni ha delegato la scelta ("consigliami tu"). Decisioni prese:
+--
+--   (a) DOVE vive la chiave  →  CIFRATURA APPLICATIVA (Edge Function).
+--       La chiave sta nei *secret della Edge Function* (`PII_ENC_KEY`), MAI in
+--       Postgres. Il DB conserva solo `bytea`. Motivo: l'intero audit di queste
+--       notti riguarda RLS-bypass / service_role trafugato / dump del DB-backup.
+--       Una chiave dentro Postgres (pgcrypto GUC o Vault) è decifrabile da
+--       CHIUNQUE abbia accesso DB/service_role → NON difende dalle minacce che
+--       stiamo chiudendo. App-level sì: un dump completo del DB non rivela nulla.
+--       → pgcrypto qui sotto resta SOLO come test di round-trip locale.
+--
+--   (b) COSA conservare  →  MINIMIZZAZIONE (GDPR).
+--       Teniamo `doc_type` + `doc_last4` (ultime 4 cifre) + la voce già
+--       mascherata in `signature_audit_trail` (mask_doc_number) + `document_hash`.
+--       Il NUMERO PIENO si conserva solo cifrato (app-level) e con scadenza
+--       (`pii_purge_after`, default +24 mesi: copre l'eventuale contestazione,
+--       poi si azzera). La validità della firma poggia su audit-trail immutabile
+--       + hash + identità catturata all'atto, NON sulla custodia perenne del
+--       numero in chiaro.
+--
+-- PERCHÉ NON L'HO GIÀ APPLICATO STANOTTE (e l'ho lasciato qui):
+--   - Rewira il flusso di FIRMA LEGALE (quote-accept-sign) — non testabile
+--     end-to-end alla cieca senza l'apparato di firma.
+--   - L'ultimo step CANCELLA dati legali (plaintext) → irreversibile su prod.
+--   Questi due meritano il tuo "vai" e un passaggio testato. Tutto il resto
+--   (decisioni + schema + rollout) è qui pronto.
 -- ============================================================================
 
--- Variante DB-side (pgcrypto) — esempio per test locale soltanto.
-create extension if not exists pgcrypto;
-
--- 1) Colonne cifrate (additive, accanto alle attuali in chiaro)
+-- ── STEP 1 (additivo, sicuro) — colonne cifrate + minimizzazione ────────────
 alter table public.quote_acceptances
   add column if not exists doc_number_enc          bytea,
   add column if not exists client_fiscal_code_enc  bytea,
-  add column if not exists pii_encrypted           boolean not null default false;
+  add column if not exists doc_last4               text,
+  add column if not exists pii_encrypted           boolean not null default false,
+  add column if not exists pii_purge_after         timestamptz;
 
--- 2) Helper: cifra usando una chiave passata via GUC di sessione
---    (in produzione la chiave NON deve stare in una migrazione).
---    set_config('app.pii_key', '<chiave>', false) prima dell'uso.
+-- ── STEP 2 (Edge Function) — helper AES-GCM, chiave dai secret ───────────────
+--   File nuovo: supabase/functions/_shared/pii-crypto.ts (WebCrypto/Deno):
+--     - key = base64-decode(Deno.env.get('PII_ENC_KEY'))  // 32 byte = AES-256
+--     - encrypt(text): iv random 12B; AES-GCM; ritorna iv||ciphertext (bytea)
+--     - decrypt(buf):  splitta iv/ciphertext; AES-GCM open
+--   In quote-accept-sign, accanto all'insert attuale (ADDITIVO e GUARDATO):
+--     if (PII_ENC_KEY) {                 // assente in prod oggi → no-op, zero regressioni
+--       doc_number_enc = encrypt(doc_number)
+--       client_fiscal_code_enc = encrypt(fiscal_code)
+--       doc_last4 = doc_number.slice(-4)
+--       pii_encrypted = true
+--       pii_purge_after = now()+interval '24 months'
+--     }
+--   Il blocco va in try/catch dedicato: un errore di cifratura NON deve MAI
+--   bloccare la firma.
+
+-- ── STEP 3 (backfill, una tantum, con chiave caricata) ──────────────────────
+--   update quote_acceptances
+--      set doc_number_enc = <encrypt app-side>, client_fiscal_code_enc = ...,
+--          doc_last4 = right(doc_number,4), pii_encrypted = true,
+--          pii_purge_after = now() + interval '24 months'
+--    where not pii_encrypted;
+--   (Eseguito da uno script Edge che ha la chiave; NON in SQL con chiave in DB.)
+
+-- ── STEP 4 (irreversibile — solo dopo verifica round-trip) ──────────────────
+--   alter table public.quote_acceptances
+--     alter column doc_number drop not null;
+--   update quote_acceptances set doc_number = null, client_fiscal_code = null
+--    where pii_encrypted;          -- azzera il plaintext
+--   -- PDF dell'atto: legge il numero pieno SOLO al momento della generazione
+--   --   via decrypt app-side; in lista/preview si mostra doc_last4.
+
+-- ── STEP 5 (igiene) — purge programmato ─────────────────────────────────────
+--   Job (cron Edge) che azzera doc_number_enc/client_fiscal_code_enc dove
+--   pii_purge_after < now(): minimizzazione anche del cifrato a scadenza.
+
+-- ============================================================================
+-- pgcrypto: SOLO per test di round-trip locale (NON è la soluzione di prod).
+-- ============================================================================
+create extension if not exists pgcrypto;
 create or replace function public._pii_encrypt(p_text text)
 returns bytea language sql immutable as $$
   select case when p_text is null or p_text = '' then null
               else pgp_sym_encrypt(p_text, current_setting('app.pii_key')) end;
 $$;
-
 create or replace function public._pii_decrypt(p_enc bytea)
 returns text language sql stable as $$
   select case when p_enc is null then null
               else pgp_sym_decrypt(p_enc, current_setting('app.pii_key')) end;
 $$;
-
--- 3) (NON incluso) data-migration delle righe esistenti:
---    update quote_acceptances
---       set doc_number_enc = _pii_encrypt(doc_number),
---           client_fiscal_code_enc = _pii_encrypt(client_fiscal_code),
---           pii_encrypted = true;
---    ...e poi, in una migrazione successiva, azzerare le colonne in chiaro.
---    → Da eseguire SOLO dopo aver deciso (a) e con la chiave caricata.
-
--- TEST LOCALE (seed): verifica round-trip su una riga fittizia.
+-- TEST LOCALE:
 --   select set_config('app.pii_key','test-key-locale',false);
---   insert into quote_acceptances(...) ...;
 --   update quote_acceptances set doc_number_enc=_pii_encrypt(doc_number) where ...;
 --   select _pii_decrypt(doc_number_enc) = doc_number from quote_acceptances where ...;

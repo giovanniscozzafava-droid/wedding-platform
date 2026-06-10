@@ -23,9 +23,21 @@ DB locale su (Postgres :54322), seed corretto (6 profili, 23 servizi). **Intoppo
 Implementato lo **split PII** scelto da te. Dettaglio in fondo ("Chiusura P5").
 **Non resta nulla da decidere su questo punto.**
 
-## ⬛️ Decisioni che aspettano TE
-1. **Cifratura PII (punto 3):** (a) **dove vive la chiave** — Vault (stessa istanza DB) vs cifratura applicativa nelle Edge Function (il DB non vede il plaintext); (b) **conservare il numero documento** o tenere solo un flag `identità_verificata` + ultime cifre (minimizzazione GDPR). *Tradeoff noto:* col Vault la chiave vive nello stesso DB — la versione blindata (chiave esterna o non-ritenzione) è una tua scelta, non la prendo io.
-2. **Domini "core" (punto 7):** quali consideri davvero core (così metto gli altri dietro `feature_flags` spenti).
+## ✅ Decisioni prese da me (mi hai detto "consigliami tu")
+
+### 1. Cifratura PII (punto 3) — **app-level + minimizzazione**
+- **Dove vive la chiave →** cifratura **APPLICATIVA** nelle Edge Function (secret `PII_ENC_KEY`), **non** Vault/pgcrypto nel DB. Perché: tutto l'audit di queste notti è su RLS-bypass / service_role trafugato / dump del backup. Una chiave dentro Postgres è decifrabile da chi ha accesso DB/service_role → **non** difende dalle minacce che stiamo chiudendo. App-level sì: il DB tiene solo `bytea`, un dump non rivela nulla.
+- **Cosa conservare →** **minimizzare**. `doc_type` + `doc_last4` + voce mascherata già in `signature_audit_trail` + `document_hash`. Il numero pieno resta **solo cifrato** e a scadenza (`pii_purge_after`, +24 mesi). La validità della firma poggia su audit-trail immutabile + hash + identità all'atto, non sulla custodia perenne del numero.
+- **Stato:** decisione + schema + rollout pronti in `supabase/migrations-pending/PENDING_encrypt_pii_quote_acceptances.sql` (decision record completo). **NON applicato**: rewira la firma legale e l'ultimo step cancella plaintext legale. Dimmi **"vai"** e lo wiro + backfill + drop in un passaggio testato.
+
+### 2. Domini "core" (punto 7) — **cosa è core, cosa va dietro flag/data-lock**
+- **Core (sempre on):** preventivi/contratti/firma · calendario · funnel email · feed/blog pubblico + profili pubblici (il *flywheel* SEO). Questo è il business che gira oggi.
+- **Differiti (gate o data-lock):** Recruiting CRM + rewards → **già data-locked al 2027** (resta così, nessun flag necessario) · Instagram Meta API import → **dietro flag** finché l'app Meta non è approvata · suggested-suppliers credito/billing → dietro flag.
+- **Nota tecnica:** la tabella `feature_flags` esiste (RLS ok) **ma il frontend non la legge** → il gating va wired (piccolo follow-up). Niente seed inerte stanotte: te lo wiro quando mi dai l'ok a toccare il frontend.
+
+### 3. Signed URL (punto 5) — **fatto**
+- **moodboard-pdf 30gg → 7gg** (immagini d'ispirazione, la coppia rigenera al volo). Applicato sul branch.
+- `quote-accept-sign` già **15 min** (atto legale) → lasciato. I "365gg/7gg" su `contract-generate-pdf`/`quote-generate-pdf` segnalati dall'audit automatico erano **falsi**: quei file **non usano signed URL** (ritornano il PDF direttamente).
 
 ## 🟢 Cosa è stato fatto e PROVATO stanotte
 - **Suite dinamiche** (DB reale, run finale): `rls_tests.sql` **8/8 ✅** · `pii_isolation_tests.sql` **P1–P6 ✅ (incluso P5 split + P5b owner)** · `views_isolation_tests.sql` **V1–V3 ✅**.
@@ -58,9 +70,12 @@ Esaminate tutte le **33** funzioni (fail-open gate / no-auth+service_role / enum
 - `instagram-import` — *non* è no-auth: richiede `getUser()` (401) e carica il token `where profile_id = user.id` (riga 20) → un chiamante usa solo il **proprio** token; `media_id` è risolto contro quel token (l'API IG ritorna solo i media del proprietario). Nessun accesso cross-utente.
 - `instagram-oauth-callback` — *non* è CSRF: lo `state` è 128-bit random generato server-side da un utente autenticato, salvato con `profile_id`, **single-use** (delete riga 48); il token viene legato a `st.profile_id` **salvato**, non a input del chiamante. HMAC sarebbe difesa-in-profondità marginale → non aggiunto (rischio di rompere il flusso).
 
-**🟡 Findings che restano (decisione/tuning, non toccati per non rompere flussi legittimi):**
-- **Signed URL lunghi su PDF**: `contract-generate-pdf` **365 gg** (dati fiscali) · `moodboard-pdf` 30 gg · `quote-generate-pdf` 7 gg. Sono documenti che il cliente riapre dall'email → accorciarli è una scelta di prodotto (per quanto tempo un cliente deve poter riaprire il suo PDF?). Dimmi le scadenze volute e le imposto.
-- **`suggest-alternatives` / `lead-notify`**: rate-limit presente; si può irrobustire (normalizzare email lowercase prima del match, finestra più stretta). Tuning, non buco.
+**🟢 Signed URL — verificato e sistemato:**
+- `moodboard-pdf` **30 gg → 7 gg** (applicato). `quote-accept-sign` già 15 min (atto legale) → ok.
+- I "365 gg / 7 gg" su `contract-generate-pdf` / `quote-generate-pdf` dell'audit automatico erano **falsi positivi**: quei file **non usano `createSignedUrl`** (ritornano il PDF direttamente). Verificato a mano.
+
+**🟡 Tuning minore che resta (non buco):**
+- **`suggest-alternatives` / `lead-notify`**: rate-limit presente; si può irrobustire (normalizzare email lowercase prima del match, finestra più stretta).
 
 **Non fatto (punto 5):** endpoint permanente `/atto/{token}` per ri-scaricare l'atto firmato — resta da implementare (oggi l'URL è a 15 min).
 
@@ -75,6 +90,8 @@ frontend/src/hooks/useWedding.ts                    (read+write split)
 frontend/src/hooks/useCouple.ts                     (read split)
 supabase/functions/quote-send/index.ts             (writer split)
 supabase/functions/inbound-email/index.ts          (fail-closed webhook secret)
+supabase/functions/moodboard-pdf/index.ts          (signed URL 30gg -> 7gg)
+supabase/migrations-pending/PENDING_encrypt_pii_quote_acceptances.sql   (decision record cifratura)
 tests/sql/pii_isolation_tests.sql                   (P5 rosso→verde + P5b)
 tests/sql/rls_tests.sql                             (bootstrap + TEST 5 su _private)
 docs/SECURITY-RLS-AUDIT.md                          (+ esiti live, P5 chiuso)
