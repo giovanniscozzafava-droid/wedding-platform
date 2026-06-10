@@ -8,7 +8,7 @@
 | 1 | "FIRMATO è terminale" | `fix/1-firmato-terminale` | ✅ **chiuso e provato** |
 | 2 | "Numeri accettati congelati" | `fix/2-snapshot-prezzi` | ✅ **chiuso e provato** |
 | 3 | "Limiti economici e concorrenza" | `fix/3-bounds-concorrenza` | ✅ **chiuso e provato** |
-| 4 | "Contabilità: congelare" | `fix/4-freeze-contabilita` | ⏸ da fare |
+| 4 | "Contabilità: congelare" | `fix/4-freeze-contabilita` | 🧊 **congelato** (non si patcha la matematica) |
 | 5 | "Cifratura/ritenzione PII: verifica" | — (solo verifica) | ⏸ da fare |
 
 **Ordine di revisione dei branch:** 1 → 2 → 3 → 4 → 5 (ognuno parte dal precedente).
@@ -82,4 +82,26 @@ Branch `fix/3-bounds-concorrenza` · mig. `supabase/migrations/20260611030000_fi
 
 **Lasciati aperti (non in questo cluster per il piano):** D-08 (data passata), D-09 (cap range opzione), D-11 (validazione email/CF), D-16 (arrotondamento per-riga, ⚪). Da assegnare a un cluster date/validazione futuro.
 
-**Dove mi sono fermato:** fine cluster 3. Prossimo: `fix/4-freeze-contabilita` (congelare, NON patchare la matematica dei soldi).
+**Dove mi sono fermato:** fine cluster 3. Prossimo: `fix/4-freeze-contabilita`.
+
+---
+
+## CLUSTER 4 — "Contabilità: CONGELARE, non aggiustare" 🧊
+Branch `fix/4-freeze-contabilita` · mig. `supabase/migrations/20260611040000_fix_cluster4_freeze_contabilita.sql`.
+**Decisione del piano rispettata: NESSUN fix alla matematica dei soldi.** Il dominio referral/MRR/commissioni/recruiting è messo dietro il feature flag **`referral_accounting_enabled` = OFF**; le funzioni che coniano/saldano crediti diventano **NO-OP** finché il flag è spento.
+
+| Cosa | Come |
+|---|---|
+| Flag dominio | nuovo `feature_flags.referral_accounting_enabled` **default false** |
+| Conia-crediti gated | `autocredit_on_referred_contract`, `on_supplier_subscription_change`, `on_lead_closed_won`, `recruiting_activate_reward` → `return new` se flag OFF (niente credito coniato) |
+| Saldo gated | `settle_supplier_credit` → `{error:'disabled'}` · `recruiting_settle_due` → `{ok:false, reason:'disabled'}` se flag OFF |
+
+**Provato (freeze, NON matematica):** `tests/sql/cluster4_freeze_contabilita.sql` (5/5 verdi) dimostra che a flag OFF la superficie è **inerte**: firmare un contratto referenziato conia **0 crediti**, `settle_supplier_credit`/`recruiting_settle_due` rispondono `disabled`, il credito resta intatto.
+
+**I test E-* restano EXPECTED-FAIL (come da piano):** `tests/adversarial/E_accounting.sql` accende il flag in testa e lo rispegne in coda, così continua a **documentare** i 9 bug (E-01..E-09) — riprodotti tutti — *da risolvere contro denaro reale al collegamento di Stripe*. Non spostati a verde: la matematica NON è stata toccata.
+
+**Nota gating frontend:** la `feature_flags` non è letta dal FE (vedi NOTTE-REPORT), ma il gate è **a livello DB** → anche se l'UI referral resta visibile, il backend non produce alcun effetto finanziario (il rischio reale è neutralizzato). Nascondere l'UI è un follow-up FE minimale, non necessario per la sicurezza.
+
+**Regressione completa verde:** `cluster1` 7/7 · `cluster2` 5/5 · `cluster3` 7/7 · `rls` 9/9 · `pii` 22/22 · `views` 3/3 · `tsc+vite build` ✅.
+
+**Dove mi sono fermato:** fine cluster 4. Prossimo: `fix/5` (solo verifica).

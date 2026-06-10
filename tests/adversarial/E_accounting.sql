@@ -10,7 +10,17 @@
 --   docker exec -i "$DB" psql -U postgres -d postgres -v ON_ERROR_STOP=0 \
 --     -f tests/adversarial/E_accounting.sql 2>&1
 -- Verificato contro le definizioni REALMENTE deployate (pg_get_functiondef).
+-- ----------------------------------------------------------------------------
+-- 🧊 CONGELATO (Cluster 4, mig. 20260611040000): NON risolto, ma il dominio
+--    contabile è dietro il flag `referral_accounting_enabled` = OFF in
+--    produzione → la matematica buggata NON produce effetti reali. Questi test
+--    restano EXPECTED-FAIL: documentano i bug (E-01..E-09) DA RISOLVERE contro
+--    denaro reale al collegamento di Stripe. Per documentarli, il file accende
+--    il flag in testa e lo rispegne in coda (la prod resta OFF).
 -- ============================================================================
+
+-- accende il dominio SOLO per documentare la matematica ancora rotta
+update public.feature_flags set enabled = true where key = 'referral_accounting_enabled';
 
 
 -- ── BRK-E-01 🔴 autocredit_on_referred_contract: crea un credito 39€ ACCEPTED
@@ -345,3 +355,6 @@ begin
   raise notice 'BRK-E-09 non riprodotta (send_rate=%)', v_send_rate;
 end$$;
 rollback;
+
+-- rispegne il dominio: la produzione resta OFF (congelato)
+update public.feature_flags set enabled = false where key = 'referral_accounting_enabled';
