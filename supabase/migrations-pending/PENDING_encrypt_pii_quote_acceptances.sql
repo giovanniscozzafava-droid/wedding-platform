@@ -1,6 +1,18 @@
 -- ============================================================================
--- DECISION RECORD — Cifratura PII a riposo (quote_acceptances)
--- Stato: DECISO (vedi sotto). ⛔️ ANCORA NON APPLICATO in prod.
+-- ⛔️ SUPERATO — NON è il piano adottato. Tenuto solo come "strada non presa".
+-- ----------------------------------------------------------------------------
+-- Dopo aver tracciato il codice (giu 2026), la cifratura app-level è stata
+-- SCARTATA: `doc_number` è riusato DB-side per il prefill di contratto/addendum
+-- e vive in chiaro anche in `contracts.signature_data` → cifrarne una sola copia
+-- è teatro, cifrarle tutte richiede un refactor della pipeline di firma (il DB
+-- non potrebbe più decifrare per il prefill). La tabella è già protetta da RLS
+-- (owner+admin), grant lockdown (anon revocato), disk-encryption a riposo e URL
+-- firmati brevi. Il residuo reale — la RITENZIONE perenne del numero — è chiuso
+-- da `supabase/migrations/20260610020000_signing_pii_retention.sql` (doc_last4 +
+-- purge_old_signing_pii() schedulato via pg_cron). Questo file resta come
+-- riferimento SE un domani si vorrà la cifratura completa (refactor a parte).
+--
+-- [storico] DECISION RECORD originale — Cifratura PII a riposo (quote_acceptances)
 -- ----------------------------------------------------------------------------
 -- Fuori da `supabase/migrations/` di proposito: NON entra in `db push`/reset.
 -- Cifra a riposo `doc_number` e `client_fiscal_code` di `quote_acceptances`.

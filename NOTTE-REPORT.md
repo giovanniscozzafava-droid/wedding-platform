@@ -25,10 +25,16 @@ Implementato lo **split PII** scelto da te. Dettaglio in fondo ("Chiusura P5").
 
 ## ✅ Decisioni prese da me (mi hai detto "consigliami tu")
 
-### 1. Cifratura PII (punto 3) — **app-level + minimizzazione**
-- **Dove vive la chiave →** cifratura **APPLICATIVA** nelle Edge Function (secret `PII_ENC_KEY`), **non** Vault/pgcrypto nel DB. Perché: tutto l'audit di queste notti è su RLS-bypass / service_role trafugato / dump del backup. Una chiave dentro Postgres è decifrabile da chi ha accesso DB/service_role → **non** difende dalle minacce che stiamo chiudendo. App-level sì: il DB tiene solo `bytea`, un dump non rivela nulla.
-- **Cosa conservare →** **minimizzare**. `doc_type` + `doc_last4` + voce mascherata già in `signature_audit_trail` + `document_hash`. Il numero pieno resta **solo cifrato** e a scadenza (`pii_purge_after`, +24 mesi). La validità della firma poggia su audit-trail immutabile + hash + identità all'atto, non sulla custodia perenne del numero.
-- **Stato:** decisione + schema + rollout pronti in `supabase/migrations-pending/PENDING_encrypt_pii_quote_acceptances.sql` (decision record completo). **NON applicato**: rewira la firma legale e l'ultimo step cancella plaintext legale. Dimmi **"vai"** e lo wiro + backfill + drop in un passaggio testato.
+### 1. Cifratura PII (punto 3) — **CHIUSO, ma diversamente da come avevo proposto**
+Onestà tecnica: appena ho tracciato il codice per wirare la cifratura, ho scoperto che **app-level era la scelta sbagliata** e te lo dico chiaro:
+- `doc_number` **non** è write-once: è riusato **DB-side** per il prefill di contratto/addendum (`contract_prefill_from_acceptance`, `addendum_on_close`, `contract_countersign`) e finisce in chiaro anche in `contracts.signature_data`. Cifrarne **una sola copia** è teatro; cifrarle tutte richiede un **refactor della pipeline di firma** (il DB non potrebbe più decifrare per il prefill) → tanto rischio su un flusso legale, poco guadagno.
+- La tabella è **già ben protetta**: `anon` revocato, `authenticated` solo SELECT via RLS **owner+admin** (`qa_select_owner`), + disk-encryption Supabase a riposo + URL firmati brevi. Chi può leggere il numero via DB è solo il **fornitore proprietario** (che l'ha legittimamente raccolto per il contratto) o l'admin.
+- **Il residuo reale era la ritenzione perenne** del numero. **Chiuso** con `supabase/migrations/20260610020000_signing_pii_retention.sql`:
+  - `doc_last4` (ultime 4 cifre) derivato da un **trigger** → UI/log senza il numero pieno;
+  - `purge_old_signing_pii(p_months=24)`: azzera `doc_number`/`doc_issued_by` su `quote_acceptances` e scrubba il numero dal jsonb di `contracts` oltre i 24 mesi (il prefill avviene entro giorni → non rompe nulla);
+  - **schedulato via pg_cron** (`0 3 1 * *`).
+  - **Testato:** trigger popola `last4=4567` (ignora lo spazio), il purge azzera il numero ma **conserva last4**; regressione 3 suite verdi dopo `db reset`.
+- La cifratura app-level completa resta documentata come "strada non presa" in `migrations-pending/` (serve il refactor di cui sopra; non consigliata ora).
 
 ### 2. Domini "core" (punto 7) — **cosa è core, cosa va dietro flag/data-lock**
 - **Core (sempre on):** preventivi/contratti/firma · calendario · funnel email · feed/blog pubblico + profili pubblici (il *flywheel* SEO). Questo è il business che gira oggi.
@@ -91,7 +97,8 @@ frontend/src/hooks/useCouple.ts                     (read split)
 supabase/functions/quote-send/index.ts             (writer split)
 supabase/functions/inbound-email/index.ts          (fail-closed webhook secret)
 supabase/functions/moodboard-pdf/index.ts          (signed URL 30gg -> 7gg)
-supabase/migrations-pending/PENDING_encrypt_pii_quote_acceptances.sql   (decision record cifratura)
+supabase/migrations/20260610020000_signing_pii_retention.sql            (doc_last4 + purge pg_cron)
+supabase/migrations-pending/PENDING_encrypt_pii_quote_acceptances.sql   (superato: strada non presa)
 tests/sql/pii_isolation_tests.sql                   (P5 rosso→verde + P5b)
 tests/sql/rls_tests.sql                             (bootstrap + TEST 5 su _private)
 docs/SECURITY-RLS-AUDIT.md                          (+ esiti live, P5 chiuso)
