@@ -1,6 +1,13 @@
 -- ============================================================================
 -- ADVERSARIAL — Famiglia C (orfani e cascate distruttive)  [EXPECTED-FAIL]
 -- ----------------------------------------------------------------------------
+-- ✅ RISOLTI (Cluster 1, mig. 20260611010000) → ora VERDI permanenti in
+--    tests/sql/cluster1_firmato_terminale.sql: C-01, C-02, C-05, C-09, C-10
+--    (atti firmati non cancellabili via trigger BEFORE DELETE + RPC + policy).
+--    Rilanciando questo file quei blocchi vengono BLOCCATI da
+--    'cannot_delete_*_with_signed_act' invece di lasciare orfani.
+-- ⏳ ANCORA APERTI qui: C-03, C-04, C-06, C-08.
+-- ----------------------------------------------------------------------------
 -- Ogni blocco DOCUMENTA una rottura: costruisce un repro minimo (quote +
 -- contract FIRMATO + quote_acceptances firmata + signature_audit_trail), esegue
 -- la cancellazione, poi `raise exception 'BRK-C-NN: ...'` SOLO quando la rottura

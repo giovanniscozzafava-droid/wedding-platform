@@ -1,6 +1,11 @@
 -- ============================================================================
 -- ADVERSARIAL — Famiglia A (macchine a stati) + 2 snapshot  [EXPECTED-FAIL]
 -- ----------------------------------------------------------------------------
+-- ✅ RISOLTI (Cluster 1, mig. 20260611010000) → ora VERDI permanenti in
+--    tests/sql/cluster1_firmato_terminale.sql: A-06, A-07, A-07b, A-08, A-09,
+--    A-10, A-11. Rilanciando questo file quei blocchi NON fanno più rosso.
+-- ⏳ ANCORA APERTI qui: A-12, A-14, A-15, E-SNAPSHOT-02/03 (Cluster 2).
+-- ----------------------------------------------------------------------------
 -- Ogni blocco DOCUMENTA una rottura: fa `raise exception 'BRK-..-NN: ...'`
 -- SOLO QUANDO la rottura e' presente (cioe' quando lo stato illegale viene
 -- raggiunto). Se la rottura fosse riparata, il blocco finirebbe senza errore
