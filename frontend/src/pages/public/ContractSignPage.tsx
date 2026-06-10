@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FileSignature, CheckCircle2, Sparkles } from 'lucide-react'
+import { FileSignature, CheckCircle2, Sparkles, PenLine, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,6 +50,16 @@ export default function ContractSignPage() {
   const [consentPrivacy, setConsentPrivacy] = useState(false)
   const [fromQuote, setFromQuote] = useState(false)
 
+  // Controfirma del professionista (solo se sei tu, loggato, owner/supplier)
+  const [canCs, setCanCs] = useState(false)
+  const [csContractId, setCsContractId] = useState<string | null>(null)
+  const [csOpen, setCsOpen] = useState(false)
+  const [csName, setCsName] = useState('')
+  const [csFiscal, setCsFiscal] = useState('')
+  const [csConsent, setCsConsent] = useState(false)
+  const [csBusy, setCsBusy] = useState(false)
+  const [csErr, setCsErr] = useState<string | null>(null)
+
   async function load() {
     if (!token) return
     const { data: d, error } = await supabase.rpc('contract_get_by_token', { p_token: token })
@@ -65,6 +75,43 @@ export default function ContractSignPage() {
     if (!docNumber && pf.doc_number) setDocNumber(pf.doc_number)
     if (!docIssuedBy && pf.doc_issued_by) setDocIssuedBy(pf.doc_issued_by)
     if (pf.from_quote) setFromQuote(true)
+
+    // Eleggibilità controfirma: la context RPC dà can_countersign + contract_id
+    // SOLO al professionista autenticato (owner/supplier). Per il cliente/anon → false.
+    const { data: ctx } = await (supabase.rpc as any)('contract_countersign_context', { p_token: token })
+    if (ctx?.can_countersign && ctx?.contract_id) {
+      setCanCs(true); setCsContractId(ctx.contract_id)
+      const me = (await supabase.auth.getUser()).data.user?.id
+      if (me) {
+        const { data: prof } = await (supabase.from as any)('profiles')
+          .select('business_name, full_name, fiscal_code, vat_number').eq('id', me).maybeSingle()
+        if (prof) { setCsName(prof.business_name || prof.full_name || ''); setCsFiscal(prof.fiscal_code || prof.vat_number || '') }
+      }
+    } else { setCanCs(false); setCsContractId(null) }
+  }
+
+  async function doCountersign() {
+    if (!csContractId) return
+    setCsErr(null)
+    if (!csName.trim()) { setCsErr('Nome / ragione sociale obbligatorio'); return }
+    if (!csFiscal.trim()) { setCsErr('Codice fiscale / P.IVA obbligatorio'); return }
+    if (!csConsent) { setCsErr('Conferma di voler controfirmare'); return }
+    setCsBusy(true)
+    try {
+      const { error } = await (supabase.rpc as any)('countersign_contract', {
+        p_contract_id: csContractId, p_signer_name: csName.trim(), p_signer_fiscal: csFiscal.trim().toUpperCase(),
+      })
+      if (error) {
+        const m = (error.message || '').toLowerCase()
+        if (m.includes('contract_not_signed_yet')) throw new Error('Il cliente non ha ancora firmato.')
+        if (m.includes('already_countersigned') || m.includes('not_authorized')) throw new Error('Contratto già controfirmato o non sei autorizzato.')
+        if (m.includes('unauthorized')) throw new Error('Sessione scaduta: accedi e riprova.')
+        throw error
+      }
+      setCsOpen(false); setCanCs(false)
+      await load()
+    } catch (e) { setCsErr(e instanceof Error ? e.message : 'Errore') }
+    finally { setCsBusy(false) }
   }
 
   useEffect(() => { void load() }, [token])
@@ -151,9 +198,19 @@ export default function ContractSignPage() {
                   <div className="rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
                     <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Il professionista</p>
                     <p className="text-sm font-medium mt-0.5">{data.countersign_name ?? data.owner?.business_name ?? data.owner?.full_name ?? '—'}</p>
-                    <p className="text-xs mt-1" style={{ color: data.countersign_at ? 'rgb(var(--emerald-600))' : 'rgb(var(--fg-subtle))' }}>
-                      {data.countersign_at ? `✓ Firmato il ${new Date(data.countersign_at).toLocaleDateString('it-IT')}` : 'In attesa di controfirma'}
-                    </p>
+                    {data.countersign_at ? (
+                      <p className="text-xs mt-1" style={{ color: 'rgb(var(--emerald-600))' }}>
+                        ✓ Firmato il {new Date(data.countersign_at).toLocaleDateString('it-IT')}
+                      </p>
+                    ) : canCs ? (
+                      <button type="button" onClick={() => { setCsErr(null); setCsConsent(false); setCsOpen(true) }}
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-semibold rounded-md px-2 py-1"
+                        style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                        <PenLine size={12} /> Controfirma ora
+                      </button>
+                    ) : (
+                      <p className="text-xs mt-1" style={{ color: 'rgb(var(--fg-subtle))' }}>In attesa di controfirma</p>
+                    )}
                   </div>
                   <div className="rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
                     <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Il cliente</p>
@@ -241,6 +298,46 @@ export default function ContractSignPage() {
         </p>
       </motion.div>
       </div>
+
+      {csOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => !csBusy && setCsOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: '#fff', color: '#1A1714' }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md shrink-0" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                <ShieldCheck size={18} />
+              </span>
+              <div>
+                <h3 className="font-display text-lg">Controfirma il contratto</h3>
+                <p className="text-xs mt-0.5" style={{ color: '#6E6E6E' }}>
+                  «{data.title}»{data.signed_at && <> · firmato dal cliente il {new Date(data.signed_at).toLocaleDateString('it-IT')}</>}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="csName">Nome / ragione sociale *</Label>
+                <Input id="csName" value={csName} onChange={(e) => setCsName(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="csFiscal">Codice fiscale / P.IVA *</Label>
+                <Input id="csFiscal" value={csFiscal} onChange={(e) => setCsFiscal(e.target.value)} />
+              </div>
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input type="checkbox" className="mt-1 size-4 accent-[rgb(var(--gold-500))]" checked={csConsent} onChange={(e) => setCsConsent(e.target.checked)} />
+                <span>Confermo di voler <strong>controfirmare</strong> questo contratto come mia parte. La controfirma è un atto definitivo.</span>
+              </label>
+              {csErr && <p className="text-sm" style={{ color: 'rgb(var(--rose-500))' }}>{csErr}</p>}
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <Button variant="ghost" onClick={() => setCsOpen(false)} disabled={csBusy}>Annulla</Button>
+              <Button variant="gold" onClick={doCountersign} disabled={csBusy || !csConsent}>
+                <PenLine size={14} /> {csBusy ? 'Controfirmo…' : 'Controfirma ora'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
