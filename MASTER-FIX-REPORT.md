@@ -9,7 +9,7 @@
 | 2 | "Numeri accettati congelati" | `fix/2-snapshot-prezzi` | ✅ **chiuso e provato** |
 | 3 | "Limiti economici e concorrenza" | `fix/3-bounds-concorrenza` | ✅ **chiuso e provato** |
 | 4 | "Contabilità: congelare" | `fix/4-freeze-contabilita` | 🧊 **congelato** (non si patcha la matematica) |
-| 5 | "Cifratura/ritenzione PII: verifica" | — (solo verifica) | ⏸ da fare |
+| 5 | "Cifratura/ritenzione PII: verifica" | — (solo verifica) | ✅ **verificato** · ⏸ 1 decisione a Giovanni |
 
 **Ordine di revisione dei branch:** 1 → 2 → 3 → 4 → 5 (ognuno parte dal precedente).
 
@@ -105,3 +105,31 @@ Branch `fix/4-freeze-contabilita` · mig. `supabase/migrations/20260611040000_fi
 **Regressione completa verde:** `cluster1` 7/7 · `cluster2` 5/5 · `cluster3` 7/7 · `rls` 9/9 · `pii` 22/22 · `views` 3/3 · `tsc+vite build` ✅.
 
 **Dove mi sono fermato:** fine cluster 4. Prossimo: `fix/5` (solo verifica).
+
+---
+
+## CLUSTER 5 — "Cifratura/ritenzione PII" ✅ verificato (nessun branch)
+Non riaperto, come da piano. **Verificato** sul branch base:
+- `supabase/migrations/20260610020000_signing_pii_retention.sql` presente nella catena;
+- `purge_old_signing_pii(24)` esiste e **gira** (ritorna 0 su seed fresco: nessuna riga vecchia);
+- colonna `quote_acceptances.doc_last4` + trigger `set_doc_last4` presenti;
+- cron `purge-signing-pii` schedulato (`0 3 1 * *`).
+
+**⏸ Decisione che resta a Giovanni (NON la prendo io):** se conservare il **numero documento** o tenere solo un **flag "identità verificata"** + `doc_last4`. Dipende dal provider di firma. Annotata come aperta.
+
+---
+
+## ✅ Riepilogo finale
+Tutti e 5 i cluster chiusi nel senso giusto. **Ordine di revisione branch: 1 → 2 → 3 → 4 → 5.**
+
+| # | Branch | Migrazione | Esito |
+|---|---|---|---|
+| 1 | `fix/1-firmato-terminale` | `20260611010000` | ✅ atti firmati intoccabili (A-06/07/07b/08/09/10/11, C-01/02/05/09/10) |
+| 2 | `fix/2-snapshot-prezzi` | `20260611020000` | ✅ numeri accettati congelati (E-SNAPSHOT-02/03, A-12/14/15) |
+| 3 | `fix/3-bounds-concorrenza` | `20260611030000` | ✅ limiti economici + concorrenza (D-01/02/03/04/06/07/14/18, B-01/03) |
+| 4 | `fix/4-freeze-contabilita` | `20260611040000` | 🧊 contabilità inerte dietro flag (E-01..09 documentati, math non toccata) |
+| 5 | — | (verifica `20260610020000`) | ✅ retention PII attiva · ⏸ 1 decisione Giovanni |
+
+**Rete di regressione permanente:** `tests/sql/cluster1..4_*.sql` (24 test verdi) — nessun agente futuro può reintrodurre questi bug in silenzio. Ogni cluster: `db reset` pulito + `rls/pii/views` + `tsc+vite build` verdi.
+
+**Resta aperto (non assegnato dal piano):** D-08 (data passata), D-09 (cap range opzione), D-11 (validazione email/CF), D-16 (round per-riga ⚪), C-04 (supplier_id NULL su FIRMATO 🟠), C-03/06/08 (orfani minori). Candidati a un cluster "date/validazione/orfani-minori" futuro.
