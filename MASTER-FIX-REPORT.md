@@ -6,7 +6,7 @@
 | # | Cluster | Branch | Stato |
 |---|---|---|---|
 | 1 | "FIRMATO è terminale" | `fix/1-firmato-terminale` | ✅ **chiuso e provato** |
-| 2 | "Numeri accettati congelati" | `fix/2-snapshot-prezzi` | ⏸ da fare |
+| 2 | "Numeri accettati congelati" | `fix/2-snapshot-prezzi` | ✅ **chiuso e provato** |
 | 3 | "Limiti economici e concorrenza" | `fix/3-bounds-concorrenza` | ⏸ da fare |
 | 4 | "Contabilità: congelare" | `fix/4-freeze-contabilita` | ⏸ da fare |
 | 5 | "Cifratura/ritenzione PII: verifica" | — (solo verifica) | ⏸ da fare |
@@ -38,4 +38,24 @@ Invariante imposta: **un atto FIRMATO non si ri-firma, non si ri-collega, non si
 - **BRK-C-04** (🟠 `contracts.supplier_id` SET NULL su FIRMATO) **lasciato aperto** come da piano ("se intricato, annota e lascia"): richiede RESTRICT o congelamento del firmatario in `signature_data`, va valutato col cluster sui dati.
 - I blocchi adversariali risolti restano nei file `tests/adversarial/*.sql` come record storico, con header che indica "RISOLTI in Cluster 1"; la rete di regressione viva è il file verde.
 
-**Dove mi sono fermato:** fine cluster 1. Prossimo: `fix/2-snapshot-prezzi` (E-SNAPSHOT-02/03, A-12/14/15).
+**Dove mi sono fermato:** fine cluster 1. Prossimo: `fix/2-snapshot-prezzi`.
+
+---
+
+## CLUSTER 2 — "I numeri accettati sono congelati" ✅
+Branch `fix/2-snapshot-prezzi` · mig. `supabase/migrations/20260611020000_fix_cluster2_snapshot_prezzi.sql`.
+Invariante: una volta ACCETTATO/CONVERTITO_IN_CONTRATTO gli importi concordati sono immutabili; niente ricalcolo silenzioso; niente conclude/reopen/ridecisione fuori stato.
+
+| BRK | Fix | Test verde |
+|---|---|---|
+| E-SNAPSHOT-02 | `quotes_default_markup_after_update`: se la quote è ACCETTATO/CONVERTITO ritorna senza ricalcolare `line_client` | C2-T1 |
+| E-SNAPSHOT-03 | `quote_supplier_markup_after_change`: stesso status guard (legge lo stato della quote) | C2-T2 |
+| A-15 | `quote_reopen`: aggiunto `status <> 'CONVERTITO_IN_CONTRATTO'` (non si riapre una convertita) | C2-T3 |
+| A-14 | `quote_conclude_by_client`: conclude solo ACCETTATO/CONVERTITO (`not_accepted` altrimenti) | C2-T4 |
+| A-12 | `client_decide_quote_item`: blocca se `contracted_at` valorizzato o quote CONVERTITO (`contracted`) | C2-T5 |
+
+**Ciclo rosso→verde provato:** dopo la migrazione nessun BRK-A fa più rosso (tutta la famiglia A chiusa tra cluster 1 e 2). Verdi permanenti in `tests/sql/cluster2_snapshot_prezzi.sql` (5/5), con i **positivi**: su BOZZA il markup ricalcola ancora (130→180 / 130→250), un ACCETTATO chiuso si riapre, un ACCETTATO si conclude, una voce viva si decide.
+
+**Regressione completa verde:** `rls_tests` 9/9 · `pii_isolation_tests` 22/22 · `views_isolation_tests` 3/3 · `cluster1` 7/7 · `tsc+vite build` ✅.
+
+**Dove mi sono fermato:** fine cluster 2. Prossimo: `fix/3-bounds-concorrenza`.
