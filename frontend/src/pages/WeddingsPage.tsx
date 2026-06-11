@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowUpRight, CalendarHeart, Trash2 } from 'lucide-react'
@@ -15,41 +16,37 @@ export default function WeddingsPage() {
   const { data, isLoading } = useWeddings()
   const qc = useQueryClient()
 
-  async function deleteWedding(id: string, title: string) {
-    const confirmMsg = `Elimini definitivamente "${title}"?
+  const [delTarget, setDelTarget] = useState<{ id: string; title: string } | null>(null)
+  const [delPhrase, setDelPhrase] = useState('')
+  const [delLoseAll, setDelLoseAll] = useState(false)
+  const [delNoBackup, setDelNoBackup] = useState(false)
+  const [delBusy, setDelBusy] = useState(false)
 
-Verranno cancellati per sempre TUTTI i dati associati a questo matrimonio:
-• Dati anagrafici e contatti della coppia
-• Preventivo, voci e firme digitali
-• Contratti generati
-• Lista invitati, alloggi, trasporti
-• Menu, tavoli, mood board, playlist, budget, checklist
-• Documenti caricati e PDF
-• Gadget / bomboniere
+  function deleteWedding(id: string, title: string) {
+    setDelPhrase(''); setDelLoseAll(false); setDelNoBackup(false); setDelTarget({ id, title })
+  }
 
-L'azione è IRREVERSIBILE e conforme al GDPR 196/2003 (diritto all'oblio).
-Procedere?`
-    if (!confirm(confirmMsg)) return
+  async function confirmDelete() {
+    if (!delTarget) return
+    setDelBusy(true)
     try {
-      const { data: paths, error } = await (supabase as any).rpc('delete_wedding_cascade', { p_entry_id: id })
+      const { data: paths, error } = await (supabase as any).rpc('delete_event_with_consent', {
+        p_entry: delTarget.id, p_phrase: delPhrase, p_lose_all: delLoseAll, p_no_backup: delNoBackup,
+      })
       if (error) throw error
-      // Storage cleanup (best-effort)
       const byBucket = new Map<string, string[]>()
       for (const r of (paths as Array<{ bucket: string; path: string }>) ?? []) {
         if (!r.bucket || !r.path) continue
-        const arr = byBucket.get(r.bucket) ?? []
-        arr.push(r.path)
-        byBucket.set(r.bucket, arr)
+        const arr = byBucket.get(r.bucket) ?? []; arr.push(r.path); byBucket.set(r.bucket, arr)
       }
-      for (const [bucket, files] of byBucket.entries()) {
-        try { await supabase.storage.from(bucket).remove(files) } catch { /* ignore */ }
-      }
-      toast.success('Matrimonio eliminato. Dati della coppia rimossi (GDPR).')
-      qc.invalidateQueries({ queryKey: ['weddings'] })
-      qc.invalidateQueries({ queryKey: ['calendar'] })
+      for (const [bucket, files] of byBucket.entries()) { try { await supabase.storage.from(bucket).remove(files) } catch { /* ignore */ } }
+      toast.success('Evento eliminato definitivamente (registrato per tutela legale).')
+      setDelTarget(null)
+      qc.invalidateQueries({ queryKey: ['weddings'] }); qc.invalidateQueries({ queryKey: ['calendar'] })
     } catch (e) {
-      toast.error((e as Error).message)
-    }
+      const msg = (e as Error).message
+      toast.error(msg.includes('signed_act') ? "Non eliminabile: c'è un atto firmato collegato." : msg.includes('phrase') ? 'Scrivi esattamente VOGLIO CANCELLARE.' : msg.includes('consent') ? 'Spunta entrambe le dichiarazioni.' : msg)
+    } finally { setDelBusy(false) }
   }
 
   return (
@@ -64,6 +61,29 @@ Procedere?`
         <div className="flex justify-end mb-4 -mt-2">
           <DirectEventButton onCreated={() => qc.invalidateQueries({ queryKey: ['weddings'] })} />
         </div>
+
+        {delTarget && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => !delBusy && setDelTarget(null)}>
+            <div className="bg-[rgb(var(--bg))] w-full max-w-md rounded-2xl shadow-xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="text-center">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--rose-100,254_226_226))] text-rose-600 mx-auto"><Trash2 size={22} /></span>
+                <h3 className="font-display text-xl mt-2">Cancellare «{delTarget.title}»?</h3>
+                <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">Azione <strong>irreversibile</strong>: spariscono per sempre invitati, foto, documenti — tutto.</p>
+              </div>
+              <label className="flex items-start gap-2 text-sm cursor-pointer select-none"><input type="checkbox" checked={delLoseAll} onChange={(e) => setDelLoseAll(e.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-600 shrink-0" /> Accetto di perdere tutti i dati di questo evento.</label>
+              <label className="flex items-start gap-2 text-sm cursor-pointer select-none"><input type="checkbox" checked={delNoBackup} onChange={(e) => setDelNoBackup(e.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-600 shrink-0" /> Sono consapevole che NON esiste un backup recuperabile.</label>
+              <div>
+                <label className="text-xs text-[rgb(var(--fg-muted))]">Scrivi <strong>VOGLIO CANCELLARE</strong> per confermare</label>
+                <input value={delPhrase} onChange={(e) => setDelPhrase(e.target.value)} placeholder="VOGLIO CANCELLARE" className="mt-1 w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
+              </div>
+              <p className="text-[11px] text-[rgb(var(--fg-subtle))]">La conferma (chi, quando, cosa hai accettato) viene registrata da Planfully per tutela legale.</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" disabled={delBusy} onClick={() => setDelTarget(null)}>Annulla</Button>
+                <Button disabled={delBusy || delPhrase.trim().toUpperCase() !== 'VOGLIO CANCELLARE' || !delLoseAll || !delNoBackup} onClick={confirmDelete} className="!bg-rose-600 !text-white hover:!bg-rose-700">{delBusy ? 'Elimino…' : 'Cancella definitivamente'}</Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
