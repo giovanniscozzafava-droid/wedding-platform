@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Heart, Sparkles, UserPlus, Gift, X, Loader2, Mail } from 'lucide-react'
+import { Check, Heart, Sparkles, UserPlus, Gift, X, Loader2, Mail, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
+import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 type RingRole = { role_key: string; label: string; covered: boolean; covered_by: string | null }
 type RingState = { roles: RingRole[]; total: number; covered: number; closed: boolean }
@@ -36,6 +37,9 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   const [adding, setAdding] = useState<string | null>(null)
   // invito email a un fornitore NON ancora su Planfully (conta per i punti referral)
   const [invite, setInvite] = useState<{ email: string; sending: boolean }>({ email: '', sending: false })
+  // il cerchio NON è chiuso: si possono aggiungere altri ruoli/fornitori
+  const [addOpen, setAddOpen] = useState(false)
+  const [addBusy, setAddBusy] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!entryId) return
@@ -87,9 +91,20 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
     } catch (e) { toast.error((e as Error).message) } finally { setInvite((s) => ({ ...s, sending: false })) }
   }
 
+  // Aggiunge un nuovo ruolo al cerchio (oltre i 10 standard): il cerchio è aperto.
+  async function addRole(s: { v: string; l: string }) {
+    setAddBusy(s.v)
+    try {
+      const r = await rpc<{ ok?: boolean; error?: string }>('set_event_ring_role', { p_entry: entryId, p_role_key: s.v, p_active: true, p_label: s.l })
+      if (r?.error) { toast.error(r.error === 'forbidden' ? 'Non puoi modificare il cerchio.' : r.error); return }
+      await load()
+    } finally { setAddBusy(null) }
+  }
+
   if (!ring || ring.total === 0) return null
 
   const canSuggest = view === 'fornitore' || view === 'capostipite'
+  const addable = SUPPLIER_SUBROLES.filter((s) => !ring.roles.some((r) => r.role_key === s.v))
   const N = ring.total
   const size = 168, cx = size / 2, cy = size / 2, r = 70, sw = 12, gap = N > 1 ? 7 : 0
   const seg = 360 / N
@@ -163,8 +178,38 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
               </div>
             ))}
           </div>
+          {canSuggest && addable.length > 0 && (
+            <button type="button" onClick={() => setAddOpen(true)}
+              className="mt-3 text-xs text-[rgb(var(--gold-600))] hover:underline inline-flex items-center gap-1">
+              <Plus size={13} /> Aggiungi un altro ruolo / fornitore
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Aggiungi ruolo: il cerchio è aperto, si possono inserire altri fornitori */}
+      {addOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setAddOpen(false)}>
+          <div className="bg-[rgb(var(--bg))] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))]">
+              <div>
+                <h4 className="font-medium">Aggiungi un ruolo al cerchio</h4>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))]">Poi potrai suggerire o invitare il fornitore per quel ruolo.</p>
+              </div>
+              <button className="p-1 rounded hover:bg-[rgb(var(--bg-sunken))]" onClick={() => setAddOpen(false)} aria-label="Chiudi"><X size={18} /></button>
+            </div>
+            <div className="overflow-y-auto p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
+              {addable.map((s) => (
+                <button key={s.v} type="button" disabled={addBusy === s.v} onClick={() => addRole(s)}
+                  className="flex items-center justify-between gap-2 p-2.5 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60 text-left text-sm">
+                  <span className="truncate">{s.l}</span>
+                  {addBusy === s.v ? <Loader2 size={14} className="animate-spin shrink-0" /> : <Plus size={14} className="text-[rgb(var(--gold-600))] shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Picker fornitori: scegli → entra subito nell'evento */}
       {pick && (
