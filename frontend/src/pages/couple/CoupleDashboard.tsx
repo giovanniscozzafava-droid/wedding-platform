@@ -28,6 +28,7 @@ import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { SaluteEventoBadge } from '@/components/wedding/SaluteEventoBadge'
+import { EventRing } from '@/components/event/EventRing'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
 
@@ -236,6 +237,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
       </nav>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {tab === 'overview' && <div className="mb-6"><EventRing entryId={entryId} view="sposi" /></div>}
         <AnimatePresence mode="wait">
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>

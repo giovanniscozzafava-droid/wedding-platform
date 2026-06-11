@@ -43,6 +43,7 @@ import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth'
+import { EventRing } from '@/components/event/EventRing'
 import { useQueryClient } from '@tanstack/react-query'
 
 type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat'
@@ -85,6 +86,8 @@ export default function WeddingDashboard() {
   const nuovoModello = useNuovoModello()
   const { user, profile } = useAuth()
   const isFornitore = profile?.role === 'FORNITORE'
+  const ringView: 'capostipite' | 'fornitore' | 'sposi' =
+    profile?.role === 'FORNITORE' ? 'fornitore' : profile?.role === 'COUPLE' ? 'sposi' : 'capostipite'
   const qc = useQueryClient()
 
   // REVISIONE C: ambito incarico (COMPLETO | SOLO_COORDINAMENTO | SOLO_PROPRI_SERVIZI).
@@ -242,6 +245,7 @@ export default function WeddingDashboard() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8">
+        <div className="mb-6"><EventRing entryId={wedding.id} view={ringView} /></div>
         <AnimatePresence mode="wait">
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
