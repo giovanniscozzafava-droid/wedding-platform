@@ -44,6 +44,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth'
 import { EventRing } from '@/components/event/EventRing'
+import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
 import { Images } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -249,6 +250,7 @@ export default function WeddingDashboard() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8">
         <div className="mb-6"><EventRing entryId={wedding.id} view={ringView} /></div>
+        {tab === 'overview' && <div className="mb-6"><CompletionRings entryId={wedding.id} onOpen={(t) => setTab((t === 'rsvp' ? 'guests' : t === 'cerchio' ? 'overview' : t) as TabKey)} /></div>}
         <AnimatePresence mode="wait">
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}

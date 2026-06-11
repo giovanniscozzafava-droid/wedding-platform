@@ -29,6 +29,7 @@ import { AppFooter } from '@/components/layout/AppFooter'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { SaluteEventoBadge } from '@/components/wedding/SaluteEventoBadge'
 import { EventRing } from '@/components/event/EventRing'
+import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
 import { Images } from 'lucide-react'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
@@ -241,6 +242,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         {tab === 'overview' && <div className="mb-6"><EventRing entryId={entryId} view="sposi" /></div>}
+        {tab === 'overview' && <div className="mb-6"><CompletionRings entryId={entryId} onOpen={(t) => setTab(((({ guests: 'invitati', rsvp: 'invitati', tables: 'tavoli', ceremony: 'cerimonia', timeline: 'programma', cerchio: 'overview' }) as Record<string, string>)[t] ?? t) as Tab)} /></div>}
         <AnimatePresence mode="wait">
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
