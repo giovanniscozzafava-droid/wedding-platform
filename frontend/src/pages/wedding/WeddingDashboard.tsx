@@ -47,6 +47,8 @@ import { EventRing } from '@/components/event/EventRing'
 import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
 import { Images } from 'lucide-react'
+import { Pencil } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
 
 type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto'
@@ -164,7 +166,20 @@ export default function WeddingDashboard() {
               <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'rgb(var(--gold-600))' }}>
                 Evento {(wedding as any).guest_count ? `· ${(wedding as any).guest_count} invitati` : ''}
               </p>
-              <h1 className="font-display text-3xl sm:text-4xl tracking-tight mt-1">{wedding.title}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <h1 className="font-display text-3xl sm:text-4xl tracking-tight">{wedding.title}</h1>
+                <button title="Modifica nome evento" className="p-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] shrink-0"
+                  onClick={async () => {
+                    const v = prompt('Nuovo nome evento:', wedding.title)
+                    if (v == null) return
+                    const name = v.trim()
+                    if (!name || name === wedding.title) return
+                    const { error } = await (supabase.from as unknown as (t: string) => { update: (o: Record<string, unknown>) => { eq: (k: string, v: string) => Promise<{ error: { message: string } | null }> } })('calendar_entries').update({ title: name }).eq('id', wedding.id)
+                    if (error) { toast.error(error.message); return }
+                    toast.success('Nome aggiornato')
+                    qc.invalidateQueries({ queryKey: ['wedding'] }); qc.invalidateQueries({ queryKey: ['weddings'] }); qc.invalidateQueries({ queryKey: ['calendar'] })
+                  }}><Pencil size={18} /></button>
+              </div>
               <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
                 {wedding.client_name} ·{' '}
                 {new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
