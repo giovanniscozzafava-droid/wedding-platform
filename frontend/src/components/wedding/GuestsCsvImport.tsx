@@ -24,14 +24,14 @@ type Props = {
   onImported: () => void
 }
 
-// Mapping fuzzy: header normalizzato → campo target.
+// Riconoscimento del NOME: gestisce nome+cognome separati, "nome e cognome" unito,
+// e vari sinonimi (nominativo, partecipante, ospite...). Robusto = legge "tutto".
+const NAME_FULL = new Set(['nomecognome', 'nomeecognome', 'cognomeenome', 'cognomenome', 'fullname', 'name', 'invitato', 'invitatoa', 'invitati', 'nominativo', 'nominativi', 'partecipante', 'ospite', 'ospiti', 'contatto', 'persona', 'nomeinvitato', 'nomeospite', 'guest', 'guestname'])
+const NAME_FIRST = new Set(['nome', 'firstname', 'first', 'primonome', 'nomeproprio'])
+const NAME_LAST = new Set(['cognome', 'surname', 'lastname', 'last'])
+
+// Mapping fuzzy: header normalizzato → campo target (campi NON-nome).
 const HEADER_MAP: Record<string, keyof GuestInsert> = {
-  nome: 'full_name',
-  nomecognome: 'full_name',
-  nomeecognome: 'full_name',
-  fullname: 'full_name',
-  name: 'full_name',
-  invitato: 'full_name',
   email: 'email',
   mail: 'email',
   emailaddress: 'email',
@@ -88,14 +88,21 @@ function normalizeAgeGroup(v: string): 'ADULT' | 'CHILD' | 'INFANT' | null {
 
 function mapRow(row: CsvRow, mapping: Map<string, keyof GuestInsert>): GuestInsert | null {
   const out: GuestInsert = { full_name: '' }
+  let first = '', last = '', full = '', firstNonEmpty = ''
   for (const [origHeader, value] of Object.entries(row)) {
-    const target = mapping.get(normalizeHeader(origHeader))
-    if (!target) continue
+    const n = normalizeHeader(origHeader)
     const v = value.trim()
     if (!v) continue
+    if (!firstNonEmpty && !v.includes('@') && /[a-zà-ú]/i.test(v)) firstNonEmpty = v
+    // nome (gestito a parte: combina nome+cognome / nome unito / sinonimi)
+    if (NAME_FULL.has(n)) { if (!full) full = v; continue }
+    if (NAME_FIRST.has(n)) { if (!first) first = v; continue }
+    if (NAME_LAST.has(n)) { if (!last) last = v; continue }
+    const target = mapping.get(n)
+    if (!target) continue
     if (target === 'party_size') {
-      const n = parseInt(v, 10)
-      if (!isNaN(n) && n > 0) out.party_size = n
+      const num = parseInt(v, 10)
+      if (!isNaN(num) && num > 0) out.party_size = num
     } else if (target === 'side') {
       out.side = normalizeSide(v)
     } else if (target === 'age_group') {
@@ -105,6 +112,8 @@ function mapRow(row: CsvRow, mapping: Map<string, keyof GuestInsert>): GuestInse
       ;(out as any)[target] = v
     }
   }
+  // full_name = nome unito, oppure nome+cognome, oppure (fallback) prima colonna testuale
+  out.full_name = (full || `${first} ${last}`.trim()).trim() || firstNonEmpty
   if (!out.full_name) return null
   return out
 }
@@ -141,7 +150,7 @@ export function GuestsCsvImport({ entryId, onImported }: Props) {
       const mapped = rows.map((r) => mapRow(r, headerMap)).filter((g): g is GuestInsert => g !== null)
       setValidRows(mapped)
       if (mapped.length === 0) {
-        toast.error('Nessun invitato valido. Verifica che ci sia almeno una colonna "Nome".')
+        toast.error(`Nessun invitato riconosciuto. Colonne trovate: ${headers.join(' · ') || '(nessuna)'}. Serve almeno una colonna con il nome.`)
       }
     } catch (e) {
       toast.error('CSV non leggibile: ' + (e as Error).message)

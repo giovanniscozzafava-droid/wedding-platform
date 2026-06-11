@@ -19,17 +19,6 @@ function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 // L'anello-a-segmenti che si chiude è RISERVATO al completamento dell'evento (§10.3).
 // Niente percentuali, niente numeri: si vede quanto manca, non si legge.
 
-function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
-  const a = ((deg - 90) * Math.PI) / 180
-  return [cx + r * Math.cos(a), cy + r * Math.sin(a)]
-}
-function arcPath(cx: number, cy: number, r: number, start: number, end: number): string {
-  const [sx, sy] = polar(cx, cy, r, end)
-  const [ex, ey] = polar(cx, cy, r, start)
-  const large = end - start <= 180 ? 0 : 1
-  return `M ${sx} ${sy} A ${r} ${r} 0 ${large} 0 ${ex} ${ey}`
-}
-
 export function EventRing({ entryId, view }: { entryId: string; view: 'capostipite' | 'fornitore' | 'sposi' }) {
   const [ring, setRing] = useState<RingState | null>(null)
   // picker "suggerisci fornitore": ruolo aperto + lista fornitori + stato
@@ -128,8 +117,9 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   const canSuggest = view === 'fornitore' || view === 'capostipite'
   const addable = SUPPLIER_SUBROLES.filter((s) => !ring.roles.some((r) => r.role_key === s.v))
   const N = ring.total
-  const size = 168, cx = size / 2, cy = size / 2, r = 70, sw = 12, gap = N > 1 ? 7 : 0
-  const seg = 360 / N
+  const size = 168, cx = size / 2, cy = size / 2, r = 70, sw = 14
+  const C = 2 * Math.PI * r
+  const progress = N > 0 ? ring.covered / N : 0
 
   return (
     <div className="surface surface-lift p-5 sm:p-6">
@@ -154,19 +144,22 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
       <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
         {/* Anello */}
         <div className="relative shrink-0" style={{ width: size, height: size }}>
-          <svg width={size} height={size}>
-            {ring.roles.map((role, i) => {
-              const start = i * seg + gap / 2
-              const end = (i + 1) * seg - gap / 2
-              return (
-                <motion.path key={role.role_key}
-                  d={arcPath(cx, cy, r, start, end)}
-                  fill="none" strokeWidth={sw} strokeLinecap="round"
-                  stroke={role.covered ? 'rgb(var(--gold-500))' : 'rgb(var(--border))'}
-                  initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ delay: i * 0.04, duration: 0.5 }} />
-              )
-            })}
+          <svg width={size} height={size} className="-rotate-90">
+            <defs>
+              <linearGradient id="ringGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="rgb(var(--gold-600))" />
+                <stop offset="55%" stopColor="rgb(var(--gold-500))" />
+                <stop offset="100%" stopColor="rgb(var(--gold-300))" />
+              </linearGradient>
+            </defs>
+            {/* track (binario di fondo) */}
+            <circle cx={cx} cy={cy} r={r} fill="none" strokeWidth={sw} stroke="rgb(var(--bg-sunken))" />
+            {/* arco di progressione continuo, stile anello Apple */}
+            <motion.circle cx={cx} cy={cy} r={r} fill="none" strokeWidth={sw} strokeLinecap="round"
+              stroke="url(#ringGold)" strokeDasharray={C}
+              initial={{ strokeDashoffset: C }}
+              animate={{ strokeDashoffset: C * (1 - progress) }}
+              transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }} />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             {ring.closed ? (
