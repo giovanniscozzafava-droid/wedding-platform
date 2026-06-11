@@ -66,9 +66,9 @@ const TABS: Array<TabDef> = [
   { key: 'gadgets',        label: 'Bomboniere',   icon: Gift },
   { key: 'mood',           label: 'Mood',         icon: Palette },
   { key: 'playlist',       label: 'Playlist',     icon: Music },
-  { key: 'budget',         label: 'Budget',       icon: Wallet },
-  { key: 'payments',       label: 'Pagamenti',    icon: Wallet },
-  { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale, nuovoModelloOnly: true },
+  { key: 'budget',         label: 'Budget',       icon: Wallet, capostipiteOnly: true },
+  { key: 'payments',       label: 'Pagamenti',    icon: Wallet, capostipiteOnly: true },
+  { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale, nuovoModelloOnly: true, capostipiteOnly: true },
   { key: 'chat',           label: 'Chat',         icon: MessageCircle, nuovoModelloOnly: true },
   { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
   { key: 'contract',       label: 'Contratto',    icon: FileSignature, capostipiteOnly: true },
@@ -76,7 +76,7 @@ const TABS: Array<TabDef> = [
   { key: 'website',        label: 'Sito evento', icon: Globe, capostipiteOnly: true },
   { key: 'members',        label: 'Clienti',      icon: Heart, capostipiteOnly: true },
   { key: 'foto',           label: 'Foto',         icon: Images },
-  { key: 'docs',           label: 'Documenti',    icon: FolderOpen },
+  { key: 'docs',           label: 'Documenti',    icon: FolderOpen, capostipiteOnly: true },
   { key: 'analytics', label: 'Analytics',  icon: BarChart3, capostipiteOnly: true },
 ]
 
