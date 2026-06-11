@@ -164,42 +164,23 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     await load()
   }
 
-  // Scarica in ZIP SOLO le foto/video selezionati dagli sposi (album_choice='KEPT'),
-  // per impaginare l'album. Drive: scarico col token del fotografo (owner); storage: URL pubblico.
+  // Scarica in ZIP SOLO le foto/video selezionati per l'album (album_choice='KEPT').
+  // Lato server (edge album-zip) col token Drive dell'owner → lo possono fare anche gli sposi.
   async function downloadSelectedZip() {
-    const selected = folders.flatMap((f) => f.gallery_media).filter((m) => m.album_choice === 'KEPT')
-    if (selected.length === 0) { toast.error('Gli sposi non hanno ancora selezionato foto.'); return }
     setBusy(true)
     try {
-      const JSZip = (await import('jszip')).default
-      const zip = new JSZip()
-      let token: string | null = null
-      if (selected.some((m) => isDrive(m))) token = await getDriveToken()
-      let ok = 0
-      for (const [i, m] of selected.entries()) {
-        try {
-          let blob: Blob
-          if (isDrive(m) && token) {
-            const r = await fetch(`https://www.googleapis.com/drive/v3/files/${m.drive_file_id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } })
-            if (!r.ok) throw new Error('drive')
-            blob = await r.blob()
-          } else {
-            const r = await fetch(m.thumbnail_link ?? '')
-            if (!r.ok) throw new Error('fetch')
-            blob = await r.blob()
-          }
-          const ext = m.media_type === 'VIDEO' ? 'mp4' : (blob.type.split('/')[1] || 'jpg')
-          zip.file(`${String(i + 1).padStart(3, '0')}-${(m.guest_tag_name || 'foto').replace(/[^\w\- ]+/g, '') || 'foto'}.${ext}`, blob)
-          ok++
-        } catch { /* salto il file non scaricabile */ }
+      const { data, error } = await supabase.functions.invoke('album-zip', { body: { entry_id: entryId } })
+      if (error) {
+        let msg = (error as Error).message
+        try { const b = await (error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (b?.error) msg = b.error === 'empty' || b.error === 'no_selection' ? 'Nessun file scaricabile (Drive collegato?)' : b.error } catch { /* ignore */ }
+        throw new Error(msg)
       }
-      if (ok === 0) throw new Error('Nessun file scaricabile (controlla la connessione Drive)')
-      const out = await zip.generateAsync({ type: 'blob' })
+      if (!(data instanceof Blob)) throw new Error('ZIP non riuscito')
       const a = document.createElement('a')
-      a.href = URL.createObjectURL(out); a.download = 'album-selezione.zip'
+      a.href = URL.createObjectURL(data); a.download = 'album-selezione.zip'
       document.body.appendChild(a); a.click(); a.remove()
       setTimeout(() => URL.revokeObjectURL(a.href), 2000)
-      toast.success(`ZIP pronto: ${ok} file selezionati`)
+      toast.success('ZIP pronto')
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 
@@ -308,12 +289,12 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         </Card>
       )}
 
-      {/* Owner: selezione album degli sposi → scarica solo le selezionate in ZIP */}
-      {isOwner && folders.some((f) => f.gallery_media.some((m) => m.album_choice === 'KEPT')) && (
+      {/* Selezione album → scarica solo le selezionate in ZIP (fotografo e sposi) */}
+      {(isOwner || role === 'sposi') && folders.some((f) => f.gallery_media.some((m) => m.album_choice === 'KEPT')) && (
         <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <Heart size={16} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" />
-            <p className="text-sm">Gli sposi hanno selezionato <strong>{folders.reduce((n, f) => n + f.gallery_media.filter((m) => m.album_choice === 'KEPT').length, 0)}</strong> file per l'album.</p>
+            <p className="text-sm">{role === 'sposi' ? 'Hai selezionato' : 'Gli sposi hanno selezionato'} <strong>{folders.reduce((n, f) => n + f.gallery_media.filter((m) => m.album_choice === 'KEPT').length, 0)}</strong> file per l'album.</p>
           </div>
           <Button variant="gold" size="sm" disabled={busy} onClick={downloadSelectedZip}><FileArchive size={14} /> Scarica selezionate (ZIP)</Button>
         </Card>

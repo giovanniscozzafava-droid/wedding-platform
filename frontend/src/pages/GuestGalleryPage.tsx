@@ -151,7 +151,7 @@ export default function GuestGalleryPage() {
           <div className="text-center space-y-2">
             <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]"><Images size={26} /></span>
             <h1 className="font-display text-2xl">Le foto del matrimonio</h1>
-            <p className="text-sm text-[rgb(var(--fg-muted))]">Scrivi nome ed email: entri subito, vedi le foto di tutti gli invitati e carichi le tue.</p>
+            <p className="text-sm text-[rgb(var(--fg-muted))]">Scrivi nome ed email ed entri subito. Qui <strong>carichi le tue foto e i tuoi video</strong> dell'evento e li condividi con tutti gli invitati. Se gli sposi lo attivano, qui trovi anche le <strong>foto ufficiali</strong> del matrimonio, da rivedere e scaricare.</p>
           </div>
           <form onSubmit={guestEnter} className="space-y-3">
             <input value={gname} onChange={(e) => setGname(e.target.value)} placeholder="Nome e cognome" autoComplete="name"

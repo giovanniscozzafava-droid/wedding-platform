@@ -29,7 +29,19 @@ export function DriveConnectCard() {
     })()
   }, [])
 
+  // Google blocca l'OAuth dentro i browser in-app (WhatsApp/Instagram/Facebook):
+  // "disallowed_useragent". Va aperto nel browser di sistema (Safari/Chrome).
+  function isInAppBrowser() {
+    const ua = navigator.userAgent || ''
+    return /FBAN|FBAV|FB_IAB|Instagram|Line\/|WhatsApp|Snapchat|Pinterest|Twitter|; wv\)/i.test(ua)
+  }
+
   async function connect() {
+    if (isInAppBrowser()) {
+      try { await navigator.clipboard.writeText(`${window.location.origin}/profile`) } catch { /* ignore */ }
+      toast.error('Per collegare Google Drive apri planfully.it in Safari o Chrome (non funziona dentro WhatsApp/Instagram). Link copiato.', { duration: 8000 })
+      return
+    }
     setBusy(true)
     try {
       const { data, error } = await supabase.functions.invoke('drive-oauth-start', { body: {} })
