@@ -179,6 +179,13 @@ export default function WeddingDashboard() {
                     toast.success('Nome aggiornato')
                     qc.invalidateQueries({ queryKey: ['wedding'] }); qc.invalidateQueries({ queryKey: ['weddings'] }); qc.invalidateQueries({ queryKey: ['calendar'] })
                   }}><Pencil size={18} /></button>
+                <button title="Copia il link con cui la coppia accede/rientra" className="text-xs text-[rgb(var(--gold-600))] hover:underline shrink-0"
+                  onClick={async () => {
+                    const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; token?: string; error?: string } }> }).rpc('couple_access_link', { p_entry: wedding.id })
+                    if (!data?.token) { toast.error(data?.error === 'no_couple' ? 'Nessuna coppia collegata a questo evento.' : 'Link non disponibile'); return }
+                    const url = `${window.location.origin}/invito-coppia/${data.token}`
+                    try { await navigator.clipboard.writeText(url); toast.success('Link accesso coppia copiato') } catch { toast.success(url) }
+                  }}>Link coppia</button>
               </div>
               <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
                 {wedding.client_name} ·{' '}

@@ -56,7 +56,7 @@ export function DirectEventButton({ onCreated }: { onCreated?: () => void }) {
               </div>
             ) : (
               <div className="p-4 space-y-3 text-center">
-                <p className="text-sm">Evento creato ✅. Dai questo link (o QR) alla coppia: si registra e accede subito alla sua dashboard.</p>
+                <p className="text-sm">Evento creato ✅. Dai questo link (o QR) alla coppia: si registra e poi <strong>rientra sempre da qui</strong> nella sua dashboard (è anche il link di accesso).</p>
                 <div className="rounded-2xl bg-white p-4 inline-block border border-[rgb(var(--border))]"><QRCodeSVG value={link} size={180} level="M" fgColor="#1A1714" bgColor="#ffffff" /></div>
                 <div className="flex items-center gap-2">
                   <input readOnly value={link} className="flex-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] px-2.5 py-2 text-xs" />

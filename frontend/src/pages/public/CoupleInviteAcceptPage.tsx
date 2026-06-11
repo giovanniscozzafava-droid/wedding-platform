@@ -42,6 +42,8 @@ export default function CoupleInviteAcceptPage() {
       if (j.error) { setLoadErr(j.error); return }
       setInfo(j)
       if (j.full_name) setFullName(j.full_name)
+      if ((j as { already?: boolean }).already) setMode('login') // già registrata/o → rientro
+
     })()
   }, [token])
 
@@ -86,13 +88,9 @@ export default function CoupleInviteAcceptPage() {
     try {
       const { error: loginErr } = await supabase.auth.signInWithPassword({ email: info.email, password })
       if (loginErr) throw loginErr
-      const { data: claimed } = await supabase.rpc('couple_accept_invite', { p_token: token })
-      if (claimed === true) {
-        toast.success('Collegato al vostro evento')
-        nav('/couple', { replace: true })
-      } else {
-        toast.error('Login OK ma invito non collegato (email diverse?). Contatta la wedding planner.')
-      }
+      await supabase.rpc('couple_accept_invite', { p_token: token }) // best-effort: collega se non già collegato
+      toast.success('Bentornata/o nel vostro evento')
+      nav('/couple', { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore login')
     } finally { setBusy(false) }
