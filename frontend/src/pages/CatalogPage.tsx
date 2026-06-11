@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { ServiceForm } from '@/components/catalog/ServiceForm'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { CsvImporter } from '@/components/CsvImporter'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCreateService, useDeleteService, useReorderServices, useServices, type ServiceWithExtras } from '@/hooks/useCatalog'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProfessione } from '@/hooks/useProfessione'
@@ -26,6 +28,7 @@ type Filters = {
 
 export default function CatalogPage() {
   const { profile } = useAuth()
+  const qc = useQueryClient()
   const { data, isLoading, error } = useServices({ onlyActive: false })
   const { data: suppliers } = useSuppliers()
   const { data: professione } = useProfessione()
@@ -168,6 +171,7 @@ export default function CatalogPage() {
                     </Button>
                   </>
                 )}
+                {!reorderMode && <CsvImporter defaultTargetKey="services" label="Importa CSV" onDone={() => qc.invalidateQueries()} />}
                 {professione && professione.slug !== 'generico' && (
                   <Button variant="outline" onClick={() => setShowPackPicker(true)} data-testid="import-pack-btn">
                     <PackageCheck /> Starter pack
