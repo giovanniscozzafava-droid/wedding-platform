@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
-  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Church, Package,
+  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Church, Package, ListChecks,
 } from 'lucide-react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -24,6 +24,8 @@ import { MenuTab } from '@/components/wedding/MenuTab'
 import { GuestsTab } from '@/components/wedding/GuestsTab'
 import { TablesTab } from '@/components/wedding/TablesTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
+import { TimelineTab } from '@/components/wedding/TimelineTab'
+import { ChecklistTab } from '@/components/wedding/ChecklistTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
@@ -35,7 +37,7 @@ import { Images } from 'lucide-react'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
 
-type Tab = 'overview' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto'
+type Tab = 'overview' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'scaletta' | 'checklist' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto'
 
 // La tab "Questionario" (planning) e' stata rimossa dalla coppia:
 // le domande sono gia` raccolte nel questionario di presentazione iniziale
@@ -49,6 +51,8 @@ const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'cerimonia',  label: 'Cerimonia',    icon: Church },
   { key: 'documenti',  label: 'Documenti',    icon: FileText },
   { key: 'programma', label: 'Programma',    icon: CalendarClock },
+  { key: 'scaletta',  label: 'Scaletta',     icon: CalendarClock },
+  { key: 'checklist', label: 'Checklist',    icon: ListChecks },
   { key: 'alloggi',   label: 'Alloggi',      icon: BedDouble },
   { key: 'trasporti', label: 'Trasporti',    icon: Bus },
   { key: 'invitati',  label: 'Invitati',     icon: UsersIcon },
@@ -262,6 +266,8 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             {tab === 'cerimonia' && <CeremonyTab entryId={entryId} readOnly />}
             {tab === 'documenti' && <DocumentiCouple wedding={wedding} entryId={entryId} />}
             {tab === 'programma' && <ProgrammaCouple entryId={entryId} />}
+            {tab === 'scaletta' && <TimelineTab entryId={entryId} eventKind={(wedding as { event_kind?: string }).event_kind} />}
+            {tab === 'checklist' && <ChecklistTab entryId={entryId} />}
             {tab === 'alloggi' && <AlloggiCouple entryId={entryId} />}
             {tab === 'trasporti' && <TrasportiCouple entryId={entryId} />}
             {tab === 'invitati' && <GuestsTab entryId={entryId} eventKind={eventKind} />}
