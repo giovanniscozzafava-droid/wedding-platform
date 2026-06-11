@@ -176,10 +176,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
   // Scarica in ZIP SOLO le foto/video selezionati per l'album (album_choice='KEPT').
   // Lato server (edge album-zip) col token Drive dell'owner → lo possono fare anche gli sposi.
-  async function downloadSelectedZip() {
+  async function downloadSelectedZip(size: 'web' | 'original' = 'original') {
     setBusy(true)
     try {
-      const { data, error } = await supabase.functions.invoke('album-zip', { body: { entry_id: entryId } })
+      const { data, error } = await supabase.functions.invoke('album-zip', { body: { entry_id: entryId, size } })
       if (error) {
         let msg = (error as Error).message
         try { const b = await (error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (b?.error) msg = b.error === 'empty' || b.error === 'no_selection' ? 'Nessun file scaricabile (Drive collegato?)' : b.error } catch { /* ignore */ }
@@ -187,10 +187,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       }
       if (!(data instanceof Blob)) throw new Error('ZIP non riuscito')
       const a = document.createElement('a')
-      a.href = URL.createObjectURL(data); a.download = 'album-selezione.zip'
+      a.href = URL.createObjectURL(data); a.download = size === 'web' ? 'album-selezione-web.zip' : 'album-selezione-originale.zip'
       document.body.appendChild(a); a.click(); a.remove()
       setTimeout(() => URL.revokeObjectURL(a.href), 2000)
-      toast.success('ZIP pronto')
+      toast.success(size === 'web' ? 'ZIP web pronto' : 'ZIP originale pronto')
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 
@@ -330,7 +330,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <Heart size={16} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" />
             <p className="text-sm">{role === 'sposi' ? 'Hai selezionato' : 'Gli sposi hanno selezionato'} <strong>{folders.reduce((n, f) => n + f.gallery_media.filter((m) => m.album_choice === 'KEPT').length, 0)}</strong> file per l'album.</p>
           </div>
-          <Button variant="gold" size="sm" disabled={busy} onClick={downloadSelectedZip}><FileArchive size={14} /> Scarica selezionate (ZIP)</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('web')} title="ZIP leggero ~1600px"><FileArchive size={14} /> ZIP Web</Button>
+            <Button variant="gold" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione"><FileArchive size={14} /> ZIP Originale</Button>
+          </div>
         </Card>
       )}
 

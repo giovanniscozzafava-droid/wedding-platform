@@ -20,7 +20,10 @@ Deno.serve(async (req) => {
   const { data: { user } } = await userClient.auth.getUser()
   if (!user) return json({ error: 'auth_required' }, 401)
 
-  const { entry_id } = (await req.json().catch(() => ({}))) as { entry_id?: string }
+  const body = (await req.json().catch(() => ({}))) as { entry_id?: string; size?: string }
+  const entry_id = body.entry_id
+  // "dimensione" dell'export: 'web' (leggera, ~1600px) o 'original' (piena risoluzione).
+  const size: 'web' | 'original' = body.size === 'web' ? 'web' : 'original'
   if (!entry_id) return json({ error: 'no_entry' }, 400)
 
   const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } })
@@ -59,11 +62,20 @@ Deno.serve(async (req) => {
     i++
     try {
       let bytes: ArrayBuffer
+      // I video si esportano sempre a piena risoluzione (il "web" vale per le foto).
+      const wantWeb = size === 'web' && m.media_type !== 'VIDEO'
       if (isDrive(m.drive_file_id)) {
-        if (!token) continue
-        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${m.drive_file_id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } })
-        if (!r.ok) continue
-        bytes = await r.arrayBuffer()
+        if (wantWeb) {
+          // versione leggera ~1600px: l'endpoint thumbnail di Drive (no auth per file condivisi)
+          const r = await fetch(`https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600`)
+          if (!r.ok) continue
+          bytes = await r.arrayBuffer()
+        } else {
+          if (!token) continue
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${m.drive_file_id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } })
+          if (!r.ok) continue
+          bytes = await r.arrayBuffer()
+        }
       } else {
         if (!m.thumbnail_link) continue
         const r = await fetch(m.thumbnail_link)
@@ -79,5 +91,6 @@ Deno.serve(async (req) => {
   if (ok === 0) return json({ error: 'empty', detail: 'nessun file scaricabile (Drive non collegato?)' }, 502)
 
   const out = await zip.generateAsync({ type: 'uint8array' })
-  return new Response(out, { headers: { ...cors, 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="album-selezione.zip"' } })
+  const fname = size === 'web' ? 'album-selezione-web.zip' : 'album-selezione-originale.zip'
+  return new Response(out, { headers: { ...cors, 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${fname}"` } })
 })
