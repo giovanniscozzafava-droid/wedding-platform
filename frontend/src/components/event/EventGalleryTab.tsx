@@ -17,7 +17,7 @@ import { QRCodeSVG } from 'qrcode.react'
 // carica; gli sposi vedono tutto + danno il consenso; i fornitori vedono solo
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null }
+type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; uploaded_by?: string | null }
 type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string }
 
@@ -53,7 +53,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice)')
+      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, uploaded_by)')
       .eq('entry_id', entryId).order('sort_order')
     setFolders((f as Folder[]) ?? [])
     const { data: flag } = await (supabase.from as any)('feature_flags').select('enabled').eq('key', 'photo_sales_enabled').maybeSingle()
@@ -182,6 +182,20 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       setTimeout(() => URL.revokeObjectURL(a.href), 2000)
       toast.success('ZIP pronto')
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+
+  // Elimina una singola foto/video caricato da un ospite (owner della galleria o sposi).
+  async function deleteGuestMedia(m: Media) {
+    if (!confirm('Eliminare questo file caricato da un invitato?')) return
+    const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; error?: string } }> })
+      .rpc('delete_guest_media', { p_media: m.id })
+    if (data?.error) {
+      toast.error(data.error === 'forbidden' ? 'Non puoi eliminare questo file.' : data.error === 'not_guest_media' ? 'Qui si eliminano solo i file caricati dagli ospiti.' : data.error)
+      return
+    }
+    toast.success('File eliminato')
+    setBox(null)
+    await load()
   }
 
   // Carica foto demo (Pexels) per dimostrare la galleria viva (l'upload vero va su Drive).
@@ -423,6 +437,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="!text-white !border-white/30 hover:!bg-white/10" onClick={() => downloadUrl(webUrl(m), `${base}-web.${ext}`)} title="Versione leggera per il web"><Download size={14} /> Web</Button>
                 <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione"><Download size={14} /> Originale</Button>
+                {m.uploaded_by && (isOwner || role === 'sposi') && (
+                  <Button variant="outline" size="sm" className="!text-white !border-white/30 hover:!bg-white/10" onClick={() => deleteGuestMedia(m)} title="Elimina questo file caricato da un invitato"><Trash2 size={14} /> Elimina</Button>
+                )}
                 <button className="p-1.5 rounded hover:bg-white/10" onClick={() => setBox(null)} aria-label="Chiudi"><X size={18} className="text-white" /></button>
               </div>
             </div>
