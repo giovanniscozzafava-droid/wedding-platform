@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
+import { getDriveToken, ensureDriveFolder, uploadFileToDrive } from '@/lib/driveUpload'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -15,7 +16,7 @@ import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
 type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null }
-type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; gallery_media: Media[] }
+type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string }
 
 const LEVELS = [
@@ -31,6 +32,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [consentOn, setConsentOn] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const uploadRef = useRef<HTMLInputElement>(null)
+  const [uploadFolder, setUploadFolder] = useState<Folder | null>(null)
   // nuova cartella
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
 
@@ -43,7 +46,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents)')
+      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents)')
       .eq('entry_id', entryId).order('sort_order')
     setFolders((f as Folder[]) ?? [])
     const { data: c } = await (supabase.from as any)('gallery_consents').select('granted_at, revoked_at').eq('entry_id', entryId).eq('scope', 'LAVORO_INTERO').maybeSingle()
@@ -112,6 +115,27 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 
+  // Upload reale browser→Drive: token effimero, cartella Drive condivisa, file
+  // diretti a Drive (non passano da Planfully), poi salvo id + miniatura pubblica.
+  async function uploadPhotos(f: Folder, files: FileList) {
+    if (!gallery || files.length === 0) return
+    setBusy(true)
+    try {
+      const token = await getDriveToken()
+      const driveFolder = await ensureDriveFolder(token, `Planfully · ${f.name}`, f.drive_folder_id)
+      if (driveFolder !== f.drive_folder_id) await (supabase.from as any)('gallery_folders').update({ drive_folder_id: driveFolder }).eq('id', f.id)
+      const rows: Record<string, unknown>[] = []
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) continue
+        const { id, thumbnail } = await uploadFileToDrive(token, driveFolder, file)
+        rows.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: id, thumbnail_link: thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
+      }
+      if (rows.length) { const { error } = await (supabase.from as any)('gallery_media').insert(rows); if (error) throw error }
+      toast.success(`${rows.length} file caricati sul tuo Drive`)
+      await load()
+    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false); setUploadFolder(null) }
+  }
+
   async function setConsent(on: boolean) {
     setBusy(true)
     try {
@@ -143,6 +167,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
   return (
     <div className="space-y-5">
+      {/* input file nascosto per l'upload su Drive */}
+      <input ref={uploadRef} type="file" multiple accept="image/*,video/*" className="hidden"
+        onChange={(e) => { const fs = e.target.files; if (fs && uploadFolder) void uploadPhotos(uploadFolder, fs); e.target.value = '' }} />
+
       {/* Consenso sposi al lavoro intero */}
       {role === 'sposi' && (
         <Card className="p-4 flex items-start gap-3">
@@ -206,13 +234,14 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               {isOwner && (
                 <div className="flex items-center gap-1.5">
                   {f.level === 'LAVORO_INTERO' && <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleShared(f)}>{f.shared ? 'Non condividere' : 'Condividi al cerchio'}</Button>}
+                  <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => addDemoPhotos(f)}><Sparkles size={12} /> Foto demo</Button>
                   <Button variant="ghost" size="icon" onClick={() => deleteFolder(f)}><Trash2 size={13} /></Button>
                 </div>
               )}
             </div>
             {f.gallery_media.length === 0 ? (
-              <p className="text-xs text-[rgb(var(--fg-subtle))]">Nessuna foto. {isOwner && 'Carica dal tuo Drive (presto) o aggiungi foto demo.'}</p>
+              <p className="text-xs text-[rgb(var(--fg-subtle))]">Nessuna foto. {isOwner && 'Usa “Carica foto” (vanno sul tuo Drive) o “Foto demo”.'}</p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {f.gallery_media.map((m) => (
