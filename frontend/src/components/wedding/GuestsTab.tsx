@@ -10,6 +10,7 @@ import { exportTableToPdf } from '@/lib/pdf-export'
 import { GuestsCsvImport } from '@/components/wedding/GuestsCsvImport'
 import { eventTerm } from '@/lib/eventKind'
 import { SectionRings } from '@/components/event/SectionRings'
+import { supabase } from '@/lib/supabase'
 
 export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?: string }) {
   // Le opzioni "Lato" hanno senso come Sposa/Sposo solo per eventi con due
@@ -91,6 +92,15 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
+          {(guests ?? []).length > 0 && (
+            <Button variant="ghost" onClick={async () => {
+              if (!confirm(`Svuotare la lista? Verranno eliminati tutti i ${(guests ?? []).length} invitati di questo evento. Azione irreversibile.`)) return
+              const { error } = await (supabase.from as any)('event_guests').delete().eq('entry_id', entryId)
+              if (error) { toast.error(error.message); return }
+              toast.success('Lista invitati svuotata')
+              qc.invalidateQueries({ queryKey: ['guests', entryId] })
+            }}><Trash2 size={14} /> Svuota lista</Button>
+          )}
           <GuestsCsvImport entryId={entryId} onImported={() => qc.invalidateQueries({ queryKey: ['guests', entryId] })} />
           <Button variant="gold" onClick={quickAdd}><Plus /> Aggiungi invitato</Button>
         </div>

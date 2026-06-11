@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Upload, X, FileText, Check, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -86,34 +86,49 @@ function normalizeAgeGroup(v: string): 'ADULT' | 'CHILD' | 'INFANT' | null {
   return null
 }
 
-function mapRow(row: CsvRow, mapping: Map<string, keyof GuestInsert>): GuestInsert | null {
+// Mappatura interattiva: l'utente può correggere a quale campo va ogni colonna.
+const FIELD_OPTIONS: { v: string; l: string }[] = [
+  { v: 'ignore', l: '— ignora —' },
+  { v: 'full_name', l: 'Nome e Cognome' },
+  { v: 'first_name', l: 'Nome' },
+  { v: 'last_name', l: 'Cognome' },
+  { v: 'email', l: 'Email' },
+  { v: 'phone', l: 'Telefono' },
+  { v: 'party_size', l: 'Posti' },
+  { v: 'side', l: 'Lato (sposa/sposo)' },
+  { v: 'group_label', l: 'Gruppo' },
+  { v: 'diet', l: 'Dieta / Allergie' },
+  { v: 'age_group', l: 'Età (adulto/bambino)' },
+  { v: 'notes', l: 'Note' },
+]
+
+function guessTarget(header: string): string {
+  const n = normalizeHeader(header)
+  if (NAME_FULL.has(n)) return 'full_name'
+  if (NAME_FIRST.has(n)) return 'first_name'
+  if (NAME_LAST.has(n)) return 'last_name'
+  const m = HEADER_MAP[n]
+  if (m === 'accessibility_notes') return 'notes'
+  if (m) return m as string
+  return 'ignore'
+}
+
+function mapRowWithMap(row: CsvRow, colMap: Record<string, string>): GuestInsert | null {
   const out: GuestInsert = { full_name: '' }
-  let first = '', last = '', full = '', firstNonEmpty = ''
-  for (const [origHeader, value] of Object.entries(row)) {
-    const n = normalizeHeader(origHeader)
-    const v = value.trim()
-    if (!v) continue
-    if (!firstNonEmpty && !v.includes('@') && /[a-zà-ú]/i.test(v)) firstNonEmpty = v
-    // nome (gestito a parte: combina nome+cognome / nome unito / sinonimi)
-    if (NAME_FULL.has(n)) { if (!full) full = v; continue }
-    if (NAME_FIRST.has(n)) { if (!first) first = v; continue }
-    if (NAME_LAST.has(n)) { if (!last) last = v; continue }
-    const target = mapping.get(n)
-    if (!target) continue
-    if (target === 'party_size') {
-      const num = parseInt(v, 10)
-      if (!isNaN(num) && num > 0) out.party_size = num
-    } else if (target === 'side') {
-      out.side = normalizeSide(v)
-    } else if (target === 'age_group') {
-      const ag = normalizeAgeGroup(v)
-      if (ag) out.age_group = ag
-    } else {
-      ;(out as any)[target] = v
-    }
+  let first = '', last = '', full = ''
+  for (const [h, v0] of Object.entries(row)) {
+    const target = colMap[h]
+    const v = (v0 ?? '').trim()
+    if (!target || target === 'ignore' || !v) continue
+    if (target === 'full_name') { if (!full) full = v }
+    else if (target === 'first_name') { if (!first) first = v }
+    else if (target === 'last_name') { if (!last) last = v }
+    else if (target === 'party_size') { const n = parseInt(v, 10); if (!isNaN(n) && n > 0) out.party_size = n }
+    else if (target === 'side') { out.side = normalizeSide(v) }
+    else if (target === 'age_group') { const ag = normalizeAgeGroup(v); if (ag) out.age_group = ag }
+    else (out as any)[target] = v
   }
-  // full_name = nome unito, oppure nome+cognome, oppure (fallback) prima colonna testuale
-  out.full_name = (full || `${first} ${last}`.trim()).trim() || firstNonEmpty
+  out.full_name = (full || `${first} ${last}`.trim()).trim()
   if (!out.full_name) return null
   return out
 }
@@ -130,9 +145,12 @@ export function GuestsCsvImport({ entryId, onImported }: Props) {
   const [parsing, setParsing] = useState(false)
   const [headers, setHeaders] = useState<string[]>([])
   const [rows, setRows] = useState<CsvRow[]>([])
-  const [validRows, setValidRows] = useState<GuestInsert[]>([])
+  const [colMap, setColMap] = useState<Record<string, string>>({})
   const [importing, setImporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // validRows ricalcolato dalla mappatura corrente: l'utente può correggere le colonne.
+  const validRows = useMemo(() => rows.map((r) => mapRowWithMap(r, colMap)).filter((g): g is GuestInsert => g !== null), [rows, colMap])
 
   async function handleFile(f: File) {
     setParsing(true)
@@ -141,16 +159,11 @@ export function GuestsCsvImport({ entryId, onImported }: Props) {
       const { headers, rows } = parseCsv(text)
       setHeaders(headers)
       setRows(rows)
-      const headerMap = new Map<string, keyof GuestInsert>()
-      for (const h of headers) {
-        const norm = normalizeHeader(h)
-        const target = HEADER_MAP[norm]
-        if (target) headerMap.set(norm, target)
-      }
-      const mapped = rows.map((r) => mapRow(r, headerMap)).filter((g): g is GuestInsert => g !== null)
-      setValidRows(mapped)
-      if (mapped.length === 0) {
-        toast.error(`Nessun invitato riconosciuto. Colonne trovate: ${headers.join(' · ') || '(nessuna)'}. Serve almeno una colonna con il nome.`)
+      const guess: Record<string, string> = {}
+      for (const h of headers) guess[h] = guessTarget(h)
+      setColMap(guess)
+      if (rows.map((r) => mapRowWithMap(r, guess)).filter(Boolean).length === 0) {
+        toast.error(`Colonne trovate: ${headers.join(' · ') || '(nessuna)'}. Indica tu quale colonna è il Nome qui sotto.`)
       }
     } catch (e) {
       toast.error('CSV non leggibile: ' + (e as Error).message)
@@ -187,7 +200,7 @@ export function GuestsCsvImport({ entryId, onImported }: Props) {
   function reset() {
     setHeaders([])
     setRows([])
-    setValidRows([])
+    setColMap({})
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -222,7 +235,7 @@ export function GuestsCsvImport({ entryId, onImported }: Props) {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4">
-              {validRows.length === 0 ? (
+              {headers.length === 0 ? (
                 <>
                   <div className="border-2 border-dashed rounded-lg p-8 text-center" style={{ borderColor: 'rgb(var(--border-strong))' }}>
                     <FileText size={32} className="mx-auto mb-3 text-[rgb(var(--fg-subtle))]" />
@@ -243,6 +256,26 @@ export function GuestsCsvImport({ entryId, onImported }: Props) {
                 </>
               ) : (
                 <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Abbina le colonne del tuo file</p>
+                      <Button variant="ghost" size="sm" onClick={reset}>Cambia file</Button>
+                    </div>
+                    <p className="text-xs text-[rgb(var(--fg-muted))]">Ho provato a indovinare. Correggi dove serve (serve almeno «Nome» o «Nome e Cognome»).</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {headers.map((h) => (
+                        <div key={h} className="flex items-center gap-2 text-xs">
+                          <span className="flex-1 truncate font-medium" title={h}>{h || '(vuota)'}</span>
+                          <span className="text-[rgb(var(--fg-subtle))]">→</span>
+                          <select value={colMap[h] ?? 'ignore'} onChange={(e) => setColMap((m) => ({ ...m, [h]: e.target.value }))}
+                            className="rounded border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1 text-xs">
+                            {FIELD_OPTIONS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm">
@@ -251,9 +284,7 @@ export function GuestsCsvImport({ entryId, onImported }: Props) {
                           <span className="text-[rgb(var(--fg-muted))]"> ({rows.length - validRows.length} senza nome, ignorati)</span>
                         )}
                       </p>
-                      <p className="text-xs text-[rgb(var(--fg-muted))]">Colonne riconosciute: {headers.join(' · ')}</p>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={reset}>Cambia file</Button>
                   </div>
 
                   <div className="border rounded-lg overflow-auto max-h-80" style={{ borderColor: 'rgb(var(--border))' }}>
