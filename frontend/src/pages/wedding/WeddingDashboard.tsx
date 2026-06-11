@@ -49,6 +49,7 @@ import { EventGalleryTab } from '@/components/event/EventGalleryTab'
 import { Images } from 'lucide-react'
 import { Pencil } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { fetchUnreadByEntry, tabsWithDot, typesForTab, markEntryTabRead } from '@/lib/notifGuide'
 import { useQueryClient } from '@tanstack/react-query'
 
 type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto'
@@ -95,6 +96,11 @@ export default function WeddingDashboard() {
   const ringView: 'capostipite' | 'fornitore' | 'sposi' =
     profile?.role === 'FORNITORE' ? 'fornitore' : profile?.role === 'COUPLE' ? 'sposi' : 'capostipite'
   const qc = useQueryClient()
+  const [dotTabs, setDotTabs] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (!wedding?.id) return
+    void fetchUnreadByEntry().then((m) => setDotTabs(tabsWithDot(m[wedding.id]?.types ?? [])))
+  }, [wedding?.id])
 
   // REVISIONE C: ambito incarico (COMPLETO | SOLO_COORDINAMENTO | SOLO_PROPRI_SERVIZI).
   // Letto da wedding.ambito_capostipite (puo` essere null). Per il gating delle tab
@@ -246,6 +252,10 @@ export default function WeddingDashboard() {
                     key={t.key}
                     onClick={(e) => {
                       setTab(t.key)
+                      if (dotTabs.has(t.key) && wedding?.id) {
+                        setDotTabs((s) => { const n = new Set(s); n.delete(t.key); return n })
+                        void markEntryTabRead(wedding.id, typesForTab(t.key))
+                      }
                       ;(e.currentTarget as HTMLElement).scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' })
                     }}
                     className={cn(
@@ -262,6 +272,9 @@ export default function WeddingDashboard() {
                     {t.label}
                     {emphasized && !active && (
                       <span aria-hidden className="ml-1">★</span>
+                    )}
+                    {dotTabs.has(t.key) && !active && (
+                      <span aria-hidden className="ml-0.5 h-2 w-2 rounded-full bg-[rgb(var(--rose-500))] animate-pulse" />
                     )}
                   </button>
                 )

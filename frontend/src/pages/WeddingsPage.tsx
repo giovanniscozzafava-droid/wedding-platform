@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { fetchUnreadByEntry, type UnreadEntry } from '@/lib/notifGuide'
 import { motion } from 'framer-motion'
 import { ArrowUpRight, CalendarHeart, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -21,6 +22,8 @@ export default function WeddingsPage() {
   const [delLoseAll, setDelLoseAll] = useState(false)
   const [delNoBackup, setDelNoBackup] = useState(false)
   const [delBusy, setDelBusy] = useState(false)
+  const [unread, setUnread] = useState<Record<string, UnreadEntry>>({})
+  useEffect(() => { void fetchUnreadByEntry().then(setUnread) }, [])
 
   function deleteWedding(id: string, title: string) {
     setDelPhrase(''); setDelLoseAll(false); setDelNoBackup(false); setDelTarget({ id, title })
@@ -113,7 +116,10 @@ export default function WeddingsPage() {
                 <div className="p-6 flex flex-col gap-3">
                   <div className="flex items-start justify-between gap-3">
                     <Link to={`/weddings/${w.id}`} className="min-w-0 flex-1">
-                      <h3 className="font-display text-xl truncate">{w.title}</h3>
+                      <h3 className="font-display text-xl truncate flex items-center gap-2">
+                        {w.title}
+                        {unread[w.id] && <span className="inline-block h-2.5 w-2.5 rounded-full bg-[rgb(var(--rose-500))] shrink-0 animate-pulse" title={`${unread[w.id].n} novità da leggere`} />}
+                      </h3>
                       <p className="text-sm text-[rgb(var(--fg-muted))]">
                         {w.client_name ?? '—'} ·{' '}
                         {new Date(w.date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
