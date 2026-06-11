@@ -72,9 +72,9 @@ begin
   perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000005","role":"authenticated"}', true);
 
   set local role authenticated;
-  select count(*) into v_count from services;
-  select count(*) into v_own   from services where fornitore_id = '00000000-aaaa-0000-0000-000000000005';
-  select count(*) into v_other from services where fornitore_id <> '00000000-aaaa-0000-0000-000000000005';
+  select count(*) into v_count from services where not coalesce('demo' = any(tags), false);
+  select count(*) into v_own   from services where fornitore_id = '00000000-aaaa-0000-0000-000000000005' and not coalesce('demo' = any(tags), false);
+  select count(*) into v_other from services where fornitore_id <> '00000000-aaaa-0000-0000-000000000005' and not coalesce('demo' = any(tags), false);
   reset role;
 
   if v_own = 5 and v_other = 0 and v_count = 5 then
@@ -111,9 +111,9 @@ begin
   perform set_config('request.jwt.claim.sub','00000000-aaaa-0000-0000-000000000002', true);
   perform set_config('request.jwt.claims','{"sub":"00000000-aaaa-0000-0000-000000000002","role":"authenticated"}', true);
   set local role authenticated;
-  select count(*) into v_fior from services where fornitore_id = '00000000-aaaa-0000-0000-000000000004';
-  select count(*) into v_foto from services where fornitore_id = '00000000-aaaa-0000-0000-000000000005';
-  select count(*) into v_cat  from services where fornitore_id = '00000000-aaaa-0000-0000-000000000006';
+  select count(*) into v_fior from services where fornitore_id = '00000000-aaaa-0000-0000-000000000004' and not coalesce('demo' = any(tags), false);
+  select count(*) into v_foto from services where fornitore_id = '00000000-aaaa-0000-0000-000000000005' and not coalesce('demo' = any(tags), false);
+  select count(*) into v_cat  from services where fornitore_id = '00000000-aaaa-0000-0000-000000000006' and not coalesce('demo' = any(tags), false);
   reset role;
   if v_fior = 8 and v_foto = 5 and v_cat = 6 then
     raise notice 'TEST 3 OK (Giulia vede 8+5+6 servizi dei collab)';
