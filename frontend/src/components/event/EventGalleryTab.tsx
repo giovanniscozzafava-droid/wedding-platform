@@ -11,6 +11,7 @@ import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { getDriveToken, ensureDriveFolder, uploadFileToDrive } from '@/lib/driveUpload'
 import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
 import { QRCodeSVG } from 'qrcode.react'
+import { PhotoSocial } from './PhotoSocial'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -451,6 +452,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                     ? <iframe src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`} className="w-full max-w-4xl aspect-video rounded-lg" allow="autoplay" title={base} />
                     : <video src={m.thumbnail_link ?? ''} controls autoPlay className="max-w-full max-h-full rounded-lg" />)
                 : <img src={fullSrc(m)} alt={m.guest_tag_name ?? ''} className="max-w-full max-h-full object-contain rounded-lg select-none" />}
+            </div>
+            <div className="px-4 pb-4 max-w-xl mx-auto w-full" onClick={(e) => e.stopPropagation()}>
+              <PhotoSocial mediaId={m.id} />
             </div>
             {box.list.length > 1 && (
               <>

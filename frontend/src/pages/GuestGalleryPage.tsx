@@ -6,6 +6,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
+import { PhotoSocial } from '@/components/event/PhotoSocial'
+import { AudioWishes } from '@/components/event/AudioWishes'
 
 // Pagina ospite: link dedicato (?t=token), accesso SOLO previa registrazione.
 // L'ospite vede le foto/video INVITATI e può CARICARE le proprie (consenso al riutilizzo
@@ -238,6 +240,9 @@ export default function GuestGalleryPage() {
         </Button>
       </div>
 
+      {/* Auguri vocali agli sposi */}
+      {entryId && <AudioWishes entryId={entryId} />}
+
       {folders.length === 0 || allEmpty ? (
         <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Ancora nessuna foto. Sii il primo a caricare i tuoi scatti! ✨</p>
       ) : (
@@ -282,6 +287,9 @@ export default function GuestGalleryPage() {
                     ? <iframe src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`} className="w-full max-w-4xl aspect-video rounded-lg" allow="autoplay" title={base} />
                     : <video src={m.thumbnail_link ?? ''} controls autoPlay className="max-w-full max-h-full rounded-lg" />)
                 : <img src={fullSrc(m)} alt={m.guest_tag_name ?? ''} className="max-w-full max-h-full object-contain rounded-lg select-none" />}
+            </div>
+            <div className="px-4 pb-4 max-w-xl mx-auto w-full" onClick={(e) => e.stopPropagation()}>
+              <PhotoSocial mediaId={m.id} />
             </div>
             {box.list.length > 1 && (
               <>
