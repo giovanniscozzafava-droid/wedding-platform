@@ -6,6 +6,7 @@
   "framework": null,
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/sitemap-xml" },
+    { "source": "/galleria/:id", "destination": "/api/galleria?id=:id" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
