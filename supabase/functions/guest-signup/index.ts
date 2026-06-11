@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
-  const body = (await req.json().catch(() => ({}))) as { email?: string; name?: string; gallery_id?: string; token?: string }
+  const body = (await req.json().catch(() => ({}))) as { email?: string; name?: string; gallery_id?: string; token?: string; commercial?: boolean }
   const email = (body.email ?? '').trim().toLowerCase()
   const name = (body.name ?? '').trim()
   if (!email.includes('@') || name.length < 2 || !body.gallery_id || !body.token) {
@@ -46,6 +46,15 @@ Deno.serve(async (req) => {
     { entry_id: gal.entry_id, guest_user_id: userId, full_name_searched: name },
     { onConflict: 'entry_id,guest_user_id' },
   )
+
+  // GDPR: registra il consenso commerciale/ricontatto (prova: testo + timestamp).
+  const commercial = body.commercial === true
+  await admin.from('marketing_consents').insert({
+    user_id: userId, email, full_name: name, entry_id: gal.entry_id,
+    commercial, recontact: commercial,
+    consent_text: "Consenso a essere ricontattato anche per finalità commerciali da Planfully e dai fornitori dell'evento (raccolto alla registrazione ospite).",
+    source: 'guest_gallery',
+  })
 
   return json({ ok: true, token_hash: link.data.properties.hashed_token })
 })

@@ -34,6 +34,20 @@ async function downloadUrl(url: string, name: string) {
   } catch { window.open(url, '_blank') }
 }
 
+// Frame a livello MODULO: se fosse dentro il componente, ogni render lo ricrea e
+// React ri-monta gli input → su mobile si perde il focus a ogni lettera. Estratto = fluido.
+function Frame({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
+      <header className="border-b border-[rgb(var(--border))] px-5 py-3 flex items-center gap-2">
+        <Images size={18} className="text-[rgb(var(--gold-600))]" />
+        <span className="font-display text-lg">Foto e video dell'evento</span>
+      </header>
+      <main className="max-w-5xl mx-auto p-5">{children}</main>
+    </div>
+  )
+}
+
 export default function GuestGalleryPage() {
   const { galleryId } = useParams<{ galleryId: string }>()
   const [sp] = useSearchParams()
@@ -52,6 +66,7 @@ export default function GuestGalleryPage() {
   // registrazione ospite semplice (nome + email → dentro subito)
   const [gname, setGname] = useState('')
   const [gemail, setGemail] = useState('')
+  const [gmarketing, setGmarketing] = useState(false)
   const [signingUp, setSigningUp] = useState(false)
 
   const loadFolders = useCallback(async (entry: string) => {
@@ -120,7 +135,7 @@ export default function GuestGalleryPage() {
     if (gname.trim().length < 2 || !gemail.includes('@')) { toast.error('Inserisci nome e email'); return }
     setSigningUp(true)
     try {
-      const { data, error } = await supabase.functions.invoke('guest-signup', { body: { email: gemail.trim(), name: gname.trim(), gallery_id: galleryId, token } })
+      const { data, error } = await supabase.functions.invoke('guest-signup', { body: { email: gemail.trim(), name: gname.trim(), gallery_id: galleryId, token, commercial: gmarketing } })
       if (error) throw error
       const d = data as { token_hash?: string; error?: string }
       if (d?.error || !d?.token_hash) throw new Error(d?.error === 'bad_token' ? 'Link non valido o scaduto.' : 'Registrazione non riuscita. Riprova.')
@@ -129,16 +144,6 @@ export default function GuestGalleryPage() {
       // sessione impostata → l'effetto su [session] fa partire join() e carica le foto
     } catch (err) { toast.error((err as Error).message) } finally { setSigningUp(false) }
   }
-
-  const Frame = ({ children }: { children: ReactNode }) => (
-    <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
-      <header className="border-b border-[rgb(var(--border))] px-5 py-3 flex items-center gap-2">
-        <Images size={18} className="text-[rgb(var(--gold-600))]" />
-        <span className="font-display text-lg">Foto e video dell'evento</span>
-      </header>
-      <main className="max-w-5xl mx-auto p-5">{children}</main>
-    </div>
-  )
 
   if (authLoading || state === 'joining') {
     return <Frame><div className="flex items-center gap-2 text-sm text-[rgb(var(--fg-muted))] py-16 justify-center"><Loader2 size={16} className="animate-spin" /> Carico…</div></Frame>
@@ -158,6 +163,10 @@ export default function GuestGalleryPage() {
               className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-4 py-3 text-base" />
             <input type="email" value={gemail} onChange={(e) => setGemail(e.target.value)} placeholder="La tua email" autoComplete="email"
               className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-4 py-3 text-base" />
+            <label className="flex items-start gap-2 text-left cursor-pointer select-none px-1">
+              <input type="checkbox" checked={gmarketing} onChange={(e) => setGmarketing(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[rgb(var(--gold-600))] shrink-0" />
+              <span className="text-[11px] text-[rgb(var(--fg-muted))]">Acconsento a essere ricontattato/a anche per finalità commerciali da Planfully e dai fornitori dell'evento, e al trattamento dei miei dati per tali scopi. <span className="text-[rgb(var(--fg-subtle))]">(facoltativo)</span></span>
+            </label>
             <Button type="submit" variant="gold" className="w-full !py-3 !text-base" disabled={signingUp}>
               {signingUp ? <Loader2 size={18} className="animate-spin" /> : <Images size={18} />} Entra e guarda le foto
             </Button>
