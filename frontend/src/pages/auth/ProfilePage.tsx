@@ -390,8 +390,8 @@ export default function ProfilePage() {
             </div>
           </Card>
 
-          {/* Consegna foto: collega Google Drive (fornitori) */}
-          {profile?.role === 'FORNITORE' && <DriveConnectCard />}
+          {/* Consegna foto: collega Google Drive (tutti i professionisti) */}
+          {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN'].includes(profile?.role ?? '') && <DriveConnectCard />}
 
           {/* Aiuto contestuale — sostituisce il vecchio tutorial a card */}
           {profile?.role === 'FORNITORE' && (

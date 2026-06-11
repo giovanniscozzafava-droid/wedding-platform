@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 
 export type AlbumMedia = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; album_choice: 'KEPT' | 'DISCARDED' | null }
 
-const isDrive = (m: AlbumMedia) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-')
+const isDrive = (m: AlbumMedia) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:')
 const big = (m: AlbumMedia) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
 
 export function AlbumPicker({ media, onClose, onChanged }: { media: AlbumMedia[]; onClose: () => void; onChanged: () => void }) {
@@ -70,7 +70,9 @@ export function AlbumPicker({ media, onClose, onChanged }: { media: AlbumMedia[]
           ) : (
             <>
               <div className="relative max-w-md w-full" style={{ aspectRatio: '3/4' }}>
-                <img src={big(cur)} alt="" className="w-full h-full object-cover rounded-2xl shadow-2xl select-none" />
+                {cur.media_type === 'VIDEO' && !isDrive(cur)
+                  ? <video src={cur.thumbnail_link ?? ''} controls className="w-full h-full object-cover rounded-2xl shadow-2xl" />
+                  : <img src={big(cur)} alt="" className="w-full h-full object-cover rounded-2xl shadow-2xl select-none" />}
                 {cur.media_type === 'VIDEO' && <span className="absolute top-3 left-3 inline-flex items-center gap-1 bg-black/55 text-white text-[11px] px-2 py-1 rounded-full"><Play size={11} className="fill-white" /> video</span>}
               </div>
               <div className="flex items-center gap-4">

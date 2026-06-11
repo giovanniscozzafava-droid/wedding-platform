@@ -76,7 +76,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   }, [box])
 
   // un media è su Drive vero (non demo Pexels) → URL pubblici per anteprima/intero/download
-  const isDrive = (m: Media) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-')
+  const isDrive = (m: Media) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:')
   const fullSrc = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w2000` : (m.thumbnail_link ?? ''))
   const origUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/uc?export=download&id=${m.drive_file_id}` : (m.thumbnail_link ?? ''))
   const webUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
@@ -230,7 +230,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       <Card className="p-8 text-center">
         <Images size={28} className="mx-auto mb-2 text-[rgb(var(--fg-subtle))]" />
         <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">Ancora nessuna galleria per questo evento.</p>
-        {role === 'fornitore' && <Button variant="gold" disabled={busy} onClick={createGallery}><Plus size={14} /> Crea la mia galleria</Button>}
+        {role !== 'sposi' && <Button variant="gold" disabled={busy} onClick={createGallery}><Plus size={14} /> Crea la mia galleria</Button>}
       </Card>
     )
   }
@@ -334,7 +334,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 {f.gallery_media.map((m, idx) => (
                   <button key={m.id} type="button" onClick={() => setBox({ list: f.gallery_media, i: idx })}
                     className="group relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] cursor-zoom-in" style={{ aspectRatio: '4/3' }}>
-                    {m.thumbnail_link && <img src={m.thumbnail_link} alt={m.guest_tag_name ?? ''} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />}
+                    {m.media_type === 'VIDEO' && !isDrive(m)
+                      ? <video src={m.thumbnail_link ?? ''} muted preload="metadata" className="w-full h-full object-cover" />
+                      : m.thumbnail_link && <img src={m.thumbnail_link} alt={m.guest_tag_name ?? ''} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />}
                     <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition">
                       {m.media_type === 'VIDEO'
                         ? <Play size={20} className="text-white opacity-80 fill-white" />
@@ -375,8 +377,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               </div>
             </div>
             <div className="flex-1 flex items-center justify-center px-4 pb-6 min-h-0" onClick={(e) => e.stopPropagation()}>
-              {m.media_type === 'VIDEO' && isDrive(m)
-                ? <iframe src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`} className="w-full max-w-4xl aspect-video rounded-lg" allow="autoplay" title={base} />
+              {m.media_type === 'VIDEO'
+                ? (isDrive(m)
+                    ? <iframe src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`} className="w-full max-w-4xl aspect-video rounded-lg" allow="autoplay" title={base} />
+                    : <video src={m.thumbnail_link ?? ''} controls autoPlay className="max-w-full max-h-full rounded-lg" />)
                 : <img src={fullSrc(m)} alt={m.guest_tag_name ?? ''} className="max-w-full max-h-full object-contain rounded-lg select-none" />}
             </div>
             {box.list.length > 1 && (
