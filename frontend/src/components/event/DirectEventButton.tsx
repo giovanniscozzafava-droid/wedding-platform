@@ -24,7 +24,7 @@ export function DirectEventButton({ onCreated }: { onCreated?: () => void }) {
       const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; token?: string; error?: string } }> })
         .rpc('create_direct_event', { p_couple_name: name.trim(), p_couple_email: email.trim(), p_date: date, p_title: null })
       if (!data?.ok || !data.token) { toast.error(data?.error === 'forbidden' ? 'Solo i professionisti.' : data?.error ?? 'Errore'); return }
-      setLink(`${window.location.origin}/couple/accept/${data.token}`)
+      setLink(`${window.location.origin}/invito-coppia/${data.token}`)
       onCreated?.()
     } finally { setBusy(false) }
   }
