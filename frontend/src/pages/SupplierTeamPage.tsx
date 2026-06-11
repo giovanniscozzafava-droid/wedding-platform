@@ -195,23 +195,30 @@ function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadSha
   const [callTime, setCallTime] = useState('')
   const [location, setLocation] = useState('')
   const [quoteId, setQuoteId] = useState('')
-  const [myEvents, setMyEvents] = useState<Array<{ id: string; title: string; event_date: string | null; client_name: string | null; event_location: string | null }>>([])
+  const [myEvents, setMyEvents] = useState<Array<{ id: string; title: string; event_date: string | null; client_name: string | null; event_location: string | null; kind: 'quote' | 'entry' }>>([])
   const [saving, setSaving] = useState(false)
 
-  // I miei eventi (preventivi): per importare il turno senza riscrivere tutto.
+  // I miei eventi: preventivi accettati/contrattualizzati + eventi DIRETTI (senza preventivo).
   useEffect(() => {
     void (async () => {
-      // Solo eventi REALI: preventivo accettato e/o contrattualizzato. Non i preventivi semplici.
-      const { data } = await db().from('quotes').select('id, title, event_date, client_name, event_location')
+      const { data: q } = await db().from('quotes').select('id, title, event_date, client_name, event_location')
         .eq('owner_id', uid).in('status', ['ACCETTATO', 'CONVERTITO_IN_CONTRATTO'])
         .order('event_date', { ascending: false, nullsFirst: false }).limit(100)
-      setMyEvents((data as typeof myEvents) ?? [])
+      // eventi diretti (calendar_entries dell'owner senza preventivo collegato)
+      const { data: e } = await db().from('calendar_entries').select('id, title, date_from, ceremony_venue_name')
+        .eq('owner_id', uid).is('quote_id', null)
+        .order('date_from', { ascending: false, nullsFirst: false }).limit(100)
+      const quotes = ((q as Array<{ id: string; title: string; event_date: string | null; client_name: string | null; event_location: string | null }>) ?? [])
+        .map((x) => ({ ...x, kind: 'quote' as const }))
+      const ents = ((e as Array<{ id: string; title: string; date_from: string | null; ceremony_venue_name: string | null }>) ?? [])
+        .map((x) => ({ id: x.id, title: x.title, event_date: x.date_from, client_name: null, event_location: x.ceremony_venue_name, kind: 'entry' as const }))
+      setMyEvents([...ents, ...quotes])
     })()
   }, [uid])
 
   function importEvent(id: string) {
-    setQuoteId(id)
     const ev = myEvents.find((e) => e.id === id)
+    setQuoteId(ev && ev.kind === 'quote' ? id : '') // i diretti non hanno preventivo
     if (ev) {
       setTitle([ev.client_name, ev.title].filter(Boolean).join(' · ') || ev.title)
       setDate(ev.event_date ? ev.event_date.slice(0, 10) : '')
