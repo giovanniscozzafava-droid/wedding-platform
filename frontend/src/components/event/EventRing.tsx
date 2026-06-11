@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Heart, Sparkles, UserPlus, Gift, X, Loader2 } from 'lucide-react'
+import { Check, Heart, Sparkles, UserPlus, Gift, X, Loader2, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/ui/button'
 
 type RingRole = { role_key: string; label: string; covered: boolean; covered_by: string | null }
 type RingState = { roles: RingRole[]; total: number; covered: number; closed: boolean }
@@ -33,6 +34,8 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   const [pick, setPick] = useState<{ roleKey: string; label: string } | null>(null)
   const [suppliers, setSuppliers] = useState<Suggestable[] | null>(null)
   const [adding, setAdding] = useState<string | null>(null)
+  // invito email a un fornitore NON ancora su Planfully (conta per i punti referral)
+  const [invite, setInvite] = useState<{ email: string; sending: boolean }>({ email: '', sending: false })
 
   const load = useCallback(async () => {
     if (!entryId) return
@@ -62,6 +65,26 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
       setPick(null); setSuppliers(null)
       await load()
     } finally { setAdding(null) }
+  }
+
+  // Invita per email un fornitore non iscritto: l'invito è registrato a tuo nome
+  // (capostipite_id = tu) → vale per i tuoi punti referral secondo la logica esistente.
+  async function sendInvite() {
+    const email = invite.email.trim().toLowerCase()
+    if (!email.includes('@')) { toast.error('Email non valida'); return }
+    setInvite((s) => ({ ...s, sending: true }))
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-supplier', {
+        body: { email, subrole: pick?.roleKey, message: `Ti invito su Planfully per collaborare a un evento come ${pick?.label}.` },
+      })
+      if (error) throw error
+      const mode = (data as { mode?: string; error?: string })?.mode
+      const err = (data as { error?: string })?.error
+      if (err) { toast.error(err); return }
+      if (mode === 'email_failed_link_fallback') toast.success('Invito creato (email non partita: link generato nel tuo profilo)')
+      else toast.success(`Invito inviato a ${email}`)
+      setInvite({ email: '', sending: false })
+    } catch (e) { toast.error((e as Error).message) } finally { setInvite((s) => ({ ...s, sending: false })) }
   }
 
   if (!ring || ring.total === 0) return null
@@ -178,6 +201,18 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
                   </button>
                 ))
               )}
+            </div>
+            {/* Ramo "non iscritto": invita per email — vale per i punti referral */}
+            <div className="border-t border-[rgb(var(--border))] p-3 space-y-2">
+              <p className="text-[11px] text-[rgb(var(--fg-muted))]">Non lo trovi? <strong>Invitalo su Planfully</strong>: una volta iscritto potrai aggiungerlo al cerchio. L'invito è registrato a tuo nome e vale per i tuoi punti referral.</p>
+              <div className="flex gap-2">
+                <input type="email" value={invite.email} onChange={(e) => setInvite((s) => ({ ...s, email: e.target.value }))}
+                  placeholder="email del fornitore"
+                  className="flex-1 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2.5 py-1.5 text-sm" />
+                <Button variant="outline" size="sm" disabled={invite.sending} onClick={sendInvite}>
+                  {invite.sending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} Invita
+                </Button>
+              </div>
             </div>
           </div>
         </div>
