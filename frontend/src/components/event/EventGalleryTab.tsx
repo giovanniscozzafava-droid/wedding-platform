@@ -117,7 +117,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
   // Upload reale browser→Drive: token effimero, cartella Drive condivisa, file
   // diretti a Drive (non passano da Planfully), poi salvo id + miniatura pubblica.
-  async function uploadPhotos(f: Folder, files: FileList) {
+  async function uploadPhotos(f: Folder, files: File[]) {
     if (!gallery || files.length === 0) return
     setBusy(true)
     try {
@@ -125,13 +125,16 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       const driveFolder = await ensureDriveFolder(token, `Planfully · ${f.name}`, f.drive_folder_id)
       if (driveFolder !== f.drive_folder_id) await (supabase.from as any)('gallery_folders').update({ drive_folder_id: driveFolder }).eq('id', f.id)
       const rows: Record<string, unknown>[] = []
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) continue
-        const { id, thumbnail } = await uploadFileToDrive(token, driveFolder, file)
-        rows.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: id, thumbnail_link: thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
+      const fails: string[] = []
+      for (const file of files) {
+        try {
+          const { id, thumbnail } = await uploadFileToDrive(token, driveFolder, file)
+          rows.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: id, thumbnail_link: thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
+        } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
       }
       if (rows.length) { const { error } = await (supabase.from as any)('gallery_media').insert(rows); if (error) throw error }
-      toast.success(`${rows.length} file caricati sul tuo Drive`)
+      if (fails.length) toast.error(`${rows.length} caricati, ${fails.length} falliti — ${fails[0]}`)
+      else toast.success(`${rows.length} file caricati sul tuo Drive`)
       await load()
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false); setUploadFolder(null) }
   }
@@ -169,7 +172,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     <div className="space-y-5">
       {/* input file nascosto per l'upload su Drive */}
       <input ref={uploadRef} type="file" multiple accept="image/*,video/*" className="hidden"
-        onChange={(e) => { const fs = e.target.files; if (fs && uploadFolder) void uploadPhotos(uploadFolder, fs); e.target.value = '' }} />
+        onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length && uploadFolder) void uploadPhotos(uploadFolder, snap) }} />
 
       {/* Consenso sposi al lavoro intero */}
       {role === 'sposi' && (
