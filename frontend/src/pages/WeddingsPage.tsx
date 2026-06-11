@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useWeddings } from '@/hooks/useWedding'
 import { supabase } from '@/lib/supabase'
+import { DirectEventButton } from '@/components/event/DirectEventButton'
 
 export default function WeddingsPage() {
   const { data, isLoading } = useWeddings()
@@ -59,6 +60,10 @@ Procedere?`
           title="I tuoi matrimoni"
           description="Ogni evento ha la sua dashboard: scaletta, tavoli, invitati, budget, checklist, mood, playlist, contratti, documenti."
         />
+
+        <div className="flex justify-end mb-4 -mt-2">
+          <DirectEventButton onCreated={() => qc.invalidateQueries({ queryKey: ['weddings'] })} />
+        </div>
 
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
