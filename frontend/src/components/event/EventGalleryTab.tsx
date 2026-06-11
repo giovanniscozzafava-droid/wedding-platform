@@ -187,12 +187,13 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   // Elimina una singola foto/video caricato da un ospite (owner della galleria o sposi).
   async function deleteGuestMedia(m: Media) {
     if (!confirm('Eliminare questo file caricato da un invitato?')) return
-    const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; error?: string } }> })
+    const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; error?: string; path?: string } }> })
       .rpc('delete_guest_media', { p_media: m.id })
     if (data?.error) {
       toast.error(data.error === 'forbidden' ? 'Non puoi eliminare questo file.' : data.error === 'not_guest_media' ? 'Qui si eliminano solo i file caricati dagli ospiti.' : data.error)
       return
     }
+    if (data?.path) { try { await supabase.storage.from('event-guest-uploads').remove([data.path]) } catch { /* riga già eliminata */ } }
     toast.success('File eliminato')
     setBox(null)
     await load()
