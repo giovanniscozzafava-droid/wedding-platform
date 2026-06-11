@@ -169,6 +169,11 @@ export default function WeddingDashboard() {
                 {wedding.client_name} ·{' '}
                 {new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
+              {eventPassed && (
+                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                  ✓ Evento concluso — il lavoro si chiude: valuta chi ha collaborato con te.
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge status={wedding.status} />
