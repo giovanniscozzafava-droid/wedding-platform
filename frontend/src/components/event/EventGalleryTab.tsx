@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2 } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -161,6 +161,45 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     await load()
   }
 
+  // Scarica in ZIP SOLO le foto/video selezionati dagli sposi (album_choice='KEPT'),
+  // per impaginare l'album. Drive: scarico col token del fotografo (owner); storage: URL pubblico.
+  async function downloadSelectedZip() {
+    const selected = folders.flatMap((f) => f.gallery_media).filter((m) => m.album_choice === 'KEPT')
+    if (selected.length === 0) { toast.error('Gli sposi non hanno ancora selezionato foto.'); return }
+    setBusy(true)
+    try {
+      const JSZip = (await import('jszip')).default
+      const zip = new JSZip()
+      let token: string | null = null
+      if (selected.some((m) => isDrive(m))) token = await getDriveToken()
+      let ok = 0
+      for (const [i, m] of selected.entries()) {
+        try {
+          let blob: Blob
+          if (isDrive(m) && token) {
+            const r = await fetch(`https://www.googleapis.com/drive/v3/files/${m.drive_file_id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } })
+            if (!r.ok) throw new Error('drive')
+            blob = await r.blob()
+          } else {
+            const r = await fetch(m.thumbnail_link ?? '')
+            if (!r.ok) throw new Error('fetch')
+            blob = await r.blob()
+          }
+          const ext = m.media_type === 'VIDEO' ? 'mp4' : (blob.type.split('/')[1] || 'jpg')
+          zip.file(`${String(i + 1).padStart(3, '0')}-${(m.guest_tag_name || 'foto').replace(/[^\w\- ]+/g, '') || 'foto'}.${ext}`, blob)
+          ok++
+        } catch { /* salto il file non scaricabile */ }
+      }
+      if (ok === 0) throw new Error('Nessun file scaricabile (controlla la connessione Drive)')
+      const out = await zip.generateAsync({ type: 'blob' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(out); a.download = 'album-selezione.zip'
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+      toast.success(`ZIP pronto: ${ok} file selezionati`)
+    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+
   // Carica foto demo (Pexels) per dimostrare la galleria viva (l'upload vero va su Drive).
   async function addDemoPhotos(f: Folder) {
     if (!gallery) return
@@ -266,6 +305,17 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         </Card>
       )}
 
+      {/* Owner: selezione album degli sposi → scarica solo le selezionate in ZIP */}
+      {isOwner && folders.some((f) => f.gallery_media.some((m) => m.album_choice === 'KEPT')) && (
+        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Heart size={16} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" />
+            <p className="text-sm">Gli sposi hanno selezionato <strong>{folders.reduce((n, f) => n + f.gallery_media.filter((m) => m.album_choice === 'KEPT').length, 0)}</strong> file per l'album.</p>
+          </div>
+          <Button variant="gold" size="sm" disabled={busy} onClick={downloadSelectedZip}><FileArchive size={14} /> Scarica selezionate (ZIP)</Button>
+        </Card>
+      )}
+
       {/* Plancia owner: nuova cartella */}
       {isOwner && (
         <Card className="p-4">
@@ -343,6 +393,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                         : <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-90 transition" />}
                     </span>
                     {m.guest_tag_name && <span className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tag_name}</span>}
+                    {m.album_choice === 'KEPT' && <span className="absolute top-1 right-1"><Heart size={12} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))] drop-shadow" /></span>}
                   </button>
                 ))}
               </div>
