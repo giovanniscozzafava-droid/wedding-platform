@@ -19,10 +19,10 @@ export async function getDriveToken(): Promise<string> {
     // l'errore generico "non-2xx" nasconde il motivo: leggo il corpo della risposta
     let reason = ''
     try { const b = await (error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); reason = b?.error ?? '' } catch { /* ignore */ }
-    throw new Error(driveErrMsg(reason))
+    throw Object.assign(new Error(driveErrMsg(reason)), { driveReason: reason || 'unknown' })
   }
   const r = data as { access_token?: string; error?: string }
-  if (r?.error || !r?.access_token) throw new Error(driveErrMsg(r?.error))
+  if (r?.error || !r?.access_token) throw Object.assign(new Error(driveErrMsg(r?.error)), { driveReason: r?.error || 'unknown' })
   return r.access_token
 }
 

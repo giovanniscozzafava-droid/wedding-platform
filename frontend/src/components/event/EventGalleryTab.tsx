@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -40,6 +40,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [salesEnabled, setSalesEnabled] = useState(false)
   const [albumOpen, setAlbumOpen] = useState(false)
   const [guestLinkUrl, setGuestLinkUrl] = useState<string | null>(null)
+  const [driveModal, setDriveModal] = useState(false)
   // nuova cartella
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
   // lightbox: lista di foto della cartella aperta + indice corrente
@@ -245,7 +246,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       if (fails.length) toast.error(`${rows.length} caricati, ${fails.length} falliti — ${fails[0]}`)
       else toast.success(`${rows.length} file caricati sul tuo Drive`)
       await load()
-    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false); setUploadFolder(null) }
+    } catch (e) {
+      if ((e as { driveReason?: string }).driveReason) setDriveModal(true)
+      else toast.error((e as Error).message)
+    } finally { setBusy(false); setUploadFolder(null) }
   }
 
   async function setConsent(on: boolean) {
@@ -405,6 +409,21 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           </Card>
         )
       })}
+
+      {/* Popup: serve collegare Google Drive per caricare le proprie foto */}
+      {driveModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDriveModal(false)}>
+          <div className="bg-[rgb(var(--bg))] w-full max-w-md rounded-2xl shadow-xl p-6 text-center space-y-3" onClick={(e) => e.stopPropagation()}>
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] mx-auto"><HardDrive size={24} /></span>
+            <h4 className="font-display text-lg">Collega Google Drive per caricare</h4>
+            <p className="text-sm text-[rgb(var(--fg-muted))]">Le tue foto e i tuoi video restano sul <strong>tuo</strong> Google Drive — Planfully ne mostra solo le anteprime e gestisce chi-vede-cosa. Si collega una volta sola, in pochi secondi.</p>
+            <div className="flex gap-2 justify-center pt-1">
+              <Button variant="gold" onClick={() => { window.location.href = '/profile' }}>Vai al profilo e collega</Button>
+              <Button variant="ghost" onClick={() => setDriveModal(false)}>Più tardi</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* QR del link ospiti: da mostrare/stampare all'evento */}
       {guestLinkUrl && (
