@@ -44,9 +44,11 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth'
 import { EventRing } from '@/components/event/EventRing'
+import { EventGalleryTab } from '@/components/event/EventGalleryTab'
+import { Images } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 
-type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat'
+type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto'
 
 type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean }
 
@@ -73,6 +75,7 @@ const TABS: Array<TabDef> = [
   { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature, capostipiteOnly: true },
   { key: 'website',        label: 'Sito evento', icon: Globe, capostipiteOnly: true },
   { key: 'members',        label: 'Clienti',      icon: Heart, capostipiteOnly: true },
+  { key: 'foto',           label: 'Foto',         icon: Images },
   { key: 'docs',           label: 'Documenti',    icon: FolderOpen },
   { key: 'analytics', label: 'Analytics',  icon: BarChart3, capostipiteOnly: true },
 ]
@@ -251,6 +254,7 @@ export default function WeddingDashboard() {
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewTab wedding={wedding} onTab={setTab as any} />}
+            {tab === 'foto' && <EventGalleryTab entryId={wedding.id} role={ringView} />}
             {tab === 'planning' && <CouplePlanningTab entryId={wedding.id} readOnly />}
             {tab === 'ceremony' && <CeremonyTab entryId={wedding.id} />}
             {tab === 'timeline' && <TimelineTab entryId={wedding.id} eventKind={(wedding as any).event_kind} />}
