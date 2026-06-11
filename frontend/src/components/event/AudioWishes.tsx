@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 // Restano nell'app; li ascoltano gli sposi e il cerchio. File su event-guest-uploads.
 type Wish = { id: string; author_name: string | null; storage_path: string; created_at: string }
 
-export function AudioWishes({ entryId }: { entryId: string }) {
+export function AudioWishes({ entryId, readOnly = false }: { entryId: string; readOnly?: boolean }) {
   const [wishes, setWishes] = useState<Wish[]>([])
   const [recording, setRecording] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -63,19 +63,24 @@ export function AudioWishes({ entryId }: { entryId: string }) {
         <MessageSquareHeart size={18} className="text-[rgb(var(--gold-700))]" />
         <div>
           <p className="text-sm font-medium">Auguri vocali agli sposi 🎤</p>
-          <p className="text-xs text-[rgb(var(--fg-muted))]">Registra un messaggio: lo ascolteranno gli sposi.</p>
+          <p className="text-xs text-[rgb(var(--fg-muted))]">{readOnly ? 'Messaggi vocali lasciati dagli invitati.' : 'Registra un messaggio: lo ascolteranno gli sposi.'}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        {!recording ? (
-          <Button variant="gold" size="sm" disabled={busy} onClick={startRec}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Mic size={14} />} Registra augurio</Button>
-        ) : (
-          <Button variant="gold" size="sm" onClick={stopRec}><Square size={14} className="fill-current" /> Stop e invia</Button>
-        )}
-        <input ref={fileRef} type="file" accept="audio/*" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void uploadWish(f, f.type || 'audio/webm') }} />
-        <Button variant="outline" size="sm" disabled={busy || recording} onClick={() => fileRef.current?.click()}><Upload size={14} /> Carica audio</Button>
-      </div>
+      {!readOnly && (
+        <div className="flex items-center gap-2">
+          {!recording ? (
+            <Button variant="gold" size="sm" disabled={busy} onClick={startRec}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Mic size={14} />} Registra augurio</Button>
+          ) : (
+            <Button variant="gold" size="sm" onClick={stopRec}><Square size={14} className="fill-current" /> Stop e invia</Button>
+          )}
+          <input ref={fileRef} type="file" accept="audio/*" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void uploadWish(f, f.type || 'audio/webm') }} />
+          <Button variant="outline" size="sm" disabled={busy || recording} onClick={() => fileRef.current?.click()}><Upload size={14} /> Carica audio</Button>
+        </div>
+      )}
+      {readOnly && wishes.length === 0 && (
+        <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessun augurio vocale ancora. Compariranno qui quando gli invitati ne lasceranno.</p>
+      )}
       {wishes.length > 0 && (
         <div className="space-y-2 pt-1">
           {wishes.map((w) => (
