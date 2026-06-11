@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { usePlaylist, usePlaylistMutations } from '@/hooks/useWedding'
 import { PLAYLIST_PRESETS } from '@/lib/wedding-presets'
+import { SectionRings } from '@/components/event/SectionRings'
 
 const MOMENTS = [
   { key: 'CERIMONIA',    label: 'Cerimonia' },
@@ -55,6 +56,7 @@ export function PlaylistTab({ entryId }: { entryId: string }) {
 
   return (
     <div>
+      <SectionRings entryId={entryId} keys={['playlist']} />
       <header className="mb-6">
         <h2 className="font-display text-2xl">Playlist musica</h2>
         <p className="text-sm text-[rgb(var(--fg-muted))]">Brani per ogni momento, condivisi con il musicista/DJ.</p>

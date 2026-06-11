@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { EditRowModal, type Field } from './EditRowModal'
+import { SectionRings } from '@/components/event/SectionRings'
 
 const TABLE_NAMING_PRESETS: Record<string, string[]> = {
   Mare:    ['Tirreno', 'Ionio', 'Adriatico', 'Egeo', 'Atlantico', 'Pacifico', 'Caraibi', 'Mar Rosso', 'Mediterraneo', 'Mar Baltico', 'Mar Nero', 'Mar Caspio'],
@@ -161,6 +162,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
 
   return (
     <div>
+      <SectionRings entryId={entryId} keys={['tables']} />
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="font-display text-2xl">Disposizione tavoli</h2>

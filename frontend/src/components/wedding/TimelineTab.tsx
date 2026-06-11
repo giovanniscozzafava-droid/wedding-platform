@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { useTimeline, useTimelineMutations } from '@/hooks/useWedding'
 import { timelinePreset } from '@/lib/timelinePresets'
 import { exportTableToPdf } from '@/lib/pdf-export'
+import { SectionRings } from '@/components/event/SectionRings'
 
 // Un evento può sforare la mezzanotte: orari prima delle 05:00 contano come
 // "giorno dopo" e vanno in CODA, non in testa. Senza questo, 00:30 (taglio torta)
@@ -167,6 +168,7 @@ export function TimelineTab({ entryId, eventKind }: { entryId: string; eventKind
 
   return (
     <div>
+      <SectionRings entryId={entryId} keys={['timeline']} />
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="font-display text-2xl">Scaletta evento</h2>

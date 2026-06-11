@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Images, Download, X, ChevronLeft, ChevronRight, Loader2, Upload, Play } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -174,6 +175,15 @@ export default function GuestGalleryPage() {
   const allEmpty = folders.every((f) => f.gallery_media.length === 0)
   return (
     <Frame>
+      {/* QR hero: mostralo agli altri invitati, lo scansionano ed entrano */}
+      <div className="mb-6 flex flex-col items-center gap-2 text-center">
+        <div className="rounded-2xl bg-white p-4 shadow-sm border border-[rgb(var(--border))]">
+          <QRCodeSVG value={typeof window !== 'undefined' ? window.location.href : ''} size={188} level="M" fgColor="#1A1714" bgColor="#ffffff" />
+        </div>
+        <p className="text-sm font-medium">Inquadra per entrare nelle foto</p>
+        <p className="text-xs text-[rgb(var(--fg-muted))] max-w-xs">Mostra questo QR agli altri invitati: lo scansionano e accedono subito a foto e video dell'evento.</p>
+      </div>
+
       {/* Upload ospiti: foto e video, con consenso promozionale OBBLIGATORIO */}
       <div className="mb-6 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/30 p-4 space-y-3">
         <div>

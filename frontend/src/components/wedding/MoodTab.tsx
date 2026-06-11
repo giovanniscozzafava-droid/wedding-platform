@@ -7,6 +7,7 @@ import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { useMood, useMoodMutations } from '@/hooks/useWedding'
 import { PaletteSection } from '@/components/wedding/PaletteSection'
+import { SectionRings } from '@/components/event/SectionRings'
 
 const TAGS = ['vestito', 'fiori', 'location', 'torta', 'allestimento', 'altro']
 
@@ -125,6 +126,7 @@ export function MoodTab({ entryId }: { entryId: string }) {
 
   return (
     <div>
+      <SectionRings entryId={entryId} keys={['mood']} />
       <header className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl">Mood board</h2>

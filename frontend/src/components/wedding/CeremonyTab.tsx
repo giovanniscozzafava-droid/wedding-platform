@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { useWedding, useUpdateWedding, useMood, useMoodMutations } from '@/hooks/useWedding'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 import { Lock } from 'lucide-react'
+import { SectionRings } from '@/components/event/SectionRings'
 
 // Valore per <input type="datetime-local"> in ora LOCALE. Con toISOString() si
 // otterrebbe l'ora UTC → in Italia (+1/+2) la cerimonia "tornava indietro" di 1-2h.
@@ -153,6 +154,7 @@ export function CeremonyTab({ entryId, readOnly = false }: { entryId: string; re
 
   return (
     <div className="space-y-6">
+      <SectionRings entryId={entryId} keys={['ceremony']} />
       <header>
         <h2 className="font-display text-2xl">Cerimonia</h2>
         <p className="text-sm text-[rgb(var(--fg-muted))]">

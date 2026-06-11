@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { useMenu, useMenuMutations } from '@/hooks/useWedding'
+import { SectionRings } from '@/components/event/SectionRings'
 
 const SECTIONS: Array<{ key: string; label: string; group: string }> = [
   // Menu seduta tradizionale
@@ -206,6 +207,7 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
 
   return (
     <div className="space-y-6">
+      <SectionRings entryId={entryId} keys={['menu']} />
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="font-display text-2xl flex items-center gap-2">

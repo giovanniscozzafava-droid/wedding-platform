@@ -9,6 +9,7 @@ import { useGuests, useGuestMutations, useTables } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { GuestsCsvImport } from '@/components/wedding/GuestsCsvImport'
 import { eventTerm } from '@/lib/eventKind'
+import { SectionRings } from '@/components/event/SectionRings'
 
 export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?: string }) {
   // Le opzioni "Lato" hanno senso come Sposa/Sposo solo per eventi con due
@@ -82,6 +83,7 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
 
   return (
     <div>
+      <SectionRings entryId={entryId} keys={['guests', 'rsvp']} />
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="font-display text-2xl">Lista invitati</h2>

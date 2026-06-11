@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { getDriveToken, ensureDriveFolder, uploadFileToDrive } from '@/lib/driveUpload'
 import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
+import { QRCodeSVG } from 'qrcode.react'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -37,6 +38,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [uploadFolder, setUploadFolder] = useState<Folder | null>(null)
   const [salesEnabled, setSalesEnabled] = useState(false)
   const [albumOpen, setAlbumOpen] = useState(false)
+  const [guestLinkUrl, setGuestLinkUrl] = useState<string | null>(null)
   // nuova cartella
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
   // lightbox: lista di foto della cartella aperta + indice corrente
@@ -143,8 +145,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       .rpc('gallery_enable_guest_link', { p_gallery_id: gallery.id })
     if (!data?.token) { toast.error(data?.error === 'forbidden' ? 'Solo il proprietario della galleria.' : 'Link non generato'); return }
     const url = `${window.location.origin}/galleria/${gallery.id}?t=${data.token}`
-    try { await navigator.clipboard.writeText(url); toast.success('Link ospiti copiato negli appunti') }
-    catch { toast.success(url) }
+    setGuestLinkUrl(url)
+    try { await navigator.clipboard.writeText(url); toast.success('Link ospiti copiato — mostra il QR agli invitati') }
+    catch { /* il QR resta comunque visibile */ }
   }
 
   // Clausola a pagamento per CARTELLA (gated dal flag photo_sales_enabled). La
@@ -401,6 +404,21 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           </Card>
         )
       })}
+
+      {/* QR del link ospiti: da mostrare/stampare all'evento */}
+      {guestLinkUrl && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setGuestLinkUrl(null)}>
+          <div className="bg-[rgb(var(--bg))] rounded-2xl p-6 max-w-sm w-full text-center space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h4 className="font-display text-lg">QR per gli invitati</h4>
+            <div className="rounded-2xl bg-white p-4 inline-block border border-[rgb(var(--border))]"><QRCodeSVG value={guestLinkUrl} size={220} level="M" fgColor="#1A1714" bgColor="#ffffff" /></div>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">Stampalo o mostralo all'evento: gli invitati lo inquadrano, si registrano e vedono/caricano le foto.</p>
+            <div className="flex gap-2 justify-center">
+              <Button variant="outline" size="sm" onClick={() => { void navigator.clipboard.writeText(guestLinkUrl); toast.success('Link copiato') }}>Copia link</Button>
+              <Button variant="gold" size="sm" onClick={() => setGuestLinkUrl(null)}>Chiudi</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Selezione album (sposi) */}
       {albumOpen && (
