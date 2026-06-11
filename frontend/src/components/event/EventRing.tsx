@@ -9,6 +9,7 @@ import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 type RingRole = { role_key: string; label: string; covered: boolean; covered_by: string | null }
 type RingState = { roles: RingRole[]; total: number; covered: number; closed: boolean }
 type Suggestable = { id: string; name: string; subrole: string | null; matches: boolean; in_event: boolean }
+type CircleSuggestion = { id: string; role_key: string | null; status: string; supplier_name: string; suggested_by_name: string }
 
 function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   return (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: T }> })
@@ -40,12 +41,18 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   // il cerchio NON è chiuso: si possono aggiungere altri ruoli/fornitori
   const [addOpen, setAddOpen] = useState(false)
   const [addBusy, setAddBusy] = useState<string | null>(null)
+  // richieste pendenti da approvare (vista sposi)
+  const [sugs, setSugs] = useState<CircleSuggestion[]>([])
 
   const load = useCallback(async () => {
     if (!entryId) return
     const r = await rpc<RingState & { error?: string }>('get_event_ring', { p_entry: entryId })
     if (r && !r.error) setRing(r)
-  }, [entryId])
+    if (view === 'sposi') {
+      const sr = await rpc<{ suggestions?: CircleSuggestion[]; error?: string }>('list_circle_suggestions', { p_entry: entryId })
+      setSugs(sr?.suggestions ?? [])
+    }
+  }, [entryId, view])
 
   useEffect(() => { void load() }, [load])
 
@@ -60,15 +67,30 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   async function addSupplier(s: Suggestable) {
     setAdding(s.id)
     try {
-      const r = await rpc<{ ok?: boolean; error?: string }>('suggest_supplier_to_event', { p_entry: entryId, p_supplier: s.id })
+      const r = await rpc<{ ok?: boolean; pending?: boolean; error?: string }>('suggest_supplier_to_event', { p_entry: entryId, p_supplier: s.id })
       if (r?.error) {
         toast.error(r.error === 'not_a_supplier' ? 'Profilo non valido.' : `Non aggiunto: ${r.error}`)
         return
       }
-      toast.success(`${s.name} è ora nell'evento`)
+      if (r?.pending) toast.success(`Richiesta inviata agli sposi: ${s.name} entrerà quando accettano.`)
+      else toast.success(`${s.name} è ora nell'evento`)
       setPick(null); setSuppliers(null)
       await load()
     } finally { setAdding(null) }
+  }
+
+  // Gli sposi rispondono a una richiesta (accetta con firma leggera / rifiuta).
+  async function respondSuggestion(id: string, accept: boolean) {
+    let name: string | null = null
+    if (accept) {
+      name = prompt('Per accettare, firma col tuo nome e cognome:')
+      if (name === null) return
+      if (!name.trim()) { toast.error('Firma richiesta'); return }
+    }
+    const r = await rpc<{ ok?: boolean; error?: string }>('respond_circle_suggestion', { p_suggestion: id, p_accept: accept, p_signed_name: name })
+    if (r?.error) { toast.error(r.error === 'signature_required' ? 'Firma richiesta' : r.error); return }
+    toast.success(accept ? 'Fornitore accettato nel cerchio' : 'Richiesta rifiutata')
+    await load()
   }
 
   // Invita per email un fornitore non iscritto: l'invito è registrato a tuo nome
@@ -111,6 +133,24 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
 
   return (
     <div className="surface surface-lift p-5 sm:p-6">
+      {view === 'sposi' && sugs.length > 0 && (
+        <div className="mb-4 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/40 p-3 space-y-2">
+          <p className="text-sm font-medium">Richieste di fornitori da approvare</p>
+          {sugs.map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-2 text-sm flex-wrap">
+              <span className="min-w-0">
+                <strong>{s.supplier_name}</strong>
+                {s.role_key && <span className="text-[rgb(var(--fg-subtle))]"> · {s.role_key}</span>}
+                <span className="block text-[11px] text-[rgb(var(--fg-subtle))]">suggerito da {s.suggested_by_name}</span>
+              </span>
+              <span className="flex items-center gap-1.5 shrink-0">
+                <Button variant="gold" size="sm" onClick={() => respondSuggestion(s.id, true)}>Accetta (firma)</Button>
+                <Button variant="ghost" size="sm" onClick={() => respondSuggestion(s.id, false)}>Rifiuta</Button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
         {/* Anello */}
         <div className="relative shrink-0" style={{ width: size, height: size }}>
