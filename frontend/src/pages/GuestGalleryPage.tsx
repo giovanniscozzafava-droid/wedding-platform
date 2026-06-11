@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Images, Download, X, ChevronLeft, ChevronRight, Lock, Loader2, Upload, Play } from 'lucide-react'
+import { Images, Download, X, ChevronLeft, ChevronRight, Loader2, Upload, Play } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -48,6 +48,10 @@ export default function GuestGalleryPage() {
   const [promo, setPromo] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  // registrazione ospite semplice (nome + email → dentro subito)
+  const [gname, setGname] = useState('')
+  const [gemail, setGemail] = useState('')
+  const [signingUp, setSigningUp] = useState(false)
 
   const loadFolders = useCallback(async (entry: string) => {
     const { data: f } = await (supabase.from as any)('gallery_folders')
@@ -110,6 +114,21 @@ export default function GuestGalleryPage() {
     await loadFolders(entryId)
   }
 
+  async function guestEnter(e: React.FormEvent) {
+    e.preventDefault()
+    if (gname.trim().length < 2 || !gemail.includes('@')) { toast.error('Inserisci nome e email'); return }
+    setSigningUp(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('guest-signup', { body: { email: gemail.trim(), name: gname.trim(), gallery_id: galleryId, token } })
+      if (error) throw error
+      const d = data as { token_hash?: string; error?: string }
+      if (d?.error || !d?.token_hash) throw new Error(d?.error === 'bad_token' ? 'Link non valido o scaduto.' : 'Registrazione non riuscita. Riprova.')
+      const v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'magiclink' })
+      if (v.error) throw v.error
+      // sessione impostata → l'effetto su [session] fa partire join() e carica le foto
+    } catch (err) { toast.error((err as Error).message) } finally { setSigningUp(false) }
+  }
+
   const Frame = ({ children }: { children: ReactNode }) => (
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
       <header className="border-b border-[rgb(var(--border))] px-5 py-3 flex items-center gap-2">
@@ -127,14 +146,22 @@ export default function GuestGalleryPage() {
   if (!session) {
     return (
       <Frame>
-        <div className="max-w-sm mx-auto text-center py-16 space-y-4">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]"><Lock size={22} /></span>
-          <h1 className="font-display text-xl">Le foto sono riservate agli invitati</h1>
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Accedi o registrati per vedere, scaricare e caricare le foto e i video di questo evento.</p>
-          <div className="flex gap-2 justify-center">
-            <Button variant="gold" asChild><Link to="/login" state={{ from: location }}>Accedi</Link></Button>
-            <Button variant="outline" asChild><Link to="/register" state={{ from: location }}>Registrati</Link></Button>
+        <div className="max-w-sm mx-auto py-10 space-y-6">
+          <div className="text-center space-y-2">
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]"><Images size={26} /></span>
+            <h1 className="font-display text-2xl">Le foto del matrimonio</h1>
+            <p className="text-sm text-[rgb(var(--fg-muted))]">Scrivi nome ed email: entri subito, vedi le foto di tutti gli invitati e carichi le tue.</p>
           </div>
+          <form onSubmit={guestEnter} className="space-y-3">
+            <input value={gname} onChange={(e) => setGname(e.target.value)} placeholder="Nome e cognome" autoComplete="name"
+              className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-4 py-3 text-base" />
+            <input type="email" value={gemail} onChange={(e) => setGemail(e.target.value)} placeholder="La tua email" autoComplete="email"
+              className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-4 py-3 text-base" />
+            <Button type="submit" variant="gold" className="w-full !py-3 !text-base" disabled={signingUp}>
+              {signingUp ? <Loader2 size={18} className="animate-spin" /> : <Images size={18} />} Entra e guarda le foto
+            </Button>
+          </form>
+          <p className="text-center text-xs text-[rgb(var(--fg-subtle))]">Hai già un account o sei un professionista? <Link to="/login" state={{ from: location }} className="underline">Accedi</Link></p>
         </div>
       </Frame>
     )
@@ -154,8 +181,15 @@ export default function GuestGalleryPage() {
           <p className="text-xs text-[rgb(var(--fg-muted))]">Le condividi con gli sposi e con i fornitori (es. il fotografo/videomaker possono usarle).</p>
         </div>
         <label className="flex items-start gap-3 cursor-pointer select-none rounded-lg bg-[rgb(var(--bg))] border border-[rgb(var(--border))] p-3">
-          <input type="checkbox" checked={promo} onChange={(e) => setPromo(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[rgb(var(--gold-600))]" />
-          <span className="text-sm">Acconsento che le foto e i video che carico possano essere <strong>riutilizzati anche per scopi promozionali</strong> dagli sposi e dai fornitori dell'evento. <span className="text-[rgb(var(--fg-subtle))]">(Obbligatorio per caricare.)</span></span>
+          <input type="checkbox" checked={promo} onChange={(e) => setPromo(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[rgb(var(--gold-600))] shrink-0" />
+          <span className="text-[13px] leading-snug">
+            <strong>Autorizzazione all'uso delle immagini.</strong> Carico volontariamente queste foto/video e dichiaro di esserne l'autore o di averne comunque i diritti.
+            Autorizzo a titolo <strong>gratuito</strong>, senza limiti di tempo né di territorio, gli sposi e i fornitori dell'evento (es. fotografo, videomaker, wedding planner)
+            a conservare, riprodurre, pubblicare, esporre e diffondere il materiale caricato — compresa la mia immagine ivi presente — anche per <strong>finalità promozionali, pubblicitarie e di marketing</strong>,
+            su siti web, social network, portfolio, fiere e materiali stampati. La presente vale come liberatoria ai sensi degli artt. 10 e 320 c.c., degli artt. 96-97 della L. 633/1941
+            e come consenso al trattamento dei dati ai sensi del Reg. UE 2016/679 (GDPR). Dichiaro che le persone eventualmente ritratte hanno prestato il loro consenso.
+            <span className="block mt-1 text-[rgb(var(--gold-700))] font-medium">Senza questa autorizzazione non è possibile caricare.</span>
+          </span>
         </label>
         <input ref={fileRef} type="file" multiple accept="image/*,video/*" className="hidden"
           onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length) void uploadGuestMedia(snap) }} />
