@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -36,6 +36,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [uploadFolder, setUploadFolder] = useState<Folder | null>(null)
   // nuova cartella
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
+  // lightbox: lista di foto della cartella aperta + indice corrente
+  const [box, setBox] = useState<{ list: Media[]; i: number } | null>(null)
 
   const isOwner = !!gallery && gallery.owner_id === me
 
@@ -55,6 +57,40 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   }, [entryId])
 
   useEffect(() => { void load() }, [load])
+
+  // navigazione lightbox da tastiera (Esc chiude, frecce scorrono)
+  useEffect(() => {
+    if (!box) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setBox(null)
+      else if (e.key === 'ArrowRight') setBox((b) => (b ? { ...b, i: (b.i + 1) % b.list.length } : b))
+      else if (e.key === 'ArrowLeft') setBox((b) => (b ? { ...b, i: (b.i - 1 + b.list.length) % b.list.length } : b))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [box])
+
+  // un media è su Drive vero (non demo Pexels) → URL pubblici per anteprima/intero/download
+  const isDrive = (m: Media) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-')
+  const fullSrc = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w2000` : (m.thumbnail_link ?? ''))
+  const origUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/uc?export=download&id=${m.drive_file_id}` : (m.thumbnail_link ?? ''))
+  const webUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
+
+  // scarica: prova blob (per forzare il download), fallback ad aprire l'URL (Drive
+  // serve l'originale come allegato comunque). I byte NON passano da Planfully.
+  async function downloadUrl(url: string, name: string) {
+    if (!url) return
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('fetch')
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = name
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+    } catch { window.open(url, '_blank') }
+  }
 
   async function createGallery() {
     setBusy(true)
@@ -247,17 +283,53 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               <p className="text-xs text-[rgb(var(--fg-subtle))]">Nessuna foto. {isOwner && 'Usa “Carica foto” (vanno sul tuo Drive) o “Foto demo”.'}</p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                {f.gallery_media.map((m) => (
-                  <div key={m.id} className="relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))]" style={{ aspectRatio: '4/3' }}>
-                    {m.thumbnail_link && <img src={m.thumbnail_link} alt={m.guest_tag_name ?? ''} className="w-full h-full object-cover" loading="lazy" />}
-                    {m.guest_tag_name && <span className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] px-1 py-0.5 truncate">{m.guest_tag_name}</span>}
-                  </div>
+                {f.gallery_media.map((m, idx) => (
+                  <button key={m.id} type="button" onClick={() => setBox({ list: f.gallery_media, i: idx })}
+                    className="group relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] cursor-zoom-in" style={{ aspectRatio: '4/3' }}>
+                    {m.thumbnail_link && <img src={m.thumbnail_link} alt={m.guest_tag_name ?? ''} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />}
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition">
+                      {m.media_type === 'VIDEO'
+                        ? <Play size={20} className="text-white opacity-80 fill-white" />
+                        : <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-90 transition" />}
+                    </span>
+                    {m.guest_tag_name && <span className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tag_name}</span>}
+                  </button>
                 ))}
               </div>
             )}
           </Card>
         )
       })}
+
+      {/* Lightbox: ingrandisci, vedi intera, scarica (originale o web) */}
+      {box && (() => {
+        const m = box.list[box.i]
+        const ext = m.media_type === 'VIDEO' ? 'mp4' : 'jpg'
+        const base = (m.guest_tag_name || 'planfully-foto').replace(/[^\w\- ]+/g, '').trim() || 'planfully-foto'
+        return (
+          <div className="fixed inset-0 z-[60] bg-black/90 flex flex-col" onClick={() => setBox(null)}>
+            <div className="flex items-center justify-between gap-2 p-3" onClick={(e) => e.stopPropagation()}>
+              <span className="text-xs text-white/70">{box.i + 1} / {box.list.length}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="!text-white !border-white/30 hover:!bg-white/10" onClick={() => downloadUrl(webUrl(m), `${base}-web.${ext}`)} title="Versione leggera per il web"><Download size={14} /> Web</Button>
+                <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione"><Download size={14} /> Originale</Button>
+                <button className="p-1.5 rounded hover:bg-white/10" onClick={() => setBox(null)} aria-label="Chiudi"><X size={18} className="text-white" /></button>
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center px-4 pb-6 min-h-0" onClick={(e) => e.stopPropagation()}>
+              {m.media_type === 'VIDEO' && isDrive(m)
+                ? <iframe src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`} className="w-full max-w-4xl aspect-video rounded-lg" allow="autoplay" title={base} />
+                : <img src={fullSrc(m)} alt={m.guest_tag_name ?? ''} className="max-w-full max-h-full object-contain rounded-lg select-none" />}
+            </div>
+            {box.list.length > 1 && (
+              <>
+                <button className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20" onClick={(e) => { e.stopPropagation(); setBox((b) => (b ? { ...b, i: (b.i - 1 + b.list.length) % b.list.length } : b)) }} aria-label="Precedente"><ChevronLeft size={22} className="text-white" /></button>
+                <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20" onClick={(e) => { e.stopPropagation(); setBox((b) => (b ? { ...b, i: (b.i + 1) % b.list.length } : b)) }} aria-label="Successiva"><ChevronRight size={22} className="text-white" /></button>
+              </>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
