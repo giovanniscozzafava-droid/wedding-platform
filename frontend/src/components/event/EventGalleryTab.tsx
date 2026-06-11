@@ -16,7 +16,7 @@ import { getDriveToken, ensureDriveFolder, uploadFileToDrive } from '@/lib/drive
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
 type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null }
-type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; gallery_media: Media[] }
+type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string }
 
 const LEVELS = [
@@ -34,6 +34,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [busy, setBusy] = useState(false)
   const uploadRef = useRef<HTMLInputElement>(null)
   const [uploadFolder, setUploadFolder] = useState<Folder | null>(null)
+  const [salesEnabled, setSalesEnabled] = useState(false)
   // nuova cartella
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
   // lightbox: lista di foto della cartella aperta + indice corrente
@@ -48,9 +49,11 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents)')
+      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents)')
       .eq('entry_id', entryId).order('sort_order')
     setFolders((f as Folder[]) ?? [])
+    const { data: flag } = await (supabase.from as any)('feature_flags').select('enabled').eq('key', 'photo_sales_enabled').maybeSingle()
+    setSalesEnabled(!!flag?.enabled)
     const { data: c } = await (supabase.from as any)('gallery_consents').select('granted_at, revoked_at').eq('entry_id', entryId).eq('scope', 'LAVORO_INTERO').maybeSingle()
     setConsentOn(!!c && c.granted_at && !c.revoked_at)
     setLoading(false)
@@ -140,6 +143,20 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const url = `${window.location.origin}/galleria/${gallery.id}?t=${data.token}`
     try { await navigator.clipboard.writeText(url); toast.success('Link ospiti copiato negli appunti') }
     catch { toast.success(url) }
+  }
+
+  // Clausola a pagamento per CARTELLA (gated dal flag photo_sales_enabled). La
+  // riscossione vera (Stripe) e il gating del download sono pendenti.
+  async function setFolderPrice(f: Folder) {
+    const cur = f.is_for_sale && f.price_cents ? (f.price_cents / 100).toString() : ''
+    const v = prompt(`Prezzo della cartella «${f.name}» in € (vuoto = non in vendita):`, cur)
+    if (v === null) return
+    const euros = parseFloat(v.replace(',', '.'))
+    const onSale = !isNaN(euros) && euros > 0
+    const { error } = await (supabase.from as any)('gallery_folders').update({ is_for_sale: onSale, price_cents: onSale ? Math.round(euros * 100) : null }).eq('id', f.id)
+    if (error) { toast.error(error.message); return }
+    toast.success(onSale ? `Cartella in vendita a €${euros.toFixed(2)}` : 'Cartella non più in vendita')
+    await load()
   }
 
   // Carica foto demo (Pexels) per dimostrare la galleria viva (l'upload vero va su Drive).
@@ -285,12 +302,14 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 {f.level === 'LAVORO_INTERO' && (f.shared
                   ? <Badge className="bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] text-[10px]"><Check size={10} /> condivisa</Badge>
                   : <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] text-[10px]">non condivisa</Badge>)}
+                {salesEnabled && f.is_for_sale && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px]">€{((f.price_cents ?? 0) / 100).toFixed(0)} a pagamento</Badge>}
               </div>
               {isOwner && (
                 <div className="flex items-center gap-1.5">
                   {f.level === 'LAVORO_INTERO' && <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleShared(f)}>{f.shared ? 'Non condividere' : 'Condividi al cerchio'}</Button>}
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => addDemoPhotos(f)}><Sparkles size={12} /> Foto demo</Button>
+                  {salesEnabled && <Button variant="outline" size="sm" onClick={() => setFolderPrice(f)}>{f.is_for_sale ? `€${((f.price_cents ?? 0) / 100).toFixed(0)}` : 'Prezzo'}</Button>}
                   <Button variant="ghost" size="icon" onClick={() => deleteFolder(f)}><Trash2 size={13} /></Button>
                 </div>
               )}
