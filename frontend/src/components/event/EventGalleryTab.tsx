@@ -304,6 +304,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       {/* Lightbox: ingrandisci, vedi intera, scarica (originale o web) */}
       {box && (() => {
         const m = box.list[box.i]
+        if (!m) return null
         const ext = m.media_type === 'VIDEO' ? 'mp4' : 'jpg'
         const base = (m.guest_tag_name || 'planfully-foto').replace(/[^\w\- ]+/g, '').trim() || 'planfully-foto'
         return (
