@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
-import { getDriveToken, ensureDriveFolder, uploadFileToDrive } from '@/lib/driveUpload'
+import { getDriveToken, ensureDriveFolder, uploadAnyToDrive } from '@/lib/driveUpload'
 import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
 import { QRCodeSVG } from 'qrcode.react'
 import { PhotoSocial } from './PhotoSocial'
@@ -233,10 +233,13 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       const rows: Record<string, unknown>[] = []
       const fails: string[] = []
       for (const file of files) {
+        const big = file.size > 8 * 1024 * 1024
+        const tid = big ? toast.loading(`Carico ${file.name}… 0%`) : undefined
         try {
-          const { id, thumbnail } = await uploadFileToDrive(token, driveFolder, file)
+          const { id, thumbnail } = await uploadAnyToDrive(token, driveFolder, file, (frac) => { if (tid !== undefined) toast.loading(`Carico ${file.name}… ${Math.round(frac * 100)}%`, { id: tid }) })
+          if (tid !== undefined) toast.dismiss(tid)
           rows.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: id, thumbnail_link: thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
-        } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
+        } catch (e) { if (tid !== undefined) toast.dismiss(tid); fails.push(`${file.name}: ${(e as Error).message}`) }
       }
       if (rows.length) { const { error } = await (supabase.from as any)('gallery_media').insert(rows); if (error) throw error }
       if (fails.length) toast.error(`${rows.length} caricati, ${fails.length} falliti — ${fails[0]}`)
