@@ -9,13 +9,14 @@ import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { getDriveToken, ensureDriveFolder, uploadFileToDrive } from '@/lib/driveUpload'
+import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
 // carica; gli sposi vedono tutto + danno il consenso; i fornitori vedono solo
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null }
+type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null }
 type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string }
 
@@ -35,6 +36,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const uploadRef = useRef<HTMLInputElement>(null)
   const [uploadFolder, setUploadFolder] = useState<Folder | null>(null)
   const [salesEnabled, setSalesEnabled] = useState(false)
+  const [albumOpen, setAlbumOpen] = useState(false)
   // nuova cartella
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
   // lightbox: lista di foto della cartella aperta + indice corrente
@@ -49,7 +51,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents)')
+      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice)')
       .eq('entry_id', entryId).order('sort_order')
     setFolders((f as Folder[]) ?? [])
     const { data: flag } = await (supabase.from as any)('feature_flags').select('enabled').eq('key', 'photo_sales_enabled').maybeSingle()
@@ -253,6 +255,17 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         </Card>
       )}
 
+      {/* Sposi: selezione foto/video per l'album (stile Tinder) */}
+      {role === 'sposi' && folders.some((f) => f.gallery_media.length > 0) && (
+        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium">Scegli le foto per l'album</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">Una alla volta: tieni o scarta. Gli scarti li puoi sempre recuperare.</p>
+          </div>
+          <Button variant="gold" size="sm" onClick={() => setAlbumOpen(true)}><Images size={14} /> Inizia la selezione</Button>
+        </Card>
+      )}
+
       {/* Plancia owner: nuova cartella */}
       {isOwner && (
         <Card className="p-4">
@@ -335,6 +348,15 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           </Card>
         )
       })}
+
+      {/* Selezione album (sposi) */}
+      {albumOpen && (
+        <AlbumPicker
+          media={folders.flatMap((f) => f.gallery_media) as AlbumMedia[]}
+          onClose={() => { setAlbumOpen(false); void load() }}
+          onChanged={() => { /* salvataggio già persistito via RPC */ }}
+        />
+      )}
 
       {/* Lightbox: ingrandisci, vedi intera, scarica (originale o web) */}
       {box && (() => {
