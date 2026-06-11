@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2 } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -130,6 +130,18 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     await load()
   }
 
+  // Link ospiti: genera/recupera il token e copia il link dedicato (accesso solo
+  // previa registrazione, mostra SOLO le foto INVITATI).
+  async function shareGuestLink() {
+    if (!gallery) return
+    const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { token?: string; error?: string } }> })
+      .rpc('gallery_enable_guest_link', { p_gallery_id: gallery.id })
+    if (!data?.token) { toast.error(data?.error === 'forbidden' ? 'Solo il proprietario della galleria.' : 'Link non generato'); return }
+    const url = `${window.location.origin}/galleria/${gallery.id}?t=${data.token}`
+    try { await navigator.clipboard.writeText(url); toast.success('Link ospiti copiato negli appunti') }
+    catch { toast.success(url) }
+  }
+
   // Carica foto demo (Pexels) per dimostrare la galleria viva (l'upload vero va su Drive).
   async function addDemoPhotos(f: Folder) {
     if (!gallery) return
@@ -228,7 +240,11 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       {isOwner && (
         <Card className="p-4">
           {!nf.open ? (
-            <Button variant="outline" size="sm" onClick={() => setNf((s) => ({ ...s, open: true }))}><FolderPlus size={14} /> Nuova cartella</Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setNf((s) => ({ ...s, open: true }))}><FolderPlus size={14} /> Nuova cartella</Button>
+              <Button variant="ghost" size="sm" onClick={shareGuestLink}><Link2 size={14} /> Link ospiti</Button>
+              <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Il link mostra agli invitati SOLO le cartelle «Invitati» (accesso con registrazione).</span>
+            </div>
           ) : (
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

@@ -63,6 +63,7 @@ const SupplierPendingPage = lazyWithRetry(() => import('@/pages/SupplierPendingP
 const SupplierReviewItemsPage = lazyWithRetry(() => import('@/pages/SupplierReviewItemsPage'))
 const SupplierCreditsPage = lazyWithRetry(() => import('@/pages/SupplierCreditsPage'))
 const PublicSlugResolver = lazyWithRetry(() => import('@/pages/public/PublicSlugResolver'))
+const GuestGalleryPage = lazyWithRetry(() => import('@/pages/GuestGalleryPage'))
 const WpLeadsPage = lazyWithRetry(() => import('@/pages/WpLeadsPage'))
 const DiscoverProsPage = lazyWithRetry(() => import('@/pages/public/DiscoverProsPage'))
 const FeedArticlePage = lazyWithRetry(() => import('@/pages/public/FeedArticlePage'))
@@ -214,6 +215,7 @@ export default function App() {
           <Route path="/invito-fornitore/:token" element={<SupplierInviteAcceptPage />} />
           <Route path="/invito-capostipite/:token" element={<CapostipiteInviteAcceptPage />} />
           <Route path="/invito-coppia/:token" element={<CoupleInviteAcceptPage />} />
+          <Route path="/galleria/:galleryId" element={<GuestGalleryPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookie" element={<CookiePage />} />
           <Route path="/scopri" element={<DiscoverPage />} />

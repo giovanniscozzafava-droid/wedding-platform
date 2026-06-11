@@ -54,12 +54,12 @@ type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoMod
 
 const TABS: Array<TabDef> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
-  { key: 'planning',       label: 'Questionario', icon: ClipboardList },
+  { key: 'planning',       label: 'Questionario', icon: ClipboardList, capostipiteOnly: true },
   { key: 'ceremony',       label: 'Cerimonia',    icon: Church },
   { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock },
   { key: 'guests',         label: 'Invitati',     icon: UsersIcon },
   { key: 'tables',         label: 'Tavoli',       icon: Table2 },
-  { key: 'menu',           label: 'Menu',         icon: Utensils },
+  { key: 'menu',           label: 'Menu',         icon: Utensils, capostipiteOnly: true },
   { key: 'accommodations', label: 'Alloggi',      icon: BedDouble },
   { key: 'transport',      label: 'Trasporti',    icon: Bus },
   { key: 'subevents',      label: 'Eventi',       icon: PartyPopper },
