@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Images, Download, X, ChevronLeft, ChevronRight, Loader2, Upload, Play } from 'lucide-react'
+import { Images, Download, X, ChevronLeft, ChevronRight, Loader2, Upload, Play, QrCode, Heart } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 
 // Pagina ospite: link dedicato (?t=token), accesso SOLO previa registrazione.
-// L'ospite vede le foto/video INVITATI e può CARICARE le proprie foto e video
-// dell'evento (consenso al riutilizzo promozionale OBBLIGATORIO). I fornitori del
-// cerchio (fotografo/videomaker) potranno usarli. Nessuna dashboard, niente sensibili.
+// L'ospite vede le foto/video INVITATI e può CARICARE le proprie (consenso al riutilizzo
+// promozionale OBBLIGATORIO). I fornitori del cerchio possono usarli. UX semplice e allegra.
 
 type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null }
 type Folder = { id: string; name: string; gallery_media: Media[] }
@@ -38,12 +37,18 @@ async function downloadUrl(url: string, name: string) {
 // React ri-monta gli input → su mobile si perde il focus a ogni lettera. Estratto = fluido.
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
-      <header className="border-b border-[rgb(var(--border))] px-5 py-3 flex items-center gap-2">
-        <Images size={18} className="text-[rgb(var(--gold-600))]" />
-        <span className="font-display text-lg">Foto e video dell'evento</span>
+    <div className="min-h-screen flex flex-col" style={{ background: 'rgb(var(--bg))' }}>
+      <header className="border-b border-[rgb(var(--border))] px-5 py-3 flex items-center justify-between">
+        <a href="https://planfully.it" target="_blank" rel="noreferrer" className="flex items-center gap-2">
+          <img src="/brand/planfully-symbol.svg" alt="Planfully" className="h-6 w-6" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          <span className="font-display text-lg">Planfully</span>
+        </a>
+        <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Foto & video dell'evento</span>
       </header>
-      <main className="max-w-5xl mx-auto p-5">{children}</main>
+      <main className="max-w-5xl mx-auto w-full p-5 flex-1">{children}</main>
+      <footer className="text-center py-6 text-[11px] text-[rgb(var(--fg-subtle))]">
+        Le foto del tuo matrimonio, organizzate con <a href="https://planfully.it" target="_blank" rel="noreferrer" className="underline">planfully.it</a>
+      </footer>
     </div>
   )
 }
@@ -58,9 +63,12 @@ export default function GuestGalleryPage() {
   const [state, setState] = useState<'idle' | 'joining' | 'ready' | 'error'>('idle')
   const [errMsg, setErrMsg] = useState('')
   const [entryId, setEntryId] = useState<string | null>(null)
+  const [eventName, setEventName] = useState<string | null>(null)
   const [folders, setFolders] = useState<Folder[]>([])
   const [box, setBox] = useState<{ list: Media[]; i: number } | null>(null)
   const [promo, setPromo] = useState(false)
+  const [libOpen, setLibOpen] = useState(false)
+  const [showQr, setShowQr] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   // registrazione ospite semplice (nome + email → dentro subito)
@@ -79,13 +87,14 @@ export default function GuestGalleryPage() {
   const join = useCallback(async () => {
     if (!galleryId) return
     setState('joining')
-    const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; entry_id?: string; error?: string } }> })
+    const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; entry_id?: string; event_name?: string; error?: string } }> })
       .rpc('join_event_as_guest', { p_gallery_id: galleryId, p_token: token })
     if (!data?.ok || !data.entry_id) {
       setErrMsg(data?.error === 'bad_token' ? 'Link non valido o scaduto.' : data?.error === 'gallery_not_found' ? 'Galleria inesistente.' : 'Accesso non riuscito.')
       setState('error'); return
     }
     setEntryId(data.entry_id)
+    setEventName(data.event_name ?? null)
     await loadFolders(data.entry_id)
     setState('ready')
   }, [galleryId, token, loadFolders])
@@ -108,7 +117,7 @@ export default function GuestGalleryPage() {
 
   async function uploadGuestMedia(files: File[]) {
     if (!entryId || !user || files.length === 0) return
-    if (!promo) { toast.error('Devi accettare il consenso per caricare.'); return }
+    if (!promo) { toast.error('Spunta prima il consenso per caricare.'); return }
     setUploading(true)
     let ok = 0; let fail = 0
     for (const file of files) {
@@ -126,7 +135,7 @@ export default function GuestGalleryPage() {
       } catch (e) { fail++; if (fail === 1) toast.error((e as Error).message) }
     }
     setUploading(false)
-    if (ok) toast.success(`${ok} file caricati. Grazie!`)
+    if (ok) toast.success(`${ok} file caricati. Grazie! 🎉`)
     await loadFolders(entryId)
   }
 
@@ -152,11 +161,11 @@ export default function GuestGalleryPage() {
   if (!session) {
     return (
       <Frame>
-        <div className="max-w-sm mx-auto py-10 space-y-6">
+        <div className="max-w-sm mx-auto py-8 space-y-6">
           <div className="text-center space-y-2">
-            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]"><Images size={26} /></span>
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]"><Heart size={26} className="fill-[rgb(var(--gold-500))]" /></span>
             <h1 className="font-display text-2xl">Le foto del matrimonio</h1>
-            <p className="text-sm text-[rgb(var(--fg-muted))]">Scrivi nome ed email ed entri subito. Qui <strong>carichi le tue foto e i tuoi video</strong> dell'evento e li condividi con tutti gli invitati. Se gli sposi lo attivano, qui trovi anche le <strong>foto ufficiali</strong> del matrimonio, da rivedere e scaricare.</p>
+            <p className="text-sm text-[rgb(var(--fg-muted))]">Scrivi nome ed email ed entri subito: <strong>carichi le tue foto e i tuoi video</strong> e li condividi con tutti. Se gli sposi lo attivano, qui trovi anche le <strong>foto ufficiali</strong> da rivedere e scaricare.</p>
           </div>
           <form onSubmit={guestEnter} className="space-y-3">
             <input value={gname} onChange={(e) => setGname(e.target.value)} placeholder="Nome e cognome" autoComplete="name"
@@ -165,10 +174,10 @@ export default function GuestGalleryPage() {
               className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-4 py-3 text-base" />
             <label className="flex items-start gap-2 text-left cursor-pointer select-none px-1">
               <input type="checkbox" checked={gmarketing} onChange={(e) => setGmarketing(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[rgb(var(--gold-600))] shrink-0" />
-              <span className="text-[11px] text-[rgb(var(--fg-muted))]">Acconsento a essere ricontattato/a anche per finalità commerciali da Planfully e dai fornitori dell'evento, e al trattamento dei miei dati per tali scopi. <span className="text-[rgb(var(--fg-subtle))]">(facoltativo)</span></span>
+              <span className="text-[11px] text-[rgb(var(--fg-muted))]">Acconsento a essere ricontattato/a anche per finalità commerciali da Planfully e dai fornitori, e al trattamento dei dati per tali scopi. <span className="text-[rgb(var(--fg-subtle))]">(facoltativo)</span></span>
             </label>
             <Button type="submit" variant="gold" className="w-full !py-3 !text-base" disabled={signingUp}>
-              {signingUp ? <Loader2 size={18} className="animate-spin" /> : <Images size={18} />} Entra e guarda le foto
+              {signingUp ? <Loader2 size={18} className="animate-spin" /> : <Heart size={18} className="fill-current" />} Entra e guarda le foto
             </Button>
           </form>
           <p className="text-center text-xs text-[rgb(var(--fg-subtle))]">Hai già un account o sei un professionista? <Link to="/login" state={{ from: location }} className="underline">Accedi</Link></p>
@@ -184,32 +193,44 @@ export default function GuestGalleryPage() {
   const allEmpty = folders.every((f) => f.gallery_media.length === 0)
   return (
     <Frame>
-      {/* QR hero: mostralo agli altri invitati, lo scansionano ed entrano */}
-      <div className="mb-6 flex flex-col items-center gap-2 text-center">
-        <div className="rounded-2xl bg-white p-4 shadow-sm border border-[rgb(var(--border))]">
-          <QRCodeSVG value={typeof window !== 'undefined' ? window.location.href : ''} size={188} level="M" fgColor="#1A1714" bgColor="#ffffff" />
-        </div>
-        <p className="text-sm font-medium">Inquadra per entrare nelle foto</p>
-        <p className="text-xs text-[rgb(var(--fg-muted))] max-w-xs">Mostra questo QR agli altri invitati: lo scansionano e accedono subito a foto e video dell'evento.</p>
+      {/* Hero: nome degli sposi + QR a scomparsa */}
+      <div className="mb-6 text-center space-y-2">
+        <h1 className="font-display text-2xl sm:text-3xl flex items-center justify-center gap-2">
+          <Heart size={20} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> Le foto di {eventName ?? 'questo matrimonio'}
+        </h1>
+        <button onClick={() => setShowQr((s) => !s)} className="text-xs text-[rgb(var(--gold-700))] underline inline-flex items-center gap-1">
+          <QrCode size={13} /> {showQr ? 'Nascondi QR' : 'Mostra QR per far entrare gli altri invitati'}
+        </button>
+        {showQr && (
+          <div className="flex flex-col items-center gap-2 pt-2">
+            <div className="rounded-2xl bg-white p-4 shadow-sm border border-[rgb(var(--border))]">
+              <QRCodeSVG value={typeof window !== 'undefined' ? window.location.href : ''} size={176} level="M" fgColor="#1A1714" bgColor="#ffffff" />
+            </div>
+            <p className="text-xs text-[rgb(var(--fg-muted))] max-w-xs">Mostralo agli altri invitati: lo inquadrano ed entrano.</p>
+          </div>
+        )}
       </div>
 
-      {/* Upload ospiti: foto e video, con consenso promozionale OBBLIGATORIO */}
-      <div className="mb-6 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/30 p-4 space-y-3">
+      {/* Upload ospiti: foto e video, consenso promozionale OBBLIGATORIO ma compatto */}
+      <div className="mb-6 rounded-2xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/30 p-4 space-y-3">
         <div>
-          <p className="text-sm font-medium">Carica le tue foto e i tuoi video dell'evento</p>
-          <p className="text-xs text-[rgb(var(--fg-muted))]">Le condividi con gli sposi e con i fornitori (es. il fotografo/videomaker possono usarle).</p>
+          <p className="text-sm font-medium">Carica le tue foto e i tuoi video 📸</p>
+          <p className="text-xs text-[rgb(var(--fg-muted))]">Le condividi con gli sposi e con i fornitori dell'evento.</p>
         </div>
-        <label className="flex items-start gap-3 cursor-pointer select-none rounded-lg bg-[rgb(var(--bg))] border border-[rgb(var(--border))] p-3">
-          <input type="checkbox" checked={promo} onChange={(e) => setPromo(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[rgb(var(--gold-600))] shrink-0" />
-          <span className="text-[13px] leading-snug">
-            <strong>Autorizzazione all'uso delle immagini.</strong> Carico volontariamente queste foto/video e dichiaro di esserne l'autore o di averne comunque i diritti.
-            Autorizzo a titolo <strong>gratuito</strong>, senza limiti di tempo né di territorio, gli sposi e i fornitori dell'evento (es. fotografo, videomaker, wedding planner)
-            a conservare, riprodurre, pubblicare, esporre e diffondere il materiale caricato — compresa la mia immagine ivi presente — anche per <strong>finalità promozionali, pubblicitarie e di marketing</strong>,
-            su siti web, social network, portfolio, fiere e materiali stampati. La presente vale come liberatoria ai sensi degli artt. 10 e 320 c.c., degli artt. 96-97 della L. 633/1941
-            e come consenso al trattamento dei dati ai sensi del Reg. UE 2016/679 (GDPR). Dichiaro che le persone eventualmente ritratte hanno prestato il loro consenso.
-            <span className="block mt-1 text-[rgb(var(--gold-700))] font-medium">Senza questa autorizzazione non è possibile caricare.</span>
-          </span>
-        </label>
+        <div className="rounded-lg bg-[rgb(var(--bg))] border border-[rgb(var(--border))] p-3">
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input type="checkbox" checked={promo} onChange={(e) => setPromo(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[rgb(var(--gold-600))] shrink-0" />
+            <span className="text-[13px] leading-snug">
+              {promo ? <span className="text-[rgb(var(--emerald-700))] font-medium">Autorizzazione accettata.</span> : <>Acconsento al <strong>riutilizzo anche promozionale</strong> delle foto/video che carico (liberatoria immagini). <span className="text-[rgb(var(--fg-subtle))]">Obbligatorio.</span></>}{' '}
+              <button type="button" onClick={() => setLibOpen((o) => !o)} className="underline text-[rgb(var(--gold-700))]">{libOpen ? 'nascondi testo' : 'leggi il testo'}</button>
+            </span>
+          </label>
+          {libOpen && (
+            <p className="mt-2 text-[11px] text-[rgb(var(--fg-muted))] leading-snug border-t border-[rgb(var(--border))] pt-2">
+              Carico volontariamente queste foto/video e dichiaro di esserne l'autore o di averne i diritti. Autorizzo a titolo <strong>gratuito</strong>, senza limiti di tempo né di territorio, gli sposi e i fornitori dell'evento (es. fotografo, videomaker, wedding planner) a conservare, riprodurre, pubblicare, esporre e diffondere il materiale caricato — compresa la mia immagine — anche per <strong>finalità promozionali, pubblicitarie e di marketing</strong>, su siti web, social, portfolio, fiere e stampa. Vale come liberatoria ai sensi degli artt. 10 e 320 c.c., degli artt. 96-97 L. 633/1941 e come consenso ex Reg. UE 2016/679 (GDPR). Dichiaro che le persone ritratte hanno prestato il loro consenso.
+            </p>
+          )}
+        </div>
         <input ref={fileRef} type="file" multiple accept="image/*,video/*" className="hidden"
           onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length) void uploadGuestMedia(snap) }} />
         <Button variant="gold" size="sm" disabled={!promo || uploading} onClick={() => fileRef.current?.click()}>
@@ -218,7 +239,7 @@ export default function GuestGalleryPage() {
       </div>
 
       {folders.length === 0 || allEmpty ? (
-        <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Ancora nessuna foto. Sii il primo a caricare i tuoi scatti!</p>
+        <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Ancora nessuna foto. Sii il primo a caricare i tuoi scatti! ✨</p>
       ) : (
         folders.map((f) => (
           <section key={f.id} className="mb-8">
