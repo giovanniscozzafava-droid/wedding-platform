@@ -118,7 +118,7 @@ export default function WeddingsPage() {
                     <Link to={`/weddings/${w.id}`} className="min-w-0 flex-1">
                       <h3 className="font-display text-xl truncate flex items-center gap-2">
                         {w.title}
-                        {unread[w.id] && <span className="inline-block h-2.5 w-2.5 rounded-full bg-[rgb(var(--rose-500))] shrink-0 animate-pulse" title={`${unread[w.id].n} novità da leggere`} />}
+                        {unread[w.id] && <span className="inline-block h-2.5 w-2.5 rounded-full bg-[rgb(var(--rose-500))] shrink-0 animate-pulse" title={`${unread[w.id]?.n ?? ''} novità da leggere`} />}
                       </h3>
                       <p className="text-sm text-[rgb(var(--fg-muted))]">
                         {w.client_name ?? '—'} ·{' '}

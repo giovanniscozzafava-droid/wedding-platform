@@ -87,19 +87,23 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   async function sendInvite() {
     const email = invite.email.trim().toLowerCase()
     if (!email.includes('@')) { toast.error('Email non valida'); return }
+    // riservo il popup sul gesto del click → poi lo dirotto su WhatsApp (no popup-block)
+    const waWin = window.open('', '_blank')
     setInvite((s) => ({ ...s, sending: true }))
     try {
       const { data, error } = await supabase.functions.invoke('invite-supplier', {
         body: { email, subrole: pick?.roleKey, message: `Ti invito su Planfully per collaborare a un evento come ${pick?.label}.` },
       })
       if (error) throw error
-      const mode = (data as { mode?: string; error?: string })?.mode
-      const err = (data as { error?: string })?.error
-      if (err) { toast.error(err); return }
-      if (mode === 'email_failed_link_fallback') toast.success('Invito creato (email non partita: link generato nel tuo profilo)')
-      else toast.success(`Invito inviato a ${email}`)
+      const d = data as { mode?: string; error?: string; accept_url?: string }
+      if (d?.error) { waWin?.close(); toast.error(d.error); return }
+      // finché le email non sono stabili: lo stesso pulsante apre anche WhatsApp con il link
+      const url = d.accept_url || window.location.origin
+      const text = `Ciao! Ti invito su Planfully per collaborare a un evento${pick?.label ? ` come ${pick.label}` : ''}. Registrati qui: ${url}`
+      if (waWin) waWin.location.href = `https://wa.me/?text=${encodeURIComponent(text)}`
+      toast.success(`Invito inviato a ${email} — email + WhatsApp`)
       setInvite({ email: '', sending: false })
-    } catch (e) { toast.error((e as Error).message) } finally { setInvite((s) => ({ ...s, sending: false })) }
+    } catch (e) { waWin?.close(); toast.error((e as Error).message) } finally { setInvite((s) => ({ ...s, sending: false })) }
   }
 
   // Aggiunge un nuovo ruolo al cerchio (oltre i 10 standard): il cerchio è aperto.
