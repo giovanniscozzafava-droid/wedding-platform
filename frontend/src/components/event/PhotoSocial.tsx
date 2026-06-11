@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Heart, Send, Loader2 } from 'lucide-react'
+import { Heart, Send, Loader2, Share2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
 // Like + commenti su una foto/video (restano nell'app). Pensato per il lightbox scuro.
 type Comment = { id: string; author_name: string | null; body: string; created_at: string }
 
-export function PhotoSocial({ mediaId }: { mediaId: string }) {
+export function PhotoSocial({ mediaId, comments: allowComments = true, social = false, shareUrl }: { mediaId: string; comments?: boolean; social?: boolean; shareUrl?: string }) {
   const [uid, setUid] = useState<string | null>(null)
   const [likes, setLikes] = useState(0)
   const [liked, setLiked] = useState(false)
@@ -53,30 +54,45 @@ export function PhotoSocial({ mediaId }: { mediaId: string }) {
     setOpen(true)
   }
 
+  async function share() {
+    const url = shareUrl || window.location.href
+    try {
+      if (navigator.share) await navigator.share({ title: 'Foto del matrimonio', url })
+      else { await navigator.clipboard.writeText(url); toast.success('Link copiato') }
+    } catch { /* annullato dall'utente */ }
+  }
+
   return (
     <div className="text-white" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-4">
         <button onClick={toggleLike} className="inline-flex items-center gap-1.5 text-sm">
           <Heart size={20} className={liked ? 'fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]' : 'text-white'} /> {likes > 0 ? likes : ''}
         </button>
-        <button onClick={() => setOpen((o) => !o)} className="text-sm text-white/80 hover:text-white">
-          {comments.length > 0 ? `${comments.length} commenti` : 'Commenta'}
-        </button>
+        {allowComments && (
+          <button onClick={() => setOpen((o) => !o)} className="text-sm text-white/80 hover:text-white">
+            {comments.length > 0 ? `${comments.length} commenti` : 'Commenta'}
+          </button>
+        )}
+        {social && (
+          <button onClick={share} className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white"><Share2 size={18} /> Condividi</button>
+        )}
       </div>
-      {open && (
+      {allowComments && open && (
         <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
           {comments.map((c) => (
             <p key={c.id} className="text-sm"><span className="font-medium">{c.author_name ?? 'Invitato'}</span> <span className="text-white/85">{c.body}</span></p>
           ))}
         </div>
       )}
-      <div className="mt-2 flex items-center gap-2">
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addComment() }}
-          placeholder="Scrivi un commento…" className="flex-1 rounded-full bg-white/10 text-white placeholder-white/50 px-3 py-1.5 text-sm border border-white/20" />
-        <button onClick={addComment} disabled={sending || !text.trim()} className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40">
-          {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-        </button>
-      </div>
+      {allowComments && (
+        <div className="mt-2 flex items-center gap-2">
+          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addComment() }}
+            placeholder="Scrivi un commento…" className="flex-1 rounded-full bg-white/10 text-white placeholder-white/50 px-3 py-1.5 text-sm border border-white/20" />
+          <button onClick={addComment} disabled={sending || !text.trim()} className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40">
+            {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

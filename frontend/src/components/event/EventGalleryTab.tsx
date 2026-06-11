@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import { getDriveToken, ensureDriveFolder, uploadAnyToDrive } from '@/lib/driveU
 import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
 import { QRCodeSVG } from 'qrcode.react'
 import { PhotoSocial } from './PhotoSocial'
+import { GallerySettingsPanel, DEFAULT_GALLERY_SETTINGS, type GallerySettings } from './GallerySettingsPanel'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -41,6 +42,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [albumOpen, setAlbumOpen] = useState(false)
   const [guestLinkUrl, setGuestLinkUrl] = useState<string | null>(null)
   const [driveModal, setDriveModal] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [gsettings, setGsettings] = useState<GallerySettings>(DEFAULT_GALLERY_SETTINGS)
   // nuova cartella
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
   // lightbox: lista di foto della cartella aperta + indice corrente
@@ -54,6 +57,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     setMe(uid)
     const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
+    if (gal) {
+      const { data: gs } = await (supabase.from as any)('gallery_settings').select('*').eq('gallery_id', (gal as Gallery).id).maybeSingle()
+      if (gs) setGsettings({ ...DEFAULT_GALLERY_SETTINGS, ...gs })
+    }
     const { data: f } = await (supabase.from as any)('gallery_folders')
       .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, uploaded_by, uploader_name)')
       .eq('entry_id', entryId).order('sort_order')
@@ -330,6 +337,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setNf((s) => ({ ...s, open: true }))}><FolderPlus size={14} /> Nuova cartella</Button>
               <Button variant="ghost" size="sm" onClick={shareGuestLink}><Link2 size={14} /> Link ospiti</Button>
+              <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}><Settings size={14} /> Impostazioni galleria</Button>
               <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Il link mostra agli invitati SOLO le cartelle «Invitati» (accesso con registrazione).</span>
             </div>
           ) : (
@@ -410,6 +418,11 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         )
       })}
 
+      {/* Pannello impostazioni galleria (fotografo) */}
+      {settingsOpen && gallery && (
+        <GallerySettingsPanel galleryId={gallery.id} onClose={() => setSettingsOpen(false)} onSaved={(s) => setGsettings(s)} />
+      )}
+
       {/* Popup: serve collegare Google Drive per caricare le proprie foto */}
       {driveModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDriveModal(false)}>
@@ -468,15 +481,23 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 <button className="p-1.5 rounded hover:bg-white/10" onClick={() => setBox(null)} aria-label="Chiudi"><X size={18} className="text-white" /></button>
               </div>
             </div>
-            <div className="flex-1 flex items-center justify-center px-4 pb-6 min-h-0" onClick={(e) => e.stopPropagation()}>
+            <div className="relative flex-1 flex items-center justify-center px-4 pb-6 min-h-0" onClick={(e) => e.stopPropagation()}>
               {m.media_type === 'VIDEO'
                 ? (isDrive(m)
                     ? <iframe src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`} className="w-full max-w-4xl aspect-video rounded-lg" allow="autoplay" title={base} />
                     : <video src={m.thumbnail_link ?? ''} controls autoPlay className="max-w-full max-h-full rounded-lg" />)
                 : <img src={fullSrc(m)} alt={m.guest_tag_name ?? ''} className="max-w-full max-h-full object-contain rounded-lg select-none" />}
+              {gsettings.watermark_enabled && gsettings.watermark_text && m.media_type !== 'VIDEO' && (
+                <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-white/30 text-2xl sm:text-4xl font-bold -rotate-12 select-none">{gsettings.watermark_text}</span>
+                </span>
+              )}
+              {gsettings.show_filename && m.guest_tag_name && (
+                <span className="absolute top-2 left-2 text-[11px] text-white/70 bg-black/40 px-2 py-0.5 rounded">{m.guest_tag_name}</span>
+              )}
             </div>
             <div className="px-4 pb-4 max-w-xl mx-auto w-full" onClick={(e) => e.stopPropagation()}>
-              <PhotoSocial mediaId={m.id} />
+              <PhotoSocial mediaId={m.id} comments={gsettings.allow_comments} social={gsettings.allow_social} />
             </div>
             {box.list.length > 1 && (
               <>
