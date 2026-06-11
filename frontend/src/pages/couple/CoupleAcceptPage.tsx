@@ -17,8 +17,9 @@ export default function CoupleAcceptPage() {
   useEffect(() => {
     if (loading) return
     if (!session) {
-      // Redirect a register con back-to invite
-      nav(`/register?next=/couple/accept/${token}`, { replace: true })
+      // Senza sessione → flusso COPPIA (role COUPLE), NON /register (registrazione
+      // professionista, assegnava role WEDDING_PLANNER agli sposi). Bug "sposo iscritto come WP".
+      nav(`/invito-coppia/${token}`, { replace: true })
       return
     }
     if (!token) return

@@ -56,7 +56,9 @@ export default function CoupleInviteAcceptPage() {
         email: info.email, password,
         options: {
           data: { role: 'COUPLE', full_name: fullName },
-          emailRedirectTo: `${window.location.origin}/couple/accept/${token}`,
+          // IMPORTANT: il redirect di conferma deve tornare al flusso COPPIA, non a
+          // /couple/accept (che, senza sessione, dirottava su /register PRO → role WP).
+          emailRedirectTo: `${window.location.origin}/invito-coppia/${token}`,
         },
       })
       if (signErr) throw signErr
