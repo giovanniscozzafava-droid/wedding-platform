@@ -17,7 +17,7 @@ import { QRCodeSVG } from 'qrcode.react'
 // carica; gli sposi vedono tutto + danno il consenso; i fornitori vedono solo
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; uploaded_by?: string | null }
+type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; uploaded_by?: string | null; uploader_name?: string | null }
 type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string }
 
@@ -53,7 +53,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, uploaded_by)')
+      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, uploaded_by, uploader_name)')
       .eq('entry_id', entryId).order('sort_order')
     setFolders((f as Folder[]) ?? [])
     const { data: flag } = await (supabase.from as any)('feature_flags').select('enabled').eq('key', 'photo_sales_enabled').maybeSingle()
@@ -391,6 +391,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                         ? <Play size={20} className="text-white opacity-80 fill-white" />
                         : <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-90 transition" />}
                     </span>
+                    {m.uploader_name && <span className="absolute top-1 left-1 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full">da {m.uploader_name}</span>}
                     {m.guest_tag_name && <span className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tag_name}</span>}
                     {m.album_choice === 'KEPT' && <span className="absolute top-1 right-1"><Heart size={12} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))] drop-shadow" /></span>}
                   </button>

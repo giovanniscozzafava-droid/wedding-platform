@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 // L'ospite vede le foto/video INVITATI e può CARICARE le proprie (consenso al riutilizzo
 // promozionale OBBLIGATORIO). I fornitori del cerchio possono usarli. UX semplice e allegra.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null }
+type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; uploader_name: string | null }
 type Folder = { id: string; name: string; gallery_media: Media[] }
 
 const isDrive = (m: Media) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:')
@@ -79,7 +79,7 @@ export default function GuestGalleryPage() {
 
   const loadFolders = useCallback(async (entry: string) => {
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name)')
+      .select('id, name, level, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, uploader_name)')
       .eq('entry_id', entry).eq('level', 'INVITATI').order('sort_order')
     setFolders((f as Folder[]) ?? [])
   }, [])
@@ -252,6 +252,7 @@ export default function GuestGalleryPage() {
                     ? <video src={m.thumbnail_link ?? ''} muted preload="metadata" className="w-full h-full object-cover" />
                     : m.thumbnail_link && <img src={m.thumbnail_link} alt={m.guest_tag_name ?? ''} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />}
                   {isVideo(m) && <span className="absolute inset-0 flex items-center justify-center"><Play size={20} className="text-white fill-white opacity-90 drop-shadow" /></span>}
+                  {m.uploader_name && <span className="absolute top-1 left-1 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full">da {m.uploader_name}</span>}
                   {m.guest_tag_name && <span className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tag_name}</span>}
                 </button>
               ))}
