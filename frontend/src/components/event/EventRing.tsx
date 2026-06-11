@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Heart, Sparkles, UserPlus, Gift } from 'lucide-react'
+import { Check, Heart, Sparkles, UserPlus, Gift, X, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
 type RingRole = { role_key: string; label: string; covered: boolean; covered_by: string | null }
 type RingState = { roles: RingRole[]; total: number; covered: number; closed: boolean }
+type Suggestable = { id: string; name: string; subrole: string | null; matches: boolean; in_event: boolean }
+
+function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  return (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: T }> })
+    .rpc(fn, args).then((r) => r.data)
+}
 
 // L'anello-a-segmenti che si chiude è RISERVATO al completamento dell'evento (§10.3).
 // Niente percentuali, niente numeri: si vede quanto manca, non si legge.
@@ -23,19 +29,44 @@ function arcPath(cx: number, cy: number, r: number, start: number, end: number):
 
 export function EventRing({ entryId, view }: { entryId: string; view: 'capostipite' | 'fornitore' | 'sposi' }) {
   const [ring, setRing] = useState<RingState | null>(null)
+  // picker "suggerisci fornitore": ruolo aperto + lista fornitori + stato
+  const [pick, setPick] = useState<{ roleKey: string; label: string } | null>(null)
+  const [suppliers, setSuppliers] = useState<Suggestable[] | null>(null)
+  const [adding, setAdding] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!entryId) return
-    void (async () => {
-      const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: unknown }> })
-        .rpc('get_event_ring', { p_entry: entryId })
-      const r = data as RingState & { error?: string }
-      if (r && !r.error) setRing(r)
-    })()
+    const r = await rpc<RingState & { error?: string }>('get_event_ring', { p_entry: entryId })
+    if (r && !r.error) setRing(r)
   }, [entryId])
+
+  useEffect(() => { void load() }, [load])
+
+  async function openPicker(roleKey: string, label: string) {
+    setPick({ roleKey, label })
+    setSuppliers(null)
+    const r = await rpc<{ suppliers?: Suggestable[]; error?: string }>('list_suggestable_suppliers', { p_entry: entryId, p_role_key: roleKey })
+    if (r?.error) { toast.error(r.error === 'forbidden' ? 'Non puoi suggerire su questo evento.' : r.error); setPick(null); return }
+    setSuppliers(r?.suppliers ?? [])
+  }
+
+  async function addSupplier(s: Suggestable) {
+    setAdding(s.id)
+    try {
+      const r = await rpc<{ ok?: boolean; error?: string }>('suggest_supplier_to_event', { p_entry: entryId, p_supplier: s.id })
+      if (r?.error) {
+        toast.error(r.error === 'not_a_supplier' ? 'Profilo non valido.' : `Non aggiunto: ${r.error}`)
+        return
+      }
+      toast.success(`${s.name} è ora nell'evento`)
+      setPick(null); setSuppliers(null)
+      await load()
+    } finally { setAdding(null) }
+  }
 
   if (!ring || ring.total === 0) return null
 
+  const canSuggest = view === 'fornitore' || view === 'capostipite'
   const N = ring.total
   const size = 168, cx = size / 2, cy = size / 2, r = 70, sw = 12, gap = N > 1 ? 7 : 0
   const seg = 360 / N
@@ -100,21 +131,57 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
                 {role.covered && role.covered_by && view !== 'sposi' && (
                   <span className="text-[11px] text-[rgb(var(--fg-subtle))] truncate">· {role.covered_by}</span>
                 )}
-                {!role.covered && view === 'capostipite' && (
-                  <Link to="/scopri" className="ml-auto text-[11px] text-[rgb(var(--gold-600))] hover:underline inline-flex items-center gap-0.5 shrink-0">
-                    <UserPlus size={11} /> invita
-                  </Link>
-                )}
-                {!role.covered && view === 'fornitore' && (
-                  <Link to="/scopri" className="ml-auto text-[11px] text-[rgb(var(--gold-600))] hover:underline inline-flex items-center gap-0.5 shrink-0">
-                    <Gift size={11} /> suggerisci
-                  </Link>
+                {!role.covered && canSuggest && (
+                  <button type="button" onClick={() => openPicker(role.role_key, role.label)}
+                    className="ml-auto text-[11px] text-[rgb(var(--gold-600))] hover:underline inline-flex items-center gap-0.5 shrink-0">
+                    {view === 'capostipite' ? <><UserPlus size={11} /> invita</> : <><Gift size={11} /> suggerisci</>}
+                  </button>
                 )}
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {/* Picker fornitori: scegli → entra subito nell'evento */}
+      {pick && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setPick(null)}>
+          <div className="bg-[rgb(var(--bg))] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))]">
+              <div>
+                <h4 className="font-medium">Suggerisci per «{pick.label}»</h4>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))]">Il fornitore scelto entra subito nell'evento.</p>
+              </div>
+              <button className="p-1 rounded hover:bg-[rgb(var(--bg-sunken))]" onClick={() => setPick(null)} aria-label="Chiudi"><X size={18} /></button>
+            </div>
+            <div className="overflow-y-auto p-2">
+              {suppliers === null ? (
+                <div className="flex items-center gap-2 text-sm text-[rgb(var(--fg-muted))] p-4"><Loader2 size={15} className="animate-spin" /> Carico i fornitori…</div>
+              ) : suppliers.length === 0 ? (
+                <p className="text-sm text-[rgb(var(--fg-muted))] p-4">Nessun fornitore disponibile.</p>
+              ) : (
+                suppliers.map((s) => (
+                  <button key={s.id} type="button" disabled={s.in_event || adding === s.id} onClick={() => addSupplier(s)}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60 disabled:cursor-not-allowed text-left">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-sm font-medium shrink-0">
+                      {s.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium truncate">{s.name}</span>
+                      <span className="block text-[11px] text-[rgb(var(--fg-subtle))] truncate">{s.subrole ?? '—'}{s.matches && ' · consigliato'}</span>
+                    </span>
+                    {s.in_event
+                      ? <span className="text-[11px] text-[rgb(var(--emerald-600))] inline-flex items-center gap-0.5 shrink-0"><Check size={12} /> nell'evento</span>
+                      : adding === s.id
+                        ? <Loader2 size={15} className="animate-spin shrink-0" />
+                        : <span className="text-[11px] text-[rgb(var(--gold-600))] shrink-0">aggiungi</span>}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
