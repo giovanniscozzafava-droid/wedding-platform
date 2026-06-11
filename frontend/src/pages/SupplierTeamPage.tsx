@@ -21,7 +21,7 @@ import { toast } from 'sonner'
 // ============================================================================
 
 type Member = { id: string; full_name: string; role_label: string | null; phone: string | null; active: boolean }
-type Event = { id: string; title: string; event_date: string | null; call_time: string | null; location: string | null; notes: string | null; quote_id: string | null }
+type Event = { id: string; title: string; event_date: string | null; call_time: string | null; location: string | null; notes: string | null; quote_id: string | null; entry_id: string | null }
 type Assignment = { id: string; event_id: string; member_id: string; presence: string; role_label: string | null }
 type SharedEvent = { collab_id: string; status: string; can_edit: boolean; owner_name: string; event: Event }
 type RunItem = { id: string; event_id: string; start_time: string | null; title: string; role_label: string | null; note: string | null; ord: number }
@@ -56,7 +56,7 @@ export default function SupplierTeamPage() {
     if (!uid) return
     const [m, e] = await Promise.all([
       db().from('supplier_team_members').select('id, full_name, role_label, phone, active').eq('supplier_id', uid).order('created_at'),
-      db().from('supplier_team_events').select('id, title, event_date, call_time, location, notes, quote_id').eq('supplier_id', uid).order('event_date', { ascending: false, nullsFirst: false }),
+      db().from('supplier_team_events').select('id, title, event_date, call_time, location, notes, quote_id, entry_id').eq('supplier_id', uid).order('event_date', { ascending: false, nullsFirst: false }),
       loadShared(),
     ])
     setMembers((m.data as Member[]) ?? [])
@@ -195,6 +195,7 @@ function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadSha
   const [callTime, setCallTime] = useState('')
   const [location, setLocation] = useState('')
   const [quoteId, setQuoteId] = useState('')
+  const [directEntry, setDirectEntry] = useState('')
   const [myEvents, setMyEvents] = useState<Array<{ id: string; title: string; event_date: string | null; client_name: string | null; event_location: string | null; kind: 'quote' | 'entry' }>>([])
   const [saving, setSaving] = useState(false)
 
@@ -219,6 +220,7 @@ function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadSha
   function importEvent(id: string) {
     const ev = myEvents.find((e) => e.id === id)
     setQuoteId(ev && ev.kind === 'quote' ? id : '') // i diretti non hanno preventivo
+    setDirectEntry(ev && ev.kind === 'entry' ? id : '') // i diretti collegano l'evento via entry_id
     if (ev) {
       setTitle([ev.client_name, ev.title].filter(Boolean).join(' · ') || ev.title)
       setDate(ev.event_date ? ev.event_date.slice(0, 10) : '')
@@ -231,11 +233,11 @@ function TurniTab({ uid, events, reload, onOpen, shared, onOpenShared, reloadSha
     setSaving(true)
     const { error } = await db().from('supplier_team_events').insert({
       supplier_id: uid, title: title.trim(), event_date: date || null, call_time: callTime.trim() || null, location: location.trim() || null,
-      quote_id: quoteId || null,
+      quote_id: quoteId || null, entry_id: directEntry || null,
     })
     setSaving(false)
     if (error) { toast.error('Errore'); return }
-    setTitle(''); setDate(''); setCallTime(''); setLocation(''); setQuoteId(''); await reload()
+    setTitle(''); setDate(''); setCallTime(''); setLocation(''); setQuoteId(''); setDirectEntry(''); await reload()
   }
 
   async function respond(collabId: string, accept: boolean) {
@@ -524,7 +526,7 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
         <div className="flex items-center gap-2 mb-3">
           <Clock size={16} className="text-[rgb(var(--gold-600))]" />
           <h2 className="font-medium flex-1">Programma operativo</h2>
-          {!readOnly && event.quote_id && <Button size="sm" variant="ghost" onClick={() => void importProgram()}><Download size={13} className="mr-1" /> Dal programma evento</Button>}
+          {!readOnly && (event.quote_id || event.entry_id) && <Button size="sm" variant="ghost" onClick={() => void importProgram()}><Download size={13} className="mr-1" /> Dal programma evento</Button>}
           {!readOnly && <Button size="sm" variant="ghost" onClick={() => void loadRunTemplate()}><Sparkles size={13} className="mr-1" /> Modello</Button>}
         </div>
         {runItems.length === 0 ? (

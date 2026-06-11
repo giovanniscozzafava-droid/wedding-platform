@@ -473,10 +473,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <div className="flex items-center justify-between gap-2 p-3" onClick={(e) => e.stopPropagation()}>
               <span className="text-xs text-white/70">{box.i + 1} / {box.list.length}</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="!text-white !border-white/30 hover:!bg-white/10" onClick={() => downloadUrl(webUrl(m), `${base}-web.${ext}`)} title="Versione leggera per il web"><Download size={14} /> Web</Button>
+                <Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" onClick={() => downloadUrl(webUrl(m), `${base}-web.${ext}`)} title="Versione leggera per il web"><Download size={14} /> Web</Button>
                 <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione"><Download size={14} /> Originale</Button>
                 {m.uploaded_by && (isOwner || role === 'sposi') && (
-                  <Button variant="outline" size="sm" className="!text-white !border-white/30 hover:!bg-white/10" onClick={() => deleteGuestMedia(m)} title="Elimina questo file caricato da un invitato"><Trash2 size={14} /> Elimina</Button>
+                  <Button variant="outline" size="sm" className="!bg-rose-500/20 !text-white !border-rose-300/50 hover:!bg-rose-500/40 backdrop-blur" onClick={() => deleteGuestMedia(m)} title="Elimina questo file caricato da un invitato"><Trash2 size={14} /> Elimina</Button>
                 )}
                 <button className="p-1.5 rounded hover:bg-white/10" onClick={() => setBox(null)} aria-label="Chiudi"><X size={18} className="text-white" /></button>
               </div>
