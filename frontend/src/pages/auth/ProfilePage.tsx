@@ -13,6 +13,7 @@ import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { useNuovoModello, useSetNuovoModello } from '@/hooks/useNuovoModello'
+import { DriveConnectCard } from '@/components/event/DriveConnectCard'
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth()
@@ -388,6 +389,9 @@ export default function ProfilePage() {
               </div>
             </div>
           </Card>
+
+          {/* Consegna foto: collega Google Drive (fornitori) */}
+          {profile?.role === 'FORNITORE' && <DriveConnectCard />}
 
           {/* Aiuto contestuale — sostituisce il vecchio tutorial a card */}
           {profile?.role === 'FORNITORE' && (
