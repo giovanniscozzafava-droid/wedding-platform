@@ -338,15 +338,10 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
 
   async function loadCollabs() {
     if (readOnly) return
-    const { data } = await db().from('supplier_event_collaborators')
-      .select('id, collaborator_id, status, can_edit, collaborator:profiles!supplier_event_collaborators_collaborator_id_fkey(business_name, full_name)')
-      .eq('event_id', event.id)
-    setCollabs(((data as Array<{ id: string; collaborator_id: string; status: string; can_edit: boolean; collaborator: { business_name: string | null; full_name: string | null } | { business_name: string | null; full_name: string | null }[] | null }>) ?? [])
-      .map((c) => {
-        // L'embed FK può tornare oggetto o array: normalizziamo per avere sempre il nome.
-        const p = Array.isArray(c.collaborator) ? c.collaborator[0] : c.collaborator
-        return { id: c.id, collaborator_id: c.collaborator_id, status: c.status, can_edit: c.can_edit, name: p?.business_name || p?.full_name || 'Collega' }
-      }))
+    // Nome risolto server-side (la RLS su profiles blocca l'embed → usciva "Collega").
+    const { data } = await (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown }>)('event_collaborators_named', { p_event_id: event.id })
+    setCollabs(((data as Array<{ id: string; collaborator_id: string; status: string; can_edit: boolean; name: string | null }>) ?? [])
+      .map((c) => ({ id: c.id, collaborator_id: c.collaborator_id, status: c.status, can_edit: c.can_edit, name: c.name || 'Collega' })))
   }
   async function loadFollowed() {
     if (readOnly) return
