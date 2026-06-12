@@ -3,16 +3,18 @@
 // fotografo/sposi possono poi cambiare template, scambiare foto, aggiungere/togliere pagine.
 import { pageAspect } from './albumFormats'
 import { momentOrder } from './albumMoments'
+import type { Cell } from './albumGeometry'
 
 export type Frame = { x: number; y: number; w: number; h: number } // normalizzati 0..1
-export type AlbumPage = { id: string; moment: string | null; template: TemplateKey; mediaIds: string[] }
+export type AlbumPage = { id: string; moment: string | null; template: TemplateKey; mediaIds: string[]; cells?: (Cell | null)[] }
 export type AlbumLayout = { pages: AlbumPage[] }
 export type MediaLite = { id: string; moment: string | null }
 
-export type TemplateKey = '1' | '2h' | '2v' | '3l' | '3t' | '4'
+export const MAX_PER_PAGE = 12
+export type TemplateKey = '1' | '2h' | '2v' | '3l' | '3t' | '4' | 'grid'
 
 // Frame normalizzati per ogni template (il gutter lo applica il renderer).
-export const TEMPLATES: Record<TemplateKey, Frame[]> = {
+export const TEMPLATES: Record<Exclude<TemplateKey, 'grid'>, Frame[]> = {
   '1':  [{ x: 0, y: 0, w: 1, h: 1 }],
   '2h': [{ x: 0, y: 0, w: 0.5, h: 1 }, { x: 0.5, y: 0, w: 0.5, h: 1 }],
   '2v': [{ x: 0, y: 0, w: 1, h: 0.5 }, { x: 0, y: 0.5, w: 1, h: 0.5 }],
@@ -22,6 +24,7 @@ export const TEMPLATES: Record<TemplateKey, Frame[]> = {
 }
 
 export function capacity(t: TemplateKey): number {
+  if (t === 'grid') return 0 // dipende dal numero di foto
   return TEMPLATES[t].length
 }
 
@@ -29,15 +32,31 @@ export function chooseTemplate(count: number, aspect: number): TemplateKey {
   if (count <= 1) return '1'
   if (count === 2) return aspect > 1.1 ? '2h' : '2v'
   if (count === 3) return aspect > 1.1 ? '3l' : '3t'
-  return '4'
+  if (count === 4) return '4'
+  return 'grid'
 }
 
 // Template alternativi disponibili per un dato numero di foto (per il selettore nell'editor).
 export function templatesFor(count: number): TemplateKey[] {
   if (count <= 1) return ['1']
-  if (count === 2) return ['2h', '2v']
-  if (count === 3) return ['3l', '3t']
-  return ['4']
+  if (count === 2) return ['2h', '2v', 'grid']
+  if (count === 3) return ['3l', '3t', 'grid']
+  if (count === 4) return ['4', 'grid']
+  return ['grid']
+}
+
+// Griglia bilanciata per N foto (ultima riga distesa a riempire la larghezza).
+export function gridFrames(n: number): Frame[] {
+  if (n <= 0) return []
+  const cols = Math.ceil(Math.sqrt(n)); const rows = Math.ceil(n / cols)
+  const out: Frame[] = []
+  for (let i = 0; i < n; i++) {
+    const r = Math.floor(i / cols)
+    const rowCount = r === rows - 1 ? n - cols * (rows - 1) : cols
+    const c = i - r * cols
+    out.push({ x: c / rowCount, y: r / rows, w: 1 / rowCount, h: 1 / rows })
+  }
+  return out
 }
 
 function uid(): string {
@@ -74,11 +93,15 @@ export function autoLayout(selected: MediaLite[], formatKey: string): AlbumLayou
 
 // Frame per una pagina, ricalcolati se il numero di foto non combacia col template.
 export function framesForPage(p: AlbumPage): Frame[] {
-  const tpl = TEMPLATES[p.template]
-  if (tpl && tpl.length === p.mediaIds.length) return tpl
-  // fallback: ricava un template coerente col conteggio attuale (dopo swap/aggiunte)
-  const alt = chooseTemplate(p.mediaIds.length, 1)
-  return TEMPLATES[alt].slice(0, Math.max(1, p.mediaIds.length))
+  const n = p.mediaIds.length
+  if (p.template === 'grid') return gridFrames(Math.max(1, n))
+  const tpl = TEMPLATES[p.template as Exclude<TemplateKey, 'grid'>]
+  if (tpl && tpl.length === n) return tpl
+  if (n > 4) return gridFrames(n)
+  // fallback: template coerente col conteggio attuale (dopo swap/aggiunte)
+  const alt = chooseTemplate(Math.max(1, n), 1)
+  if (alt === 'grid') return gridFrames(Math.max(1, n))
+  return TEMPLATES[alt].slice(0, Math.max(1, n))
 }
 
 export function newPage(moment: string | null = null): AlbumPage {

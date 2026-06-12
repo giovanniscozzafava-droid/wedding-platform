@@ -8,8 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect } from '@/lib/albumFormats'
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
-import { autoLayout, framesForPage, newPage, templatesFor, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
+import { autoLayout, framesForPage, newPage, templatesFor, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip } from '@/lib/albumExport'
+import { cellBackground, slotAspectOf, DEFAULT_CELL, type Cell } from '@/lib/albumGeometry'
+import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
+import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
+import { ZoomIn, ZoomOut, Crop, Maximize } from 'lucide-react'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -37,6 +41,11 @@ export default function AlbumDesignerPage() {
   const [exporting, setExporting] = useState(false)
   const [activePage, setActivePage] = useState<string | null>(null)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
+  const [bleed, setBleed] = useState(false)            // abbondanza per la stampa
+  const [aspects, setAspects] = useState<Record<string, number>>({}) // aspetto naturale per crop
+
+  const role = albumRoleOf(profile?.role)
+  const action = primaryAction(role, status as never)
 
   const mediaById = useMemo(() => new Map(media.map((m) => [m.id, m])), [media])
   const photos = useMemo(() => media.filter((m) => m.media_type === 'PHOTO'), [media])
@@ -55,12 +64,26 @@ export default function AlbumDesignerPage() {
     if (proj) {
       setFormat((proj as any).format_key ?? DEFAULT_FORMAT)
       setStatus((proj as any).status ?? 'DRAFT')
-      const lay = (proj as any).layout as { pages?: AlbumPage[] } | null
+      const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean } | null
+      if (typeof lay?.bleed === 'boolean') setBleed(lay.bleed)
       if (lay?.pages?.length) { setPages(lay.pages); setStep('design') }
     }
     setLoading(false)
   }, [entryId])
   useEffect(() => { void load() }, [load])
+
+  // Misura l'aspetto naturale delle foto KEPT (serve al crop fedele in anteprima).
+  useEffect(() => {
+    for (const m of kept) {
+      if (aspects[m.id]) continue
+      const url = m.thumbnail_link && !m.drive_file_id.startsWith('demo-') ? thumbUrl(m) : (m.thumbnail_link ?? thumbUrl(m))
+      if (!url) continue
+      const img = new Image()
+      img.onload = () => setAspects((a) => (a[m.id] ? a : { ...a, [m.id]: img.naturalWidth / Math.max(1, img.naturalHeight) }))
+      img.src = url
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kept])
 
   // ── selezione guidata ──────────────────────────────────────────────────────
   async function toggleKeep(m: M) {
@@ -98,27 +121,17 @@ export default function AlbumDesignerPage() {
   function updatePage(id: string, fn: (p: AlbumPage) => AlbumPage) {
     setPages((arr) => arr.map((p) => (p.id === id ? fn(p) : p)))
   }
-  function placeInto(pageId: string, slot: number | null, mediaId: string) {
-    updatePage(pageId, (p) => {
-      const ids = [...p.mediaIds]
-      if (slot != null && slot < framesForPage(p).length) ids[slot] = mediaId
-      else { const empty = ids.findIndex((x) => !x); if (empty >= 0) ids[empty] = mediaId; else if (ids.length < 4) ids.push(mediaId); else return p }
-      return { ...p, mediaIds: ids }
-    })
-  }
-  function clearSlot(pageId: string, slot: number) {
-    updatePage(pageId, (p) => { const ids = [...p.mediaIds]; ids.splice(slot, 1); return { ...p, mediaIds: ids } })
-  }
-  function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => ({ ...p, template: t })) }
-  function delPage(id: string) { setPages((a) => a.filter((p) => p.id !== id)); if (activePage === id) setActivePage(null) }
+  function placeInto(pageId: string, slot: number | null, mediaId: string) { updatePage(pageId, (p) => placeInPage(p, slot, mediaId)) }
+  function clearSlot(pageId: string, slot: number) { updatePage(pageId, (p) => clearSlotInPage(p, slot)) }
+  function updateCell(pageId: string, slot: number, partial: Partial<Cell>) { updatePage(pageId, (p) => setCell(p, slot, partial)) }
+  function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => setPageTemplate(p, t)) }
+  function delPage(id: string) { setPages((a) => removePage(a, id)); if (activePage === id) setActivePage(null) }
   function addPageAfter(id: string | null) {
     const np = newPage()
-    setPages((a) => { if (!id) return [...a, np]; const i = a.findIndex((p) => p.id === id); const c = [...a]; c.splice(i + 1, 0, np); return c })
+    setPages((a) => insertPageAfter(a, id, () => np))
     setActivePage(np.id)
   }
-  function movePage(id: string, dir: -1 | 1) {
-    setPages((a) => { const i = a.findIndex((p) => p.id === id); const j = i + dir; if (i < 0 || j < 0 || j >= a.length) return a; const c = [...a]; const t = c[i]!; c[i] = c[j]!; c[j] = t; return c })
-  }
+  function movePage(id: string, dir: -1 | 1) { setPages((a) => movePages(a, id, dir)) }
 
   async function save(nextStatus?: string) {
     if (!entryId) return
@@ -126,7 +139,7 @@ export default function AlbumDesignerPage() {
     try {
       const st = nextStatus ?? status
       const { data, error } = await (supabase.rpc as any)('album_project_save', {
-        p_entry: entryId, p_gallery: null, p_format: format, p_status: st, p_layout: { pages },
+        p_entry: entryId, p_gallery: null, p_format: format, p_status: st, p_layout: { pages, bleed },
       })
       if (error || (data as any)?.error) throw new Error((data as any)?.error ?? error?.message ?? 'errore')
       if (nextStatus) setStatus(nextStatus)
@@ -142,7 +155,7 @@ export default function AlbumDesignerPage() {
       const resolve = (id: string) => { const m = mediaById.get(id); return m ? hiUrl(m) : '' }
       const base = (title || 'album').toLowerCase().replace(/\s+/g, '-')
       if (kind === 'jpg') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-jpg.zip` })
-      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf` })
+      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed })
       toast.success('Export pronto')
     } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false) }
   }
@@ -191,10 +204,11 @@ export default function AlbumDesignerPage() {
                 <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('pdf')}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF pagine</Button>
                 <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('spread')}><LayoutGrid size={14} /> PDF spread</Button>
                 <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('jpg')}><FileImage size={14} /> JPG (ZIP)</Button>
-                {isCouple
-                  ? <Button variant="outline" size="sm" disabled={busy} onClick={() => void save('PHOTOGRAPHER_EDIT')}>Invia al fotografo</Button>
-                  : <Button variant="outline" size="sm" disabled={busy} onClick={() => void save('FINAL')}>Segna come finale</Button>}
-                <span className="text-xs text-[rgb(var(--fg-muted))]">{pages.length} pagine · {fmt.label}</span>
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(action.next)}>{action.label}</Button>
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none ml-1" title="Estende le foto a filo bordo oltre il taglio, per la stampa">
+                  <input type="checkbox" checked={bleed} onChange={(e) => setBleed(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Abbondanza
+                </label>
+                <span className="text-xs text-[rgb(var(--fg-muted))]">{pages.length} pagine · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{statusLabel(status)}</span></span>
               </div>
 
               {pages.length === 0 ? (
@@ -206,7 +220,7 @@ export default function AlbumDesignerPage() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   {pages.map((p, idx) => (
                     <PageCard
-                      key={p.id} page={p} index={idx} aspect={asp}
+                      key={p.id} page={p} index={idx} aspect={asp} formatKey={format} bleed={bleed} aspects={aspects}
                       active={activePage === p.id} activeSlot={activePage === p.id ? activeSlot : null}
                       mediaById={mediaById} thumb={thumbUrl}
                       onActivate={() => { setActivePage(p.id); setActiveSlot(null) }}
@@ -214,6 +228,7 @@ export default function AlbumDesignerPage() {
                       onDropMedia={(s, id) => placeInto(p.id, s, id)}
                       onClearSlot={(s) => clearSlot(p.id, s)}
                       onTemplate={(t) => setTemplate(p.id, t)}
+                      onCell={(s, partial) => updateCell(p.id, s, partial)}
                       onDelete={() => delPage(p.id)} onAdd={() => addPageAfter(p.id)}
                       onMove={(d) => movePage(p.id, d)}
                     />
@@ -309,18 +324,39 @@ function SelectStep(props: {
   )
 }
 
-// ── card pagina con slot droppabili ──────────────────────────────────────────
+// ── card pagina: slot con crop/zoom/pan, drop, abbondanza ────────────────────
+const TPL_LABEL: Record<TemplateKey, string> = { '1': '1', '2h': '2 │', '2v': '2 ─', '3l': '3 ◧', '3t': '3 ⊟', '4': '4 ⊞', grid: 'griglia' }
+
 function PageCard(props: {
-  page: AlbumPage; index: number; aspect: number; active: boolean; activeSlot: number | null
+  page: AlbumPage; index: number; aspect: number; formatKey: string; bleed: boolean; aspects: Record<string, number>
+  active: boolean; activeSlot: number | null
   mediaById: Map<string, M>; thumb: (m: M) => string
   onActivate: () => void; onSlot: (s: number) => void; onDropMedia: (s: number | null, id: string) => void
-  onClearSlot: (s: number) => void; onTemplate: (t: TemplateKey) => void
+  onClearSlot: (s: number) => void; onTemplate: (t: TemplateKey) => void; onCell: (s: number, partial: Partial<Cell>) => void
   onDelete: () => void; onAdd: () => void; onMove: (d: -1 | 1) => void
 }) {
-  const { page, index, aspect, active, activeSlot, mediaById, thumb, onActivate, onSlot, onDropMedia, onClearSlot, onTemplate, onDelete, onAdd, onMove } = props
+  const { page, index, aspect, formatKey, bleed, aspects, active, activeSlot, mediaById, thumb, onActivate, onSlot, onDropMedia, onClearSlot, onTemplate, onCell, onDelete, onAdd, onMove } = props
   const frames = framesForPage(page)
   const moment = getMoment(page.moment)
   const alts = templatesFor(Math.max(1, page.mediaIds.length))
+  const fmt = getFormat(formatKey)
+  const drag = useRef<{ slot: number; x: number; y: number; cell: Cell } | null>(null)
+
+  function startPan(e: React.PointerEvent, i: number, cell: Cell) {
+    e.stopPropagation()
+    drag.current = { slot: i, x: e.clientX, y: e.clientY, cell }
+    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  function movePan(e: React.PointerEvent) {
+    const d = drag.current; if (!d) return
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const dx = (e.clientX - d.x) / Math.max(1, box.width)
+    const dy = (e.clientY - d.y) / Math.max(1, box.height)
+    // trascino a destra → mostro più sinistra → focale diminuisce
+    onCell(d.slot, { fx: clampN(d.cell.fx - dx * 0.9), fy: clampN(d.cell.fy - dy * 0.9) })
+  }
+  function endPan() { drag.current = null }
+
   return (
     <Card className={`p-2 ${active ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`} onClick={onActivate}>
       <div className="flex items-center justify-between mb-1.5 text-[11px]">
@@ -336,17 +372,32 @@ function PageCard(props: {
         {frames.map((fr, i) => {
           const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined
           const sel = activeSlot === i
+          const cell = page.cells?.[i] ?? DEFAULT_CELL
+          const slotAsp = slotAspectOf(fr, fmt.w, fmt.h)
+          const imgAsp = (m && aspects[m.id]) ? aspects[m.id]! : 1.5
+          const bg = m ? cellBackground(imgAsp, slotAsp, cell) : null
           return (
             <div key={i}
               onClick={(e) => { e.stopPropagation(); onSlot(i) }}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(i, mid) }}
-              className={`absolute overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : ''}`}
+              className={`absolute overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-10' : ''}`}
               style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, padding: '2px' }}>
-              {m ? (
+              {m && bg ? (
                 <div className="relative w-full h-full">
-                  <img src={thumb(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  <button onClick={(e) => { e.stopPropagation(); onClearSlot(i) }} className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/50 text-white flex items-center justify-center"><Trash2 size={11} /></button>
+                  <div
+                    onPointerDown={(e) => startPan(e, i, cell)} onPointerMove={movePan} onPointerUp={endPan} onPointerLeave={endPan}
+                    className="w-full h-full touch-none cursor-move"
+                    style={{ backgroundImage: `url(${thumb(m)})`, ...bg }} />
+                  {sel && (
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 flex items-center justify-center gap-1 bg-black/55 rounded px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
+                      <button title="Riduci" className="text-white p-0.5" onClick={() => onCell(i, { z: Math.max(1, +(cell.z - 0.2).toFixed(2)) })}><ZoomOut size={12} /></button>
+                      <span className="text-white text-[9px] w-7 text-center">{Math.round(cell.z * 100)}%</span>
+                      <button title="Ingrandisci" className="text-white p-0.5" onClick={() => onCell(i, { z: Math.min(4, +(cell.z + 0.2).toFixed(2)) })}><ZoomIn size={12} /></button>
+                      <button title="Reimposta crop" className="text-white p-0.5" onClick={() => onCell(i, { z: 1, fx: 0.5, fy: 0.5 })}><Maximize size={12} /></button>
+                    </div>
+                  )}
+                  <button title="Togli foto" onClick={(e) => { e.stopPropagation(); onClearSlot(i) }} className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/50 text-white flex items-center justify-center"><Trash2 size={11} /></button>
                 </div>
               ) : (
                 <div className="w-full h-full bg-[rgb(var(--bg-sunken))] flex items-center justify-center text-[10px] text-[rgb(var(--fg-subtle))]">vuoto</div>
@@ -354,13 +405,17 @@ function PageCard(props: {
             </div>
           )
         })}
+        {/* guida taglio quando l'abbondanza è attiva */}
+        {bleed && <div className="absolute inset-[6%] border border-dashed border-rose-400/70 pointer-events-none" title="Linea di taglio (abbondanza attiva)" />}
       </div>
-      {alts.length > 1 && (
-        <div className="flex items-center gap-1 mt-1.5">
-          <span className="text-[10px] text-[rgb(var(--fg-subtle))]">Layout:</span>
-          {alts.map((t) => <button key={t} onClick={(e) => { e.stopPropagation(); onTemplate(t) }} className={`text-[10px] px-1.5 py-0.5 rounded border ${page.template === t ? 'bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}>{t}</button>)}
-        </div>
-      )}
+      <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+        <Crop size={11} className="text-[rgb(var(--fg-subtle))]" />
+        <span className="text-[10px] text-[rgb(var(--fg-subtle))]">Layout:</span>
+        {alts.map((t) => <button key={t} onClick={(e) => { e.stopPropagation(); onTemplate(t) }} className={`text-[10px] px-1.5 py-0.5 rounded border ${page.template === t ? 'bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}>{TPL_LABEL[t]}</button>)}
+        <span className="text-[10px] text-[rgb(var(--fg-subtle))] ml-auto">{page.mediaIds.length}/{MAX_PER_PAGE} foto</span>
+      </div>
     </Card>
   )
 }
+
+function clampN(v: number) { return Math.min(1, Math.max(0, v)) }
