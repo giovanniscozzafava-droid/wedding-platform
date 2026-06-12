@@ -643,7 +643,7 @@ function FreeStage(props: {
     <div ref={boxRef} className="relative shadow-[var(--shadow-lift)] h-full max-h-full max-w-full overflow-hidden"
       style={{ aspectRatio: String(aspect), background: page.bg ?? '#ffffff' }}
       onPointerMove={move} onPointerUp={up} onPointerLeave={up}
-      onClick={() => onSelect(null)}
+      onClick={(e) => { if (e.target === e.currentTarget) onSelect(null) }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(mid) }}>
       {els.map((el) => {
