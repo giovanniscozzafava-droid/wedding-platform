@@ -7,6 +7,8 @@
 -- ============================================================================
 do $clean$
 begin
+  delete from public.album_revision_requests where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
+  delete from public.album_export_grants where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
   delete from public.event_guestbook where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
   delete from public.event_audio_wishes where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
   delete from public.album_projects where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
@@ -52,6 +54,9 @@ begin
   insert into public.event_audio_wishes(entry_id,user_id,storage_path) values (evA,gA,'a/ga/aud.webm'),(evB,gB,'b/gb/aud.webm');
   -- progetti album (impaginatore) su entrambi
   insert into public.album_projects(entry_id,gallery_id,owner_id,format_key) values (evA,galA,pA,'SQ_30'),(evB,galB,pB,'SQ_30') on conflict (entry_id) do nothing;
+  -- richieste di modifica + grant export su entrambi
+  insert into public.album_revision_requests(entry_id,user_id,body) values (evA,cA,'Cambia la foto di pag.2'),(evB,cB,'Altro evento');
+  insert into public.album_export_grants(token,entry_id,user_id) values ('grantA'||evA,evA,pA),('grantB'||evB,evB,pB);
 end$boot$;
 
 create or replace function pg_temp.cnt(p_uid uuid, p_sql text) returns int language plpgsql as $$
@@ -137,6 +142,30 @@ do $$ declare gA uuid:='da700000-0000-0000-0000-0000000000a3'; r jsonb; begin
   select public.guest_add_media('da700000-0000-0000-0000-00000000bbbb','b/ga/x.jpg','http://x','PHOTO',true,array['sposa'],true) into r;
   reset role;
   if r->>'error'='forbidden' then raise notice 'TG3 OK (ospite A non puo caricare su B nemmeno con tag)'; else raise exception 'TG3 FAIL %',r; end if;
+end$$;
+
+-- ── RICHIESTE DI MODIFICA album ────────────────────────────────────────────
+-- RV1: la coppia di A vede le richieste di A, NON quelle di B
+do $$ declare cA uuid:='da700000-0000-0000-0000-0000000000a4'; na int; nb int; begin
+  na := pg_temp.cnt(cA,'select count(*) from public.album_revision_requests where entry_id=''da700000-0000-0000-0000-00000000aaaa''');
+  nb := pg_temp.cnt(cA,'select count(*) from public.album_revision_requests where entry_id=''da700000-0000-0000-0000-00000000bbbb''');
+  if na>=1 and nb=0 then raise notice 'RV1 OK (coppia A vede le proprie richieste, 0 di B)'; else raise exception 'RV1 FAIL a=% b=%',na,nb; end if;
+end$$;
+-- RV2: un OSPITE non vede le richieste di modifica (lavoro riservato)
+do $$ declare gA uuid:='da700000-0000-0000-0000-0000000000a3'; n int; begin
+  n := pg_temp.cnt(gA,'select count(*) from public.album_revision_requests where entry_id in (''da700000-0000-0000-0000-00000000aaaa'',''da700000-0000-0000-0000-00000000bbbb'')');
+  if n=0 then raise notice 'RV2 OK (ospite non vede le richieste di modifica)'; else raise exception 'RV2 FAIL ospite vede %',n; end if;
+end$$;
+-- RV3: la coppia di A NON può scrivere una richiesta su B
+do $$ declare cA uuid:='da700000-0000-0000-0000-0000000000a4'; blocked boolean; begin
+  blocked := pg_temp.ins_blocked(cA,'insert into public.album_revision_requests(entry_id,user_id,body) values (''da700000-0000-0000-0000-00000000bbbb'',''da700000-0000-0000-0000-0000000000a4'',''hack'')');
+  if blocked then raise notice 'RV3 OK (coppia A non scrive richieste su B)'; else raise exception 'RV3 FAIL'; end if;
+end$$;
+-- GR1: i grant di export non sono leggibili da nessun utente (solo service-role)
+do $$ declare cA uuid:='da700000-0000-0000-0000-0000000000a4'; strg uuid:='da700000-0000-0000-0000-0000000000f9'; na int; ns int; begin
+  na := pg_temp.cnt(cA,'select count(*) from public.album_export_grants');
+  ns := pg_temp.cnt(strg,'select count(*) from public.album_export_grants');
+  if na=0 and ns=0 then raise notice 'GR1 OK (grant export non leggibili dagli utenti)'; else raise exception 'GR1 FAIL coppia=% estraneo=%',na,ns; end if;
 end$$;
 
 do $$ begin raise notice 'SEC AUDIT: completato — nessun leak'; end$$;
