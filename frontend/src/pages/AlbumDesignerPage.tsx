@@ -14,7 +14,7 @@ import { cellBackground, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEF
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, removeFreeEl, updateFreeEl, bringToFront, type FreeEl, type Corner } from '@/lib/albumFree'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
-import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check } from 'lucide-react'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -50,6 +50,13 @@ export default function AlbumDesignerPage() {
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
   const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero selezionato
   const [cropElId, setCropElId] = useState<string | null>(null) // elemento libero in ritaglio
+  const [savedAt, setSavedAt] = useState<number | null>(null)   // indicatore autosave
+  const loadedRef = useRef(false)
+  const autoTimer = useRef<number | null>(null)
+  const [revOpen, setRevOpen] = useState(false)                 // popup richieste modifiche
+  const [revList, setRevList] = useState<Array<{ id: string; author_name: string | null; page_index: number | null; body: string; status: string; created_at: string }>>([])
+  const [revBody, setRevBody] = useState('')
+  const [revPageRef, setRevPageRef] = useState(false)
 
   const role = albumRoleOf(profile?.role)
   const action = primaryAction(role, status as never)
@@ -98,6 +105,16 @@ export default function AlbumDesignerPage() {
     if (currentPageId && pages.some((p) => p.id === currentPageId)) return
     setCurrentPageId(pages[0]?.id ?? null)
   }, [step, pages, currentPageId])
+
+  useEffect(() => { if (!loading) loadedRef.current = true }, [loading])
+  // AUTOSAVE: i lavori di impaginazione si salvano da soli (debounce 1.5s dopo ogni modifica).
+  useEffect(() => {
+    if (!loadedRef.current || step !== 'design' || !entryId) return
+    if (autoTimer.current) window.clearTimeout(autoTimer.current)
+    autoTimer.current = window.setTimeout(() => { void save(undefined, true) }, 1500)
+    return () => { if (autoTimer.current) window.clearTimeout(autoTimer.current) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pages, format, bleed, step, entryId])
 
   // ── selezione guidata ──────────────────────────────────────────────────────
   async function toggleKeep(m: M) {
@@ -153,9 +170,9 @@ export default function AlbumDesignerPage() {
   }
   function movePage(id: string, dir: -1 | 1) { setPages((a) => movePages(a, id, dir)) }
 
-  async function save(nextStatus?: string) {
+  async function save(nextStatus?: string, silent = false) {
     if (!entryId) return
-    setBusy(true)
+    if (!silent) setBusy(true)
     try {
       const st = nextStatus ?? status
       const { data, error } = await (supabase.rpc as any)('album_project_save', {
@@ -163,9 +180,27 @@ export default function AlbumDesignerPage() {
       })
       if (error || (data as any)?.error) throw new Error((data as any)?.error ?? error?.message ?? 'errore')
       if (nextStatus) setStatus(nextStatus)
-      toast.success('Album salvato')
-    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+      setSavedAt(Date.now())
+      if (!silent) toast.success('Album salvato')
+    } catch (e) { if (!silent) toast.error((e as Error).message) } finally { if (!silent) setBusy(false) }
   }
+
+  // ── richieste di modifica (cliente ↔ fotografo) ────────────────────────────
+  const loadRevs = useCallback(async () => {
+    if (!entryId) return
+    const { data } = await (supabase.from as any)('album_revision_requests').select('id, author_name, page_index, body, status, created_at').eq('entry_id', entryId).order('created_at', { ascending: false })
+    setRevList((data as typeof revList) ?? [])
+  }, [entryId])
+  useEffect(() => { void loadRevs() }, [loadRevs])
+  const openRevs = revList.filter((r) => r.status === 'OPEN').length
+  async function sendRev() {
+    if (!revBody.trim() || !entryId) return
+    const pageNum = revPageRef && currentPageId ? (pages.findIndex((p) => p.id === currentPageId) + 1) : null
+    const { error } = await (supabase.from as any)('album_revision_requests').insert({ entry_id: entryId, body: revBody.trim(), page_index: pageNum })
+    if (error) { toast.error(error.message); return }
+    toast.success('Richiesta inviata al fotografo'); setRevBody(''); setRevPageRef(false); await loadRevs()
+  }
+  async function resolveRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'DONE' }).eq('id', id); await loadRevs() }
 
   const exportRef = useRef<HTMLDivElement>(null)
   async function doExport(kind: 'pdf' | 'spread' | 'jpg') {
@@ -233,6 +268,7 @@ export default function AlbumDesignerPage() {
           <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
             <Button variant="gold" size="sm" disabled={busy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)}><Wand2 size={14} /> Auto-impagina</Button>
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
+            <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
             <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
             <ToolToggle on={gridOn} onClick={() => setGridOn((v) => !v)} icon={<Grid3x3 size={14} />} label="Griglia" />
             <ToolToggle on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
@@ -243,6 +279,7 @@ export default function AlbumDesignerPage() {
             <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('spread')}><LayoutGrid size={14} /> Spread</Button>
             <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('jpg')}><FileImage size={14} /> JPG</Button>
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(action.next)}>{action.label}</Button>
+            <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{statusLabel(status)}</span></span>
           </div>
 
@@ -357,6 +394,41 @@ export default function AlbumDesignerPage() {
               />
             )
           })()}
+
+          {/* Richieste di modifica: il cliente scrive, il fotografo le segna fatte */}
+          {revOpen && (
+            <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={() => setRevOpen(false)}>
+              <div className="bg-[rgb(var(--bg))] w-full max-w-lg rounded-2xl shadow-xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))]">
+                  <h3 className="font-medium flex items-center gap-2"><MessageSquare size={16} /> Richieste di modifica</h3>
+                  <button onClick={() => setRevOpen(false)} className="p-1 rounded hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
+                </div>
+                <div className="p-4 space-y-2 border-b border-[rgb(var(--border))]">
+                  <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={3} placeholder={isCouple ? 'Scrivi cosa vorresti cambiare nell’album…' : 'Annota una modifica da fare…'} className="w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                      <input type="checkbox" checked={revPageRef} onChange={(e) => setRevPageRef(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Riferito alla pagina aperta{currentPageId ? ` (${pages.findIndex((p) => p.id === currentPageId) + 1})` : ''}
+                    </label>
+                    <Button variant="gold" size="sm" disabled={!revBody.trim()} onClick={() => void sendRev()}>Invia richiesta</Button>
+                  </div>
+                </div>
+                <div className="p-4 overflow-auto space-y-2">
+                  {revList.length === 0 && <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessuna richiesta ancora.</p>}
+                  {revList.map((r) => (
+                    <div key={r.id} className={`rounded-lg border p-2.5 text-sm ${r.status === 'DONE' ? 'opacity-50 border-[rgb(var(--border))]' : 'border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/30'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p>{r.body}</p>
+                          <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">— {r.author_name ?? 'Cliente'}{r.page_index ? ` · pag. ${r.page_index}` : ''}{r.status === 'DONE' ? ' · fatto ✓' : ''}</p>
+                        </div>
+                        {r.status === 'OPEN' && <button onClick={() => void resolveRev(r.id)} title="Segna fatto" className="shrink-0 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><Check size={12} /> Fatto</button>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
       <div ref={exportRef} className="sr-only" aria-hidden />
