@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -320,6 +321,17 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <p className="text-xs text-[rgb(var(--fg-muted))]">Una alla volta: tieni o scarta. Gli scarti li puoi sempre recuperare.</p>
           </div>
           <Button variant="gold" size="sm" onClick={() => setAlbumOpen(true)}><Images size={14} /> Inizia la selezione</Button>
+        </Card>
+      )}
+
+      {/* Impaginatore album: bozza per momenti + export in tutti i formati (fotografo e sposi) */}
+      {(isOwner || role === 'sposi') && folders.some((f) => f.gallery_media.length > 0) && (
+        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium flex items-center gap-2"><BookOpen size={16} className="text-[rgb(var(--gold-600))]" /> Impaginatore album</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">{role === 'sposi' ? 'Costruisci la tua bozza per momenti (60–110 foto), poi inviala al fotografo.' : 'Impagina e rifinisci in tutti i formati, poi esporta PDF / JPG.'}</p>
+          </div>
+          <Link to={`/album/${entryId}`}><Button variant="gold" size="sm"><BookOpen size={14} /> Apri impaginatore</Button></Link>
         </Card>
       )}
 

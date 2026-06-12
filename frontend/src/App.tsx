@@ -58,6 +58,7 @@ const IntegrationsPage = lazyWithRetry(() => import('@/pages/IntegrationsPage'))
 const ClientPortalPage = lazyWithRetry(() => import('@/pages/client/ClientPortalPage'))
 const ClientAccessPage = lazyWithRetry(() => import('@/pages/client/ClientAccessPage'))
 const SupplierTeamPage = lazyWithRetry(() => import('@/pages/SupplierTeamPage'))
+const AlbumDesignerPage = lazyWithRetry(() => import('@/pages/AlbumDesignerPage'))
 const SupplierLeadsPage = lazyWithRetry(() => import('@/pages/SupplierLeadsPage'))
 const SupplierPendingPage = lazyWithRetry(() => import('@/pages/SupplierPendingPage'))
 const SupplierReviewItemsPage = lazyWithRetry(() => import('@/pages/SupplierReviewItemsPage'))
@@ -242,6 +243,8 @@ export default function App() {
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />
           <Route path="/capostipiti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCapostipitiPage /></RequireAuth>} />
           <Route path="/team" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SupplierTeamPage /></RequireAuth>} />
+          {/* Impaginatore album: fotografo (owner galleria), sposi e admin — gating via RLS */}
+          <Route path="/album/:entryId" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><AlbumDesignerPage /></RequireAuth>} />
           <Route path="/crediti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCreditsPage /></RequireAuth>} />
           <Route path="/richieste" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierLeadsPage /></RequireAuth>} />
           <Route path="/lavori-da-confermare" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierPendingPage /></RequireAuth>} />
