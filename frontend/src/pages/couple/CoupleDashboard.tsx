@@ -35,11 +35,11 @@ import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
 import { AudioWishes } from '@/components/event/AudioWishes'
 import { Guestbook } from '@/components/event/Guestbook'
-import { Images, Mic, BookHeart } from 'lucide-react'
+import { Images, Mic, BookHeart, Film } from 'lucide-react'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
 
-type Tab = 'overview' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'scaletta' | 'checklist' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto' | 'audio' | 'guestbook'
+type Tab = 'overview' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'scaletta' | 'checklist' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto' | 'audio' | 'guestbook' | 'video'
 
 // La tab "Questionario" (planning) e' stata rimossa dalla coppia:
 // le domande sono gia` raccolte nel questionario di presentazione iniziale
@@ -52,6 +52,7 @@ const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'foto',       label: 'Foto',         icon: Images },
   { key: 'audio',      label: 'Audio auguri', icon: Mic },
   { key: 'guestbook',  label: 'Guestbook',    icon: BookHeart },
+  { key: 'video',      label: 'Video',        icon: Film },
   { key: 'cerimonia',  label: 'Cerimonia',    icon: Church },
   { key: 'documenti',  label: 'Documenti',    icon: FileText },
   { key: 'programma', label: 'Programma',    icon: CalendarClock },
@@ -258,6 +259,14 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             {tab === 'foto' && <EventGalleryTab entryId={entryId} role="sposi" />}
             {tab === 'audio' && <AudioWishes entryId={entryId} readOnly />}
             {tab === 'guestbook' && <Guestbook entryId={entryId} readOnly />}
+            {tab === 'video' && (
+              <Card className="p-8 text-center">
+                <Film size={26} className="mx-auto mb-3 text-[rgb(var(--gold-600))]" />
+                <h3 className="font-display text-xl mb-1">Il vostro video</h3>
+                <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">Guarda la bozza e lascia i tuoi <strong>post-it</strong> sui momenti da rivedere (montaggio, musica…). Il videomaker li riceve.</p>
+                <Link to={`/video/${entryId}`}><Button variant="gold"><Film size={15} /> Apri il video e commenta</Button></Link>
+              </Card>
+            )}
             {tab === 'preventivo' && <PreventivoCouple entryId={entryId} />}
             {tab === 'fornitori' && (
               <div>

@@ -7,6 +7,8 @@
 -- ============================================================================
 do $clean$
 begin
+  delete from public.video_comments where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
+  delete from public.video_projects where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
   delete from public.album_revision_requests where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
   delete from public.album_export_grants where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
   delete from public.event_guestbook where entry_id in (select id from calendar_entries where title like 'SEC AUDIT %');
@@ -57,6 +59,9 @@ begin
   -- richieste di modifica + grant export su entrambi
   insert into public.album_revision_requests(entry_id,user_id,body) values (evA,cA,'Cambia la foto di pag.2'),(evB,cB,'Altro evento');
   insert into public.album_export_grants(token,entry_id,user_id) values ('grantA'||evA,evA,pA),('grantB'||evB,evB,pB);
+  -- video: progetto + post-it su entrambi
+  insert into public.video_projects(entry_id,owner_id,draft_url) values (evA,pA,'https://x/a.mp4'),(evB,pB,'https://x/b.mp4') on conflict (entry_id) do nothing;
+  insert into public.video_comments(entry_id,user_id,t_seconds,body) values (evA,cA,12,'Taglia qui'),(evB,cB,8,'Altro evento');
 end$boot$;
 
 create or replace function pg_temp.cnt(p_uid uuid, p_sql text) returns int language plpgsql as $$
@@ -166,6 +171,33 @@ do $$ declare cA uuid:='da700000-0000-0000-0000-0000000000a4'; strg uuid:='da700
   na := pg_temp.cnt(cA,'select count(*) from public.album_export_grants');
   ns := pg_temp.cnt(strg,'select count(*) from public.album_export_grants');
   if na=0 and ns=0 then raise notice 'GR1 OK (grant export non leggibili dagli utenti)'; else raise exception 'GR1 FAIL coppia=% estraneo=%',na,ns; end if;
+end$$;
+
+-- ── VIDEO review (post-it) ──────────────────────────────────────────────────
+-- VD1: la coppia di A vede i post-it di A, non quelli di B
+do $$ declare cA uuid:='da700000-0000-0000-0000-0000000000a4'; na int; nb int; begin
+  na := pg_temp.cnt(cA,'select count(*) from public.video_comments where entry_id=''da700000-0000-0000-0000-00000000aaaa''');
+  nb := pg_temp.cnt(cA,'select count(*) from public.video_comments where entry_id=''da700000-0000-0000-0000-00000000bbbb''');
+  if na>=1 and nb=0 then raise notice 'VD1 OK (coppia A vede i propri post-it, 0 di B)'; else raise exception 'VD1 FAIL a=% b=%',na,nb; end if;
+end$$;
+-- VD2: un OSPITE non vede i video/post-it (non è coppia né cerchio)
+do $$ declare gA uuid:='da700000-0000-0000-0000-0000000000a3'; np int; nc int; begin
+  np := pg_temp.cnt(gA,'select count(*) from public.video_projects where entry_id in (''da700000-0000-0000-0000-00000000aaaa'',''da700000-0000-0000-0000-00000000bbbb'')');
+  nc := pg_temp.cnt(gA,'select count(*) from public.video_comments where entry_id in (''da700000-0000-0000-0000-00000000aaaa'',''da700000-0000-0000-0000-00000000bbbb'')');
+  if np=0 and nc=0 then raise notice 'VD2 OK (ospite non vede video/post-it)'; else raise exception 'VD2 FAIL proj=% com=%',np,nc; end if;
+end$$;
+-- VD3: la coppia di A NON può commentare il video di B
+do $$ declare cA uuid:='da700000-0000-0000-0000-0000000000a4'; blocked boolean; begin
+  blocked := pg_temp.ins_blocked(cA,'insert into public.video_comments(entry_id,user_id,t_seconds,body) values (''da700000-0000-0000-0000-00000000bbbb'',''da700000-0000-0000-0000-0000000000a4'',1,''hack'')');
+  if blocked then raise notice 'VD3 OK (coppia A non commenta il video di B)'; else raise exception 'VD3 FAIL'; end if;
+end$$;
+-- VD4: la coppia NON può consegnare/modificare il progetto (l'update non tocca nulla)
+do $$ declare cA uuid:='da700000-0000-0000-0000-0000000000a4'; v text; begin
+  perform set_config('request.jwt.claims', json_build_object('sub',cA::text,'role','authenticated')::text, true); set local role authenticated;
+  update public.video_projects set draft_url='hacked' where entry_id='da700000-0000-0000-0000-00000000aaaa';
+  reset role;
+  select draft_url into v from public.video_projects where entry_id='da700000-0000-0000-0000-00000000aaaa';
+  if v = 'https://x/a.mp4' then raise notice 'VD4 OK (coppia non modifica la consegna video)'; else raise exception 'VD4 FAIL: draft cambiato a %',v; end if;
 end$$;
 
 do $$ begin raise notice 'SEC AUDIT: completato — nessun leak'; end$$;

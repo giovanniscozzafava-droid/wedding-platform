@@ -59,6 +59,7 @@ const ClientPortalPage = lazyWithRetry(() => import('@/pages/client/ClientPortal
 const ClientAccessPage = lazyWithRetry(() => import('@/pages/client/ClientAccessPage'))
 const SupplierTeamPage = lazyWithRetry(() => import('@/pages/SupplierTeamPage'))
 const AlbumDesignerPage = lazyWithRetry(() => import('@/pages/AlbumDesignerPage'))
+const VideoReviewPage = lazyWithRetry(() => import('@/pages/VideoReviewPage'))
 const SupplierLeadsPage = lazyWithRetry(() => import('@/pages/SupplierLeadsPage'))
 const SupplierPendingPage = lazyWithRetry(() => import('@/pages/SupplierPendingPage'))
 const SupplierReviewItemsPage = lazyWithRetry(() => import('@/pages/SupplierReviewItemsPage'))
@@ -245,6 +246,8 @@ export default function App() {
           <Route path="/team" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SupplierTeamPage /></RequireAuth>} />
           {/* Impaginatore album: fotografo (owner galleria), sposi e admin — gating via RLS */}
           <Route path="/album/:entryId" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><AlbumDesignerPage /></RequireAuth>} />
+          {/* Revisione video del videomaker: consegna + post-it temporizzati del cliente */}
+          <Route path="/video/:entryId" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><VideoReviewPage /></RequireAuth>} />
           <Route path="/crediti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierCreditsPage /></RequireAuth>} />
           <Route path="/richieste" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierLeadsPage /></RequireAuth>} />
           <Route path="/lavori-da-confermare" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierPendingPage /></RequireAuth>} />
