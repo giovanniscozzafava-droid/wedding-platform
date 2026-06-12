@@ -6,6 +6,18 @@
 \set EV 'a0000000-0000-0000-0000-0000000000a1'
 
 -- ── Bootstrap (superuser) ──────────────────────────────────────────────────
+-- pulizia idempotente: evita la duplicazione dei seed (media) ai run successivi.
+do $clean$
+declare evA uuid:='a0000000-0000-0000-0000-0000000000a1'; evB uuid:='b0000000-0000-0000-0000-0000000000b1';
+begin
+  delete from gallery_media where entry_id in (evA,evB);
+  delete from gallery_folders where entry_id in (evA,evB);
+  delete from wedding_couple_members where entry_id in (evA,evB);
+  delete from calendar_entry_participants where entry_id in (evA,evB);
+  delete from event_galleries where entry_id in (evA,evB);
+  delete from calendar_entries where id in (evA,evB);
+end$clean$;
+
 do $boot$
 declare
   v_giulia uuid := '00000000-aaaa-0000-0000-000000000002';

@@ -3,6 +3,16 @@
 -- La cliente (es. Zoe) tiene/scarta; SOLO gli sposi/admin possono scegliere; il
 -- fotografo (owner) NON può scegliere al posto loro ma RILEGGE le KEPT per lo ZIP.
 -- ============================================================================
+-- pulizia idempotente: evita di duplicare i media seed ai run successivi.
+do $clean$ declare ev uuid:='a1100000-0000-0000-0000-0000000000e1';
+begin
+  delete from gallery_media where entry_id=ev;
+  delete from gallery_folders where entry_id=ev;
+  delete from wedding_couple_members where entry_id=ev;
+  delete from event_galleries where entry_id=ev;
+  delete from calendar_entries where id=ev;
+end$clean$;
+
 do $boot$
 declare
   wp   uuid := 'a1100000-0000-0000-0000-0000000000f1';  -- fotografo (owner galleria)

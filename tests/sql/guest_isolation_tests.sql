@@ -3,6 +3,24 @@
 -- Due eventi A e B di fornitori diversi. Si prova, in avanti e all'inverso, che un
 -- ospite/QR di A NON tocca MAI nulla di B né i dati sensibili di A.
 -- ============================================================================
+-- pulizia idempotente: senza questa, ri-eseguire il test duplica i seed (media,
+-- consensi…) e fa contare di più → falsi FAIL. Azzeriamo il namespace di test.
+do $clean$
+declare evA uuid:='d5000000-0000-0000-0000-00000000aaaa'; evB uuid:='d5000000-0000-0000-0000-00000000bbbb';
+begin
+  delete from marketing_consents where user_id in ('d5000000-0000-0000-0000-0000000000a3','d5000000-0000-0000-0000-0000000000b3');
+  delete from budget_entries where entry_id in (evA,evB);
+  delete from budget_categories where entry_id in (evA,evB);
+  delete from event_documents where entry_id in (evA,evB);
+  delete from gallery_media where entry_id in (evA,evB);
+  delete from gallery_folders where entry_id in (evA,evB);
+  delete from gallery_guests where entry_id in (evA,evB);
+  delete from calendar_entry_participants where entry_id in (evA,evB);
+  delete from event_galleries where entry_id in (evA,evB);
+  delete from calendar_entries where id in (evA,evB);
+  delete from quotes where id='d5000000-0000-0000-0000-00000000aaa0';
+end$clean$;
+
 do $boot$
 declare
   wpA uuid:='d5000000-0000-0000-0000-0000000000a1'; pA uuid:='d5000000-0000-0000-0000-0000000000a2'; gA uuid:='d5000000-0000-0000-0000-0000000000a3';
