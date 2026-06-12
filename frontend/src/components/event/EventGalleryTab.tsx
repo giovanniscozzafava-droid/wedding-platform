@@ -14,7 +14,6 @@ import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
 import { QRCodeSVG } from 'qrcode.react'
 import { PhotoSocial } from './PhotoSocial'
 import { GallerySettingsPanel, DEFAULT_GALLERY_SETTINGS, type GallerySettings } from './GallerySettingsPanel'
-import { AudioWishes } from './AudioWishes'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -296,8 +295,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       <input ref={uploadRef} type="file" multiple accept="image/*,video/*" className="hidden"
         onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length && uploadFolder) void uploadPhotos(uploadFolder, snap) }} />
 
-      {/* Auguri vocali lasciati dagli invitati — ascolto per fornitore e sposi */}
-      <AudioWishes entryId={entryId} readOnly />
 
       {/* Consenso sposi al lavoro intero */}
       {role === 'sposi' && (

@@ -46,13 +46,15 @@ import { useAuth } from '@/lib/auth'
 import { EventRing } from '@/components/event/EventRing'
 import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
-import { Images } from 'lucide-react'
+import { Images, Mic, BookHeart } from 'lucide-react'
+import { AudioWishes } from '@/components/event/AudioWishes'
+import { Guestbook } from '@/components/event/Guestbook'
 import { Pencil } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { fetchUnreadByEntry, tabsWithDot, typesForTab, markEntryTabRead } from '@/lib/notifGuide'
 import { useQueryClient } from '@tanstack/react-query'
 
-type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto'
+type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook'
 
 type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean }
 
@@ -80,6 +82,8 @@ const TABS: Array<TabDef> = [
   { key: 'website',        label: 'Sito evento', icon: Globe, capostipiteOnly: true },
   { key: 'members',        label: 'Clienti',      icon: Heart, capostipiteOnly: true },
   { key: 'foto',           label: 'Foto',         icon: Images },
+  { key: 'audio',          label: 'Audio auguri', icon: Mic },
+  { key: 'guestbook',      label: 'Guestbook',    icon: BookHeart },
   { key: 'docs',           label: 'Documenti',    icon: FolderOpen, capostipiteOnly: true },
   { key: 'analytics', label: 'Analytics',  icon: BarChart3, capostipiteOnly: true },
 ]
@@ -297,6 +301,8 @@ export default function WeddingDashboard() {
             transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewTab wedding={wedding} onTab={setTab as any} />}
             {tab === 'foto' && <EventGalleryTab entryId={wedding.id} role={ringView} />}
+            {tab === 'audio' && <AudioWishes entryId={wedding.id} readOnly />}
+            {tab === 'guestbook' && <Guestbook entryId={wedding.id} readOnly />}
             {tab === 'planning' && <CouplePlanningTab entryId={wedding.id} readOnly />}
             {tab === 'ceremony' && <CeremonyTab entryId={wedding.id} />}
             {tab === 'timeline' && <TimelineTab entryId={wedding.id} eventKind={(wedding as any).event_kind} />}
