@@ -76,3 +76,30 @@ export function slotAspectOf(fr: Frame, pageW: number, pageH: number) {
   const cw = (pageW - 2 * MARGIN_MM), ch = (pageH - 2 * MARGIN_MM)
   return (fr.w * cw) / (fr.h * ch)
 }
+
+// ── strumento RITAGLIO: rettangolo di crop ⇄ cella (zoom/focale) ──────────────
+// Il rettangolo è espresso in FRAZIONI dell'immagine: centro (cx,cy) 0..1 e larghezza w (0..1).
+// L'altezza si ricava dall'aspetto dello slot.
+export function baseWindowFrac(imgAspect: number, slotAspect: number): number {
+  return coverWindow(imgAspect, slotAspect, { z: 1, fx: 0.5, fy: 0.5 }).ww // = bw (larghezza copertura a zoom 1)
+}
+
+export function cropToCell(imgAspect: number, slotAspect: number, cx: number, cy: number, wFrac: number): Cell {
+  const bw = baseWindowFrac(imgAspect, slotAspect)
+  const z = clamp(bw / Math.max(1e-4, wFrac), 1, 4)
+  return { z, fx: clamp(cx, 0, 1), fy: clamp(cy, 0, 1) }
+}
+
+export function cellToCrop(imgAspect: number, slotAspect: number, cell: Cell): { cx: number; cy: number; w: number; h: number } {
+  const bw = baseWindowFrac(imgAspect, slotAspect)
+  const w = bw / Math.max(1, cell.z || 1)
+  const h = (w * imgAspect) / slotAspect // frazione di ALTEZZA immagine (lo slot ha aspetto slotAspect in px)
+  return { cx: clamp(cell.fx ?? 0.5, 0, 1), cy: clamp(cell.fy ?? 0.5, 0, 1), w, h }
+}
+
+// Allineamento della foto nello slot: 9 ancore (focale).
+export const CROP_ANCHORS: Record<string, { fx: number; fy: number }> = {
+  tl: { fx: 0, fy: 0 }, tc: { fx: 0.5, fy: 0 }, tr: { fx: 1, fy: 0 },
+  cl: { fx: 0, fy: 0.5 }, cc: { fx: 0.5, fy: 0.5 }, cr: { fx: 1, fy: 0.5 },
+  bl: { fx: 0, fy: 1 }, bc: { fx: 0.5, fy: 1 }, br: { fx: 1, fy: 1 },
+}

@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText } from 'lucide-react'
+import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect } from '@/lib/albumFormats'
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
-import { autoLayout, framesForPage, newPage, templatesFor, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
+import { autoLayout, framesForPage, newPage, templatesFor, capacity, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
-import { cellBackground, slotAspectOf, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
+import { cellBackground, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { Crop, Maximize, Grid3x3, Frame, Scissors } from 'lucide-react'
@@ -46,6 +46,7 @@ export default function AlbumDesignerPage() {
   const [currentPageId, setCurrentPageId] = useState<string | null>(null) // pagina aperta nel canvas grande
   const [gridOn, setGridOn] = useState(false)          // griglia stile Photoshop
   const [marginsOn, setMarginsOn] = useState(true)     // guide margini
+  const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
 
   const role = albumRoleOf(profile?.role)
   const action = primaryAction(role, status as never)
@@ -264,6 +265,7 @@ export default function AlbumDesignerPage() {
                     onDropMedia={(s, id) => placeInto(currentPage.id, s, id)}
                     onClearSlot={(s) => clearSlot(currentPage.id, s)}
                     onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
+                    onCrop={(s) => setCropFor(s)}
                   />
                 ) : (
                   <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
@@ -288,15 +290,32 @@ export default function AlbumDesignerPage() {
             <aside className="w-56 shrink-0 border-l border-[rgb(var(--border))] overflow-auto p-3">
               {currentPage && (
                 <PropsPanel
-                  page={currentPage} activeSlot={activeSlot} mediaById={mediaById}
+                  page={currentPage} activeSlot={activeSlot} mediaById={mediaById} formatKey={format} aspects={aspects}
                   onTemplate={(t) => setTemplate(currentPage.id, t)}
                   onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
                   onClearSlot={(s) => { clearSlot(currentPage.id, s); setActiveSlot(null) }}
+                  onCrop={(s) => setCropFor(s)}
                   onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)}
                 />
               )}
             </aside>
           </div>
+
+          {/* Strumento RITAGLIO: vedi tutta la foto e scegli il rettangolo */}
+          {currentPage && cropFor != null && (() => {
+            const fr = framesForPage(currentPage)[cropFor]
+            const mid = currentPage.mediaIds[cropFor]
+            const m = mid ? mediaById.get(mid) : undefined
+            if (!fr || !m) return null
+            return (
+              <CropModal
+                src={hiUrl(m)} imgAspect={aspects[m.id] ?? 1.5} slotAspect={slotAspectOf(fr, fmt.w, fmt.h)}
+                cell={currentPage.cells?.[cropFor] ?? DEFAULT_CELL}
+                onApply={(c) => { updateCell(currentPage.id, cropFor, c); setCropFor(null) }}
+                onClose={() => setCropFor(null)}
+              />
+            )
+          })()}
         </>
       )}
       <div ref={exportRef} className="sr-only" aria-hidden />
@@ -383,9 +402,9 @@ function PageStage(props: {
   page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; activeSlot: number | null
   onSlot: (s: number | null) => void; onDropMedia: (s: number, id: string) => void
-  onClearSlot: (s: number) => void; onCell: (s: number, partial: Partial<Cell>) => void
+  onClearSlot: (s: number) => void; onCell: (s: number, partial: Partial<Cell>) => void; onCrop: (s: number) => void
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, aspects, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, aspects, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const frames = framesForPage(page)
@@ -432,7 +451,10 @@ function PageStage(props: {
                     <span className="absolute -top-px -right-px h-2 w-2 border-t-2 border-r-2 border-[rgb(var(--gold-500))]" />
                     <span className="absolute -bottom-px -left-px h-2 w-2 border-b-2 border-l-2 border-[rgb(var(--gold-500))]" />
                     <span className="absolute -bottom-px -right-px h-2 w-2 border-b-2 border-r-2 border-[rgb(var(--gold-500))]" />
-                    <button title="Togli foto" onClick={(e) => { e.stopPropagation(); onClearSlot(i) }} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/55 text-white flex items-center justify-center"><Trash2 size={12} /></button>
+                    <div className="absolute top-1 right-1 flex gap-1">
+                      <button title="Ritaglia" onClick={(e) => { e.stopPropagation(); onCrop(i) }} className="h-6 w-6 rounded-full bg-black/55 text-white flex items-center justify-center"><Crop size={12} /></button>
+                      <button title="Togli foto" onClick={(e) => { e.stopPropagation(); onClearSlot(i) }} className="h-6 w-6 rounded-full bg-black/55 text-white flex items-center justify-center"><Trash2 size={12} /></button>
+                    </div>
                   </>
                 )}
               </div>
@@ -491,40 +513,59 @@ function PageThumb(props: {
 }
 
 // Pannello proprietà a destra: foto selezionata (crop/zoom) + strumenti pagina.
+// piccolo diagramma di un layout (precomposizione)
+function LayoutDiagram({ t, active }: { t: TemplateKey; active: boolean }) {
+  const n = t === 'grid' ? 6 : Math.max(1, capacity(t))
+  const fr = framesForPage({ id: 'x', moment: null, template: t, mediaIds: Array.from({ length: n }, (_, i) => `s${i}`) })
+  return (
+    <div className={`relative h-10 w-12 rounded border ${active ? 'border-[rgb(var(--gold-500))] ring-1 ring-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'} bg-white`}>
+      {fr.map((f, i) => <div key={i} className="absolute bg-[rgb(var(--gold-200))]" style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%`, outline: '1px solid white' }} />)}
+    </div>
+  )
+}
+
 function PropsPanel(props: {
-  page: AlbumPage; activeSlot: number | null; mediaById: Map<string, M>
+  page: AlbumPage; activeSlot: number | null; mediaById: Map<string, M>; formatKey: string; aspects: Record<string, number>
   onTemplate: (t: TemplateKey) => void; onCell: (s: number, partial: Partial<Cell>) => void
-  onClearSlot: (s: number) => void; onAddPage: () => void; onDelPage: () => void
+  onClearSlot: (s: number) => void; onCrop: (s: number) => void; onAddPage: () => void; onDelPage: () => void
 }) {
-  const { page, activeSlot, mediaById, onTemplate, onCell, onClearSlot, onAddPage, onDelPage } = props
+  const { page, activeSlot, mediaById, onTemplate, onCell, onClearSlot, onCrop, onAddPage, onDelPage } = props
   const moment = getMoment(page.moment)
   const alts = templatesFor(Math.max(1, page.mediaIds.length))
   const slotMediaId = activeSlot != null ? page.mediaIds[activeSlot] : undefined
   const slotMedia = slotMediaId ? mediaById.get(slotMediaId) : undefined
   const cell = activeSlot != null ? (page.cells?.[activeSlot] ?? DEFAULT_CELL) : DEFAULT_CELL
+  const anchorGrid: Array<[string, string]> = [['tl', '↖'], ['tc', '↑'], ['tr', '↗'], ['cl', '←'], ['cc', '•'], ['cr', '→'], ['bl', '↙'], ['bc', '↓'], ['br', '↘']]
   return (
     <div className="space-y-4 text-sm">
       {slotMedia ? (
         <div>
           <p className="font-medium flex items-center gap-1.5 mb-2"><Crop size={14} /> Foto</p>
           <img src={slotMedia.thumbnail_link ?? ''} alt="" className="w-full rounded-lg mb-2 object-cover max-h-28" />
+          <Button variant="gold" size="sm" className="w-full mb-2" onClick={() => onCrop(activeSlot!)}><Crop size={14} /> Ritaglia foto</Button>
           <label className="text-xs text-[rgb(var(--fg-muted))]">Zoom <strong>{Math.round(cell.z * 100)}%</strong></label>
           <input type="range" min={100} max={400} value={Math.round(cell.z * 100)} onChange={(e) => onCell(activeSlot!, { z: +e.target.value / 100 })} className="w-full accent-[rgb(var(--gold-600))]" />
-          <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Trascina la foto nello slot per spostarla, o usa la rotella per lo zoom.</p>
-          <div className="flex gap-1.5 mt-2">
-            <Button variant="outline" size="sm" onClick={() => onCell(activeSlot!, { z: 1, fx: 0.5, fy: 0.5 })}><Maximize size={13} /> Reimposta</Button>
+          <p className="text-xs text-[rgb(var(--fg-muted))] mt-2 mb-1">Allinea nello slot</p>
+          <div className="grid grid-cols-3 gap-1 w-24">
+            {anchorGrid.map(([k, sym]) => (
+              <button key={k} title="allinea" onClick={() => onCell(activeSlot!, CROP_ANCHORS[k] ?? {})}
+                className="h-6 rounded border border-[rgb(var(--border))] text-[11px] hover:bg-[rgb(var(--bg-sunken))]">{sym}</button>
+            ))}
+          </div>
+          <div className="flex gap-1.5 mt-3">
+            <Button variant="outline" size="sm" onClick={() => onCell(activeSlot!, { z: 1, fx: 0.5, fy: 0.5 })}><Maximize size={13} /> Riempi</Button>
             <Button variant="outline" size="sm" onClick={() => onClearSlot(activeSlot!)}><Trash2 size={13} /> Togli</Button>
           </div>
         </div>
       ) : (
-        <p className="text-xs text-[rgb(var(--fg-subtle))]">Seleziona una foto per ritagliarla e modificarla liberamente.</p>
+        <p className="text-xs text-[rgb(var(--fg-subtle))]">Seleziona una foto: poi <strong>Ritaglia</strong>, sposta, zooma o allinea.</p>
       )}
 
       <div className="border-t border-[rgb(var(--border))] pt-3">
-        <p className="font-medium mb-2 flex items-center gap-1.5"><LayoutGrid size={14} /> Pagina {moment && <span className={`text-[10px] px-1.5 py-0.5 rounded ${moment.color}`}>{moment.label}</span>}</p>
-        <p className="text-xs text-[rgb(var(--fg-muted))] mb-1">Disposizione</p>
-        <div className="flex flex-wrap gap-1">
-          {alts.map((t) => <button key={t} onClick={() => onTemplate(t)} className={`text-[11px] px-2 py-1 rounded border ${page.template === t ? 'bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}>{TPL_LABEL[t]}</button>)}
+        <p className="font-medium mb-2 flex items-center gap-1.5"><LayoutGrid size={14} /> Layout pagina {moment && <span className={`text-[10px] px-1.5 py-0.5 rounded ${moment.color}`}>{moment.label}</span>}</p>
+        <p className="text-xs text-[rgb(var(--fg-muted))] mb-1.5">Precomposizioni ({page.mediaIds.length || 1} foto)</p>
+        <div className="flex flex-wrap gap-1.5">
+          {alts.map((t) => <button key={t} title={TPL_LABEL[t]} onClick={() => onTemplate(t)}><LayoutDiagram t={t} active={page.template === t} /></button>)}
         </div>
         <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">{page.mediaIds.length}/{MAX_PER_PAGE} foto in pagina</p>
         <div className="flex gap-1.5 mt-3">
@@ -532,6 +573,85 @@ function PropsPanel(props: {
           <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Modale RITAGLIO: vedi tutta la foto + rettangolo di crop (sposta/ridimensiona) ──
+function CropModal(props: { src: string; imgAspect: number; slotAspect: number; cell: Cell; onApply: (c: Cell) => void; onClose: () => void }) {
+  const { src, imgAspect, slotAspect, cell: initial, onApply, onClose } = props
+  const [cell, setCell] = useState<Cell>(initial)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ mode: 'move' | 'resize'; x: number; y: number; cell: Cell } | null>(null)
+
+  // rettangolo immagine renderizzata (object-contain) dentro il box
+  function imgRect() {
+    const el = boxRef.current; if (!el) return { x: 0, y: 0, w: 1, h: 1 }
+    const W = el.clientWidth, H = el.clientHeight
+    let w = W, h = W / imgAspect
+    if (h > H) { h = H; w = H * imgAspect }
+    return { x: (W - w) / 2, y: (H - h) / 2, w, h }
+  }
+
+  const crop = cellToCrop(imgAspect, slotAspect, cell) // cx,cy,w,h in frazioni immagine
+  const ir = imgRect()
+  const boxStyle = {
+    left: ir.x + (crop.cx - crop.w / 2) * ir.w, top: ir.y + (crop.cy - crop.h / 2) * ir.h,
+    width: crop.w * ir.w, height: crop.h * ir.h,
+  }
+
+  function onDown(e: React.PointerEvent, mode: 'move' | 'resize') {
+    e.stopPropagation(); dragRef.current = { mode, x: e.clientX, y: e.clientY, cell }
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  function onMove(e: React.PointerEvent) {
+    const d = dragRef.current; if (!d) return
+    const r = imgRect()
+    if (d.mode === 'move') {
+      const dfx = (e.clientX - d.x) / Math.max(1, r.w), dfy = (e.clientY - d.y) / Math.max(1, r.h)
+      setCell(cropToCell(imgAspect, slotAspect, clampN(d.cell.fx + dfx), clampN(d.cell.fy + dfy), cellToCrop(imgAspect, slotAspect, d.cell).w))
+    } else {
+      // ridimensiona attorno al centro: nuovo semilato = distanza dal centro
+      const cxpx = r.x + d.cell.fx * r.w, cypx = r.y + d.cell.fy * r.h
+      const halfW = Math.abs(e.clientX - cxpx), halfH = Math.abs(e.clientY - cypx)
+      const wFrac = Math.max((halfW * 2) / r.w, ((halfH * 2) / r.h) * (imgAspect / slotAspect))
+      setCell(cropToCell(imgAspect, slotAspect, d.cell.fx, d.cell.fy, wFrac))
+    }
+  }
+  function onUp() { dragRef.current = null }
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-black/80 flex flex-col" onClick={onClose}>
+      <div className="flex items-center justify-between px-4 py-2 text-white" onClick={(e) => e.stopPropagation()}>
+        <span className="text-sm font-medium flex items-center gap-2"><Crop size={16} /> Ritaglia</span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="!text-white !border-white/30" onClick={() => setCell({ z: 1, fx: 0.5, fy: 0.5 })}>Riempi</Button>
+          <Button variant="gold" size="sm" onClick={() => onApply(cell)}>Applica</Button>
+          <button onClick={onClose} className="p-1.5 rounded hover:bg-white/10"><X size={18} className="text-white" /></button>
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 p-4 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+        <div ref={boxRef} className="relative max-w-full max-h-full" style={{ width: '90vw', height: '78vh' }}>
+          <img src={src} alt="" className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none opacity-50" />
+          {/* finestra di ritaglio: parte luminosa */}
+          <div className="absolute overflow-hidden ring-2 ring-white shadow-[0_0_0_9999px_rgba(0,0,0,.5)] cursor-move touch-none"
+            style={boxStyle} onPointerDown={(e) => onDown(e, 'move')} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
+            <img src={src} alt="" className="absolute select-none pointer-events-none max-w-none"
+              style={{ left: -((boxStyle.left as number) - ir.x), top: -((boxStyle.top as number) - ir.y), width: ir.w, height: ir.h }} />
+            {/* terzi */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-0 bottom-0 left-1/3 border-l border-white/40" />
+              <div className="absolute top-0 bottom-0 left-2/3 border-l border-white/40" />
+              <div className="absolute left-0 right-0 top-1/3 border-t border-white/40" />
+              <div className="absolute left-0 right-0 top-2/3 border-t border-white/40" />
+            </div>
+            {/* maniglia ridimensiona (basso-destra) */}
+            <div className="absolute -bottom-1.5 -right-1.5 h-4 w-4 bg-white rounded-sm border border-black/20 cursor-nwse-resize"
+              onPointerDown={(e) => onDown(e, 'resize')} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} />
+          </div>
+        </div>
+      </div>
+      <div className="text-center text-white/70 text-xs pb-3" onClick={(e) => e.stopPropagation()}>Trascina il riquadro per spostarlo · trascina l'angolo per ingrandirlo/rimpicciolirlo</div>
     </div>
   )
 }

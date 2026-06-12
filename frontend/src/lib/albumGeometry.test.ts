@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { coverWindow, cellBackground, sourceRect, slotRect, pageBox, slotAspectOf, DEFAULT_CELL, MARGIN_MM } from './albumGeometry'
+import { coverWindow, cellBackground, sourceRect, slotRect, pageBox, slotAspectOf, cropToCell, cellToCrop, baseWindowFrac, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM } from './albumGeometry'
 
 const approx = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) <= eps
 
@@ -73,6 +73,36 @@ describe('slotRect — margine, gutter, abbondanza', () => {
     expect(r.w).toBeGreaterThan(0)
     expect(approx(r.y, 0)).toBe(true) // alto al bordo
     expect(approx(r.h, 306)).toBe(true) // alto+basso bleed
+  })
+})
+
+describe('strumento ritaglio — cropToCell ⇄ cellToCrop', () => {
+  it('round-trip: cella → crop → cella', () => {
+    for (const ia of [0.7, 1, 1.5, 2]) {
+      for (const sa of [0.8, 1, 1.6]) {
+        const cell = { z: 2.2, fx: 0.4, fy: 0.6 }
+        const crop = cellToCrop(ia, sa, cell)
+        const back = cropToCell(ia, sa, crop.cx, crop.cy, crop.w)
+        expect(approx(back.z, cell.z, 1e-3)).toBe(true)
+        expect(approx(back.fx, cell.fx, 1e-6)).toBe(true)
+        expect(approx(back.fy, cell.fy, 1e-6)).toBe(true)
+      }
+    }
+  })
+  it('rettangolo più piccolo = zoom maggiore', () => {
+    const big = cropToCell(1.5, 1, 0.5, 0.5, baseWindowFrac(1.5, 1))      // pieno
+    const small = cropToCell(1.5, 1, 0.5, 0.5, baseWindowFrac(1.5, 1) / 2) // metà
+    expect(approx(big.z, 1)).toBe(true)
+    expect(approx(small.z, 2, 1e-3)).toBe(true)
+  })
+  it('zoom clampato a [1,4]', () => {
+    expect(cropToCell(1, 1, 0.5, 0.5, 999).z).toBe(1)
+    expect(cropToCell(1, 1, 0.5, 0.5, 0.0001).z).toBe(4)
+  })
+  it('ancore di allineamento ai 9 punti', () => {
+    expect(CROP_ANCHORS.tl).toEqual({ fx: 0, fy: 0 })
+    expect(CROP_ANCHORS.cc).toEqual({ fx: 0.5, fy: 0.5 })
+    expect(CROP_ANCHORS.br).toEqual({ fx: 1, fy: 1 })
   })
 })
 
