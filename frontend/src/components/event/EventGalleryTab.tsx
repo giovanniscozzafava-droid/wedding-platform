@@ -330,7 +330,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <p className="text-sm font-medium flex items-center gap-2"><BookOpen size={16} className="text-[rgb(var(--gold-600))]" /> Impaginatore album</p>
             <p className="text-xs text-[rgb(var(--fg-muted))]">{role === 'sposi' ? 'Costruisci la tua bozza per momenti (60–110 foto), poi inviala al fotografo.' : 'Impagina e rifinisci in tutti i formati, poi esporta PDF / JPG.'}</p>
           </div>
-          <Link to={`/album/${entryId}`}><Button variant="gold" size="sm"><BookOpen size={14} /> Apri impaginatore</Button></Link>
+          <Link to={`/album/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><BookOpen size={14} /> Apri impaginatore</Button></Link>
         </Card>
       )}
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText } from 'lucide-react'
@@ -10,10 +10,10 @@ import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect } from '@/lib/albu
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
 import { autoLayout, framesForPage, newPage, templatesFor, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
-import { cellBackground, slotAspectOf, DEFAULT_CELL, type Cell } from '@/lib/albumGeometry'
+import { cellBackground, slotAspectOf, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
-import { ZoomIn, ZoomOut, Crop, Maximize } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors } from 'lucide-react'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -43,6 +43,9 @@ export default function AlbumDesignerPage() {
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
   const [bleed, setBleed] = useState(false)            // abbondanza per la stampa
   const [aspects, setAspects] = useState<Record<string, number>>({}) // aspetto naturale per crop
+  const [currentPageId, setCurrentPageId] = useState<string | null>(null) // pagina aperta nel canvas grande
+  const [gridOn, setGridOn] = useState(false)          // griglia stile Photoshop
+  const [marginsOn, setMarginsOn] = useState(true)     // guide margini
 
   const role = albumRoleOf(profile?.role)
   const action = primaryAction(role, status as never)
@@ -84,6 +87,13 @@ export default function AlbumDesignerPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kept])
+
+  // Pagina aperta nel canvas grande: default alla prima, sempre valida.
+  useEffect(() => {
+    if (step !== 'design') return
+    if (currentPageId && pages.some((p) => p.id === currentPageId)) return
+    setCurrentPageId(pages[0]?.id ?? null)
+  }, [step, pages, currentPageId])
 
   // ── selezione guidata ──────────────────────────────────────────────────────
   async function toggleKeep(m: M) {
@@ -175,6 +185,7 @@ export default function AlbumDesignerPage() {
 
   const asp = pageAspect(format)
   const fmt = getFormat(format)
+  const currentPage = pages.find((p) => p.id === currentPageId) ?? null
 
   return (
     <div className="min-h-screen bg-[rgb(var(--bg-sunken))]">
@@ -198,78 +209,96 @@ export default function AlbumDesignerPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-5">
-        {step === 'select' ? (
+      {step === 'select' ? (
+        <div className="max-w-7xl mx-auto px-4 py-5">
           <SelectStep
             photos={photos} kept={kept} total={total} okRange={okRange} untagged={untagged}
             missingMin={missingMin} perMoment={perMoment}
             onToggle={toggleKeep} onMoment={setMoment} onGenerate={generate} thumb={thumbUrl}
           />
-        ) : (
-          <div className="grid lg:grid-cols-[1fr_280px] gap-5">
-            {/* canvas pagine */}
-            <div>
-              <div className="flex items-center gap-2 mb-4 flex-wrap">
-                <Button variant="gold" size="sm" disabled={busy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)}><Wand2 size={14} /> Auto-impagina</Button>
-                <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
-                <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('pdf')}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF pagine</Button>
-                <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('spread')}><LayoutGrid size={14} /> PDF spread</Button>
-                <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('jpg')}><FileImage size={14} /> JPG (ZIP)</Button>
-                <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(action.next)}>{action.label}</Button>
-                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none ml-1" title="Estende le foto a filo bordo oltre il taglio, per la stampa">
-                  <input type="checkbox" checked={bleed} onChange={(e) => setBleed(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Abbondanza
-                </label>
-                <span className="text-xs text-[rgb(var(--fg-muted))]">{pages.length} pagine · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{statusLabel(status)}</span></span>
-              </div>
-
-              {pages.length === 0 ? (
-                <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
-                  Nessuna pagina. Premi <strong>Auto-impagina</strong> per generare dalla selezione, oppure aggiungi una pagina.
-                  <div className="mt-3"><Button variant="outline" size="sm" onClick={() => addPageAfter(null)}><Plus size={14} /> Pagina vuota</Button></div>
-                </Card>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {pages.map((p, idx) => (
-                    <PageCard
-                      key={p.id} page={p} index={idx} aspect={asp} formatKey={format} bleed={bleed} aspects={aspects}
-                      active={activePage === p.id} activeSlot={activePage === p.id ? activeSlot : null}
-                      mediaById={mediaById} thumb={thumbUrl}
-                      onActivate={() => { setActivePage(p.id); setActiveSlot(null) }}
-                      onSlot={(s) => { setActivePage(p.id); setActiveSlot(s) }}
-                      onDropMedia={(s, id) => placeInto(p.id, s, id)}
-                      onClearSlot={(s) => clearSlot(p.id, s)}
-                      onTemplate={(t) => setTemplate(p.id, t)}
-                      onCell={(s, partial) => updateCell(p.id, s, partial)}
-                      onDelete={() => delPage(p.id)} onAdd={() => addPageAfter(p.id)}
-                      onMove={(d) => movePage(p.id, d)}
-                    />
-                  ))}
-                  <button onClick={() => addPageAfter(null)} className="rounded-xl border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg))] flex items-center justify-center min-h-[140px]"><Plus size={18} className="mr-1" /> Pagina</button>
-                </div>
-              )}
-            </div>
-
-            {/* tray foto */}
-            <div className="lg:sticky lg:top-20 self-start">
-              <Card className="p-3">
-                <p className="text-xs font-medium mb-2">Foto selezionate ({kept.length})</p>
-                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mb-2">Trascina su uno slot, o seleziona uno slot e clicca una foto.</p>
-                <div className="grid grid-cols-3 gap-1.5 max-h-[70vh] overflow-auto">
-                  {trayMedia.map((m) => (
-                    <button key={m.id}
-                      draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
-                      onClick={() => { if (activePage) placeInto(activePage, activeSlot, m.id) }}
-                      title={getMoment(m.album_moment)?.label ?? 'senza momento'}
-                      className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'opacity-40' : ''} border-[rgb(var(--border))]`}>
-                      <img src={thumbUrl(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    </button>
-                  ))}
-                </div>
-              </Card>
-            </div>
+        </div>
+      ) : (
+        <>
+          {/* barra strumenti impaginatore */}
+          <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
+            <Button variant="gold" size="sm" disabled={busy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)}><Wand2 size={14} /> Auto-impagina</Button>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
+            <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
+            <ToolToggle on={gridOn} onClick={() => setGridOn((v) => !v)} icon={<Grid3x3 size={14} />} label="Griglia" />
+            <ToolToggle on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
+            <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />
+            <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
+            <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('pdf')}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF</Button>
+            <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('spread')}><LayoutGrid size={14} /> Spread</Button>
+            <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('jpg')}><FileImage size={14} /> JPG</Button>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(action.next)}>{action.label}</Button>
+            <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{statusLabel(status)}</span></span>
           </div>
-        )}
-      </div>
+
+          {/* workspace a 3 colonne + filmstrip */}
+          <div className="flex h-[calc(100vh-104px)]">
+            {/* foto */}
+            <aside className="w-40 shrink-0 border-r border-[rgb(var(--border))] overflow-auto p-2">
+              <p className="text-[11px] font-medium mb-1.5 text-[rgb(var(--fg-muted))]">Foto ({kept.length})</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {trayMedia.map((m) => (
+                  <button key={m.id}
+                    draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
+                    onClick={() => { if (currentPageId) placeInto(currentPageId, activeSlot, m.id) }}
+                    title={getMoment(m.album_moment)?.label ?? 'senza momento'}
+                    className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'opacity-40' : ''} border-[rgb(var(--border))]`}>
+                    <img src={thumbUrl(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            {/* canvas + filmstrip */}
+            <main className="flex-1 flex flex-col min-w-0">
+              <div className="flex-1 min-h-0 flex items-center justify-center p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
+                {currentPage ? (
+                  <PageStage
+                    page={currentPage} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn}
+                    aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={activeSlot}
+                    onSlot={setActiveSlot}
+                    onDropMedia={(s, id) => placeInto(currentPage.id, s, id)}
+                    onClearSlot={(s) => clearSlot(currentPage.id, s)}
+                    onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
+                  />
+                ) : (
+                  <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
+                    Nessuna pagina. Premi <strong>Auto-impagina</strong> o aggiungi una pagina.
+                    <div className="mt-3"><Button variant="outline" size="sm" onClick={() => addPageAfter(null)}><Plus size={14} /> Pagina vuota</Button></div>
+                  </Card>
+                )}
+              </div>
+              {/* filmstrip pagine */}
+              <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-2 overflow-x-auto">
+                {pages.map((p, idx) => (
+                  <PageThumb key={p.id} page={p} index={idx} aspect={asp} active={p.id === currentPageId}
+                    mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
+                    onSelect={() => { setCurrentPageId(p.id); setActiveSlot(null) }}
+                    onMove={(d) => movePage(p.id, d)} onDelete={() => delPage(p.id)} />
+                ))}
+                <button onClick={() => addPageAfter(currentPageId)} className="shrink-0 h-16 w-16 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center" title="Aggiungi pagina"><Plus size={16} /></button>
+              </div>
+            </main>
+
+            {/* pannello proprietà */}
+            <aside className="w-56 shrink-0 border-l border-[rgb(var(--border))] overflow-auto p-3">
+              {currentPage && (
+                <PropsPanel
+                  page={currentPage} activeSlot={activeSlot} mediaById={mediaById}
+                  onTemplate={(t) => setTemplate(currentPage.id, t)}
+                  onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
+                  onClearSlot={(s) => { clearSlot(currentPage.id, s); setActiveSlot(null) }}
+                  onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)}
+                />
+              )}
+            </aside>
+          </div>
+        </>
+      )}
       <div ref={exportRef} className="sr-only" aria-hidden />
     </div>
   )
@@ -335,27 +364,36 @@ function SelectStep(props: {
   )
 }
 
-// ── card pagina: slot con crop/zoom/pan, drop, abbondanza ────────────────────
+// ── elementi del workspace ───────────────────────────────────────────────────
 const TPL_LABEL: Record<TemplateKey, string> = { '1': '1', '2h': '2 │', '2v': '2 ─', '3l': '3 ◧', '3t': '3 ⊟', '4': '4 ⊞', grid: 'griglia' }
+function clampN(v: number) { return Math.min(1, Math.max(0, v)) }
 
-function PageCard(props: {
-  page: AlbumPage; index: number; aspect: number; formatKey: string; bleed: boolean; aspects: Record<string, number>
-  active: boolean; activeSlot: number | null
-  mediaById: Map<string, M>; thumb: (m: M) => string
-  onActivate: () => void; onSlot: (s: number) => void; onDropMedia: (s: number | null, id: string) => void
-  onClearSlot: (s: number) => void; onTemplate: (t: TemplateKey) => void; onCell: (s: number, partial: Partial<Cell>) => void
-  onDelete: () => void; onAdd: () => void; onMove: (d: -1 | 1) => void
+function ToolToggle({ on, onClick, icon, label }: { on: boolean; onClick: () => void; icon: ReactNode; label: string }) {
+  return (
+    <button onClick={onClick} title={label}
+      className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border ${on ? 'bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] text-[rgb(var(--fg-muted))]'}`}>
+      {icon} {label}
+    </button>
+  )
+}
+
+// Canvas grande: una pagina, con modifica libera della foto (drag = sposta, rotella/zoom = scala),
+// griglia stile Photoshop, guide margini e abbondanza.
+function PageStage(props: {
+  page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean
+  aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; activeSlot: number | null
+  onSlot: (s: number | null) => void; onDropMedia: (s: number, id: string) => void
+  onClearSlot: (s: number) => void; onCell: (s: number, partial: Partial<Cell>) => void
 }) {
-  const { page, index, aspect, formatKey, bleed, aspects, active, activeSlot, mediaById, thumb, onActivate, onSlot, onDropMedia, onClearSlot, onTemplate, onCell, onDelete, onAdd, onMove } = props
-  const frames = framesForPage(page)
-  const moment = getMoment(page.moment)
-  const alts = templatesFor(Math.max(1, page.mediaIds.length))
+  const { page, formatKey, bleed, gridOn, marginsOn, aspects, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell } = props
   const fmt = getFormat(formatKey)
+  const aspect = fmt.w / fmt.h
+  const frames = framesForPage(page)
   const drag = useRef<{ slot: number; x: number; y: number; cell: Cell } | null>(null)
+  const mx = (MARGIN_MM / fmt.w) * 100, my = (MARGIN_MM / fmt.h) * 100
 
   function startPan(e: React.PointerEvent, i: number, cell: Cell) {
-    e.stopPropagation()
-    drag.current = { slot: i, x: e.clientX, y: e.clientY, cell }
+    e.stopPropagation(); drag.current = { slot: i, x: e.clientX, y: e.clientY, cell }
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   function movePan(e: React.PointerEvent) {
@@ -363,70 +401,137 @@ function PageCard(props: {
     const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const dx = (e.clientX - d.x) / Math.max(1, box.width)
     const dy = (e.clientY - d.y) / Math.max(1, box.height)
-    // trascino a destra → mostro più sinistra → focale diminuisce
     onCell(d.slot, { fx: clampN(d.cell.fx - dx * 0.9), fy: clampN(d.cell.fy - dy * 0.9) })
   }
   function endPan() { drag.current = null }
 
   return (
-    <Card className={`p-2 ${active ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`} onClick={onActivate}>
-      <div className="flex items-center justify-between mb-1.5 text-[11px]">
-        <span className="text-[rgb(var(--fg-muted))]">Pag. {index + 1}{moment ? <span className={`ml-1 px-1.5 py-0.5 rounded ${moment.color}`}>{moment.label}</span> : ''}</span>
-        <div className="flex items-center gap-0.5">
-          <button title="Sposta indietro" className="p-1 rounded hover:bg-[rgb(var(--bg-sunken))]" onClick={(e) => { e.stopPropagation(); onMove(-1) }}><ChevronLeft size={13} /></button>
-          <button title="Sposta avanti" className="p-1 rounded hover:bg-[rgb(var(--bg-sunken))]" onClick={(e) => { e.stopPropagation(); onMove(1) }}><ChevronRight size={13} /></button>
-          <button title="Aggiungi pagina dopo" className="p-1 rounded hover:bg-[rgb(var(--bg-sunken))]" onClick={(e) => { e.stopPropagation(); onAdd() }}><Plus size={13} /></button>
-          <button title="Elimina pagina" className="p-1 rounded hover:bg-rose-50 text-rose-500" onClick={(e) => { e.stopPropagation(); onDelete() }}><Trash2 size={13} /></button>
+    <div className="relative bg-white shadow-[var(--shadow-lift)] h-full max-h-full max-w-full" style={{ aspectRatio: String(aspect) }} onClick={() => onSlot(null)}>
+      {frames.map((fr, i) => {
+        const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined
+        const sel = activeSlot === i
+        const cell = page.cells?.[i] ?? DEFAULT_CELL
+        const slotAsp = slotAspectOf(fr, fmt.w, fmt.h)
+        const imgAsp = (m && aspects[m.id]) ? aspects[m.id]! : 1.5
+        const bg = m ? cellBackground(imgAsp, slotAsp, cell) : null
+        return (
+          <div key={i}
+            onClick={(e) => { e.stopPropagation(); onSlot(i) }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(i, mid) }}
+            onWheel={(e) => { if (!m) return; e.preventDefault(); const nz = Math.min(4, Math.max(1, +(cell.z + (e.deltaY < 0 ? 0.12 : -0.12)).toFixed(2))); onCell(i, { z: nz }) }}
+            className={`absolute overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-10' : 'outline outline-1 outline-black/5'}`}
+            style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, padding: '1px' }}>
+            {m && bg ? (
+              <div className="relative w-full h-full">
+                <div onPointerDown={(e) => startPan(e, i, cell)} onPointerMove={movePan} onPointerUp={endPan} onPointerLeave={endPan}
+                  className="w-full h-full touch-none cursor-move" style={{ backgroundImage: `url(${thumb(m)})`, ...bg }} />
+                {sel && (
+                  <>
+                    <span className="absolute -top-px -left-px h-2 w-2 border-t-2 border-l-2 border-[rgb(var(--gold-500))]" />
+                    <span className="absolute -top-px -right-px h-2 w-2 border-t-2 border-r-2 border-[rgb(var(--gold-500))]" />
+                    <span className="absolute -bottom-px -left-px h-2 w-2 border-b-2 border-l-2 border-[rgb(var(--gold-500))]" />
+                    <span className="absolute -bottom-px -right-px h-2 w-2 border-b-2 border-r-2 border-[rgb(var(--gold-500))]" />
+                    <button title="Togli foto" onClick={(e) => { e.stopPropagation(); onClearSlot(i) }} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/55 text-white flex items-center justify-center"><Trash2 size={12} /></button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="w-full h-full bg-[rgb(var(--bg-sunken))] flex items-center justify-center text-[11px] text-[rgb(var(--fg-subtle))]">trascina una foto</div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* guide margini */}
+      {marginsOn && <div className="absolute border border-dashed border-sky-400/70 pointer-events-none" style={{ left: `${mx}%`, right: `${mx}%`, top: `${my}%`, bottom: `${my}%` }} title="Area di sicurezza (margini)" />}
+      {/* abbondanza: bordo di taglio */}
+      {bleed && <div className="absolute inset-0 border-2 border-rose-400/70 pointer-events-none" title="Linea di taglio (abbondanza attiva)" />}
+      {/* griglia stile Photoshop: terzi + reticolo fine */}
+      {gridOn && (
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgba(0,0,0,.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.08) 1px, transparent 1px)', backgroundSize: '12.5% 12.5%' }} />
+          <div className="absolute top-0 bottom-0 border-l border-[rgba(0,120,255,.5)]" style={{ left: '33.33%' }} />
+          <div className="absolute top-0 bottom-0 border-l border-[rgba(0,120,255,.5)]" style={{ left: '66.66%' }} />
+          <div className="absolute left-0 right-0 border-t border-[rgba(0,120,255,.5)]" style={{ top: '33.33%' }} />
+          <div className="absolute left-0 right-0 border-t border-[rgba(0,120,255,.5)]" style={{ top: '66.66%' }} />
         </div>
-      </div>
-      <div className="relative w-full bg-white border border-[rgb(var(--border))]" style={{ aspectRatio: String(aspect) }}>
-        {frames.map((fr, i) => {
-          const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined
-          const sel = activeSlot === i
-          const cell = page.cells?.[i] ?? DEFAULT_CELL
-          const slotAsp = slotAspectOf(fr, fmt.w, fmt.h)
-          const imgAsp = (m && aspects[m.id]) ? aspects[m.id]! : 1.5
-          const bg = m ? cellBackground(imgAsp, slotAsp, cell) : null
-          return (
-            <div key={i}
-              onClick={(e) => { e.stopPropagation(); onSlot(i) }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(i, mid) }}
-              className={`absolute overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-10' : ''}`}
-              style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, padding: '2px' }}>
-              {m && bg ? (
-                <div className="relative w-full h-full">
-                  <div
-                    onPointerDown={(e) => startPan(e, i, cell)} onPointerMove={movePan} onPointerUp={endPan} onPointerLeave={endPan}
-                    className="w-full h-full touch-none cursor-move"
-                    style={{ backgroundImage: `url(${thumb(m)})`, ...bg }} />
-                  {sel && (
-                    <div className="absolute bottom-0.5 left-0.5 right-0.5 flex items-center justify-center gap-1 bg-black/55 rounded px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
-                      <button title="Riduci" className="text-white p-0.5" onClick={() => onCell(i, { z: Math.max(1, +(cell.z - 0.2).toFixed(2)) })}><ZoomOut size={12} /></button>
-                      <span className="text-white text-[9px] w-7 text-center">{Math.round(cell.z * 100)}%</span>
-                      <button title="Ingrandisci" className="text-white p-0.5" onClick={() => onCell(i, { z: Math.min(4, +(cell.z + 0.2).toFixed(2)) })}><ZoomIn size={12} /></button>
-                      <button title="Reimposta crop" className="text-white p-0.5" onClick={() => onCell(i, { z: 1, fx: 0.5, fy: 0.5 })}><Maximize size={12} /></button>
-                    </div>
-                  )}
-                  <button title="Togli foto" onClick={(e) => { e.stopPropagation(); onClearSlot(i) }} className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/50 text-white flex items-center justify-center"><Trash2 size={11} /></button>
-                </div>
-              ) : (
-                <div className="w-full h-full bg-[rgb(var(--bg-sunken))] flex items-center justify-center text-[10px] text-[rgb(var(--fg-subtle))]">vuoto</div>
-              )}
-            </div>
-          )
-        })}
-        {/* guida taglio quando l'abbondanza è attiva */}
-        {bleed && <div className="absolute inset-[6%] border border-dashed border-rose-400/70 pointer-events-none" title="Linea di taglio (abbondanza attiva)" />}
-      </div>
-      <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-        <Crop size={11} className="text-[rgb(var(--fg-subtle))]" />
-        <span className="text-[10px] text-[rgb(var(--fg-subtle))]">Layout:</span>
-        {alts.map((t) => <button key={t} onClick={(e) => { e.stopPropagation(); onTemplate(t) }} className={`text-[10px] px-1.5 py-0.5 rounded border ${page.template === t ? 'bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}>{TPL_LABEL[t]}</button>)}
-        <span className="text-[10px] text-[rgb(var(--fg-subtle))] ml-auto">{page.mediaIds.length}/{MAX_PER_PAGE} foto</span>
-      </div>
-    </Card>
+      )}
+    </div>
   )
 }
 
-function clampN(v: number) { return Math.min(1, Math.max(0, v)) }
+// Miniatura nella filmstrip in basso.
+function PageThumb(props: {
+  page: AlbumPage; index: number; aspect: number; active: boolean; formatKey: string
+  aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
+  onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void
+}) {
+  const { page, index, aspect, active, formatKey, aspects, mediaById, thumb, onSelect, onMove, onDelete } = props
+  const fmt = getFormat(formatKey)
+  const frames = framesForPage(page)
+  return (
+    <div className="shrink-0 group relative">
+      <button onClick={onSelect} className={`relative block h-16 bg-white border ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ aspectRatio: String(aspect) }}>
+        {frames.map((fr, i) => {
+          const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined
+          const cell = page.cells?.[i] ?? DEFAULT_CELL
+          const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), cell) : null
+          return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} />
+        })}
+      </button>
+      <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">{index + 1}</span>
+      <div className="absolute inset-x-0 -bottom-1 hidden group-hover:flex items-center justify-center gap-0.5">
+        <button title="Indietro" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, -1)}><ChevronLeft size={10} /></button>
+        <button title="Elimina" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center text-rose-500" onClick={onDelete}><Trash2 size={9} /></button>
+        <button title="Avanti" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, 1)}><ChevronRight size={10} /></button>
+      </div>
+    </div>
+  )
+}
+
+// Pannello proprietà a destra: foto selezionata (crop/zoom) + strumenti pagina.
+function PropsPanel(props: {
+  page: AlbumPage; activeSlot: number | null; mediaById: Map<string, M>
+  onTemplate: (t: TemplateKey) => void; onCell: (s: number, partial: Partial<Cell>) => void
+  onClearSlot: (s: number) => void; onAddPage: () => void; onDelPage: () => void
+}) {
+  const { page, activeSlot, mediaById, onTemplate, onCell, onClearSlot, onAddPage, onDelPage } = props
+  const moment = getMoment(page.moment)
+  const alts = templatesFor(Math.max(1, page.mediaIds.length))
+  const slotMediaId = activeSlot != null ? page.mediaIds[activeSlot] : undefined
+  const slotMedia = slotMediaId ? mediaById.get(slotMediaId) : undefined
+  const cell = activeSlot != null ? (page.cells?.[activeSlot] ?? DEFAULT_CELL) : DEFAULT_CELL
+  return (
+    <div className="space-y-4 text-sm">
+      {slotMedia ? (
+        <div>
+          <p className="font-medium flex items-center gap-1.5 mb-2"><Crop size={14} /> Foto</p>
+          <img src={slotMedia.thumbnail_link ?? ''} alt="" className="w-full rounded-lg mb-2 object-cover max-h-28" />
+          <label className="text-xs text-[rgb(var(--fg-muted))]">Zoom <strong>{Math.round(cell.z * 100)}%</strong></label>
+          <input type="range" min={100} max={400} value={Math.round(cell.z * 100)} onChange={(e) => onCell(activeSlot!, { z: +e.target.value / 100 })} className="w-full accent-[rgb(var(--gold-600))]" />
+          <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Trascina la foto nello slot per spostarla, o usa la rotella per lo zoom.</p>
+          <div className="flex gap-1.5 mt-2">
+            <Button variant="outline" size="sm" onClick={() => onCell(activeSlot!, { z: 1, fx: 0.5, fy: 0.5 })}><Maximize size={13} /> Reimposta</Button>
+            <Button variant="outline" size="sm" onClick={() => onClearSlot(activeSlot!)}><Trash2 size={13} /> Togli</Button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-[rgb(var(--fg-subtle))]">Seleziona una foto per ritagliarla e modificarla liberamente.</p>
+      )}
+
+      <div className="border-t border-[rgb(var(--border))] pt-3">
+        <p className="font-medium mb-2 flex items-center gap-1.5"><LayoutGrid size={14} /> Pagina {moment && <span className={`text-[10px] px-1.5 py-0.5 rounded ${moment.color}`}>{moment.label}</span>}</p>
+        <p className="text-xs text-[rgb(var(--fg-muted))] mb-1">Disposizione</p>
+        <div className="flex flex-wrap gap-1">
+          {alts.map((t) => <button key={t} onClick={() => onTemplate(t)} className={`text-[11px] px-2 py-1 rounded border ${page.template === t ? 'bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}>{TPL_LABEL[t]}</button>)}
+        </div>
+        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">{page.mediaIds.length}/{MAX_PER_PAGE} foto in pagina</p>
+        <div className="flex gap-1.5 mt-3">
+          <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
+          <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
