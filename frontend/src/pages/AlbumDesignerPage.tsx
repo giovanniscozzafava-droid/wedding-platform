@@ -8,13 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect } from '@/lib/albumFormats'
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
-import { autoLayout, framesForPage, newPage, templatesFor, capacity, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
+import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, capacity, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
 import { cellBackground, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, removeFreeEl, updateFreeEl, bringToFront, type FreeEl, type Corner } from '@/lib/albumFree'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
-import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders } from 'lucide-react'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -60,6 +60,10 @@ export default function AlbumDesignerPage() {
 
   const role = albumRoleOf(profile?.role)
   const action = primaryAction(role, status as never)
+  const lite = role === 'couple' // il cliente vede la versione light (non decide la struttura)
+  const [exportOpen, setExportOpen] = useState(false)   // dialogo qualità di stampa
+  const [exportDpi, setExportDpi] = useState(300)
+  const [cutMarks, setCutMarks] = useState(false)
 
   const mediaById = useMemo(() => new Map(media.map((m) => [m.id, m])), [media])
   const photos = useMemo(() => media.filter((m) => m.media_type === 'PHOTO'), [media])
@@ -156,6 +160,12 @@ export default function AlbumDesignerPage() {
   function clearSlot(pageId: string, slot: number) { updatePage(pageId, (p) => clearSlotInPage(p, slot)) }
   function updateCell(pageId: string, slot: number, partial: Partial<Cell>) { updatePage(pageId, (p) => setCell(p, slot, partial)) }
   function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => ({ ...setPageTemplate(p, t), mode: 'template' as const })) }
+  function cycleLayout(pageId: string) { updatePage(pageId, (p) => ({ ...setPageTemplate(p, cycleTemplate(p.template, p.mediaIds.length)), mode: 'template' as const })) }
+  function duplicatePage(pageId: string) {
+    const src = pages.find((p) => p.id === pageId); if (!src) return
+    const copy: AlbumPage = { ...src, id: newPage().id, cells: src.cells ? src.cells.map((c) => (c ? { ...c } : c)) : undefined, elements: src.elements ? src.elements.map((e) => ({ ...e, id: newPage().id, cell: { ...e.cell } })) : undefined }
+    setPages((a) => insertPageAfter(a, pageId, () => copy)); setCurrentPageId(copy.id)
+  }
   // ── elementi liberi (stile Canva) ──────────────────────────────────────────
   function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)) })) }
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
@@ -220,8 +230,8 @@ export default function AlbumDesignerPage() {
       }
       const base = (title || 'album').toLowerCase().replace(/\s+/g, '-')
       // con l'originale Drive possiamo stampare in alta: 300 dpi per le pagine, 220 per JPG/spread
-      if (kind === 'jpg') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-jpg.zip`, dpi: 220 })
-      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed, dpi: kind === 'spread' ? 150 : 300 })
+      if (kind === 'jpg') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-jpg.zip`, dpi: Math.min(exportDpi, 240) })
+      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed, dpi: kind === 'spread' ? Math.min(exportDpi, 200) : exportDpi, cutMarks: kind === 'pdf' && cutMarks && bleed })
       toast.success('Export pronto')
     } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false) }
   }
@@ -243,9 +253,9 @@ export default function AlbumDesignerPage() {
             <p className="text-[11px] text-[rgb(var(--fg-muted))]">{isCouple ? 'Costruisci la tua bozza, poi inviala al fotografo' : 'Bozza album, rifinibile pagina per pagina'} · {status}</p>
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <select value={format} onChange={(e) => setFormat(e.target.value)} className="text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5">
+            {!lite && <select value={format} onChange={(e) => setFormat(e.target.value)} className="text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5">
               {ALBUM_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>
+            </select>}
             <div className="hidden sm:flex rounded-lg border border-[rgb(var(--border))] overflow-hidden">
               <button onClick={() => setStep('select')} className={`px-3 py-1.5 text-xs ${step === 'select' ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] font-medium' : ''}`}>1 · Selezione</button>
               <button onClick={() => setStep('design')} className={`px-3 py-1.5 text-xs ${step === 'design' ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] font-medium' : ''}`}>2 · Impagina</button>
@@ -266,18 +276,17 @@ export default function AlbumDesignerPage() {
         <>
           {/* barra strumenti impaginatore */}
           <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
-            <Button variant="gold" size="sm" disabled={busy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)}><Wand2 size={14} /> Auto-impagina</Button>
+            {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
+            {!lite && <Button variant="gold" size="sm" disabled={busy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)}><Wand2 size={14} /> Auto-impagina</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
             <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
             <ToolToggle on={gridOn} onClick={() => setGridOn((v) => !v)} icon={<Grid3x3 size={14} />} label="Griglia" />
             <ToolToggle on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
-            <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />
-            {currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => currentPage.mode === 'free' ? setTemplate(currentPage.id, currentPage.template) : convertToFree(currentPage.id)} icon={<Move size={14} />} label="Libera" />}
+            {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
+            {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => currentPage.mode === 'free' ? setTemplate(currentPage.id, currentPage.template) : convertToFree(currentPage.id)} icon={<Move size={14} />} label="Libera" />}
             <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
-            <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('pdf')}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF</Button>
-            <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('spread')}><LayoutGrid size={14} /> Spread</Button>
-            <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('jpg')}><FileImage size={14} /> JPG</Button>
+            {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(action.next)}>{action.label}</Button>
             <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{statusLabel(status)}</span></span>
@@ -332,12 +341,12 @@ export default function AlbumDesignerPage() {
               {/* filmstrip pagine */}
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-2 overflow-x-auto">
                 {pages.map((p, idx) => (
-                  <PageThumb key={p.id} page={p} index={idx} aspect={asp} active={p.id === currentPageId}
+                  <PageThumb key={p.id} page={p} index={idx} aspect={asp} active={p.id === currentPageId} lite={lite}
                     mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                     onSelect={() => { setCurrentPageId(p.id); setActiveSlot(null) }}
                     onMove={(d) => movePage(p.id, d)} onDelete={() => delPage(p.id)} />
                 ))}
-                <button onClick={() => addPageAfter(currentPageId)} className="shrink-0 h-16 w-16 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center" title="Aggiungi pagina"><Plus size={16} /></button>
+                {!lite && <button onClick={() => addPageAfter(currentPageId)} className="shrink-0 h-16 w-16 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center" title="Aggiungi pagina"><Plus size={16} /></button>}
               </div>
             </main>
 
@@ -345,20 +354,20 @@ export default function AlbumDesignerPage() {
             <aside className="w-56 shrink-0 border-l border-[rgb(var(--border))] overflow-auto p-3">
               {currentPage && (currentPage.mode === 'free' ? (
                 <FreePanel
-                  page={currentPage} selEl={selEl}
+                  page={currentPage} selEl={selEl} lite={lite}
                   onBg={(c) => setPageBg(currentPage.id, c)}
                   onElUpdate={(id, patch) => freeUpdate(currentPage.id, id, patch)}
                   onElCrop={(id) => setCropElId(id)} onElRemove={(id) => freeRemove(currentPage.id, id)}
-                  onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)}
+                  onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
                 />
               ) : (
                 <PropsPanel
-                  page={currentPage} activeSlot={activeSlot} mediaById={mediaById} formatKey={format} aspects={aspects}
-                  onTemplate={(t) => setTemplate(currentPage.id, t)}
+                  page={currentPage} activeSlot={activeSlot} mediaById={mediaById} formatKey={format} aspects={aspects} lite={lite}
+                  onTemplate={(t) => setTemplate(currentPage.id, t)} onCycle={() => cycleLayout(currentPage.id)}
                   onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
                   onClearSlot={(s) => { clearSlot(currentPage.id, s); setActiveSlot(null) }}
-                  onCrop={(s) => setCropFor(s)}
-                  onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)}
+                  onCrop={(s) => setCropFor(s)} onFree={() => convertToFree(currentPage.id)}
+                  onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
                 />
               ))}
             </aside>
@@ -425,6 +434,37 @@ export default function AlbumDesignerPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Dialogo QUALITÀ DI STAMPA: DPI + abbondanza + crocini di taglio */}
+          {exportOpen && (
+            <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={() => setExportOpen(false)}>
+              <div className="bg-[rgb(var(--bg))] w-full max-w-md rounded-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))]">
+                  <h3 className="font-medium flex items-center gap-2"><Sliders size={16} /> Qualità di stampa</h3>
+                  <button onClick={() => setExportOpen(false)} className="p-1 rounded hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div>
+                    <p className="text-xs font-medium mb-1.5">Risoluzione (DPI)</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[{ d: 150, l: 'Web', s: 'leggero' }, { d: 240, l: 'Buona', s: 'foto-libro' }, { d: 300, l: 'Stampa', s: 'professionale' }].map((o) => (
+                        <button key={o.d} onClick={() => setExportDpi(o.d)} className={`rounded-lg border p-2 text-center ${exportDpi === o.d ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>
+                          <p className="text-sm font-semibold">{o.d}</p><p className="text-[10px] text-[rgb(var(--fg-muted))]">{o.l} · {o.s}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none"><input type="checkbox" checked={bleed} onChange={(e) => setBleed(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Abbondanza <span className="text-xs text-[rgb(var(--fg-muted))]">(3 mm a filo bordo, per il taglio)</span></label>
+                  <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${!bleed ? 'opacity-40' : ''}`}><input type="checkbox" disabled={!bleed} checked={cutMarks} onChange={(e) => setCutMarks(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Crocini di taglio <span className="text-xs text-[rgb(var(--fg-muted))]">(segni dove tagliare)</span></label>
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Le foto su Drive vengono scaricate in originale ad alta risoluzione durante l'export.</p>
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    <Button variant="gold" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('pdf') }}><FileText size={14} /> PDF pagine</Button>
+                    <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('spread') }}><LayoutGrid size={14} /> Spread</Button>
+                    <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('jpg') }}><FileImage size={14} /> JPG</Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -497,7 +537,7 @@ function SelectStep(props: {
 }
 
 // ── elementi del workspace ───────────────────────────────────────────────────
-const TPL_LABEL: Record<TemplateKey, string> = { '1': '1', '2h': '2 │', '2v': '2 ─', '3l': '3 ◧', '3t': '3 ⊟', '4': '4 ⊞', grid: 'griglia' }
+const TPL_LABEL: Record<TemplateKey, string> = { '1': '1', '2h': '2 │', '2v': '2 ─', '3l': '3 ◧', '3t': '3 ⊟', '3r': '3 ◨', '4': '4 ⊞', '4l': '4 ◧', grid: 'griglia' }
 function clampN(v: number) { return Math.min(1, Math.max(0, v)) }
 
 function ToolToggle({ on, onClick, icon, label }: { on: boolean; onClick: () => void; icon: ReactNode; label: string }) {
@@ -695,11 +735,11 @@ function FreeStage(props: {
 
 // Miniatura nella filmstrip in basso.
 function PageThumb(props: {
-  page: AlbumPage; index: number; aspect: number; active: boolean; formatKey: string
+  page: AlbumPage; index: number; aspect: number; active: boolean; formatKey: string; lite?: boolean
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
   onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void
 }) {
-  const { page, index, aspect, active, formatKey, aspects, mediaById, thumb, onSelect, onMove, onDelete } = props
+  const { page, index, aspect, active, formatKey, lite, aspects, mediaById, thumb, onSelect, onMove, onDelete } = props
   const fmt = getFormat(formatKey)
   const frames = framesForPage(page)
   return (
@@ -719,7 +759,7 @@ function PageThumb(props: {
             })}
       </button>
       <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">{index + 1}</span>
-      <div className="absolute inset-x-0 -bottom-1 hidden group-hover:flex items-center justify-center gap-0.5">
+      <div className={`absolute inset-x-0 -bottom-1 ${lite ? 'hidden' : 'hidden group-hover:flex'} items-center justify-center gap-0.5`}>
         <button title="Indietro" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, -1)}><ChevronLeft size={10} /></button>
         <button title="Elimina" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center text-rose-500" onClick={onDelete}><Trash2 size={9} /></button>
         <button title="Avanti" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, 1)}><ChevronRight size={10} /></button>
@@ -741,11 +781,12 @@ function LayoutDiagram({ t, active }: { t: TemplateKey; active: boolean }) {
 }
 
 function PropsPanel(props: {
-  page: AlbumPage; activeSlot: number | null; mediaById: Map<string, M>; formatKey: string; aspects: Record<string, number>
-  onTemplate: (t: TemplateKey) => void; onCell: (s: number, partial: Partial<Cell>) => void
-  onClearSlot: (s: number) => void; onCrop: (s: number) => void; onAddPage: () => void; onDelPage: () => void
+  page: AlbumPage; activeSlot: number | null; mediaById: Map<string, M>; formatKey: string; aspects: Record<string, number>; lite?: boolean
+  onTemplate: (t: TemplateKey) => void; onCycle: () => void; onCell: (s: number, partial: Partial<Cell>) => void
+  onClearSlot: (s: number) => void; onCrop: (s: number) => void; onFree: () => void
+  onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void
 }) {
-  const { page, activeSlot, mediaById, onTemplate, onCell, onClearSlot, onCrop, onAddPage, onDelPage } = props
+  const { page, activeSlot, mediaById, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate } = props
   const moment = getMoment(page.moment)
   const alts = templatesFor(Math.max(1, page.mediaIds.length))
   const slotMediaId = activeSlot != null ? page.mediaIds[activeSlot] : undefined
@@ -783,11 +824,16 @@ function PropsPanel(props: {
         <div className="flex flex-wrap gap-1.5">
           {alts.map((t) => <button key={t} title={TPL_LABEL[t]} onClick={() => onTemplate(t)}><LayoutDiagram t={t} active={page.template === t} /></button>)}
         </div>
+        <Button variant="outline" size="sm" className="w-full mt-2" onClick={onCycle}><Shuffle size={13} /> Altro layout</Button>
+        {!lite && <Button variant="outline" size="sm" className="w-full mt-1.5" onClick={onFree}><Move size={13} /> Modifica libera (Canva)</Button>}
         <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">{page.mediaIds.length}/{MAX_PER_PAGE} foto in pagina</p>
-        <div className="flex gap-1.5 mt-3">
-          <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
-          <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
-        </div>
+        {!lite && (
+          <div className="flex gap-1.5 mt-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
+            <Button variant="outline" size="sm" onClick={onDuplicate}><Copy size={13} /> Duplica</Button>
+            <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -795,12 +841,12 @@ function PropsPanel(props: {
 
 // Pannello proprietà in modalità LIBERA (Canva): sfondo pagina + trasformazioni elemento.
 function FreePanel(props: {
-  page: AlbumPage; selEl: string | null
+  page: AlbumPage; selEl: string | null; lite?: boolean
   onBg: (c: string) => void; onElUpdate: (id: string, patch: Partial<FreeEl>) => void
   onElCrop: (id: string) => void; onElRemove: (id: string) => void
-  onAddPage: () => void; onDelPage: () => void
+  onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void
 }) {
-  const { page, selEl, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -842,10 +888,13 @@ function FreePanel(props: {
         <p className="text-xs text-[rgb(var(--fg-subtle))] border-t border-[rgb(var(--border))] pt-3">Clicca una foto per spostarla (compaiono le guide), ridimensionarla, ruotarla. Doppio click = ritaglia.</p>
       )}
 
-      <div className="border-t border-[rgb(var(--border))] pt-3 flex gap-1.5">
-        <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
-        <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
-      </div>
+      {!lite && (
+        <div className="border-t border-[rgb(var(--border))] pt-3 flex gap-1.5 flex-wrap">
+          <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
+          <Button variant="outline" size="sm" onClick={onDuplicate}><Copy size={13} /> Duplica</Button>
+          <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
+        </div>
+      )}
     </div>
   )
 }

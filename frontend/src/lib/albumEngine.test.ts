@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { autoLayout, framesForPage, gridFrames, chooseTemplate, templatesFor, capacity, newPage, TEMPLATES } from './albumEngine'
+import { autoLayout, framesForPage, gridFrames, chooseTemplate, templatesFor, cycleTemplate, capacity, newPage, TEMPLATES } from './albumEngine'
 
 const approx = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) <= eps
 
@@ -12,10 +12,17 @@ describe('template & capacità', () => {
     expect(chooseTemplate(4, 1)).toBe('4')
     expect(chooseTemplate(6, 1)).toBe('grid')
   })
-  it('templatesFor include grid per >1', () => {
+  it('templatesFor include grid per >1 + varianti SmartAlbums', () => {
     expect(templatesFor(2)).toContain('grid')
-    expect(templatesFor(4)).toEqual(['4', 'grid'])
+    expect(templatesFor(3)).toEqual(['3l', '3t', '3r', 'grid'])
+    expect(templatesFor(4)).toEqual(['4', '4l', 'grid'])
     expect(templatesFor(7)).toEqual(['grid'])
+  })
+  it('cycleTemplate gira tra le alternative (Altro layout)', () => {
+    expect(cycleTemplate('4', 4)).toBe('4l')
+    expect(cycleTemplate('4l', 4)).toBe('grid')
+    expect(cycleTemplate('grid', 4)).toBe('4')
+    expect(cycleTemplate('1', 1)).toBe('1')
   })
   it('capacity dei template curati = numero slot; grid = 0 (dinamico)', () => {
     expect(capacity('4')).toBe(4)

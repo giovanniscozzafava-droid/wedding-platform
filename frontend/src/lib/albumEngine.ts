@@ -17,7 +17,7 @@ export type AlbumLayout = { pages: AlbumPage[] }
 export type MediaLite = { id: string; moment: string | null }
 
 export const MAX_PER_PAGE = 12
-export type TemplateKey = '1' | '2h' | '2v' | '3l' | '3t' | '4' | 'grid'
+export type TemplateKey = '1' | '2h' | '2v' | '3l' | '3t' | '3r' | '4' | '4l' | 'grid'
 
 // Frame normalizzati per ogni template (il gutter lo applica il renderer).
 export const TEMPLATES: Record<Exclude<TemplateKey, 'grid'>, Frame[]> = {
@@ -26,7 +26,9 @@ export const TEMPLATES: Record<Exclude<TemplateKey, 'grid'>, Frame[]> = {
   '2v': [{ x: 0, y: 0, w: 1, h: 0.5 }, { x: 0, y: 0.5, w: 1, h: 0.5 }],
   '3l': [{ x: 0, y: 0, w: 0.6, h: 1 }, { x: 0.6, y: 0, w: 0.4, h: 0.5 }, { x: 0.6, y: 0.5, w: 0.4, h: 0.5 }],
   '3t': [{ x: 0, y: 0, w: 1, h: 0.6 }, { x: 0, y: 0.6, w: 0.5, h: 0.4 }, { x: 0.5, y: 0.6, w: 0.5, h: 0.4 }],
+  '3r': [{ x: 0.4, y: 0, w: 0.6, h: 1 }, { x: 0, y: 0, w: 0.4, h: 0.5 }, { x: 0, y: 0.5, w: 0.4, h: 0.5 }],
   '4':  [{ x: 0, y: 0, w: 0.5, h: 0.5 }, { x: 0.5, y: 0, w: 0.5, h: 0.5 }, { x: 0, y: 0.5, w: 0.5, h: 0.5 }, { x: 0.5, y: 0.5, w: 0.5, h: 0.5 }],
+  '4l': [{ x: 0, y: 0, w: 0.6, h: 1 }, { x: 0.6, y: 0, w: 0.4, h: 1 / 3 }, { x: 0.6, y: 1 / 3, w: 0.4, h: 1 / 3 }, { x: 0.6, y: 2 / 3, w: 0.4, h: 1 / 3 }],
 }
 
 export function capacity(t: TemplateKey): number {
@@ -46,9 +48,16 @@ export function chooseTemplate(count: number, aspect: number): TemplateKey {
 export function templatesFor(count: number): TemplateKey[] {
   if (count <= 1) return ['1']
   if (count === 2) return ['2h', '2v', 'grid']
-  if (count === 3) return ['3l', '3t', 'grid']
-  if (count === 4) return ['4', 'grid']
+  if (count === 3) return ['3l', '3t', '3r', 'grid']
+  if (count === 4) return ['4', '4l', 'grid']
   return ['grid']
+}
+
+// "Altro layout" (stile SmartAlbums): ciclo tra le disposizioni alternative.
+export function cycleTemplate(current: TemplateKey, count: number): TemplateKey {
+  const opts = templatesFor(count)
+  const i = opts.indexOf(current)
+  return opts[(i + 1) % opts.length]!
 }
 
 // Griglia bilanciata per N foto (ultima riga distesa a riempire la larghezza).

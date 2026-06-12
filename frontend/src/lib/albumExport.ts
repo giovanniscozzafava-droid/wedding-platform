@@ -93,8 +93,21 @@ async function renderPageInto(pdf: any, page: AlbumPage, fmtW: number, fmtH: num
 
 export type PdfMode = 'pages' | 'spreads'
 
-export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean } = {}) {
-  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false } = opts
+// crocini di taglio agli angoli del trim (pagina nominale dentro l'abbondanza)
+function drawCutMarks(pdf: any, ox: number, oy: number, pageW: number, pageH: number, b: number) {
+  const len = Math.min(6, b + 3) // mm
+  pdf.setDrawColor(0); pdf.setLineWidth(0.2)
+  const tx = ox + b, ty = oy + b, rx = ox + b + pageW, by = oy + b + pageH
+  // 4 angoli, due segmenti ciascuno (fuori dal trim)
+  const seg = (x1: number, y1: number, x2: number, y2: number) => pdf.line(x1, y1, x2, y2)
+  seg(tx - len, ty, tx, ty); seg(tx, ty - len, tx, ty)           // alto-sx
+  seg(rx, ty, rx + len, ty); seg(rx, ty - len, rx, ty)           // alto-dx
+  seg(tx - len, by, tx, by); seg(tx, by, tx, by + len)           // basso-sx
+  seg(rx, by, rx + len, by); seg(rx, by, rx, by + len)           // basso-dx
+}
+
+export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean } = {}) {
+  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false } = opts
   const f = getFormat(formatKey)
   const { default: jsPDF } = await import('jspdf')
 
@@ -118,6 +131,7 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
   for (let i = 0; i < pages.length; i++) {
     if (i > 0) pdf.addPage([box.w, box.h], box.w >= box.h ? 'landscape' : 'portrait')
     await renderPageInto(pdf, pages[i]!, f.w, f.h, 0, 0, resolve, dpi, b)
+    if (cutMarks && b > 0) drawCutMarks(pdf, 0, 0, f.w, f.h, b)
   }
   pdf.save(filename)
 }
