@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card'
 import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect } from '@/lib/albumFormats'
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
 import { autoLayout, framesForPage, newPage, templatesFor, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
-import { exportAlbumPdf, exportAlbumJpgZip } from '@/lib/albumExport'
+import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
 import { cellBackground, slotAspectOf, DEFAULT_CELL, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
@@ -152,10 +152,21 @@ export default function AlbumDesignerPage() {
     if (pages.length === 0) { toast.error('Nessuna pagina da esportare'); return }
     setExporting(true)
     try {
-      const resolve = (id: string) => { const m = mediaById.get(id); return m ? hiUrl(m) : '' }
+      // Alta risoluzione: chiediamo un "grant" e tiriamo l'ORIGINALE da Drive via proxy
+      // (in app si lavora a bassa qualità; in export si stampa in alta). Fallback ai thumbnail.
+      let grant: string | null = null
+      try { const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId }); grant = (data as string) ?? null } catch { grant = null }
+      const SB = import.meta.env.VITE_SUPABASE_URL
+      const AK = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const resolve = (id: string) => {
+        const m = mediaById.get(id); if (!m) return ''
+        if (grant && isDrive(m)) return hiResProxyUrl(SB, AK, grant, id)
+        return hiUrl(m)
+      }
       const base = (title || 'album').toLowerCase().replace(/\s+/g, '-')
-      if (kind === 'jpg') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-jpg.zip` })
-      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed })
+      // con l'originale Drive possiamo stampare in alta: 300 dpi per le pagine, 220 per JPG/spread
+      if (kind === 'jpg') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-jpg.zip`, dpi: 220 })
+      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed, dpi: kind === 'spread' ? 150 : 300 })
       toast.success('Export pronto')
     } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false) }
   }

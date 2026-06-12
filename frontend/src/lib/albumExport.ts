@@ -8,6 +8,11 @@ import { slotRect, sourceRect, pageBox, DEFAULT_CELL, MARGIN_MM, GUTTER_MM, BLEE
 
 export type UrlResolver = (mediaId: string) => string
 
+// URL del proxy edge che restituisce l'ORIGINALE Drive in alta risoluzione (autorizzato dal grant).
+export function hiResProxyUrl(supabaseUrl: string, anonKey: string, grant: string, mediaId: string): string {
+  return `${supabaseUrl}/functions/v1/album-image?t=${encodeURIComponent(grant)}&m=${encodeURIComponent(mediaId)}&apikey=${encodeURIComponent(anonKey)}`
+}
+
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
