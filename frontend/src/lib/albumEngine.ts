@@ -4,9 +4,15 @@
 import { pageAspect } from './albumFormats'
 import { momentOrder } from './albumMoments'
 import type { Cell } from './albumGeometry'
+import type { FreeEl } from './albumFree'
 
 export type Frame = { x: number; y: number; w: number; h: number } // normalizzati 0..1
-export type AlbumPage = { id: string; moment: string | null; template: TemplateKey; mediaIds: string[]; cells?: (Cell | null)[] }
+export type AlbumPage = {
+  id: string; moment: string | null; template: TemplateKey; mediaIds: string[]; cells?: (Cell | null)[]
+  mode?: 'template' | 'free'   // 'free' = elementi liberi stile Canva
+  bg?: string                  // colore di sfondo pagina
+  elements?: FreeEl[]          // elementi liberi (in mode 'free')
+}
 export type AlbumLayout = { pages: AlbumPage[] }
 export type MediaLite = { id: string; moment: string | null }
 

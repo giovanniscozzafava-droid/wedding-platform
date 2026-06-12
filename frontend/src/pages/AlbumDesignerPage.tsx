@@ -12,8 +12,9 @@ import { autoLayout, framesForPage, newPage, templatesFor, capacity, MAX_PER_PAG
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
 import { cellBackground, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
+import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, removeFreeEl, updateFreeEl, bringToFront, type FreeEl, type Corner } from '@/lib/albumFree'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
-import { Crop, Maximize, Grid3x3, Frame, Scissors } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square } from 'lucide-react'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -47,6 +48,8 @@ export default function AlbumDesignerPage() {
   const [gridOn, setGridOn] = useState(false)          // griglia stile Photoshop
   const [marginsOn, setMarginsOn] = useState(true)     // guide margini
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
+  const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero selezionato
+  const [cropElId, setCropElId] = useState<string | null>(null) // elemento libero in ritaglio
 
   const role = albumRoleOf(profile?.role)
   const action = primaryAction(role, status as never)
@@ -135,7 +138,13 @@ export default function AlbumDesignerPage() {
   function placeInto(pageId: string, slot: number | null, mediaId: string) { updatePage(pageId, (p) => placeInPage(p, slot, mediaId)) }
   function clearSlot(pageId: string, slot: number) { updatePage(pageId, (p) => clearSlotInPage(p, slot)) }
   function updateCell(pageId: string, slot: number, partial: Partial<Cell>) { updatePage(pageId, (p) => setCell(p, slot, partial)) }
-  function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => setPageTemplate(p, t)) }
+  function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => ({ ...setPageTemplate(p, t), mode: 'template' as const })) }
+  // ── elementi liberi (stile Canva) ──────────────────────────────────────────
+  function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)) })) }
+  function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
+  function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
+  function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null) }
+  function setPageBg(pageId: string, color: string) { updatePage(pageId, (p) => ({ ...p, bg: color })) }
   function delPage(id: string) { setPages((a) => removePage(a, id)); if (activePage === id) setActivePage(null) }
   function addPageAfter(id: string | null) {
     const np = newPage()
@@ -228,6 +237,7 @@ export default function AlbumDesignerPage() {
             <ToolToggle on={gridOn} onClick={() => setGridOn((v) => !v)} icon={<Grid3x3 size={14} />} label="Griglia" />
             <ToolToggle on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
             <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />
+            {currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => currentPage.mode === 'free' ? setTemplate(currentPage.id, currentPage.template) : convertToFree(currentPage.id)} icon={<Move size={14} />} label="Libera" />}
             <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
             <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('pdf')}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF</Button>
             <Button variant="outline" size="sm" disabled={exporting} onClick={() => void doExport('spread')}><LayoutGrid size={14} /> Spread</Button>
@@ -245,7 +255,7 @@ export default function AlbumDesignerPage() {
                 {trayMedia.map((m) => (
                   <button key={m.id}
                     draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
-                    onClick={() => { if (currentPageId) placeInto(currentPageId, activeSlot, m.id) }}
+                    onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
                     title={getMoment(m.album_moment)?.label ?? 'senza momento'}
                     className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'opacity-40' : ''} border-[rgb(var(--border))]`}>
                     <img src={thumbUrl(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -257,7 +267,15 @@ export default function AlbumDesignerPage() {
             {/* canvas + filmstrip */}
             <main className="flex-1 flex flex-col min-w-0">
               <div className="flex-1 min-h-0 flex items-center justify-center p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
-                {currentPage ? (
+                {currentPage ? (currentPage.mode === 'free' ? (
+                  <FreeStage
+                    page={currentPage} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn}
+                    aspects={aspects} mediaById={mediaById} thumb={thumbUrl} selEl={selEl}
+                    onSelect={setSelEl} onUpdateEl={(id, patch) => freeUpdate(currentPage.id, id, patch)}
+                    onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(currentPage.id, id)}
+                    onDropMedia={(id) => freeAdd(currentPage.id, id)}
+                  />
+                ) : (
                   <PageStage
                     page={currentPage} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn}
                     aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={activeSlot}
@@ -267,7 +285,7 @@ export default function AlbumDesignerPage() {
                     onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
                     onCrop={(s) => setCropFor(s)}
                   />
-                ) : (
+                )) : (
                   <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
                     Nessuna pagina. Premi <strong>Auto-impagina</strong> o aggiungi una pagina.
                     <div className="mt-3"><Button variant="outline" size="sm" onClick={() => addPageAfter(null)}><Plus size={14} /> Pagina vuota</Button></div>
@@ -288,7 +306,15 @@ export default function AlbumDesignerPage() {
 
             {/* pannello proprietà */}
             <aside className="w-56 shrink-0 border-l border-[rgb(var(--border))] overflow-auto p-3">
-              {currentPage && (
+              {currentPage && (currentPage.mode === 'free' ? (
+                <FreePanel
+                  page={currentPage} selEl={selEl}
+                  onBg={(c) => setPageBg(currentPage.id, c)}
+                  onElUpdate={(id, patch) => freeUpdate(currentPage.id, id, patch)}
+                  onElCrop={(id) => setCropElId(id)} onElRemove={(id) => freeRemove(currentPage.id, id)}
+                  onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)}
+                />
+              ) : (
                 <PropsPanel
                   page={currentPage} activeSlot={activeSlot} mediaById={mediaById} formatKey={format} aspects={aspects}
                   onTemplate={(t) => setTemplate(currentPage.id, t)}
@@ -297,7 +323,7 @@ export default function AlbumDesignerPage() {
                   onCrop={(s) => setCropFor(s)}
                   onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)}
                 />
-              )}
+              ))}
             </aside>
           </div>
 
@@ -313,6 +339,21 @@ export default function AlbumDesignerPage() {
                 cell={currentPage.cells?.[cropFor] ?? DEFAULT_CELL}
                 onApply={(c) => { updateCell(currentPage.id, cropFor, c); setCropFor(null) }}
                 onClose={() => setCropFor(null)}
+              />
+            )
+          })()}
+
+          {/* Ritaglio di un elemento libero */}
+          {currentPage && cropElId && (() => {
+            const el = (currentPage.elements ?? []).find((x) => x.id === cropElId)
+            const m = el ? mediaById.get(el.mediaId) : undefined
+            if (!el || !m) return null
+            return (
+              <CropModal
+                src={hiUrl(m)} imgAspect={aspects[m.id] ?? 1.5} slotAspect={(el.w * fmt.w) / (el.h * fmt.h)}
+                cell={el.cell}
+                onApply={(c) => { freeUpdate(currentPage.id, el.id, { cell: c }); setCropElId(null) }}
+                onClose={() => setCropElId(null)}
               />
             )
           })()}
@@ -483,6 +524,103 @@ function PageStage(props: {
   )
 }
 
+// Canvas LIBERO stile Canva: elementi che sposti/ridimensioni/ruoti con smart-guides.
+function FreeStage(props: {
+  page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean
+  aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; selEl: string | null
+  onSelect: (id: string | null) => void; onUpdateEl: (id: string, patch: Partial<FreeEl>) => void
+  onCrop: (id: string) => void; onRemove: (id: string) => void; onDropMedia: (id: string) => void
+}) {
+  const { page, formatKey, bleed, gridOn, marginsOn, aspects, mediaById, thumb, selEl, onSelect, onUpdateEl, onCrop, onRemove, onDropMedia } = props
+  const fmt = getFormat(formatKey)
+  const aspect = fmt.w / fmt.h
+  const mx = MARGIN_MM / fmt.w, my = MARGIN_MM / fmt.h
+  const boxRef = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl } | null>(null)
+  const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
+  const els = page.elements ?? []
+
+  function frac(e: React.PointerEvent) {
+    const r = boxRef.current!.getBoundingClientRect()
+    return { x: (e.clientX - r.left) / Math.max(1, r.width), y: (e.clientY - r.top) / Math.max(1, r.height) }
+  }
+  function down(e: React.PointerEvent, kind: 'move' | 'resize' | 'rotate', el: FreeEl, corner?: Corner) {
+    e.stopPropagation(); onSelect(el.id)
+    const f = frac(e); drag.current = { kind, id: el.id, corner, sx: f.x, sy: f.y, el }
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  function move(e: React.PointerEvent) {
+    const d = drag.current; if (!d) return
+    const f = frac(e)
+    if (d.kind === 'move') {
+      const nx = d.el.x + (f.x - d.sx), ny = d.el.y + (f.y - d.sy)
+      const moved = moveEl(d.el, nx, ny)
+      const snap = snapMove(moved, els.filter((x) => x.id !== d.id), mx, my)
+      onUpdateEl(d.id, { x: snap.x, y: snap.y }); setGuides({ v: snap.vGuides, h: snap.hGuides })
+    } else if (d.kind === 'resize' && d.corner) {
+      const r = resizeEl(d.el, d.corner, f.x, f.y); onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
+    } else if (d.kind === 'rotate') {
+      const cx = d.el.x + d.el.w / 2, cy = d.el.y + d.el.h / 2
+      const deg = (Math.atan2(f.y - cy, f.x - cx) * 180) / Math.PI + 90
+      onUpdateEl(d.id, { rot: snapAngle(deg) })
+    }
+  }
+  function up() { drag.current = null; setGuides({ v: [], h: [] }) }
+
+  return (
+    <div ref={boxRef} className="relative shadow-[var(--shadow-lift)] h-full max-h-full max-w-full overflow-hidden"
+      style={{ aspectRatio: String(aspect), background: page.bg ?? '#ffffff' }}
+      onPointerMove={move} onPointerUp={up} onPointerLeave={up}
+      onClick={() => onSelect(null)}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(mid) }}>
+      {els.map((el) => {
+        const m = mediaById.get(el.mediaId)
+        const sel = selEl === el.id
+        const elAsp = (el.w * fmt.w) / (el.h * fmt.h)
+        const imgAsp = (m && aspects[m.id]) ? aspects[m.id]! : 1.5
+        const bg = m ? cellBackground(imgAsp, elAsp, el.cell) : null
+        return (
+          <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : 1 }}>
+            <div
+              onPointerDown={(e) => down(e, 'move', el)}
+              onDoubleClick={(e) => { e.stopPropagation(); onCrop(el.id) }}
+              className={`w-full h-full touch-none cursor-move ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : ''}`}
+              style={{ ...(bg ?? {}), backgroundImage: m ? `url(${thumb(m)})` : undefined, backgroundColor: m ? undefined : 'rgba(0,0,0,.06)', boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, outlineColor: undefined, border: el.border ? `${Math.max(1, el.border.w)}px solid ${el.border.color}` : undefined }} />
+            {sel && (
+              <>
+                {(['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
+                  <div key={c} onPointerDown={(e) => down(e, 'resize', el, c)}
+                    className="absolute h-3 w-3 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none"
+                    style={{ left: c.includes('w') ? -6 : undefined, right: c.includes('e') ? -6 : undefined, top: c.includes('n') ? -6 : undefined, bottom: c.includes('s') ? -6 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />
+                ))}
+                <div onPointerDown={(e) => down(e, 'rotate', el)} className="absolute left-1/2 -top-6 -translate-x-1/2 h-4 w-4 bg-white border border-[rgb(var(--gold-500))] rounded-full touch-none cursor-grab flex items-center justify-center"><RotateCw size={9} /></div>
+                <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1" style={{ transform: `rotate(${-el.rot}deg)` }}>
+                  <button title="Ritaglia" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onCrop(el.id) }}><Crop size={12} /></button>
+                  <button title="Elimina" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onRemove(el.id) }}><Trash2 size={12} /></button>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })}
+
+      {/* smart guides */}
+      {guides.v.map((g, i) => <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-rose-500 pointer-events-none" style={{ left: `${g * 100}%` }} />)}
+      {guides.h.map((g, i) => <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-rose-500 pointer-events-none" style={{ top: `${g * 100}%` }} />)}
+      {/* margini / abbondanza / griglia (come nello stage template) */}
+      {marginsOn && <div className="absolute border border-dashed border-sky-400/70 pointer-events-none" style={{ left: `${mx * 100}%`, right: `${mx * 100}%`, top: `${my * 100}%`, bottom: `${my * 100}%` }} />}
+      {bleed && <div className="absolute inset-0 border-2 border-rose-400/70 pointer-events-none" />}
+      {gridOn && (
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgba(0,0,0,.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.08) 1px, transparent 1px)', backgroundSize: '12.5% 12.5%' }} />
+        </div>
+      )}
+      {els.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">Trascina o clicca le foto a sinistra per aggiungerle</div>}
+    </div>
+  )
+}
+
 // Miniatura nella filmstrip in basso.
 function PageThumb(props: {
   page: AlbumPage; index: number; aspect: number; active: boolean; formatKey: string
@@ -494,13 +632,19 @@ function PageThumb(props: {
   const frames = framesForPage(page)
   return (
     <div className="shrink-0 group relative">
-      <button onClick={onSelect} className={`relative block h-16 bg-white border ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ aspectRatio: String(aspect) }}>
-        {frames.map((fr, i) => {
-          const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined
-          const cell = page.cells?.[i] ?? DEFAULT_CELL
-          const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), cell) : null
-          return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} />
-        })}
+      <button onClick={onSelect} className={`relative block h-16 overflow-hidden border ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ aspectRatio: String(aspect), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
+        {page.mode === 'free'
+          ? (page.elements ?? []).map((el) => {
+              const m = mediaById.get(el.mediaId)
+              const bg = m ? cellBackground((aspects[m.id]) ?? 1.5, (el.w * fmt.w) / (el.h * fmt.h), el.cell) : null
+              return <div key={el.id} className="absolute bg-black/5" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} />
+            })
+          : frames.map((fr, i) => {
+              const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined
+              const cell = page.cells?.[i] ?? DEFAULT_CELL
+              const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), cell) : null
+              return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} />
+            })}
       </button>
       <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">{index + 1}</span>
       <div className="absolute inset-x-0 -bottom-1 hidden group-hover:flex items-center justify-center gap-0.5">
@@ -572,6 +716,63 @@ function PropsPanel(props: {
           <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
           <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Pannello proprietà in modalità LIBERA (Canva): sfondo pagina + trasformazioni elemento.
+function FreePanel(props: {
+  page: AlbumPage; selEl: string | null
+  onBg: (c: string) => void; onElUpdate: (id: string, patch: Partial<FreeEl>) => void
+  onElCrop: (id: string) => void; onElRemove: (id: string) => void
+  onAddPage: () => void; onDelPage: () => void
+}) {
+  const { page, selEl, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage } = props
+  const el = (page.elements ?? []).find((e) => e.id === selEl)
+  const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
+  return (
+    <div className="space-y-4 text-sm">
+      <div>
+        <p className="font-medium mb-2 flex items-center gap-1.5"><Square size={14} /> Sfondo pagina</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          {SWATCHES.map((c) => <button key={c} onClick={() => onBg(c)} title={c} className={`h-6 w-6 rounded-full border ${page.bg === c ? 'ring-2 ring-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />)}
+          <input type="color" value={page.bg ?? '#ffffff'} onChange={(e) => onBg(e.target.value)} className="h-7 w-7 rounded cursor-pointer" title="Colore personalizzato" />
+        </div>
+      </div>
+
+      {el ? (
+        <div className="border-t border-[rgb(var(--border))] pt-3 space-y-2">
+          <p className="font-medium flex items-center gap-1.5"><Move size={14} /> Foto</p>
+          <Button variant="gold" size="sm" className="w-full" onClick={() => onElCrop(el.id)}><Crop size={14} /> Ritaglia</Button>
+          <label className="text-xs text-[rgb(var(--fg-muted))] flex items-center gap-1"><RotateCw size={12} /> Rotazione <strong>{Math.round(el.rot)}°</strong></label>
+          <input type="range" min={0} max={360} value={Math.round(el.rot)} onChange={(e) => onElUpdate(el.id, { rot: +e.target.value })} className="w-full accent-[rgb(var(--gold-600))]" />
+          <div className="flex gap-1.5">
+            <button onClick={() => onElUpdate(el.id, { rot: 0 })} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))]">0°</button>
+            <button onClick={() => onElUpdate(el.id, { rot: 90 })} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))]">90°</button>
+            <button onClick={() => onElUpdate(el.id, { rot: (el.rot + 90) % 360 })} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))]">+90°</button>
+          </div>
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none mt-1">
+            <input type="checkbox" checked={!!el.border} onChange={(e) => onElUpdate(el.id, { border: e.target.checked ? { w: 2, color: '#ffffff' } : null })} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Bordo
+          </label>
+          {el.border && (
+            <div className="flex items-center gap-2 pl-6">
+              <input type="color" value={el.border.color} onChange={(e) => onElUpdate(el.id, { border: { w: el.border!.w, color: e.target.value } })} className="h-6 w-6 rounded cursor-pointer" />
+              <input type="range" min={1} max={12} value={el.border.w} onChange={(e) => onElUpdate(el.id, { border: { w: +e.target.value, color: el.border!.color } })} className="flex-1 accent-[rgb(var(--gold-600))]" />
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+            <input type="checkbox" checked={!!el.shadow} onChange={(e) => onElUpdate(el.id, { shadow: e.target.checked })} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Ombra
+          </label>
+          <Button variant="outline" size="sm" className="w-full text-rose-500 mt-1" onClick={() => onElRemove(el.id)}><Trash2 size={13} /> Rimuovi foto</Button>
+        </div>
+      ) : (
+        <p className="text-xs text-[rgb(var(--fg-subtle))] border-t border-[rgb(var(--border))] pt-3">Clicca una foto per spostarla (compaiono le guide), ridimensionarla, ruotarla. Doppio click = ritaglia.</p>
+      )}
+
+      <div className="border-t border-[rgb(var(--border))] pt-3 flex gap-1.5">
+        <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
+        <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
       </div>
     </div>
   )

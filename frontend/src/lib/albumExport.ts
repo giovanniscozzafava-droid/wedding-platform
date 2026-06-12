@@ -34,7 +34,45 @@ function cropDataUrl(img: HTMLImageElement, wpx: number, hpx: number, cell: Cell
   return c.toDataURL('image/jpeg', q)
 }
 
+// disegna un elemento libero (crop + rotazione + bordo + ombra) come immagine ruotata
+async function drawFreeElement(pdf: any, el: import('./albumFree').FreeEl, pageX: number, pageY: number, fmtW: number, fmtH: number, resolve: UrlResolver, dpi: number) {
+  const pxPerMm = dpi / 25.4
+  const elWmm = el.w * fmtW, elHmm = el.h * fmtH
+  const elWpx = Math.max(1, elWmm * pxPerMm), elHpx = Math.max(1, elHmm * pxPerMm)
+  const th = (el.rot * Math.PI) / 180
+  const bw = Math.abs(elWpx * Math.cos(th)) + Math.abs(elHpx * Math.sin(th))
+  const bh = Math.abs(elWpx * Math.sin(th)) + Math.abs(elHpx * Math.cos(th))
+  const c = document.createElement('canvas'); c.width = Math.ceil(bw); c.height = Math.ceil(bh)
+  const ctx = c.getContext('2d')!
+  ctx.translate(c.width / 2, c.height / 2); ctx.rotate(th)
+  if (el.shadow) { ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 0.03 * Math.min(elWpx, elHpx); ctx.shadowOffsetY = 0.012 * elHpx }
+  try {
+    const img = await loadImage(resolve(el.mediaId))
+    const sr = sourceRect(img.width, img.height, elWpx / elHpx, el.cell)
+    ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, -elWpx / 2, -elHpx / 2, elWpx, elHpx)
+  } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
+  ctx.shadowColor = 'transparent'
+  if (el.border) { ctx.lineWidth = Math.max(1, el.border.w * pxPerMm); ctx.strokeStyle = el.border.color; ctx.strokeRect(-elWpx / 2 + ctx.lineWidth / 2, -elHpx / 2 + ctx.lineWidth / 2, elWpx - ctx.lineWidth, elHpx - ctx.lineWidth) }
+  const data = c.toDataURL('image/jpeg', 0.92)
+  const cxMm = pageX + (el.x + el.w / 2) * fmtW, cyMm = pageY + (el.y + el.h / 2) * fmtH
+  const bwMm = bw / pxPerMm, bhMm = bh / pxPerMm
+  pdf.addImage(data, 'JPEG', cxMm - bwMm / 2, cyMm - bhMm / 2, bwMm, bhMm)
+}
+
+function hexRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', ''); const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const v = parseInt(n.slice(0, 6) || 'ffffff', 16)
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+}
+
+async function renderFreePage(pdf: any, page: AlbumPage, fmtW: number, fmtH: number, ox: number, oy: number, resolve: UrlResolver, dpi: number) {
+  const [r, g, b] = hexRgb(page.bg ?? '#ffffff')
+  pdf.setFillColor(r, g, b); pdf.rect(ox, oy, fmtW, fmtH, 'F')
+  for (const el of page.elements ?? []) await drawFreeElement(pdf, el, ox, oy, fmtW, fmtH, resolve, dpi)
+}
+
 async function renderPageInto(pdf: any, page: AlbumPage, fmtW: number, fmtH: number, ox: number, oy: number, resolve: UrlResolver, dpi: number, bleed: number) {
+  if (page.mode === 'free') { await renderFreePage(pdf, page, fmtW, fmtH, ox, oy, resolve, dpi); return }
   const frames = framesForPage(page)
   const pxPerMm = dpi / 25.4
   for (let i = 0; i < frames.length; i++) {
@@ -96,7 +134,22 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
     const c = document.createElement('canvas')
     c.width = Math.round(f.w * pxPerMm); c.height = Math.round(f.h * pxPerMm)
     const ctx = c.getContext('2d')!
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
+    ctx.fillStyle = page.mode === 'free' ? (page.bg ?? '#ffffff') : '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
+    if (page.mode === 'free') {
+      for (const el of page.elements ?? []) {
+        const elWpx = el.w * c.width, elHpx = el.h * c.height
+        const cxp = (el.x + el.w / 2) * c.width, cyp = (el.y + el.h / 2) * c.height
+        ctx.save(); ctx.translate(cxp, cyp); ctx.rotate((el.rot * Math.PI) / 180)
+        if (el.shadow) { ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 0.03 * Math.min(elWpx, elHpx); ctx.shadowOffsetY = 0.012 * elHpx }
+        try { const img = await loadImage(resolve(el.mediaId)); const sr = sourceRect(img.width, img.height, elWpx / elHpx, el.cell); ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, -elWpx / 2, -elHpx / 2, elWpx, elHpx) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
+        ctx.shadowColor = 'transparent'
+        if (el.border) { ctx.lineWidth = Math.max(1, el.border.w * pxPerMm); ctx.strokeStyle = el.border.color; ctx.strokeRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
+        ctx.restore()
+      }
+      const blobF: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
+      zip.file(`pagina-${String(p + 1).padStart(3, '0')}.jpg`, blobF)
+      continue
+    }
     const frames = framesForPage(page)
     for (let i = 0; i < frames.length; i++) {
       const fr = frames[i]!; const mediaId = page.mediaIds[i]
