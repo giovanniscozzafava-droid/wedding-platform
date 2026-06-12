@@ -584,8 +584,8 @@ function PageStage(props: {
       {bleed && <div className="absolute inset-0 border-2 border-rose-400/70 pointer-events-none" title="Linea di taglio (abbondanza attiva)" />}
       {/* griglia stile Photoshop: terzi + reticolo fine */}
       {gridOn && (
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgba(0,0,0,.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.08) 1px, transparent 1px)', backgroundSize: '12.5% 12.5%' }} />
+        <div className="absolute inset-0 pointer-events-none z-30">
+          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgba(0,0,0,.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.18) 1px, transparent 1px)', backgroundSize: '12.5% 12.5%' }} />
           <div className="absolute top-0 bottom-0 border-l border-[rgba(0,120,255,.5)]" style={{ left: '33.33%' }} />
           <div className="absolute top-0 bottom-0 border-l border-[rgba(0,120,255,.5)]" style={{ left: '66.66%' }} />
           <div className="absolute left-0 right-0 border-t border-[rgba(0,120,255,.5)]" style={{ top: '33.33%' }} />
@@ -684,8 +684,8 @@ function FreeStage(props: {
       {marginsOn && <div className="absolute border border-dashed border-sky-400/70 pointer-events-none" style={{ left: `${mx * 100}%`, right: `${mx * 100}%`, top: `${my * 100}%`, bottom: `${my * 100}%` }} />}
       {bleed && <div className="absolute inset-0 border-2 border-rose-400/70 pointer-events-none" />}
       {gridOn && (
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgba(0,0,0,.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.08) 1px, transparent 1px)', backgroundSize: '12.5% 12.5%' }} />
+        <div className="absolute inset-0 pointer-events-none z-30">
+          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgba(0,0,0,.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.18) 1px, transparent 1px)', backgroundSize: '12.5% 12.5%' }} />
         </div>
       )}
       {els.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">Trascina o clicca le foto a sinistra per aggiungerle</div>}
