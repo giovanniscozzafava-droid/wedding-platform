@@ -362,7 +362,7 @@ export default function AlbumDesignerPage() {
             {/* canvas + filmstrip */}
             <main className="flex-1 flex flex-col min-w-0">
               <div className="flex-1 min-h-0 flex items-center justify-center p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
-                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }} className="origin-center transition-transform max-h-full max-w-full">
+                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }} className="h-full flex items-center justify-center transition-transform">
                 {currentPage ? (currentPage.mode === 'free' ? (
                   <FreeStage
                     page={currentPage} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn}
