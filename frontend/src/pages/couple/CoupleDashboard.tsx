@@ -33,6 +33,7 @@ import { SaluteEventoBadge } from '@/components/wedding/SaluteEventoBadge'
 import { EventRing } from '@/components/event/EventRing'
 import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
+import { MoodBoardEditor } from '@/components/wedding/MoodBoardEditor'
 import { AudioWishes } from '@/components/event/AudioWishes'
 import { Guestbook } from '@/components/event/Guestbook'
 import { Images, Mic, BookHeart, Film } from 'lucide-react'
@@ -562,6 +563,11 @@ function MoodCouple({ entryId, eventKind }: { entryId: string; eventKind?: strin
       <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
         Le ispirazioni raccolte dal vostro organizzatore. Aggiungete le vostre da Pinterest, Instagram o qualsiasi pagina web.
       </p>
+
+      {/* Mini-Canva: il cliente compone il suo moodboard con foto, scritte, forme e icone */}
+      <div className="mb-6">
+        <MoodBoardEditor entryId={entryId} pins={(data ?? []).map((d: any) => d.url).filter(Boolean)} />
+      </div>
 
       <Card className="p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
