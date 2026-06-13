@@ -12,27 +12,46 @@ export type AlbumPage = {
   mode?: 'template' | 'free'   // 'free' = elementi liberi stile Canva
   bg?: string                  // colore di sfondo pagina
   elements?: FreeEl[]          // elementi liberi (in mode 'free')
+  frames?: Frame[]             // frame espliciti per template === 'custom' (layout salvato)
 }
 export type AlbumLayout = { pages: AlbumPage[] }
 export type MediaLite = { id: string; moment: string | null }
 
 export const MAX_PER_PAGE = 12
-export type TemplateKey = '1' | '2h' | '2v' | '3l' | '3t' | '3r' | '4' | '4l' | 'grid'
+export type TemplateKey =
+  | '1'
+  | '2h' | '2hL' | '2v' | '2vT'
+  | '3l' | '3t' | '3r' | '3col' | '3v'
+  | '4' | '4l' | '4r' | '4row' | '4col'
+  | '5l' | '5t'
+  | '6band'
+  | 'grid' | 'custom'
 
-// Frame normalizzati per ogni template (il gutter lo applica il renderer).
-export const TEMPLATES: Record<Exclude<TemplateKey, 'grid'>, Frame[]> = {
+const r3 = 1 / 3, r4 = 0.25
+// Frame normalizzati per ogni template (il gutter lo applica il renderer). 'grid'/'custom' calcolati a parte.
+export const TEMPLATES: Record<Exclude<TemplateKey, 'grid' | 'custom'>, Frame[]> = {
   '1':  [{ x: 0, y: 0, w: 1, h: 1 }],
   '2h': [{ x: 0, y: 0, w: 0.5, h: 1 }, { x: 0.5, y: 0, w: 0.5, h: 1 }],
+  '2hL': [{ x: 0, y: 0, w: 0.62, h: 1 }, { x: 0.62, y: 0, w: 0.38, h: 1 }],
   '2v': [{ x: 0, y: 0, w: 1, h: 0.5 }, { x: 0, y: 0.5, w: 1, h: 0.5 }],
+  '2vT': [{ x: 0, y: 0, w: 1, h: 0.62 }, { x: 0, y: 0.62, w: 1, h: 0.38 }],
   '3l': [{ x: 0, y: 0, w: 0.6, h: 1 }, { x: 0.6, y: 0, w: 0.4, h: 0.5 }, { x: 0.6, y: 0.5, w: 0.4, h: 0.5 }],
   '3t': [{ x: 0, y: 0, w: 1, h: 0.6 }, { x: 0, y: 0.6, w: 0.5, h: 0.4 }, { x: 0.5, y: 0.6, w: 0.5, h: 0.4 }],
   '3r': [{ x: 0.4, y: 0, w: 0.6, h: 1 }, { x: 0, y: 0, w: 0.4, h: 0.5 }, { x: 0, y: 0.5, w: 0.4, h: 0.5 }],
+  '3col': [{ x: 0, y: 0, w: r3, h: 1 }, { x: r3, y: 0, w: r3, h: 1 }, { x: 2 * r3, y: 0, w: r3, h: 1 }],
+  '3v': [{ x: 0, y: 0, w: 1, h: r3 }, { x: 0, y: r3, w: 1, h: r3 }, { x: 0, y: 2 * r3, w: 1, h: r3 }],
   '4':  [{ x: 0, y: 0, w: 0.5, h: 0.5 }, { x: 0.5, y: 0, w: 0.5, h: 0.5 }, { x: 0, y: 0.5, w: 0.5, h: 0.5 }, { x: 0.5, y: 0.5, w: 0.5, h: 0.5 }],
-  '4l': [{ x: 0, y: 0, w: 0.6, h: 1 }, { x: 0.6, y: 0, w: 0.4, h: 1 / 3 }, { x: 0.6, y: 1 / 3, w: 0.4, h: 1 / 3 }, { x: 0.6, y: 2 / 3, w: 0.4, h: 1 / 3 }],
+  '4l': [{ x: 0, y: 0, w: 0.6, h: 1 }, { x: 0.6, y: 0, w: 0.4, h: r3 }, { x: 0.6, y: r3, w: 0.4, h: r3 }, { x: 0.6, y: 2 * r3, w: 0.4, h: r3 }],
+  '4r': [{ x: 0.4, y: 0, w: 0.6, h: 1 }, { x: 0, y: 0, w: 0.4, h: r3 }, { x: 0, y: r3, w: 0.4, h: r3 }, { x: 0, y: 2 * r3, w: 0.4, h: r3 }],
+  '4row': [{ x: 0, y: 0, w: r4, h: 1 }, { x: r4, y: 0, w: r4, h: 1 }, { x: 0.5, y: 0, w: r4, h: 1 }, { x: 0.75, y: 0, w: r4, h: 1 }],
+  '4col': [{ x: 0, y: 0, w: 1, h: r4 }, { x: 0, y: r4, w: 1, h: r4 }, { x: 0, y: 0.5, w: 1, h: r4 }, { x: 0, y: 0.75, w: 1, h: r4 }],
+  '5l': [{ x: 0, y: 0, w: 0.58, h: 1 }, { x: 0.58, y: 0, w: 0.21, h: 0.5 }, { x: 0.79, y: 0, w: 0.21, h: 0.5 }, { x: 0.58, y: 0.5, w: 0.21, h: 0.5 }, { x: 0.79, y: 0.5, w: 0.21, h: 0.5 }],
+  '5t': [{ x: 0, y: 0, w: 1, h: 0.58 }, { x: 0, y: 0.58, w: r4, h: 0.42 }, { x: r4, y: 0.58, w: r4, h: 0.42 }, { x: 0.5, y: 0.58, w: r4, h: 0.42 }, { x: 0.75, y: 0.58, w: r4, h: 0.42 }],
+  '6band': [{ x: 0, y: 0, w: 0.5, h: 0.55 }, { x: 0.5, y: 0, w: 0.5, h: 0.55 }, { x: 0, y: 0.55, w: r4, h: 0.45 }, { x: r4, y: 0.55, w: r4, h: 0.45 }, { x: 0.5, y: 0.55, w: r4, h: 0.45 }, { x: 0.75, y: 0.55, w: r4, h: 0.45 }],
 }
 
 export function capacity(t: TemplateKey): number {
-  if (t === 'grid') return 0 // dipende dal numero di foto
+  if (t === 'grid' || t === 'custom') return 0 // dipende dal numero di foto / dai frame salvati
   return TEMPLATES[t].length
 }
 
@@ -47,9 +66,11 @@ export function chooseTemplate(count: number, aspect: number): TemplateKey {
 // Template alternativi disponibili per un dato numero di foto (per il selettore nell'editor).
 export function templatesFor(count: number): TemplateKey[] {
   if (count <= 1) return ['1']
-  if (count === 2) return ['2h', '2v', 'grid']
-  if (count === 3) return ['3l', '3t', '3r', 'grid']
-  if (count === 4) return ['4', '4l', 'grid']
+  if (count === 2) return ['2h', '2hL', '2v', '2vT', 'grid']
+  if (count === 3) return ['3l', '3t', '3r', '3col', '3v', 'grid']
+  if (count === 4) return ['4', '4l', '4r', '4row', '4col', 'grid']
+  if (count === 5) return ['5l', '5t', 'grid']
+  if (count === 6) return ['grid', '6band']
   return ['grid']
 }
 
@@ -109,13 +130,18 @@ export function autoLayout(selected: MediaLite[], formatKey: string): AlbumLayou
 // Frame per una pagina, ricalcolati se il numero di foto non combacia col template.
 export function framesForPage(p: AlbumPage): Frame[] {
   const n = p.mediaIds.length
+  if (p.template === 'custom') {
+    const f = p.frames ?? []
+    if (f.length >= n && n > 0) return f.slice(0, n)
+    return f.length ? f : gridFrames(Math.max(1, n))
+  }
   if (p.template === 'grid') return gridFrames(Math.max(1, n))
-  const tpl = TEMPLATES[p.template as Exclude<TemplateKey, 'grid'>]
+  const tpl = TEMPLATES[p.template as Exclude<TemplateKey, 'grid' | 'custom'>]
   if (tpl && tpl.length === n) return tpl
   if (n > 4) return gridFrames(n)
   // fallback: template coerente col conteggio attuale (dopo swap/aggiunte)
   const alt = chooseTemplate(Math.max(1, n), 1)
-  if (alt === 'grid') return gridFrames(Math.max(1, n))
+  if (alt === 'grid' || alt === 'custom') return gridFrames(Math.max(1, n))
   return TEMPLATES[alt].slice(0, Math.max(1, n))
 }
 

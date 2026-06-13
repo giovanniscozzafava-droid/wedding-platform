@@ -12,17 +12,32 @@ describe('template & capacità', () => {
     expect(chooseTemplate(4, 1)).toBe('4')
     expect(chooseTemplate(6, 1)).toBe('grid')
   })
-  it('templatesFor include grid per >1 + varianti SmartAlbums', () => {
+  it('templatesFor include grid per >1 + varianti creative', () => {
     expect(templatesFor(2)).toContain('grid')
-    expect(templatesFor(3)).toEqual(['3l', '3t', '3r', 'grid'])
-    expect(templatesFor(4)).toEqual(['4', '4l', 'grid'])
+    expect(templatesFor(2)).toEqual(['2h', '2hL', '2v', '2vT', 'grid'])
+    expect(templatesFor(3)).toEqual(['3l', '3t', '3r', '3col', '3v', 'grid'])
+    expect(templatesFor(4)).toEqual(['4', '4l', '4r', '4row', '4col', 'grid'])
+    expect(templatesFor(5)).toEqual(['5l', '5t', 'grid'])
+    expect(templatesFor(6)).toEqual(['grid', '6band'])
     expect(templatesFor(7)).toEqual(['grid'])
   })
   it('cycleTemplate gira tra le alternative (Altro layout)', () => {
     expect(cycleTemplate('4', 4)).toBe('4l')
-    expect(cycleTemplate('4l', 4)).toBe('grid')
+    expect(cycleTemplate('4l', 4)).toBe('4r')
     expect(cycleTemplate('grid', 4)).toBe('4')
     expect(cycleTemplate('1', 1)).toBe('1')
+  })
+  it('tutti i template curati hanno capacity = numero di slot e frame entro [0,1]', () => {
+    for (const t of ['2hL', '3col', '4r', '4row', '5l', '5t', '6band'] as const) {
+      const fr = TEMPLATES[t]
+      expect(capacity(t)).toBe(fr.length)
+      for (const f of fr) {
+        expect(f.x).toBeGreaterThanOrEqual(-1e-9)
+        expect(f.y).toBeGreaterThanOrEqual(-1e-9)
+        expect(f.x + f.w).toBeLessThanOrEqual(1 + 1e-9)
+        expect(f.y + f.h).toBeLessThanOrEqual(1 + 1e-9)
+      }
+    }
   })
   it('capacity dei template curati = numero slot; grid = 0 (dinamico)', () => {
     expect(capacity('4')).toBe(4)
@@ -67,6 +82,11 @@ describe('framesForPage', () => {
   })
   it('pagina vuota → almeno 1 frame (nessun crash)', () => {
     expect(framesForPage(newPage()).length).toBeGreaterThanOrEqual(1)
+  })
+  it('template custom usa i frame salvati (troncati al numero di foto)', () => {
+    const frames = [{ x: 0, y: 0, w: 0.5, h: 1 }, { x: 0.5, y: 0, w: 0.5, h: 1 }, { x: 0, y: 0.5, w: 1, h: 0.5 }]
+    const p = { id: 'a', moment: null, template: 'custom' as const, mediaIds: ['1', '2'], frames }
+    expect(framesForPage(p)).toEqual(frames.slice(0, 2))
   })
 })
 

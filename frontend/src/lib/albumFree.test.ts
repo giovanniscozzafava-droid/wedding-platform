@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toFreeElements, newFreeEl, moveEl, resizeEl, snapAngle, snapMove, removeFreeEl, updateFreeEl, bringToFront, MIN_EL, type FreeEl } from './albumFree'
+import { toFreeElements, newFreeEl, moveEl, resizeEl, snapAngle, snapMove, spacingSnap, moveManyBy, removeManyFree, removeFreeEl, updateFreeEl, bringToFront, MIN_EL, type FreeEl } from './albumFree'
 
 const approx = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) <= eps
 const el = (over: Partial<FreeEl> = {}): FreeEl => ({ id: 'a', mediaId: 'm', x: 0.3, y: 0.3, w: 0.2, h: 0.2, rot: 0, cell: { z: 1, fx: 0.5, fy: 0.5 }, ...over })
@@ -79,6 +79,46 @@ describe('snapMove — smart guides come Canva', () => {
     const e = el({ x: 0.2, y: 0.7, w: 0.1, h: 0.1 })
     const s = snapMove(e, [], 0.05, 0.05)
     expect(s.vGuides.length === 0 || s.hGuides.length === 0).toBe(true)
+  })
+})
+
+describe('spacingSnap — margine uguale tra le foto (stile Canva)', () => {
+  it('centra orizzontalmente tra due vicini: margine sx = margine dx', () => {
+    const left = el({ id: 'L', x: 0.05, y: 0.4, w: 0.2, h: 0.2 })   // right = 0.25
+    const right = el({ id: 'R', x: 0.75, y: 0.4, w: 0.2, h: 0.2 })  // left = 0.75
+    // dragged largo 0.2: target x = (0.25 + 0.75 - 0.2)/2 = 0.40 → gap sx=dx=0.15
+    const e = el({ x: 0.405, y: 0.4, w: 0.2, h: 0.2 })
+    const s = spacingSnap(e, [left, right])
+    expect(approx(s.x, 0.40, 1e-9)).toBe(true)
+    expect(s.marks.filter((m) => m.axis === 'x')).toHaveLength(2)
+  })
+  it('centra verticalmente tra sopra e sotto', () => {
+    const up = el({ id: 'U', x: 0.4, y: 0.05, w: 0.2, h: 0.2 })     // bottom = 0.25
+    const down = el({ id: 'D', x: 0.4, y: 0.75, w: 0.2, h: 0.2 })   // top = 0.75
+    const e = el({ x: 0.4, y: 0.405, w: 0.2, h: 0.2 })
+    const s = spacingSnap(e, [up, down])
+    expect(approx(s.y, 0.40, 1e-9)).toBe(true)
+  })
+  it('non aggancia se non equidistante', () => {
+    const left = el({ id: 'L', x: 0.05, y: 0.4, w: 0.2, h: 0.2 })
+    const right = el({ id: 'R', x: 0.75, y: 0.4, w: 0.2, h: 0.2 })
+    const e = el({ x: 0.30, y: 0.4, w: 0.2, h: 0.2 }) // lontano dal centro 0.40
+    const s = spacingSnap(e, [left, right])
+    expect(approx(s.x, 0.30)).toBe(true)
+    expect(s.marks).toHaveLength(0)
+  })
+})
+
+describe('multi-selezione: sposta/rimuovi in blocco', () => {
+  const els = [el({ id: 'a', x: 0.1, y: 0.1 }), el({ id: 'b', x: 0.5, y: 0.5 }), el({ id: 'c', x: 0.7, y: 0.2 })]
+  it('moveManyBy sposta solo gli id indicati', () => {
+    const out = moveManyBy(els, ['a', 'c'], 0.05, -0.02)
+    expect(approx(out.find((e) => e.id === 'a')!.x, 0.15)).toBe(true)
+    expect(approx(out.find((e) => e.id === 'c')!.y, 0.18)).toBe(true)
+    expect(approx(out.find((e) => e.id === 'b')!.x, 0.5)).toBe(true) // intatto
+  })
+  it('removeManyFree toglie più elementi', () => {
+    expect(removeManyFree(els, ['a', 'c']).map((e) => e.id)).toEqual(['b'])
   })
 })
 

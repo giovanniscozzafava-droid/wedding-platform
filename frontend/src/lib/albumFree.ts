@@ -99,7 +99,52 @@ export function snapMove(el: FreeEl, others: FreeEl[], marginX: number, marginY:
   return { x: el.x + (bestX < thr ? dx : 0), y: el.y + (bestY < thr ? dy : 0), vGuides: [...new Set(vGuides)], hGuides: [...new Set(hGuides)] }
 }
 
+// ── SPAZIATURA UGUALE (stile Canva) ─────────────────────────────────────────
+// Quando trascini una foto tra/accanto ad altre, aggancia in modo che il margine
+// a sinistra sia uguale a quello a destra (e sopra=sotto), così la spaziatura tra
+// le foto è "perfetta". Restituisce i segmenti di gap da disegnare come riferimento.
+export type GapMark = { axis: 'x' | 'y'; a: number; b: number; cross: number } // a..b lungo l'asse, a metà 'cross'
+export type Spacing = { x: number; y: number; marks: GapMark[] }
+function overlap(a0: number, a1: number, b0: number, b1: number): number { return Math.min(a1, b1) - Math.max(a0, b0) }
+
+export function spacingSnap(el: FreeEl, others: FreeEl[], thr = SNAP_THR): Spacing {
+  let x = el.x, y = el.y
+  const marks: GapMark[] = []
+  // asse X: vicini sulla stessa "riga" (si sovrappongono in verticale)
+  const row = others.filter((o) => overlap(el.y, el.y + el.h, o.y, o.y + o.h) > 0.3 * Math.min(el.h, o.h))
+  const left = row.filter((o) => o.x + o.w <= el.x + thr).sort((a, b) => (b.x + b.w) - (a.x + a.w))[0]
+  const right = row.filter((o) => o.x >= el.x + el.w - thr).sort((a, b) => a.x - b.x)[0]
+  if (left && right) {
+    const target = ((left.x + left.w) + right.x - el.w) / 2
+    if (Math.abs(el.x - target) < thr) {
+      x = target
+      const cross = (Math.max(el.y, left.y, right.y) + Math.min(el.y + el.h, left.y + left.h, right.y + right.h)) / 2
+      marks.push({ axis: 'x', a: left.x + left.w, b: x, cross }, { axis: 'x', a: x + el.w, b: right.x, cross })
+    }
+  }
+  // asse Y: vicini sulla stessa "colonna" (si sovrappongono in orizzontale)
+  const col = others.filter((o) => overlap(el.x, el.x + el.w, o.x, o.x + o.w) > 0.3 * Math.min(el.w, o.w))
+  const up = col.filter((o) => o.y + o.h <= el.y + thr).sort((a, b) => (b.y + b.h) - (a.y + a.h))[0]
+  const down = col.filter((o) => o.y >= el.y + el.h - thr).sort((a, b) => a.y - b.y)[0]
+  if (up && down) {
+    const target = ((up.y + up.h) + down.y - el.h) / 2
+    if (Math.abs(el.y - target) < thr) {
+      y = target
+      const cross = (Math.max(el.x, up.x, down.x) + Math.min(el.x + el.w, up.x + up.w, down.x + down.w)) / 2
+      marks.push({ axis: 'y', a: up.y + up.h, b: y, cross }, { axis: 'y', a: y + el.h, b: down.y, cross })
+    }
+  }
+  return { x, y, marks }
+}
+
+// Sposta in blocco gli elementi con id in `ids` di (dx,dy) (clamp come moveEl).
+export function moveManyBy(els: FreeEl[], ids: string[], dx: number, dy: number): FreeEl[] {
+  const set = new Set(ids)
+  return els.map((e) => (set.has(e.id) ? moveEl(e, e.x + dx, e.y + dy) : e))
+}
+
 export function removeFreeEl(els: FreeEl[], id: string): FreeEl[] { return els.filter((e) => e.id !== id) }
+export function removeManyFree(els: FreeEl[], ids: string[]): FreeEl[] { const set = new Set(ids); return els.filter((e) => !set.has(e.id)) }
 export function updateFreeEl(els: FreeEl[], id: string, patch: Partial<FreeEl>): FreeEl[] {
   return els.map((e) => (e.id === id ? { ...e, ...patch } : e))
 }

@@ -11,8 +11,9 @@ import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/al
 import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, capacity, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
 import { cellBackground, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
-import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
-import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, removeFreeEl, updateFreeEl, bringToFront, type FreeEl, type Corner } from '@/lib/albumFree'
+import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
+import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
+import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, type SavedLayout } from '@/lib/albumLayouts'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 
@@ -52,7 +53,9 @@ export default function AlbumDesignerPage() {
   const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
   const [previewIdx, setPreviewIdx] = useState(0)
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
-  const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero selezionato
+  const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero "primario" (pannello/crop)
+  const [multiSel, setMultiSel] = useState<string[]>([])        // selezione multipla (Shift) sulla tavola
+  const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
   const [cropElId, setCropElId] = useState<string | null>(null) // elemento libero in ritaglio
   const [savedAt, setSavedAt] = useState<number | null>(null)   // indicatore autosave
   const loadedRef = useRef(false)
@@ -136,14 +139,30 @@ export default function AlbumDesignerPage() {
   function redo() { if (!histFuture.current.length) return; histPast.current.push(pages); const p = histFuture.current.pop()!; skipHist.current = true; setPages(p); forceHist((n) => n + 1) }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
       const k = e.key.toLowerCase()
-      if ((e.metaKey || e.ctrlKey) && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo() }
-      else if ((e.metaKey || e.ctrlKey) && k === 'y') { e.preventDefault(); redo() }
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return }
+      if (mod && k === 'y') { e.preventDefault(); redo(); return }
+      // ── scorciatoie editor (stile Canva) ──
+      const cur = pages.find((p) => p.id === currentPageId)
+      const free = cur?.mode === 'free'
+      if (mod && k === 'a' && free) { e.preventDefault(); selectAllFree(); return }
+      if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return }
+      const sel = multiSel.length || selEl
+      if ((k === 'delete' || k === 'backspace') && sel) { e.preventDefault(); deleteSel(); return }
+      if (k === 'escape') { selectEl(null); return }
+      // frecce: sposta la selezione (Shift = passo grande). 1 cella griglia ≈ 0.04
+      if (free && sel && ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) {
+        e.preventDefault(); const s = e.shiftKey ? 0.04 : 0.005
+        nudgeSel(k === 'arrowleft' ? -s : k === 'arrowright' ? s : 0, k === 'arrowup' ? -s : k === 'arrowdown' ? s : 0)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pages])
+  }, [pages, currentPageId, multiSel, selEl])
   // AUTOSAVE: i lavori di impaginazione si salvano da soli (debounce 1.5s dopo ogni modifica).
   useEffect(() => {
     if (!loadedRef.current || step !== 'design' || !entryId) return
@@ -199,24 +218,74 @@ export default function AlbumDesignerPage() {
     const copy: AlbumPage = { ...src, id: newPage().id, cells: src.cells ? src.cells.map((c) => (c ? { ...c } : c)) : undefined, elements: src.elements ? src.elements.map((e) => ({ ...e, id: newPage().id, cell: { ...e.cell } })) : undefined }
     setPages((a) => insertPageAfter(a, pageId, () => copy)); setCurrentPageId(copy.id)
   }
+  // ── TAVOLE (spread = 2 pagine affiancate, come in stampa) ───────────────────
+  function addSpread() { const a = newPage(), b = newPage(); setPages((arr) => [...arr, a, b]); setCurrentPageId(a.id) }
+  function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
+  function moveSpread(si: number, dir: -1 | 1) {
+    setPages((arr) => { const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2)); const j = si + dir; if (j < 0 || j >= blocks.length) return arr; const t = blocks[si]!; blocks[si] = blocks[j]!; blocks[j] = t; return blocks.flat() })
+  }
   // ── elementi liberi (stile Canva) ──────────────────────────────────────────
   function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)) })) }
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
   function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
-  function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null) }
+  function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null); setMultiSel((s) => s.filter((x) => x !== id)) }
   function freeDuplicate(pageId: string, id: string) {
     const src = pages.find((p) => p.id === pageId)?.elements?.find((e) => e.id === id); if (!src) return
     const copy = { ...src, id: newPage().id, x: Math.min(0.9, src.x + 0.04), y: Math.min(0.9, src.y + 0.04), cell: { ...src.cell } }
     updatePage(pageId, (p) => ({ ...p, elements: bringToFront([...(p.elements ?? []), copy], copy.id) })); setSelEl(copy.id)
   }
   function setPageBg(pageId: string, color: string) { updatePage(pageId, (p) => ({ ...p, bg: color })) }
+  // ── layout personalizzati (salva la disposizione corrente, riapplicala dove vuoi) ──
+  function saveCurLayout() {
+    const page = pages.find((p) => p.id === currentPageId); if (!page) { toast.error('Apri prima una pagina'); return }
+    const frames = pageToFrames(page); if (!frames.length) { toast.error('La pagina è vuota'); return }
+    setLayouts(saveLayout(`Layout ${frames.length} foto`, frames)); toast.success('Layout salvato tra i tuoi')
+  }
+  function applyLayoutCur(l: SavedLayout) { if (currentPageId) updatePage(currentPageId, (p) => applyLayout(p, l.frames)) }
+  function removeLayout(id: string) { setLayouts(deleteLayout(id)) }
+  // ── selezione multipla (Shift) + scorciatoie tastiera stile Canva ───────────
+  function selectEl(id: string | null, additive = false) {
+    if (id == null) { setSelEl(null); setMultiSel([]); return }
+    if (additive) { setMultiSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); setSelEl(id) }
+    else { setSelEl(id); setMultiSel([id]) }
+  }
+  function freeUpdateMany(pageId: string, patches: { id: string; patch: Partial<FreeEl> }[]) {
+    updatePage(pageId, (p) => { let els = p.elements ?? []; for (const { id, patch } of patches) els = updateFreeEl(els, id, patch); return { ...p, elements: els } })
+  }
+  const selIds = () => (multiSel.length ? multiSel : selEl ? [selEl] : [])
+  function nudgeSel(dx: number, dy: number) {
+    if (!currentPageId) return; const ids = selIds(); if (!ids.length) return
+    updatePage(currentPageId, (p) => ({ ...p, elements: moveManyBy(p.elements ?? [], ids, dx, dy) }))
+  }
+  function deleteSel() {
+    if (!currentPageId) return; const ids = selIds(); if (!ids.length) return
+    updatePage(currentPageId, (p) => ({ ...p, elements: removeManyFree(p.elements ?? [], ids) })); setSelEl(null); setMultiSel([])
+  }
+  function duplicateSel() {
+    if (!currentPageId) return; const ids = selIds(); if (!ids.length) return
+    const page = pages.find((p) => p.id === currentPageId); if (!page) return
+    const copies = (page.elements ?? []).filter((e) => ids.includes(e.id)).map((e) => ({ ...e, id: newPage().id, x: Math.min(0.92, e.x + 0.03), y: Math.min(0.92, e.y + 0.03), cell: { ...e.cell } }))
+    if (!copies.length) return
+    updatePage(currentPageId, (p) => ({ ...p, elements: [...(p.elements ?? []), ...copies] })); setMultiSel(copies.map((c) => c.id)); setSelEl(copies[copies.length - 1]!.id)
+  }
+  function selectAllFree() {
+    if (!currentPageId) return; const page = pages.find((p) => p.id === currentPageId); if (!page || page.mode !== 'free') return
+    const ids = (page.elements ?? []).map((e) => e.id); setMultiSel(ids); setSelEl(ids[ids.length - 1] ?? null)
+  }
+  // riordino libero delle TAVOLE (drag sinistra/destra nella filmstrip)
+  function moveSpreadTo(from: number, to: number) {
+    setPages((arr) => {
+      const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2))
+      if (from < 0 || from >= blocks.length || to < 0 || to >= blocks.length || from === to) return arr
+      const [moved] = blocks.splice(from, 1); blocks.splice(to, 0, moved!); return blocks.flat()
+    })
+  }
   function delPage(id: string) { setPages((a) => removePage(a, id)); if (activePage === id) setActivePage(null) }
   function addPageAfter(id: string | null) {
     const np = newPage()
     setPages((a) => insertPageAfter(a, id, () => np))
     setActivePage(np.id)
   }
-  function movePage(id: string, dir: -1 | 1) { setPages((a) => movePages(a, id, dir)) }
 
   async function save(nextStatus?: string, silent = false) {
     if (!entryId) return
@@ -281,6 +350,13 @@ export default function AlbumDesignerPage() {
   const asp = pageAspect(format)
   const fmt = getFormat(format)
   const currentPage = pages.find((p) => p.id === currentPageId) ?? null
+  // TAVOLE: lavoriamo a spread (2 pagine). La tavola corrente contiene la pagina selezionata.
+  const curIdx = currentPage ? pages.findIndex((p) => p.id === currentPage.id) : -1
+  const spreadStart = curIdx >= 0 ? curIdx - (curIdx % 2) : 0
+  const spreadPages = (curIdx >= 0 ? [pages[spreadStart], pages[spreadStart + 1]] : []).filter(Boolean) as AlbumPage[]
+  const spreads: AlbumPage[][] = []
+  for (let i = 0; i < pages.length; i += 2) spreads.push(pages.slice(i, i + 2))
+  const activeSpread = Math.floor(spreadStart / 2)
 
   return (
     <div className="min-h-screen bg-[rgb(var(--bg-sunken))]">
@@ -363,44 +439,52 @@ export default function AlbumDesignerPage() {
             <main className="flex-1 flex flex-col min-w-0">
               <div className="flex-1 min-h-0 flex items-center justify-center p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
                 <div style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }} className="h-full flex items-center justify-center transition-transform">
-                {currentPage ? (currentPage.mode === 'free' ? (
-                  <FreeStage
-                    page={currentPage} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn}
-                    aspects={aspects} mediaById={mediaById} thumb={thumbUrl} selEl={selEl}
-                    pageNum={pageNums ? pages.findIndex((p) => p.id === currentPage.id) + 1 : null}
-                    onSelect={setSelEl} onUpdateEl={(id, patch) => freeUpdate(currentPage.id, id, patch)}
-                    onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(currentPage.id, id)} onDuplicateEl={(id) => freeDuplicate(currentPage.id, id)}
-                    onDropMedia={(id) => freeAdd(currentPage.id, id)}
-                  />
+                {spreadPages.length ? (
+                  <div className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px h-[74vh]">
+                    {spreadPages.map((p) => {
+                      const isAct = p.id === currentPageId
+                      const pnum = pageNums ? pages.findIndex((x) => x.id === p.id) + 1 : null
+                      const activate = () => { if (p.id !== currentPageId) { setCurrentPageId(p.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) } }
+                      return (
+                        <div key={p.id} onPointerDownCapture={activate} className="relative h-full" style={{ aspectRatio: String(asp) }}>
+                          {p.mode === 'free' ? (
+                            <FreeStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
+                              aspects={aspects} mediaById={mediaById} thumb={thumbUrl} selEl={isAct ? selEl : null} multiSel={isAct ? multiSel : []}
+                              onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(p.id, id, patch)}
+                              onUpdateMany={(patches) => freeUpdateMany(p.id, patches)}
+                              onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(p.id, id)} onDuplicateEl={(id) => freeDuplicate(p.id, id)}
+                              onDropMedia={(id) => freeAdd(p.id, id)} />
+                          ) : (
+                            <PageStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
+                              aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={isAct ? activeSlot : null}
+                              onSlot={setActiveSlot} onDropMedia={(s, id) => placeInto(p.id, s, id)}
+                              onClearSlot={(s) => clearSlot(p.id, s)} onCell={(s, partial) => updateCell(p.id, s, partial)} onCrop={(s) => setCropFor(s)} />
+                          )}
+                          {isAct && <div className="absolute inset-0 ring-2 ring-[rgb(var(--gold-500))] pointer-events-none" />}
+                        </div>
+                      )
+                    })}
+                    {/* filigrana del dorso (solo editor, non in stampa) */}
+                    {spreadPages.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.55)] pointer-events-none z-50" title="Dorso (non viene stampato)" />}
+                  </div>
                 ) : (
-                  <PageStage
-                    page={currentPage} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn}
-                    aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={activeSlot}
-                    pageNum={pageNums ? pages.findIndex((p) => p.id === currentPage.id) + 1 : null}
-                    onSlot={setActiveSlot}
-                    onDropMedia={(s, id) => placeInto(currentPage.id, s, id)}
-                    onClearSlot={(s) => clearSlot(currentPage.id, s)}
-                    onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
-                    onCrop={(s) => setCropFor(s)}
-                  />
-                )) : (
                   <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
-                    Nessuna pagina. Premi <strong>Auto-impagina</strong> o aggiungi una pagina.
-                    <div className="mt-3"><Button variant="outline" size="sm" onClick={() => addPageAfter(null)}><Plus size={14} /> Pagina vuota</Button></div>
+                    Nessuna tavola. Premi <strong>Auto-impagina</strong> o aggiungi una tavola.
+                    <div className="mt-3"><Button variant="outline" size="sm" onClick={addSpread}><Plus size={14} /> Tavola vuota</Button></div>
                   </Card>
                 )}
                 </div>
               </div>
-              {/* filmstrip pagine */}
-              <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-2 overflow-x-auto">
-                {pages.map((p, idx) => (
-                  <PageThumb key={p.id} page={p} index={idx} aspect={asp} active={p.id === currentPageId} lite={lite}
+              {/* filmstrip TAVOLE (doppia pagina, come in stampa) */}
+              <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
+                {spreads.map((pair, si) => (
+                  <SpreadThumb key={si} pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite}
                     mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
-                    onSelect={() => { setCurrentPageId(p.id); setActiveSlot(null) }}
-                    onDropMedia={(id) => placeInto(p.id, null, id)}
-                    onMove={(d) => movePage(p.id, d)} onDelete={() => delPage(p.id)} />
+                    onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
+                    onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
+                    onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from) => moveSpreadTo(from, si)} />
                 ))}
-                {!lite && <button onClick={() => addPageAfter(currentPageId)} className="shrink-0 h-16 w-16 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center" title="Aggiungi pagina"><Plus size={16} /></button>}
+                {!lite && <button onClick={addSpread} className="shrink-0 h-16 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
             </main>
 
@@ -422,6 +506,7 @@ export default function AlbumDesignerPage() {
                   onClearSlot={(s) => { clearSlot(currentPage.id, s); setActiveSlot(null) }}
                   onCrop={(s) => setCropFor(s)} onFree={() => convertToFree(currentPage.id)}
                   onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
+                  savedLayouts={layouts} onSaveLayout={saveCurLayout} onApplyLayout={applyLayoutCur} onDeleteLayout={removeLayout}
                 />
               ))}
             </aside>
@@ -618,7 +703,7 @@ function SelectStep(props: {
 }
 
 // ── elementi del workspace ───────────────────────────────────────────────────
-const TPL_LABEL: Record<TemplateKey, string> = { '1': '1', '2h': '2 │', '2v': '2 ─', '3l': '3 ◧', '3t': '3 ⊟', '3r': '3 ◨', '4': '4 ⊞', '4l': '4 ◧', grid: 'griglia' }
+const TPL_LABEL: Record<TemplateKey, string> = { '1': '1', '2h': '2 │', '2hL': '2 ◧', '2v': '2 ─', '2vT': '2 ⊟', '3l': '3 ◧', '3t': '3 ⊟', '3r': '3 ◨', '3col': '3 │││', '3v': '3 ☰', '4': '4 ⊞', '4l': '4 ◧', '4r': '4 ◨', '4row': '4 ││││', '4col': '4 ☰', '5l': '5 ◧', '5t': '5 ⊟', '6band': '6 ▤', grid: 'griglia', custom: 'salvato' }
 function clampN(v: number) { return Math.min(1, Math.max(0, v)) }
 
 function ToolToggle({ on, onClick, icon, label }: { on: boolean; onClick: () => void; icon: ReactNode; label: string }) {
@@ -722,17 +807,19 @@ function PageStage(props: {
 // Canvas LIBERO stile Canva: elementi che sposti/ridimensioni/ruoti con smart-guides.
 function FreeStage(props: {
   page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean; pageNum?: number | null
-  aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; selEl: string | null
-  onSelect: (id: string | null) => void; onUpdateEl: (id: string, patch: Partial<FreeEl>) => void
+  aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; selEl: string | null; multiSel: string[]
+  onSelect: (id: string | null, additive?: boolean) => void; onUpdateEl: (id: string, patch: Partial<FreeEl>) => void
+  onUpdateMany: (patches: { id: string; patch: Partial<FreeEl> }[]) => void
   onCrop: (id: string) => void; onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, aspects, mediaById, thumb, selEl, onSelect, onUpdateEl, onCrop, onRemove, onDuplicateEl, onDropMedia } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, aspects, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const mx = MARGIN_MM / fmt.w, my = MARGIN_MM / fmt.h
   const boxRef = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl } | null>(null)
+  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl; group: FreeEl[] } | null>(null)
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
+  const [gapMarks, setGapMarks] = useState<GapMark[]>([])
   const els = page.elements ?? []
 
   function frac(e: React.PointerEvent) {
@@ -740,8 +827,11 @@ function FreeStage(props: {
     return { x: (e.clientX - r.left) / Math.max(1, r.width), y: (e.clientY - r.top) / Math.max(1, r.height) }
   }
   function down(e: React.PointerEvent, kind: 'move' | 'resize' | 'rotate', el: FreeEl, corner?: Corner) {
-    e.stopPropagation(); onSelect(el.id)
-    const f = frac(e); drag.current = { kind, id: el.id, corner, sx: f.x, sy: f.y, el }
+    e.stopPropagation()
+    if (kind === 'move' && e.shiftKey) { onSelect(el.id, true) } else if (!multiSel.includes(el.id)) { onSelect(el.id) }
+    const inGroup = kind === 'move' && multiSel.length > 1 && multiSel.includes(el.id)
+    const group = inGroup ? els.filter((x) => multiSel.includes(x.id)) : [el]
+    const f = frac(e); drag.current = { kind, id: el.id, corner, sx: f.x, sy: f.y, el, group }
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   function move(e: React.PointerEvent) {
@@ -750,8 +840,18 @@ function FreeStage(props: {
     if (d.kind === 'move') {
       const nx = d.el.x + (f.x - d.sx), ny = d.el.y + (f.y - d.sy)
       const moved = moveEl(d.el, nx, ny)
-      const snap = snapMove(moved, els.filter((x) => x.id !== d.id), mx, my)
-      onUpdateEl(d.id, { x: snap.x, y: snap.y }); setGuides({ v: snap.vGuides, h: snap.hGuides })
+      const otherEls = els.filter((x) => !d.group.some((g) => g.id === x.id))
+      const snap = snapMove(moved, otherEls, mx, my)
+      // se nessun aggancio ai bordi su un asse, prova la spaziatura uguale tra foto
+      const spaced = { ...moved, x: snap.x, y: snap.y }
+      const sp = spacingSnap(spaced, otherEls)
+      const fx = snap.vGuides.length ? snap.x : sp.x
+      const fy = snap.hGuides.length ? snap.y : sp.y
+      const dx = fx - d.el.x, dy = fy - d.el.y
+      if (d.group.length > 1) onUpdateMany(d.group.map((g) => ({ id: g.id, patch: moveEl(g, g.x + dx, g.y + dy) })))
+      else onUpdateEl(d.id, { x: fx, y: fy })
+      setGuides({ v: snap.vGuides, h: snap.hGuides })
+      setGapMarks([...(snap.vGuides.length ? [] : sp.marks.filter((mk) => mk.axis === 'x')), ...(snap.hGuides.length ? [] : sp.marks.filter((mk) => mk.axis === 'y'))])
     } else if (d.kind === 'resize' && d.corner) {
       const r = resizeEl(d.el, d.corner, f.x, f.y); onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
     } else if (d.kind === 'rotate') {
@@ -760,7 +860,7 @@ function FreeStage(props: {
       onUpdateEl(d.id, { rot: snapAngle(deg) })
     }
   }
-  function up() { drag.current = null; setGuides({ v: [], h: [] }) }
+  function up() { drag.current = null; setGuides({ v: [], h: [] }); setGapMarks([]) }
 
   return (
     <div ref={boxRef} className="relative shadow-[var(--shadow-lift)] h-full max-h-full max-w-full overflow-hidden"
@@ -772,17 +872,18 @@ function FreeStage(props: {
       {els.map((el) => {
         const m = mediaById.get(el.mediaId)
         const sel = selEl === el.id
+        const inSel = multiSel.includes(el.id)
         const elAsp = (el.w * fmt.w) / (el.h * fmt.h)
         const imgAsp = (m && aspects[m.id]) ? aspects[m.id]! : 1.5
         const bg = m ? cellBackground(imgAsp, elAsp, el.cell) : null
         return (
-          <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : 1 }}>
+          <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : inSel ? 10 : 1 }}>
             <div
               onPointerDown={(e) => down(e, 'move', el)}
               onDoubleClick={(e) => { e.stopPropagation(); onCrop(el.id) }}
-              className={`w-full h-full touch-none cursor-move ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : ''}`}
+              className={`w-full h-full touch-none cursor-move ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : inSel ? 'outline outline-2 outline-dashed outline-[rgb(var(--gold-400))]' : ''}`}
               style={{ ...(bg ?? {}), backgroundImage: m ? `url(${thumb(m)})` : undefined, backgroundColor: m ? undefined : 'rgba(0,0,0,.06)', boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, outlineColor: undefined, border: el.border ? `${Math.max(1, el.border.w)}px solid ${el.border.color}` : undefined }} />
-            {sel && (
+            {sel && multiSel.length <= 1 && (
               <>
                 {(['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
                   <div key={c} onPointerDown={(e) => down(e, 'resize', el, c)}
@@ -801,9 +902,14 @@ function FreeStage(props: {
         )
       })}
 
-      {/* smart guides */}
+      {/* smart guides (allineamento bordi/centri) */}
       {guides.v.map((g, i) => <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-rose-500 pointer-events-none" style={{ left: `${g * 100}%` }} />)}
       {guides.h.map((g, i) => <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-rose-500 pointer-events-none" style={{ top: `${g * 100}%` }} />)}
+      {/* spaziatura uguale tra foto: segmenti rosa con tacche agli estremi (margine perfetto) */}
+      {gapMarks.map((mk, i) => mk.axis === 'x'
+        ? <div key={`gx${i}`} className="absolute h-0.5 bg-fuchsia-500 pointer-events-none z-30" style={{ left: `${Math.min(mk.a, mk.b) * 100}%`, width: `${Math.abs(mk.b - mk.a) * 100}%`, top: `${mk.cross * 100}%`, boxShadow: '0 0 0 1px white' }} />
+        : <div key={`gy${i}`} className="absolute w-0.5 bg-fuchsia-500 pointer-events-none z-30" style={{ top: `${Math.min(mk.a, mk.b) * 100}%`, height: `${Math.abs(mk.b - mk.a) * 100}%`, left: `${mk.cross * 100}%`, boxShadow: '0 0 0 1px white' }} />
+      )}
       {/* margini / abbondanza / griglia (come nello stage template) */}
       {marginsOn && <div className="absolute border border-dashed border-sky-400/70 pointer-events-none" style={{ left: `${mx * 100}%`, right: `${mx * 100}%`, top: `${my * 100}%`, bottom: `${my * 100}%` }} />}
       {bleed && <div className="absolute inset-0 border-2 border-rose-400/70 pointer-events-none" />}
@@ -819,39 +925,53 @@ function FreeStage(props: {
 }
 
 // Miniatura nella filmstrip in basso.
-function PageThumb(props: {
-  page: AlbumPage; index: number; aspect: number; active: boolean; formatKey: string; lite?: boolean
-  aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
-  onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia?: (id: string) => void
-}) {
-  const { page, index, aspect, active, formatKey, lite, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia } = props
-  const fmt = getFormat(formatKey)
-  const frames = framesForPage(page)
+// rendering compatto di una pagina (per le miniature delle tavole)
+function MiniPage({ page, formatKey, aspects, mediaById, thumb }: { page: AlbumPage; formatKey: string; aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string }) {
+  const fmt = getFormat(formatKey); const frames = framesForPage(page)
   return (
-    <div className="shrink-0 group relative">
-      <button onClick={onSelect}
-        onDragOver={(e) => { if (onDropMedia) e.preventDefault() }}
-        onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid && onDropMedia) onDropMedia(mid) }}
-        className={`relative block h-16 overflow-hidden border ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ aspectRatio: String(aspect), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
-        {page.mode === 'free'
-          ? (page.elements ?? []).map((el) => {
-              const m = mediaById.get(el.mediaId)
-              const bg = m ? cellBackground((aspects[m.id]) ?? 1.5, (el.w * fmt.w) / (el.h * fmt.h), el.cell) : null
-              return <div key={el.id} className="absolute bg-black/5" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} />
-            })
-          : frames.map((fr, i) => {
-              const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined
-              const cell = page.cells?.[i] ?? DEFAULT_CELL
-              const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), cell) : null
-              return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} />
-            })}
+    <div className="relative h-full" style={{ aspectRatio: String(fmt.w / fmt.h), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
+      {page.mode === 'free'
+        ? (page.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); const bg = m ? cellBackground((aspects[m.id]) ?? 1.5, (el.w * fmt.w) / (el.h * fmt.h), el.cell) : null; return <div key={el.id} className="absolute bg-black/5" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} /> })
+        : frames.map((fr, i) => { const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), page.cells?.[i] ?? DEFAULT_CELL) : null; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} /> })}
+    </div>
+  )
+}
+
+// Miniatura di una TAVOLA (2 pagine) con la filigrana del dorso al centro.
+function SpreadThumb(props: {
+  pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string
+  aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
+  onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
+  onReorder: (from: number) => void
+}) {
+  const { pair, index, aspect, active, lite, formatKey, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onReorder } = props
+  const w = aspect * pair.length
+  const [over, setOver] = useState<false | 'l' | 'r'>(false)
+  return (
+    <div className="shrink-0 group relative"
+      draggable={!lite}
+      onDragStart={(e) => { e.dataTransfer.setData('text/spread', String(index)); e.dataTransfer.effectAllowed = 'move' }}
+      onDragOver={(e) => { if (lite) return; const hasSpread = e.dataTransfer.types.includes('text/spread'); if (!hasSpread) return; e.preventDefault(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setOver(e.clientX < r.left + r.width / 2 ? 'l' : 'r') }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => { setOver(false); const raw = e.dataTransfer.getData('text/spread'); if (raw === '') return; e.preventDefault(); e.stopPropagation(); const from = Number(raw); if (!Number.isNaN(from) && from !== index) onReorder(from) }}>
+      {over && <div className={`absolute top-0 bottom-0 w-1 rounded bg-[rgb(var(--gold-500))] z-10 ${over === 'l' ? '-left-1.5' : '-right-1.5'}`} />}
+      <button onClick={onSelect} className={`relative flex h-16 overflow-hidden border bg-white ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'} ${!lite ? 'cursor-grab active:cursor-grabbing' : ''}`} style={{ aspectRatio: String(w) }}>
+        {pair.map((p) => (
+          <div key={p.id} className="h-full" style={{ aspectRatio: String(aspect) }}
+            onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => { const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropMedia(p.id, mid) } }}>
+            <MiniPage page={p} formatKey={formatKey} aspects={aspects} mediaById={mediaById} thumb={thumb} />
+          </div>
+        ))}
+        {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.5)] pointer-events-none" />}
       </button>
-      <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">{index + 1}</span>
-      <div className={`absolute inset-x-0 -bottom-1 ${lite ? 'hidden' : 'hidden group-hover:flex'} items-center justify-center gap-0.5`}>
-        <button title="Indietro" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, -1)}><ChevronLeft size={10} /></button>
-        <button title="Elimina" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center text-rose-500" onClick={onDelete}><Trash2 size={9} /></button>
-        <button title="Avanti" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, 1)}><ChevronRight size={10} /></button>
-      </div>
+      <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">Tav. {index + 1}</span>
+      {!lite && (
+        <div className="absolute inset-x-0 -bottom-1 hidden group-hover:flex items-center justify-center gap-0.5">
+          <button title="Sposta a sinistra" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, -1)}><ChevronLeft size={10} /></button>
+          <button title="Elimina tavola" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center text-rose-500" onClick={onDelete}><Trash2 size={9} /></button>
+          <button title="Sposta a destra" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, 1)}><ChevronRight size={10} /></button>
+        </div>
+      )}
     </div>
   )
 }
@@ -868,13 +988,23 @@ function LayoutDiagram({ t, active }: { t: TemplateKey; active: boolean }) {
   )
 }
 
+// diagramma di un set di frame arbitrari (per i layout salvati)
+function FramesDiagram({ frames, active }: { frames: { x: number; y: number; w: number; h: number }[]; active?: boolean }) {
+  return (
+    <div className={`relative h-10 w-12 rounded border ${active ? 'border-[rgb(var(--gold-500))] ring-1 ring-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'} bg-white`}>
+      {frames.map((f, i) => <div key={i} className="absolute bg-[rgb(var(--gold-200))]" style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%`, outline: '1px solid white' }} />)}
+    </div>
+  )
+}
+
 function PropsPanel(props: {
   page: AlbumPage; activeSlot: number | null; mediaById: Map<string, M>; formatKey: string; aspects: Record<string, number>; lite?: boolean
   onTemplate: (t: TemplateKey) => void; onCycle: () => void; onCell: (s: number, partial: Partial<Cell>) => void
   onClearSlot: (s: number) => void; onCrop: (s: number) => void; onFree: () => void
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void
+  savedLayouts: SavedLayout[]; onSaveLayout: () => void; onApplyLayout: (l: SavedLayout) => void; onDeleteLayout: (id: string) => void
 }) {
-  const { page, activeSlot, mediaById, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate } = props
+  const { page, activeSlot, mediaById, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate, savedLayouts, onSaveLayout, onApplyLayout, onDeleteLayout } = props
   const moment = getMoment(page.moment)
   const alts = templatesFor(Math.max(1, page.mediaIds.length))
   const slotMediaId = activeSlot != null ? page.mediaIds[activeSlot] : undefined
@@ -914,6 +1044,23 @@ function PropsPanel(props: {
         </div>
         <Button variant="outline" size="sm" className="w-full mt-2" onClick={onCycle}><Shuffle size={13} /> Altro layout</Button>
         {!lite && <Button variant="outline" size="sm" className="w-full mt-1.5" onClick={onFree}><Move size={13} /> Modifica libera (Canva)</Button>}
+        {/* I TUOI LAYOUT: salva la disposizione corrente e riusala su qualsiasi pagina */}
+        <div className="mt-3 border-t border-[rgb(var(--border))] pt-2">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs font-medium text-[rgb(var(--fg-muted))]">I tuoi layout</p>
+            {!lite && <button onClick={onSaveLayout} className="text-[11px] inline-flex items-center gap-1 text-[rgb(var(--gold-700))] hover:underline"><Save size={12} /> Salva questo</button>}
+          </div>
+          {savedLayouts.length === 0
+            ? <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Nessun layout salvato.{!lite && ' Disponi la pagina e premi “Salva questo”.'}</p>
+            : <div className="flex flex-wrap gap-1.5">
+                {savedLayouts.map((l) => (
+                  <div key={l.id} className="relative group/lay">
+                    <button title={`${l.name} · applica`} onClick={() => onApplyLayout(l)}><FramesDiagram frames={l.frames} active={page.template === 'custom'} /></button>
+                    {!lite && <button title="Elimina layout" onClick={() => onDeleteLayout(l.id)} className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-rose-500 text-white text-[10px] leading-none hidden group-hover/lay:flex items-center justify-center">×</button>}
+                  </div>
+                ))}
+              </div>}
+        </div>
         <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">{page.mediaIds.length}/{MAX_PER_PAGE} foto in pagina</p>
         {!lite && (
           <div className="flex gap-1.5 mt-2 flex-wrap">
