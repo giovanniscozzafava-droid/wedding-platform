@@ -143,50 +143,64 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
 }
 
 // JPG per pagina dentro uno ZIP (una facciata = un'immagine). Senza abbondanza.
-export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean } = {}) {
-  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false } = opts
-  const f = getFormat(formatKey)
-  const { default: JSZip } = await import('jszip')
-  const zip = new JSZip()
-  const pxPerMm = dpi / 25.4
-  for (let p = 0; p < pages.length; p++) {
-    const page = pages[p]!
-    const c = document.createElement('canvas')
-    c.width = Math.round(f.w * pxPerMm); c.height = Math.round(f.h * pxPerMm)
-    const ctx = c.getContext('2d')!
-    ctx.fillStyle = page.mode === 'free' ? (page.bg ?? '#ffffff') : '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
-    if (page.mode === 'free') {
-      for (const el of page.elements ?? []) {
-        const elWpx = el.w * c.width, elHpx = el.h * c.height
-        const cxp = (el.x + el.w / 2) * c.width, cyp = (el.y + el.h / 2) * c.height
-        ctx.save(); ctx.translate(cxp, cyp); ctx.rotate((el.rot * Math.PI) / 180)
-        if (el.shadow) { ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 0.03 * Math.min(elWpx, elHpx); ctx.shadowOffsetY = 0.012 * elHpx }
-        try { const img = await loadImage(resolve(el.mediaId)); const sr = sourceRect(img.width, img.height, elWpx / elHpx, el.cell); ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, -elWpx / 2, -elHpx / 2, elWpx, elHpx) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
-        ctx.shadowColor = 'transparent'
-        if (el.border) { ctx.lineWidth = Math.max(1, el.border.w * pxPerMm); ctx.strokeStyle = el.border.color; ctx.strokeRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
-        ctx.restore()
-      }
-      if (pageNumbers) { ctx.fillStyle = '#888'; ctx.font = `${Math.round(c.height * 0.02)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(String(p + 1), c.width / 2, c.height - c.height * 0.02) }
-      const blobF: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
-      zip.file(`pagina-${String(p + 1).padStart(3, '0')}.jpg`, blobF)
-      continue
+// Disegna una pagina dentro il riquadro (ox,0,wpx,hpx) del contesto dato.
+async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: number, wpx: number, hpx: number, pxPerMm: number, resolve: UrlResolver, pageNumber: number | null) {
+  ctx.fillStyle = page.mode === 'free' ? (page.bg ?? '#ffffff') : '#ffffff'; ctx.fillRect(ox, 0, wpx, hpx)
+  if (page.mode === 'free') {
+    for (const el of page.elements ?? []) {
+      const elWpx = el.w * wpx, elHpx = el.h * hpx
+      const cxp = ox + (el.x + el.w / 2) * wpx, cyp = (el.y + el.h / 2) * hpx
+      ctx.save(); ctx.translate(cxp, cyp); ctx.rotate((el.rot * Math.PI) / 180)
+      if (el.shadow) { ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 0.03 * Math.min(elWpx, elHpx); ctx.shadowOffsetY = 0.012 * elHpx }
+      try { const img = await loadImage(resolve(el.mediaId)); const sr = sourceRect(img.width, img.height, elWpx / elHpx, el.cell); ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, -elWpx / 2, -elHpx / 2, elWpx, elHpx) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
+      ctx.shadowColor = 'transparent'
+      if (el.border) { ctx.lineWidth = Math.max(1, el.border.w * pxPerMm); ctx.strokeStyle = el.border.color; ctx.strokeRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
+      ctx.restore()
     }
+  } else {
+    const f = { w: wpx / pxPerMm, h: hpx / pxPerMm }
     const frames = framesForPage(page)
     for (let i = 0; i < frames.length; i++) {
       const fr = frames[i]!; const mediaId = page.mediaIds[i]
       const cell = page.cells?.[i] ?? DEFAULT_CELL
       const r = slotRect(fr, f.w, f.h, { margin: MARGIN_MM, gutter: GUTTER_MM, bleed: 0 })
-      const x = r.x * pxPerMm, y = r.y * pxPerMm, w = r.w * pxPerMm, h = r.h * pxPerMm
+      const x = ox + r.x * pxPerMm, y = r.y * pxPerMm, w = r.w * pxPerMm, h = r.h * pxPerMm
       if (!mediaId) { ctx.fillStyle = '#eee'; ctx.fillRect(x, y, w, h); continue }
-      try {
-        const img = await loadImage(resolve(mediaId))
-        const sr = sourceRect(img.width, img.height, w / h, cell)
-        ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, x, y, w, h)
-      } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(x, y, w, h) }
+      try { const img = await loadImage(resolve(mediaId)); const sr = sourceRect(img.width, img.height, w / h, cell); ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, x, y, w, h) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(x, y, w, h) }
     }
-    if (pageNumbers) { ctx.fillStyle = '#888'; ctx.font = `${Math.round(c.height * 0.02)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(String(p + 1), c.width / 2, c.height - c.height * 0.02) }
-    const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
-    zip.file(`pagina-${String(p + 1).padStart(3, '0')}.jpg`, blob)
+  }
+  if (pageNumber != null) { ctx.fillStyle = '#888'; ctx.font = `${Math.round(hpx * 0.02)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(String(pageNumber), ox + wpx / 2, hpx - hpx * 0.02) }
+}
+
+// JPG: 'pages' = una immagine per pagina (tavola divisa); 'spreads' = tavola intera (2 pagine affiancate).
+export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode } = {}) {
+  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages' } = opts
+  const f = getFormat(formatKey)
+  const { default: JSZip } = await import('jszip')
+  const zip = new JSZip()
+  const pxPerMm = dpi / 25.4
+  const wpx = Math.round(f.w * pxPerMm), hpx = Math.round(f.h * pxPerMm)
+  if (mode === 'spreads') {
+    for (let s = 0; s < pages.length; s += 2) {
+      const lp = pages[s]!, rp = pages[s + 1]
+      const c = document.createElement('canvas')
+      c.width = wpx * (rp ? 2 : 1); c.height = hpx
+      const ctx = c.getContext('2d')!
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
+      await drawPageInto(ctx, lp, 0, wpx, hpx, pxPerMm, resolve, pageNumbers ? s + 1 : null)
+      if (rp) await drawPageInto(ctx, rp, wpx, wpx, hpx, pxPerMm, resolve, pageNumbers ? s + 2 : null)
+      const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
+      zip.file(`tavola-${String(s / 2 + 1).padStart(3, '0')}.jpg`, blob)
+    }
+  } else {
+    for (let p = 0; p < pages.length; p++) {
+      const c = document.createElement('canvas')
+      c.width = wpx; c.height = hpx
+      const ctx = c.getContext('2d')!
+      await drawPageInto(ctx, pages[p]!, 0, wpx, hpx, pxPerMm, resolve, pageNumbers ? p + 1 : null)
+      const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
+      zip.file(`pagina-${String(p + 1).padStart(3, '0')}.jpg`, blob)
+    }
   }
   const out = await zip.generateAsync({ type: 'blob' })
   const a = document.createElement('a')

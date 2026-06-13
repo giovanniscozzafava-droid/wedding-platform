@@ -107,13 +107,41 @@ export type GapMark = { axis: 'x' | 'y'; a: number; b: number; cross: number } /
 export type Spacing = { x: number; y: number; marks: GapMark[] }
 function overlap(a0: number, a1: number, b0: number, b1: number): number { return Math.min(a1, b1) - Math.max(a0, b0) }
 
+// Bordo bianco "standard" tra le foto (frazione di pagina) quando non c'è ancora
+// un gutter di riferimento sulla pagina. ~1.8% del lato.
+export const GUTTER = 0.02
+
+// Gap (bordi bianchi) già presenti tra coppie di foto che si sovrappongono sull'asse opposto.
+function refGaps(others: FreeEl[], axis: 'x' | 'y'): number[] {
+  const res: number[] = []
+  for (let i = 0; i < others.length; i++) {
+    for (let j = 0; j < others.length; j++) {
+      if (i === j) continue
+      const a = others[i]!, b = others[j]!
+      if (axis === 'x') { if (overlap(a.y, a.y + a.h, b.y, b.y + b.h) <= 0) continue; const g = b.x - (a.x + a.w); if (g > 1e-4) res.push(g) }
+      else { if (overlap(a.x, a.x + a.w, b.x, b.x + b.w) <= 0) continue; const g = b.y - (a.y + a.h); if (g > 1e-4) res.push(g) }
+    }
+  }
+  return res
+}
+// Il gutter di riferimento più vicino al gap corrente (default = GUTTER): così tutti i
+// bordi bianchi finiscono per avere gli STESSI millimetri.
+function nearestGutter(g: number, refs: number[]): number {
+  let best = GUTTER, bd = Math.abs(g - GUTTER)
+  for (const r of refs) { const d = Math.abs(g - r); if (d < bd) { bd = d; best = r } }
+  return best
+}
+
+// Aggancia: (1) margine sx=dx / sopra=sotto quando si è tra due foto; (2) altrimenti
+// fa coincidere il bordo bianco con il gutter standard / quello già usato sulla pagina.
 export function spacingSnap(el: FreeEl, others: FreeEl[], thr = SNAP_THR): Spacing {
   let x = el.x, y = el.y
   const marks: GapMark[] = []
-  // asse X: vicini sulla stessa "riga" (si sovrappongono in verticale)
+  // ── asse X: vicini sulla stessa "riga" (si sovrappongono in verticale) ──
   const row = others.filter((o) => overlap(el.y, el.y + el.h, o.y, o.y + o.h) > 0.3 * Math.min(el.h, o.h))
   const left = row.filter((o) => o.x + o.w <= el.x + thr).sort((a, b) => (b.x + b.w) - (a.x + a.w))[0]
   const right = row.filter((o) => o.x >= el.x + el.w - thr).sort((a, b) => a.x - b.x)[0]
+  const xrefs = refGaps(others, 'x')
   if (left && right) {
     const target = ((left.x + left.w) + right.x - el.w) / 2
     if (Math.abs(el.x - target) < thr) {
@@ -121,11 +149,18 @@ export function spacingSnap(el: FreeEl, others: FreeEl[], thr = SNAP_THR): Spaci
       const cross = (Math.max(el.y, left.y, right.y) + Math.min(el.y + el.h, left.y + left.h, right.y + right.h)) / 2
       marks.push({ axis: 'x', a: left.x + left.w, b: x, cross }, { axis: 'x', a: x + el.w, b: right.x, cross })
     }
+  } else if (left) {
+    const tg = nearestGutter(el.x - (left.x + left.w), xrefs); const tx = left.x + left.w + tg
+    if (Math.abs(el.x - tx) < thr) { x = tx; const cross = (Math.max(el.y, left.y) + Math.min(el.y + el.h, left.y + left.h)) / 2; marks.push({ axis: 'x', a: left.x + left.w, b: x, cross }) }
+  } else if (right) {
+    const tg = nearestGutter(right.x - (el.x + el.w), xrefs); const tx = right.x - tg - el.w
+    if (Math.abs(el.x - tx) < thr) { x = tx; const cross = (Math.max(el.y, right.y) + Math.min(el.y + el.h, right.y + right.h)) / 2; marks.push({ axis: 'x', a: x + el.w, b: right.x, cross }) }
   }
-  // asse Y: vicini sulla stessa "colonna" (si sovrappongono in orizzontale)
+  // ── asse Y: vicini sulla stessa "colonna" (si sovrappongono in orizzontale) ──
   const col = others.filter((o) => overlap(el.x, el.x + el.w, o.x, o.x + o.w) > 0.3 * Math.min(el.w, o.w))
   const up = col.filter((o) => o.y + o.h <= el.y + thr).sort((a, b) => (b.y + b.h) - (a.y + a.h))[0]
   const down = col.filter((o) => o.y >= el.y + el.h - thr).sort((a, b) => a.y - b.y)[0]
+  const yrefs = refGaps(others, 'y')
   if (up && down) {
     const target = ((up.y + up.h) + down.y - el.h) / 2
     if (Math.abs(el.y - target) < thr) {
@@ -133,6 +168,12 @@ export function spacingSnap(el: FreeEl, others: FreeEl[], thr = SNAP_THR): Spaci
       const cross = (Math.max(el.x, up.x, down.x) + Math.min(el.x + el.w, up.x + up.w, down.x + down.w)) / 2
       marks.push({ axis: 'y', a: up.y + up.h, b: y, cross }, { axis: 'y', a: y + el.h, b: down.y, cross })
     }
+  } else if (up) {
+    const tg = nearestGutter(el.y - (up.y + up.h), yrefs); const ty = up.y + up.h + tg
+    if (Math.abs(el.y - ty) < thr) { y = ty; const cross = (Math.max(el.x, up.x) + Math.min(el.x + el.w, up.x + up.w)) / 2; marks.push({ axis: 'y', a: up.y + up.h, b: y, cross }) }
+  } else if (down) {
+    const tg = nearestGutter(down.y - (el.y + el.h), yrefs); const ty = down.y - tg - el.h
+    if (Math.abs(el.y - ty) < thr) { y = ty; const cross = (Math.max(el.x, down.x) + Math.min(el.x + el.w, down.x + down.w)) / 2; marks.push({ axis: 'y', a: y + el.h, b: down.y, cross }) }
   }
   return { x, y, marks }
 }

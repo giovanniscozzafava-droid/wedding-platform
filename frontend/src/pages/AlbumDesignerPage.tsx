@@ -15,7 +15,7 @@ import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, type SavedLayout } from '@/lib/albumLayouts'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
-import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -50,6 +50,9 @@ export default function AlbumDesignerPage() {
   const [marginsOn, setMarginsOn] = useState(true)     // guide margini
   const [pageNums, setPageNums] = useState(false)      // numeri di pagina
   const [zoom, setZoom] = useState(1)                  // zoom del canvas
+  const [rulerOn, setRulerOn] = useState(false)        // righello (cm) attorno alla tavola
+  const [fullscreen, setFullscreen] = useState(false)  // lavoro a piena pagina (nasconde la barra menu)
+  const rootRef = useRef<HTMLDivElement>(null)
   const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
   const [previewIdx, setPreviewIdx] = useState(0)
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
@@ -320,7 +323,7 @@ export default function AlbumDesignerPage() {
   async function resolveRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'DONE' }).eq('id', id); await loadRevs() }
 
   const exportRef = useRef<HTMLDivElement>(null)
-  async function doExport(kind: 'pdf' | 'spread' | 'jpg') {
+  async function doExport(kind: 'pdf' | 'spread' | 'jpg' | 'jpgspread') {
     if (pages.length === 0) { toast.error('Nessuna pagina da esportare'); return }
     setExporting(true)
     try {
@@ -339,11 +342,23 @@ export default function AlbumDesignerPage() {
       }
       const base = (title || 'album').toLowerCase().replace(/\s+/g, '-')
       // con l'originale Drive possiamo stampare in alta: 300 dpi per le pagine, 220 per JPG/spread
-      if (kind === 'jpg') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums })
-      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed, dpi: kind === 'spread' ? Math.min(exportDpi, 200) : exportDpi, cutMarks: kind === 'pdf' && cutMarks && bleed, pageNumbers: pageNums })
+      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${kind === 'jpgspread' ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: kind === 'jpgspread' ? 'spreads' : 'pages' })
+      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'tavole' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed, dpi: kind === 'spread' ? Math.min(exportDpi, 200) : exportDpi, cutMarks: kind === 'pdf' && cutMarks && bleed, pageNumbers: pageNums })
       toast.success('Export pronto')
     } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false) }
   }
+
+  // ── piena pagina (nasconde la barra menu a sinistra) ────────────────────────
+  function toggleFullscreen() {
+    const el = rootRef.current; if (!el) return
+    if (!document.fullscreenElement) void el.requestFullscreen?.().catch(() => setFullscreen((v) => !v))
+    else void document.exitFullscreen?.()
+  }
+  useEffect(() => {
+    const onFs = () => setFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
+  }, [])
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>
 
@@ -359,14 +374,14 @@ export default function AlbumDesignerPage() {
   const activeSpread = Math.floor(spreadStart / 2)
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--bg-sunken))]">
+    <div ref={rootRef} className="min-h-screen bg-[rgb(var(--bg-sunken))] overflow-auto">
       {/* header */}
       <div className="sticky top-0 z-20 bg-[rgb(var(--bg))] border-b border-[rgb(var(--border))]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
-          <Link to={`/weddings/${entryId}`} className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"><ArrowLeft size={18} /></Link>
+          <Link to={isCouple ? '/couple' : `/weddings/${entryId}`} className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"><ArrowLeft size={18} /></Link>
           <div className="min-w-0">
-            <h1 className="font-display text-lg truncate">Impaginatore — {title}</h1>
-            <p className="text-[11px] text-[rgb(var(--fg-muted))]">{isCouple ? 'Costruisci la tua bozza, poi inviala al fotografo' : 'Bozza album, rifinibile pagina per pagina'} · {status}</p>
+            <h1 className="font-display text-lg truncate">{isCouple ? 'Album' : 'Impaginatore'} — {title}</h1>
+            <p className="text-[11px] text-[rgb(var(--fg-muted))]">{isCouple ? 'Visualizza l’album e richiedi le modifiche che vuoi' : 'Bozza album, rifinibile pagina per pagina'} · {statusLabel(status)}</p>
           </div>
           <div className="flex items-center gap-2 ml-auto">
             {!lite && <select value={format} onChange={(e) => setFormat(e.target.value)} className="text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5">
@@ -402,6 +417,7 @@ export default function AlbumDesignerPage() {
             <ToolToggle on={gridOn} onClick={() => setGridOn((v) => !v)} icon={<Grid3x3 size={14} />} label="Griglia" />
             <ToolToggle on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
             <ToolToggle on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
+            <ToolToggle on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
             {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
             {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => currentPage.mode === 'free' ? setTemplate(currentPage.id, currentPage.template) : convertToFree(currentPage.id)} icon={<Move size={14} />} label="Libera" />}
             <div className="inline-flex items-center gap-0.5 ml-0.5">
@@ -410,6 +426,7 @@ export default function AlbumDesignerPage() {
               <button title="Ingrandisci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.1).toFixed(2)))}><ZoomIn size={13} /></button>
             </div>
             <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
+            <ToolToggle on={fullscreen} onClick={toggleFullscreen} icon={fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />} label={fullscreen ? 'Esci pieno' : 'Piena pagina'} />
             <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
             {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(action.next)}>{action.label}</Button>
@@ -441,6 +458,7 @@ export default function AlbumDesignerPage() {
                 <div style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }} className="h-full flex items-center justify-center transition-transform">
                 {spreadPages.length ? (
                   <div className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px h-[74vh]">
+                    {rulerOn && <SpreadRuler cmX={(fmt.w * spreadPages.length) / 10} cmY={fmt.h / 10} />}
                     {spreadPages.map((p) => {
                       const isAct = p.id === currentPageId
                       const pnum = pageNums ? pages.findIndex((x) => x.id === p.id) + 1 : null
@@ -599,10 +617,21 @@ export default function AlbumDesignerPage() {
                   <label className="flex items-center gap-2 text-sm cursor-pointer select-none"><input type="checkbox" checked={bleed} onChange={(e) => setBleed(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Abbondanza <span className="text-xs text-[rgb(var(--fg-muted))]">(3 mm a filo bordo, per il taglio)</span></label>
                   <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${!bleed ? 'opacity-40' : ''}`}><input type="checkbox" disabled={!bleed} checked={cutMarks} onChange={(e) => setCutMarks(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Crocini di taglio <span className="text-xs text-[rgb(var(--fg-muted))]">(segni dove tagliare)</span></label>
                   <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Le foto su Drive vengono scaricate in originale ad alta risoluzione durante l'export.</p>
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    <Button variant="gold" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('pdf') }}><FileText size={14} /> PDF pagine</Button>
-                    <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('spread') }}><LayoutGrid size={14} /> Spread</Button>
-                    <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('jpg') }}><FileImage size={14} /> JPG</Button>
+                  <div className="pt-1 space-y-2">
+                    <div>
+                      <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1 flex items-center gap-1.5"><FileText size={12} /> PDF</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="gold" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('spread') }}><LayoutGrid size={14} /> Tavola intera</Button>
+                        <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('pdf') }}><FileText size={14} /> Pagine divise</Button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1 flex items-center gap-1.5"><FileImage size={12} /> JPG (una immagine per…)</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('jpgspread') }}><LayoutGrid size={14} /> Tavola intera</Button>
+                        <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('jpg') }}><FileImage size={14} /> Pagine divise</Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -616,7 +645,7 @@ export default function AlbumDesignerPage() {
             const Mini = ({ p }: { p: AlbumPage }) => {
               const frames = framesForPage(p)
               return (
-                <div className="relative bg-white shadow-xl h-[72vh]" style={{ aspectRatio: String(asp), background: p.mode === 'free' ? (p.bg ?? '#fff') : '#fff' }}>
+                <div className="relative bg-white shadow-xl shrink-0" style={{ aspectRatio: String(asp), height: `min(74vh, ${(46 / asp).toFixed(2)}vw)`, background: p.mode === 'free' ? (p.bg ?? '#fff') : '#fff' }}>
                   {p.mode === 'free'
                     ? (p.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); const bg = m ? cellBackground((aspects[m.id]) ?? 1.5, (el.w * fmt.w) / (el.h * fmt.h), el.cell) : null; return <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined, ...(bg ? { backgroundImage: `url(${m ? hiUrl(m) : ''})`, ...bg } : {}) }} /> })
                     : frames.map((fr, i) => { const id = p.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), p.cells?.[i] ?? DEFAULT_CELL) : null; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${(fr.w) * 100}%`, height: `${fr.h * 100}%`, padding: '2px', ...(bg ? { backgroundImage: `url(${m ? hiUrl(m) : ''})`, ...bg } : {}) }} /> })}
@@ -973,6 +1002,35 @@ function SpreadThumb(props: {
         </div>
       )}
     </div>
+  )
+}
+
+// Righello in centimetri attorno alla tavola (come Photoshop). cmX = larghezza tavola, cmY = altezza.
+function SpreadRuler({ cmX, cmY }: { cmX: number; cmY: number }) {
+  const xs = Array.from({ length: Math.floor(cmX) + 1 }, (_, i) => i)
+  const ys = Array.from({ length: Math.floor(cmY) + 1 }, (_, i) => i)
+  const evX = cmX > 20 ? 5 : cmX > 12 ? 2 : 1
+  const evY = cmY > 20 ? 5 : cmY > 12 ? 2 : 1
+  return (
+    <>
+      <div className="absolute left-0 right-0 -top-[18px] h-[18px] bg-[rgb(var(--bg))] border border-[rgb(var(--border))] text-[7px] text-[rgb(var(--fg-muted))] pointer-events-none select-none z-50 overflow-hidden">
+        {xs.map((i) => (
+          <div key={i} className="absolute top-0 bottom-0" style={{ left: `${(i / cmX) * 100}%` }}>
+            <div className={`absolute top-0 ${i % evX === 0 ? 'h-full' : 'h-1/2'} w-px bg-[rgb(var(--fg-subtle))]`} />
+            {i % evX === 0 && i > 0 && <span className="absolute top-px left-0.5 leading-none">{i}</span>}
+          </div>
+        ))}
+      </div>
+      <div className="absolute top-0 bottom-0 -left-[18px] w-[18px] bg-[rgb(var(--bg))] border border-[rgb(var(--border))] text-[7px] text-[rgb(var(--fg-muted))] pointer-events-none select-none z-50 overflow-hidden">
+        {ys.map((i) => (
+          <div key={i} className="absolute left-0 right-0" style={{ top: `${(i / cmY) * 100}%` }}>
+            <div className={`absolute left-0 ${i % evY === 0 ? 'w-full' : 'w-1/2'} h-px bg-[rgb(var(--fg-subtle))]`} />
+            {i % evY === 0 && i > 0 && <span className="absolute left-px top-0 leading-none">{i}</span>}
+          </div>
+        ))}
+      </div>
+      <div className="absolute -top-[18px] -left-[18px] w-[18px] h-[18px] bg-[rgb(var(--bg))] border border-[rgb(var(--border))] z-50 pointer-events-none flex items-center justify-center text-[6px] text-[rgb(var(--fg-subtle))]">cm</div>
+    </>
   )
 }
 

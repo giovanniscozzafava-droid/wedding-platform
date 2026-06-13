@@ -107,6 +107,20 @@ describe('spacingSnap — margine uguale tra le foto (stile Canva)', () => {
     expect(approx(s.x, 0.30)).toBe(true)
     expect(s.marks).toHaveLength(0)
   })
+  it('con un solo vicino: aggancia il bordo bianco al gutter standard', () => {
+    const left = el({ id: 'L', x: 0.1, y: 0.4, w: 0.2, h: 0.2 }) // bordo destro 0.30
+    const e = el({ x: 0.325, y: 0.4, w: 0.2, h: 0.2 }) // gap 0.025 ~ GUTTER 0.02
+    const s = spacingSnap(e, [left])
+    expect(approx(s.x, 0.32, 1e-9)).toBe(true) // 0.30 + 0.02
+    expect(s.marks).toHaveLength(1)
+  })
+  it('fa coincidere il bordo bianco con un gutter già presente sulla pagina', () => {
+    const a = el({ id: 'A', x: 0.1, y: 0.4, w: 0.2, h: 0.2 }) // right 0.30
+    const b = el({ id: 'B', x: 0.4, y: 0.4, w: 0.2, h: 0.2 }) // gap A→B = 0.10, right 0.60
+    const e = el({ x: 0.705, y: 0.4, w: 0.15, h: 0.2 }) // gap a destra di B ≈ 0.105
+    const s = spacingSnap(e, [a, b])
+    expect(approx(s.x, 0.70, 1e-9)).toBe(true) // 0.60 + 0.10 (stesso gutter di A→B)
+  })
 })
 
 describe('multi-selezione: sposta/rimuovi in blocco', () => {

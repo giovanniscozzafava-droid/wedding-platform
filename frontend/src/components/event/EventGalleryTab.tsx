@@ -323,14 +323,15 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         </Card>
       )}
 
-      {/* Impaginatore album: bozza per momenti + export in tutti i formati (fotografo e sposi) */}
-      {(isOwner || role === 'sposi') && folders.some((f) => f.gallery_media.length > 0) && (
+      {/* Album: il fotografo impagina/esporta; gli sposi visualizzano e chiedono modifiche.
+          Per gli sposi la card è SEMPRE visibile (anche prima che ci siano foto), così possono entrare. */}
+      {(isOwner || role === 'sposi') && (role === 'sposi' || folders.some((f) => f.gallery_media.length > 0)) && (
         <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium flex items-center gap-2"><BookOpen size={16} className="text-[rgb(var(--gold-600))]" /> Impaginatore album</p>
-            <p className="text-xs text-[rgb(var(--fg-muted))]">{role === 'sposi' ? 'Costruisci la tua bozza per momenti (60–110 foto), poi inviala al fotografo.' : 'Impagina e rifinisci in tutti i formati, poi esporta PDF / JPG.'}</p>
+            <p className="text-sm font-medium flex items-center gap-2"><BookOpen size={16} className="text-[rgb(var(--gold-600))]" /> {role === 'sposi' ? 'Visualizza album e richiedi modifiche' : 'Impaginatore album'}</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">{role === 'sposi' ? 'Sfoglia l’album impaginato dal fotografo: dove vuoi cambiare qualcosa (foto, posizione, ritaglio) chiedi una modifica.' : 'Impagina e rifinisci in tutti i formati, poi esporta PDF / JPG.'}</p>
           </div>
-          <Link to={`/album/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><BookOpen size={14} /> Apri impaginatore</Button></Link>
+          <Link to={`/album/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><BookOpen size={14} /> {role === 'sposi' ? 'Visualizza album' : 'Apri impaginatore'}</Button></Link>
         </Card>
       )}
 
