@@ -106,8 +106,12 @@ function drawCutMarks(pdf: any, ox: number, oy: number, pageW: number, pageH: nu
   seg(rx, by, rx + len, by); seg(rx, by, rx, by + len)           // basso-dx
 }
 
-export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean } = {}) {
-  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false } = opts
+function pageNumText(pdf: any, n: number, cx: number, y: number) {
+  pdf.setFontSize(8); pdf.setTextColor(120, 120, 120); pdf.text(String(n), cx, y, { align: 'center' })
+}
+
+export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean; pageNumbers?: boolean } = {}) {
+  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false, pageNumbers = false } = opts
   const f = getFormat(formatKey)
   const { default: jsPDF } = await import('jspdf')
 
@@ -119,6 +123,7 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
       if (i > 0) pdf.addPage([sw, sh], sw >= sh ? 'landscape' : 'portrait')
       await renderPageInto(pdf, pages[i]!, f.w, f.h, 0, 0, resolve, dpi, 0)
       if (pages[i + 1]) await renderPageInto(pdf, pages[i + 1]!, f.w, f.h, f.w, 0, resolve, dpi, 0)
+      if (pageNumbers) { pageNumText(pdf, i + 1, f.w / 2, f.h - 5); if (pages[i + 1]) pageNumText(pdf, i + 2, f.w + f.w / 2, f.h - 5) }
     }
     pdf.save(filename)
     return
@@ -132,13 +137,14 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
     if (i > 0) pdf.addPage([box.w, box.h], box.w >= box.h ? 'landscape' : 'portrait')
     await renderPageInto(pdf, pages[i]!, f.w, f.h, 0, 0, resolve, dpi, b)
     if (cutMarks && b > 0) drawCutMarks(pdf, 0, 0, f.w, f.h, b)
+    if (pageNumbers) pageNumText(pdf, i + 1, box.w / 2, box.h - 5 - b)
   }
   pdf.save(filename)
 }
 
 // JPG per pagina dentro uno ZIP (una facciata = un'immagine). Senza abbondanza.
-export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string } = {}) {
-  const { dpi = 150, filename = 'album-jpg.zip' } = opts
+export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean } = {}) {
+  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false } = opts
   const f = getFormat(formatKey)
   const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
@@ -160,6 +166,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
         if (el.border) { ctx.lineWidth = Math.max(1, el.border.w * pxPerMm); ctx.strokeStyle = el.border.color; ctx.strokeRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
         ctx.restore()
       }
+      if (pageNumbers) { ctx.fillStyle = '#888'; ctx.font = `${Math.round(c.height * 0.02)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(String(p + 1), c.width / 2, c.height - c.height * 0.02) }
       const blobF: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
       zip.file(`pagina-${String(p + 1).padStart(3, '0')}.jpg`, blobF)
       continue
@@ -177,6 +184,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
         ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, x, y, w, h)
       } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(x, y, w, h) }
     }
+    if (pageNumbers) { ctx.fillStyle = '#888'; ctx.font = `${Math.round(c.height * 0.02)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(String(p + 1), c.width / 2, c.height - c.height * 0.02) }
     const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
     zip.file(`pagina-${String(p + 1).padStart(3, '0')}.jpg`, blob)
   }

@@ -14,7 +14,7 @@ import { cellBackground, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEF
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, movePages, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, removeFreeEl, updateFreeEl, bringToFront, type FreeEl, type Corner } from '@/lib/albumFree'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
-import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -47,6 +47,10 @@ export default function AlbumDesignerPage() {
   const [currentPageId, setCurrentPageId] = useState<string | null>(null) // pagina aperta nel canvas grande
   const [gridOn, setGridOn] = useState(false)          // griglia stile Photoshop
   const [marginsOn, setMarginsOn] = useState(true)     // guide margini
+  const [pageNums, setPageNums] = useState(false)      // numeri di pagina
+  const [zoom, setZoom] = useState(1)                  // zoom del canvas
+  const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
+  const [previewIdx, setPreviewIdx] = useState(0)
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
   const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero selezionato
   const [cropElId, setCropElId] = useState<string | null>(null) // elemento libero in ritaglio
@@ -111,6 +115,35 @@ export default function AlbumDesignerPage() {
   }, [step, pages, currentPageId])
 
   useEffect(() => { if (!loading) loadedRef.current = true }, [loading])
+
+  // ── UNDO / REDO (cronologia delle pagine) ──────────────────────────────────
+  const histPast = useRef<AlbumPage[][]>([])
+  const histFuture = useRef<AlbumPage[][]>([])
+  const prevPagesRef = useRef<AlbumPage[]>([])
+  const skipHist = useRef(false)
+  const [, forceHist] = useState(0)
+  useEffect(() => {
+    if (skipHist.current) { skipHist.current = false; prevPagesRef.current = pages; return }
+    if (loadedRef.current && prevPagesRef.current !== pages && prevPagesRef.current.length) {
+      histPast.current.push(prevPagesRef.current)
+      if (histPast.current.length > 60) histPast.current.shift()
+      histFuture.current = []
+    }
+    prevPagesRef.current = pages
+    forceHist((n) => n + 1)
+  }, [pages])
+  function undo() { if (!histPast.current.length) return; histFuture.current.push(pages); const p = histPast.current.pop()!; skipHist.current = true; setPages(p); forceHist((n) => n + 1) }
+  function redo() { if (!histFuture.current.length) return; histPast.current.push(pages); const p = histFuture.current.pop()!; skipHist.current = true; setPages(p); forceHist((n) => n + 1) }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase()
+      if ((e.metaKey || e.ctrlKey) && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo() }
+      else if ((e.metaKey || e.ctrlKey) && k === 'y') { e.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pages])
   // AUTOSAVE: i lavori di impaginazione si salvano da soli (debounce 1.5s dopo ogni modifica).
   useEffect(() => {
     if (!loadedRef.current || step !== 'design' || !entryId) return
@@ -171,6 +204,11 @@ export default function AlbumDesignerPage() {
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
   function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
   function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null) }
+  function freeDuplicate(pageId: string, id: string) {
+    const src = pages.find((p) => p.id === pageId)?.elements?.find((e) => e.id === id); if (!src) return
+    const copy = { ...src, id: newPage().id, x: Math.min(0.9, src.x + 0.04), y: Math.min(0.9, src.y + 0.04), cell: { ...src.cell } }
+    updatePage(pageId, (p) => ({ ...p, elements: bringToFront([...(p.elements ?? []), copy], copy.id) })); setSelEl(copy.id)
+  }
   function setPageBg(pageId: string, color: string) { updatePage(pageId, (p) => ({ ...p, bg: color })) }
   function delPage(id: string) { setPages((a) => removePage(a, id)); if (activePage === id) setActivePage(null) }
   function addPageAfter(id: string | null) {
@@ -221,6 +259,8 @@ export default function AlbumDesignerPage() {
       // (in app si lavora a bassa qualità; in export si stampa in alta). Fallback ai thumbnail.
       let grant: string | null = null
       try { const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId }); grant = (data as string) ?? null } catch { grant = null }
+      const placedDrive = pages.some((p) => p.mediaIds.concat((p.elements ?? []).map((e) => e.mediaId)).some((id) => { const m = mediaById.get(id); return m && isDrive(m) }))
+      if (placedDrive && !grant) toast.message('Per la massima qualità collega Google Drive: senza, esporto dalle anteprime.')
       const SB = import.meta.env.VITE_SUPABASE_URL
       const AK = import.meta.env.VITE_SUPABASE_ANON_KEY
       const resolve = (id: string) => {
@@ -230,8 +270,8 @@ export default function AlbumDesignerPage() {
       }
       const base = (title || 'album').toLowerCase().replace(/\s+/g, '-')
       // con l'originale Drive possiamo stampare in alta: 300 dpi per le pagine, 220 per JPG/spread
-      if (kind === 'jpg') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-jpg.zip`, dpi: Math.min(exportDpi, 240) })
-      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed, dpi: kind === 'spread' ? Math.min(exportDpi, 200) : exportDpi, cutMarks: kind === 'pdf' && cutMarks && bleed })
+      if (kind === 'jpg') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums })
+      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'spread' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed, dpi: kind === 'spread' ? Math.min(exportDpi, 200) : exportDpi, cutMarks: kind === 'pdf' && cutMarks && bleed, pageNumbers: pageNums })
       toast.success('Export pronto')
     } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false) }
   }
@@ -280,12 +320,21 @@ export default function AlbumDesignerPage() {
             {!lite && <Button variant="gold" size="sm" disabled={busy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)}><Wand2 size={14} /> Auto-impagina</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
+            <Button variant="outline" size="sm" disabled={!histPast.current.length} onClick={undo} title="Annulla (⌘Z)"><Undo2 size={14} /></Button>
+            <Button variant="outline" size="sm" disabled={!histFuture.current.length} onClick={redo} title="Ripeti (⌘⇧Z)"><Redo2 size={14} /></Button>
             <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
             <ToolToggle on={gridOn} onClick={() => setGridOn((v) => !v)} icon={<Grid3x3 size={14} />} label="Griglia" />
             <ToolToggle on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
+            <ToolToggle on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
             {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
             {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => currentPage.mode === 'free' ? setTemplate(currentPage.id, currentPage.template) : convertToFree(currentPage.id)} icon={<Move size={14} />} label="Libera" />}
+            <div className="inline-flex items-center gap-0.5 ml-0.5">
+              <button title="Riduci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
+              <span className="text-[11px] w-9 text-center text-[rgb(var(--fg-muted))]">{Math.round(zoom * 100)}%</span>
+              <button title="Ingrandisci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.1).toFixed(2)))}><ZoomIn size={13} /></button>
+            </div>
             <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
+            <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
             {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(action.next)}>{action.label}</Button>
             <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
@@ -313,18 +362,21 @@ export default function AlbumDesignerPage() {
             {/* canvas + filmstrip */}
             <main className="flex-1 flex flex-col min-w-0">
               <div className="flex-1 min-h-0 flex items-center justify-center p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
+                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }} className="origin-center transition-transform max-h-full max-w-full">
                 {currentPage ? (currentPage.mode === 'free' ? (
                   <FreeStage
                     page={currentPage} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn}
                     aspects={aspects} mediaById={mediaById} thumb={thumbUrl} selEl={selEl}
+                    pageNum={pageNums ? pages.findIndex((p) => p.id === currentPage.id) + 1 : null}
                     onSelect={setSelEl} onUpdateEl={(id, patch) => freeUpdate(currentPage.id, id, patch)}
-                    onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(currentPage.id, id)}
+                    onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(currentPage.id, id)} onDuplicateEl={(id) => freeDuplicate(currentPage.id, id)}
                     onDropMedia={(id) => freeAdd(currentPage.id, id)}
                   />
                 ) : (
                   <PageStage
                     page={currentPage} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn}
                     aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={activeSlot}
+                    pageNum={pageNums ? pages.findIndex((p) => p.id === currentPage.id) + 1 : null}
                     onSlot={setActiveSlot}
                     onDropMedia={(s, id) => placeInto(currentPage.id, s, id)}
                     onClearSlot={(s) => clearSlot(currentPage.id, s)}
@@ -337,6 +389,7 @@ export default function AlbumDesignerPage() {
                     <div className="mt-3"><Button variant="outline" size="sm" onClick={() => addPageAfter(null)}><Plus size={14} /> Pagina vuota</Button></div>
                   </Card>
                 )}
+                </div>
               </div>
               {/* filmstrip pagine */}
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-2 overflow-x-auto">
@@ -344,6 +397,7 @@ export default function AlbumDesignerPage() {
                   <PageThumb key={p.id} page={p} index={idx} aspect={asp} active={p.id === currentPageId} lite={lite}
                     mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                     onSelect={() => { setCurrentPageId(p.id); setActiveSlot(null) }}
+                    onDropMedia={(id) => placeInto(p.id, null, id)}
                     onMove={(d) => movePage(p.id, d)} onDelete={() => delPage(p.id)} />
                 ))}
                 {!lite && <button onClick={() => addPageAfter(currentPageId)} className="shrink-0 h-16 w-16 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center" title="Aggiungi pagina"><Plus size={16} /></button>}
@@ -469,6 +523,33 @@ export default function AlbumDesignerPage() {
               </div>
             </div>
           )}
+
+          {/* Anteprima sfogliabile (spread) */}
+          {previewOpen && pages.length > 0 && (() => {
+            const left = Math.min(previewIdx - (previewIdx % 2), Math.max(0, pages.length - 1))
+            const lp = pages[left]; const rp = pages[left + 1]
+            const Mini = ({ p }: { p: AlbumPage }) => {
+              const frames = framesForPage(p)
+              return (
+                <div className="relative bg-white shadow-xl h-[72vh]" style={{ aspectRatio: String(asp), background: p.mode === 'free' ? (p.bg ?? '#fff') : '#fff' }}>
+                  {p.mode === 'free'
+                    ? (p.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); const bg = m ? cellBackground((aspects[m.id]) ?? 1.5, (el.w * fmt.w) / (el.h * fmt.h), el.cell) : null; return <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined, ...(bg ? { backgroundImage: `url(${m ? hiUrl(m) : ''})`, ...bg } : {}) }} /> })
+                    : frames.map((fr, i) => { const id = p.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), p.cells?.[i] ?? DEFAULT_CELL) : null; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${(fr.w) * 100}%`, height: `${fr.h * 100}%`, padding: '2px', ...(bg ? { backgroundImage: `url(${m ? hiUrl(m) : ''})`, ...bg } : {}) }} /> })}
+                </div>
+              )
+            }
+            return (
+              <div className="fixed inset-0 z-[80] bg-black/85 flex flex-col items-center justify-center p-6" onClick={() => setPreviewOpen(false)}>
+                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                  <button disabled={left <= 0} onClick={() => setPreviewIdx(Math.max(0, left - 2))} className="p-2 rounded-full bg-white/10 disabled:opacity-30"><ChevLeft size={24} className="text-white" /></button>
+                  <div className="flex gap-1">{lp && <Mini p={lp} />}{rp && <Mini p={rp} />}</div>
+                  <button disabled={left + 2 >= pages.length} onClick={() => setPreviewIdx(left + 2)} className="p-2 rounded-full bg-white/10 disabled:opacity-30"><ChevRight size={24} className="text-white" /></button>
+                </div>
+                <p className="text-white/70 text-xs mt-3">Spread {Math.floor(left / 2) + 1} · pag. {left + 1}{rp ? `–${left + 2}` : ''} di {pages.length}</p>
+                <button onClick={() => setPreviewOpen(false)} className="absolute top-4 right-4 text-white/80 hover:text-white"><X size={22} /></button>
+              </div>
+            )
+          })()}
         </>
       )}
       <div ref={exportRef} className="sr-only" aria-hidden />
@@ -552,12 +633,12 @@ function ToolToggle({ on, onClick, icon, label }: { on: boolean; onClick: () => 
 // Canvas grande: una pagina, con modifica libera della foto (drag = sposta, rotella/zoom = scala),
 // griglia stile Photoshop, guide margini e abbondanza.
 function PageStage(props: {
-  page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean
+  page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean; pageNum?: number | null
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; activeSlot: number | null
   onSlot: (s: number | null) => void; onDropMedia: (s: number, id: string) => void
   onClearSlot: (s: number) => void; onCell: (s: number, partial: Partial<Cell>) => void; onCrop: (s: number) => void
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, aspects, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, aspects, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const frames = framesForPage(page)
@@ -620,6 +701,8 @@ function PageStage(props: {
 
       {/* guide margini */}
       {marginsOn && <div className="absolute border border-dashed border-sky-400/70 pointer-events-none" style={{ left: `${mx}%`, right: `${mx}%`, top: `${my}%`, bottom: `${my}%` }} title="Area di sicurezza (margini)" />}
+      {/* numero di pagina */}
+      {pageNum != null && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-[rgb(var(--fg-muted))] pointer-events-none z-40">{pageNum}</div>}
       {/* abbondanza: bordo di taglio */}
       {bleed && <div className="absolute inset-0 border-2 border-rose-400/70 pointer-events-none" title="Linea di taglio (abbondanza attiva)" />}
       {/* griglia stile Photoshop: terzi + reticolo fine */}
@@ -638,12 +721,12 @@ function PageStage(props: {
 
 // Canvas LIBERO stile Canva: elementi che sposti/ridimensioni/ruoti con smart-guides.
 function FreeStage(props: {
-  page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean
+  page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean; pageNum?: number | null
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; selEl: string | null
   onSelect: (id: string | null) => void; onUpdateEl: (id: string, patch: Partial<FreeEl>) => void
-  onCrop: (id: string) => void; onRemove: (id: string) => void; onDropMedia: (id: string) => void
+  onCrop: (id: string) => void; onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, aspects, mediaById, thumb, selEl, onSelect, onUpdateEl, onCrop, onRemove, onDropMedia } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, aspects, mediaById, thumb, selEl, onSelect, onUpdateEl, onCrop, onRemove, onDuplicateEl, onDropMedia } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const mx = MARGIN_MM / fmt.w, my = MARGIN_MM / fmt.h
@@ -709,6 +792,7 @@ function FreeStage(props: {
                 <div onPointerDown={(e) => down(e, 'rotate', el)} className="absolute left-1/2 -top-6 -translate-x-1/2 h-4 w-4 bg-white border border-[rgb(var(--gold-500))] rounded-full touch-none cursor-grab flex items-center justify-center"><RotateCw size={9} /></div>
                 <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1" style={{ transform: `rotate(${-el.rot}deg)` }}>
                   <button title="Ritaglia" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onCrop(el.id) }}><Crop size={12} /></button>
+                  <button title="Duplica" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDuplicateEl(el.id) }}><Copy size={12} /></button>
                   <button title="Elimina" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onRemove(el.id) }}><Trash2 size={12} /></button>
                 </div>
               </>
@@ -728,6 +812,7 @@ function FreeStage(props: {
           <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgba(0,0,0,.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.18) 1px, transparent 1px)', backgroundSize: '12.5% 12.5%' }} />
         </div>
       )}
+      {pageNum != null && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-[rgb(var(--fg-muted))] pointer-events-none z-40">{pageNum}</div>}
       {els.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">Trascina o clicca le foto a sinistra per aggiungerle</div>}
     </div>
   )
@@ -737,14 +822,17 @@ function FreeStage(props: {
 function PageThumb(props: {
   page: AlbumPage; index: number; aspect: number; active: boolean; formatKey: string; lite?: boolean
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
-  onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void
+  onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia?: (id: string) => void
 }) {
-  const { page, index, aspect, active, formatKey, lite, aspects, mediaById, thumb, onSelect, onMove, onDelete } = props
+  const { page, index, aspect, active, formatKey, lite, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia } = props
   const fmt = getFormat(formatKey)
   const frames = framesForPage(page)
   return (
     <div className="shrink-0 group relative">
-      <button onClick={onSelect} className={`relative block h-16 overflow-hidden border ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ aspectRatio: String(aspect), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
+      <button onClick={onSelect}
+        onDragOver={(e) => { if (onDropMedia) e.preventDefault() }}
+        onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid && onDropMedia) onDropMedia(mid) }}
+        className={`relative block h-16 overflow-hidden border ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ aspectRatio: String(aspect), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
         {page.mode === 'free'
           ? (page.elements ?? []).map((el) => {
               const m = mediaById.get(el.mediaId)
