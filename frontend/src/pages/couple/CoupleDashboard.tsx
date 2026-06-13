@@ -69,6 +69,17 @@ const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'website',   label: 'Sito ospiti',  icon: Globe },
 ]
 
+// Categorie del menu laterale cliente: raggruppano le tab in aree comprensibili,
+// così la coppia capisce subito dove trovare le cose. Le tab non pertinenti
+// all'evento vengono filtrate; i gruppi senza voci visibili non si mostrano.
+const TAB_GROUPS: Array<{ label: string; keys: Tab[] }> = [
+  { label: 'Il tuo evento', keys: ['overview', 'programma', 'scaletta', 'cerimonia'] },
+  { label: 'Ricordi', keys: ['foto', 'video', 'audio', 'guestbook'] },
+  { label: 'Stile & festa', keys: ['mood', 'playlist', 'menu', 'gadgets'] },
+  { label: 'Ospiti', keys: ['invitati', 'tavoli', 'website'] },
+  { label: 'Organizzazione', keys: ['preventivo', 'fornitori', 'documenti', 'checklist', 'alloggi', 'trasporti', 'planning'] },
+]
+
 const RESTAURATION_SUBROLES = new Set(['location', 'catering', 'chef', 'food_truck', 'pasticcere', 'sweet_table', 'bartender', 'sommelier'])
 
 // Quali tab mostrare per tipo evento. Le tab "base" (overview, preventivo,
@@ -218,8 +229,8 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
         </div>
       </section>
 
-      {/* Tabs — scrollable on mobile with edge-fade indicators */}
-      <nav className="sticky top-[57px] z-20 border-b relative" style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
+      {/* Tabs — barra orizzontale SOLO su mobile (su desktop c'è il menu laterale) */}
+      <nav className="lg:hidden sticky top-[57px] z-20 border-b relative" style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
         <div className="max-w-6xl mx-auto px-6 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <div className="flex gap-1 py-2 min-w-max">
             {visibleTabs.map((t) => {
@@ -249,7 +260,33 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
         <div className="pointer-events-none absolute inset-y-0 right-0 w-6" style={{ background: 'linear-gradient(-90deg, rgb(var(--bg-elev)), transparent)' }} />
       </nav>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-8 lg:flex lg:gap-8 lg:items-start">
+        {/* Menu laterale per categorie (desktop): le cose in ordine, così la coppia capisce subito */}
+        <aside className="hidden lg:block w-52 shrink-0 sticky top-[73px] self-start max-h-[calc(100vh-90px)] overflow-y-auto pr-1">
+          {TAB_GROUPS.map((g) => {
+            const items = g.keys.map((k) => visibleTabs.find((t) => t.key === k)).filter(Boolean) as typeof visibleTabs
+            if (!items.length) return null
+            return (
+              <div key={g.label} className="mb-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[rgb(var(--fg-subtle))] px-3 mb-1">{g.label}</p>
+                <div className="space-y-0.5">
+                  {items.map((t) => {
+                    const Icon = t.icon; const active = tab === t.key
+                    return (
+                      <button key={t.key} onClick={() => setTab(t.key)}
+                        className={cn('w-full inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors text-left',
+                          active ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]')}>
+                        <Icon size={15} className="shrink-0" /> <span className="truncate">{t.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </aside>
+
+        <div className="flex-1 min-w-0">
         {tab === 'overview' && <div className="mb-6"><EventRing entryId={entryId} view="sposi" /></div>}
         {tab === 'overview' && <div className="mb-6"><CompletionRings entryId={entryId} onOpen={(t) => setTab(((({ guests: 'invitati', rsvp: 'invitati', tables: 'tavoli', ceremony: 'cerimonia', timeline: 'programma', cerchio: 'overview' }) as Record<string, string>)[t] ?? t) as Tab)} /></div>}
         <AnimatePresence mode="wait">
@@ -301,6 +338,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             {tab === 'website' && <WebsiteCouple wedding={wedding} />}
           </motion.div>
         </AnimatePresence>
+        </div>
       </div>
     </>
   )
