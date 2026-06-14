@@ -32,7 +32,10 @@ Deno.serve(async (req) => {
   // il login immediato lato browser (nessuna email da aprire).
   let link = await admin.auth.admin.generateLink({ type: 'magiclink', email })
   if (link.error || !link.data?.user) {
-    const created = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: name } })
+    // RUOLO CLIENT: un ospite NON deve essere un professionista. Senza questo, il trigger
+    // handle_new_user assegnerebbe il default WEDDING_PLANNER → accesso alle aree pro (bug sicurezza).
+    // Gli utenti GIÀ esistenti (anche pro che sono ospiti altrove) passano dal ramo generateLink e NON vengono toccati.
+    const created = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: name, role: 'CLIENT' } })
     if (created.error) return json({ error: created.error.message }, 500)
     link = await admin.auth.admin.generateLink({ type: 'magiclink', email })
   }
