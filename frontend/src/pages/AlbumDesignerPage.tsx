@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X } from 'lucide-react'
@@ -27,7 +27,7 @@ const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
 const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
 
-export default function AlbumDesignerPage() {
+function AlbumDesignerInner() {
   const { entryId } = useParams<{ entryId: string }>()
   const { profile } = useAuth()
   const isCouple = profile?.role === 'COUPLE'
@@ -57,6 +57,8 @@ export default function AlbumDesignerPage() {
   const rootRef = useRef<HTMLDivElement>(null)
   const spreadRef = useRef<HTMLDivElement>(null)
   const guideDrag = useRef<{ axis: 'v' | 'h'; index: number } | null>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const [canvasBox, setCanvasBox] = useState({ w: 0, h: 0 }) // area disponibile per la tavola (per il fit)
   const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
   const [previewIdx, setPreviewIdx] = useState(0)
   // vista cliente mobile-first
@@ -91,21 +93,23 @@ export default function AlbumDesignerPage() {
   const load = useCallback(async () => {
     if (!entryId) return
     setLoading(true)
-    const [{ data: proj }, { data: med }, { data: ent }] = await Promise.all([
-      (supabase.from as any)('album_projects').select('format_key, status, layout').eq('entry_id', entryId).maybeSingle(),
-      (supabase.from as any)('gallery_media').select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment').eq('entry_id', entryId),
-      (supabase.from as any)('calendar_entries').select('title').eq('id', entryId).maybeSingle(),
-    ])
-    setMedia((med as M[]) ?? [])
-    setTitle((ent as { title?: string } | null)?.title ?? 'Album')
-    if (proj) {
-      setFormat((proj as any).format_key ?? DEFAULT_FORMAT)
-      setStatus((proj as any).status ?? 'DRAFT')
-      const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean } | null
-      if (typeof lay?.bleed === 'boolean') setBleed(lay.bleed)
-      if (lay?.pages?.length) { setPages(lay.pages); setStep('design') }
-    }
-    setLoading(false)
+    try {
+      const [pr, mr, er] = await Promise.all([
+        (supabase.from as any)('album_projects').select('format_key, status, layout').eq('entry_id', entryId).maybeSingle(),
+        (supabase.from as any)('gallery_media').select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment').eq('entry_id', entryId),
+        (supabase.from as any)('calendar_entries').select('title').eq('id', entryId).maybeSingle(),
+      ])
+      const proj = (pr as any)?.data, med = (mr as any)?.data, ent = (er as any)?.data
+      setMedia((med as M[]) ?? [])
+      setTitle((ent as { title?: string } | null)?.title ?? 'Album')
+      if (proj) {
+        setFormat((proj as any).format_key ?? DEFAULT_FORMAT)
+        setStatus((proj as any).status ?? 'DRAFT')
+        const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean } | null
+        if (typeof lay?.bleed === 'boolean') setBleed(lay.bleed)
+        if (lay?.pages?.length) { setPages(lay.pages); setStep('design') }
+      }
+    } catch (e) { console.error('album load', e) } finally { setLoading(false) }
   }, [entryId])
   useEffect(() => { void load() }, [load])
 
@@ -214,8 +218,14 @@ export default function AlbumDesignerPage() {
   }
 
   // ── editor pagine ───────────────────────────────────────────────────────────
-  const placedIds = useMemo(() => new Set(pages.flatMap((p) => p.mediaIds)), [pages])
-  const trayMedia = kept // mostra tutte le KEPT; le già piazzate appaiono attenuate
+  // tutte le foto piazzate (slot template + elementi liberi)
+  const placedIds = useMemo(() => new Set(pages.flatMap((p) => [...p.mediaIds, ...((p.elements ?? []).map((e) => e.mediaId))]).filter(Boolean)), [pages])
+  // a sinistra: TUTTE le foto del progetto — opache se già usate, nitide se ancora da usare
+  const trayMedia = useMemo(() => {
+    const map = new Map(kept.map((m) => [m.id, m]))
+    for (const id of placedIds) { if (!map.has(id)) { const m = mediaById.get(id); if (m) map.set(id, m) } }
+    return [...map.values()]
+  }, [kept, placedIds, mediaById])
 
   function updatePage(id: string, fn: (p: AlbumPage) => AlbumPage) {
     setPages((arr) => arr.map((p) => (p.id === id ? fn(p) : p)))
@@ -374,6 +384,13 @@ export default function AlbumDesignerPage() {
     document.addEventListener('fullscreenchange', onFs)
     return () => document.removeEventListener('fullscreenchange', onFs)
   }, [])
+  // misura l'area canvas così la tavola può FITTARE (zoom 100% = adattata; filmstrip e strumenti sempre visibili)
+  useEffect(() => {
+    const el = canvasRef.current; if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => setCanvasBox({ w: el.clientWidth, h: el.clientHeight })
+    const ro = new ResizeObserver(measure); ro.observe(el); measure()
+    return () => ro.disconnect()
+  }, [step, lite])
 
   // ── guide righello (stile Photoshop): clic sul righello = nuova guida; trascina per spostare; doppio clic = rimuovi ──
   function addGuide(axis: 'v' | 'h', pos: number) {
@@ -408,6 +425,10 @@ export default function AlbumDesignerPage() {
   const spreads: AlbumPage[][] = []
   for (let i = 0; i < pages.length; i += 2) spreads.push(pages.slice(i, i + 2))
   const activeSpread = Math.floor(spreadStart / 2)
+  // altezza della tavola che FITTA l'area disponibile (sia in larghezza che in altezza), poi scalata dallo zoom
+  const spreadCount = spreadPages.length || 1
+  const fitH = canvasBox.h && canvasBox.w ? Math.min(canvasBox.h, canvasBox.w / (asp * spreadCount)) * 0.96 : 0
+  const spreadHpx = Math.max(180, (fitH || 560) * zoom)
 
   // ── VISTA CLIENTE (mobile-first, stile Canva mobile): sfoglia le tavole grandi, zoom a tutto
   //    schermo, richiedi modifiche. Sola lettura: il cliente non modifica per sbaglio la struttura. ──
@@ -591,11 +612,11 @@ export default function AlbumDesignerPage() {
 
             {/* canvas + filmstrip */}
             <main className="flex-1 flex flex-col min-w-0 relative">
-              <div className="flex-1 min-h-0 flex p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
+              <div ref={canvasRef} className="flex-1 min-h-0 flex p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
                 <div className="m-auto">
                 {spreadPages.length ? (
                   <div ref={spreadRef} onPointerMove={moveGuideDrag} onPointerUp={endGuideDrag} onPointerLeave={endGuideDrag}
-                    className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px transition-[height]" style={{ height: `${(74 * zoom).toFixed(1)}vh` }}>
+                    className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px transition-[height]" style={{ height: `${spreadHpx.toFixed(0)}px` }}>
                     {rulerOn && <SpreadRuler cmX={(fmt.w * spreadPages.length) / 10} cmY={fmt.h / 10} onAddGuide={addGuide} />}
                     {/* guide Photoshop: linee precise trascinabili (doppio clic per rimuoverle) */}
                     {guidesV.map((g, i) => <div key={`gv${i}`} onPointerDown={(e) => startGuideDrag(e, 'v', i)} onDoubleClick={() => removeGuide('v', i)} className="absolute top-0 bottom-0 z-[45] -ml-1 w-2 cursor-ew-resize group/guide" style={{ left: `${g * 100}%` }}><div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-cyan-500 group-hover/guide:w-0.5" /></div>)}
@@ -1428,4 +1449,28 @@ function CropModal(props: { src: string; imgAspect: number; slotAspect: number; 
       <div className="text-center text-white/70 text-xs pb-3" onClick={(e) => e.stopPropagation()}>Trascina il riquadro per spostarlo · trascina l'angolo per ingrandirlo/rimpicciolirlo</div>
     </div>
   )
+}
+
+// Cattura eventuali errori di render: invece di white-screen mostra un messaggio + l'errore.
+class AlbumBoundary extends Component<{ children: ReactNode }, { err: Error | null }> {
+  constructor(props: { children: ReactNode }) { super(props); this.state = { err: null } }
+  static getDerivedStateFromError(err: Error) { return { err } }
+  componentDidCatch(err: Error) { console.error('AlbumDesigner crash', err) }
+  render() {
+    if (this.state.err) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-[rgb(var(--bg-sunken))]">
+          <p className="font-display text-xl mb-2">Qualcosa è andato storto nell'album</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))] max-w-md">Ricarica la pagina. Se continua, mostra questo messaggio al fotografo:</p>
+          <pre className="mt-3 text-[11px] text-rose-500 max-w-md overflow-auto whitespace-pre-wrap">{this.state.err.message}</pre>
+          <button onClick={() => location.reload()} className="mt-5 px-4 py-2 rounded-lg bg-[rgb(var(--gold-500))] text-white text-sm">Ricarica</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+export default function AlbumDesignerPage() {
+  return <AlbumBoundary><AlbumDesignerInner /></AlbumBoundary>
 }

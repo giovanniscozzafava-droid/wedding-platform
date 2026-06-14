@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Sparkles, Mail, ArrowRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -73,6 +73,16 @@ export default function ClientAccessPage() {
             <Button className="w-full mt-4" onClick={() => void send()} disabled={sending}>
               {sending ? 'Invio…' : <>Invia link di accesso <ArrowRight size={16} className="ml-1" /></>}
             </Button>
+
+            {/* Chi ha già una password (es. account registrato) può accedere o reimpostarla */}
+            <div className="mt-5 pt-4 border-t border-[rgb(var(--border))] text-center text-sm text-[rgb(var(--fg-muted))]">
+              <p>Hai già una password?{' '}
+                <Link to="/login" className="font-medium text-[rgb(var(--fg))] hover:underline">Accedi</Link>
+              </p>
+              <p className="mt-1.5">
+                <Link to="/forgot-password" className="hover:underline">Non ricordi la password?</Link>
+              </p>
+            </div>
           </>
         )}
       </Card>
