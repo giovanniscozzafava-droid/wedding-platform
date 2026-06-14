@@ -10,7 +10,7 @@ import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect } from '@/lib/albu
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
 import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, capacity, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
-import { cellBackground, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
+import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, type SavedLayout } from '@/lib/albumLayouts'
@@ -453,11 +453,11 @@ export default function AlbumDesignerPage() {
             </aside>
 
             {/* canvas + filmstrip */}
-            <main className="flex-1 flex flex-col min-w-0">
-              <div className="flex-1 min-h-0 flex items-center justify-center p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
-                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }} className="h-full flex items-center justify-center transition-transform">
+            <main className="flex-1 flex flex-col min-w-0 relative">
+              <div className="flex-1 min-h-0 flex p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
+                <div className="m-auto">
                 {spreadPages.length ? (
-                  <div className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px h-[74vh]">
+                  <div className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px transition-[height]" style={{ height: `${(74 * zoom).toFixed(1)}vh` }}>
                     {rulerOn && <SpreadRuler cmX={(fmt.w * spreadPages.length) / 10} cmY={fmt.h / 10} />}
                     {spreadPages.map((p) => {
                       const isAct = p.id === currentPageId
@@ -493,6 +493,18 @@ export default function AlbumDesignerPage() {
                 )}
                 </div>
               </div>
+              {/* NAVIGATORE tavola: scorri le tavole e allarga/restringi la pagina come serve */}
+              {spreads.length > 0 && (
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-[92px] z-30 flex items-center gap-1 rounded-full bg-[rgb(var(--bg))]/95 backdrop-blur border border-[rgb(var(--border))] shadow-lg px-1.5 py-1">
+                  <button title="Tavola precedente" disabled={activeSpread <= 0} onClick={() => { const j = activeSpread - 1; if (j >= 0) setCurrentPageId((spreads[j]![0] ?? spreads[j]![1])!.id) }} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-30"><ChevLeft size={16} /></button>
+                  <span className="text-[11px] text-[rgb(var(--fg-muted))] w-16 text-center tabular-nums">Tav. {activeSpread + 1}/{spreads.length}</span>
+                  <button title="Tavola successiva" disabled={activeSpread >= spreads.length - 1} onClick={() => { const j = activeSpread + 1; if (j < spreads.length) setCurrentPageId((spreads[j]![0] ?? spreads[j]![1])!.id) }} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-30"><ChevRight size={16} /></button>
+                  <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
+                  <button title="Restringi" onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.15).toFixed(2)))} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ZoomOut size={16} /></button>
+                  <button title="Adatta" onClick={() => setZoom(1)} className="text-[11px] w-10 text-center tabular-nums hover:underline">{Math.round(zoom * 100)}%</button>
+                  <button title="Allarga" onClick={() => setZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ZoomIn size={16} /></button>
+                </div>
+              )}
               {/* filmstrip TAVOLE (doppia pagina, come in stampa) */}
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
                 {spreads.map((pair, si) => (
@@ -647,8 +659,8 @@ export default function AlbumDesignerPage() {
               return (
                 <div className="relative bg-white shadow-xl shrink-0" style={{ aspectRatio: String(asp), height: `min(74vh, ${(46 / asp).toFixed(2)}vw)`, background: p.mode === 'free' ? (p.bg ?? '#fff') : '#fff' }}>
                   {p.mode === 'free'
-                    ? (p.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); const bg = m ? cellBackground((aspects[m.id]) ?? 1.5, (el.w * fmt.w) / (el.h * fmt.h), el.cell) : null; return <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined, ...(bg ? { backgroundImage: `url(${m ? hiUrl(m) : ''})`, ...bg } : {}) }} /> })
-                    : frames.map((fr, i) => { const id = p.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), p.cells?.[i] ?? DEFAULT_CELL) : null; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${(fr.w) * 100}%`, height: `${fr.h * 100}%`, padding: '2px', ...(bg ? { backgroundImage: `url(${m ? hiUrl(m) : ''})`, ...bg } : {}) }} /> })}
+                    ? (p.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); return <div key={el.id} className="absolute overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>{m && <img src={hiUrl(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}</div> })
+                    : frames.map((fr, i) => { const id = p.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))] overflow-hidden" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%` }}>{m && <img src={hiUrl(m)} alt="" draggable={false} style={coverImgStyle(p.cells?.[i] ?? DEFAULT_CELL)} />}</div> })}
                 </div>
               )
             }
@@ -752,7 +764,7 @@ function PageStage(props: {
   onSlot: (s: number | null) => void; onDropMedia: (s: number, id: string) => void
   onClearSlot: (s: number) => void; onCell: (s: number, partial: Partial<Cell>) => void; onCrop: (s: number) => void
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, aspects, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const frames = framesForPage(page)
@@ -778,9 +790,6 @@ function PageStage(props: {
         const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined
         const sel = activeSlot === i
         const cell = page.cells?.[i] ?? DEFAULT_CELL
-        const slotAsp = slotAspectOf(fr, fmt.w, fmt.h)
-        const imgAsp = (m && aspects[m.id]) ? aspects[m.id]! : 1.5
-        const bg = m ? cellBackground(imgAsp, slotAsp, cell) : null
         return (
           <div key={i}
             onClick={(e) => { e.stopPropagation(); onSlot(i) }}
@@ -789,10 +798,12 @@ function PageStage(props: {
             onWheel={(e) => { if (!m) return; e.preventDefault(); const nz = Math.min(4, Math.max(1, +(cell.z + (e.deltaY < 0 ? 0.12 : -0.12)).toFixed(2))); onCell(i, { z: nz }) }}
             className={`absolute overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-10' : 'outline outline-1 outline-black/5'}`}
             style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, padding: '1px' }}>
-            {m && bg ? (
+            {m ? (
               <div className="relative w-full h-full">
                 <div onPointerDown={(e) => startPan(e, i, cell)} onPointerMove={movePan} onPointerUp={endPan} onPointerLeave={endPan}
-                  className="w-full h-full touch-none cursor-move" style={{ backgroundImage: `url(${thumb(m)})`, ...bg }} />
+                  className="w-full h-full touch-none cursor-move relative overflow-hidden">
+                  <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(cell)} />
+                </div>
                 {sel && (
                   <>
                     <span className="absolute -top-px -left-px h-2 w-2 border-t-2 border-l-2 border-[rgb(var(--gold-500))]" />
@@ -841,7 +852,7 @@ function FreeStage(props: {
   onUpdateMany: (patches: { id: string; patch: Partial<FreeEl> }[]) => void
   onCrop: (id: string) => void; onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, aspects, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const mx = MARGIN_MM / fmt.w, my = MARGIN_MM / fmt.h
@@ -902,16 +913,15 @@ function FreeStage(props: {
         const m = mediaById.get(el.mediaId)
         const sel = selEl === el.id
         const inSel = multiSel.includes(el.id)
-        const elAsp = (el.w * fmt.w) / (el.h * fmt.h)
-        const imgAsp = (m && aspects[m.id]) ? aspects[m.id]! : 1.5
-        const bg = m ? cellBackground(imgAsp, elAsp, el.cell) : null
         return (
           <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : inSel ? 10 : 1 }}>
             <div
               onPointerDown={(e) => down(e, 'move', el)}
               onDoubleClick={(e) => { e.stopPropagation(); onCrop(el.id) }}
-              className={`w-full h-full touch-none cursor-move ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : inSel ? 'outline outline-2 outline-dashed outline-[rgb(var(--gold-400))]' : ''}`}
-              style={{ ...(bg ?? {}), backgroundImage: m ? `url(${thumb(m)})` : undefined, backgroundColor: m ? undefined : 'rgba(0,0,0,.06)', boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, outlineColor: undefined, border: el.border ? `${Math.max(1, el.border.w)}px solid ${el.border.color}` : undefined }} />
+              className={`w-full h-full touch-none cursor-move relative overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : inSel ? 'outline outline-2 outline-dashed outline-[rgb(var(--gold-400))]' : ''}`}
+              style={{ backgroundColor: m ? undefined : 'rgba(0,0,0,.06)', boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${Math.max(1, el.border.w)}px solid ${el.border.color}` : undefined }}>
+              {m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}
+            </div>
             {sel && multiSel.length <= 1 && (
               <>
                 {(['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
@@ -955,13 +965,13 @@ function FreeStage(props: {
 
 // Miniatura nella filmstrip in basso.
 // rendering compatto di una pagina (per le miniature delle tavole)
-function MiniPage({ page, formatKey, aspects, mediaById, thumb }: { page: AlbumPage; formatKey: string; aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string }) {
+function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; formatKey: string; aspects?: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string }) {
   const fmt = getFormat(formatKey); const frames = framesForPage(page)
   return (
     <div className="relative h-full" style={{ aspectRatio: String(fmt.w / fmt.h), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
       {page.mode === 'free'
-        ? (page.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); const bg = m ? cellBackground((aspects[m.id]) ?? 1.5, (el.w * fmt.w) / (el.h * fmt.h), el.cell) : null; return <div key={el.id} className="absolute bg-black/5" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} /> })
-        : frames.map((fr, i) => { const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; const bg = m ? cellBackground((m && aspects[m.id]) ? aspects[m.id]! : 1.5, slotAspectOf(fr, fmt.w, fmt.h), page.cells?.[i] ?? DEFAULT_CELL) : null; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))]" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, ...(bg ? { backgroundImage: `url(${m ? thumb(m) : ''})`, ...bg } : {}) }} /> })}
+        ? (page.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); return <div key={el.id} className="absolute bg-black/5 overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)` }}>{m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}</div> })
+        : frames.map((fr, i) => { const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))] overflow-hidden" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%` }}>{m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(page.cells?.[i] ?? DEFAULT_CELL)} />}</div> })}
     </div>
   )
 }
@@ -1196,6 +1206,8 @@ function FreePanel(props: {
 function CropModal(props: { src: string; imgAspect: number; slotAspect: number; cell: Cell; onApply: (c: Cell) => void; onClose: () => void }) {
   const { src, imgAspect, slotAspect, cell: initial, onApply, onClose } = props
   const [cell, setCell] = useState<Cell>(initial)
+  // aspetto REALE della foto: misurato al load (il default passato può essere sbagliato → ritaglio storto)
+  const [asp, setAsp] = useState(imgAspect)
   const boxRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ mode: 'move' | 'resize'; x: number; y: number; cell: Cell } | null>(null)
 
@@ -1203,12 +1215,12 @@ function CropModal(props: { src: string; imgAspect: number; slotAspect: number; 
   function imgRect() {
     const el = boxRef.current; if (!el) return { x: 0, y: 0, w: 1, h: 1 }
     const W = el.clientWidth, H = el.clientHeight
-    let w = W, h = W / imgAspect
-    if (h > H) { h = H; w = H * imgAspect }
+    let w = W, h = W / asp
+    if (h > H) { h = H; w = H * asp }
     return { x: (W - w) / 2, y: (H - h) / 2, w, h }
   }
 
-  const crop = cellToCrop(imgAspect, slotAspect, cell) // cx,cy,w,h in frazioni immagine
+  const crop = cellToCrop(asp, slotAspect, cell) // cx,cy,w,h in frazioni immagine
   const ir = imgRect()
   const boxStyle = {
     left: ir.x + (crop.cx - crop.w / 2) * ir.w, top: ir.y + (crop.cy - crop.h / 2) * ir.h,
@@ -1224,13 +1236,13 @@ function CropModal(props: { src: string; imgAspect: number; slotAspect: number; 
     const r = imgRect()
     if (d.mode === 'move') {
       const dfx = (e.clientX - d.x) / Math.max(1, r.w), dfy = (e.clientY - d.y) / Math.max(1, r.h)
-      setCell(cropToCell(imgAspect, slotAspect, clampN(d.cell.fx + dfx), clampN(d.cell.fy + dfy), cellToCrop(imgAspect, slotAspect, d.cell).w))
+      setCell(cropToCell(asp, slotAspect, clampN(d.cell.fx + dfx), clampN(d.cell.fy + dfy), cellToCrop(asp, slotAspect, d.cell).w))
     } else {
       // ridimensiona attorno al centro: nuovo semilato = distanza dal centro
       const cxpx = r.x + d.cell.fx * r.w, cypx = r.y + d.cell.fy * r.h
       const halfW = Math.abs(e.clientX - cxpx), halfH = Math.abs(e.clientY - cypx)
-      const wFrac = Math.max((halfW * 2) / r.w, ((halfH * 2) / r.h) * (imgAspect / slotAspect))
-      setCell(cropToCell(imgAspect, slotAspect, d.cell.fx, d.cell.fy, wFrac))
+      const wFrac = Math.max((halfW * 2) / r.w, ((halfH * 2) / r.h) * (asp / slotAspect))
+      setCell(cropToCell(asp, slotAspect, d.cell.fx, d.cell.fy, wFrac))
     }
   }
   function onUp() { dragRef.current = null }
@@ -1247,7 +1259,7 @@ function CropModal(props: { src: string; imgAspect: number; slotAspect: number; 
       </div>
       <div className="flex-1 min-h-0 p-4 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
         <div ref={boxRef} className="relative max-w-full max-h-full" style={{ width: '90vw', height: '78vh' }}>
-          <img src={src} alt="" className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none opacity-50" />
+          <img src={src} alt="" onLoad={(e) => { const t = e.currentTarget; if (t.naturalWidth && t.naturalHeight) setAsp(t.naturalWidth / t.naturalHeight) }} className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none opacity-50" />
           {/* finestra di ritaglio: parte luminosa */}
           <div className="absolute overflow-hidden ring-2 ring-white shadow-[0_0_0_9999px_rgba(0,0,0,.5)] cursor-move touch-none"
             style={boxStyle} onPointerDown={(e) => onDown(e, 'move')} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>

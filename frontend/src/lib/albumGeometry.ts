@@ -1,5 +1,6 @@
 // Geometria dell'impaginatore — funzioni PURE (testate) condivise da editor ed export,
 // così l'anteprima e il PDF coincidono al pixel. Crop/zoom/pan per foto + abbondanza (bleed).
+import type { CSSProperties } from 'react'
 
 export type Cell = { z: number; fx: number; fy: number } // zoom>=1, focale (0..1) nel sorgente
 export const DEFAULT_CELL: Cell = { z: 1, fx: 0.5, fy: 0.5 }
@@ -23,6 +24,22 @@ export function coverWindow(imgAspect: number, slotAspect: number, cell: Cell) {
   const wx = clamp(cx - ww / 2, 0, Math.max(0, sw - ww))
   const wy = clamp(cy - wh / 2, 0, Math.max(0, sh - wh))
   return { wx, wy, ww, wh, sw, sh }
+}
+
+// Stile per un <img object-fit:cover> che riproduce il crop (zoom + fuoco) SENZA
+// dipendere dall'aspetto dell'immagine: il browser fa il "cover" nativo, quindi le
+// proporzioni sono SEMPRE preservate (niente foto stirate). Va su un'<img> dentro un
+// contenitore relative+overflow-hidden. Parità con l'export: stesso fuoco e zoom.
+export function coverImgStyle(cell: Cell): CSSProperties {
+  const z = Math.max(1, cell.z || 1)
+  const fx = Math.min(1, Math.max(0, cell.fx ?? 0.5))
+  const fy = Math.min(1, Math.max(0, cell.fy ?? 0.5))
+  return {
+    position: 'absolute', inset: 0, width: '100%', height: '100%',
+    objectFit: 'cover', objectPosition: `${fx * 100}% ${fy * 100}%`,
+    transform: z > 1 ? `scale(${z})` : undefined,
+    transformOrigin: `${fx * 100}% ${fy * 100}%`,
+  }
 }
 
 // Proprietà CSS background per l'anteprima editor (stessa identica finestra dell'export).
