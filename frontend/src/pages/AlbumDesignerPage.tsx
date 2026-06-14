@@ -51,8 +51,12 @@ export default function AlbumDesignerPage() {
   const [pageNums, setPageNums] = useState(false)      // numeri di pagina
   const [zoom, setZoom] = useState(1)                  // zoom del canvas
   const [rulerOn, setRulerOn] = useState(false)        // righello (cm) attorno alla tavola
+  const [guidesV, setGuidesV] = useState<number[]>([]) // guide verticali (frazione larghezza tavola) stile Photoshop
+  const [guidesH, setGuidesH] = useState<number[]>([]) // guide orizzontali (frazione altezza tavola)
   const [fullscreen, setFullscreen] = useState(false)  // lavoro a piena pagina (nasconde la barra menu)
   const rootRef = useRef<HTMLDivElement>(null)
+  const spreadRef = useRef<HTMLDivElement>(null)
+  const guideDrag = useRef<{ axis: 'v' | 'h'; index: number } | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
   const [previewIdx, setPreviewIdx] = useState(0)
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
@@ -360,6 +364,27 @@ export default function AlbumDesignerPage() {
     return () => document.removeEventListener('fullscreenchange', onFs)
   }, [])
 
+  // ── guide righello (stile Photoshop): clic sul righello = nuova guida; trascina per spostare; doppio clic = rimuovi ──
+  function addGuide(axis: 'v' | 'h', pos: number) {
+    const p = Math.min(1, Math.max(0, pos))
+    if (axis === 'v') setGuidesV((g) => [...g, p]); else setGuidesH((g) => [...g, p])
+  }
+  function startGuideDrag(e: React.PointerEvent, axis: 'v' | 'h', index: number) {
+    e.stopPropagation(); guideDrag.current = { axis, index }
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  function moveGuideDrag(e: React.PointerEvent) {
+    const d = guideDrag.current; const el = spreadRef.current; if (!d || !el) return
+    const r = el.getBoundingClientRect()
+    const pos = Math.min(1, Math.max(0, d.axis === 'v' ? (e.clientX - r.left) / Math.max(1, r.width) : (e.clientY - r.top) / Math.max(1, r.height)))
+    if (d.axis === 'v') setGuidesV((g) => g.map((v, i) => (i === d.index ? pos : v)))
+    else setGuidesH((g) => g.map((v, i) => (i === d.index ? pos : v)))
+  }
+  function endGuideDrag() { guideDrag.current = null }
+  function removeGuide(axis: 'v' | 'h', index: number) {
+    if (axis === 'v') setGuidesV((g) => g.filter((_, i) => i !== index)); else setGuidesH((g) => g.filter((_, i) => i !== index))
+  }
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>
 
   const asp = pageAspect(format)
@@ -457,8 +482,12 @@ export default function AlbumDesignerPage() {
               <div className="flex-1 min-h-0 flex p-5 overflow-auto bg-[rgb(var(--bg-sunken))]">
                 <div className="m-auto">
                 {spreadPages.length ? (
-                  <div className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px transition-[height]" style={{ height: `${(74 * zoom).toFixed(1)}vh` }}>
-                    {rulerOn && <SpreadRuler cmX={(fmt.w * spreadPages.length) / 10} cmY={fmt.h / 10} />}
+                  <div ref={spreadRef} onPointerMove={moveGuideDrag} onPointerUp={endGuideDrag} onPointerLeave={endGuideDrag}
+                    className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px transition-[height]" style={{ height: `${(74 * zoom).toFixed(1)}vh` }}>
+                    {rulerOn && <SpreadRuler cmX={(fmt.w * spreadPages.length) / 10} cmY={fmt.h / 10} onAddGuide={addGuide} />}
+                    {/* guide Photoshop: linee precise trascinabili (doppio clic per rimuoverle) */}
+                    {guidesV.map((g, i) => <div key={`gv${i}`} onPointerDown={(e) => startGuideDrag(e, 'v', i)} onDoubleClick={() => removeGuide('v', i)} className="absolute top-0 bottom-0 z-[45] -ml-1 w-2 cursor-ew-resize group/guide" style={{ left: `${g * 100}%` }}><div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-cyan-500 group-hover/guide:w-0.5" /></div>)}
+                    {guidesH.map((g, i) => <div key={`gh${i}`} onPointerDown={(e) => startGuideDrag(e, 'h', i)} onDoubleClick={() => removeGuide('h', i)} className="absolute left-0 right-0 z-[45] -mt-1 h-2 cursor-ns-resize group/guide" style={{ top: `${g * 100}%` }}><div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-px bg-cyan-500 group-hover/guide:h-0.5" /></div>)}
                     {spreadPages.map((p) => {
                       const isAct = p.id === currentPageId
                       const pnum = pageNums ? pages.findIndex((x) => x.id === p.id) + 1 : null
@@ -1016,24 +1045,30 @@ function SpreadThumb(props: {
 }
 
 // Righello in centimetri attorno alla tavola (come Photoshop). cmX = larghezza tavola, cmY = altezza.
-function SpreadRuler({ cmX, cmY }: { cmX: number; cmY: number }) {
+function SpreadRuler({ cmX, cmY, onAddGuide }: { cmX: number; cmY: number; onAddGuide: (axis: 'v' | 'h', pos: number) => void }) {
   const xs = Array.from({ length: Math.floor(cmX) + 1 }, (_, i) => i)
   const ys = Array.from({ length: Math.floor(cmY) + 1 }, (_, i) => i)
   const evX = cmX > 20 ? 5 : cmX > 12 ? 2 : 1
   const evY = cmY > 20 ? 5 : cmY > 12 ? 2 : 1
+  // clic sul righello = nuova guida, agganciata al mezzo-centimetro più vicino
+  const addFrom = (axis: 'v' | 'h', e: React.MouseEvent, cm: number) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const raw = axis === 'v' ? (e.clientX - r.left) / Math.max(1, r.width) : (e.clientY - r.top) / Math.max(1, r.height)
+    onAddGuide(axis, Math.round(raw * cm * 2) / (cm * 2)) // snap a 0.5 cm
+  }
   return (
     <>
-      <div className="absolute left-0 right-0 -top-[18px] h-[18px] bg-[rgb(var(--bg))] border border-[rgb(var(--border))] text-[7px] text-[rgb(var(--fg-muted))] pointer-events-none select-none z-50 overflow-hidden">
+      <div onClick={(e) => addFrom('v', e, cmX)} title="Clic per aggiungere una guida verticale" className="absolute left-0 right-0 -top-[18px] h-[18px] bg-[rgb(var(--bg))] border border-[rgb(var(--border))] text-[7px] text-[rgb(var(--fg-muted))] select-none z-50 overflow-hidden cursor-ew-resize">
         {xs.map((i) => (
-          <div key={i} className="absolute top-0 bottom-0" style={{ left: `${(i / cmX) * 100}%` }}>
+          <div key={i} className="absolute top-0 bottom-0 pointer-events-none" style={{ left: `${(i / cmX) * 100}%` }}>
             <div className={`absolute top-0 ${i % evX === 0 ? 'h-full' : 'h-1/2'} w-px bg-[rgb(var(--fg-subtle))]`} />
             {i % evX === 0 && i > 0 && <span className="absolute top-px left-0.5 leading-none">{i}</span>}
           </div>
         ))}
       </div>
-      <div className="absolute top-0 bottom-0 -left-[18px] w-[18px] bg-[rgb(var(--bg))] border border-[rgb(var(--border))] text-[7px] text-[rgb(var(--fg-muted))] pointer-events-none select-none z-50 overflow-hidden">
+      <div onClick={(e) => addFrom('h', e, cmY)} title="Clic per aggiungere una guida orizzontale" className="absolute top-0 bottom-0 -left-[18px] w-[18px] bg-[rgb(var(--bg))] border border-[rgb(var(--border))] text-[7px] text-[rgb(var(--fg-muted))] select-none z-50 overflow-hidden cursor-ns-resize">
         {ys.map((i) => (
-          <div key={i} className="absolute left-0 right-0" style={{ top: `${(i / cmY) * 100}%` }}>
+          <div key={i} className="absolute left-0 right-0 pointer-events-none" style={{ top: `${(i / cmY) * 100}%` }}>
             <div className={`absolute left-0 ${i % evY === 0 ? 'w-full' : 'w-1/2'} h-px bg-[rgb(var(--fg-subtle))]`} />
             {i % evY === 0 && i > 0 && <span className="absolute left-px top-0 leading-none">{i}</span>}
           </div>
