@@ -1,7 +1,8 @@
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { lazyWithRetry } from '@/lib/lazyWithRetry'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { HelpModeProvider } from '@/lib/helpMode'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { CookieBanner } from '@/components/CookieBanner'
@@ -287,9 +288,13 @@ export default function App() {
 }
 
 function HomeOrPublicHome() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
+  const isGuest = profile?.role === 'GUEST'
+  // L'OSPITE che esce dal suo perimetro (clic sul logo/home) viene DISCONNESSO e finisce
+  // sulla landing pubblica. Per rientrare torna sul link della galleria e riscrive nome+email.
+  useEffect(() => { if (isGuest) void supabase.auth.signOut() }, [isGuest])
   if (loading) return null
-  if (!user) return <PublicHomePage />
+  if (!user || isGuest) return <PublicHomePage />
   return (
     <RequireAuth>
       <HomePage />

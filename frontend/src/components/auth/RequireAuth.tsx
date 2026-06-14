@@ -29,6 +29,12 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
   // Onboarding gate: utente autenticato ma profile non completato → forza wizard.
   // SOLO per i professionisti: COUPLE e CLIENT NON fanno il wizard (il questionario
   // è già stato raccolto in fase di lead) e atterrano direttamente nella loro area.
+  // OSPITE (GUEST): non è un professionista né un cliente. Non può registrarsi né entrare
+  // nelle aree riservate: fa solo le sue cose sulla galleria pubblica dell'evento. Qualsiasi
+  // rotta protetta → torna alla landing pubblica (mai onboarding/registrazione).
+  if (profile?.role === 'GUEST') {
+    return <Navigate to="/" replace />
+  }
   if (profile && !profile.onboarding_complete
     && profile.role !== 'COUPLE' && profile.role !== 'CLIENT'
     && location.pathname !== '/onboarding'

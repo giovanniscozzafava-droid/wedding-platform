@@ -83,6 +83,7 @@ export default function GuestGalleryPage() {
   // registrazione ospite semplice (nome + email → dentro subito)
   const [gname, setGname] = useState('')
   const [gemail, setGemail] = useState('')
+  const [gprivacy, setGprivacy] = useState(false)   // consenso OBBLIGATORIO al trattamento dati
   const [gmarketing, setGmarketing] = useState(false)
   const [signingUp, setSigningUp] = useState(false)
 
@@ -156,13 +157,16 @@ export default function GuestGalleryPage() {
   async function guestEnter(e: React.FormEvent) {
     e.preventDefault()
     if (gname.trim().length < 2 || !gemail.includes('@')) { toast.error('Inserisci nome e email'); return }
+    if (!gprivacy) { toast.error('Per entrare devi acconsentire al trattamento dei dati'); return }
     setSigningUp(true)
     try {
       const { data, error } = await supabase.functions.invoke('guest-signup', { body: { email: gemail.trim(), name: gname.trim(), gallery_id: galleryId, token, commercial: gmarketing } })
       if (error) throw error
       const d = data as { token_hash?: string; error?: string }
       if (d?.error || !d?.token_hash) throw new Error(d?.error === 'bad_token' ? 'Link non valido o scaduto.' : 'Registrazione non riuscita. Riprova.')
-      const v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'magiclink' })
+      let v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'magiclink' })
+      // alcune versioni di Supabase verificano il token_hash del magic-link come type 'email'
+      if (v.error) v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'email' })
       if (v.error) throw v.error
       // sessione impostata → l'effetto su [session] fa partire join() e carica le foto
     } catch (err) { toast.error((err as Error).message) } finally { setSigningUp(false) }
@@ -186,11 +190,16 @@ export default function GuestGalleryPage() {
               className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-4 py-3 text-base" />
             <input type="email" value={gemail} onChange={(e) => setGemail(e.target.value)} placeholder="La tua email" autoComplete="email"
               className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-4 py-3 text-base" />
+            {/* Consenso OBBLIGATORIO: senza, non si entra a caricare/vedere nulla */}
+            <label className="flex items-start gap-2 text-left cursor-pointer select-none px-1">
+              <input type="checkbox" checked={gprivacy} onChange={(e) => setGprivacy(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[rgb(var(--gold-600))] shrink-0" />
+              <span className="text-[11px] text-[rgb(var(--fg-muted))]">Acconsento al <strong>trattamento dei miei dati</strong> per accedere alla galleria e caricare/vedere foto, video e messaggi dell'evento. <Link to="/privacy" target="_blank" className="underline">Privacy</Link> <span className="text-[rgb(var(--rose-500))]">*obbligatorio</span></span>
+            </label>
             <label className="flex items-start gap-2 text-left cursor-pointer select-none px-1">
               <input type="checkbox" checked={gmarketing} onChange={(e) => setGmarketing(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[rgb(var(--gold-600))] shrink-0" />
-              <span className="text-[11px] text-[rgb(var(--fg-muted))]">Acconsento a essere ricontattato/a anche per finalità commerciali da Planfully e dai fornitori, e al trattamento dei dati per tali scopi. <span className="text-[rgb(var(--fg-subtle))]">(facoltativo)</span></span>
+              <span className="text-[11px] text-[rgb(var(--fg-muted))]">Acconsento a essere ricontattato/a anche per finalità commerciali da Planfully e dai fornitori. <span className="text-[rgb(var(--fg-subtle))]">(facoltativo)</span></span>
             </label>
-            <Button type="submit" variant="gold" className="w-full !py-3 !text-base" disabled={signingUp}>
+            <Button type="submit" variant="gold" className="w-full !py-3 !text-base" disabled={signingUp || !gprivacy}>
               {signingUp ? <Loader2 size={18} className="animate-spin" /> : <Heart size={18} className="fill-current" />} Entra e guarda le foto
             </Button>
           </form>

@@ -28,17 +28,17 @@ Deno.serve(async (req) => {
   const { data: gal } = await admin.from('event_galleries').select('entry_id, guest_token').eq('id', body.gallery_id).maybeSingle()
   if (!gal || !gal.guest_token || gal.guest_token !== body.token) return json({ error: 'bad_token' }, 403)
 
-  // Crea (se serve) l'utente e genera un magic-link → ne estraiamo il token_hash per
-  // il login immediato lato browser (nessuna email da aprire).
-  let link = await admin.auth.admin.generateLink({ type: 'magiclink', email })
-  if (link.error || !link.data?.user) {
-    // RUOLO CLIENT: un ospite NON deve essere un professionista. Senza questo, il trigger
-    // handle_new_user assegnerebbe il default WEDDING_PLANNER → accesso alle aree pro (bug sicurezza).
-    // Gli utenti GIÀ esistenti (anche pro che sono ospiti altrove) passano dal ramo generateLink e NON vengono toccati.
-    const created = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: name, role: 'CLIENT' } })
-    if (created.error) return json({ error: created.error.message }, 500)
-    link = await admin.auth.admin.generateLink({ type: 'magiclink', email })
+  // PRIMA creiamo l'utente (idempotente): così è SEMPRE con email confermata e ruolo CLIENT.
+  // Un ospite NON deve essere un professionista: senza role nei metadata il trigger
+  // handle_new_user assegnerebbe il default WEDDING_PLANNER (bug sicurezza). email_confirm:true
+  // evita anche il "link invalid/expired" su account creati al volo non confermati.
+  // Se l'email esiste già (anche un professionista ospite altrove) ignoriamo l'errore e NON la tocchiamo.
+  const created = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: name, role: 'GUEST' } })
+  if (created.error && !/already|exist|registered|duplicate/i.test(created.error.message)) {
+    return json({ error: created.error.message }, 500)
   }
+  // Genera il magic-link → ne estraiamo il token_hash per il login immediato in-page.
+  const link = await admin.auth.admin.generateLink({ type: 'magiclink', email })
   if (link.error || !link.data?.user || !link.data.properties?.hashed_token) {
     return json({ error: link.error?.message ?? 'link_failed' }, 500)
   }
