@@ -44,6 +44,12 @@ Deno.serve(async (req) => {
   }
   const userId = link.data.user.id
 
+  // RIENTRO: era già ospite di QUESTO evento? (per dare il "bentornato").
+  const { data: prev } = await admin.from('gallery_guests')
+    .select('full_name_searched').eq('entry_id', gal.entry_id).eq('guest_user_id', userId).maybeSingle()
+  const returning = !!prev
+  const greetName = (prev?.full_name_searched && String(prev.full_name_searched).trim()) || name
+
   // Registra l'ospite sull'evento (idempotente) così entra subito vedendo le foto.
   await admin.from('gallery_guests').upsert(
     { entry_id: gal.entry_id, guest_user_id: userId, full_name_searched: name },
@@ -59,5 +65,5 @@ Deno.serve(async (req) => {
     source: 'guest_gallery',
   })
 
-  return json({ ok: true, token_hash: link.data.properties.hashed_token })
+  return json({ ok: true, token_hash: link.data.properties.hashed_token, returning, name: greetName })
 })

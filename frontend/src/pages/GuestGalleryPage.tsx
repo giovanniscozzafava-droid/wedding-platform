@@ -162,12 +162,14 @@ export default function GuestGalleryPage() {
     try {
       const { data, error } = await supabase.functions.invoke('guest-signup', { body: { email: gemail.trim(), name: gname.trim(), gallery_id: galleryId, token, commercial: gmarketing } })
       if (error) throw error
-      const d = data as { token_hash?: string; error?: string }
+      const d = data as { token_hash?: string; error?: string; returning?: boolean; name?: string }
       if (d?.error || !d?.token_hash) throw new Error(d?.error === 'bad_token' ? 'Link non valido o scaduto.' : 'Registrazione non riuscita. Riprova.')
       let v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'magiclink' })
       // alcune versioni di Supabase verificano il token_hash del magic-link come type 'email'
       if (v.error) v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'email' })
       if (v.error) throw v.error
+      const who = (d.name ?? gname.trim()).split(' ')[0]
+      toast.success(d.returning ? `Bentornato, ${who}! 🎉` : `Benvenuto, ${who}!`)
       // sessione impostata → l'effetto su [session] fa partire join() e carica le foto
     } catch (err) { toast.error((err as Error).message) } finally { setSigningUp(false) }
   }
