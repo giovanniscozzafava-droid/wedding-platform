@@ -59,6 +59,11 @@ export default function AlbumDesignerPage() {
   const guideDrag = useRef<{ axis: 'v' | 'h'; index: number } | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
   const [previewIdx, setPreviewIdx] = useState(0)
+  // vista cliente mobile-first
+  const [clientIdx, setClientIdx] = useState(0)
+  const [clientReqOpen, setClientReqOpen] = useState(false)
+  const [zoomSpread, setZoomSpread] = useState<number | null>(null)
+  const [reqListOpen, setReqListOpen] = useState(false)
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
   const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero "primario" (pannello/crop)
   const [multiSel, setMultiSel] = useState<string[]>([])        // selezione multipla (Shift) sulla tavola
@@ -325,6 +330,12 @@ export default function AlbumDesignerPage() {
     toast.success('Richiesta inviata al fotografo'); setRevBody(''); setRevPageRef(false); await loadRevs()
   }
   async function resolveRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'DONE' }).eq('id', id); await loadRevs() }
+  async function sendClientReq() {
+    if (!revBody.trim() || !entryId) return
+    const { error } = await (supabase.from as any)('album_revision_requests').insert({ entry_id: entryId, body: revBody.trim(), page_index: clientIdx * 2 + 1 })
+    if (error) { toast.error(error.message); return }
+    toast.success('Richiesta inviata al fotografo'); setRevBody(''); setClientReqOpen(false); await loadRevs()
+  }
 
   const exportRef = useRef<HTMLDivElement>(null)
   async function doExport(kind: 'pdf' | 'spread' | 'jpg' | 'jpgspread') {
@@ -397,6 +408,107 @@ export default function AlbumDesignerPage() {
   const spreads: AlbumPage[][] = []
   for (let i = 0; i < pages.length; i += 2) spreads.push(pages.slice(i, i + 2))
   const activeSpread = Math.floor(spreadStart / 2)
+
+  // ── VISTA CLIENTE (mobile-first, stile Canva mobile): sfoglia le tavole grandi, zoom a tutto
+  //    schermo, richiedi modifiche. Sola lettura: il cliente non modifica per sbaglio la struttura. ──
+  if (lite) {
+    const myOpen = revList.filter((r) => r.status === 'OPEN').length
+    const SpreadView = ({ pair, max }: { pair: AlbumPage[]; max: string }) => (
+      <div className="relative flex bg-white shadow-xl mx-auto" style={{ aspectRatio: String(asp * pair.length), width: max }}>
+        {pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={hiUrl} /></div>)}
+        {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-black/10 pointer-events-none" />}
+      </div>
+    )
+    return (
+      <div className="min-h-screen flex flex-col bg-[rgb(var(--bg-sunken))]">
+        <header className="sticky top-0 z-20 bg-[rgb(var(--bg))] border-b border-[rgb(var(--border))] px-3 py-2 flex items-center gap-2">
+          <Link to="/couple" className="p-1.5 -ml-1 text-[rgb(var(--fg-muted))]"><ArrowLeft size={20} /></Link>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-base truncate leading-tight">{title}</p>
+            <p className="text-[11px] text-[rgb(var(--fg-muted))]">Il tuo album · {statusLabel(status)}</p>
+          </div>
+          <button onClick={() => setReqListOpen(true)} className="relative text-xs px-2.5 py-1.5 rounded-full border border-[rgb(var(--border))] flex items-center gap-1"><MessageSquare size={13} /> Richieste{myOpen ? <span className="ml-0.5 h-4 min-w-4 px-1 rounded-full bg-[rgb(var(--gold-500))] text-white text-[10px] flex items-center justify-center">{myOpen}</span> : null}</button>
+        </header>
+
+        {spreads.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-8 text-[rgb(var(--fg-muted))]">
+            <Eye size={40} className="opacity-30" />
+            <p className="mt-3 font-medium text-[rgb(var(--fg))]">L'album non è ancora pronto</p>
+            <p className="text-sm mt-1">Appena il fotografo condivide le tavole, le vedrai qui e potrai chiedere le modifiche che vuoi.</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory"
+              onScroll={(e) => { const el = e.currentTarget; setClientIdx(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }}>
+              {spreads.map((pair, si) => (
+                <div key={si} className="shrink-0 w-full snap-center flex items-center justify-center p-4">
+                  <button onClick={() => setZoomSpread(si)} className="w-full" title="Tocca per ingrandire"><SpreadView pair={pair} max="min(94vw, 680px)" /></button>
+                </div>
+              ))}
+            </div>
+            <div className="sticky bottom-0 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-4 py-2.5 flex items-center gap-3">
+              <span className="text-xs text-[rgb(var(--fg-muted))] tabular-nums w-20">Tav. {clientIdx + 1}/{spreads.length}</span>
+              <div className="flex-1 flex justify-center gap-1">{spreads.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === clientIdx ? 'w-4 bg-[rgb(var(--gold-500))]' : 'w-1.5 bg-[rgb(var(--border))]'}`} />)}</div>
+              <Button variant="gold" size="sm" onClick={() => setClientReqOpen(true)}><MessageSquare size={14} /> Richiedi modifica</Button>
+            </div>
+          </>
+        )}
+
+        {/* zoom a tutto schermo della tavola */}
+        {zoomSpread != null && spreads[zoomSpread] && (
+          <div className="fixed inset-0 z-[80] bg-black/90 flex flex-col" onClick={() => setZoomSpread(null)}>
+            <div className="flex items-center justify-between px-4 py-2 text-white" onClick={(e) => e.stopPropagation()}>
+              <span className="text-sm">Tavola {zoomSpread + 1}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="gold" size="sm" onClick={() => { setClientIdx(zoomSpread); setZoomSpread(null); setClientReqOpen(true) }}><MessageSquare size={14} /> Modifica</Button>
+                <button onClick={() => setZoomSpread(null)} className="p-1.5 rounded hover:bg-white/10"><X size={20} className="text-white" /></button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 overflow-auto p-3 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+              <SpreadView pair={spreads[zoomSpread]!} max="min(180vw, 1400px)" />
+            </div>
+            <p className="text-center text-white/60 text-xs pb-3">Scorri per vedere i dettagli · tocca fuori per chiudere</p>
+          </div>
+        )}
+
+        {/* foglio "richiedi modifica" */}
+        {clientReqOpen && (
+          <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setClientReqOpen(false)}>
+            <div className="bg-[rgb(var(--bg))] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+              <p className="font-medium flex items-center gap-2"><MessageSquare size={16} /> Richiedi una modifica</p>
+              <p className="text-xs text-[rgb(var(--fg-muted))]">Riferita alla <strong>Tavola {clientIdx + 1}</strong>. Scrivi cosa vorresti cambiare (foto, posizione, ritaglio…): il fotografo la sistema.</p>
+              <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={4} autoFocus placeholder="Es. Nella tavola 3, sposterei la foto grande a sinistra…" className="w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={() => setClientReqOpen(false)}>Annulla</Button>
+                <Button variant="gold" size="sm" disabled={!revBody.trim()} onClick={() => void sendClientReq()}>Invia al fotografo</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* le mie richieste */}
+        {reqListOpen && (
+          <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setReqListOpen(false)}>
+            <div className="bg-[rgb(var(--bg))] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[75vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))]"><p className="font-medium">Le tue richieste</p><button onClick={() => setReqListOpen(false)}><X size={18} /></button></div>
+              <div className="overflow-y-auto p-3 space-y-2">
+                {revList.length === 0 ? <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-6">Non hai ancora chiesto modifiche.</p>
+                  : revList.map((r) => (
+                    <div key={r.id} className="rounded-lg border border-[rgb(var(--border))] p-2.5">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className="text-[11px] text-[rgb(var(--fg-muted))]">{r.page_index ? `Tavola ${Math.ceil(r.page_index / 2)}` : 'Generale'}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.status === 'OPEN' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{r.status === 'OPEN' ? 'In attesa' : 'Fatto'}</span>
+                      </div>
+                      <p className="text-sm">{r.body}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div ref={rootRef} className="min-h-screen bg-[rgb(var(--bg-sunken))] overflow-auto">
