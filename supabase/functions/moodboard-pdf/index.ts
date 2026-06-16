@@ -200,6 +200,13 @@ Deno.serve(async (req) => {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const W = doc.internal.pageSize.getWidth()
   const H = doc.internal.pageSize.getHeight()
+  // Centra una scritta con letter-spacing: jsPDF con align:'center' NON considera il charSpace,
+  // così la spaziatura dopo l'ultima lettera spinge il testo a destra. Calcoliamo noi la larghezza
+  // reale (glifi + spaziatura fra i glifi) e disegniamo left-aligned al punto giusto.
+  const centerSpaced = (t: string, x: number, y: number, cs: number) => {
+    const w = doc.getTextWidth(t) + cs * Math.max(0, t.length - 1)
+    doc.text(t, x - w / 2, y, { align: 'left', charSpace: cs })
+  }
   const M = 36                // margine più stretto per dare spazio
   const CONTENT_W = W - M * 2
 
@@ -238,9 +245,9 @@ Deno.serve(async (req) => {
     doc.text(safeText(brandName), _cx, brandY, { align: 'center' })
     if (chapterLabel) {
       doc.setFontSize(7); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-      doc.text(
+      centerSpaced(
         `${safeText(title).slice(0, 30).toUpperCase()} · ${chapterLabel.toUpperCase()}`,
-        _cx, brandY + 12, { align: 'center', charSpace: 1.2 }
+        _cx, brandY + 12, 1.2,
       )
     }
   }
@@ -271,14 +278,14 @@ Deno.serve(async (req) => {
 
   doc.setFontSize(8); doc.setTextColor(...SUBTLE)
   const coverMeta = `${new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })} · ${images.length} ispirazioni curate`
-  doc.text(coverMeta, _coverCx, logoImg ? 92 : 60, { align: 'center', charSpace: 0.5 })
+  centerSpaced(coverMeta, _coverCx, logoImg ? 92 : 60, 0.5)
 
   // Hero centrato verticalmente
   const heroCy = H / 2 - 20
   const cx = W / 2
 
   doc.setFontSize(10); doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'normal')
-  doc.text('M O O D B O A R D', cx, heroCy - 96, { align: 'center', charSpace: 4 })
+  centerSpaced('M O O D B O A R D', cx, heroCy - 96, 4)
 
   ornament(cx, heroCy - 76, 90)
 
@@ -309,7 +316,7 @@ Deno.serve(async (req) => {
 
   // Cover bottom signature
   doc.setFontSize(9); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
-  doc.text('C U R A T A   D A', cx, H - 92, { align: 'center', charSpace: 3 })
+  centerSpaced('C U R A T A   D A', cx, H - 92, 3)
   doc.setFontSize(14); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
   doc.text(safeText(brandName), cx, H - 72, { align: 'center' })
   if (owner?.city) {
@@ -427,7 +434,7 @@ Deno.serve(async (req) => {
     const cy = H / 2 - 30
 
     doc.setFontSize(10); doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'normal')
-    doc.text(chapter.eyebrow, cx, cy - 70, { align: 'center', charSpace: 3 })
+    centerSpaced(chapter.eyebrow, cx, cy - 70, 3)
     ornament(cx, cy - 50, 80)
 
     doc.setFontSize(36); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
@@ -447,7 +454,7 @@ Deno.serve(async (req) => {
     doc.text(`"${chapter.closing}"`, cx, H - 90, { align: 'center' })
 
     doc.setFontSize(9); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-    doc.text(`${count} ${count === 1 ? 'ispirazione' : 'ispirazioni'} a seguire`, cx, H - 64, { align: 'center', charSpace: 1.5 })
+    centerSpaced(`${count} ${count === 1 ? 'ispirazione' : 'ispirazioni'} a seguire`, cx, H - 64, 1.5)
   }
 
   for (const tag of sortedTags) {
@@ -475,7 +482,7 @@ Deno.serve(async (req) => {
   miniHeader()
 
   doc.setFontSize(10); doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'normal')
-  doc.text('E P I L O G O', cx, 110, { align: 'center', charSpace: 4 })
+  centerSpaced('E P I L O G O', cx, 110, 4)
   ornament(cx, 128, 70)
 
   doc.setFontSize(36); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
@@ -538,7 +545,7 @@ Deno.serve(async (req) => {
   const sigY = qy + 80
   ornament(cx, sigY, 70)
   doc.setFontSize(9); doc.setTextColor(...SUBTLE); doc.setFont('helvetica', 'normal')
-  doc.text('C O N   A F F E T T O   D A', cx, sigY + 22, { align: 'center', charSpace: 3 })
+  centerSpaced('C O N   A F F E T T O   D A', cx, sigY + 22, 3)
   doc.setFontSize(20); doc.setTextColor(...INK); doc.setFont('helvetica', 'bold')
   doc.text(safeText(brandName), cx, sigY + 46, { align: 'center' })
   doc.setFontSize(9); doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal')
