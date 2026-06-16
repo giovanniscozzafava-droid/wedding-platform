@@ -504,7 +504,8 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
       <tr><td style="color:#6E6E6E;padding:4px 0">Quando</td><td>${new Date(a.accepted_at).toLocaleString('it-IT')}</td></tr>
       <tr><td style="color:#6E6E6E;padding:4px 0">IP</td><td>${a.ip_address ?? '—'}</td></tr>
     </table>
-    ${actPdfUrl ? `<p><a href="${actPdfUrl}" style="display:inline-block;background:#C49A5C;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px">Apri atto firmato</a></p>` : ''}
+    <p style="margin:20px 0 8px"><a href="${APP_BASE}/quotes/${quote.id}" style="display:inline-block;background:#1A2E4F;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Apri nel tuo gestionale</a></p>
+    ${actPdfUrl ? `<p style="font-size:12px;margin:4px 0"><a href="${actPdfUrl}" style="color:#C49A5C;text-decoration:underline">Scarica l'atto firmato (PDF)</a> <span style="color:#a0aec0">— il link scade dopo qualche giorno; trovi sempre tutto nel gestionale.</span></p>` : ''}
     <p style="font-size:12px;color:#a0aec0;margin-top:20px">Hash PDF preventivo: <code>${(a.quote_pdf_hash ?? '—').slice(0,32)}…</code></p>
   </div>
 </div></body>`
