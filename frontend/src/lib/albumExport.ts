@@ -34,6 +34,23 @@ function cropDataUrl(img: HTMLImageElement, wpx: number, hpx: number, cell: Cell
   return c.toDataURL('image/jpeg', q)
 }
 
+// Foto a PIENA TAVOLA: finestra "cover" calcolata sull'intera tavola (2 pagine affiancate).
+// side 'both' = tutta la tavola; 'L'/'R' = metà sinistra/destra (per l'export a pagine divise).
+function drawSpreadOnCtx(ctx: CanvasRenderingContext2D, img: HTMLImageElement, dx: number, dy: number, fullWpx: number, hpx: number, cell: Cell, side: 'both' | 'L' | 'R') {
+  const sr = sourceRect(img.width, img.height, fullWpx / hpx, cell)
+  if (side === 'both') { ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, dx, dy, fullWpx, hpx); return }
+  const half = sr.sw / 2
+  const sx = side === 'L' ? sr.sx : sr.sx + half
+  ctx.drawImage(img, sx, sr.sy, half, sr.sh, dx, dy, fullWpx / 2, hpx)
+}
+function spreadDataUrl(img: HTMLImageElement, fullWpx: number, hpx: number, cell: Cell, side: 'both' | 'L' | 'R', q = 0.92): string {
+  const targetW = side === 'both' ? fullWpx : fullWpx / 2
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(targetW)); c.height = Math.max(1, Math.round(hpx))
+  drawSpreadOnCtx(c.getContext('2d')!, img, 0, 0, fullWpx, hpx, cell, side)
+  return c.toDataURL('image/jpeg', q)
+}
+
 // disegna un elemento libero (crop + rotazione + bordo + ombra) come immagine ruotata
 async function drawFreeElement(pdf: any, el: import('./albumFree').FreeEl, pageX: number, pageY: number, fmtW: number, fmtH: number, resolve: UrlResolver, dpi: number) {
   const pxPerMm = dpi / 25.4
@@ -123,6 +140,8 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
       if (i > 0) pdf.addPage([sw, sh], sw >= sh ? 'landscape' : 'portrait')
       await renderPageInto(pdf, pages[i]!, f.w, f.h, 0, 0, resolve, dpi, 0)
       if (pages[i + 1]) await renderPageInto(pdf, pages[i + 1]!, f.w, f.h, f.w, 0, resolve, dpi, 0)
+      const spS = pages[i]?.spreadImage
+      if (spS) { try { const img = await loadImage(resolve(spS.mediaId)); const data = spreadDataUrl(img, sw * dpi / 25.4, sh * dpi / 25.4, spS.cell, 'both'); pdf.addImage(data, 'JPEG', 0, 0, sw, sh) } catch { /* ignora foto mancante */ } }
       if (pageNumbers) { pageNumText(pdf, i + 1, f.w / 2, f.h - 5); if (pages[i + 1]) pageNumText(pdf, i + 2, f.w + f.w / 2, f.h - 5) }
     }
     pdf.save(filename)
@@ -136,6 +155,9 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
   for (let i = 0; i < pages.length; i++) {
     if (i > 0) pdf.addPage([box.w, box.h], box.w >= box.h ? 'landscape' : 'portrait')
     await renderPageInto(pdf, pages[i]!, f.w, f.h, 0, 0, resolve, dpi, b)
+    // foto a piena tavola: questa facciata mostra la metà sx (pagina pari) o dx (pagina dispari)
+    const spLeft = pages[i - (i % 2)]?.spreadImage
+    if (spLeft) { try { const img = await loadImage(resolve(spLeft.mediaId)); const data = spreadDataUrl(img, f.w * 2 * dpi / 25.4, f.h * dpi / 25.4, spLeft.cell, i % 2 === 0 ? 'L' : 'R'); pdf.addImage(data, 'JPEG', b, b, f.w, f.h) } catch { /* ignora */ } }
     if (cutMarks && b > 0) drawCutMarks(pdf, 0, 0, f.w, f.h, b)
     if (pageNumbers) pageNumText(pdf, i + 1, box.w / 2, box.h - 5 - b)
   }
@@ -189,6 +211,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
       ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
       await drawPageInto(ctx, lp, 0, wpx, hpx, pxPerMm, resolve, pageNumbers ? s + 1 : null)
       if (rp) await drawPageInto(ctx, rp, wpx, wpx, hpx, pxPerMm, resolve, pageNumbers ? s + 2 : null)
+      if (lp.spreadImage && rp) { try { const img = await loadImage(resolve(lp.spreadImage.mediaId)); drawSpreadOnCtx(ctx, img, 0, 0, wpx * 2, hpx, lp.spreadImage.cell, 'both') } catch { /* ignora */ } }
       const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
       zip.file(`tavola-${String(s / 2 + 1).padStart(3, '0')}.jpg`, blob)
     }
@@ -198,6 +221,8 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
       c.width = wpx; c.height = hpx
       const ctx = c.getContext('2d')!
       await drawPageInto(ctx, pages[p]!, 0, wpx, hpx, pxPerMm, resolve, pageNumbers ? p + 1 : null)
+      const spLeft = pages[p - (p % 2)]?.spreadImage
+      if (spLeft) { try { const img = await loadImage(resolve(spLeft.mediaId)); drawSpreadOnCtx(ctx, img, 0, 0, wpx * 2, hpx, spLeft.cell, p % 2 === 0 ? 'L' : 'R') } catch { /* ignora */ } }
       const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
       zip.file(`pagina-${String(p + 1).padStart(3, '0')}.jpg`, blob)
     }

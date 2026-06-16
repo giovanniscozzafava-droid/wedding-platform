@@ -13,6 +13,9 @@ export type AlbumPage = {
   bg?: string                  // colore di sfondo pagina
   elements?: FreeEl[]          // elementi liberi (in mode 'free')
   frames?: Frame[]             // frame espliciti per template === 'custom' (layout salvato)
+  // Foto a PIENA TAVOLA: una singola immagine che copre ENTRAMBE le pagine della tavola,
+  // attraversando il dorso. Vive sulla pagina SINISTRA dello spread (indice pari).
+  spreadImage?: { mediaId: string; cell: Cell } | null
 }
 export type AlbumLayout = { pages: AlbumPage[] }
 export type MediaLite = { id: string; moment: string | null }

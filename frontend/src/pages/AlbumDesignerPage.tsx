@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect } from '@/lib/albumFormats'
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
-import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, capacity, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
+import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
 import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
@@ -71,6 +71,8 @@ function AlbumDesignerInner() {
   const [multiSel, setMultiSel] = useState<string[]>([])        // selezione multipla (Shift) sulla tavola
   const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
   const [cropElId, setCropElId] = useState<string | null>(null) // elemento libero in ritaglio
+  const [cropSpread, setCropSpread] = useState<string | null>(null) // id pagina-sx in ritaglio foto a piena tavola
+  const spreadPan = useRef<{ x: number; y: number; fx: number; fy: number; w: number; h: number; id: string } | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)   // indicatore autosave
   const loadedRef = useRef(false)
   const autoTimer = useRef<number | null>(null)
@@ -245,6 +247,26 @@ function AlbumDesignerInner() {
   function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
   function moveSpread(si: number, dir: -1 | 1) {
     setPages((arr) => { const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2)); const j = si + dir; if (j < 0 || j >= blocks.length) return arr; const t = blocks[si]!; blocks[si] = blocks[j]!; blocks[j] = t; return blocks.flat() })
+  }
+  // ── FOTO A PIENA TAVOLA (una foto su entrambe le pagine, attraversa il dorso) ──
+  // Vive sulla pagina SINISTRA dello spread. `leftId` = id pagina sinistra (indice pari).
+  function setSpreadImg(leftId: string, mediaId: string, cell?: Cell) {
+    updatePage(leftId, (p) => ({ ...p, spreadImage: { mediaId, cell: cell ?? DEFAULT_CELL } }))
+  }
+  function clearSpreadImg(leftId: string) { updatePage(leftId, (p) => ({ ...p, spreadImage: null })) }
+  function updateSpreadCell(leftId: string, patch: Partial<Cell>) {
+    updatePage(leftId, (p) => (p.spreadImage ? { ...p, spreadImage: { ...p.spreadImage, cell: { ...p.spreadImage.cell, ...patch } } } : p))
+  }
+  // Estende su due pagine la foto selezionata (o la prima foto della tavola corrente).
+  function makeSpreadFromActive(leftId: string, pair: AlbumPage[]) {
+    let mediaId: string | undefined; let cell: Cell | undefined
+    if (selEl) { const e = pair.flatMap((p) => p.elements ?? []).find((x) => x.id === selEl); if (e) { mediaId = e.mediaId; cell = e.cell } }
+    if (!mediaId) for (const p of pair) {
+      const e = (p.elements ?? []).find((x) => x.mediaId); if (e) { mediaId = e.mediaId; cell = e.cell; break }
+      const idx = (p.mediaIds ?? []).findIndex(Boolean); if (idx >= 0) { mediaId = p.mediaIds[idx]; cell = p.cells?.[idx] ?? undefined; break }
+    }
+    if (!mediaId) { toast.error('Aggiungi prima una foto nella tavola, poi premi “Doppia pagina”.'); return }
+    setSpreadImg(leftId, mediaId, cell); toast.success('Foto estesa su entrambe le pagine.')
   }
   // ── elementi liberi (stile Canva) ──────────────────────────────────────────
   function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)) })) }
@@ -437,6 +459,7 @@ function AlbumDesignerInner() {
     const SpreadView = ({ pair, max }: { pair: AlbumPage[]; max: string }) => (
       <div className="relative flex bg-white shadow-xl mx-auto" style={{ aspectRatio: String(asp * pair.length), width: max }}>
         {pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={hiUrl} /></div>)}
+        {pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <div className="absolute inset-0 overflow-hidden"><img src={hiUrl(m)} alt="" draggable={false} style={coverImgStyle(pair[0]!.spreadImage!.cell)} /></div> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-black/10 pointer-events-none" />}
       </div>
     )
@@ -578,6 +601,7 @@ function AlbumDesignerInner() {
             <ToolToggle on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
             {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
             {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => currentPage.mode === 'free' ? setTemplate(currentPage.id, currentPage.template) : convertToFree(currentPage.id)} icon={<Move size={14} />} label="Libera" />}
+            {!lite && spreadPages[0] && <ToolToggle on={!!spreadPages[0]?.spreadImage} onClick={() => { const lp = spreadPages[0]!; if (lp.spreadImage) clearSpreadImg(lp.id); else makeSpreadFromActive(lp.id, spreadPages) }} icon={<Maximize size={14} />} label="Doppia pagina" />}
             <div className="inline-flex items-center gap-0.5 ml-0.5">
               <button title="Riduci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
               <span className="text-[11px] w-9 text-center text-[rgb(var(--fg-muted))]">{Math.round(zoom * 100)}%</span>
@@ -644,6 +668,34 @@ function AlbumDesignerInner() {
                         </div>
                       )
                     })}
+                    {/* FOTO A PIENA TAVOLA: copre entrambe le pagine; trascina per posizionare */}
+                    {(() => {
+                      const lp = spreadPages[0]; const sp = lp?.spreadImage
+                      if (!lp || !sp) return null
+                      const m = mediaById.get(sp.mediaId)
+                      const onDown = (e: React.PointerEvent) => { if (lite) return; e.stopPropagation(); const r = spreadRef.current!.getBoundingClientRect(); spreadPan.current = { x: e.clientX, y: e.clientY, fx: sp.cell.fx, fy: sp.cell.fy, w: r.width, h: r.height, id: lp.id }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) }
+                      const onMove = (e: React.PointerEvent) => { const d = spreadPan.current; if (!d) return; const dx = (e.clientX - d.x) / Math.max(1, d.w), dy = (e.clientY - d.y) / Math.max(1, d.h); updateSpreadCell(d.id, { fx: Math.min(1, Math.max(0, d.fx - dx)), fy: Math.min(1, Math.max(0, d.fy - dy)) }) }
+                      const onUp = () => { spreadPan.current = null }
+                      return (
+                        <div className="absolute inset-0 z-[44]" onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}
+                          onDragOver={(e) => { if (!lite && e.dataTransfer.types.includes('text/media')) e.preventDefault() }}
+                          onDrop={(e) => { if (lite) return; const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); setSpreadImg(lp.id, mid) } }}>
+                          <div className="absolute inset-0 overflow-hidden bg-white">
+                            {m ? <img src={thumbUrl(m)} alt="" draggable={false} onPointerDown={onDown} className={lite ? '' : 'cursor-move touch-none'} style={coverImgStyle(sp.cell)} />
+                               : <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">foto non disponibile</div>}
+                          </div>
+                          {!lite && (
+                            <div className="absolute top-2 right-2 z-[46] flex items-center gap-1 rounded-full bg-black/60 backdrop-blur px-1 py-1">
+                              <button title="Restringi" onPointerDown={(e) => e.stopPropagation()} onClick={() => updateSpreadCell(lp.id, { z: Math.max(1, +(sp.cell.z - 0.1).toFixed(2)) })} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><ZoomOut size={13} /></button>
+                              <button title="Ingrandisci" onPointerDown={(e) => e.stopPropagation()} onClick={() => updateSpreadCell(lp.id, { z: Math.min(4, +(sp.cell.z + 0.1).toFixed(2)) })} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><ZoomIn size={13} /></button>
+                              <button title="Ritaglia" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCropSpread(lp.id)} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><Crop size={13} /></button>
+                              <button title="Rimuovi foto a doppia pagina" onPointerDown={(e) => e.stopPropagation()} onClick={() => clearSpreadImg(lp.id)} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><X size={14} /></button>
+                            </div>
+                          )}
+                          {!lite && <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[46] text-[10px] text-white/90 bg-black/50 rounded px-2 py-0.5 pointer-events-none">Doppia pagina · trascina per posizionare</div>}
+                        </div>
+                      )
+                    })()}
                     {/* filigrana del dorso (solo editor, non in stampa) */}
                     {spreadPages.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.55)] pointer-events-none z-50" title="Dorso (non viene stampato)" />}
                   </div>
@@ -731,6 +783,21 @@ function AlbumDesignerInner() {
                 cell={el.cell}
                 onApply={(c) => { freeUpdate(currentPage.id, el.id, { cell: c }); setCropElId(null) }}
                 onClose={() => setCropElId(null)}
+              />
+            )
+          })()}
+
+          {/* Ritaglio della foto a PIENA TAVOLA (slot = 2 pagine affiancate) */}
+          {cropSpread && (() => {
+            const lp = pages.find((p) => p.id === cropSpread); const sp = lp?.spreadImage
+            const m = sp ? mediaById.get(sp.mediaId) : undefined
+            if (!lp || !sp || !m) return null
+            return (
+              <CropModal
+                src={hiUrl(m)} imgAspect={aspects[m.id] ?? 1.5} slotAspect={(fmt.w * 2) / fmt.h}
+                cell={sp.cell}
+                onApply={(c) => { updateSpreadCell(lp.id, c); setCropSpread(null) }}
+                onClose={() => setCropSpread(null)}
               />
             )
           })()}
@@ -830,7 +897,9 @@ function AlbumDesignerInner() {
               <div className="fixed inset-0 z-[80] bg-black/85 flex flex-col items-center justify-center p-6" onClick={() => setPreviewOpen(false)}>
                 <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                   <button disabled={left <= 0} onClick={() => setPreviewIdx(Math.max(0, left - 2))} className="p-2 rounded-full bg-white/10 disabled:opacity-30"><ChevLeft size={24} className="text-white" /></button>
-                  <div className="flex gap-1">{lp && <Mini p={lp} />}{rp && <Mini p={rp} />}</div>
+                  <div className="relative flex gap-1">{lp && <Mini p={lp} />}{rp && <Mini p={rp} />}
+                    {lp?.spreadImage && (() => { const m = mediaById.get(lp.spreadImage!.mediaId); return m ? <div className="absolute inset-0 overflow-hidden"><img src={hiUrl(m)} alt="" draggable={false} style={coverImgStyle(lp.spreadImage!.cell)} /></div> : null })()}
+                  </div>
                   <button disabled={left + 2 >= pages.length} onClick={() => setPreviewIdx(left + 2)} className="p-2 rounded-full bg-white/10 disabled:opacity-30"><ChevRight size={24} className="text-white" /></button>
                 </div>
                 <p className="text-white/70 text-xs mt-3">Spread {Math.floor(left / 2) + 1} · pag. {left + 1}{rp ? `–${left + 2}` : ''} di {pages.length}</p>
@@ -1170,6 +1239,7 @@ function SpreadThumb(props: {
             <MiniPage page={p} formatKey={formatKey} aspects={aspects} mediaById={mediaById} thumb={thumb} />
           </div>
         ))}
+        {pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <div className="absolute inset-0 overflow-hidden pointer-events-none"><img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(pair[0]!.spreadImage!.cell)} /></div> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.5)] pointer-events-none" />}
       </button>
       <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">Tav. {index + 1}</span>
@@ -1220,17 +1290,6 @@ function SpreadRuler({ cmX, cmY, onAddGuide }: { cmX: number; cmY: number; onAdd
 }
 
 // Pannello proprietà a destra: foto selezionata (crop/zoom) + strumenti pagina.
-// piccolo diagramma di un layout (precomposizione)
-function LayoutDiagram({ t, active }: { t: TemplateKey; active: boolean }) {
-  const n = t === 'grid' ? 6 : Math.max(1, capacity(t))
-  const fr = framesForPage({ id: 'x', moment: null, template: t, mediaIds: Array.from({ length: n }, (_, i) => `s${i}`) })
-  return (
-    <div className={`relative h-10 w-12 rounded border ${active ? 'border-[rgb(var(--gold-500))] ring-1 ring-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'} bg-white`}>
-      {fr.map((f, i) => <div key={i} className="absolute bg-[rgb(var(--gold-200))]" style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%`, outline: '1px solid white' }} />)}
-    </div>
-  )
-}
-
 // diagramma di un set di frame arbitrari (per i layout salvati)
 function FramesDiagram({ frames, active }: { frames: { x: number; y: number; w: number; h: number }[]; active?: boolean }) {
   return (
@@ -1247,7 +1306,7 @@ function PropsPanel(props: {
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void
   savedLayouts: SavedLayout[]; onSaveLayout: () => void; onApplyLayout: (l: SavedLayout) => void; onDeleteLayout: (id: string) => void
 }) {
-  const { page, activeSlot, mediaById, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate, savedLayouts, onSaveLayout, onApplyLayout, onDeleteLayout } = props
+  const { page, activeSlot, mediaById, formatKey, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate, savedLayouts, onSaveLayout, onApplyLayout, onDeleteLayout } = props
   const moment = getMoment(page.moment)
   const alts = templatesFor(Math.max(1, page.mediaIds.length))
   const slotMediaId = activeSlot != null ? page.mediaIds[activeSlot] : undefined
@@ -1281,11 +1340,22 @@ function PropsPanel(props: {
 
       <div className="border-t border-[rgb(var(--border))] pt-3">
         <p className="font-medium mb-2 flex items-center gap-1.5"><LayoutGrid size={14} /> Layout pagina {moment && <span className={`text-[10px] px-1.5 py-0.5 rounded ${moment.color}`}>{moment.label}</span>}</p>
-        <p className="text-xs text-[rgb(var(--fg-muted))] mb-1.5">Precomposizioni ({page.mediaIds.length || 1} foto)</p>
-        <div className="flex flex-wrap gap-1.5">
-          {alts.map((t) => <button key={t} title={TPL_LABEL[t]} onClick={() => onTemplate(t)}><LayoutDiagram t={t} active={page.template === t} /></button>)}
+        <p className="text-xs text-[rgb(var(--fg-muted))] mb-1.5">Preset per {page.mediaIds.length || 1} foto — tocca per applicare</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {alts.map((t) => {
+            const tp: AlbumPage = { ...page, template: t, mode: 'template' }
+            return (
+              <button key={t} title={TPL_LABEL[t]} onClick={() => onTemplate(t)}
+                className={`relative rounded-md overflow-hidden border transition ${page.template === t ? 'border-[rgb(var(--gold-500))] ring-1 ring-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))] hover:border-[rgb(var(--gold-400))]'}`}>
+                <div className="w-full bg-white" style={{ aspectRatio: String(getFormat(formatKey).w / getFormat(formatKey).h) }}>
+                  <MiniPage page={tp} formatKey={formatKey} mediaById={mediaById} thumb={(m) => m.thumbnail_link ?? ''} />
+                </div>
+                {page.template === t && <span className="absolute top-0.5 right-0.5 h-3.5 w-3.5 rounded-full bg-[rgb(var(--gold-500))] text-white text-[9px] leading-[14px] text-center">✓</span>}
+              </button>
+            )
+          })}
         </div>
-        <Button variant="outline" size="sm" className="w-full mt-2" onClick={onCycle}><Shuffle size={13} /> Altro layout</Button>
+        <Button variant="outline" size="sm" className="w-full mt-2" onClick={onCycle}><Shuffle size={13} /> Mescola disposizione</Button>
         {!lite && <Button variant="outline" size="sm" className="w-full mt-1.5" onClick={onFree}><Move size={13} /> Modifica libera (Canva)</Button>}
         {/* I TUOI LAYOUT: salva la disposizione corrente e riusala su qualsiasi pagina */}
         <div className="mt-3 border-t border-[rgb(var(--border))] pt-2">
