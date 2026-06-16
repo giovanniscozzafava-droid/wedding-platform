@@ -12,7 +12,7 @@ import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, capaci
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
 import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
-import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
+import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, neighborGaps, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, type SavedLayout } from '@/lib/albumLayouts'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
@@ -819,7 +819,7 @@ function AlbumDesignerInner() {
             const Mini = ({ p }: { p: AlbumPage }) => {
               const frames = framesForPage(p)
               return (
-                <div className="relative bg-white shadow-xl shrink-0" style={{ aspectRatio: String(asp), height: `min(74vh, ${(46 / asp).toFixed(2)}vw)`, background: p.mode === 'free' ? (p.bg ?? '#fff') : '#fff' }}>
+                <div className="relative bg-white shadow-xl shrink-0 overflow-hidden" style={{ aspectRatio: String(asp), height: `min(74vh, ${(46 / asp).toFixed(2)}vw)`, background: p.mode === 'free' ? (p.bg ?? '#fff') : '#fff' }}>
                   {p.mode === 'free'
                     ? (p.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); return <div key={el.id} className="absolute overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>{m && <img src={hiUrl(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}</div> })
                     : frames.map((fr, i) => { const id = p.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))] overflow-hidden" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%` }}>{m && <img src={hiUrl(m)} alt="" draggable={false} style={coverImgStyle(p.cells?.[i] ?? DEFAULT_CELL)} />}</div> })}
@@ -1053,7 +1053,11 @@ function FreeStage(props: {
       if (d.group.length > 1) onUpdateMany(d.group.map((g) => ({ id: g.id, patch: moveEl(g, g.x + dx, g.y + dy) })))
       else onUpdateEl(d.id, { x: fx, y: fy })
       setGuides({ v: snap.vGuides, h: snap.hGuides })
-      setGapMarks([...(snap.vGuides.length ? [] : sp.marks.filter((mk) => mk.axis === 'x')), ...(snap.hGuides.length ? [] : sp.marks.filter((mk) => mk.axis === 'y'))])
+      // righelli di distanza SEMPRE visibili verso i vicini (+ evidenzia la spaziatura uguale quando aggancia)
+      const finalEl = { ...moved, x: fx, y: fy }
+      const eq = new Set(sp.marks.map((mk) => `${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))
+      const live = neighborGaps(finalEl, otherEls)
+      setGapMarks([...sp.marks, ...live.filter((mk) => !eq.has(`${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))])
     } else if (d.kind === 'resize' && d.corner) {
       const r = resizeEl(d.el, d.corner, f.x, f.y); onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
     } else if (d.kind === 'rotate') {
@@ -1106,11 +1110,14 @@ function FreeStage(props: {
       {/* smart guides (allineamento bordi/centri) */}
       {guides.v.map((g, i) => <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-rose-500 pointer-events-none" style={{ left: `${g * 100}%` }} />)}
       {guides.h.map((g, i) => <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-rose-500 pointer-events-none" style={{ top: `${g * 100}%` }} />)}
-      {/* spaziatura uguale tra foto: segmenti rosa con tacche agli estremi (margine perfetto) */}
-      {gapMarks.map((mk, i) => mk.axis === 'x'
-        ? <div key={`gx${i}`} className="absolute h-0.5 bg-fuchsia-500 pointer-events-none z-30" style={{ left: `${Math.min(mk.a, mk.b) * 100}%`, width: `${Math.abs(mk.b - mk.a) * 100}%`, top: `${mk.cross * 100}%`, boxShadow: '0 0 0 1px white' }} />
-        : <div key={`gy${i}`} className="absolute w-0.5 bg-fuchsia-500 pointer-events-none z-30" style={{ top: `${Math.min(mk.a, mk.b) * 100}%`, height: `${Math.abs(mk.b - mk.a) * 100}%`, left: `${mk.cross * 100}%`, boxShadow: '0 0 0 1px white' }} />
-      )}
+      {/* righelli viola di distanza/margine verso le altre foto, con misura in cm */}
+      {gapMarks.map((mk, i) => {
+        const cm = (Math.abs(mk.b - mk.a) * (mk.axis === 'x' ? fmt.w : fmt.h) / 10)
+        const lbl = <span className="absolute bg-fuchsia-600 text-white text-[8px] leading-none px-1 py-0.5 rounded -translate-x-1/2 -translate-y-1/2 z-40">{cm.toFixed(1)}</span>
+        return mk.axis === 'x'
+          ? <div key={`gx${i}`} className="absolute pointer-events-none z-30" style={{ left: `${Math.min(mk.a, mk.b) * 100}%`, width: `${Math.abs(mk.b - mk.a) * 100}%`, top: `${mk.cross * 100}%` }}><div className="h-0.5 bg-fuchsia-500" style={{ boxShadow: '0 0 0 1px white' }} /><div className="absolute left-1/2 top-0">{lbl}</div></div>
+          : <div key={`gy${i}`} className="absolute pointer-events-none z-30" style={{ top: `${Math.min(mk.a, mk.b) * 100}%`, height: `${Math.abs(mk.b - mk.a) * 100}%`, left: `${mk.cross * 100}%` }}><div className="w-0.5 h-full bg-fuchsia-500" style={{ boxShadow: '0 0 0 1px white' }} /><div className="absolute top-1/2 left-0">{lbl}</div></div>
+      })}
       {/* margini / abbondanza / griglia (come nello stage template) */}
       {marginsOn && <div className="absolute border border-dashed border-sky-400/70 pointer-events-none" style={{ left: `${mx * 100}%`, right: `${mx * 100}%`, top: `${my * 100}%`, bottom: `${my * 100}%` }} />}
       {bleed && <div className="absolute inset-0 border-2 border-rose-400/70 pointer-events-none" />}
@@ -1130,7 +1137,7 @@ function FreeStage(props: {
 function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; formatKey: string; aspects?: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string }) {
   const fmt = getFormat(formatKey); const frames = framesForPage(page)
   return (
-    <div className="relative h-full" style={{ aspectRatio: String(fmt.w / fmt.h), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
+    <div className="relative h-full overflow-hidden" style={{ aspectRatio: String(fmt.w / fmt.h), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
       {page.mode === 'free'
         ? (page.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); return <div key={el.id} className="absolute bg-black/5 overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)` }}>{m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}</div> })
         : frames.map((fr, i) => { const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))] overflow-hidden" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%` }}>{m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(page.cells?.[i] ?? DEFAULT_CELL)} />}</div> })}

@@ -107,6 +107,23 @@ export type GapMark = { axis: 'x' | 'y'; a: number; b: number; cross: number } /
 export type Spacing = { x: number; y: number; marks: GapMark[] }
 function overlap(a0: number, a1: number, b0: number, b1: number): number { return Math.min(a1, b1) - Math.max(a0, b0) }
 
+// Distanze (margini) verso il vicino più prossimo su OGNI lato — SEMPRE, anche senza aggancio.
+// Servono a mostrare in continuo i righelli viola/rosa mentre si sposta una foto, per allineare.
+export function neighborGaps(el: FreeEl, others: FreeEl[]): GapMark[] {
+  const out: GapMark[] = []
+  const row = others.filter((o) => overlap(el.y, el.y + el.h, o.y, o.y + o.h) > 0.25 * Math.min(el.h, o.h))
+  const left = row.filter((o) => o.x + o.w <= el.x + 1e-4).sort((a, b) => (b.x + b.w) - (a.x + a.w))[0]
+  const right = row.filter((o) => o.x >= el.x + el.w - 1e-4).sort((a, b) => a.x - b.x)[0]
+  if (left) { const cross = (Math.max(el.y, left.y) + Math.min(el.y + el.h, left.y + left.h)) / 2; out.push({ axis: 'x', a: left.x + left.w, b: el.x, cross }) }
+  if (right) { const cross = (Math.max(el.y, right.y) + Math.min(el.y + el.h, right.y + right.h)) / 2; out.push({ axis: 'x', a: el.x + el.w, b: right.x, cross }) }
+  const col = others.filter((o) => overlap(el.x, el.x + el.w, o.x, o.x + o.w) > 0.25 * Math.min(el.w, o.w))
+  const up = col.filter((o) => o.y + o.h <= el.y + 1e-4).sort((a, b) => (b.y + b.h) - (a.y + a.h))[0]
+  const down = col.filter((o) => o.y >= el.y + el.h - 1e-4).sort((a, b) => a.y - b.y)[0]
+  if (up) { const cross = (Math.max(el.x, up.x) + Math.min(el.x + el.w, up.x + up.w)) / 2; out.push({ axis: 'y', a: up.y + up.h, b: el.y, cross }) }
+  if (down) { const cross = (Math.max(el.x, down.x) + Math.min(el.x + el.w, down.x + down.w)) / 2; out.push({ axis: 'y', a: el.y + el.h, b: down.y, cross }) }
+  return out
+}
+
 // Bordo bianco "standard" tra le foto (frazione di pagina) quando non c'è ancora
 // un gutter di riferimento sulla pagina. ~1.8% del lato.
 export const GUTTER = 0.02
