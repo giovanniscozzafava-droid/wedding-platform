@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchUnreadByEntry, type UnreadEntry } from '@/lib/notifGuide'
 import { motion } from 'framer-motion'
-import { ArrowUpRight, CalendarHeart, Trash2 } from 'lucide-react'
+import { ArrowUpRight, CalendarHeart, Trash2, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
@@ -10,11 +10,14 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useWeddings } from '@/hooks/useWedding'
+import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { DirectEventButton } from '@/components/event/DirectEventButton'
 
 export default function WeddingsPage() {
   const { data, isLoading } = useWeddings()
+  const { user } = useAuth()
+  const uid = user?.id ?? null
   const qc = useQueryClient()
 
   const [delTarget, setDelTarget] = useState<{ id: string; title: string } | null>(null)
@@ -27,6 +30,19 @@ export default function WeddingsPage() {
 
   function deleteWedding(id: string, title: string) {
     setDelPhrase(''); setDelLoseAll(false); setDelNoBackup(false); setDelTarget({ id, title })
+  }
+
+  async function leaveCircle(id: string, title: string) {
+    if (!window.confirm(`Uscire dal cerchio di «${title}»?\nL'evento e i dati della coppia restano: tu non lo gestirai più.`)) return
+    try {
+      const { data: res, error } = await (supabase as any).rpc('leave_event_circle', { p_entry: id })
+      if (error) throw error
+      if (res?.error) throw new Error(res.error)
+      toast.success('Sei uscito dal cerchio di questo evento.')
+      qc.invalidateQueries({ queryKey: ['weddings'] }); qc.invalidateQueries({ queryKey: ['calendar'] })
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
   }
 
   async function confirmDelete() {
@@ -127,15 +143,27 @@ export default function WeddingsPage() {
                     </Link>
                     <div className="flex items-center gap-1">
                       <Badge status={w.status} />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Elimina matrimonio + dati coppia (GDPR)"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); void deleteWedding(w.id, w.title) }}
-                        className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
+                      {uid && w.owner_id === uid ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Elimina matrimonio + dati coppia (GDPR)"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); void deleteWedding(w.id, w.title) }}
+                          className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Esci dal cerchio (non sei il proprietario dell'evento)"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); void leaveCircle(w.id, w.title) }}
+                          className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
+                        >
+                          <LogOut size={14} />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <Link to={`/weddings/${w.id}`}>
