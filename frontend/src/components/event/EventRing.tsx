@@ -92,7 +92,9 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
     setInvite((s) => ({ ...s, sending: true }))
     try {
       const { data, error } = await supabase.functions.invoke('invite-supplier', {
-        body: { email, subrole: pick?.roleKey, message: `Ti invito su Planfully per collaborare a un evento come ${pick?.label}.` },
+        // entry_id + role_key: l'invito è legato a QUESTO evento → su evento passato il
+        // fornitore, una volta iscritto, entra subito nel cerchio e vede le foto condivise.
+        body: { email, subrole: pick?.roleKey, entry_id: entryId, role_key: pick?.roleKey, message: `Ti invito su Planfully per collaborare a un evento come ${pick?.label}.` },
       })
       if (error) throw error
       const d = data as { mode?: string; error?: string; accept_url?: string }
@@ -286,7 +288,7 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
             </div>
             {/* Ramo "non iscritto": invita per email — vale per i punti referral */}
             <div className="border-t border-[rgb(var(--border))] p-3 space-y-2">
-              <p className="text-[11px] text-[rgb(var(--fg-muted))]">Non lo trovi? <strong>Invitalo su Planfully</strong>: una volta iscritto potrai aggiungerlo al cerchio. L'invito è registrato a tuo nome e vale per i tuoi punti referral.</p>
+              <p className="text-[11px] text-[rgb(var(--fg-muted))]">Non lo trovi? <strong>Invitalo su Planfully</strong>: l'invito è legato a questo evento, così una volta iscritto <strong>entra subito nel cerchio</strong> (per gli eventi passati, senza conferma degli sposi) e <strong>trova le foto condivise</strong>. Registrato a tuo nome → vale anche per i tuoi punti referral.</p>
               <div className="flex gap-2">
                 <input type="email" value={invite.email} onChange={(e) => setInvite((s) => ({ ...s, email: e.target.value }))}
                   placeholder="email del fornitore"

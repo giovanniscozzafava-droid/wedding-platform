@@ -277,6 +277,7 @@ Deno.serve(async (req) => {
 
   const body = (await req.json().catch(() => ({}))) as {
     email?: string; subrole?: string; message?: string; skip_email?: boolean
+    entry_id?: string; role_key?: string   // invito legato a un EVENTO (condivisione foto)
   }
   const email = (body.email ?? '').trim().toLowerCase()
   if (!email || !email.includes('@')) return json({ error: 'invalid email' }, 400)
@@ -297,6 +298,20 @@ Deno.serve(async (req) => {
       .insert({ capostipite_id: callerId, fornitore_id: prof.id, status: 'PENDING' })
     const wasDuplicate = e && String(e.message).includes('duplicate')
     if (e && !wasDuplicate) return json({ error: e.message }, 500)
+
+    // Invito legato a un EVENTO PASSATO: il fornitore (già iscritto) entra subito nel
+    // cerchio così si ritrova le foto condivise, senza vidimazione degli sposi.
+    if (body.entry_id) {
+      const { data: ev } = await admin.from('calendar_entries').select('date_from, date_to').eq('id', body.entry_id).maybeSingle()
+      const d = ev ? ((ev as { date_to?: string | null; date_from?: string | null }).date_to ?? (ev as { date_from?: string | null }).date_from) : null
+      const today = new Date().toISOString().slice(0, 10)
+      if (d && String(d).slice(0, 10) < today) {
+        await admin.from('calendar_entry_participants').upsert(
+          { entry_id: body.entry_id, user_id: prof.id, role_in_entry: body.role_key ?? 'fornitore', confirmed: true },
+          { onConflict: 'entry_id,user_id' },
+        )
+      }
+    }
 
     // Recupera info WP per email personalizzazione
     const { data: inviterProf } = await admin.from('profiles')
@@ -331,6 +346,8 @@ Deno.serve(async (req) => {
     capostipite_id: callerId,
     subrole_hint: body.subrole ?? null,
     message: body.message ?? null,
+    entry_id: body.entry_id ?? null,
+    role_key: body.role_key ?? null,
   }).select().single()
   if (insErr) {
     const msg = String(insErr.message ?? '').toLowerCase()
