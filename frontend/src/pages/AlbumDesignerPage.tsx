@@ -27,6 +27,19 @@ const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
 const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
 
+// Cornice della foto a piena tavola (frame 0..1 dello spread); assente = piena tavola.
+function spreadFrameOf(sp?: { frame?: { x: number; y: number; w: number; h: number } } | null) {
+  return sp?.frame ?? { x: 0, y: 0, w: 1, h: 1 }
+}
+// Render della foto-spread alla sua cornice (riusato in miniature/anteprima/cliente).
+function SpreadImg({ src, cell, frame, pointerNone }: { src: string; cell: Cell; frame: { x: number; y: number; w: number; h: number }; pointerNone?: boolean }) {
+  return (
+    <div className={`absolute overflow-hidden ${pointerNone ? 'pointer-events-none' : ''}`} style={{ left: `${frame.x * 100}%`, top: `${frame.y * 100}%`, width: `${frame.w * 100}%`, height: `${frame.h * 100}%` }}>
+      <img src={src} alt="" draggable={false} style={coverImgStyle(cell)} />
+    </div>
+  )
+}
+
 function AlbumDesignerInner() {
   const { entryId } = useParams<{ entryId: string }>()
   const { profile } = useAuth()
@@ -72,7 +85,8 @@ function AlbumDesignerInner() {
   const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
   const [cropElId, setCropElId] = useState<string | null>(null) // elemento libero in ritaglio
   const [cropSpread, setCropSpread] = useState<string | null>(null) // id pagina-sx in ritaglio foto a piena tavola
-  const spreadPan = useRef<{ x: number; y: number; fx: number; fy: number; w: number; h: number; id: string } | null>(null)
+  // move/resize della cornice spread (trasformazione libera su due tavole)
+  const spreadDrag = useRef<{ kind: 'move' | 'nw' | 'ne' | 'sw' | 'se'; sx: number; sy: number; w: number; h: number; id: string; f: { x: number; y: number; w: number; h: number } } | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)   // indicatore autosave
   const loadedRef = useRef(false)
   const autoTimer = useRef<number | null>(null)
@@ -256,6 +270,10 @@ function AlbumDesignerInner() {
   function clearSpreadImg(leftId: string) { updatePage(leftId, (p) => ({ ...p, spreadImage: null })) }
   function updateSpreadCell(leftId: string, patch: Partial<Cell>) {
     updatePage(leftId, (p) => (p.spreadImage ? { ...p, spreadImage: { ...p.spreadImage, cell: { ...p.spreadImage.cell, ...patch } } } : p))
+  }
+  // trasformazione libera (frame 0..1 dello spread): sposta/ridimensiona su due tavole
+  function updateSpreadFrame(leftId: string, frame: { x: number; y: number; w: number; h: number }) {
+    updatePage(leftId, (p) => (p.spreadImage ? { ...p, spreadImage: { ...p.spreadImage, frame } } : p))
   }
   // Estende su due pagine la foto selezionata (o la prima foto della tavola corrente).
   function makeSpreadFromActive(leftId: string, pair: AlbumPage[]) {
@@ -459,7 +477,7 @@ function AlbumDesignerInner() {
     const SpreadView = ({ pair, max }: { pair: AlbumPage[]; max: string }) => (
       <div className="relative flex bg-white shadow-xl mx-auto" style={{ aspectRatio: String(asp * pair.length), width: max }}>
         {pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={hiUrl} /></div>)}
-        {pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <div className="absolute inset-0 overflow-hidden"><img src={hiUrl(m)} alt="" draggable={false} style={coverImgStyle(pair[0]!.spreadImage!.cell)} /></div> : null })()}
+        {pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} /> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-black/10 pointer-events-none" />}
       </div>
     )
@@ -668,31 +686,55 @@ function AlbumDesignerInner() {
                         </div>
                       )
                     })}
-                    {/* FOTO A PIENA TAVOLA: copre entrambe le pagine; trascina per posizionare */}
+                    {/* FOTO A PIENA TAVOLA — LIBERA: sposta + ridimensiona (accorcia/alza) + ritaglia, sulle due tavole */}
                     {(() => {
                       const lp = spreadPages[0]; const sp = lp?.spreadImage
                       if (!lp || !sp) return null
                       const m = mediaById.get(sp.mediaId)
-                      const onDown = (e: React.PointerEvent) => { if (lite) return; e.stopPropagation(); const r = spreadRef.current!.getBoundingClientRect(); spreadPan.current = { x: e.clientX, y: e.clientY, fx: sp.cell.fx, fy: sp.cell.fy, w: r.width, h: r.height, id: lp.id }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) }
-                      const onMove = (e: React.PointerEvent) => { const d = spreadPan.current; if (!d) return; const dx = (e.clientX - d.x) / Math.max(1, d.w), dy = (e.clientY - d.y) / Math.max(1, d.h); updateSpreadCell(d.id, { fx: Math.min(1, Math.max(0, d.fx - dx)), fy: Math.min(1, Math.max(0, d.fy - dy)) }) }
-                      const onUp = () => { spreadPan.current = null }
+                      const fr = spreadFrameOf(sp)
+                      const startDrag = (e: React.PointerEvent, kind: 'move' | 'nw' | 'ne' | 'sw' | 'se') => {
+                        if (lite) return; e.stopPropagation(); const r = spreadRef.current!.getBoundingClientRect()
+                        spreadDrag.current = { kind, sx: e.clientX, sy: e.clientY, w: r.width, h: r.height, id: lp.id, f: fr }
+                        ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+                      }
+                      const onMove = (e: React.PointerEvent) => {
+                        const d = spreadDrag.current; if (!d) return
+                        const dx = (e.clientX - d.sx) / Math.max(1, d.w), dy = (e.clientY - d.sy) / Math.max(1, d.h)
+                        let { x, y, w, h } = d.f; const MIN = 0.12
+                        if (d.kind === 'move') { x = Math.min(1.05 - w, Math.max(-0.05, d.f.x + dx)); y = Math.min(1.05 - h, Math.max(-0.05, d.f.y + dy)) }
+                        else {
+                          if (d.kind.includes('e')) w = Math.max(MIN, d.f.w + dx)
+                          if (d.kind.includes('s')) h = Math.max(MIN, d.f.h + dy)
+                          if (d.kind.includes('w')) { w = Math.max(MIN, d.f.w - dx); x = d.f.x + (d.f.w - w) }
+                          if (d.kind.includes('n')) { h = Math.max(MIN, d.f.h - dy); y = d.f.y + (d.f.h - h) }
+                        }
+                        updateSpreadFrame(d.id, { x, y, w, h })
+                      }
+                      const onUp = () => { spreadDrag.current = null }
                       return (
                         <div className="absolute inset-0 z-[44]" onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}
                           onDragOver={(e) => { if (!lite && e.dataTransfer.types.includes('text/media')) e.preventDefault() }}
                           onDrop={(e) => { if (lite) return; const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); setSpreadImg(lp.id, mid) } }}>
-                          <div className="absolute inset-0 overflow-hidden bg-white">
-                            {m ? <img src={thumbUrl(m)} alt="" draggable={false} onPointerDown={onDown} className={lite ? '' : 'cursor-move touch-none'} style={coverImgStyle(sp.cell)} />
-                               : <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">foto non disponibile</div>}
+                          <div className="absolute" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%` }}>
+                            <div className={`absolute inset-0 overflow-hidden bg-white ${lite ? '' : 'outline outline-2 outline-[rgb(var(--gold-500))]'}`}>
+                              {m ? <img src={thumbUrl(m)} alt="" draggable={false} onPointerDown={(e) => startDrag(e, 'move')} className={lite ? '' : 'cursor-move touch-none'} style={coverImgStyle(sp.cell)} />
+                                 : <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">foto non disponibile</div>}
+                            </div>
+                            {!lite && (['nw', 'ne', 'sw', 'se'] as const).map((c) => (
+                              <div key={c} onPointerDown={(e) => startDrag(e, c)} className="absolute h-3.5 w-3.5 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none z-[47]"
+                                style={{ left: c.includes('w') ? -7 : undefined, right: c.includes('e') ? -7 : undefined, top: c.includes('n') ? -7 : undefined, bottom: c.includes('s') ? -7 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />
+                            ))}
                           </div>
                           {!lite && (
                             <div className="absolute top-2 right-2 z-[46] flex items-center gap-1 rounded-full bg-black/60 backdrop-blur px-1 py-1">
-                              <button title="Restringi" onPointerDown={(e) => e.stopPropagation()} onClick={() => updateSpreadCell(lp.id, { z: Math.max(1, +(sp.cell.z - 0.1).toFixed(2)) })} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><ZoomOut size={13} /></button>
-                              <button title="Ingrandisci" onPointerDown={(e) => e.stopPropagation()} onClick={() => updateSpreadCell(lp.id, { z: Math.min(4, +(sp.cell.z + 0.1).toFixed(2)) })} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><ZoomIn size={13} /></button>
+                              <button title="Restringi (zoom foto)" onPointerDown={(e) => e.stopPropagation()} onClick={() => updateSpreadCell(lp.id, { z: Math.max(1, +(sp.cell.z - 0.1).toFixed(2)) })} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><ZoomOut size={13} /></button>
+                              <button title="Ingrandisci (zoom foto)" onPointerDown={(e) => e.stopPropagation()} onClick={() => updateSpreadCell(lp.id, { z: Math.min(4, +(sp.cell.z + 0.1).toFixed(2)) })} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><ZoomIn size={13} /></button>
                               <button title="Ritaglia" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCropSpread(lp.id)} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><Crop size={13} /></button>
+                              <button title="Piena tavola" onPointerDown={(e) => e.stopPropagation()} onClick={() => updateSpreadFrame(lp.id, { x: 0, y: 0, w: 1, h: 1 })} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><Maximize size={13} /></button>
                               <button title="Rimuovi foto a doppia pagina" onPointerDown={(e) => e.stopPropagation()} onClick={() => clearSpreadImg(lp.id)} className="h-6 w-6 rounded-full text-white flex items-center justify-center hover:bg-white/20"><X size={14} /></button>
                             </div>
                           )}
-                          {!lite && <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[46] text-[10px] text-white/90 bg-black/50 rounded px-2 py-0.5 pointer-events-none">Doppia pagina · trascina per posizionare</div>}
+                          {!lite && <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[46] text-[10px] text-white/90 bg-black/50 rounded px-2 py-0.5 pointer-events-none">Doppia pagina libera · trascina per spostare, angoli per ridimensionare</div>}
                         </div>
                       )
                     })()}
@@ -898,7 +940,7 @@ function AlbumDesignerInner() {
                 <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                   <button disabled={left <= 0} onClick={() => setPreviewIdx(Math.max(0, left - 2))} className="p-2 rounded-full bg-white/10 disabled:opacity-30"><ChevLeft size={24} className="text-white" /></button>
                   <div className="relative flex gap-1">{lp && <Mini p={lp} />}{rp && <Mini p={rp} />}
-                    {lp?.spreadImage && (() => { const m = mediaById.get(lp.spreadImage!.mediaId); return m ? <div className="absolute inset-0 overflow-hidden"><img src={hiUrl(m)} alt="" draggable={false} style={coverImgStyle(lp.spreadImage!.cell)} /></div> : null })()}
+                    {lp?.spreadImage && (() => { const m = mediaById.get(lp.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={lp.spreadImage!.cell} frame={spreadFrameOf(lp.spreadImage)} /> : null })()}
                   </div>
                   <button disabled={left + 2 >= pages.length} onClick={() => setPreviewIdx(left + 2)} className="p-2 rounded-full bg-white/10 disabled:opacity-30"><ChevRight size={24} className="text-white" /></button>
                 </div>
@@ -1239,7 +1281,7 @@ function SpreadThumb(props: {
             <MiniPage page={p} formatKey={formatKey} aspects={aspects} mediaById={mediaById} thumb={thumb} />
           </div>
         ))}
-        {pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <div className="absolute inset-0 overflow-hidden pointer-events-none"><img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(pair[0]!.spreadImage!.cell)} /></div> : null })()}
+        {pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={thumb(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} pointerNone /> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.5)] pointer-events-none" />}
       </button>
       <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">Tav. {index + 1}</span>

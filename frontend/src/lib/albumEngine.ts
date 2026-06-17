@@ -13,9 +13,10 @@ export type AlbumPage = {
   bg?: string                  // colore di sfondo pagina
   elements?: FreeEl[]          // elementi liberi (in mode 'free')
   frames?: Frame[]             // frame espliciti per template === 'custom' (layout salvato)
-  // Foto a PIENA TAVOLA: una singola immagine che copre ENTRAMBE le pagine della tavola,
-  // attraversando il dorso. Vive sulla pagina SINISTRA dello spread (indice pari).
-  spreadImage?: { mediaId: string; cell: Cell } | null
+  // Foto a PIENA TAVOLA: una singola immagine su ENTRAMBE le pagine della tavola, attraversa
+  // il dorso. Vive sulla pagina SINISTRA. `frame` (0..1 dello spread) = trasformazione libera
+  // stile Canva sulle due tavole; se assente = piena tavola (0,0,1,1).
+  spreadImage?: { mediaId: string; cell: Cell; frame?: Frame } | null
 }
 export type AlbumLayout = { pages: AlbumPage[] }
 export type MediaLite = { id: string; moment: string | null }
