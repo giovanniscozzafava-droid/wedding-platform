@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { uploadWithProgress } from '@/lib/uploadWithProgress'
 import type { Database } from '@/lib/database.types'
 
 type ServiceRow = Database['public']['Tables']['services']['Row']
@@ -224,7 +225,7 @@ async function resizeImage(file: File, maxDim = 1400, quality = 0.78): Promise<{
 export function useUploadPhoto() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ serviceId, file }: { serviceId: string; file: File }) => {
+    mutationFn: async ({ serviceId, file, onProgress }: { serviceId: string; file: File; onProgress?: (pct: number) => void }) => {
       // Limite foto: max 10 per servizio
       const { count } = await supabase.from('service_photos')
         .select('id', { count: 'exact', head: true })
@@ -247,10 +248,9 @@ export function useUploadPhoto() {
       const photoId = crypto.randomUUID()
       const path = `${serviceId}/${photoId}.${resized.ext}`
 
-      const up = await supabase.storage.from('service-photos').upload(path, resized.blob, {
-        contentType: resized.contentType, cacheControl: '3600', upsert: false,
+      await uploadWithProgress('service-photos', path, resized.blob, {
+        contentType: resized.contentType, cacheControl: '3600', upsert: false, onProgress,
       })
-      if (up.error) throw new Error(up.error.message)
 
       const { data: pub } = supabase.storage.from('service-photos').getPublicUrl(path)
       // thumbnail = stesso URL (CSS gestisce la dimensione visibile)

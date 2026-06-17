@@ -42,7 +42,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     tags: ((service as { tags?: string[] } | null)?.tags ?? []).join(', '),
   })
   const [busy, setBusy] = useState(false)
-  const [photoProg, setPhotoProg] = useState<{ done: number; total: number; name?: string } | null>(null)
+  const [photoProg, setPhotoProg] = useState<{ done: number; total: number; name?: string; pct?: number } | null>(null)
   const [savedId, setSavedId] = useState<string | null>(service?.id ?? null)
   const [newMod, setNewMod] = useState({ name: '', type: 'PERCENT' as ModType, value: '' })
 
@@ -172,10 +172,9 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     let ok = 0
     for (let i = 0; i < imgs.length; i++) {
       const f = imgs[i]!
-      setPhotoProg({ done: i, total: imgs.length, name: f.name })
-      try { await upPhoto.mutateAsync({ serviceId: savedId, file: f }); ok++ }
+      setPhotoProg({ done: i, total: imgs.length, name: f.name, pct: 0 })
+      try { await upPhoto.mutateAsync({ serviceId: savedId, file: f, onProgress: (pct) => setPhotoProg((p) => (p ? { ...p, pct } : p)) }); ok++ }
       catch (err) { toast.error(`«${f.name}»: ${err instanceof Error ? err.message : 'Upload fallito'}`) }
-      setPhotoProg({ done: i + 1, total: imgs.length, name: f.name })
     }
     setPhotoProg(null)
     if (ok) toast.success(ok === 1 ? 'Foto caricata' : `${ok} foto caricate`)
@@ -362,17 +361,20 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                         onChange={handleFile} data-testid="photo-upload" />
                     </label>
                   </div>
-                  {photoProg && (
-                    <div className="mb-3">
-                      <div className="flex justify-between items-center text-[11px] text-[rgb(var(--fg-muted))] mb-1">
-                        <span className="truncate pr-2">{photoProg.name ? `Carico «${photoProg.name}»` : 'Caricamento…'}</span>
-                        <span className="tabular-nums shrink-0 font-medium text-[rgb(var(--fg))]">{photoProg.done}/{photoProg.total} · {Math.round((photoProg.done / photoProg.total) * 100)}%</span>
+                  {photoProg && (() => {
+                    const overall = Math.min(100, Math.round(((photoProg.done + (photoProg.pct ?? 0) / 100) / photoProg.total) * 100))
+                    return (
+                      <div className="mb-3">
+                        <div className="flex justify-between items-center text-[11px] text-[rgb(var(--fg-muted))] mb-1">
+                          <span className="truncate pr-2">{photoProg.name ? `Carico «${photoProg.name}»` : 'Caricamento…'}{photoProg.total > 1 ? ` (${Math.min(photoProg.done + 1, photoProg.total)}/${photoProg.total})` : ''}</span>
+                          <span className="tabular-nums shrink-0 font-medium text-[rgb(var(--fg))]">{overall}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-[rgb(var(--bg-sunken))] overflow-hidden">
+                          <div className="h-full bg-[rgb(var(--gold-500))] transition-all duration-150" style={{ width: `${overall}%` }} />
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-[rgb(var(--bg-sunken))] overflow-hidden">
-                        <div className="h-full bg-[rgb(var(--gold-500))] transition-all duration-200" style={{ width: `${Math.round((photoProg.done / photoProg.total) * 100)}%` }} />
-                      </div>
-                    </div>
-                  )}
+                    )
+                  })()}
 
                   {/* Import da URL Instagram/Pinterest/blog */}
                   <div className="rounded-lg border-2 border-dashed p-3 mb-3"

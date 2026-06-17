@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { uploadWithProgress } from '@/lib/uploadWithProgress'
 
 // tabella nuova non ancora nei tipi generati: accesso non tipizzato
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,14 +52,13 @@ export function useSupplierAssetMutations() {
   const inv = () => qc.invalidateQueries({ queryKey: ['supplier-assets'] })
   return {
     upload: useMutation({
-      mutationFn: async ({ file, tags, caption, event_kind }: { file: File; tags?: string[]; caption?: string; event_kind?: string | null }) => {
+      mutationFn: async ({ file, tags, caption, event_kind, onProgress }: { file: File; tags?: string[]; caption?: string; event_kind?: string | null; onProgress?: (pct: number) => void }) => {
         const { data: me } = await supabase.auth.getUser()
         const uid = me.user?.id
         if (!uid) throw new Error('Non autenticato')
         const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
         const path = `${uid}/${crypto.randomUUID()}.${ext}`
-        const up = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', upsert: false })
-        if (up.error) throw up.error
+        await uploadWithProgress(BUCKET, path, file, { contentType: file.type || undefined, cacheControl: '31536000', upsert: false, onProgress })
         const { error } = await tbl().insert({ supplier_id: uid, storage_path: path, tags: tags ?? [], caption: caption ?? null, event_kind: event_kind ?? null })
         if (error) throw error
       },
