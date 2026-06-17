@@ -20,7 +20,9 @@ export const TableauPoster = forwardRef<HTMLDivElement, {
   const u = width / 460   // costanti tarate su una tavola da 460px
   const A = accent || t.accent
   const n = data.tables.length
-  const cols = n <= 8 ? 2 : n <= 18 ? 3 : 4
+  // più colonne quando i tavoli crescono (fino a 40 tavoli / ~300 invitati): così i
+  // nomi restano leggibili invece di rimpicciolire all'infinito su poche colonne.
+  const cols = n <= 8 ? 2 : n <= 18 ? 3 : n <= 28 ? 4 : n <= 40 ? 5 : 6
   // densità: rimpicciolisce coi tanti tavoli MA con un pavimento di leggibilità
   const dv = n > 30 ? 0.82 : n > 20 ? 0.88 : n > 12 ? 0.94 : 1
   const eyebrow = data.eyebrow ?? t.eyebrow
