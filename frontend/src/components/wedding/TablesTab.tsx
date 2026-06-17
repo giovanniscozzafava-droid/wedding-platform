@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,9 @@ import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding } from '@/hooks/useWedding'
 import { exportTableToPdf } from '@/lib/pdf-export'
+import { exportTableauPlanPdf, type TableauFormat } from '@/lib/tableauExport'
 import { EditRowModal, type Field } from './EditRowModal'
+import { TableauPlan } from './TableauPlan'
 import { SectionRings } from '@/components/event/SectionRings'
 
 const TABLE_NAMING_PRESETS: Record<string, string[]> = {
@@ -31,10 +33,10 @@ const THEME_PRESETS = [
   'Sicilian heritage', 'Dolce vita', 'Tropical', 'Industrial loft',
 ]
 
-const SHAPES = ['ROUND', 'SQUARE', 'RECT', 'HEAD', 'IMPERIALE']
+const SHAPES = ['ROUND', 'SQUARE', 'RECT', 'HEAD', 'IMPERIALE', 'FERRO_CAVALLO']
 const SHAPE_LABEL: Record<string, string> = {
   ROUND: 'Rotondo', SQUARE: 'Quadrato', RECT: 'Rettangolare',
-  HEAD: "Tavolo d'onore (testa)", IMPERIALE: 'Imperiale (lungo)',
+  HEAD: "Tavolo d'onore (testa)", IMPERIALE: 'Imperiale (lungo)', FERRO_CAVALLO: 'Ferro di cavallo',
 }
 
 const TABLE_FIELDS: Field[] = [
@@ -54,8 +56,49 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const [draft, setDraft] = useState({ table_no: '', label: '', seats: '8', shape: 'ROUND' })
   const [editTable, setEditTable] = useState<any | null>(null)
   const [assigningTable, setAssigningTable] = useState<any | null>(null)
+  const [view, setView] = useState<'plan' | 'list'>('plan')
   const currentTheme = (wedding as any)?.theme ?? ''
   const currentStyle = (wedding as any)?.tables_naming_style ?? ''
+
+  // ── DISPOSIZIONE: posiziona i tavoli nella sala secondo uno schema ──────────
+  async function applyDisposition(kind: 'grid' | 'rows' | 'horseshoe') {
+    const all = ((tables ?? []) as any[])
+    if (all.length === 0) { toast.error('Aggiungi prima dei tavoli'); return }
+    const staff = all.filter((t) => t.is_staff || t.shape === 'HEAD')
+    const rest = all.filter((t) => !(t.is_staff || t.shape === 'HEAD'))
+    const patches: Array<{ id: string; pos_x: number; pos_y: number }> = []
+    // testa in alto al centro
+    staff.forEach((t, i) => patches.push({ id: t.id, pos_x: 0.5 + (i - (staff.length - 1) / 2) * 0.18, pos_y: 0.12 }))
+    const n = rest.length
+    if (kind === 'grid') {
+      const cols = Math.ceil(Math.sqrt(n)); const rows = Math.ceil(n / cols)
+      rest.forEach((t, i) => { const r = Math.floor(i / cols), c = i % cols; patches.push({ id: t.id, pos_x: (c + 1) / (cols + 1), pos_y: 0.28 + (rows > 1 ? (r / (rows - 1)) * 0.6 : 0.3) }) })
+    } else if (kind === 'rows') {
+      const perRow = Math.min(n, Math.max(3, Math.ceil(n / Math.ceil(n / 5))))
+      rest.forEach((t, i) => { const r = Math.floor(i / perRow), c = i % perRow; const rowsTot = Math.ceil(n / perRow); patches.push({ id: t.id, pos_x: (c + 1) / (perRow + 1), pos_y: 0.3 + (rowsTot > 1 ? (r / (rowsTot - 1)) * 0.55 : 0.25) }) })
+    } else { // horseshoe: a ferro di cavallo attorno alla testa
+      rest.forEach((t, i) => { const f = n > 1 ? i / (n - 1) : 0.5; const ang = Math.PI * (0.15 + 0.7 * f); patches.push({ id: t.id, pos_x: 0.5 - Math.cos(ang) * 0.4, pos_y: 0.32 + Math.sin(ang) * 0.5 }) })
+    }
+    try { for (const p of patches) await update.mutateAsync({ id: p.id, patch: { pos_x: p.pos_x, pos_y: p.pos_y } } as any); toast.success('Disposizione applicata') }
+    catch (e) { toast.error((e as Error).message) }
+  }
+
+  async function addStaffTable() {
+    if ((tables ?? []).some((t: any) => t.is_staff)) { toast('C\'è già un tavolo staff'); return }
+    try {
+      await add.mutateAsync({ table_no: 0, label: 'Tavolo Sposi', seats: 2, shape: 'HEAD', is_staff: true, pos_x: 0.5, pos_y: 0.12 } as any)
+      toast.success('Tavolo sposi (testa) aggiunto')
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  function exportPlan(format: TableauFormat) {
+    void exportTableauPlanPdf((tables ?? []) as any, (guests ?? []) as any, {
+      format,
+      title: (wedding as any)?.client_name ? `Tableau · ${(wedding as any).client_name}` : 'Tableau Mariage',
+      subtitle: `${(tables ?? []).length} tavoli · ${(guests ?? []).filter((g: any) => g.table_id).length} invitati seduti`,
+      filename: `tableau-${format.toLowerCase()}.pdf`,
+    })
+  }
 
   async function applyNamingPreset(style: string) {
     const list = (tables ?? []) as any[]
@@ -163,13 +206,33 @@ export function TablesTab({ entryId }: { entryId: string }) {
   return (
     <div>
       <SectionRings entryId={entryId} keys={['tables']} />
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <header className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
         <div>
-          <h2 className="font-display text-2xl">Disposizione tavoli</h2>
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Crea i tavoli e assegna gli invitati dalla scheda Invitati.</p>
+          <h2 className="font-display text-2xl">Tableau mariage</h2>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Piantina visiva: posiziona i tavoli e siedi gli invitati. Stampa il poster A3 / 70×100.</p>
         </div>
-        <Button variant="outline" onClick={exportPdf}><Download size={14} /> PDF</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-[rgb(var(--border))] overflow-hidden">
+            <button onClick={() => setView('plan')} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${view === 'plan' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><MapIcon size={13} /> Piantina</button>
+            <button onClick={() => setView('list')} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${view === 'list' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><List size={13} /> Elenco</button>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => exportPlan('A3')}><Download size={14} /> A3</Button>
+          <Button variant="outline" size="sm" onClick={() => exportPlan('70x100')}><Download size={14} /> 70×100</Button>
+          <Button variant="ghost" size="sm" onClick={exportPdf} title="Elenco testuale"><Download size={14} /> Lista</Button>
+        </div>
       </header>
+
+      {/* Strumenti piantina: disposizione automatica + tavolo sposi */}
+      {view === 'plan' && (
+        <Card className="p-3 mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-[rgb(var(--fg-muted))] inline-flex items-center gap-1"><LayoutGrid size={13} /> Disposizione:</span>
+          <Button variant="outline" size="sm" onClick={() => applyDisposition('grid')}>A griglia</Button>
+          <Button variant="outline" size="sm" onClick={() => applyDisposition('rows')}>A file (sala)</Button>
+          <Button variant="outline" size="sm" onClick={() => applyDisposition('horseshoe')}>Ferro di cavallo</Button>
+          <div className="h-5 w-px bg-[rgb(var(--border))] mx-1" />
+          <Button variant="outline" size="sm" onClick={addStaffTable}><Crown size={13} /> Tavolo sposi</Button>
+        </Card>
+      )}
 
       {/* Banner ospiti non ancora assegnati */}
       {(tables ?? []).length > 0 && (
@@ -290,6 +353,17 @@ export function TablesTab({ entryId }: { entryId: string }) {
         </div>
       </Card>
 
+      {view === 'plan' ? (
+        <Card className="p-3 mb-6">
+          <TableauPlan
+            tables={(tables ?? []) as any}
+            guests={(guests ?? []) as any}
+            onMove={(id, pos_x, pos_y) => update.mutate({ id, patch: { pos_x, pos_y } } as any)}
+            onAssignGuest={(guestId, tableId) => updateGuest.mutate({ id: guestId, patch: { table_id: tableId } })}
+            onOpenAssign={(t) => setAssigningTable(t)}
+          />
+        </Card>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {(tables ?? []).map((t: any) => {
           const seated = guestsAt(t.id)
@@ -343,6 +417,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
           </Card>
         )}
       </div>
+      )}
 
       <EditRowModal
         open={!!editTable}
