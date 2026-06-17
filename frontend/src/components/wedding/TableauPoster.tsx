@@ -48,14 +48,15 @@ export const TableauPoster = forwardRef<HTMLDivElement, {
         </svg>
       </>)}
 
-      {/* ACQUERELLI AI agli angoli (trasparenti) — esterni, dietro al testo, mai sopra i nomi */}
+      {/* ACQUERELLI AI: SOLO i due angoli alti, nella fascia intestazione (spazio bianco
+          garantito). Niente in basso: lì c'è la griglia e il testo NON deve finirci mai sopra. */}
       {t.corner && (<>
-        <img src={`/tableau/${t.corner}`} alt="" crossOrigin="anonymous" style={{ position: 'absolute', top: 0, left: 0, width: 150 * u, zIndex: 1, pointerEvents: 'none' }} />
-        <img src={`/tableau/${t.corner}`} alt="" crossOrigin="anonymous" style={{ position: 'absolute', bottom: (hasLogo ? 30 : 0) * u, right: 0, width: 150 * u, transform: 'rotate(180deg)', zIndex: 1, pointerEvents: 'none' }} />
+        <img src={`/tableau/${t.corner}`} alt="" crossOrigin="anonymous" style={{ position: 'absolute', top: 0, left: 0, width: 100 * u, zIndex: 1, pointerEvents: 'none' }} />
+        <img src={`/tableau/${t.corner}`} alt="" crossOrigin="anonymous" style={{ position: 'absolute', top: 0, right: 0, width: 100 * u, transform: 'scaleX(-1)', zIndex: 1, pointerEvents: 'none' }} />
       </>)}
 
       {/* Intestazione */}
-      <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', marginTop: (t.decor === 'deco' ? 30 : 20) * u }}>
+      <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', marginTop: (t.corner ? 84 : t.decor === 'deco' ? 30 : 20) * u }}>
         <div style={{ fontFamily: 'Jost, sans-serif', fontSize: 12 * u, letterSpacing: 5 * u, textTransform: 'uppercase', color: A, fontWeight: 400 }}>{eyebrow}</div>
         <div style={{
           fontFamily: t.nameFont, fontSize: t.nameSize * u * (n > 18 ? 0.9 : 1), lineHeight: 1.04, marginTop: 12 * u,
