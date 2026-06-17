@@ -27,6 +27,26 @@ export default function SupplierAvailabilityPage() {
   const [cursor, setCursor] = useState(new Date())
   const [busyMap, setBusyMap] = useState<Map<string, { status: Status; id: string; notes?: string | null }>>(new Map())
   const [busy, setBusy] = useState(false)
+  const [capacity, setCapacity] = useState<number>(1)        // eventi gestibili nello stesso giorno (slot)
+  const [capSaving, setCapSaving] = useState(false)
+
+  useEffect(() => {
+    if (!user) return
+    void (async () => {
+      const { data } = await (supabase.from('profiles' as any) as any).select('daily_capacity').eq('id', user.id).maybeSingle()
+      setCapacity(Math.max(1, Number((data as { daily_capacity?: number | null } | null)?.daily_capacity ?? 1)))
+    })()
+  }, [user])
+
+  async function saveCapacity(v: number) {
+    const val = Math.max(1, Math.min(50, v))
+    setCapacity(val); setCapSaving(true)
+    try {
+      const { error } = await (supabase as any).rpc('set_daily_capacity', { p_value: val })
+      if (error) throw error
+      toast.success(val === 1 ? 'Un evento al giorno' : `Fino a ${val} eventi nello stesso giorno`)
+    } catch (e) { toast.error((e as Error).message) } finally { setCapSaving(false) }
+  }
 
   async function load() {
     if (!user) return
@@ -124,6 +144,24 @@ export default function SupplierAvailabilityPage() {
           title="Il tuo calendario"
           description="Marca i giorni occupati o tentativi. I wedding planner non potranno aggiungerti ai preventivi per quelle date."
         />
+
+        {/* CAPIENZA GIORNALIERA (SLOT): quanti eventi puoi gestire nello stesso giorno */}
+        <Card className="p-4 sm:p-5 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-medium flex items-center gap-1.5"><Clock size={15} className="text-[rgb(var(--gold-600))]" /> Quanti eventi al giorno puoi gestire?</p>
+              <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">Se lavori a <strong>slot</strong> (es. un fiorista o un acconciatore fa più matrimoni in un giorno), alza il numero. Una data risulta “piena” solo quando hai raggiunto questa capienza.</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="icon" disabled={capSaving || capacity <= 1} onClick={() => void saveCapacity(capacity - 1)}>−</Button>
+              <div className="w-16 text-center">
+                <div className="text-2xl font-display tabular-nums leading-none">{capacity}</div>
+                <div className="text-[10px] text-[rgb(var(--fg-subtle))]">{capacity === 1 ? 'evento/giorno' : 'eventi/giorno'}</div>
+              </div>
+              <Button variant="outline" size="icon" disabled={capSaving || capacity >= 50} onClick={() => void saveCapacity(capacity + 1)}>+</Button>
+            </div>
+          </div>
+        </Card>
 
         <Card className="p-4 sm:p-6 mb-4">
           <div className="flex items-center justify-between mb-4">
