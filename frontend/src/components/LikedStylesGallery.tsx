@@ -13,8 +13,8 @@ export function LikedStylesGallery({ cards, title = 'Stili scelti dal cliente' }
       <p className="text-sm font-medium flex items-center gap-1.5 mb-2"><Heart size={15} className="text-[rgb(var(--rose-500))]" /> {title} <span className="text-[rgb(var(--fg-subtle))] font-normal">({list.length})</span></p>
       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
         {list.map((c) => (
-          <a key={c.id} href={c.url} target="_blank" rel="noreferrer" className="block aspect-square rounded-lg overflow-hidden border border-[rgb(var(--border))] hover:ring-2 hover:ring-[rgb(var(--gold-500))]" title={(c.tags ?? []).join(', ')}>
-            <img src={c.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <a key={c.id} href={c.url} target="_blank" rel="noreferrer" className="flex items-center justify-center aspect-square rounded-lg overflow-hidden border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] hover:ring-2 hover:ring-[rgb(var(--gold-500))]" title={(c.tags ?? []).join(', ')}>
+            <img src={c.url} alt="" className="max-w-full max-h-full object-contain" loading="lazy" />
           </a>
         ))}
       </div>

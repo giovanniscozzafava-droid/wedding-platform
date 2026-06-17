@@ -379,17 +379,18 @@ export default function EmbedLeadPage() {
           const DuelCard = ({ c }: { c: Card }) => (
             <button type="button" onClick={() => choose(c)} style={{ flex: 1, minWidth: 0, padding: 0, border: '2px solid transparent', borderRadius: 14, overflow: 'hidden', background: '#fff', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,.12)' }}
               onMouseOver={(e) => (e.currentTarget.style.borderColor = primary)} onMouseOut={(e) => (e.currentTarget.style.borderColor = 'transparent')}>
-              <div style={{ position: 'relative', aspectRatio: '3 / 4', background: '#f3f0ea' }}>
-                <img src={cardUrl(c)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                {(c.caption || (c.tags ?? []).length > 0) && (
-                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '20px 8px 7px', background: 'linear-gradient(transparent, rgba(0,0,0,.62))', color: '#fff', textAlign: 'left' }}>
-                    {c.caption && <div style={{ fontSize: 12, fontWeight: 600 }}>{c.caption}</div>}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3 }}>
-                      {(c.tags ?? []).slice(0, 3).map((t) => <span key={t} style={{ fontSize: 9, background: 'rgba(255,255,255,.25)', borderRadius: 99, padding: '1px 6px' }}>{t}</span>)}
-                    </div>
-                  </div>
-                )}
+              {/* foto INTERA (contain): il cliente la vede tutta, niente crop */}
+              <div style={{ aspectRatio: '3 / 4', background: '#f4f1ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={cardUrl(c)} alt="" style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block' }} />
               </div>
+              {(c.caption || (c.tags ?? []).length > 0) && (
+                <div style={{ padding: '6px 8px 8px', textAlign: 'left' }}>
+                  {c.caption && <div style={{ fontSize: 12, fontWeight: 600, color: '#3a3a3a' }}>{c.caption}</div>}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3 }}>
+                    {(c.tags ?? []).slice(0, 3).map((t) => <span key={t} style={{ fontSize: 9, background: 'rgba(0,0,0,.06)', color: '#555', borderRadius: 99, padding: '1px 6px' }}>{t}</span>)}
+                  </div>
+                </div>
+              )}
             </button>
           )
           return (
@@ -399,7 +400,7 @@ export default function EmbedLeadPage() {
                 <div style={{ textAlign: 'center', padding: '6px 0' }}>
                   <p style={{ fontSize: 14 }}>{finalists.length > 0 ? `Ecco il tuo stile: ${finalists.length} preferiti.` : 'Saltato — nessun problema.'}</p>
                   {finalists.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 8 }}>
-                    {finalists.map((l) => <img key={l.id} src={cardUrl(l)} alt="" style={{ width: 64, height: 80, objectFit: 'cover', borderRadius: 8, border: `2px solid ${primary}` }} />)}
+                    {finalists.map((l) => <div key={l.id} style={{ width: 72, height: 90, borderRadius: 8, border: `2px solid ${primary}`, background: '#f4f1ea', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><img src={cardUrl(l)} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /></div>)}
                   </div>}
                 </div>
               ) : A && B ? (<>
