@@ -18,6 +18,7 @@ export default function SupplierAssetsPage() {
   const suggested = suggestedStyleTags((profile as { subrole?: string | null } | null)?.subrole)
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [prog, setProg] = useState<{ done: number; total: number; name?: string } | null>(null)
   const [linkUrl, setLinkUrl] = useState('')
 
   async function addLink() {
@@ -29,13 +30,17 @@ export default function SupplierAssetsPage() {
 
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return
-    setBusy(true)
+    const imgs = Array.from(files).filter((f) => f.type.startsWith('image/'))
+    if (imgs.length === 0) return
+    setBusy(true); setProg({ done: 0, total: imgs.length, name: imgs[0]!.name })
     let ok = 0
-    for (const f of Array.from(files)) {
-      if (!f.type.startsWith('image/')) continue
+    for (let i = 0; i < imgs.length; i++) {
+      const f = imgs[i]!
+      setProg({ done: i, total: imgs.length, name: f.name })
       try { await upload.mutateAsync({ file: f }); ok++ } catch (e) { toast.error(`«${f.name}»: ${(e as Error).message}`) }
+      setProg({ done: i + 1, total: imgs.length, name: f.name })
     }
-    setBusy(false)
+    setBusy(false); setProg(null)
     if (ok) toast.success(`${ok} foto caricate. Aggiungi i tag.`)
     if (fileRef.current) fileRef.current.value = ''
   }
@@ -57,6 +62,17 @@ export default function SupplierAssetsPage() {
             <p className="text-sm text-[rgb(var(--fg-muted))]">Trascina qui le foto, oppure</p>
             <Button variant="gold" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Carica foto</Button>
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void onFiles(e.target.files)} />
+            {prog && (
+              <div className="w-full max-w-sm mt-1">
+                <div className="flex justify-between items-center text-[11px] text-[rgb(var(--fg-muted))] mb-1">
+                  <span className="truncate pr-2">{prog.name ? `Carico «${prog.name}»` : 'Caricamento…'}</span>
+                  <span className="tabular-nums shrink-0 font-medium text-[rgb(var(--fg))]">{prog.done}/{prog.total} · {Math.round((prog.done / prog.total) * 100)}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-[rgb(var(--bg-sunken))] overflow-hidden">
+                  <div className="h-full bg-[rgb(var(--gold-500))] transition-all duration-200" style={{ width: `${Math.round((prog.done / prog.total) * 100)}%` }} />
+                </div>
+              </div>
+            )}
           </div>
           <div className="border-t border-[rgb(var(--border))] pt-3 mt-1">
             <p className="text-xs text-[rgb(var(--fg-muted))] mb-1.5 flex items-center gap-1.5"><Link2 size={13} /> …oppure aggiungi da un <strong>link</strong> (Pinterest, Instagram, qualsiasi pagina) — utile se non vuoi caricare file.</p>
