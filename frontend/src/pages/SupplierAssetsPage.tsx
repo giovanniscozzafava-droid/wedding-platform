@@ -1,0 +1,125 @@
+import { useRef, useState } from 'react'
+import { Image as ImageIcon, Upload, X, Plus, Loader2, Tag as TagIcon } from 'lucide-react'
+import { toast } from 'sonner'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { useSupplierAssets, useSupplierAssetMutations, assetPublicUrl, type SupplierAsset } from '@/hooks/useSupplierAssets'
+
+const EVENT_KINDS = ['', 'matrimonio', 'battesimo', 'comunione', 'cresima', 'compleanno', 'anniversario', 'laurea', 'corporate', 'altro']
+
+export default function SupplierAssetsPage() {
+  const { data: assets, isLoading } = useSupplierAssets()
+  const { upload, update, remove } = useSupplierAssetMutations()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function onFiles(files: FileList | null) {
+    if (!files || files.length === 0) return
+    setBusy(true)
+    let ok = 0
+    for (const f of Array.from(files)) {
+      if (!f.type.startsWith('image/')) continue
+      try { await upload.mutateAsync({ file: f }); ok++ } catch (e) { toast.error(`«${f.name}»: ${(e as Error).message}`) }
+    }
+    setBusy(false)
+    if (ok) toast.success(`${ok} foto caricate. Aggiungi i tag.`)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  return (
+    <div className="min-h-full">
+      <div className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
+        <PageHeader
+          eyebrow="Profilo · Asset"
+          title="Stili & lavori (la tua libreria)"
+          description="Carica le foto dei tuoi lavori e taggale. Da qui nascono il gioco “scegli il tuo stile” nel form lead e, in futuro, pagine e siti generati dai tuoi asset."
+        />
+
+        <Card className="p-5 mb-6 border-dashed"
+          onDragOver={(e) => { e.preventDefault() }}
+          onDrop={(e) => { e.preventDefault(); void onFiles(e.dataTransfer.files) }}>
+          <div className="flex flex-col items-center justify-center text-center gap-2 py-4">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]"><Upload size={20} /></span>
+            <p className="text-sm text-[rgb(var(--fg-muted))]">Trascina qui le foto, oppure</p>
+            <Button variant="gold" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Carica foto</Button>
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void onFiles(e.target.files)} />
+          </div>
+        </Card>
+
+        {isLoading && <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-56" />)}</div>}
+
+        {!isLoading && (assets ?? []).length === 0 && (
+          <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
+            <ImageIcon size={20} className="mx-auto mb-2 opacity-60" />
+            Ancora nessun asset. Carica le foto dei tuoi lavori migliori e taggale (es. <em>peonie, romantico, pastello</em>).
+          </Card>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {(assets ?? []).map((a) => (
+            <AssetCard key={a.id} a={a}
+              onTags={(tags) => update.mutate({ id: a.id, patch: { tags } })}
+              onCaption={(caption) => update.mutate({ id: a.id, patch: { caption } })}
+              onEventKind={(event_kind) => update.mutate({ id: a.id, patch: { event_kind: event_kind || null } })}
+              onPublic={(is_public) => update.mutate({ id: a.id, patch: { is_public } })}
+              onRemove={() => { if (window.confirm('Eliminare questo asset?')) remove.mutate(a) }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AssetCard({ a, onTags, onCaption, onEventKind, onPublic, onRemove }: {
+  a: SupplierAsset
+  onTags: (tags: string[]) => void
+  onCaption: (caption: string) => void
+  onEventKind: (event_kind: string) => void
+  onPublic: (is_public: boolean) => void
+  onRemove: () => void
+}) {
+  const [tagDraft, setTagDraft] = useState('')
+  const [caption, setCaption] = useState(a.caption ?? '')
+
+  function addTag() {
+    const t = tagDraft.trim().toLowerCase()
+    if (!t) return
+    if (!a.tags.includes(t)) onTags([...a.tags, t])
+    setTagDraft('')
+  }
+
+  return (
+    <Card className="overflow-hidden flex flex-col">
+      <div className="relative aspect-square bg-[rgb(var(--bg-sunken))]">
+        <img src={assetPublicUrl(a.storage_path)} alt={a.caption ?? ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+        <button onClick={onRemove} title="Elimina" className="absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/55 text-white flex items-center justify-center hover:bg-black/75"><X size={14} /></button>
+        {!a.is_public && <span className="absolute bottom-1.5 left-1.5 text-[10px] bg-black/60 text-white rounded px-1.5 py-0.5">nascosto</span>}
+      </div>
+      <div className="p-2.5 space-y-2">
+        <Input value={caption} onChange={(e) => setCaption(e.target.value)} onBlur={() => caption !== (a.caption ?? '') && onCaption(caption)} placeholder="Didascalia (facoltativa)" className="text-xs h-8" />
+        <div className="flex flex-wrap gap-1">
+          {a.tags.map((t) => (
+            <span key={t} className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">
+              {t}<button onClick={() => onTags(a.tags.filter((x) => x !== t))} className="hover:text-[rgb(var(--rose-500))]"><X size={10} /></button>
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-1">
+          <TagIcon size={12} className="text-[rgb(var(--fg-subtle))] shrink-0" />
+          <input value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+            placeholder="aggiungi tag + Invio" className="flex-1 min-w-0 text-[11px] bg-transparent outline-none border-b border-[rgb(var(--border))] py-0.5" />
+        </div>
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <select value={a.event_kind ?? ''} onChange={(e) => onEventKind(e.target.value)} className="text-[11px] bg-transparent border border-[rgb(var(--border))] rounded px-1 py-0.5">
+            {EVENT_KINDS.map((k) => <option key={k} value={k}>{k === '' ? 'ogni evento' : k}</option>)}
+          </select>
+          <label className="text-[11px] flex items-center gap-1 cursor-pointer select-none">
+            <input type="checkbox" checked={a.is_public} onChange={(e) => onPublic(e.target.checked)} className="h-3.5 w-3.5 accent-[rgb(var(--gold-600))]" /> nel gioco
+          </label>
+        </div>
+      </div>
+    </Card>
+  )
+}

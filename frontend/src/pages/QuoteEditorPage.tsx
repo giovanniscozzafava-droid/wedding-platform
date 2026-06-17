@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AvailabilityBanner } from '@/components/quote/AvailabilityBanner'
 import { AnswersPanel } from '@/components/AnswersPanel'
+import { LikedStylesGallery } from '@/components/LikedStylesGallery'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { useServices } from '@/hooks/useCatalog'
@@ -570,8 +571,9 @@ export default function QuoteEditorPage() {
 
         {/* Risposte del cliente (dal form di categoria/questionario): guidano il preventivo */}
         {clientAnswers && Object.keys(clientAnswers).length > 0 && (
-          <div className="mb-4">
+          <div className="mb-4 space-y-3">
             <AnswersPanel answers={clientAnswers} title="Cosa desidera il cliente" note="Risposte dal questionario: usale per personalizzare le voci del preventivo." />
+            <LikedStylesGallery cards={(clientAnswers as Record<string, unknown>).liked_style_cards} />
           </div>
         )}
 

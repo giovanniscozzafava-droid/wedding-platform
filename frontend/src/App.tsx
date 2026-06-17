@@ -20,6 +20,7 @@ const ResetPasswordPage = lazyWithRetry(() => import('@/pages/auth/ResetPassword
 const OnboardingPage = lazyWithRetry(() => import('@/pages/auth/OnboardingPage'))
 const ProfilePage = lazyWithRetry(() => import('@/pages/auth/ProfilePage'))
 const CatalogPage = lazyWithRetry(() => import('@/pages/CatalogPage'))
+const SupplierAssetsPage = lazyWithRetry(() => import('@/pages/SupplierAssetsPage'))
 const CalendarPage = lazyWithRetry(() => import('@/pages/CalendarPage'))
 const SuppliersPage = lazyWithRetry(() => import('@/pages/SuppliersPage'))
 const SupplierDetailPage = lazyWithRetry(() => import('@/pages/SupplierDetailPage'))
@@ -126,6 +127,7 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route path="/stili" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SupplierAssetsPage /></RequireAuth>} />
           <Route
             path="/suppliers"
             element={

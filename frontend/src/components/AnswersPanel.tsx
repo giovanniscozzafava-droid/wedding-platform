@@ -8,8 +8,12 @@ export function AnswersPanel({ answers, title = 'Risposte del cliente', note }: 
   title?: string
   note?: string
 }) {
-  const entries = Object.entries(answers ?? {}).filter(([, v]) =>
-    v != null && v !== '' && !(Array.isArray(v) && v.length === 0))
+  const SKIP = new Set(['liked_style_cards', 'liked_tags', 'callback_pref']) // gestiti in viste dedicate
+  const entries = Object.entries(answers ?? {}).filter(([k, v]) => {
+    if (SKIP.has(k) || v == null || v === '') return false
+    if (Array.isArray(v)) return v.length > 0 && typeof v[0] !== 'object' // niente array di oggetti
+    return typeof v !== 'object'
+  })
   if (entries.length === 0) return null
   return (
     <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] p-4">

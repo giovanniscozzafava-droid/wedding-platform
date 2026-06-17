@@ -71,6 +71,12 @@ export default function EmbedLeadPage() {
   const [altSent, setAltSent] = useState(false)
   const [subrole, setSubrole] = useState<string | null>(null)          // categoria del professionista
   const [catAnswers, setCatAnswers] = useState<Record<string, unknown>>({}) // risposte alle domande di categoria
+  // GIOCO "scegli il tuo stile": card dagli asset taggati del fornitore (swipe sì/no)
+  const [cards, setCards] = useState<{ id: string; path: string; caption?: string | null; tags: string[] }[]>([])
+  const [cardIdx, setCardIdx] = useState(0)
+  const [liked, setLiked] = useState<{ id: string; url: string; tags: string[] }[]>([])
+  const [swipeAnim, setSwipeAnim] = useState<'l' | 'r' | null>(null)
+  const assetUrl = (path: string) => supabase.storage.from('supplier-assets').getPublicUrl(path).data.publicUrl
   const [form, setForm] = useState({
     client_name: '', client_email: '', client_phone: '',
     event_kind: 'matrimonio', event_date: '', event_location: '', guests_estimate: '',
@@ -113,6 +119,25 @@ export default function EmbedLeadPage() {
       }
     })()
   }, [slug])
+
+  // Card del gioco "scegli il tuo stile" (asset taggati del fornitore), filtrate per tipo evento
+  useEffect(() => {
+    if (!slug) return
+    void (async () => {
+      try {
+        const { data } = await (supabase as unknown as AnyRpc).rpc('get_supplier_assets', { p_slug: slug, p_event_kind: form.event_kind, p_limit: 30 })
+        const arr = (Array.isArray(data) ? data : []) as { id: string; path: string; caption?: string | null; tags: string[] }[]
+        setCards(arr); setCardIdx(0); setLiked([])
+      } catch { setCards([]) }
+    })()
+  }, [slug, form.event_kind])
+
+  function decide(like: boolean) {
+    const c = cards[cardIdx]; if (!c) return
+    setSwipeAnim(like ? 'r' : 'l')
+    if (like) setLiked((l) => [...l, { id: c.id, url: assetUrl(c.path), tags: c.tags ?? [] }])
+    window.setTimeout(() => { setSwipeAnim(null); setCardIdx((i) => i + 1) }, 180)
+  }
 
   function toggleChip(key: 'styles' | 'priorities', val: string, max: number) {
     setForm((f) => {
@@ -178,6 +203,7 @@ export default function EmbedLeadPage() {
           ...(form.guests_estimate ? { guests_estimate: Number(form.guests_estimate) } : {}),
           ...(form.budget_range && form.budget_range !== 'undecided' ? { budget_range: form.budget_range } : {}),
           ...catAnswers, // risposte alle domande specifiche di categoria (fiorista, fotografo, ...)
+          ...(liked.length ? { liked_style_cards: liked, liked_tags: Array.from(new Set(liked.flatMap((x) => x.tags))) } : {}),
           callback_pref: callbackPref,
         },
       })
@@ -319,6 +345,53 @@ export default function EmbedLeadPage() {
               </Field>
             </div>
           </>
+        )}
+
+        {/* GIOCO "SCEGLI IL TUO STILE": swipe sì/no sulle foto-stile del professionista.
+            Ogni "mi piace" diventa un'idea visiva concreta che arriva col preventivo. */}
+        {!compact && cards.length > 0 && (
+          <div style={{ marginTop: 6, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.08)' }}>
+            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Scegli il tuo stile 💫</p>
+            <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Spollica le foto dei lavori di {proName || 'questo professionista'}: ♥ se ti piace, ✕ se no. Ci aiuta a capire i tuoi gusti.</p>
+            {cardIdx < cards.length ? (
+              <div style={{ position: 'relative', maxWidth: 340, margin: '0 auto' }}>
+                <div key={cards[cardIdx]!.id} style={{
+                  borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0,0,0,.1)', background: '#fff',
+                  boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+                  transition: 'transform .18s ease, opacity .18s ease',
+                  transform: swipeAnim === 'r' ? 'translateX(120%) rotate(12deg)' : swipeAnim === 'l' ? 'translateX(-120%) rotate(-12deg)' : 'none',
+                  opacity: swipeAnim ? 0 : 1,
+                }}>
+                  <div style={{ position: 'relative', aspectRatio: '4 / 5', background: '#f3f0ea' }}>
+                    <img src={assetUrl(cards[cardIdx]!.path)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {(cards[cardIdx]!.caption || (cards[cardIdx]!.tags ?? []).length > 0) && (
+                      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '24px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff' }}>
+                        {cards[cardIdx]!.caption && <div style={{ fontSize: 13, fontWeight: 600 }}>{cards[cardIdx]!.caption}</div>}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                          {(cards[cardIdx]!.tags ?? []).slice(0, 4).map((t) => <span key={t} style={{ fontSize: 10, background: 'rgba(255,255,255,.25)', borderRadius: 99, padding: '1px 7px' }}>{t}</span>)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 12 }}>
+                  <button type="button" onClick={() => decide(false)} aria-label="No" style={{ width: 52, height: 52, borderRadius: '50%', border: '1px solid rgba(0,0,0,.12)', background: '#fff', fontSize: 22, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.1)' }}>✕</button>
+                  <button type="button" onClick={() => decide(true)} aria-label="Mi piace" style={{ width: 52, height: 52, borderRadius: '50%', border: 'none', background: primary, color: '#fff', fontSize: 22, cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,.18)' }}>♥</button>
+                </div>
+                <p style={{ textAlign: 'center', fontSize: 11, opacity: 0.5, marginTop: 6 }}>{cardIdx + 1} / {cards.length} · {liked.length} scelte</p>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                <p style={{ fontSize: 14 }}>{liked.length > 0 ? `Perfetto! Hai scelto ${liked.length} stili che ami.` : 'Nessuno scelto — nessun problema.'}</p>
+                {liked.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 8 }}>
+                    {liked.slice(0, 8).map((l) => <img key={l.id} src={l.url} alt="" style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 8, border: `2px solid ${primary}` }} />)}
+                  </div>
+                )}
+                <button type="button" onClick={() => { setCardIdx(0); setLiked([]) }} style={{ marginTop: 8, fontSize: 12, color: primary, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Rigioca</button>
+              </div>
+            )}
+          </div>
         )}
 
         {/* DOMANDE SPECIFICHE DI CATEGORIA (dal subrole del professionista): le risposte

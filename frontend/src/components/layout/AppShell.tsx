@@ -7,6 +7,7 @@ import {
   CalendarDays,
   FileText,
   Palette,
+  Images,
   UserRound,
   Users as UsersIcon,
   Heart,
@@ -71,6 +72,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Catalogo & rete', items: [
     { to: '/catalog',   label: 'Catalogo',       icon: PackageSearch },
+    { to: '/stili',     label: 'Stili & asset',  icon: Images },
     { to: '/suppliers', label: 'Rete fornitori', icon: UsersIcon },
     { to: '/scopri',    label: 'Scopri',         icon: Sparkles },
   ]},
@@ -117,6 +119,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Catalogo & lavoro', items: [
     { to: '/catalog',      label: 'Catalogo',      icon: PackageSearch },
+    { to: '/stili',        label: 'Stili & asset', icon: Images },
     { to: '/team',         label: 'Team',          icon: UsersIcon },
     { to: '/calcolatore',  label: 'Calcolatore',   icon: Calculator },
   ]},

@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { AnswersPanel } from '@/components/AnswersPanel'
+import { LikedStylesGallery } from '@/components/LikedStylesGallery'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -117,7 +118,10 @@ export default function SupplierLeadsPage() {
                     </div>
                     {l.message && <p className="text-xs text-[rgb(var(--fg-muted))] mt-1.5">{l.message}</p>}
                     {l.questionnaire_payload && Object.keys(l.questionnaire_payload).length > 0 && (
-                      <div className="mt-2"><AnswersPanel answers={l.questionnaire_payload} title="Cosa desidera il cliente" /></div>
+                      <div className="mt-2 space-y-2">
+                        <AnswersPanel answers={l.questionnaire_payload} title="Cosa desidera il cliente" />
+                        <LikedStylesGallery cards={(l.questionnaire_payload as Record<string, unknown>).liked_style_cards} />
+                      </div>
                     )}
                   </div>
                 </div>
