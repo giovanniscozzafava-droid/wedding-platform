@@ -22,9 +22,10 @@ function tableSize(t: PlanTable): { w: number; h: number; round: boolean; u: boo
 const label = (t: PlanTable) => t.label ?? `Tavolo ${t.table_no}`
 
 export function TableauPlan({
-  tables, guests, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable,
+  tables, guests, room, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable,
 }: {
   tables: PlanTable[]; guests: PlanGuest[]
+  room?: { shape: string; ratio: number }
   onMove: (id: string, pos_x: number, pos_y: number) => void
   onAssignGuest: (guestId: string, tableId: string) => void
   onOpenAssign: (t: PlanTable) => void
@@ -83,7 +84,9 @@ export function TableauPlan({
       <div className="flex-1 min-w-0">
         <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
           className="relative w-full rounded-xl border border-[rgb(var(--border))] overflow-hidden select-none"
-          style={{ aspectRatio: '16 / 10', background: 'repeating-linear-gradient(45deg, rgb(var(--bg-sunken)) 0 12px, rgb(var(--bg)) 12px 24px)' }}>
+          style={{ aspectRatio: String(room?.ratio ?? 1.6), background: 'repeating-linear-gradient(45deg, rgb(var(--bg-sunken)) 0 12px, rgb(var(--bg)) 12px 24px)' }}>
+          {/* forma a L: ritaglio l'angolo in alto a destra con il colore di sfondo */}
+          {room?.shape === 'elle' && <div className="absolute top-0 right-0 w-[38%] h-[42%] bg-[rgb(var(--bg))] border-l border-b border-dashed border-[rgb(var(--border))] pointer-events-none z-[5]" />}
           {/* indicazione "fronte sala / pista" in basso */}
           <div className="absolute inset-x-0 bottom-0 h-7 bg-[rgb(var(--gold-100))]/60 border-t border-dashed border-[rgb(var(--gold-400))] flex items-center justify-center text-[10px] tracking-widest text-[rgb(var(--gold-700))] pointer-events-none">PISTA / FRONTE SALA</div>
 
@@ -106,7 +109,7 @@ export function TableauPlan({
                 style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: wpx, height: sz.u ? wpx * 0.7 : hpx, transform: `translate(-50%,-50%) rotate(${t.rotation ?? 0}deg)` }}
                 title={`${label(t)} — ${seated.length}/${t.seats} posti`}>
                 <TableShape shape={t.shape} wpx={wpx} hpx={sz.u ? wpx * 0.7 : hpx} seats={t.seats ?? 0} filled={seated.length}
-                  staff={!!t.is_staff} over={over < 0} highlight={isOver} />
+                  staff={!!t.is_staff} crown={/spos/i.test(label(t))} over={over < 0} highlight={isOver} />
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-1 overflow-hidden">
                   <span className="text-[10px] font-semibold leading-tight text-[rgb(var(--fg))] drop-shadow-sm truncate max-w-full">{label(t)}</span>
                   <span className={`text-[9px] leading-tight ${over < 0 ? 'text-[rgb(var(--rose-600))] font-semibold' : 'text-[rgb(var(--fg-muted))]'}`}>{seated.length}/{t.seats}</span>
@@ -150,8 +153,8 @@ export function TableauPlan({
 }
 
 // Disegno del tavolo (SVG) per forma, con i posti come puntini (pieni = occupati).
-function TableShape({ shape, wpx, hpx, seats, filled, staff, over, highlight }: {
-  shape: string; wpx: number; hpx: number; seats: number; filled: number; staff: boolean; over: boolean; highlight: boolean
+function TableShape({ shape, wpx, hpx, seats, filled, staff, crown, over, highlight }: {
+  shape: string; wpx: number; hpx: number; seats: number; filled: number; staff: boolean; crown?: boolean; over: boolean; highlight: boolean
 }) {
   const stroke = highlight ? 'rgb(184,146,63)' : over ? 'rgb(225,29,72)' : staff ? 'rgb(120,90,200)' : 'rgb(150,150,150)'
   const fill = staff ? 'rgba(120,90,200,.10)' : highlight ? 'rgba(184,146,63,.18)' : 'rgba(0,0,0,.04)'
@@ -176,7 +179,7 @@ function TableShape({ shape, wpx, hpx, seats, filled, staff, over, highlight }: 
         : shape === 'FERRO_CAVALLO' ? <path d={`M14 ${H} L14 14 L${W - 14} 14 L${W - 14} ${H}`} fill="none" stroke={stroke} strokeWidth={7} strokeLinejoin="round" strokeLinecap="round" />
         : <rect x={6} y={H * 0.18} width={W - 12} height={H * 0.64} rx={shape === 'SQUARE' ? 6 : 10} fill={fill} stroke={stroke} strokeWidth={2.5} />}
       {dots.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={3.2} fill={seatDot(i)} />)}
-      {staff && <g transform={`translate(${W / 2}, ${shape === 'ROUND' ? H / 2 : H / 2})`}><text textAnchor="middle" dominantBaseline="central" fontSize="11">👑</text></g>}
+      {crown && <g transform={`translate(${W / 2}, ${H / 2})`}><text textAnchor="middle" dominantBaseline="central" fontSize="11">👑</text></g>}
     </svg>
   )
 }

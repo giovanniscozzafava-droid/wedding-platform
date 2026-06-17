@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid } from 'lucide-react'
+import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid, Music, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding } from '@/hooks/useWedding'
+import { useAuth } from '@/lib/auth'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { exportTableauPlanPdf, type TableauFormat } from '@/lib/tableauExport'
 import { EditRowModal, type Field } from './EditRowModal'
@@ -34,6 +35,13 @@ const THEME_PRESETS = [
   'Sicilian heritage', 'Dolce vita', 'Tropical', 'Industrial loft',
 ]
 
+const ROOM_SHAPES = [
+  { k: 'rett', l: 'Rettangolare', ratio: 1.6 },
+  { k: 'quad', l: 'Quadrata', ratio: 1.0 },
+  { k: 'lunga', l: 'Lunga', ratio: 2.3 },
+  { k: 'profonda', l: 'Profonda', ratio: 0.78 },
+  { k: 'elle', l: 'A L', ratio: 1.3 },
+]
 const SHAPES = ['ROUND', 'SQUARE', 'RECT', 'HEAD', 'IMPERIALE', 'FERRO_CAVALLO']
 const SHAPE_LABEL: Record<string, string> = {
   ROUND: 'Rotondo', SQUARE: 'Quadrato', RECT: 'Rettangolare',
@@ -51,6 +59,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const { data: tables } = useTables(entryId)
   const { data: guests } = useGuests(entryId)
   const { data: wedding } = useWedding(entryId)
+  const { profile } = useAuth()
   const updateWedding = useUpdateWedding(entryId)
   const { add, update, remove } = useTableMutations(entryId)
   const { update: updateGuest } = useGuestMutations(entryId)
@@ -59,6 +68,12 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const [assigningTable, setAssigningTable] = useState<any | null>(null)
   const [view, setView] = useState<'plan' | 'list'>('plan')
   const [posterOpen, setPosterOpen] = useState(false)
+  // FORMA DELLA SALA: preset rapidi + stringi/allarga. I tavoli (pos 0..1) si adattano da soli.
+  const [room, setRoom] = useState<{ shape: string; ratio: number }>(() => {
+    try { return JSON.parse(localStorage.getItem('tableau-room-' + entryId) || '') ?? { shape: 'rett', ratio: 1.6 } } catch { return { shape: 'rett', ratio: 1.6 } }
+  })
+  function saveRoom(r: { shape: string; ratio: number }) { setRoom(r); try { localStorage.setItem('tableau-room-' + entryId, JSON.stringify(r)) } catch { /* ignore */ } }
+  function stretchRoom(d: number) { saveRoom({ ...room, ratio: Math.min(3, Math.max(0.55, +(room.ratio + d).toFixed(2))) }) }
   const currentTheme = (wedding as any)?.theme ?? ''
   const currentStyle = (wedding as any)?.tables_naming_style ?? ''
 
@@ -90,6 +105,14 @@ export function TablesTab({ entryId }: { entryId: string }) {
     try {
       await add.mutateAsync({ table_no: 0, label: 'Tavolo Sposi', seats: 2, shape: 'HEAD', is_staff: true, pos_x: 0.5, pos_y: 0.12 } as any)
       toast.success('Tavolo sposi (testa) aggiunto')
+    } catch (e) { toast.error((e as Error).message) }
+  }
+  // Tavoli di SERVIZIO (band/DJ, tecnico): occupano spazio nella sala ma non hanno ospiti.
+  // is_staff=true → esclusi dal poster ospiti, ma presenti nella piantina.
+  async function addServiceTable(label: string, shape: string, pos: { x: number; y: number }) {
+    try {
+      await add.mutateAsync({ table_no: 0, label, seats: 0, shape, is_staff: true, pos_x: pos.x, pos_y: pos.y } as any)
+      toast.success(`${label} aggiunto alla piantina`)
     } catch (e) { toast.error((e as Error).message) }
   }
 
@@ -234,6 +257,23 @@ export function TablesTab({ entryId }: { entryId: string }) {
           <Button variant="outline" size="sm" onClick={() => applyDisposition('horseshoe')}>Ferro di cavallo</Button>
           <div className="h-5 w-px bg-[rgb(var(--border))] mx-1" />
           <Button variant="outline" size="sm" onClick={addStaffTable}><Crown size={13} /> Tavolo sposi</Button>
+          <Button variant="outline" size="sm" onClick={() => addServiceTable('Band / DJ', 'RECT', { x: 0.5, y: 0.88 })}><Music size={13} /> Band / DJ</Button>
+          <Button variant="outline" size="sm" onClick={() => addServiceTable('Tecnico (audio/luci)', 'SQUARE', { x: 0.12, y: 0.88 })}><Wrench size={13} /> Tavolo tecnico</Button>
+        </Card>
+      )}
+
+      {/* FORMA DELLA SALA: preset + stringi/allarga (i tavoli si adattano da soli) */}
+      {view === 'plan' && (
+        <Card className="p-3 mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-[rgb(var(--fg-muted))] inline-flex items-center gap-1"><MapIcon size={13} /> Sala:</span>
+          {ROOM_SHAPES.map((s) => (
+            <button key={s.k} onClick={() => saveRoom({ shape: s.k, ratio: s.ratio })}
+              className={`text-xs px-2.5 py-1 rounded-full border ${room.shape === s.k ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{s.l}</button>
+          ))}
+          <div className="h-5 w-px bg-[rgb(var(--border))] mx-1" />
+          <span className="text-xs text-[rgb(var(--fg-muted))]">Stringi / allarga:</span>
+          <Button variant="outline" size="icon" onClick={() => stretchRoom(-0.2)} title="Più stretta">−</Button>
+          <Button variant="outline" size="icon" onClick={() => stretchRoom(0.2)} title="Più larga">+</Button>
         </Card>
       )}
 
@@ -359,6 +399,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
       {view === 'plan' ? (
         <Card className="p-3 mb-6">
           <TableauPlan
+            room={room}
             tables={(tables ?? []) as any}
             guests={(guests ?? []) as any}
             onMove={(id, pos_x, pos_y) => update.mutate({ id, patch: { pos_x, pos_y } } as any)}
@@ -460,6 +501,8 @@ export function TablesTab({ entryId }: { entryId: string }) {
         dateText={(wedding as any)?.date_from ? new Date((wedding as any).date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
         location={(wedding as any)?.quote?.event_location ?? undefined}
         theme={currentTheme}
+        logoUrl={(profile as { brand_logo_url?: string | null } | null)?.brand_logo_url ?? null}
+        logoName={(profile as { business_name?: string | null } | null)?.business_name ?? null}
       />
     </div>
   )

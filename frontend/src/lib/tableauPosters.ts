@@ -24,6 +24,8 @@ export type PosterTemplate = {
   closing?: string
   dateUpper?: boolean
   dateItalic?: boolean
+  corner?: string             // acquarello AI d'angolo (PNG in /public/tableau)
+  divider?: string            // acquarello AI fregio sotto la data
 }
 
 export const POSTER_TEMPLATES: PosterTemplate[] = [
@@ -39,7 +41,7 @@ export const POSTER_TEMPLATES: PosterTemplate[] = [
     bg: '#f7f8f3', ink: '#37402f', accent: '#7e9166', soft: '#aebd9a',
     nameColor: '#445236', tableColor: '#5f7049', guestColor: '#46503b',
     nameFont: SCRIPT, tableFont: SCRIPT, bodyFont: CORM, eyebrow: 'I nostri tavoli',
-    nameSize: 70, dateItalic: true,
+    nameSize: 70, dateItalic: true, corner: 'giardino-corner.png', divider: 'giardino-divider.png',
   },
   {
     id: 'deco', name: 'Déco', vibe: 'Smeraldo & oro, art déco', decor: 'deco', dark: true,
@@ -53,21 +55,21 @@ export const POSTER_TEMPLATES: PosterTemplate[] = [
     bg: '#fbf3f0', ink: '#5a3f3c', accent: '#bd8475', soft: '#e3b6ab',
     nameColor: '#a4665a', tableColor: '#b07064', guestColor: '#6b4a45',
     nameFont: SCRIPT, tableFont: SCRIPT, bodyFont: CORM, eyebrow: 'Con affetto, i nostri tavoli',
-    nameSize: 80,
+    nameSize: 80, corner: 'cipria-corner.png',
   },
   {
     id: 'riviera', name: 'Riviera', vibe: 'Mediterraneo, agrumi, dolce vita', decor: 'riviera',
     bg: '#fcfaf0', ink: '#33513a', accent: '#c79a2e', soft: '#7f9e54',
     nameColor: '#2f4d36', tableColor: '#2f4d36', guestColor: '#3d5a43',
     nameFont: CORM, tableFont: CORM, bodyFont: CORM, eyebrow: 'Dolce vita · i nostri tavoli',
-    nameSize: 64, nameItalic: true, tableItalic: true, dateUpper: true,
+    nameSize: 64, nameItalic: true, tableItalic: true, dateUpper: true, corner: 'riviera-corner.png',
   },
   {
     id: 'terra', name: 'Terra', vibe: 'Terracotta, archi, boho moderno', decor: 'terra',
     bg: '#f1e9dd', ink: '#4b3a2c', accent: '#bd7b4f', soft: '#c98b5e',
     nameColor: '#433428', tableColor: '#9c5a32', guestColor: '#5c4836',
     nameFont: CORM, tableFont: CORM, bodyFont: CORM, eyebrow: 'Tableau',
-    nameSize: 58, tableRule: true, dateUpper: true,
+    nameSize: 58, tableRule: true, dateUpper: true, corner: 'terra-corner.png',
   },
 ]
 

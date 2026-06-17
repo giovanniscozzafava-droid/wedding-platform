@@ -20,10 +20,11 @@ function ensurePosterFonts() {
   document.head.appendChild(l)
 }
 
-export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateText, location, theme }: {
+export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateText, location, theme, logoUrl, logoName }: {
   open: boolean; onClose: () => void
   tables: T[]; guests: G[]
   coupleNames: string; dateText: string; location?: string; theme?: string | null
+  logoUrl?: string | null; logoName?: string | null
 }) {
   const [templateId, setTemplateId] = useState<string>(() => templateForTheme(theme))
   const [accent, setAccent] = useState<string | null>(null)
@@ -38,7 +39,8 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
   const template = getTemplate(templateId)
 
   const data: PosterData = useMemo(() => {
-    const sorted = [...tables].sort((a, b) => (a.is_staff ? -1 : b.is_staff ? 1 : 0) || (a.table_no - b.table_no))
+    // il poster è per gli OSPITI: niente tavoli di servizio (sposi/band/tecnico)
+    const sorted = [...tables].filter((t) => !t.is_staff).sort((a, b) => a.table_no - b.table_no)
     return {
       coupleNames: names, dateText: date, location,
       tables: sorted.map((t) => ({
@@ -132,7 +134,7 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
           {/* Anteprima */}
           <div className="p-4 bg-[rgb(var(--bg-sunken))] flex items-start justify-center order-1 md:order-2">
             <div className="shadow-xl" style={{ width: previewW, minHeight: previewW * ratio }}>
-              <TableauPoster template={template} data={data} width={previewW} ratio={ratio} accent={accent} />
+              <TableauPoster template={template} data={data} width={previewW} ratio={ratio} accent={accent} logoUrl={logoUrl} logoName={logoName} />
             </div>
           </div>
         </div>
@@ -140,7 +142,7 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
 
       {/* Nodo nascosto ad alta risoluzione per l'export */}
       <div style={{ position: 'fixed', left: -100000, top: 0, pointerEvents: 'none' }} aria-hidden>
-        <TableauPoster ref={exportRef} template={template} data={data} width={1500} ratio={ratio} accent={accent} />
+        <TableauPoster ref={exportRef} template={template} data={data} width={1500} ratio={ratio} accent={accent} logoUrl={logoUrl} logoName={logoName} />
       </div>
     </div>
   )
