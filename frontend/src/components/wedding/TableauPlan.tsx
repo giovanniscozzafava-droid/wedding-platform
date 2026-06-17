@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { UserPlus, Pencil, Trash2 } from 'lucide-react'
+import { UserPlus, Pencil, Trash2, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
 
 // Piantina grafica del tableau mariage: tavoli disegnati nella loro forma, trascinabili,
 // con assegnazione invitati (clic o drag-and-drop). pos_x/pos_y = frazione 0..1 della sala.
@@ -19,6 +19,25 @@ function tableSize(t: PlanTable): { w: number; h: number; round: boolean; u: boo
   return { w: Math.min(0.40, Math.max(0.13, 0.08 + s * 0.011)), h: 0.055, round: false, u: false, oneSide: false }
 }
 
+// Posizione di ogni sedia nel riquadro del tavolo (0..1) + direzione "verso l'esterno"
+// (ox, oy). Serve a scrivere il nome dell'invitato FUORI dal tavolo, in corrispondenza
+// della sediolina, sempre leggibile (testo dritto, ancorato verso l'esterno).
+function seatLayout(shape: string, seats: number): Array<{ x: number; y: number; ox: number; oy: number }> {
+  const pts: Array<{ x: number; y: number; ox: number; oy: number }> = []
+  const n = Math.max(1, seats)
+  if (shape === 'ROUND' || shape === 'SQUARE') {
+    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 - Math.PI / 2; pts.push({ x: 0.5 + 0.5 * Math.cos(a), y: 0.5 + 0.5 * Math.sin(a), ox: Math.cos(a), oy: Math.sin(a) }) }
+  } else if (shape === 'HEAD') {
+    for (let i = 0; i < n; i++) pts.push({ x: (i + 0.5) / n, y: 0, ox: 0, oy: -1 }) // un solo lato, verso la sala
+  } else if (shape === 'FERRO_CAVALLO') {
+    for (let i = 0; i < n; i++) { const f = i / n; if (f < 1 / 3) pts.push({ x: 0, y: f * 3, ox: -1, oy: 0 }); else if (f < 2 / 3) pts.push({ x: (f - 1 / 3) * 3, y: 1, ox: 0, oy: 1 }); else pts.push({ x: 1, y: 1 - (f - 2 / 3) * 3, ox: 1, oy: 0 }) }
+  } else { // RECT / IMPERIALE: metà sopra, metà sotto
+    const half = Math.ceil(n / 2)
+    for (let i = 0; i < n; i++) { const top = i < half; const k = top ? i : i - half; const m = top ? half : n - half; pts.push({ x: (k + 0.5) / Math.max(1, m), y: top ? 0 : 1, ox: 0, oy: top ? -1 : 1 }) }
+  }
+  return pts
+}
+
 const label = (t: PlanTable) => t.label ?? `Tavolo ${t.table_no}`
 
 export function TableauPlan({
@@ -34,6 +53,7 @@ export function TableauPlan({
 }) {
   const planRef = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState({ w: 0, h: 0 })
+  const [zoom, setZoom] = useState(1)
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [livePos, setLivePos] = useState<{ id: string; x: number; y: number } | null>(null) // posizione fluida durante il drag
@@ -82,13 +102,33 @@ export function TableauPlan({
     <div className="flex gap-3">
       {/* SALA / piantina */}
       <div className="flex-1 min-w-0">
+        {/* Controlli zoom */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="text-[11px] text-[rgb(var(--fg-muted))] mr-1">Zoom</span>
+          <button onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(2)))} title="Riduci"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><ZoomOut size={14} /></button>
+          <span className="text-[11px] tabular-nums w-10 text-center">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.2).toFixed(2)))} title="Ingrandisci"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><ZoomIn size={14} /></button>
+          <button onClick={() => setZoom(1)} title="Adatta" disabled={zoom === 1}
+            className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-40 text-[11px]"><Maximize size={13} /> Adatta</button>
+          {zoom > 1 && <span className="text-[10px] text-[rgb(var(--fg-subtle))]">scorri per spostarti · ingrandisci per leggere i nomi alle sedie</span>}
+        </div>
+
+        {/* Contenitore scrollabile per lo zoom */}
+        <div className="w-full overflow-auto rounded-xl border border-[rgb(var(--border))]" style={{ maxHeight: '70vh' }}>
         <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
-          className="relative w-full rounded-xl border border-[rgb(var(--border))] overflow-hidden select-none"
-          style={{ aspectRatio: String(room?.ratio ?? 1.6), background: 'repeating-linear-gradient(45deg, rgb(var(--bg-sunken)) 0 12px, rgb(var(--bg)) 12px 24px)' }}>
-          {/* forma a L: ritaglio l'angolo in alto a destra con il colore di sfondo */}
-          {room?.shape === 'elle' && <div className="absolute top-0 right-0 w-[38%] h-[42%] bg-[rgb(var(--bg))] border-l border-b border-dashed border-[rgb(var(--border))] pointer-events-none z-[5]" />}
-          {/* indicazione "fronte sala / pista" in basso */}
-          <div className="absolute inset-x-0 bottom-0 h-7 bg-[rgb(var(--gold-100))]/60 border-t border-dashed border-[rgb(var(--gold-400))] flex items-center justify-center text-[10px] tracking-widest text-[rgb(var(--gold-700))] pointer-events-none">PISTA / FRONTE SALA</div>
+          className="relative overflow-hidden select-none"
+          style={{ width: `${zoom * 100}%`, aspectRatio: String(room?.ratio ?? 1.6), background: 'repeating-linear-gradient(45deg, rgb(var(--bg-sunken)) 0 12px, rgb(var(--bg)) 12px 24px)' }}>
+          {/* ZONA SENZA TAVOLI — fascia pista/fronte sala, ben evidente (tratteggio rosso) */}
+          <NoTableZone label="PISTA · FRONTE SALA — NIENTE TAVOLI" />
+          {/* forma a L: angolo in alto a destra fuori sala, evidenziato */}
+          {room?.shape === 'elle' && (
+            <div className="absolute top-0 right-0 w-[38%] h-[42%] z-[6] pointer-events-none flex items-center justify-center"
+              style={{ background: 'repeating-linear-gradient(45deg, rgb(225 29 72 / 0.10) 0 8px, transparent 8px 16px)', borderLeft: '2px dashed rgb(225 29 72 / 0.5)', borderBottom: '2px dashed rgb(225 29 72 / 0.5)' }}>
+              <span className="text-[9px] tracking-widest font-semibold text-[rgb(225_29_72_/_0.7)] rotate-[-12deg]">FUORI SALA</span>
+            </div>
+          )}
 
           {withPos.map(({ t, x: bx, y: by }) => {
             const x = livePos && livePos.id === t.id ? livePos.x : bx
@@ -98,6 +138,8 @@ export function TableauPlan({
             const seated = seatedAt(t.id)
             const over = (t.seats ?? 0) - seated.length
             const isOver = overTable === t.id
+            const realHpx = sz.u ? wpx * 0.7 : hpx
+            const showSeatNames = !t.is_staff && wpx >= 44 && seated.length > 0
             return (
               <div key={t.id}
                 onPointerDown={(e) => onTablePointerDown(e, t.id, x, y)}
@@ -106,19 +148,15 @@ export function TableauPlan({
                 onDragLeave={() => setOverTable((v) => (v === t.id ? null : v))}
                 onDrop={(e) => { const gid = e.dataTransfer.getData('text/guest'); setOverTable(null); if (gid) { e.preventDefault(); onAssignGuest(gid, t.id) } }}
                 className={`group absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing touch-none flex flex-col items-center justify-center text-center transition-shadow ${dragId === t.id ? 'z-30 shadow-xl' : 'z-10 hover:z-20'}`}
-                style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: wpx, height: sz.u ? wpx * 0.7 : hpx, transform: `translate(-50%,-50%) rotate(${t.rotation ?? 0}deg)` }}
+                style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: wpx, height: realHpx, transform: `translate(-50%,-50%) rotate(${t.rotation ?? 0}deg)` }}
                 title={`${label(t)} — ${seated.length}/${t.seats} posti`}>
-                <TableShape shape={t.shape} wpx={wpx} hpx={sz.u ? wpx * 0.7 : hpx} seats={t.seats ?? 0} filled={seated.length}
+                {/* nomi alle sedie (esterni, in corrispondenza dei posti) */}
+                {showSeatNames && <SeatNames shape={t.shape} seats={t.seats ?? 0} seated={seated} wpx={wpx} hpx={realHpx} />}
+                <TableShape shape={t.shape} wpx={wpx} hpx={realHpx} seats={t.seats ?? 0} filled={seated.length}
                   staff={!!t.is_staff} crown={/spos/i.test(label(t))} over={over < 0} highlight={isOver} />
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-1 overflow-hidden">
                   <span className="text-[10px] font-semibold leading-tight text-[rgb(var(--fg))] drop-shadow-sm truncate max-w-full">{label(t)}</span>
                   <span className={`text-[9px] leading-tight ${over < 0 ? 'text-[rgb(var(--rose-600))] font-semibold' : 'text-[rgb(var(--fg-muted))]'}`}>{seated.length}/{t.seats}</span>
-                  {wpx >= 64 && seated.length > 0 && (
-                    <div className="mt-0.5 leading-[1.15] text-center max-w-full">
-                      {seated.slice(0, 6).map((g) => <div key={g.id} className="text-[7.5px] text-[rgb(var(--fg-muted))] truncate max-w-full">{g.full_name}</div>)}
-                      {seated.length > 6 && <div className="text-[7.5px] text-[rgb(var(--fg-subtle))]">+{seated.length - 6}</div>}
-                    </div>
-                  )}
                 </div>
                 {/* azioni tavolo: modifica / elimina (compaiono su hover) */}
                 <div className="absolute -top-2 -right-2 z-40 hidden group-hover:flex items-center gap-0.5" style={{ transform: `rotate(${-(t.rotation ?? 0)}deg)` }}>
@@ -130,11 +168,12 @@ export function TableauPlan({
           })}
           {tables.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">Aggiungi tavoli, poi trascinali nella sala</div>}
         </div>
-        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1.5">Trascina i tavoli per posizionarli · doppio clic per assegnare invitati · trascina un invitato dall'elenco a destra sul tavolo.</p>
+        </div>
+        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1.5">Trascina i tavoli per posizionarli · doppio clic per assegnare invitati · trascina un invitato dall'elenco a destra sul tavolo · ingrandisci per leggere i nomi alle sedie.</p>
       </div>
 
       {/* ELENCO non seduti (drag verso i tavoli) */}
-      <div className="w-44 shrink-0 border border-[rgb(var(--border))] rounded-xl p-2 flex flex-col max-h-[60vh]">
+      <div className="w-44 shrink-0 border border-[rgb(var(--border))] rounded-xl p-2 flex flex-col max-h-[70vh]">
         <p className="text-xs font-medium mb-1.5 flex items-center gap-1"><UserPlus size={12} /> Da sedere ({unseated.length})</p>
         <div className="flex-1 overflow-y-auto space-y-1">
           {unseated.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-subtle))] italic">Tutti seduti 🎉</p>}
@@ -142,12 +181,57 @@ export function TableauPlan({
             <div key={g.id} draggable
               onDragStart={(e) => { e.dataTransfer.setData('text/guest', g.id); e.dataTransfer.effectAllowed = 'move' }}
               className="text-[11px] px-2 py-1 rounded-md bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))] cursor-grab active:cursor-grabbing truncate"
-              title={g.full_name}>
+              title={`${g.full_name} — trascina su un tavolo`}>
               {g.full_name}{(g.party_size ?? 1) > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{g.party_size}</span>}
             </div>
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Fascia "zona senza tavoli" in fondo alla sala, resa BEN evidente: tratteggio rosso
+// diagonale + etichetta. È lo spazio per pista da ballo / ingresso, dove non vanno tavoli.
+function NoTableZone({ label }: { label: string }) {
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-[5] pointer-events-none flex items-center justify-center"
+      style={{
+        height: '11%',
+        background: 'repeating-linear-gradient(45deg, rgb(225 29 72 / 0.12) 0 9px, rgb(225 29 72 / 0.03) 9px 18px)',
+        borderTop: '2px dashed rgb(225 29 72 / 0.55)',
+      }}>
+      <span className="text-[10px] tracking-[0.18em] font-semibold text-[rgb(225_29_72_/_0.8)] uppercase">{label}</span>
+    </div>
+  )
+}
+
+// Nomi degli invitati seduti, scritti FUORI dal tavolo in corrispondenza della sediolina.
+// Testo sempre dritto (leggibile), ancorato verso l'esterno del tavolo.
+function SeatNames({ shape, seats, seated, wpx, hpx }: {
+  shape: string; seats: number; seated: PlanGuest[]; wpx: number; hpx: number
+}) {
+  const pts = seatLayout(shape, seats)
+  const fs = Math.max(5.5, Math.min(10, wpx * 0.12))
+  const PAD = Math.max(3, wpx * 0.05)
+  // primo nome di ogni invitato (nome breve), per non affollare
+  const short = (full: string) => { const p = full.trim().split(/\s+/); return p.length > 1 ? `${p[0]} ${p[1]![0]}.` : p[0] }
+  return (
+    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 25 }}>
+      {seated.slice(0, pts.length).map((g, i) => {
+        const p = pts[i]!
+        const lx = p.x * wpx + p.ox * PAD
+        const ly = p.y * hpx + p.oy * PAD
+        const tx = p.ox <= -0.3 ? '-100%' : p.ox >= 0.3 ? '0' : '-50%'
+        const ty = p.oy <= -0.3 ? '-100%' : p.oy >= 0.3 ? '0' : '-50%'
+        return (
+          <span key={g.id} style={{
+            position: 'absolute', left: lx, top: ly, transform: `translate(${tx}, ${ty})`,
+            fontSize: fs, lineHeight: 1, whiteSpace: 'nowrap', fontWeight: 500,
+            color: 'rgb(var(--fg))', textShadow: '0 1px 2px rgb(var(--bg)), 0 0 2px rgb(var(--bg))',
+          }} title={g.full_name}>{short(g.full_name)}</span>
+        )
+      })}
     </div>
   )
 }
@@ -183,4 +267,3 @@ function TableShape({ shape, wpx, hpx, seats, filled, staff, crown, over, highli
     </svg>
   )
 }
-

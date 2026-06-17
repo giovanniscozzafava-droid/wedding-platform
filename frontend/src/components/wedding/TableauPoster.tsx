@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { forwardRef, useLayoutEffect, useRef, useState } from 'react'
 import type { PosterTemplate } from '@/lib/tableauPosters'
 
 export type PosterData = {
@@ -26,9 +26,25 @@ export const TableauPoster = forwardRef<HTMLDivElement, {
   const eyebrow = data.eyebrow ?? t.eyebrow
   const hasLogo = !!(logoUrl || logoName)
 
+  // AUTO-FIT: misura il contenuto e scala i font finché la griglia riempie l'area
+  // scrivibile SENZA sforare i margini. Cresce (fino a 1.25) per distribuire bene
+  // pochi nomi, si stringe (fino a 0.5) quando i nomi sono tanti. Converge in pochi
+  // render (punto fisso: contenuto ≈ area disponibile).
+  const [fit, setFit] = useState(1)
+  const gridRef = useRef<HTMLDivElement>(null)   // area scrivibile (altezza disponibile)
+  const innerRef = useRef<HTMLDivElement>(null)  // contenuto multicol (altezza naturale)
+  useLayoutEffect(() => {
+    const outer = gridRef.current, inner = innerRef.current; if (!outer || !inner) return
+    const avail = outer.clientHeight - 10 * u, content = inner.scrollHeight  // -10u = gap di sicurezza dal margine
+    if (avail < 8 || content < 8) return
+    const target = Math.max(0.42, Math.min(1.25, (avail / content) * fit * 0.97))
+    if (Math.abs(target - fit) > 0.006) setFit(target)
+  }, [fit, n, width, ratio, t.id, hasLogo, data])
+
   return (
     <div ref={ref} style={{
       width, height: H, position: 'relative', overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
       background: t.bg, color: t.ink, boxSizing: 'border-box',
       fontFamily: t.bodyFont, padding: `${30 * u}px ${28 * u}px ${hasLogo ? 18 * u : 26 * u}px`,
     }}>
@@ -74,20 +90,23 @@ export const TableauPoster = forwardRef<HTMLDivElement, {
           : <div style={{ width: 48 * u, height: 1, background: t.soft, margin: `${18 * u}px auto 0` }} />}
       </div>
 
-      {/* Griglia tavoli */}
-      <div style={{
-        position: 'relative', zIndex: 2, flex: 1, marginTop: 22 * u,
-        display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        columnGap: t.decor === 'sereno' ? 0 : 20 * u, rowGap: 22 * u * dv, alignContent: 'start',
-      }}>
-        {data.tables.map((tb, i) => {
-          const sereno = t.decor === 'sereno'
-          const borderR = sereno && (i % cols) < cols - 1
-          return (
-            <div key={tb.id} style={{ textAlign: 'center', padding: sereno ? `0 ${18 * u}px` : 0, borderRight: borderR ? `1px solid ${t.soft}55` : undefined }}>
+      {/* Griglia tavoli — colonne BILANCIATE (multicol): ogni tavolo resta intero
+          (break-inside avoid) e i tavoli si distribuiscono da soli sulle colonne,
+          riempiendo bene anche con un tavolo molto numeroso. L'auto-fit misura
+          l'altezza naturale del contenuto (innerRef) contro l'area scrivibile. */}
+      <div ref={gridRef} style={{ position: 'relative', zIndex: 2, flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 22 * u }}>
+        <div ref={innerRef} style={{
+          columnCount: cols, columnGap: t.decor === 'sereno' ? 0 : 20 * u,
+          columnRule: t.decor === 'sereno' ? `1px solid ${t.soft}55` : undefined,
+        }}>
+          {data.tables.map((tb) => (
+            <div key={tb.id} style={{
+              textAlign: 'center', breakInside: 'avoid',
+              padding: t.decor === 'sereno' ? `0 ${18 * u}px` : 0, marginBottom: 20 * u * dv * fit,
+            }}>
               <div style={{
                 fontFamily: t.tableFont, color: t.tableColor,
-                fontSize: (t.tableFont.includes('Great Vibes') ? 30 : 22) * u * dv,
+                fontSize: (t.tableFont.includes('Great Vibes') ? 30 : 22) * u * dv * fit,
                 fontStyle: t.tableItalic ? 'italic' : 'normal', textTransform: t.tableUpper ? 'uppercase' : 'none',
                 letterSpacing: t.tableUpper ? 2 * u : 0, fontWeight: t.tableFont.includes('Cormorant') ? 600 : 400, marginBottom: 3 * u,
               }}>{tb.name}</div>
@@ -96,12 +115,12 @@ export const TableauPoster = forwardRef<HTMLDivElement, {
                 {tb.guests.length === 0
                   ? <span style={{ fontSize: 14 * u, color: t.soft, fontStyle: 'italic' }}>—</span>
                   : tb.guests.map((g, k) => (
-                    <div key={k} style={{ fontFamily: t.bodyFont, fontSize: (t.bodyFont.includes('Jost') ? 12.5 : 16) * u * dv, lineHeight: 1.55, color: t.guestColor }}>{g}</div>
+                    <div key={k} style={{ fontFamily: t.bodyFont, fontSize: (t.bodyFont.includes('Jost') ? 12.5 : 16) * u * dv * fit, lineHeight: 1.55, color: t.guestColor }}>{g}</div>
                   ))}
               </div>
             </div>
-          )
-        })}
+          ))}
+        </div>
       </div>
 
       {/* LOGO del capostipite in fondo */}
