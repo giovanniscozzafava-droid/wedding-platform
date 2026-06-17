@@ -393,3 +393,54 @@ export function useQuoteViews(quoteId: string | null) {
     },
   })
 }
+
+// ── PIANTINE SALA (floor plans) ────────────────────────────────────────────
+export function useEventFloorPlan(entryId: string | null) {
+  return useQuery({
+    queryKey: ['floorplan', entryId], enabled: !!entryId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('event_floor_plans' as any) as any).select('*').eq('entry_id', entryId!).maybeSingle()
+      if (error) throw error
+      return data as { entry_id: string; image_url: string; ratio: number; name: string | null; floor_plan_id: string | null } | null
+    },
+  })
+}
+
+export function useFloorPlanLibrary() {
+  return useQuery({
+    queryKey: ['floorplan-lib'],
+    queryFn: async () => {
+      const { data: au } = await supabase.auth.getUser()
+      if (!au?.user) return []
+      const { data, error } = await (supabase.from('floor_plans' as any) as any).select('*').eq('owner_id', au.user.id).order('sort_order')
+      if (error) throw error
+      return (data ?? []) as Array<{ id: string; name: string; image_url: string; ratio: number }>
+    },
+  })
+}
+
+export function useFloorPlanMutations(entryId: string) {
+  const qc = useQueryClient()
+  const inv = () => { qc.invalidateQueries({ queryKey: ['floorplan', entryId] }); qc.invalidateQueries({ queryKey: ['floorplan-lib'] }) }
+  return {
+    setForEvent: useMutation({
+      mutationFn: async (p: { image_url: string; ratio: number; name?: string | null; floor_plan_id?: string | null }) => {
+        const { error } = await (supabase.from('event_floor_plans' as any) as any).upsert({ entry_id: entryId, image_url: p.image_url, ratio: p.ratio, name: p.name ?? null, floor_plan_id: p.floor_plan_id ?? null, updated_at: new Date().toISOString() })
+        if (error) throw error
+      }, onSuccess: inv,
+    }),
+    clearForEvent: useMutation({
+      mutationFn: async () => { const { error } = await (supabase.from('event_floor_plans' as any) as any).delete().eq('entry_id', entryId); if (error) throw error }, onSuccess: inv,
+    }),
+    addToLibrary: useMutation({
+      mutationFn: async (p: { image_url: string; ratio: number; name: string }) => {
+        const { data: au } = await supabase.auth.getUser(); if (!au?.user) throw new Error('Non autenticato')
+        const { data, error } = await (supabase.from('floor_plans' as any) as any).insert({ owner_id: au.user.id, image_url: p.image_url, ratio: p.ratio, name: p.name }).select().single()
+        if (error) throw error; return data
+      }, onSuccess: inv,
+    }),
+    removeFromLibrary: useMutation({
+      mutationFn: async (id: string) => { const { error } = await (supabase.from('floor_plans' as any) as any).delete().eq('id', id); if (error) throw error }, onSuccess: inv,
+    }),
+  }
+}

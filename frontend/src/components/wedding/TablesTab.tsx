@@ -5,12 +5,13 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding } from '@/hooks/useWedding'
+import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding, useEventFloorPlan } from '@/hooks/useWedding'
 import { useAuth } from '@/lib/auth'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { exportTableauPlanPdf, type TableauFormat } from '@/lib/tableauExport'
 import { EditRowModal, type Field } from './EditRowModal'
 import { TableauPlan } from './TableauPlan'
+import { FloorPlanPanel } from './FloorPlanPanel'
 import { PosterStudio } from './PosterStudio'
 import { SectionRings } from '@/components/event/SectionRings'
 
@@ -59,6 +60,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const { data: tables } = useTables(entryId)
   const { data: guests } = useGuests(entryId)
   const { data: wedding } = useWedding(entryId)
+  const { data: floorPlan } = useEventFloorPlan(entryId)
   const { profile } = useAuth()
   const updateWedding = useUpdateWedding(entryId)
   const { add, update, remove } = useTableMutations(entryId)
@@ -262,8 +264,11 @@ export function TablesTab({ entryId }: { entryId: string }) {
         </Card>
       )}
 
-      {/* FORMA DELLA SALA: preset + stringi/allarga (i tavoli si adattano da soli) */}
-      {view === 'plan' && (
+      {/* PIANTINA SALA: carica foto/PDF della location, proiettata sotto i tavoli */}
+      {view === 'plan' && <FloorPlanPanel entryId={entryId} />}
+
+      {/* FORMA DELLA SALA: solo quando NON c'è una piantina reale proiettata */}
+      {view === 'plan' && !floorPlan && (
         <Card className="p-3 mb-4 flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-[rgb(var(--fg-muted))] inline-flex items-center gap-1"><MapIcon size={13} /> Sala:</span>
           {ROOM_SHAPES.map((s) => (
@@ -400,6 +405,8 @@ export function TablesTab({ entryId }: { entryId: string }) {
         <Card className="p-3 mb-6">
           <TableauPlan
             room={room}
+            floorPlanUrl={floorPlan?.image_url ?? null}
+            floorPlanRatio={floorPlan?.ratio ?? null}
             tables={(tables ?? []) as any}
             guests={(guests ?? []) as any}
             onMove={(id, pos_x, pos_y) => update.mutate({ id, patch: { pos_x, pos_y } } as any)}

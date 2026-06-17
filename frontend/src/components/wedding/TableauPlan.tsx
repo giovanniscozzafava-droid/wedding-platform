@@ -41,10 +41,12 @@ function seatLayout(shape: string, seats: number): Array<{ x: number; y: number;
 const label = (t: PlanTable) => t.label ?? `Tavolo ${t.table_no}`
 
 export function TableauPlan({
-  tables, guests, room, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable, onRotate,
+  tables, guests, room, floorPlanUrl, floorPlanRatio, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable, onRotate,
 }: {
   tables: PlanTable[]; guests: PlanGuest[]
   room?: { shape: string; ratio: number }
+  floorPlanUrl?: string | null    // piantina reale della location, proiettata come sfondo
+  floorPlanRatio?: number | null
   onMove: (id: string, pos_x: number, pos_y: number) => void
   onAssignGuest: (guestId: string, tableId: string) => void
   onOpenAssign: (t: PlanTable) => void
@@ -120,11 +122,17 @@ export function TableauPlan({
         <div className="w-full overflow-auto rounded-xl border border-[rgb(var(--border))]" style={{ maxHeight: '70vh' }}>
         <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
           className="relative overflow-hidden select-none"
-          style={{ width: `${zoom * 100}%`, aspectRatio: String(room?.ratio ?? 1.6), background: 'repeating-linear-gradient(45deg, rgb(var(--bg-sunken)) 0 12px, rgb(var(--bg)) 12px 24px)' }}>
-          {/* ZONA SENZA TAVOLI — fascia pista/fronte sala, ben evidente (tratteggio rosso) */}
-          <NoTableZone label="PISTA · FRONTE SALA — NIENTE TAVOLI" />
+          style={{
+            width: `${zoom * 100}%`,
+            aspectRatio: String(floorPlanUrl ? (floorPlanRatio || room?.ratio || 1.6) : (room?.ratio ?? 1.6)),
+            background: floorPlanUrl
+              ? `#ffffff url("${floorPlanUrl}") center / contain no-repeat`
+              : 'repeating-linear-gradient(45deg, rgb(var(--bg-sunken)) 0 12px, rgb(var(--bg)) 12px 24px)',
+          }}>
+          {/* Decori "sala generica" SOLO quando non c'è una piantina reale proiettata */}
+          {!floorPlanUrl && <NoTableZone label="PISTA · FRONTE SALA — NIENTE TAVOLI" />}
           {/* forma a L: angolo in alto a destra fuori sala, evidenziato */}
-          {room?.shape === 'elle' && (
+          {!floorPlanUrl && room?.shape === 'elle' && (
             <div className="absolute top-0 right-0 w-[38%] h-[42%] z-[6] pointer-events-none flex items-center justify-center"
               style={{ background: 'repeating-linear-gradient(45deg, rgb(225 29 72 / 0.10) 0 8px, transparent 8px 16px)', borderLeft: '2px dashed rgb(225 29 72 / 0.5)', borderBottom: '2px dashed rgb(225 29 72 / 0.5)' }}>
               <span className="text-[9px] tracking-widest font-semibold text-[rgb(225_29_72_/_0.7)] rotate-[-12deg]">FUORI SALA</span>
