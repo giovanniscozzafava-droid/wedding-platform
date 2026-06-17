@@ -7,6 +7,8 @@ type G = { id: string; full_name: string; table_id: string | null }
 // Esporta un nodo DOM (il poster renderizzato) come PDF nel formato scelto (mm, ritratto).
 export async function exportPosterNode(node: HTMLElement, sizeMm: { w: number; h: number }, filename: string) {
   const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')])
+  // i web font (Cormorant, Playfair, Great Vibes, Jost) devono essere pronti prima del capture
+  try { await (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts?.ready } catch { /* ignora */ }
   const canvas = await html2canvas(node, { scale: 2, backgroundColor: null, useCORS: true, logging: false })
   const pdf = new jsPDF({ orientation: sizeMm.h >= sizeMm.w ? 'portrait' : 'landscape', unit: 'mm', format: [sizeMm.w, sizeMm.h] })
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', 0, 0, sizeMm.w, sizeMm.h)

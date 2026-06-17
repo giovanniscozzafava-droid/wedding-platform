@@ -66,9 +66,15 @@ export function useSupplierAssetMutations() {
         const { data: me } = await supabase.auth.getUser()
         const uid = me.user?.id
         if (!uid) throw new Error('Non autenticato')
-        const { data, error: fe } = await supabase.functions.invoke('resolve-og-image', { body: { url } })
-        if (fe) throw fe
-        const img = (data as { image_url?: string | null } | null)?.image_url
+        // L'edge function può essere "fredda" al primo colpo: riproviamo un paio di volte.
+        let img: string | null | undefined
+        for (let attempt = 0; attempt < 3 && !img; attempt++) {
+          if (attempt > 0) await new Promise((r) => setTimeout(r, 700))
+          try {
+            const { data } = await supabase.functions.invoke('resolve-og-image', { body: { url } })
+            img = (data as { image_url?: string | null } | null)?.image_url
+          } catch { /* ritenta */ }
+        }
         if (!img) throw new Error('Non riesco a trovare un\'immagine in quel link. Prova un altro link o carica il file.')
         const { error } = await tbl().insert({ supplier_id: uid, image_url: img, source_url: url, tags: tags ?? [], caption: caption ?? null, event_kind: event_kind ?? null })
         if (error) throw error

@@ -1,57 +1,77 @@
-// Pro forma (template) per il poster del tableau mariage: palette + carattere + decoro.
-// Pensati per essere "belli da esporre", stile acquarello / sketch. Il cliente sceglie.
-export type Palette = { bg: string; ink: string; accent: string; soft: string; card: string; cardLine: string }
-export type DecorKey = 'eucalyptus' | 'blush' | 'gold' | 'boho' | 'night' | 'lemon'
+// Pro forma del poster tableau mariage: 6 stili curati, di livello, cross-browser
+// (Google Fonts: Cormorant Garamond, Playfair Display, Great Vibes, Jost).
+const CORM = "'Cormorant Garamond', Georgia, serif"
+const PLAY = "'Playfair Display', Georgia, serif"
+const SCRIPT = "'Great Vibes', 'Snell Roundhand', cursive"
+const SANS = "'Jost', 'Helvetica Neue', Arial, sans-serif"
+
+export type DecorKey = 'sereno' | 'giardino' | 'deco' | 'cipria' | 'riviera' | 'terra'
 
 export type PosterTemplate = {
   id: string
   name: string
   vibe: string
   decor: DecorKey
-  palette: Palette
-  titleFont: string
-  bodyFont: string
-  titleUpper?: boolean
-  titleItalic?: boolean
+  dark?: boolean
+  bg: string; ink: string; accent: string; soft: string
+  nameColor: string; tableColor: string; guestColor: string
+  nameFont: string; tableFont: string; bodyFont: string
+  nameItalic?: boolean; tableItalic?: boolean
+  nameUpper?: boolean; tableUpper?: boolean
+  nameSize: number            // px @ larghezza 800
+  tableRule?: boolean         // filetto sotto il nome tavolo
+  eyebrow: string
+  closing?: string
+  dateUpper?: boolean
+  dateItalic?: boolean
 }
-
-const SERIF = "Georgia, 'Times New Roman', 'Cormorant Garamond', serif"
-const SANS = "'Helvetica Neue', Arial, sans-serif"
 
 export const POSTER_TEMPLATES: PosterTemplate[] = [
   {
-    id: 'botanico', name: 'Botanico acquarello', vibe: 'Eucalipto, verde salvia, classico',
-    decor: 'eucalyptus', titleFont: SERIF, bodyFont: SERIF, titleItalic: true,
-    palette: { bg: '#faf6ef', ink: '#3f3a34', accent: '#7c8c6f', soft: '#a8b5a2', card: '#ffffff', cardLine: '#e3ddcd' },
+    id: 'sereno', name: 'Sereno', vibe: 'Editoriale minimale, oro tenue', decor: 'sereno',
+    bg: '#fcfbf7', ink: '#26241f', accent: '#a98c5b', soft: '#cdbd9b',
+    nameColor: '#26241f', tableColor: '#26241f', guestColor: '#3f3a31',
+    nameFont: CORM, tableFont: CORM, bodyFont: CORM, eyebrow: 'Tableau de mariage',
+    nameSize: 72, tableRule: true, dateUpper: true,
   },
   {
-    id: 'blush', name: 'Blush romantico', vibe: 'Rosa cipria, acquarello morbido',
-    decor: 'blush', titleFont: SERIF, bodyFont: SERIF, titleItalic: true,
-    palette: { bg: '#fff7f4', ink: '#5a3a3a', accent: '#c98b7a', soft: '#e7c3b8', card: '#fffdfc', cardLine: '#f0d9d1' },
+    id: 'giardino', name: 'Giardino', vibe: 'Acquarello salvia, calligrafia', decor: 'giardino',
+    bg: '#f7f8f3', ink: '#37402f', accent: '#7e9166', soft: '#aebd9a',
+    nameColor: '#445236', tableColor: '#5f7049', guestColor: '#46503b',
+    nameFont: SCRIPT, tableFont: SCRIPT, bodyFont: CORM, eyebrow: 'I nostri tavoli',
+    nameSize: 70, dateItalic: true,
   },
   {
-    id: 'oro', name: 'Oro minimal', vibe: 'Avorio, oro, essenziale ed elegante',
-    decor: 'gold', titleFont: SANS, bodyFont: SERIF, titleUpper: true,
-    palette: { bg: '#ffffff', ink: '#2a2a2a', accent: '#b8923f', soft: '#dcc187', card: '#ffffff', cardLine: '#e8dcc0' },
+    id: 'deco', name: 'Déco', vibe: 'Smeraldo & oro, art déco', decor: 'deco', dark: true,
+    bg: '#11352c', ink: '#eadfae', accent: '#c9a44c', soft: '#1c4a3d',
+    nameColor: '#eadfae', tableColor: '#eadfae', guestColor: '#d8cfa8',
+    nameFont: PLAY, tableFont: PLAY, bodyFont: SANS, eyebrow: 'Tableau de mariage',
+    nameSize: 56, nameUpper: true, tableUpper: true, tableRule: true, dateUpper: true,
   },
   {
-    id: 'boho', name: 'Boho terracotta', vibe: 'Terracotta, pampas, archi',
-    decor: 'boho', titleFont: SERIF, bodyFont: SANS, titleUpper: true,
-    palette: { bg: '#f3ede4', ink: '#4a3f34', accent: '#c0764f', soft: '#dcae8a', card: '#fbf7f1', cardLine: '#e4d6c4' },
+    id: 'cipria', name: 'Cipria', vibe: 'Rosa cipria, romantico fine-art', decor: 'cipria',
+    bg: '#fbf3f0', ink: '#5a3f3c', accent: '#bd8475', soft: '#e3b6ab',
+    nameColor: '#a4665a', tableColor: '#b07064', guestColor: '#6b4a45',
+    nameFont: SCRIPT, tableFont: SCRIPT, bodyFont: CORM, eyebrow: 'Con affetto, i nostri tavoli',
+    nameSize: 80,
   },
   {
-    id: 'notte', name: 'Blu notte & oro', vibe: 'Cielo notturno, stelle, lusso',
-    decor: 'night', titleFont: SERIF, bodyFont: SERIF, titleItalic: true,
-    palette: { bg: '#1e2a44', ink: '#f4f1e8', accent: '#d8b25a', soft: '#3a4a6b', card: '#243154', cardLine: '#3a4a6b' },
+    id: 'riviera', name: 'Riviera', vibe: 'Mediterraneo, agrumi, dolce vita', decor: 'riviera',
+    bg: '#fcfaf0', ink: '#33513a', accent: '#c79a2e', soft: '#7f9e54',
+    nameColor: '#2f4d36', tableColor: '#2f4d36', guestColor: '#3d5a43',
+    nameFont: CORM, tableFont: CORM, bodyFont: CORM, eyebrow: 'Dolce vita · i nostri tavoli',
+    nameSize: 64, nameItalic: true, tableItalic: true, dateUpper: true,
   },
   {
-    id: 'agrumi', name: 'Dolce vita agrumi', vibe: 'Mediterraneo, limoni, sole',
-    decor: 'lemon', titleFont: SERIF, bodyFont: SANS, titleItalic: true,
-    palette: { bg: '#fdfbf2', ink: '#2f5d3a', accent: '#e8b94a', soft: '#9bbf6f', card: '#ffffff', cardLine: '#e6e0c8' },
+    id: 'terra', name: 'Terra', vibe: 'Terracotta, archi, boho moderno', decor: 'terra',
+    bg: '#f1e9dd', ink: '#4b3a2c', accent: '#bd7b4f', soft: '#c98b5e',
+    nameColor: '#433428', tableColor: '#9c5a32', guestColor: '#5c4836',
+    nameFont: CORM, tableFont: CORM, bodyFont: CORM, eyebrow: 'Tableau',
+    nameSize: 58, tableRule: true, dateUpper: true,
   },
 ]
 
-// Formati di stampa (mm, ritratto). Il poster si esporta fino a 70×100.
+// Formati di stampa (mm, ritratto). Fino a 70×100.
 export const POSTER_FORMATS: Record<string, { w: number; h: number; label: string }> = {
   A4: { w: 210, h: 297, label: 'A4 (21×29,7)' },
   A3: { w: 297, h: 420, label: 'A3 (29,7×42)' },
@@ -59,16 +79,14 @@ export const POSTER_FORMATS: Record<string, { w: number; h: number; label: strin
   '70x100': { w: 700, h: 1000, label: '70×100 cm' },
 }
 
-// Suggerisce un template dal tema evento (se impostato).
 export function templateForTheme(theme?: string | null): string {
   const t = (theme ?? '').toLowerCase()
-  if (t.includes('boho') || t.includes('rustic') || t.includes('terracotta')) return 'boho'
-  if (t.includes('botanical') || t.includes('garden') || t.includes('green')) return 'botanico'
-  if (t.includes('coastal') || t.includes('mediterran') || t.includes('sicil') || t.includes('tropical') || t.includes('dolce')) return 'agrumi'
-  if (t.includes('gala') || t.includes('black-tie') || t.includes('night')) return 'notte'
-  if (t.includes('classic') || t.includes('elegance') || t.includes('minimal') || t.includes('scandi')) return 'oro'
-  if (t.includes('vintage')) return 'blush'
-  return 'botanico'
+  if (t.includes('boho') || t.includes('rustic') || t.includes('terracotta')) return 'terra'
+  if (t.includes('botanical') || t.includes('garden') || t.includes('green')) return 'giardino'
+  if (t.includes('coastal') || t.includes('mediterran') || t.includes('sicil') || t.includes('tropical') || t.includes('dolce')) return 'riviera'
+  if (t.includes('gala') || t.includes('black-tie') || t.includes('night') || t.includes('luxe')) return 'deco'
+  if (t.includes('vintage') || t.includes('blush') || t.includes('romantic')) return 'cipria'
+  return 'sereno'
 }
 
 export function getTemplate(id: string): PosterTemplate {
