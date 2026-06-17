@@ -184,7 +184,8 @@ function AlbumDesignerInner() {
       if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return }
       const sel = multiSel.length || selEl
       if ((k === 'delete' || k === 'backspace') && sel) { e.preventDefault(); deleteSel(); return }
-      if (k === 'escape') { selectEl(null); return }
+      // ESC: cancella la/e foto selezionata/e (se non c'è selezione, deseleziona soltanto)
+      if (k === 'escape') { if (sel) { e.preventDefault(); deleteSel() } else { selectEl(null) }; return }
       // frecce: sposta la selezione (Shift = passo grande). 1 cella griglia ≈ 0.04
       if (free && sel && ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) {
         e.preventDefault(); const s = e.shiftKey ? 0.04 : 0.005
@@ -341,20 +342,19 @@ function AlbumDesignerInner() {
     if (!currentPageId) return; const page = pages.find((p) => p.id === currentPageId); if (!page || page.mode !== 'free') return
     const ids = (page.elements ?? []).map((e) => e.id); setMultiSel(ids); setSelEl(ids[ids.length - 1] ?? null)
   }
-  // riordino libero delle TAVOLE (drag sinistra/destra nella filmstrip)
-  function moveSpreadTo(from: number, to: number) {
+  // riordino libero delle TAVOLE: inserimento alla posizione esatta indicata dal drop
+  // (sinistra/destra della tavola di destinazione).
+  function moveSpreadInsert(from: number, to: number) {
     setPages((arr) => {
       const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2))
-      if (from < 0 || from >= blocks.length || to < 0 || to >= blocks.length || from === to) return arr
-      const [moved] = blocks.splice(from, 1); blocks.splice(to, 0, moved!); return blocks.flat()
+      if (from < 0 || from >= blocks.length) return arr
+      const [moved] = blocks.splice(from, 1)
+      const adj = to > from ? to - 1 : to
+      blocks.splice(Math.max(0, Math.min(blocks.length, adj)), 0, moved!)
+      return blocks.flat()
     })
   }
   function delPage(id: string) { setPages((a) => removePage(a, id)); if (activePage === id) setActivePage(null) }
-  function addPageAfter(id: string | null) {
-    const np = newPage()
-    setPages((a) => insertPageAfter(a, id, () => np))
-    setActivePage(np.id)
-  }
 
   async function save(nextStatus?: string, silent = false) {
     if (!entryId) return
@@ -779,7 +779,7 @@ function AlbumDesignerInner() {
                     mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                     onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
                     onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
-                    onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from) => moveSpreadTo(from, si)} />
+                    onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => moveSpreadInsert(from, to)} />
                 ))}
                 {!lite && <button onClick={addSpread} className="shrink-0 h-16 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
@@ -793,7 +793,7 @@ function AlbumDesignerInner() {
                   onBg={(c) => setPageBg(currentPage.id, c)}
                   onElUpdate={(id, patch) => freeUpdate(currentPage.id, id, patch)}
                   onElCrop={(id) => setCropElId(id)} onElRemove={(id) => freeRemove(currentPage.id, id)}
-                  onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
+                  onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
                 />
               ) : (
                 <PropsPanel
@@ -802,7 +802,7 @@ function AlbumDesignerInner() {
                   onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
                   onClearSlot={(s) => { clearSlot(currentPage.id, s); setActiveSlot(null) }}
                   onCrop={(s) => setCropFor(s)} onFree={() => convertToFree(currentPage.id)}
-                  onAddPage={() => addPageAfter(currentPage.id)} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
+                  onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
                   savedLayouts={layouts} onSaveLayout={saveCurLayout} onApplyLayout={applyLayoutCur} onDeleteLayout={removeLayout}
                 />
               ))}
@@ -1325,7 +1325,7 @@ function SpreadThumb(props: {
   pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
   onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
-  onReorder: (from: number) => void
+  onReorder: (from: number, to: number) => void
 }) {
   const { pair, index, aspect, active, lite, formatKey, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onReorder } = props
   const w = aspect * pair.length
@@ -1336,7 +1336,7 @@ function SpreadThumb(props: {
       onDragStart={(e) => { e.dataTransfer.setData('text/spread', String(index)); e.dataTransfer.effectAllowed = 'move' }}
       onDragOver={(e) => { if (lite) return; const hasSpread = e.dataTransfer.types.includes('text/spread'); if (!hasSpread) return; e.preventDefault(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setOver(e.clientX < r.left + r.width / 2 ? 'l' : 'r') }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e) => { setOver(false); const raw = e.dataTransfer.getData('text/spread'); if (raw === '') return; e.preventDefault(); e.stopPropagation(); const from = Number(raw); if (!Number.isNaN(from) && from !== index) onReorder(from) }}>
+      onDrop={(e) => { const side = over; setOver(false); const raw = e.dataTransfer.getData('text/spread'); if (raw === '') return; e.preventDefault(); e.stopPropagation(); const from = Number(raw); if (Number.isNaN(from)) return; const to = side === 'r' ? index + 1 : index; if (to !== from && to !== from + 1) onReorder(from, to) }}>
       {over && <div className={`absolute top-0 bottom-0 w-1 rounded bg-[rgb(var(--gold-500))] z-10 ${over === 'l' ? '-left-1.5' : '-right-1.5'}`} />}
       <button onClick={onSelect} className={`relative flex h-16 overflow-hidden border bg-white ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'} ${!lite ? 'cursor-grab active:cursor-grabbing' : ''}`} style={{ aspectRatio: String(w) }}>
         {pair.map((p) => (
@@ -1483,7 +1483,7 @@ function PropsPanel(props: {
         <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">{page.mediaIds.length}/{MAX_PER_PAGE} foto in pagina</p>
         {!lite && (
           <div className="flex gap-1.5 mt-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
+            <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Tavola</Button>
             <Button variant="outline" size="sm" onClick={onDuplicate}><Copy size={13} /> Duplica</Button>
             <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
           </div>
