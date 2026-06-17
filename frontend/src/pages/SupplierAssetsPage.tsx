@@ -113,7 +113,7 @@ function AssetCard({ a, suggested, onTags, onCaption, onEventKind, onPublic, onR
   return (
     <Card className="overflow-hidden flex flex-col">
       <div className="relative aspect-square bg-[rgb(var(--bg-sunken))]">
-        <img src={assetDisplayUrl(a)} alt={a.caption ?? ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+        <img src={assetDisplayUrl(a)} alt={a.caption ?? ''} className="absolute inset-0 w-full h-full object-contain" loading="lazy" />
         {a.image_url && <span className="absolute top-1.5 left-1.5 text-[10px] bg-black/55 text-white rounded px-1.5 py-0.5 inline-flex items-center gap-1"><Link2 size={10} /> link</span>}
         <button onClick={onRemove} title="Elimina" className="absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/55 text-white flex items-center justify-center hover:bg-black/75"><X size={14} /></button>
         {!a.is_public && <span className="absolute bottom-1.5 left-1.5 text-[10px] bg-black/60 text-white rounded px-1.5 py-0.5">nascosto</span>}

@@ -445,3 +445,25 @@ export function useFloorPlanMutations(entryId: string) {
     }),
   }
 }
+
+// ── ZONE / POI della planimetria ───────────────────────────────────────────
+export function useEventZones(entryId: string | null) {
+  return useQuery({
+    queryKey: ['zones', entryId], enabled: !!entryId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('event_plan_zones' as any) as any).select('zones').eq('entry_id', entryId!).maybeSingle()
+      if (error) throw error
+      return ((data?.zones ?? []) as any[])
+    },
+  })
+}
+export function useSetEventZones(entryId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (zones: any[]) => {
+      const { error } = await (supabase.from('event_plan_zones' as any) as any).upsert({ entry_id: entryId, zones, updated_at: new Date().toISOString() })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['zones', entryId] }),
+  })
+}

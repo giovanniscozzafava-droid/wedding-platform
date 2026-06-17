@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding, useEventFloorPlan } from '@/hooks/useWedding'
+import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding, useEventFloorPlan, useEventZones, useSetEventZones } from '@/hooks/useWedding'
 import { useAuth } from '@/lib/auth'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { exportTableauPlanPdf, type TableauFormat } from '@/lib/tableauExport'
@@ -61,6 +61,8 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const { data: guests } = useGuests(entryId)
   const { data: wedding } = useWedding(entryId)
   const { data: floorPlan } = useEventFloorPlan(entryId)
+  const { data: zones } = useEventZones(entryId)
+  const setZones = useSetEventZones(entryId)
   const { profile } = useAuth()
   const updateWedding = useUpdateWedding(entryId)
   const { add, update, remove } = useTableMutations(entryId)
@@ -407,6 +409,8 @@ export function TablesTab({ entryId }: { entryId: string }) {
             room={room}
             floorPlanUrl={floorPlan?.image_url ?? null}
             floorPlanRatio={floorPlan?.ratio ?? null}
+            zones={(zones ?? []) as any}
+            onZonesChange={(z) => setZones.mutate(z)}
             tables={(tables ?? []) as any}
             guests={(guests ?? []) as any}
             onMove={(id, pos_x, pos_y) => update.mutate({ id, patch: { pos_x, pos_y } } as any)}

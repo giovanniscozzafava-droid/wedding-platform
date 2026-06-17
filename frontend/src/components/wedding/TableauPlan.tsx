@@ -8,6 +8,27 @@ export type PlanTable = {
   pos_x: number | null; pos_y: number | null; rotation?: number | null; is_staff?: boolean | null
 }
 export type PlanGuest = { id: string; full_name: string; table_id: string | null; party_size?: number; rsvp?: string; age_group?: string }
+export type Zone = { id: string; kind: string; label: string; points: Array<{ x: number; y: number }>; color: string }
+
+// Aree (poligono) e Punti d'interesse (POI, 1 punto). I POI ingresso/uscita/bagni/rampa
+// servono per la mobilità ridotta: si vedono sulla mappa per avvicinare i tavoli giusti.
+export const ZONE_KINDS: Record<string, { label: string; color: string; emoji: string; area: boolean }> = {
+  band:     { label: 'Band / DJ',      color: '#7c5cc4', emoji: '🎵', area: true },
+  pista:    { label: 'Pista da ballo', color: '#c79a2e', emoji: '🕺', area: true },
+  bar:      { label: 'Bar',            color: '#1f9e8f', emoji: '🍸', area: true },
+  buffet:   { label: 'Buffet',         color: '#5f9a4f', emoji: '🍽️', area: true },
+  torta:    { label: 'Tavolo torta',   color: '#d56a9c', emoji: '🎂', area: true },
+  area:     { label: 'Area',           color: '#8a8a8a', emoji: '▦', area: true },
+  ingresso: { label: 'Ingresso',       color: '#2e9e57', emoji: '🚪', area: false },
+  uscita:   { label: 'Uscita',         color: '#e11d48', emoji: '🏃', area: false },
+  bagni:    { label: 'Bagni',          color: '#3b82f6', emoji: '🚻', area: false },
+  rampa:    { label: 'Rampa / Scala',  color: '#6366f1', emoji: '♿', area: false },
+}
+function zoneCentroid(pts: Array<{ x: number; y: number }>) {
+  const n = Math.max(1, pts.length)
+  return { x: pts.reduce((s, p) => s + p.x, 0) / n, y: pts.reduce((s, p) => s + p.y, 0) / n }
+}
+function newId() { try { return crypto.randomUUID() } catch { return 'z' + Date.now() + Math.round(Math.random() * 1e6) } }
 
 // dimensione del tavolo in frazione della larghezza sala (poi convertita in px)
 function tableSize(t: PlanTable): { w: number; h: number; round: boolean; u: boolean; oneSide: boolean } {
@@ -41,12 +62,14 @@ function seatLayout(shape: string, seats: number): Array<{ x: number; y: number;
 const label = (t: PlanTable) => t.label ?? `Tavolo ${t.table_no}`
 
 export function TableauPlan({
-  tables, guests, room, floorPlanUrl, floorPlanRatio, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable, onRotate,
+  tables, guests, room, floorPlanUrl, floorPlanRatio, zones, onZonesChange, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable, onRotate,
 }: {
   tables: PlanTable[]; guests: PlanGuest[]
   room?: { shape: string; ratio: number }
   floorPlanUrl?: string | null    // piantina reale della location, proiettata come sfondo
   floorPlanRatio?: number | null
+  zones?: Zone[]
+  onZonesChange?: (zones: Zone[]) => void
   onMove: (id: string, pos_x: number, pos_y: number) => void
   onAssignGuest: (guestId: string, tableId: string) => void
   onOpenAssign: (t: PlanTable) => void
@@ -62,6 +85,31 @@ export function TableauPlan({
   const [livePos, setLivePos] = useState<{ id: string; x: number; y: number } | null>(null) // posizione fluida durante il drag
   const [overTable, setOverTable] = useState<string | null>(null)
   const [overUnseat, setOverUnseat] = useState(false)
+  // Zone/POI (mirror locale per feedback immediato, persistito via onZonesChange)
+  const [localZones, setLocalZones] = useState<Zone[]>(zones ?? [])
+  useEffect(() => { setLocalZones(zones ?? []) }, [zones])
+  const [drawKind, setDrawKind] = useState<string | null>(null)
+  const [pending, setPending] = useState<Array<{ x: number; y: number }>>([])
+  const poiDrag = useRef<string | null>(null)
+
+  function persistZones(next: Zone[]) { setLocalZones(next); onZonesChange?.(next) }
+  function ptFromEvent(e: { clientX: number; clientY: number }) {
+    const r = planRef.current!.getBoundingClientRect()
+    return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) }
+  }
+  function onPlanDrawClick(e: React.MouseEvent) {
+    if (!drawKind) return
+    const cfg = ZONE_KINDS[drawKind]!; const pt = ptFromEvent(e)
+    if (cfg.area) setPending((p) => [...p, pt])
+    else { persistZones([...localZones, { id: newId(), kind: drawKind, label: cfg.label, color: cfg.color, points: [pt] }]); setDrawKind(null) }
+  }
+  function finishArea() {
+    if (!drawKind || pending.length < 3) return
+    const cfg = ZONE_KINDS[drawKind]!
+    persistZones([...localZones, { id: newId(), kind: drawKind, label: cfg.label, color: cfg.color, points: pending }])
+    setDrawKind(null); setPending([])
+  }
+  function removeZone(id: string) { persistZones(localZones.filter((z) => z.id !== id)) }
 
   useEffect(() => {
     const el = planRef.current; if (!el) return
@@ -119,6 +167,35 @@ export function TableauPlan({
           {zoom > 1 && <span className="text-[10px] text-[rgb(var(--fg-subtle))]">scorri per spostarti · ingrandisci per leggere i nomi alle sedie</span>}
         </div>
 
+        {/* Zone & punti: aree (poligono) + POI (1 clic). Entrate/uscite/bagni utili per la mobilità ridotta. */}
+        {onZonesChange && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+            <span className="text-[11px] text-[rgb(var(--fg-muted))] mr-0.5">Zone:</span>
+            {(['band', 'pista', 'bar', 'buffet', 'torta'] as const).map((k) => (
+              <button key={k} onClick={() => { setDrawKind(k); setPending([]) }}
+                className={`text-[11px] px-2 py-1 rounded-md border ${drawKind === k ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                {ZONE_KINDS[k]!.emoji} {ZONE_KINDS[k]!.label}
+              </button>
+            ))}
+            <span className="text-[11px] text-[rgb(var(--fg-muted))] mx-0.5">Punti:</span>
+            {(['ingresso', 'uscita', 'bagni', 'rampa'] as const).map((k) => (
+              <button key={k} onClick={() => { setDrawKind(k); setPending([]) }}
+                className={`text-[11px] px-2 py-1 rounded-md border ${drawKind === k ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                {ZONE_KINDS[k]!.emoji} {ZONE_KINDS[k]!.label}
+              </button>
+            ))}
+            {drawKind && (
+              <span className="inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-md bg-[rgb(var(--gold-100))]">
+                <span className="text-[11px] text-[rgb(var(--gold-700))]">
+                  {ZONE_KINDS[drawKind]!.area ? `Clicca i vertici di "${ZONE_KINDS[drawKind]!.label}" (min 3), poi Fine` : `Clicca dove mettere "${ZONE_KINDS[drawKind]!.label}"`}
+                </span>
+                {ZONE_KINDS[drawKind]!.area && <button onClick={finishArea} disabled={pending.length < 3} className="text-[11px] px-1.5 py-0.5 rounded bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] disabled:opacity-40">Fine</button>}
+                <button onClick={() => { setDrawKind(null); setPending([]) }} className="text-[11px] px-1.5 py-0.5 rounded border border-[rgb(var(--border))]">Annulla</button>
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Contenitore scrollabile per lo zoom */}
         <div className="w-full overflow-auto rounded-xl border border-[rgb(var(--border))]" style={{ maxHeight: '70vh' }}>
         <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
@@ -139,6 +216,43 @@ export function TableauPlan({
               <span className="text-[9px] tracking-widest font-semibold text-[rgb(225_29_72_/_0.7)] rotate-[-12deg]">FUORI SALA</span>
             </div>
           )}
+
+          {/* AREE (poligono) — sotto i tavoli */}
+          {localZones.filter((z) => ZONE_KINDS[z.kind]?.area).map((z) => {
+            const c = ZONE_KINDS[z.kind] ?? ZONE_KINDS.area!
+            const cen = zoneCentroid(z.points)
+            return (
+              <div key={z.id}>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" style={{ zIndex: 4, pointerEvents: 'none' }}>
+                  <polygon points={z.points.map((p) => `${p.x * 100},${p.y * 100}`).join(' ')} fill={c.color} fillOpacity={0.14} stroke={c.color} strokeOpacity={0.75} strokeWidth={0.5} />
+                </svg>
+                <div className="absolute group" style={{ left: `${cen.x * 100}%`, top: `${cen.y * 100}%`, transform: 'translate(-50%,-50%)', zIndex: 5 }}>
+                  <span className="inline-flex items-center gap-1 text-[9px] px-1 py-0.5 rounded whitespace-nowrap" style={{ background: 'rgb(var(--bg-elev))', border: `1px solid ${c.color}`, color: c.color }}>
+                    {c.emoji} {z.label}
+                    {onZonesChange && <button onClick={() => removeZone(z.id)} title="Elimina zona" className="ml-0.5 text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]">×</button>}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+
+          {/* PUNTI (POI): ingresso/uscita/bagni/rampa — trascinabili */}
+          {localZones.filter((z) => !ZONE_KINDS[z.kind]?.area).map((z) => {
+            const c = ZONE_KINDS[z.kind] ?? ZONE_KINDS.area!
+            const p = z.points[0] ?? { x: 0.5, y: 0.5 }
+            return (
+              <div key={z.id}
+                onPointerDown={onZonesChange ? (e) => { e.stopPropagation(); poiDrag.current = z.id; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) } : undefined}
+                onPointerMove={onZonesChange ? (e) => { if (poiDrag.current === z.id) { const pt = ptFromEvent(e); setLocalZones((zs) => zs.map((x) => (x.id === z.id ? { ...x, points: [pt] } : x))) } } : undefined}
+                onPointerUp={onZonesChange ? () => { if (poiDrag.current === z.id) { poiDrag.current = null; onZonesChange?.(localZones) } } : undefined}
+                className="absolute group" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%`, transform: 'translate(-50%,-50%)', zIndex: 6, cursor: onZonesChange ? 'grab' : 'default', touchAction: 'none' }}>
+                <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-white text-[9px] shadow whitespace-nowrap" style={{ background: c.color }}>
+                  <span>{c.emoji}</span><span className="font-semibold">{z.label}</span>
+                </div>
+                {onZonesChange && <button onPointerDown={(e) => e.stopPropagation()} onClick={() => removeZone(z.id)} title="Elimina punto" className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-black/60 text-white text-[9px] leading-none hidden group-hover:flex items-center justify-center">×</button>}
+              </div>
+            )
+          })}
 
           {withPos.map(({ t, x: bx, y: by }) => {
             const x = livePos && livePos.id === t.id ? livePos.x : bx
@@ -180,6 +294,15 @@ export function TableauPlan({
             )
           })}
           {tables.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">Aggiungi tavoli, poi trascinali nella sala</div>}
+
+          {/* Overlay di disegno zona/POI: cattura i clic mentre disegni */}
+          {drawKind && <div className="absolute inset-0" style={{ zIndex: 34, cursor: 'crosshair' }} onClick={onPlanDrawClick} />}
+          {drawKind && ZONE_KINDS[drawKind]?.area && pending.length > 0 && (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" style={{ zIndex: 35, pointerEvents: 'none' }}>
+              <polyline points={pending.map((p) => `${p.x * 100},${p.y * 100}`).join(' ')} fill={ZONE_KINDS[drawKind]!.color} fillOpacity={0.12} stroke={ZONE_KINDS[drawKind]!.color} strokeWidth={0.6} />
+              {pending.map((p, i) => <circle key={i} cx={p.x * 100} cy={p.y * 100} r={1.1} fill={ZONE_KINDS[drawKind]!.color} />)}
+            </svg>
+          )}
         </div>
         </div>
         <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1.5">Trascina i tavoli per posizionarli · doppio clic per assegnare invitati · trascina un invitato dall'elenco a destra sul tavolo · ingrandisci per leggere i nomi alle sedie.</p>
