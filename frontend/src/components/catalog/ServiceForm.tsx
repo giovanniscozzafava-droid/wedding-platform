@@ -142,10 +142,11 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
 
       // 2. Ricostruisci Blob da base64 (il server l'ha gia scaricato per noi)
       if (!m.image_base64) {
-        const detail = m.image_fetch_error ? ` (${m.image_fetch_error})` : ''
+        const ig = /instagram\./i.test(url)
         throw new Error(
-          'Impossibile scaricare l\'immagine dalla pagina' + detail +
-          '. Suggerimento: con Instagram caroselli, prova ad aprire la SINGOLA foto (link al post specifico, non al carosello).'
+          ig
+            ? 'Instagram blocca il download di questa foto. Apri il post, scarica la foto sul dispositivo e caricala con «Carica file». È l\'unica soluzione affidabile.'
+            : 'Impossibile scaricare l\'immagine dalla pagina. Scarica la foto sul dispositivo e caricala con «Carica file».'
         )
       }
       const ct = m.image_content_type ?? 'image/jpeg'
@@ -374,10 +375,13 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                       </Button>
                     </div>
                     <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1.5">
-                      Estraggo l'immagine principale del post. Funziona su Pinterest, blog, news, articoli.
-                      <br />
-                      <strong>Instagram caroselli:</strong> importa solo la prima slide del post. Per le successive, salva l'immagine e usa "Carica file" sopra.
+                      Estraggo l'immagine principale del post. Funziona bene su Pinterest, blog, news, articoli.
                     </p>
+                    {/^https?:\/\/(www\.)?instagram\./i.test(importUrl) && (
+                      <p className="text-[10px] mt-1.5 px-2 py-1.5 rounded-md" style={{ background: 'rgb(var(--amber-100))', color: 'rgb(var(--amber-800))' }}>
+                        ⚠️ <strong>Instagram blocca spesso il download delle foto.</strong> Se l'import non riesce, apri il post su Instagram, <strong>scarica la foto</strong> (tieni premuto / salva immagine) e caricala con <strong>«Carica file»</strong> qui sopra. È l'unica soluzione affidabile.
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-4 gap-2">
                     {(service?.service_photos ?? []).map((p) => (

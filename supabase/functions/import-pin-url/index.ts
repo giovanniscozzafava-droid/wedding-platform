@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
     const host = target.hostname.replace(/^www\./, '')
     if (host.includes('pinterest.') || host.includes('instagram.')) {
       return json({
-        error: `${host.split('.')[0]} blocca l'estrazione automatica. Salva l'immagine sul tuo device e caricala con il tasto Upload.`,
+        error: `${host.split('.')[0]} blocca l'estrazione automatica. Scarica la foto sul dispositivo e caricala con «Carica file». È l'unica soluzione affidabile.`,
         detail: lastErr,
       }, 422)
     }
