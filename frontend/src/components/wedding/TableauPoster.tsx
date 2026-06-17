@@ -48,10 +48,10 @@ export const TableauPoster = forwardRef<HTMLDivElement, {
         </svg>
       </>)}
 
-      {/* ACQUERELLI AI agli angoli (trasparenti) */}
+      {/* ACQUERELLI AI agli angoli (trasparenti) — esterni, dietro al testo, mai sopra i nomi */}
       {t.corner && (<>
-        <img src={`/tableau/${t.corner}`} alt="" crossOrigin="anonymous" style={{ position: 'absolute', top: 2 * u, left: 2 * u, width: 188 * u, zIndex: 1 }} />
-        <img src={`/tableau/${t.corner}`} alt="" crossOrigin="anonymous" style={{ position: 'absolute', bottom: (hasLogo ? 34 : 2) * u, right: 2 * u, width: 188 * u, transform: 'rotate(180deg)', zIndex: 1 }} />
+        <img src={`/tableau/${t.corner}`} alt="" crossOrigin="anonymous" style={{ position: 'absolute', top: 0, left: 0, width: 150 * u, zIndex: 1, pointerEvents: 'none' }} />
+        <img src={`/tableau/${t.corner}`} alt="" crossOrigin="anonymous" style={{ position: 'absolute', bottom: (hasLogo ? 30 : 0) * u, right: 0, width: 150 * u, transform: 'rotate(180deg)', zIndex: 1, pointerEvents: 'none' }} />
       </>)}
 
       {/* Intestazione */}

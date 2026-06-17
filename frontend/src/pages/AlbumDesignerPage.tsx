@@ -236,6 +236,13 @@ function AlbumDesignerInner() {
   // ── editor pagine ───────────────────────────────────────────────────────────
   // tutte le foto piazzate (slot template + elementi liberi)
   const placedIds = useMemo(() => new Set(pages.flatMap((p) => [...p.mediaIds, ...((p.elements ?? []).map((e) => e.mediaId))]).filter(Boolean)), [pages])
+  // quante volte ogni foto è usata (template + liberi + foto a piena tavola): per il badge "×N"
+  const usageCount = useMemo(() => {
+    const c = new Map<string, number>()
+    const bump = (id?: string | null) => { if (id) c.set(id, (c.get(id) ?? 0) + 1) }
+    for (const p of pages) { for (const id of p.mediaIds) bump(id); for (const e of p.elements ?? []) bump(e.mediaId); bump(p.spreadImage?.mediaId) }
+    return c
+  }, [pages])
   // a sinistra: TUTTE le foto del progetto — opache se già usate, nitide se ancora da usare
   const trayMedia = useMemo(() => {
     const map = new Map(kept.map((m) => [m.id, m]))
@@ -645,8 +652,12 @@ function AlbumDesignerInner() {
                     draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
                     onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
                     title={getMoment(m.album_moment)?.label ?? 'senza momento'}
-                    className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'opacity-40' : ''} border-[rgb(var(--border))]`}>
+                    className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'opacity-50' : ''} border-[rgb(var(--border))]`}>
                     <img src={thumbUrl(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    {(() => { const n = usageCount.get(m.id) ?? 0; return n >= 1 ? (
+                      <span title={n > 1 ? `Usata ${n} volte` : 'Usata 1 volta'}
+                        className={`absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full text-[9px] font-bold leading-[15px] text-center text-white ${n > 1 ? 'bg-[rgb(var(--rose-500))] ring-1 ring-white' : 'bg-black/55'}`}>{n > 1 ? `×${n}` : '✓'}</span>
+                    ) : null })()}
                   </button>
                 ))}
               </div>

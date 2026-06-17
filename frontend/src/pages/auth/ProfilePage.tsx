@@ -43,9 +43,13 @@ export default function ProfilePage() {
     if (!next || next === (user?.email ?? '').toLowerCase()) { toast.error('Inserisci una nuova email diversa'); return }
     setAccBusy(true)
     try {
-      const { error } = await supabase.auth.updateUser({ email: next })
+      // Cambio diretto via edge function (service-role, email_confirm) — niente mail di conferma
+      // che falliva con "Error sending email change email".
+      const { data, error } = await supabase.functions.invoke('set-my-email', { body: { email: next } })
       if (error) throw error
-      toast.success('Email di conferma inviata al nuovo indirizzo. Il cambio è attivo dopo che clicchi il link.')
+      const r = data as { ok?: boolean; error?: string } | null
+      if (r?.error) throw new Error(r.error === 'email_already_in_use' ? 'Questa email è già usata da un altro account' : r.error)
+      toast.success('Email aggiornata. Usa la nuova email per accedere.')
     } catch (e) { toast.error((e as Error).message) } finally { setAccBusy(false) }
   }
   async function changePassword() {
