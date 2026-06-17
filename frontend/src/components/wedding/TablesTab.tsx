@@ -406,6 +406,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
             onAssignGuest={(guestId, tableId) => updateGuest.mutate({ id: guestId, patch: { table_id: tableId } })}
             onOpenAssign={(t) => setAssigningTable(t)}
             onEditTable={(t) => setEditTable(t)}
+            onRotate={(t, rotation) => update.mutate({ id: t.id, patch: { rotation } } as any)}
             onDeleteTable={(t) => { if (window.confirm(`Eliminare ${t.label ?? `Tavolo ${t.table_no}`}? Gli invitati torneranno tra i "da sedere".`)) remove.mutate(t.id) }}
           />
         </Card>
