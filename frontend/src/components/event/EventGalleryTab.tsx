@@ -38,6 +38,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [consentOn, setConsentOn] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [galleryProg, setGalleryProg] = useState<{ done: number; total: number; name?: string; frac?: number } | null>(null)
   const uploadRef = useRef<HTMLInputElement>(null)
   const [uploadFolder, setUploadFolder] = useState<Folder | null>(null)
   const [salesEnabled, setSalesEnabled] = useState(false)
@@ -236,21 +237,20 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   // diretti a Drive (non passano da Planfully), poi salvo id + miniatura pubblica.
   async function uploadPhotos(f: Folder, files: File[]) {
     if (!gallery || files.length === 0) return
-    setBusy(true)
+    setBusy(true); setGalleryProg({ done: 0, total: files.length, name: files[0]?.name, frac: 0 })
     try {
       const token = await getDriveToken()
       const driveFolder = await ensureDriveFolder(token, `Planfully · ${f.name}`, f.drive_folder_id)
       if (driveFolder !== f.drive_folder_id) await (supabase.from as any)('gallery_folders').update({ drive_folder_id: driveFolder }).eq('id', f.id)
       const rows: Record<string, unknown>[] = []
       const fails: string[] = []
-      for (const file of files) {
-        const big = file.size > 8 * 1024 * 1024
-        const tid = big ? toast.loading(`Carico ${file.name}… 0%`) : undefined
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]!
+        setGalleryProg({ done: i, total: files.length, name: file.name, frac: 0 })
         try {
-          const { id, thumbnail } = await uploadAnyToDrive(token, driveFolder, file, (frac) => { if (tid !== undefined) toast.loading(`Carico ${file.name}… ${Math.round(frac * 100)}%`, { id: tid }) })
-          if (tid !== undefined) toast.dismiss(tid)
+          const { id, thumbnail } = await uploadAnyToDrive(token, driveFolder, file, (frac) => setGalleryProg((p) => (p ? { ...p, frac } : p)))
           rows.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: id, thumbnail_link: thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
-        } catch (e) { if (tid !== undefined) toast.dismiss(tid); fails.push(`${file.name}: ${(e as Error).message}`) }
+        } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
       }
       if (rows.length) { const { error } = await (supabase.from as any)('gallery_media').insert(rows); if (error) throw error }
       if (fails.length) toast.error(`${rows.length} caricati, ${fails.length} falliti — ${fails[0]}`)
@@ -259,7 +259,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     } catch (e) {
       if ((e as { driveReason?: string }).driveReason) setDriveModal(true)
       else toast.error((e as Error).message)
-    } finally { setBusy(false); setUploadFolder(null) }
+    } finally { setBusy(false); setUploadFolder(null); setGalleryProg(null) }
   }
 
   async function setConsent(on: boolean) {
@@ -296,6 +296,23 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       {/* input file nascosto per l'upload su Drive */}
       <input ref={uploadRef} type="file" multiple accept="image/*,video/*" className="hidden"
         onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length && uploadFolder) void uploadPhotos(uploadFolder, snap) }} />
+
+      {/* BARRA DI AVANZAMENTO TOTALE del batch (foto/video sull'intera cartella) */}
+      {galleryProg && (() => {
+        const overall = Math.min(100, Math.round(((galleryProg.done + (galleryProg.frac ?? 0)) / galleryProg.total) * 100))
+        return (
+          <Card className="p-3 sticky top-2 z-20 shadow-[var(--shadow-lift)]">
+            <div className="flex justify-between items-center text-xs mb-1.5">
+              <span className="font-medium inline-flex items-center gap-1.5"><Upload size={13} className="text-[rgb(var(--gold-600))]" /> Caricamento foto — {Math.min(galleryProg.done + 1, galleryProg.total)} di {galleryProg.total}</span>
+              <span className="tabular-nums font-semibold">{overall}%</span>
+            </div>
+            {galleryProg.name && <p className="text-[11px] text-[rgb(var(--fg-muted))] truncate mb-1.5">{galleryProg.name}</p>}
+            <div className="h-2.5 rounded-full bg-[rgb(var(--bg-sunken))] overflow-hidden">
+              <div className="h-full bg-[rgb(var(--gold-500))] transition-all duration-150" style={{ width: `${overall}%` }} />
+            </div>
+          </Card>
+        )
+      })()}
 
 
       {/* Consenso sposi al lavoro intero */}
