@@ -1196,6 +1196,11 @@ function FreeStage(props: {
       setGapMarks([...sp.marks, ...live.filter((mk) => !eq.has(`${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))])
     } else if (d.kind === 'resize' && d.corner) {
       const r = resizeEl(d.el, d.corner, f.x, f.y); onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
+      // RIGHELLI AUTOMATICI anche in resize: allineamenti bordi/centri + distanze in cm
+      const otherEls = els.filter((x) => x.id !== d.id)
+      const snap = snapMove(r, otherEls, mx, my)
+      setGuides({ v: snap.vGuides, h: snap.hGuides })
+      setGapMarks(neighborGaps(r, otherEls))
     } else if (d.kind === 'gresize' && d.anchor && d.h0) {
       const a = d.anchor, h0 = d.h0
       const dist = (p: { x: number; y: number }, q: { x: number; y: number }) => Math.hypot(p.x - q.x, p.y - q.y)
@@ -1205,6 +1210,13 @@ function FreeStage(props: {
       const maxS = Math.max(0.2, Math.min(lim(a.x, h0.x), lim(a.y, h0.y)))
       const s = Math.max(0.15, Math.min(dist(f, a) / d0, maxS, 6))
       onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * s, y: a.y + (g.y - a.y) * s, w: Math.max(0.02, g.w * s), h: Math.max(0.02, g.h * s) } })))
+      // righelli automatici per il BOX di gruppo scalato verso le foto esterne
+      const others = els.filter((x) => !d.group.some((gg) => gg.id === x.id))
+      const nx = a.x + (h0.x - a.x) * s, ny = a.y + (h0.y - a.y) * s
+      const bb = { ...d.el, x: Math.min(a.x, nx), y: Math.min(a.y, ny), w: Math.abs(nx - a.x), h: Math.abs(ny - a.y) }
+      const snap = snapMove(bb, others, mx, my)
+      setGuides({ v: snap.vGuides, h: snap.hGuides })
+      setGapMarks(neighborGaps(bb, others))
     } else if (d.kind === 'rotate') {
       const cx = d.el.x + d.el.w / 2, cy = d.el.y + d.el.h / 2
       const deg = (Math.atan2(f.y - cy, f.x - cx) * 180) / Math.PI + 90
