@@ -66,6 +66,7 @@ export default function EmbedLeadPage() {
   const [proName, setProName] = useState<string>('')
   type Pro = { business_name?: string | null; full_name?: string | null; subrole?: string | null; tagline?: string | null; city?: string | null; bio?: string | null; brand_logo_url?: string | null; cover_image_url?: string | null; brand_primary_color?: string | null }
   const [pro, setPro] = useState<Pro | null>(null)
+  const [brandKit, setBrandKit] = useState<{ primary?: string | null; secondary?: string | null; photos?: string[] } | null>(null)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
@@ -126,6 +127,18 @@ export default function EmbedLeadPage() {
           if (!error && p) { setProName(p.business_name || p.full_name || ''); setSubrole(p.subrole ?? null); setPro(p); return }
         } catch { /* prova il prossimo */ }
       }
+    })()
+  }, [slug])
+
+  // Brand kit (colori + FOTO del catalogo) per il mini-sito che incornicia il form.
+  useEffect(() => {
+    if (!slug) return
+    void (async () => {
+      try {
+        const { data } = await (supabase as unknown as AnyRpc).rpc('public_brand_kit', { p_slug: slug })
+        const d = data as { brand_primary_color?: string | null; brand_secondary_color?: string | null; photos?: string[] } | null
+        if (d) setBrandKit({ primary: d.brand_primary_color, secondary: d.brand_secondary_color, photos: Array.isArray(d.photos) ? d.photos : [] })
+      } catch { /* facoltativo */ }
     })()
   }, [slug])
 
@@ -259,20 +272,25 @@ export default function EmbedLeadPage() {
     } finally { setSending(false) }
   }
 
-  const ui = useMemo(() => makeStyles(primary, narrow), [primary, narrow])
-
   // MINI-SITO: quando il link è aperto da solo (NON dentro un iframe), avvolgiamo il
-  // form in una cornice brandizzata (logo, cover, asset). Dentro un iframe o con
-  // ?embed=1 / ?bg=transparent resta il form nudo, come prima.
+  // form in una cornice brandizzata coi COLORI DEL BRAND e le FOTO DEL CATALOGO.
+  // Dentro un iframe o con ?embed=1 / ?bg=transparent resta il form nudo, come prima.
   const embedded = typeof window !== 'undefined' && window.self !== window.top
   const siteMode = !embedded && !transparent && sp.get('embed') !== '1'
-  const hx = (pro?.brand_primary_color || '').replace('#', '')
-  const heroColor = /^[0-9a-fA-F]{6}$/.test(hx) ? `#${hx}` : primary
-  const heroAssets = siteMode ? round.map(cardUrl).filter(Boolean).slice(0, 4) : []
+  const toHex = (c?: string | null) => { const h = (c || '').replace('#', ''); return /^[0-9a-fA-F]{6}$/.test(h) ? `#${h}` : null }
+  const brandPrimary = toHex(brandKit?.primary) || toHex(pro?.brand_primary_color)
+  const brandSecondary = toHex(brandKit?.secondary)
+  // In modalità sito uso il colore del brand come accento del form (bottoni, chip, hero).
+  const accent = siteMode && brandPrimary ? brandPrimary : primary
+  const ui = useMemo(() => makeStyles(accent, narrow), [accent, narrow])
+  const heroColor = brandPrimary || accent
+  const heroColor2 = brandSecondary || heroColor
+  // SOLO le foto del catalogo del fornitore
+  const heroAssets = siteMode ? (brandKit?.photos ?? []).filter(Boolean).slice(0, 4) : []
   const hero = siteMode ? (
     <div style={{ maxWidth: 560, margin: '0 auto 14px', borderRadius: 16, overflow: 'hidden', boxShadow: '0 6px 24px rgba(15,23,42,.10)' }}>
       <div style={{ position: 'relative', minHeight: 130, display: 'flex', alignItems: 'flex-end', padding: 16,
-        background: pro?.cover_image_url ? `center/cover no-repeat url("${pro.cover_image_url}")` : `linear-gradient(135deg, ${heroColor}, ${heroColor}bb)` }}>
+        background: pro?.cover_image_url ? `center/cover no-repeat url("${pro.cover_image_url}")` : `linear-gradient(135deg, ${heroColor}, ${heroColor2})` }}>
         {pro?.cover_image_url && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.6), rgba(0,0,0,.05))' }} />}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
           {pro?.brand_logo_url
