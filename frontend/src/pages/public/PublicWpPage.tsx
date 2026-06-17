@@ -84,10 +84,14 @@ function priorityOptionsFor(kind: string): string[] { return PRIORITY_BY_KIND[ki
 export default function PublicWpPage() {
   const { slug } = useParams<{ slug: string }>()
   const nav = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   // Visitatore pubblico (non loggato): niente navigazione dentro l'app, niente
   // funnel login/register. Solo contenuto pubblico + richiesta preventivo.
   const isPublicVisitor = !user
+  // "Richiedi preventivo" è per i CLIENTI (coppie/anonimi). Un PRO che guarda un
+  // collega (fornitore/WP/location) non chiede un preventivo: può solo candidarsi
+  // alla sua rete (FollowButton). Quindi nascondiamo il CTA preventivo ai pro.
+  const viewerIsPro = !!profile && ['FORNITORE', 'WEDDING_PLANNER', 'LOCATION'].includes(profile.role)
   const [wp, setWp] = useState<WpProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -248,9 +252,11 @@ export default function PublicWpPage() {
                 )}
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
-                <Button variant="gold" onClick={() => setFormOpen(true)}>
-                  <Send size={14} /> Richiedi preventivo
-                </Button>
+                {!viewerIsPro && (
+                  <Button variant="gold" onClick={() => setFormOpen(true)}>
+                    <Send size={14} /> Richiedi preventivo
+                  </Button>
+                )}
                 {!isPublicVisitor && <FollowButton userId={wp.id} targetRole="WEDDING_PLANNER" variant="outline" />}
                 {wp.website && (
                   <a href={wp.website} target="_blank" rel="noreferrer"
@@ -307,11 +313,13 @@ export default function PublicWpPage() {
               </div>
             )}
           </div>
-          <div className="mt-5">
-            <Button variant="gold" onClick={() => setFormOpen(true)}>
-              <Send size={14} /> Raccontaci il tuo evento
-            </Button>
-          </div>
+          {!viewerIsPro && (
+            <div className="mt-5">
+              <Button variant="gold" onClick={() => setFormOpen(true)}>
+                <Send size={14} /> Raccontaci il tuo evento
+              </Button>
+            </div>
+          )}
         </section>
 
         {/* Recent posts */}
