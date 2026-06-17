@@ -71,12 +71,17 @@ export default function EmbedLeadPage() {
   const [altSent, setAltSent] = useState(false)
   const [subrole, setSubrole] = useState<string | null>(null)          // categoria del professionista
   const [catAnswers, setCatAnswers] = useState<Record<string, unknown>>({}) // risposte alle domande di categoria
-  // GIOCO "scegli il tuo stile": card dagli asset taggati del fornitore (swipe sì/no)
-  const [cards, setCards] = useState<{ id: string; path: string | null; image_url?: string | null; caption?: string | null; tags: string[] }[]>([])
-  const [cardIdx, setCardIdx] = useState(0)
+  // GIOCO "scegli il tuo stile": TORNEO a coppie ("questo o questo?") dagli asset taggati
+  // del fornitore. Si restringe round dopo round fino a poche scelte finali (lo stile vero).
+  type Card = { id: string; path: string | null; image_url?: string | null; caption?: string | null; tags: string[] }
+  const [round, setRound] = useState<Card[]>([])      // coda del round corrente
+  const [winners, setWinners] = useState<Card[]>([])  // vincitori di questo round
+  const [pairIdx, setPairIdx] = useState(0)           // indice coppia (a 2 a 2)
+  const [finalists, setFinalists] = useState<Card[] | null>(null)
+  const [hasGame, setHasGame] = useState(false)
   const [liked, setLiked] = useState<{ id: string; url: string; tags: string[] }[]>([])
-  const [swipeAnim, setSwipeAnim] = useState<'l' | 'r' | null>(null)
   const cardUrl = (c: { path: string | null; image_url?: string | null }) => c.image_url || (c.path ? supabase.storage.from('supplier-assets').getPublicUrl(c.path).data.publicUrl : '')
+  const FINALISTS = 3
   const [form, setForm] = useState({
     client_name: '', client_email: '', client_phone: '',
     event_kind: 'matrimonio', event_date: '', event_location: '', guests_estimate: '',
@@ -120,24 +125,44 @@ export default function EmbedLeadPage() {
     })()
   }, [slug])
 
-  // Card del gioco "scegli il tuo stile" (asset taggati del fornitore), filtrate per tipo evento
+  // Card del gioco "scegli il tuo stile" (asset taggati del fornitore), filtrate per tipo evento.
+  // Avviamo un TORNEO: mescola, prendi fino a 16, poi duelli a coppie.
   useEffect(() => {
     if (!slug) return
     void (async () => {
       try {
         const { data } = await (supabase as unknown as AnyRpc).rpc('get_supplier_assets', { p_slug: slug, p_event_kind: form.event_kind, p_limit: 30 })
-        const arr = (Array.isArray(data) ? data : []) as { id: string; path: string | null; image_url?: string | null; caption?: string | null; tags: string[] }[]
-        setCards(arr); setCardIdx(0); setLiked([])
-      } catch { setCards([]) }
+        const arr = (Array.isArray(data) ? data : []) as Card[]
+        const pool = [...arr].sort(() => Math.random() - 0.5).slice(0, 16)
+        setRound(pool); setWinners([]); setPairIdx(0); setFinalists(null); setLiked([]); setHasGame(pool.length >= 2)
+      } catch { setHasGame(false) }
     })()
   }, [slug, form.event_kind])
 
-  function decide(like: boolean) {
-    const c = cards[cardIdx]; if (!c) return
-    setSwipeAnim(like ? 'r' : 'l')
-    if (like) setLiked((l) => [...l, { id: c.id, url: cardUrl(c), tags: c.tags ?? [] }])
-    window.setTimeout(() => { setSwipeAnim(null); setCardIdx((i) => i + 1) }, 180)
+  // Fine round / fine torneo
+  function endOfRound(w: Card[]) {
+    if (w.length <= FINALISTS) {
+      setFinalists(w)
+      setLiked(w.map((c) => ({ id: c.id, url: cardUrl(c), tags: c.tags ?? [] })))
+    } else {
+      setRound([...w].sort(() => Math.random() - 0.5)); setWinners([]); setPairIdx(0)
+    }
   }
+  function choose(card: Card) {
+    const w = [...winners, card]
+    const next = pairIdx + 2
+    if (next >= round.length) endOfRound(w)
+    else { setWinners(w); setPairIdx(next) }
+  }
+  // bye automatico: numero dispari → l'ultima card avanza da sola
+  useEffect(() => {
+    if (finalists || round.length === 0) return
+    if (pairIdx < round.length && pairIdx + 1 >= round.length) {
+      const w = [...winners, round[pairIdx]!]
+      if (pairIdx + 2 >= round.length) endOfRound(w)
+      else { setWinners(w); setPairIdx(pairIdx + 2) }
+    }
+  }, [round, pairIdx, winners, finalists]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleChip(key: 'styles' | 'priorities', val: string, max: number) {
     setForm((f) => {
@@ -347,52 +372,51 @@ export default function EmbedLeadPage() {
           </>
         )}
 
-        {/* GIOCO "SCEGLI IL TUO STILE": swipe sì/no sulle foto-stile del professionista.
-            Ogni "mi piace" diventa un'idea visiva concreta che arriva col preventivo. */}
-        {!compact && cards.length > 0 && (
-          <div style={{ marginTop: 6, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.08)' }}>
-            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Scegli il tuo stile 💫</p>
-            <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Spollica le foto dei lavori di {proName || 'questo professionista'}: ♥ se ti piace, ✕ se no. Ci aiuta a capire i tuoi gusti.</p>
-            {cardIdx < cards.length ? (
-              <div style={{ position: 'relative', maxWidth: 340, margin: '0 auto' }}>
-                <div key={cards[cardIdx]!.id} style={{
-                  borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0,0,0,.1)', background: '#fff',
-                  boxShadow: '0 8px 24px rgba(0,0,0,.12)',
-                  transition: 'transform .18s ease, opacity .18s ease',
-                  transform: swipeAnim === 'r' ? 'translateX(120%) rotate(12deg)' : swipeAnim === 'l' ? 'translateX(-120%) rotate(-12deg)' : 'none',
-                  opacity: swipeAnim ? 0 : 1,
-                }}>
-                  <div style={{ position: 'relative', aspectRatio: '4 / 5', background: '#f3f0ea' }}>
-                    <img src={cardUrl(cards[cardIdx]!)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                    {(cards[cardIdx]!.caption || (cards[cardIdx]!.tags ?? []).length > 0) && (
-                      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '24px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff' }}>
-                        {cards[cardIdx]!.caption && <div style={{ fontSize: 13, fontWeight: 600 }}>{cards[cardIdx]!.caption}</div>}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                          {(cards[cardIdx]!.tags ?? []).slice(0, 4).map((t) => <span key={t} style={{ fontSize: 10, background: 'rgba(255,255,255,.25)', borderRadius: 99, padding: '1px 7px' }}>{t}</span>)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 12 }}>
-                  <button type="button" onClick={() => decide(false)} aria-label="No" style={{ width: 52, height: 52, borderRadius: '50%', border: '1px solid rgba(0,0,0,.12)', background: '#fff', fontSize: 22, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.1)' }}>✕</button>
-                  <button type="button" onClick={() => decide(true)} aria-label="Mi piace" style={{ width: 52, height: 52, borderRadius: '50%', border: 'none', background: primary, color: '#fff', fontSize: 22, cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,.18)' }}>♥</button>
-                </div>
-                <p style={{ textAlign: 'center', fontSize: 11, opacity: 0.5, marginTop: 6 }}>{cardIdx + 1} / {cards.length} · {liked.length} scelte</p>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                <p style={{ fontSize: 14 }}>{liked.length > 0 ? `Perfetto! Hai scelto ${liked.length} stili che ami.` : 'Nessuno scelto — nessun problema.'}</p>
-                {liked.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 8 }}>
-                    {liked.slice(0, 8).map((l) => <img key={l.id} src={l.url} alt="" style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 8, border: `2px solid ${primary}` }} />)}
+        {/* GIOCO "SCEGLI IL TUO STILE": TORNEO a coppie ("questo o questo?"). Si restringe
+            round dopo round fino a poche scelte finali → lo stile vero del cliente, al pro. */}
+        {!compact && hasGame && (() => {
+          const A = round[pairIdx], B = round[pairIdx + 1]
+          const DuelCard = ({ c }: { c: Card }) => (
+            <button type="button" onClick={() => choose(c)} style={{ flex: 1, minWidth: 0, padding: 0, border: '2px solid transparent', borderRadius: 14, overflow: 'hidden', background: '#fff', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,.12)' }}
+              onMouseOver={(e) => (e.currentTarget.style.borderColor = primary)} onMouseOut={(e) => (e.currentTarget.style.borderColor = 'transparent')}>
+              <div style={{ position: 'relative', aspectRatio: '3 / 4', background: '#f3f0ea' }}>
+                <img src={cardUrl(c)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(c.caption || (c.tags ?? []).length > 0) && (
+                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '20px 8px 7px', background: 'linear-gradient(transparent, rgba(0,0,0,.62))', color: '#fff', textAlign: 'left' }}>
+                    {c.caption && <div style={{ fontSize: 12, fontWeight: 600 }}>{c.caption}</div>}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3 }}>
+                      {(c.tags ?? []).slice(0, 3).map((t) => <span key={t} style={{ fontSize: 9, background: 'rgba(255,255,255,.25)', borderRadius: 99, padding: '1px 6px' }}>{t}</span>)}
+                    </div>
                   </div>
                 )}
-                <button type="button" onClick={() => { setCardIdx(0); setLiked([]) }} style={{ marginTop: 8, fontSize: 12, color: primary, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Rigioca</button>
               </div>
-            )}
-          </div>
-        )}
+            </button>
+          )
+          return (
+            <div style={{ marginTop: 6, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.08)' }}>
+              <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Scegli il tuo stile ✨</p>
+              {finalists ? (
+                <div style={{ textAlign: 'center', padding: '6px 0' }}>
+                  <p style={{ fontSize: 14 }}>{finalists.length > 0 ? `Ecco il tuo stile: ${finalists.length} preferiti.` : 'Saltato — nessun problema.'}</p>
+                  {finalists.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 8 }}>
+                    {finalists.map((l) => <img key={l.id} src={cardUrl(l)} alt="" style={{ width: 64, height: 80, objectFit: 'cover', borderRadius: 8, border: `2px solid ${primary}` }} />)}
+                  </div>}
+                </div>
+              ) : A && B ? (<>
+                <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Tra le due, quale preferisci? Andiamo avanti finché restano i tuoi preferiti.</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <DuelCard c={A} />
+                  <span style={{ fontSize: 11, opacity: 0.5, fontWeight: 600 }}>oppure</span>
+                  <DuelCard c={B} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                  <p style={{ fontSize: 11, opacity: 0.5 }}>{round.length} in gara · restano {Math.max(FINALISTS, Math.ceil((winners.length + round.length - pairIdx) / 2))}</p>
+                  <button type="button" onClick={() => { setFinalists([]); setLiked([]) }} style={{ fontSize: 11, color: primary, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>salta</button>
+                </div>
+              </>) : null}
+            </div>
+          )
+        })()}
 
         {/* DOMANDE SPECIFICHE DI CATEGORIA (dal subrole del professionista): le risposte
             arrivano automaticamente a chi crea il preventivo. */}

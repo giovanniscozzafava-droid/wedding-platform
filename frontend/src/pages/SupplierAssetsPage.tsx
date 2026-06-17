@@ -5,6 +5,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { useAuth } from '@/lib/auth'
+import { suggestedStyleTags } from '@/lib/styleTags'
 import { useSupplierAssets, useSupplierAssetMutations, assetDisplayUrl, type SupplierAsset } from '@/hooks/useSupplierAssets'
 
 const EVENT_KINDS = ['', 'matrimonio', 'battesimo', 'comunione', 'cresima', 'compleanno', 'anniversario', 'laurea', 'corporate', 'altro']
@@ -12,6 +14,8 @@ const EVENT_KINDS = ['', 'matrimonio', 'battesimo', 'comunione', 'cresima', 'com
 export default function SupplierAssetsPage() {
   const { data: assets, isLoading } = useSupplierAssets()
   const { upload, addByLink, update, remove } = useSupplierAssetMutations()
+  const { profile } = useAuth()
+  const suggested = suggestedStyleTags((profile as { subrole?: string | null } | null)?.subrole)
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
@@ -74,7 +78,7 @@ export default function SupplierAssetsPage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {(assets ?? []).map((a) => (
-            <AssetCard key={a.id} a={a}
+            <AssetCard key={a.id} a={a} suggested={suggested}
               onTags={(tags) => update.mutate({ id: a.id, patch: { tags } })}
               onCaption={(caption) => update.mutate({ id: a.id, patch: { caption } })}
               onEventKind={(event_kind) => update.mutate({ id: a.id, patch: { event_kind: event_kind || null } })}
@@ -87,8 +91,9 @@ export default function SupplierAssetsPage() {
   )
 }
 
-function AssetCard({ a, onTags, onCaption, onEventKind, onPublic, onRemove }: {
+function AssetCard({ a, suggested, onTags, onCaption, onEventKind, onPublic, onRemove }: {
   a: SupplierAsset
+  suggested: string[]
   onTags: (tags: string[]) => void
   onCaption: (caption: string) => void
   onEventKind: (event_kind: string) => void
@@ -127,6 +132,15 @@ function AssetCard({ a, onTags, onCaption, onEventKind, onPublic, onRemove }: {
           <input value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
             placeholder="aggiungi tag + Invio" className="flex-1 min-w-0 text-[11px] bg-transparent outline-none border-b border-[rgb(var(--border))] py-0.5" />
         </div>
+        {/* tag-categoria suggeriti per la tua professione: clic per applicarli */}
+        {suggested.filter((s) => !a.tags.includes(s)).length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {suggested.filter((s) => !a.tags.includes(s)).slice(0, 8).map((s) => (
+              <button key={s} onClick={() => onTags([...a.tags, s])} title="Aggiungi questa categoria"
+                className="text-[10px] px-1.5 py-0.5 rounded-full border border-dashed border-[rgb(var(--border-strong))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]">+ {s}</button>
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2 pt-0.5">
           <select value={a.event_kind ?? ''} onChange={(e) => onEventKind(e.target.value)} className="text-[11px] bg-transparent border border-[rgb(var(--border))] rounded px-1 py-0.5">
             {EVENT_KINDS.map((k) => <option key={k} value={k}>{k === '' ? 'ogni evento' : k}</option>)}
