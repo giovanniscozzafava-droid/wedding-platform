@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Trash2, Filter, Download, Accessibility } from 'lucide-react'
+import { Plus, Trash2, Filter, Download, Accessibility, GripVertical, Star, ArrowDownAZ, Heart } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,36 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
   const qc = useQueryClient()
   const [filter, setFilter] = useState('')
   const [rsvpFilter, setRsvpFilter] = useState('')
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const canReorder = !filter && !rsvpFilter
+
+  // Scrive sort_order = posizione per le righe cambiate, poi UN solo refetch.
+  async function persistOrder(ordered: any[]) {
+    const changed = ordered.map((g, i) => ({ g, i })).filter(({ g, i }) => (g.sort_order ?? -1) !== i)
+    if (changed.length === 0) return
+    await Promise.all(changed.map(({ g, i }) => (supabase.from('event_guests') as any).update({ sort_order: i }).eq('id', g.id)))
+    qc.invalidateQueries({ queryKey: ['guests', entryId] })
+  }
+  function reorder(targetId: string) {
+    if (!draggingId || draggingId === targetId) return
+    const arr = [...((guests ?? []) as any[])]
+    const from = arr.findIndex((x) => x.id === draggingId)
+    const to = arr.findIndex((x) => x.id === targetId)
+    if (from < 0 || to < 0) return
+    const [moved] = arr.splice(from, 1)
+    arr.splice(to, 0, moved)
+    void persistOrder(arr)
+  }
+  function sortAlphabetical() {
+    const arr = [...((guests ?? []) as any[])].sort((a, b) => a.full_name.localeCompare(b.full_name, 'it'))
+    void persistOrder(arr).then(() => toast.success('Ordine alfabetico applicato'))
+  }
+  function sortCloseFamily() {
+    const arr = [...((guests ?? []) as any[])].sort((a, b) =>
+      (b.is_close_family ? 1 : 0) - (a.is_close_family ? 1 : 0) || a.full_name.localeCompare(b.full_name, 'it'))
+    void persistOrder(arr).then(() => toast.success('Parenti più stretti in cima'))
+  }
 
   const filtered = useMemo(() => {
     return (guests ?? []).filter((g: any) => {
@@ -130,6 +160,16 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
         </Select>
       </div>
 
+      {/* Ordinamento: trascina per ordine personale, oppure preset */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <span className="text-xs text-[rgb(var(--fg-muted))]">Ordina:</span>
+        <Button variant="outline" size="sm" onClick={sortAlphabetical}><ArrowDownAZ size={14} /> Alfabetico</Button>
+        <Button variant="outline" size="sm" onClick={sortCloseFamily}><Heart size={14} /> Parenti più stretti</Button>
+        <span className="text-[11px] text-[rgb(var(--fg-subtle))]">
+          {canReorder ? 'oppure trascina ⠿ una riga su/giù per l’ordine manuale · ★ = parente stretto' : 'azzera i filtri per riordinare a mano'}
+        </span>
+      </div>
+
       {/* Desktop: table */}
       <Card className="overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
@@ -152,10 +192,27 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
               <tr><td colSpan={9} className="px-4 py-10 text-center text-[rgb(var(--fg-subtle))]">Nessun invitato.</td></tr>
             )}
             {filtered.map((g: any) => (
-              <tr key={g.id} className="border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+              <tr key={g.id}
+                onDragOver={(e) => { if (canReorder && draggingId) { e.preventDefault(); setOverId(g.id) } }}
+                onDrop={(e) => { if (canReorder && draggingId) { e.preventDefault(); reorder(g.id); setDraggingId(null); setOverId(null) } }}
+                className={`border-t ${overId === g.id ? 'bg-[rgb(var(--gold-100))]/50' : ''} ${draggingId === g.id ? 'opacity-50' : ''}`}
+                style={{ borderColor: 'rgb(var(--border))' }}>
                 <td className="px-4 py-2">
-                  <Input className="h-8 text-sm" defaultValue={g.full_name}
-                    onBlur={(e) => { if (e.target.value !== g.full_name) update.mutate({ id: g.id, patch: { full_name: e.target.value } }) }} />
+                  <div className="flex items-center gap-1.5">
+                    {canReorder && (
+                      <span draggable
+                        onDragStart={() => setDraggingId(g.id)}
+                        onDragEnd={() => { setDraggingId(null); setOverId(null) }}
+                        title="Trascina per ordinare" className="cursor-grab active:cursor-grabbing text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--fg))]"><GripVertical size={14} /></span>
+                    )}
+                    <button title={g.is_close_family ? 'Parente stretto (togli)' : 'Segna come parente stretto'}
+                      onClick={() => update.mutate({ id: g.id, patch: { is_close_family: !g.is_close_family } })}
+                      className={g.is_close_family ? 'text-[rgb(var(--gold-500))]' : 'text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--gold-500))]'}>
+                      <Star size={14} fill={g.is_close_family ? 'currentColor' : 'none'} />
+                    </button>
+                    <Input className="h-8 text-sm flex-1" defaultValue={g.full_name}
+                      onBlur={(e) => { if (e.target.value !== g.full_name) update.mutate({ id: g.id, patch: { full_name: e.target.value } }) }} />
+                  </div>
                 </td>
                 <td className="px-4 py-2">
                   <select className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"

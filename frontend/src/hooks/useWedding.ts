@@ -124,7 +124,8 @@ export function useGuests(entryId: string | null) {
     queryKey: ['guests', entryId],
     enabled: !!entryId,
     queryFn: async () => {
-      const { data, error } = await supabase.from('event_guests').select('*').eq('entry_id', entryId!).order('full_name')
+      const { data, error } = await supabase.from('event_guests').select('*').eq('entry_id', entryId!)
+        .order('sort_order', { nullsFirst: false }).order('full_name')
       if (error) throw error
       return data ?? []
     },

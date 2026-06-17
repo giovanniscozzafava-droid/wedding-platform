@@ -61,6 +61,7 @@ export function TableauPlan({
   const [dragId, setDragId] = useState<string | null>(null)
   const [livePos, setLivePos] = useState<{ id: string; x: number; y: number } | null>(null) // posizione fluida durante il drag
   const [overTable, setOverTable] = useState<string | null>(null)
+  const [overUnseat, setOverUnseat] = useState(false)
 
   useEffect(() => {
     const el = planRef.current; if (!el) return
@@ -184,9 +185,14 @@ export function TableauPlan({
         <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1.5">Trascina i tavoli per posizionarli · doppio clic per assegnare invitati · trascina un invitato dall'elenco a destra sul tavolo · ingrandisci per leggere i nomi alle sedie.</p>
       </div>
 
-      {/* ELENCO non seduti (drag verso i tavoli) */}
-      <div className="w-44 shrink-0 border border-[rgb(var(--border))] rounded-xl p-2 flex flex-col max-h-[70vh]">
+      {/* ELENCO non seduti (drag verso i tavoli) + drop-zone per TOGLIERE dal tavolo */}
+      <div
+        onDragOver={(e) => { if (e.dataTransfer.types.includes('text/guest')) { e.preventDefault(); setOverUnseat(true) } }}
+        onDragLeave={() => setOverUnseat(false)}
+        onDrop={(e) => { const gid = e.dataTransfer.getData('text/guest'); setOverUnseat(false); if (gid) { e.preventDefault(); onAssignGuest(gid, null as any) } }}
+        className={`w-44 shrink-0 border rounded-xl p-2 flex flex-col max-h-[70vh] transition-colors ${overUnseat ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]/40' : 'border-[rgb(var(--border))]'}`}>
         <p className="text-xs font-medium mb-1.5 flex items-center gap-1"><UserPlus size={12} /> Da sedere ({unseated.length})</p>
+        {overUnseat && <p className="text-[10px] text-[rgb(var(--gold-700))] mb-1">Rilascia qui per togliere dal tavolo</p>}
         <div className="flex-1 overflow-y-auto space-y-1">
           {unseated.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-subtle))] italic">Tutti seduti 🎉</p>}
           {unseated.map((g) => (
@@ -229,7 +235,7 @@ function SeatNames({ shape, seats, seated, wpx, hpx }: {
   // primo nome di ogni invitato (nome breve), per non affollare
   const short = (full: string) => { const p = full.trim().split(/\s+/); return p.length > 1 ? `${p[0]} ${p[1]![0]}.` : p[0] }
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 25 }}>
+    <div className="absolute inset-0" style={{ zIndex: 25, pointerEvents: 'none' }}>
       {seated.slice(0, pts.length).map((g, i) => {
         const p = pts[i]!
         const lx = p.x * wpx + p.ox * PAD
@@ -237,11 +243,14 @@ function SeatNames({ shape, seats, seated, wpx, hpx }: {
         const tx = p.ox <= -0.3 ? '-100%' : p.ox >= 0.3 ? '0' : '-50%'
         const ty = p.oy <= -0.3 ? '-100%' : p.oy >= 0.3 ? '0' : '-50%'
         return (
-          <span key={g.id} style={{
-            position: 'absolute', left: lx, top: ly, transform: `translate(${tx}, ${ty})`,
-            fontSize: fs, lineHeight: 1, whiteSpace: 'nowrap', fontWeight: 500,
-            color: 'rgb(var(--fg))', textShadow: '0 1px 2px rgb(var(--bg)), 0 0 2px rgb(var(--bg))',
-          }} title={g.full_name}>{short(g.full_name)}</span>
+          <span key={g.id} draggable
+            onPointerDown={(e) => e.stopPropagation()}
+            onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/guest', g.id); e.dataTransfer.effectAllowed = 'move' }}
+            style={{
+              position: 'absolute', left: lx, top: ly, transform: `translate(${tx}, ${ty})`,
+              fontSize: fs, lineHeight: 1, whiteSpace: 'nowrap', fontWeight: 500, cursor: 'grab', pointerEvents: 'auto',
+              color: 'rgb(var(--fg))', textShadow: '0 1px 2px rgb(var(--bg)), 0 0 2px rgb(var(--bg))',
+            }} title={`${g.full_name} — trascina fuori per togliere dal tavolo`}>{short(g.full_name)}</span>
         )
       })}
     </div>
