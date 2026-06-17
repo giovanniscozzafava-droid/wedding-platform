@@ -129,7 +129,14 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     try {
       // 1. Estrai og:image + scarica byte lato server (bypass CORS browser)
       const { data: meta, error } = await supabase.functions.invoke('import-pin-url', { body: { url, fetch_image: true } })
-      if (error) throw error
+      if (error) {
+        // La funzione mette un messaggio utile nel body JSON (es. "Instagram blocca
+        // l'estrazione, salva la foto e usa Carica file"). Lo recuperiamo dal Response
+        // invece di mostrare il generico "Edge Function returned a non-2xx status code".
+        let msg = (error as { message?: string }).message || 'Import non riuscito'
+        try { const body = await ((error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.()); if (body?.error) msg = body.error } catch { /* ignore */ }
+        throw new Error(msg)
+      }
       const m = meta as any
       if (!m?.image) throw new Error('Nessuna immagine trovata in quella pagina')
 
