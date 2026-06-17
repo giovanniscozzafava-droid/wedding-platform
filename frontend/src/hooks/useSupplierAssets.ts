@@ -35,7 +35,11 @@ export function useSupplierAssets() {
   return useQuery<SupplierAsset[]>({
     queryKey: ['supplier-assets'],
     queryFn: async () => {
-      const { data, error } = await tbl().select('*').order('sort_order').order('created_at', { ascending: false })
+      const { data: me } = await supabase.auth.getUser()
+      const uid = me.user?.id
+      if (!uid) return []
+      // SICUREZZA: solo i PROPRI asset (oltre alla RLS), mai quelli di altri fornitori
+      const { data, error } = await tbl().select('*').eq('supplier_id', uid).order('sort_order').order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as SupplierAsset[]
     },

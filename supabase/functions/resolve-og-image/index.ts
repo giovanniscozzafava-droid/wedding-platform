@@ -35,6 +35,12 @@ Deno.serve(async (req) => {
       /"display_url":"([^"]+)"/i,            // Instagram JSON
       /"image_url":"([^"]+)"/i,             // Pinterest JSON
     ])
+    // Pinterest: spesso niente og:image; l'immagine vera è su i.pinimg.com (preferisci originals)
+    if (!img) {
+      const pin = html.match(/https:\/\/i\.pinimg\.com\/originals\/[a-z0-9/]+\.(?:jpg|png|webp)/i)
+        || html.match(/https:\/\/i\.pinimg\.com\/736x\/[a-z0-9/]+\.(?:jpg|png|webp)/i)
+      if (pin) img = pin[0]
+    }
     if (img) img = img.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/\\\//g, '/')
     return json({ image_url: img || null, source_url: url })
   } catch (_e) {
