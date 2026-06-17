@@ -1141,7 +1141,7 @@ function FreeStage(props: {
   const aspect = fmt.w / fmt.h
   const mx = MARGIN_MM / fmt.w, my = MARGIN_MM / fmt.h
   const boxRef = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl; group: FreeEl[] } | null>(null)
+  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate' | 'gresize'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl; group: FreeEl[]; anchor?: { x: number; y: number }; h0?: { x: number; y: number } } | null>(null)
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
   const [gapMarks, setGapMarks] = useState<GapMark[]>([])
   const els = page.elements ?? []
@@ -1156,6 +1156,20 @@ function FreeStage(props: {
     const inGroup = kind === 'move' && multiSel.length > 1 && multiSel.includes(el.id)
     const group = inGroup ? els.filter((x) => multiSel.includes(x.id)) : [el]
     const f = frac(e); drag.current = { kind, id: el.id, corner, sx: f.x, sy: f.y, el, group }
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  // Resize di GRUPPO: scala insieme tutte le foto selezionate, attorno all'angolo opposto
+  // (uniforme, stile Canva). Lo snapshot del gruppo è preso all'inizio del drag.
+  function downGroup(e: React.PointerEvent, corner: Corner) {
+    e.stopPropagation()
+    const g = els.filter((x) => multiSel.includes(x.id))
+    if (g.length < 2) return
+    const bx = Math.min(...g.map((x) => x.x)), by = Math.min(...g.map((x) => x.y))
+    const ex = Math.max(...g.map((x) => x.x + x.w)), ey = Math.max(...g.map((x) => x.y + x.h))
+    const anchor = { x: corner.includes('e') ? bx : ex, y: corner.includes('s') ? by : ey }
+    const h0 = { x: corner.includes('e') ? ex : bx, y: corner.includes('s') ? ey : by }
+    const f = frac(e)
+    drag.current = { kind: 'gresize', id: '__group__', corner, sx: f.x, sy: f.y, el: g[0]!, group: g, anchor, h0 }
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   function move(e: React.PointerEvent) {
@@ -1182,6 +1196,15 @@ function FreeStage(props: {
       setGapMarks([...sp.marks, ...live.filter((mk) => !eq.has(`${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))])
     } else if (d.kind === 'resize' && d.corner) {
       const r = resizeEl(d.el, d.corner, f.x, f.y); onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
+    } else if (d.kind === 'gresize' && d.anchor && d.h0) {
+      const a = d.anchor, h0 = d.h0
+      const dist = (p: { x: number; y: number }, q: { x: number; y: number }) => Math.hypot(p.x - q.x, p.y - q.y)
+      const d0 = dist(h0, a); if (d0 < 1e-4) return
+      // limite per non far uscire il gruppo dalla tavola
+      const lim = (av: number, hv: number) => { const dd = hv - av; if (Math.abs(dd) < 1e-6) return Infinity; return dd > 0 ? (1 - av) / dd : (0 - av) / dd }
+      const maxS = Math.max(0.2, Math.min(lim(a.x, h0.x), lim(a.y, h0.y)))
+      const s = Math.max(0.15, Math.min(dist(f, a) / d0, maxS, 6))
+      onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * s, y: a.y + (g.y - a.y) * s, w: Math.max(0.02, g.w * s), h: Math.max(0.02, g.h * s) } })))
     } else if (d.kind === 'rotate') {
       const cx = d.el.x + d.el.w / 2, cy = d.el.y + d.el.h / 2
       const deg = (Math.atan2(f.y - cy, f.x - cx) * 180) / Math.PI + 90
@@ -1228,6 +1251,24 @@ function FreeStage(props: {
           </div>
         )
       })}
+
+      {/* BOX DI GRUPPO: con più foto selezionate, le maniglie le ridimensionano INSIEME */}
+      {multiSel.length > 1 && (() => {
+        const g = els.filter((x) => multiSel.includes(x.id)); if (g.length < 2) return null
+        const bx = Math.min(...g.map((x) => x.x)), by = Math.min(...g.map((x) => x.y))
+        const ex = Math.max(...g.map((x) => x.x + x.w)), ey = Math.max(...g.map((x) => x.y + x.h))
+        return (
+          <div className="absolute z-30 pointer-events-none" style={{ left: `${bx * 100}%`, top: `${by * 100}%`, width: `${(ex - bx) * 100}%`, height: `${(ey - by) * 100}%` }}>
+            <div className="absolute inset-0 border-2 border-dashed border-[rgb(var(--gold-500))]" />
+            {(['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
+              <div key={c} onPointerDown={(e) => downGroup(e, c)}
+                className="absolute h-3.5 w-3.5 bg-white border-2 border-[rgb(var(--gold-500))] rounded-sm touch-none pointer-events-auto"
+                style={{ left: c.includes('w') ? -7 : undefined, right: c.includes('e') ? -7 : undefined, top: c.includes('n') ? -7 : undefined, bottom: c.includes('s') ? -7 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />
+            ))}
+            <span className="absolute -top-5 left-0 text-[9px] px-1 rounded bg-[rgb(var(--gold-500))] text-white pointer-events-none">{g.length} foto · ridimensiona insieme</span>
+          </div>
+        )
+      })()}
 
       {/* smart guides (allineamento bordi/centri) */}
       {guides.v.map((g, i) => <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-rose-500 pointer-events-none" style={{ left: `${g * 100}%` }} />)}
