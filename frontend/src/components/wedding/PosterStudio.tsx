@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Download, Loader2, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MOOD_PALETTE } from '@/lib/moodBoard'
 import { POSTER_TEMPLATES, POSTER_FORMATS, getTemplate, templateForTheme, type Palette } from '@/lib/tableauPosters'
+import { loadOrnaments, type OrnamentName } from '@/lib/tableauOrnaments'
 import { exportPosterNode } from '@/lib/tableauExport'
 import { TableauPoster, type PosterData } from './TableauPoster'
 
@@ -22,7 +23,10 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
   const [names, setNames] = useState(coupleNames)
   const [date, setDate] = useState(dateText)
   const [busy, setBusy] = useState(false)
+  const [ornaments, setOrnaments] = useState<Record<OrnamentName, string> | null>(null)
   const exportRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { if (open && !ornaments) void loadOrnaments().then(setOrnaments) }, [open, ornaments])
 
   const template = getTemplate(templateId)
   const palette: Palette = accent ? { ...template.palette, accent } : template.palette
@@ -44,7 +48,7 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
   const previewW = 320
 
   async function doExport() {
-    if (!exportRef.current) return
+    if (!exportRef.current || !ornaments) return
     setBusy(true)
     try {
       await exportPosterNode(exportRef.current, { w: fmtMm.w, h: fmtMm.h }, `tableau-${fmt}-${(names || 'sposi').toLowerCase().replace(/\s+/g, '-')}.pdf`)
@@ -116,24 +120,28 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
             </div>
 
             <div className="pt-1">
-              <Button variant="gold" disabled={busy} onClick={doExport} className="w-full">{busy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Scarica poster PDF ({POSTER_FORMATS[fmt]!.label})</Button>
+              <Button variant="gold" disabled={busy || !ornaments} onClick={doExport} className="w-full">{busy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Scarica poster PDF ({POSTER_FORMATS[fmt]!.label})</Button>
               <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1.5 text-center">{data.tables.length} tavoli · {data.tables.reduce((s, t) => s + t.guests.length, 0)} nomi</p>
             </div>
           </div>
 
           {/* Anteprima */}
           <div className="p-4 bg-[rgb(var(--bg-sunken))] flex items-start justify-center order-1 md:order-2">
-            <div className="shadow-xl" style={{ width: previewW }}>
-              <TableauPoster template={template} palette={palette} data={data} width={previewW} ratio={ratio} />
+            <div className="shadow-xl" style={{ width: previewW, minHeight: previewW * ratio }}>
+              {ornaments
+                ? <TableauPoster template={template} palette={palette} data={data} width={previewW} ratio={ratio} ornaments={ornaments} />
+                : <div className="flex items-center justify-center text-[rgb(var(--fg-subtle))]" style={{ height: previewW * ratio }}><Loader2 size={20} className="animate-spin" /></div>}
             </div>
           </div>
         </div>
       </div>
 
       {/* Nodo nascosto ad alta risoluzione per l'export */}
-      <div style={{ position: 'fixed', left: -100000, top: 0, pointerEvents: 'none', opacity: 1 }} aria-hidden>
-        <TableauPoster ref={exportRef} template={template} palette={palette} data={data} width={1500} ratio={ratio} />
-      </div>
+      {ornaments && (
+        <div style={{ position: 'fixed', left: -100000, top: 0, pointerEvents: 'none', opacity: 1 }} aria-hidden>
+          <TableauPoster ref={exportRef} template={template} palette={palette} data={data} width={1500} ratio={ratio} ornaments={ornaments} />
+        </div>
+      )}
     </div>
   )
 }
