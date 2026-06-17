@@ -120,7 +120,7 @@ export default function SupplierLeadsPage() {
                     {l.questionnaire_payload && Object.keys(l.questionnaire_payload).length > 0 && (
                       <div className="mt-2 space-y-2">
                         <AnswersPanel answers={l.questionnaire_payload} title="Cosa desidera il cliente" />
-                        <LikedStylesGallery cards={(l.questionnaire_payload as Record<string, unknown>).liked_style_cards} />
+                        <LikedStylesGallery cards={(l.questionnaire_payload as Record<string, unknown>).liked_style_cards} tags={(l.questionnaire_payload as Record<string, unknown>).liked_tags} />
                       </div>
                     )}
                   </div>

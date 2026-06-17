@@ -573,7 +573,7 @@ export default function QuoteEditorPage() {
         {clientAnswers && Object.keys(clientAnswers).length > 0 && (
           <div className="mb-4 space-y-3">
             <AnswersPanel answers={clientAnswers} title="Cosa desidera il cliente" note="Risposte dal questionario: usale per personalizzare le voci del preventivo." />
-            <LikedStylesGallery cards={(clientAnswers as Record<string, unknown>).liked_style_cards} />
+            <LikedStylesGallery cards={(clientAnswers as Record<string, unknown>).liked_style_cards} tags={(clientAnswers as Record<string, unknown>).liked_tags} />
           </div>
         )}
 

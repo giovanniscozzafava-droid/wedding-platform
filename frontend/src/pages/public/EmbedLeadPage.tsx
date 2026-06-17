@@ -80,6 +80,8 @@ export default function EmbedLeadPage() {
   const [finalists, setFinalists] = useState<Card[] | null>(null)
   const [hasGame, setHasGame] = useState(false)
   const [liked, setLiked] = useState<{ id: string; url: string; tags: string[] }[]>([])
+  const [tagScore, setTagScore] = useState<Record<string, number>>({}) // matching: punteggio tag (pesato per round)
+  const [roundNum, setRoundNum] = useState(1)
   const cardUrl = (c: { path: string | null; image_url?: string | null }) => c.image_url || (c.path ? supabase.storage.from('supplier-assets').getPublicUrl(c.path).data.publicUrl : '')
   const FINALISTS = 3
   const [form, setForm] = useState({
@@ -135,6 +137,7 @@ export default function EmbedLeadPage() {
         const arr = (Array.isArray(data) ? data : []) as Card[]
         const pool = [...arr].sort(() => Math.random() - 0.5).slice(0, 16)
         setRound(pool); setWinners([]); setPairIdx(0); setFinalists(null); setLiked([]); setHasGame(pool.length >= 2)
+        setTagScore({}); setRoundNum(1)
       } catch { setHasGame(false) }
     })()
   }, [slug, form.event_kind])
@@ -145,15 +148,20 @@ export default function EmbedLeadPage() {
       setFinalists(w)
       setLiked(w.map((c) => ({ id: c.id, url: cardUrl(c), tags: c.tags ?? [] })))
     } else {
-      setRound([...w].sort(() => Math.random() - 0.5)); setWinners([]); setPairIdx(0)
+      setRound([...w].sort(() => Math.random() - 0.5)); setWinners([]); setPairIdx(0); setRoundNum((r) => r + 1)
     }
   }
   function choose(card: Card) {
+    // MATCHING: la foto scelta dà punti ai suoi tag, pesati per round (i round profondi pesano di più)
+    setTagScore((s) => { const m = { ...s }; for (const t of card.tags ?? []) m[t] = (m[t] || 0) + roundNum; return m })
     const w = [...winners, card]
     const next = pairIdx + 2
     if (next >= round.length) endOfRound(w)
     else { setWinners(w); setPairIdx(next) }
   }
+  // Profilo di stile ordinato dal matching (tag → punteggio)
+  const styleProfile = Object.entries(tagScore).sort((a, b) => b[1] - a[1])
+  const rankedTags = styleProfile.map(([t]) => t).slice(0, 8)
   // bye automatico: numero dispari → l'ultima card avanza da sola
   useEffect(() => {
     if (finalists || round.length === 0) return
@@ -228,7 +236,8 @@ export default function EmbedLeadPage() {
           ...(form.guests_estimate ? { guests_estimate: Number(form.guests_estimate) } : {}),
           ...(form.budget_range && form.budget_range !== 'undecided' ? { budget_range: form.budget_range } : {}),
           ...catAnswers, // risposte alle domande specifiche di categoria (fiorista, fotografo, ...)
-          ...(liked.length ? { liked_style_cards: liked, liked_tags: Array.from(new Set(liked.flatMap((x) => x.tags))) } : {}),
+          ...(liked.length ? { liked_style_cards: liked } : {}),
+          ...(rankedTags.length ? { liked_tags: rankedTags, style_profile: styleProfile.slice(0, 8).map(([tag, score]) => ({ tag, score })) } : {}),
           callback_pref: callbackPref,
         },
       })
@@ -402,6 +411,14 @@ export default function EmbedLeadPage() {
                   {finalists.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 8 }}>
                     {finalists.map((l) => <div key={l.id} style={{ width: 72, height: 90, borderRadius: 8, border: `2px solid ${primary}`, background: '#f4f1ea', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><img src={cardUrl(l)} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /></div>)}
                   </div>}
+                  {rankedTags.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>Il tuo stile, in ordine:</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
+                        {rankedTags.slice(0, 6).map((t, i) => <span key={t} style={{ fontSize: 11, borderRadius: 99, padding: '2px 9px', background: i === 0 ? primary : 'rgba(0,0,0,.06)', color: i === 0 ? '#fff' : '#555', fontWeight: i === 0 ? 600 : 400 }}>{t}</span>)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : A && B ? (<>
                 <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Tra le due, quale preferisci? Andiamo avanti finché restano i tuoi preferiti.</p>
