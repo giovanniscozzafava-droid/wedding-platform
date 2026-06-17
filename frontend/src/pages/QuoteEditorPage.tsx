@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle } from 'lucide-react'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AvailabilityBanner } from '@/components/quote/AvailabilityBanner'
+import { AnswersPanel } from '@/components/AnswersPanel'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { useServices } from '@/hooks/useCatalog'
@@ -80,6 +81,15 @@ export default function QuoteEditorPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const { data: quote, isLoading } = useQuote(id ?? null)
+  // Risposte del cliente (questionario di categoria/evento), da mostrare a chi crea il preventivo
+  const { data: clientAnswers } = useQuery({
+    queryKey: ['quote-answers', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await supabase.from('quote_questionnaire_answers').select('answers').eq('quote_id', id!).maybeSingle()
+      return ((data as { answers?: Record<string, unknown> } | null)?.answers ?? null)
+    },
+  })
   const qc = useQueryClient()
   const [closingQuote, setClosingQuote] = useState(false)
   // Flusso fornitore (sia direct quote sia owner ruolo FORNITORE): nasconde
@@ -557,6 +567,13 @@ export default function QuoteEditorPage() {
             </Button>
           </div>
         </div>
+
+        {/* Risposte del cliente (dal form di categoria/questionario): guidano il preventivo */}
+        {clientAnswers && Object.keys(clientAnswers).length > 0 && (
+          <div className="mb-4">
+            <AnswersPanel answers={clientAnswers} title="Cosa desidera il cliente" note="Risposte dal questionario: usale per personalizzare le voci del preventivo." />
+          </div>
+        )}
 
         {/* Banner: preventivo firmato → lock modifiche + convert-to-contract */}
         {(quote.status === 'ACCETTATO' || quote.status === 'CONVERTITO_IN_CONTRATTO') && (

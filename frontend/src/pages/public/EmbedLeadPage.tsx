@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { getQuestionsForSubrole, subroleLabel } from '@/lib/supplierQuestions'
+import type { Question } from '@/lib/eventQuestions'
 
 // ============================================================================
 // Form lead EMBEDDABILE — pensato per girare dentro un <iframe> su siti terzi
@@ -67,6 +69,8 @@ export default function EmbedLeadPage() {
   const [error, setError] = useState('')
   const [callbackPref, setCallbackPref] = useState('indifferente')
   const [altSent, setAltSent] = useState(false)
+  const [subrole, setSubrole] = useState<string | null>(null)          // categoria del professionista
+  const [catAnswers, setCatAnswers] = useState<Record<string, unknown>>({}) // risposte alle domande di categoria
   const [form, setForm] = useState({
     client_name: '', client_email: '', client_phone: '',
     event_kind: 'matrimonio', event_date: '', event_location: '', guests_estimate: '',
@@ -103,8 +107,8 @@ export default function EmbedLeadPage() {
       for (const fn of ['get_wp_public_profile', 'get_supplier_public_profile']) {
         try {
           const { data, error } = await (supabase as unknown as AnyRpc).rpc(fn, { p_slug: slug })
-          const p = data as { business_name?: string | null; full_name?: string | null } | null
-          if (!error && p) { setProName(p.business_name || p.full_name || ''); return }
+          const p = data as { business_name?: string | null; full_name?: string | null; subrole?: string | null } | null
+          if (!error && p) { setProName(p.business_name || p.full_name || ''); setSubrole(p.subrole ?? null); return }
         } catch { /* prova il prossimo */ }
       }
     })()
@@ -117,6 +121,12 @@ export default function EmbedLeadPage() {
       if (cur.length >= max) return f
       return { ...f, [key]: [...cur, val] }
     })
+  }
+
+  // Risposte alle domande di categoria (specifiche del subrole del professionista)
+  function setCat(key: string, val: unknown) { setCatAnswers((a) => ({ ...a, [key]: val })) }
+  function toggleCatMulti(key: string, val: string) {
+    setCatAnswers((a) => { const cur = Array.isArray(a[key]) ? (a[key] as string[]) : []; return { ...a, [key]: cur.includes(val) ? cur.filter((x) => x !== val) : [...cur, val] } })
   }
 
   async function submit() {
@@ -167,6 +177,7 @@ export default function EmbedLeadPage() {
           ...(form.no_thanks.trim() ? { no_thanks: form.no_thanks.trim() } : {}),
           ...(form.guests_estimate ? { guests_estimate: Number(form.guests_estimate) } : {}),
           ...(form.budget_range && form.budget_range !== 'undecided' ? { budget_range: form.budget_range } : {}),
+          ...catAnswers, // risposte alle domande specifiche di categoria (fiorista, fotografo, ...)
           callback_pref: callbackPref,
         },
       })
@@ -309,6 +320,51 @@ export default function EmbedLeadPage() {
             </div>
           </>
         )}
+
+        {/* DOMANDE SPECIFICHE DI CATEGORIA (dal subrole del professionista): le risposte
+            arrivano automaticamente a chi crea il preventivo. */}
+        {!compact && subrole && (() => {
+          const catSections = getQuestionsForSubrole(subrole).slice(0, 2).filter((s) => (s.questions?.length ?? 0) > 0)
+          if (!catSections.length) return null
+          return (
+            <>
+              <div style={{ marginTop: 6, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.08)' }}>
+                <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Qualche dettaglio per {proName || subroleLabel(subrole)}</p>
+                <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 4 }}>Aiuta {proName ? 'il professionista' : 'chi ti seguirà'} a capire subito i tuoi gusti (facoltativo).</p>
+              </div>
+              {catSections.flatMap((sec) => sec.questions).map((q: Question) => {
+                const v = catAnswers[q.key]
+                return (
+                  <Field key={q.key} label={q.label}>
+                    {q.type === 'textarea' ? (
+                      <textarea style={{ ...ui.input, minHeight: 56, resize: 'vertical' }} value={(v as string) ?? ''} onChange={(e) => setCat(q.key, e.target.value)} placeholder={q.placeholder} />
+                    ) : q.type === 'select' ? (
+                      <select style={ui.input} value={(v as string) ?? ''} onChange={(e) => setCat(q.key, e.target.value)}>
+                        <option value="">Seleziona…</option>
+                        {(q.options ?? []).map((o) => <option key={o} value={o}>{o.replace(/_/g, ' ')}</option>)}
+                      </select>
+                    ) : q.type === 'multiselect' ? (
+                      <div style={ui.chips}>
+                        {(q.options ?? []).map((o) => {
+                          const on = Array.isArray(v) && (v as string[]).includes(o)
+                          return <button key={o} type="button" onClick={() => toggleCatMulti(q.key, o)} style={on ? ui.chipOn : ui.chip}>{o.replace(/_/g, ' ')}</button>
+                        })}
+                      </div>
+                    ) : q.type === 'tags' ? (
+                      <input style={ui.input} value={Array.isArray(v) ? (v as string[]).join(', ') : ((v as string) ?? '')} onChange={(e) => setCat(q.key, e.target.value.split(',').map((x) => x.trim()).filter(Boolean))} placeholder={q.placeholder} />
+                    ) : q.type === 'number' ? (
+                      <input style={ui.input} type="number" value={(v as number | string) ?? ''} onChange={(e) => setCat(q.key, e.target.value ? Number(e.target.value) : null)} placeholder={q.placeholder} />
+                    ) : q.type === 'date' ? (
+                      <input style={ui.input} type="date" value={(v as string) ?? ''} onChange={(e) => setCat(q.key, e.target.value)} />
+                    ) : (
+                      <input style={ui.input} value={(v as string) ?? ''} onChange={(e) => setCat(q.key, e.target.value)} placeholder={q.placeholder} />
+                    )}
+                  </Field>
+                )
+              })}
+            </>
+          )
+        })()}
 
         {/* honeypot anti-bot */}
         <input type="text" tabIndex={-1} autoComplete="off" name="website_url" value={form.honeypot}

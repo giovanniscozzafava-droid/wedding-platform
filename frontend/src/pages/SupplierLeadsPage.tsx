@@ -4,6 +4,7 @@ import { Inbox, Calendar, MapPin, Users, ArrowRight, Filter, Trash2 } from 'luci
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { AnswersPanel } from '@/components/AnswersPanel'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -17,7 +18,7 @@ type Lead = {
   id: string; status: string; event_kind: string | null; event_date_from: string | null
   event_location: string | null; estimated_guests: number | null; estimated_budget: string | null
   message: string | null; source: string | null; created_at: string; converted_quote_id: string | null
-  supplier_client_id: string | null
+  supplier_client_id: string | null; questionnaire_payload: Record<string, unknown> | null
 }
 
 const STATUS_FLOW = ['NEW', 'CONTACTED', 'QUALIFIED', 'QUOTE_CREATED', 'QUOTE_SENT', 'WON', 'LOST', 'ARCHIVED']
@@ -115,6 +116,9 @@ export default function SupplierLeadsPage() {
                       {l.estimated_budget && <span>budget {l.estimated_budget}</span>}
                     </div>
                     {l.message && <p className="text-xs text-[rgb(var(--fg-muted))] mt-1.5">{l.message}</p>}
+                    {l.questionnaire_payload && Object.keys(l.questionnaire_payload).length > 0 && (
+                      <div className="mt-2"><AnswersPanel answers={l.questionnaire_payload} title="Cosa desidera il cliente" /></div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-3 flex-wrap">
