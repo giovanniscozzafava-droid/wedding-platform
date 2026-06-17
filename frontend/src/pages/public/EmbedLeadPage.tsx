@@ -64,6 +64,8 @@ export default function EmbedLeadPage() {
 
   const rootRef = useRef<HTMLDivElement>(null)
   const [proName, setProName] = useState<string>('')
+  type Pro = { business_name?: string | null; full_name?: string | null; subrole?: string | null; tagline?: string | null; city?: string | null; bio?: string | null; brand_logo_url?: string | null; cover_image_url?: string | null; brand_primary_color?: string | null }
+  const [pro, setPro] = useState<Pro | null>(null)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
@@ -120,8 +122,8 @@ export default function EmbedLeadPage() {
       for (const fn of ['get_wp_public_profile', 'get_supplier_public_profile']) {
         try {
           const { data, error } = await (supabase as unknown as AnyRpc).rpc(fn, { p_slug: slug })
-          const p = data as { business_name?: string | null; full_name?: string | null; subrole?: string | null } | null
-          if (!error && p) { setProName(p.business_name || p.full_name || ''); setSubrole(p.subrole ?? null); return }
+          const p = data as Pro | null
+          if (!error && p) { setProName(p.business_name || p.full_name || ''); setSubrole(p.subrole ?? null); setPro(p); return }
         } catch { /* prova il prossimo */ }
       }
     })()
@@ -259,9 +261,47 @@ export default function EmbedLeadPage() {
 
   const ui = useMemo(() => makeStyles(primary, narrow), [primary, narrow])
 
+  // MINI-SITO: quando il link è aperto da solo (NON dentro un iframe), avvolgiamo il
+  // form in una cornice brandizzata (logo, cover, asset). Dentro un iframe o con
+  // ?embed=1 / ?bg=transparent resta il form nudo, come prima.
+  const embedded = typeof window !== 'undefined' && window.self !== window.top
+  const siteMode = !embedded && !transparent && sp.get('embed') !== '1'
+  const hx = (pro?.brand_primary_color || '').replace('#', '')
+  const heroColor = /^[0-9a-fA-F]{6}$/.test(hx) ? `#${hx}` : primary
+  const heroAssets = siteMode ? round.map(cardUrl).filter(Boolean).slice(0, 4) : []
+  const hero = siteMode ? (
+    <div style={{ maxWidth: 560, margin: '0 auto 14px', borderRadius: 16, overflow: 'hidden', boxShadow: '0 6px 24px rgba(15,23,42,.10)' }}>
+      <div style={{ position: 'relative', minHeight: 130, display: 'flex', alignItems: 'flex-end', padding: 16,
+        background: pro?.cover_image_url ? `center/cover no-repeat url("${pro.cover_image_url}")` : `linear-gradient(135deg, ${heroColor}, ${heroColor}bb)` }}>
+        {pro?.cover_image_url && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.6), rgba(0,0,0,.05))' }} />}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
+          {pro?.brand_logo_url
+            ? <img src={pro.brand_logo_url} alt="" style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover', background: '#fff', border: '2px solid #fff' }} />
+            : <div style={{ width: 56, height: 56, borderRadius: 12, background: '#fff', color: heroColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 26 }}>{(proName || 'P').slice(0, 1).toUpperCase()}</div>}
+          <div style={{ color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,.35)' }}>
+            <div style={{ fontSize: 19, fontWeight: 800, lineHeight: 1.1 }}>{proName || 'Professionista'}</div>
+            <div style={{ fontSize: 12.5, opacity: 0.95, marginTop: 1 }}>{[pro?.subrole && subroleLabel(pro.subrole), pro?.city].filter(Boolean).join(' · ')}</div>
+          </div>
+        </div>
+      </div>
+      {(pro?.tagline || pro?.bio) && <div style={{ background: '#fff', padding: '10px 16px', fontSize: 13, color: '#475569', lineHeight: 1.45 }}>{pro?.tagline || pro?.bio}</div>}
+      {heroAssets.length >= 2 && (
+        <div style={{ display: 'flex', gap: 4, background: '#fff', padding: '0 8px 10px' }}>
+          {heroAssets.map((u, i) => <div key={i} style={{ flex: 1, aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: '#f4f1ea' }}><img src={u} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>)}
+        </div>
+      )}
+    </div>
+  ) : null
+  const footer = siteMode ? (
+    <div style={{ maxWidth: 560, margin: '14px auto 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
+      {pro?.city ? `${pro.city} · ` : ''}Powered by Planfully
+    </div>
+  ) : null
+
   if (altSent) {
     return (
       <div ref={rootRef} style={{ ...ui.page, background: transparent ? 'transparent' : ui.page.background }}>
+        {hero}
         <div style={ui.card}>
           <div style={{ textAlign: 'center', padding: '24px 8px' }}>
             <div style={{ fontSize: 40, lineHeight: 1 }}>✉️</div>
@@ -272,12 +312,14 @@ export default function EmbedLeadPage() {
             </p>
           </div>
         </div>
+        {footer}
       </div>
     )
   }
   if (sent) {
     return (
       <div ref={rootRef} style={{ ...ui.page, background: transparent ? 'transparent' : ui.page.background }}>
+        {hero}
         <div style={ui.card}>
           <div style={{ textAlign: 'center', padding: '24px 8px' }}>
             <div style={{ fontSize: 40, lineHeight: 1 }}>✓</div>
@@ -289,12 +331,14 @@ export default function EmbedLeadPage() {
             </p>
           </div>
         </div>
+        {footer}
       </div>
     )
   }
 
   return (
     <div ref={rootRef} style={{ ...ui.page, background: transparent ? 'transparent' : ui.page.background }}>
+      {hero}
       <form
         style={ui.card}
         onSubmit={(e) => { e.preventDefault(); void submit() }}
@@ -496,6 +540,7 @@ export default function EmbedLeadPage() {
           Inviando accetti il trattamento dei dati per essere ricontattato. Powered by Planfully.
         </p>
       </form>
+      {footer}
     </div>
   )
 }
