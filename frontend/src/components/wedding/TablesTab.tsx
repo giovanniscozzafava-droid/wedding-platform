@@ -10,6 +10,7 @@ import { exportTableToPdf } from '@/lib/pdf-export'
 import { exportTableauPlanPdf, type TableauFormat } from '@/lib/tableauExport'
 import { EditRowModal, type Field } from './EditRowModal'
 import { TableauPlan } from './TableauPlan'
+import { PosterStudio } from './PosterStudio'
 import { SectionRings } from '@/components/event/SectionRings'
 
 const TABLE_NAMING_PRESETS: Record<string, string[]> = {
@@ -57,6 +58,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const [editTable, setEditTable] = useState<any | null>(null)
   const [assigningTable, setAssigningTable] = useState<any | null>(null)
   const [view, setView] = useState<'plan' | 'list'>('plan')
+  const [posterOpen, setPosterOpen] = useState(false)
   const currentTheme = (wedding as any)?.theme ?? ''
   const currentStyle = (wedding as any)?.tables_naming_style ?? ''
 
@@ -216,8 +218,9 @@ export function TablesTab({ entryId }: { entryId: string }) {
             <button onClick={() => setView('plan')} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${view === 'plan' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><MapIcon size={13} /> Piantina</button>
             <button onClick={() => setView('list')} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${view === 'list' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><List size={13} /> Elenco</button>
           </div>
-          <Button variant="outline" size="sm" onClick={() => exportPlan('A3')}><Download size={14} /> A3</Button>
-          <Button variant="outline" size="sm" onClick={() => exportPlan('70x100')}><Download size={14} /> 70×100</Button>
+          <Button variant="gold" size="sm" onClick={() => setPosterOpen(true)}><Sparkles size={14} /> Poster da esporre</Button>
+          <Button variant="ghost" size="sm" onClick={() => exportPlan('A3')} title="Piantina tecnica A3"><Download size={14} /> Piantina A3</Button>
+          <Button variant="ghost" size="sm" onClick={() => exportPlan('70x100')} title="Piantina tecnica 70×100"><Download size={14} /> 70×100</Button>
           <Button variant="ghost" size="sm" onClick={exportPdf} title="Elenco testuale"><Download size={14} /> Lista</Button>
         </div>
       </header>
@@ -361,6 +364,8 @@ export function TablesTab({ entryId }: { entryId: string }) {
             onMove={(id, pos_x, pos_y) => update.mutate({ id, patch: { pos_x, pos_y } } as any)}
             onAssignGuest={(guestId, tableId) => updateGuest.mutate({ id: guestId, patch: { table_id: tableId } })}
             onOpenAssign={(t) => setAssigningTable(t)}
+            onEditTable={(t) => setEditTable(t)}
+            onDeleteTable={(t) => { if (window.confirm(`Eliminare ${t.label ?? `Tavolo ${t.table_no}`}? Gli invitati torneranno tra i "da sedere".`)) remove.mutate(t.id) }}
           />
         </Card>
       ) : (
@@ -445,6 +450,17 @@ export function TablesTab({ entryId }: { entryId: string }) {
           onUnassign={(guestId) => updateGuest.mutate({ id: guestId, patch: { table_id: null } })}
         />
       )}
+
+      <PosterStudio
+        open={posterOpen}
+        onClose={() => setPosterOpen(false)}
+        tables={(tables ?? []) as any}
+        guests={(guests ?? []) as any}
+        coupleNames={(wedding as any)?.client_name ?? ''}
+        dateText={(wedding as any)?.date_from ? new Date((wedding as any).date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+        location={(wedding as any)?.quote?.event_location ?? undefined}
+        theme={currentTheme}
+      />
     </div>
   )
 }

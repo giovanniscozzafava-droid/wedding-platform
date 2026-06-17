@@ -4,6 +4,15 @@
 type T = { id: string; table_no: number; label: string | null; seats: number; shape: string; pos_x: number | null; pos_y: number | null; is_staff?: boolean | null }
 type G = { id: string; full_name: string; table_id: string | null }
 
+// Esporta un nodo DOM (il poster renderizzato) come PDF nel formato scelto (mm, ritratto).
+export async function exportPosterNode(node: HTMLElement, sizeMm: { w: number; h: number }, filename: string) {
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')])
+  const canvas = await html2canvas(node, { scale: 2, backgroundColor: null, useCORS: true, logging: false })
+  const pdf = new jsPDF({ orientation: sizeMm.h >= sizeMm.w ? 'portrait' : 'landscape', unit: 'mm', format: [sizeMm.w, sizeMm.h] })
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', 0, 0, sizeMm.w, sizeMm.h)
+  pdf.save(filename)
+}
+
 export type TableauFormat = 'A3' | '70x100'
 const SIZES: Record<TableauFormat, [number, number]> = { A3: [420, 297], '70x100': [1000, 700] } // mm, landscape
 

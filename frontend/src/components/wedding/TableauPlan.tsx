@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { UserPlus } from 'lucide-react'
+import { UserPlus, Pencil, Trash2 } from 'lucide-react'
 
 // Piantina grafica del tableau mariage: tavoli disegnati nella loro forma, trascinabili,
 // con assegnazione invitati (clic o drag-and-drop). pos_x/pos_y = frazione 0..1 della sala.
@@ -22,12 +22,14 @@ function tableSize(t: PlanTable): { w: number; h: number; round: boolean; u: boo
 const label = (t: PlanTable) => t.label ?? `Tavolo ${t.table_no}`
 
 export function TableauPlan({
-  tables, guests, onMove, onAssignGuest, onOpenAssign,
+  tables, guests, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable,
 }: {
   tables: PlanTable[]; guests: PlanGuest[]
   onMove: (id: string, pos_x: number, pos_y: number) => void
   onAssignGuest: (guestId: string, tableId: string) => void
   onOpenAssign: (t: PlanTable) => void
+  onEditTable: (t: PlanTable) => void
+  onDeleteTable: (t: PlanTable) => void
 }) {
   const planRef = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState({ w: 0, h: 0 })
@@ -100,14 +102,25 @@ export function TableauPlan({
                 onDragOver={(e) => { if (e.dataTransfer.types.includes('text/guest')) { e.preventDefault(); setOverTable(t.id) } }}
                 onDragLeave={() => setOverTable((v) => (v === t.id ? null : v))}
                 onDrop={(e) => { const gid = e.dataTransfer.getData('text/guest'); setOverTable(null); if (gid) { e.preventDefault(); onAssignGuest(gid, t.id) } }}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing touch-none flex flex-col items-center justify-center text-center transition-shadow ${dragId === t.id ? 'z-30 shadow-xl' : 'z-10'}`}
+                className={`group absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing touch-none flex flex-col items-center justify-center text-center transition-shadow ${dragId === t.id ? 'z-30 shadow-xl' : 'z-10 hover:z-20'}`}
                 style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: wpx, height: sz.u ? wpx * 0.7 : hpx, transform: `translate(-50%,-50%) rotate(${t.rotation ?? 0}deg)` }}
                 title={`${label(t)} — ${seated.length}/${t.seats} posti`}>
                 <TableShape shape={t.shape} wpx={wpx} hpx={sz.u ? wpx * 0.7 : hpx} seats={t.seats ?? 0} filled={seated.length}
                   staff={!!t.is_staff} over={over < 0} highlight={isOver} />
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-1">
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-1 overflow-hidden">
                   <span className="text-[10px] font-semibold leading-tight text-[rgb(var(--fg))] drop-shadow-sm truncate max-w-full">{label(t)}</span>
                   <span className={`text-[9px] leading-tight ${over < 0 ? 'text-[rgb(var(--rose-600))] font-semibold' : 'text-[rgb(var(--fg-muted))]'}`}>{seated.length}/{t.seats}</span>
+                  {wpx >= 64 && seated.length > 0 && (
+                    <div className="mt-0.5 leading-[1.15] text-center max-w-full">
+                      {seated.slice(0, 6).map((g) => <div key={g.id} className="text-[7.5px] text-[rgb(var(--fg-muted))] truncate max-w-full">{g.full_name}</div>)}
+                      {seated.length > 6 && <div className="text-[7.5px] text-[rgb(var(--fg-subtle))]">+{seated.length - 6}</div>}
+                    </div>
+                  )}
+                </div>
+                {/* azioni tavolo: modifica / elimina (compaiono su hover) */}
+                <div className="absolute -top-2 -right-2 z-40 hidden group-hover:flex items-center gap-0.5" style={{ transform: `rotate(${-(t.rotation ?? 0)}deg)` }}>
+                  <button title="Modifica tavolo" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onEditTable(t) }} className="h-5 w-5 rounded-full bg-[rgb(var(--bg))] border border-[rgb(var(--border))] shadow flex items-center justify-center hover:bg-[rgb(var(--bg-sunken))]"><Pencil size={10} /></button>
+                  <button title="Elimina tavolo" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDeleteTable(t) }} className="h-5 w-5 rounded-full bg-[rgb(var(--bg))] border border-[rgb(var(--border))] shadow flex items-center justify-center text-[rgb(var(--rose-500))] hover:bg-[rgb(var(--bg-sunken))]"><Trash2 size={10} /></button>
                 </div>
               </div>
             )
