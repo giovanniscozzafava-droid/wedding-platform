@@ -33,13 +33,19 @@ export const TableauPoster = forwardRef<HTMLDivElement, {
   const [fit, setFit] = useState(1)
   const gridRef = useRef<HTMLDivElement>(null)   // area scrivibile (altezza disponibile)
   const innerRef = useRef<HTMLDivElement>(null)  // contenuto multicol (altezza naturale)
+  const steps = useRef(0)
+  // "firma" degli INPUT: il contatore si azzera solo quando cambiano i dati reali,
+  // NON a ogni aggiustamento di fit (così evitiamo loop infiniti di render).
+  const sig = `${n}|${width}|${ratio}|${t.id}|${hasLogo}|${data.tables.map((tb) => tb.guests.length).join(',')}`
+  useLayoutEffect(() => { steps.current = 0; setFit(1) }, [sig])
   useLayoutEffect(() => {
+    if (steps.current >= 8) return  // CAP rigido: al massimo 8 aggiustamenti, mai loop infinito
     const outer = gridRef.current, inner = innerRef.current; if (!outer || !inner) return
     const avail = outer.clientHeight - 10 * u, content = inner.scrollHeight  // -10u = gap di sicurezza dal margine
     if (avail < 8 || content < 8) return
     const target = Math.max(0.42, Math.min(1.25, (avail / content) * fit * 0.97))
-    if (Math.abs(target - fit) > 0.006) setFit(target)
-  }, [fit, n, width, ratio, t.id, hasLogo, data])
+    if (Math.abs(target - fit) > 0.012) { steps.current++; setFit(target) }
+  }, [fit, sig, u])
 
   return (
     <div ref={ref} style={{
