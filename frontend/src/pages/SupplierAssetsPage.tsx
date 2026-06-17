@@ -1,19 +1,27 @@
 import { useRef, useState } from 'react'
-import { Image as ImageIcon, Upload, X, Plus, Loader2, Tag as TagIcon } from 'lucide-react'
+import { Image as ImageIcon, Upload, X, Plus, Loader2, Tag as TagIcon, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { useSupplierAssets, useSupplierAssetMutations, assetPublicUrl, type SupplierAsset } from '@/hooks/useSupplierAssets'
+import { useSupplierAssets, useSupplierAssetMutations, assetDisplayUrl, type SupplierAsset } from '@/hooks/useSupplierAssets'
 
 const EVENT_KINDS = ['', 'matrimonio', 'battesimo', 'comunione', 'cresima', 'compleanno', 'anniversario', 'laurea', 'corporate', 'altro']
 
 export default function SupplierAssetsPage() {
   const { data: assets, isLoading } = useSupplierAssets()
-  const { upload, update, remove } = useSupplierAssetMutations()
+  const { upload, addByLink, update, remove } = useSupplierAssetMutations()
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+
+  async function addLink() {
+    const u = linkUrl.trim()
+    if (!u) return
+    try { await addByLink.mutateAsync({ url: u }); setLinkUrl(''); toast.success('Immagine aggiunta dal link. Aggiungi i tag.') }
+    catch (e) { toast.error((e as Error).message) }
+  }
 
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -45,6 +53,13 @@ export default function SupplierAssetsPage() {
             <p className="text-sm text-[rgb(var(--fg-muted))]">Trascina qui le foto, oppure</p>
             <Button variant="gold" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Carica foto</Button>
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void onFiles(e.target.files)} />
+          </div>
+          <div className="border-t border-[rgb(var(--border))] pt-3 mt-1">
+            <p className="text-xs text-[rgb(var(--fg-muted))] mb-1.5 flex items-center gap-1.5"><Link2 size={13} /> …oppure aggiungi da un <strong>link</strong> (Pinterest, Instagram, qualsiasi pagina) — utile se non vuoi caricare file.</p>
+            <div className="flex gap-2">
+              <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addLink() }} placeholder="https://pinterest.com/pin/…  oppure  https://instagram.com/p/…" className="flex-1" />
+              <Button variant="outline" disabled={addByLink.isPending || !linkUrl.trim()} onClick={() => void addLink()}>{addByLink.isPending ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />} Aggiungi</Button>
+            </div>
           </div>
         </Card>
 
@@ -93,7 +108,8 @@ function AssetCard({ a, onTags, onCaption, onEventKind, onPublic, onRemove }: {
   return (
     <Card className="overflow-hidden flex flex-col">
       <div className="relative aspect-square bg-[rgb(var(--bg-sunken))]">
-        <img src={assetPublicUrl(a.storage_path)} alt={a.caption ?? ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+        <img src={assetDisplayUrl(a)} alt={a.caption ?? ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+        {a.image_url && <span className="absolute top-1.5 left-1.5 text-[10px] bg-black/55 text-white rounded px-1.5 py-0.5 inline-flex items-center gap-1"><Link2 size={10} /> link</span>}
         <button onClick={onRemove} title="Elimina" className="absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/55 text-white flex items-center justify-center hover:bg-black/75"><X size={14} /></button>
         {!a.is_public && <span className="absolute bottom-1.5 left-1.5 text-[10px] bg-black/60 text-white rounded px-1.5 py-0.5">nascosto</span>}
       </div>

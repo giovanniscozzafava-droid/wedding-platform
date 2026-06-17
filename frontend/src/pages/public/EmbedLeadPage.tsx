@@ -72,11 +72,11 @@ export default function EmbedLeadPage() {
   const [subrole, setSubrole] = useState<string | null>(null)          // categoria del professionista
   const [catAnswers, setCatAnswers] = useState<Record<string, unknown>>({}) // risposte alle domande di categoria
   // GIOCO "scegli il tuo stile": card dagli asset taggati del fornitore (swipe sì/no)
-  const [cards, setCards] = useState<{ id: string; path: string; caption?: string | null; tags: string[] }[]>([])
+  const [cards, setCards] = useState<{ id: string; path: string | null; image_url?: string | null; caption?: string | null; tags: string[] }[]>([])
   const [cardIdx, setCardIdx] = useState(0)
   const [liked, setLiked] = useState<{ id: string; url: string; tags: string[] }[]>([])
   const [swipeAnim, setSwipeAnim] = useState<'l' | 'r' | null>(null)
-  const assetUrl = (path: string) => supabase.storage.from('supplier-assets').getPublicUrl(path).data.publicUrl
+  const cardUrl = (c: { path: string | null; image_url?: string | null }) => c.image_url || (c.path ? supabase.storage.from('supplier-assets').getPublicUrl(c.path).data.publicUrl : '')
   const [form, setForm] = useState({
     client_name: '', client_email: '', client_phone: '',
     event_kind: 'matrimonio', event_date: '', event_location: '', guests_estimate: '',
@@ -126,7 +126,7 @@ export default function EmbedLeadPage() {
     void (async () => {
       try {
         const { data } = await (supabase as unknown as AnyRpc).rpc('get_supplier_assets', { p_slug: slug, p_event_kind: form.event_kind, p_limit: 30 })
-        const arr = (Array.isArray(data) ? data : []) as { id: string; path: string; caption?: string | null; tags: string[] }[]
+        const arr = (Array.isArray(data) ? data : []) as { id: string; path: string | null; image_url?: string | null; caption?: string | null; tags: string[] }[]
         setCards(arr); setCardIdx(0); setLiked([])
       } catch { setCards([]) }
     })()
@@ -135,7 +135,7 @@ export default function EmbedLeadPage() {
   function decide(like: boolean) {
     const c = cards[cardIdx]; if (!c) return
     setSwipeAnim(like ? 'r' : 'l')
-    if (like) setLiked((l) => [...l, { id: c.id, url: assetUrl(c.path), tags: c.tags ?? [] }])
+    if (like) setLiked((l) => [...l, { id: c.id, url: cardUrl(c), tags: c.tags ?? [] }])
     window.setTimeout(() => { setSwipeAnim(null); setCardIdx((i) => i + 1) }, 180)
   }
 
@@ -363,7 +363,7 @@ export default function EmbedLeadPage() {
                   opacity: swipeAnim ? 0 : 1,
                 }}>
                   <div style={{ position: 'relative', aspectRatio: '4 / 5', background: '#f3f0ea' }}>
-                    <img src={assetUrl(cards[cardIdx]!.path)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={cardUrl(cards[cardIdx]!)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                     {(cards[cardIdx]!.caption || (cards[cardIdx]!.tags ?? []).length > 0) && (
                       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '24px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff' }}>
                         {cards[cardIdx]!.caption && <div style={{ fontSize: 13, fontWeight: 600 }}>{cards[cardIdx]!.caption}</div>}
