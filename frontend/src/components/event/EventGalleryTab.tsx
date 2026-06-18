@@ -359,9 +359,18 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <Heart size={16} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" />
             <p className="text-sm">{role === 'sposi' ? 'Hai selezionato' : 'Gli sposi hanno selezionato'} <strong>{folders.reduce((n, f) => n + f.gallery_media.filter((m) => m.album_choice === 'KEPT').length, 0)}</strong> file per l'album.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {role === 'sposi' && (
+              <Button variant="gold" size="sm" disabled={busy} onClick={async () => {
+                setBusy(true)
+                const { data, error } = await (supabase.rpc as any)('album_request_layout', { p_entry: entryId })
+                setBusy(false)
+                if (error || (data as any)?.error) { toast.error('Non riuscito: ' + (error?.message ?? (data as any)?.error)); return }
+                toast.success('Perfetto! Selezione confermata: il fotografo può impaginare la bozza.')
+              }}><Check size={14} /> Ok, puoi impaginare la bozza</Button>
+            )}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('web')} title="ZIP leggero ~1600px"><FileArchive size={14} /> ZIP Web</Button>
-            <Button variant="gold" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione"><FileArchive size={14} /> ZIP Originale</Button>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione"><FileArchive size={14} /> ZIP Originale</Button>
           </div>
         </Card>
       )}

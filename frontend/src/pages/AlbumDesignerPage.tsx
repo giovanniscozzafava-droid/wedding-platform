@@ -29,6 +29,7 @@ type M = {
 type Postit = {
   id: string; author_name: string | null; page_index: number | null
   tavola_index: number | null; anchor_x: number | null; anchor_y: number | null; media_id: string | null
+  kind?: string | null; replace_media_id?: string | null // 'REPLACE' = sostituisci la foto
   body: string; status: string; created_at: string
 }
 
@@ -281,6 +282,8 @@ function AlbumDesignerInner() {
   // = post-it aperto (per leggerlo/segnarlo fatto).
   const [placing, setPlacing] = useState<{ tav: number; x: number; y: number; mediaId: string | null } | null>(null)
   const [openPin, setOpenPin] = useState<string | null>(null)
+  const [replaceMode, setReplaceMode] = useState(false)          // post-it "sostituisci la foto"
+  const [replaceId, setReplaceId] = useState<string | null>(null) // foto scelta per la sostituzione
 
   const role = albumRoleOf(profile?.role)
   const action = primaryAction(role, status as never)
@@ -820,7 +823,7 @@ function AlbumDesignerInner() {
   // ── richieste di modifica (cliente ↔ fotografo) ────────────────────────────
   const loadRevs = useCallback(async () => {
     if (!entryId) return
-    const { data } = await (supabase.from as any)('album_revision_requests').select('id, author_name, page_index, tavola_index, anchor_x, anchor_y, media_id, body, status, created_at').eq('entry_id', entryId).order('created_at', { ascending: false })
+    const { data } = await (supabase.from as any)('album_revision_requests').select('id, author_name, page_index, tavola_index, anchor_x, anchor_y, media_id, kind, replace_media_id, body, status, created_at').eq('entry_id', entryId).order('created_at', { ascending: false })
     setRevList((data as Postit[]) ?? [])
   }, [entryId])
   useEffect(() => { void loadRevs() }, [loadRevs])
@@ -852,12 +855,27 @@ function AlbumDesignerInner() {
   async function savePostit() {
     if (!placing || !entryId) return
     const body = revBody.trim()
+    const isReplace = replaceMode && !!placing.mediaId
+    const defText = isReplace ? (replaceId ? 'Sostituisci con la foto indicata' : 'Sostituisci questa foto') : '(senza testo)'
     const { error } = await (supabase.from as any)('album_revision_requests').insert({
-      entry_id: entryId, body: body || '(senza testo)', page_index: placing.tav * 2 + 1,
+      entry_id: entryId, body: body || defText, page_index: placing.tav * 2 + 1,
       tavola_index: placing.tav, anchor_x: placing.x, anchor_y: placing.y, media_id: placing.mediaId,
+      kind: isReplace ? 'REPLACE' : 'NOTE', replace_media_id: isReplace ? replaceId : null,
     })
     if (error) { toast.error(error.message); return }
-    toast.success('Post-it inviato al fotografo'); setRevBody(''); setPlacing(null); await loadRevs()
+    toast.success(isReplace ? 'Richiesta di sostituzione inviata' : 'Post-it inviato al fotografo')
+    setRevBody(''); setPlacing(null); setReplaceMode(false); setReplaceId(null); await loadRevs()
+  }
+  // FOTOGRAFO: applica una richiesta "sostituisci con" → rimpiazza la foto del post-it sulla tavola
+  // con quella scelta dal cliente, pronta da inserire. Poi segna il post-it come fatto.
+  function applyReplacePostit(p: Postit) {
+    if (!p.media_id || !p.replace_media_id) { toast.message('Il cliente non ha indicato con quale foto sostituire'); return }
+    const lp = spreadPages[0]
+    const el = (lp?.elements ?? []).find((e) => e.mediaId === p.media_id)
+    if (!lp?.tavolaFree || !el) { toast.error('Foto da sostituire non trovata su questa tavola'); return }
+    freeReplace(lp.id, el.id, p.replace_media_id)
+    void resolveRev(p.id); setOpenPin(null)
+    toast.success('Foto sostituita. Ricontrolla il ritaglio se serve.')
   }
 
   const exportRef = useRef<HTMLDivElement>(null)
@@ -996,27 +1014,51 @@ function AlbumDesignerInner() {
         <PostitLayer
           pins={tavPins(si)} openId={interactive ? openPin : null} onOpen={interactive ? setOpenPin : () => {}}
           canPlace={!!interactive && isCouple}
-          onPlaceAt={(x, y) => { setRevBody(''); setPlacing({ tav: si, x, y, mediaId: hitMediaAt(pair[0], x, y) }) }}
+          onPlaceAt={(x, y) => { setRevBody(''); setReplaceMode(false); setReplaceId(null); setPlacing({ tav: si, x, y, mediaId: hitMediaAt(pair[0], x, y) }) }}
           placing={placing && placing.tav === si ? placing : null}
           composer={interactive && placing && placing.tav === si ? (
             <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 space-y-2 -rotate-1">
               <p className="text-[11px] text-amber-800 font-medium">{placing.mediaId ? '📷 Su questa foto' : '📍 Su questo punto'} · Tav. {si + 1}</p>
-              <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={3} autoFocus placeholder="Cosa vorresti cambiare qui?" className="w-full text-sm rounded border border-amber-300 bg-white/90 px-2 py-1.5 outline-none focus:border-amber-500" />
+              {placing.mediaId && (
+                <div className="flex gap-1">
+                  <button onClick={() => setReplaceMode(false)} className={`flex-1 text-[11px] py-1 rounded border ${!replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>✍️ Nota</button>
+                  <button onClick={() => setReplaceMode(true)} className={`flex-1 text-[11px] py-1 rounded border ${replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>🔄 Sostituisci</button>
+                </div>
+              )}
+              <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={2} autoFocus placeholder={replaceMode ? 'Perché la cambieresti? (facoltativo)' : 'Cosa vorresti cambiare qui?'} className="w-full text-sm rounded border border-amber-300 bg-white/90 px-2 py-1.5 outline-none focus:border-amber-500" />
+              {replaceMode && placing.mediaId && (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-amber-700">Con quale foto? <span className="opacity-70">(facoltativo — può scegliere il fotografo)</span></p>
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5">
+                    <button onClick={() => setReplaceId(null)} className={`shrink-0 h-12 w-12 rounded grid place-items-center text-[9px] text-center border ${replaceId == null ? 'border-amber-500 ring-2 ring-amber-300 bg-amber-100' : 'border-amber-200 bg-white'}`}>scegli<br />tu</button>
+                    {kept.filter((m) => m.id !== placing.mediaId).map((m) => (
+                      <button key={m.id} onClick={() => setReplaceId(m.id)} className={`shrink-0 h-12 w-12 rounded overflow-hidden border ${replaceId === m.id ? 'border-amber-500 ring-2 ring-amber-300' : 'border-amber-200'}`}>
+                        <img src={thumbUrl(m)} alt="" className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end gap-1.5">
-                <button onClick={() => setPlacing(null)} className="text-xs px-2 py-1 rounded text-amber-800 hover:bg-amber-100">Annulla</button>
-                <button onClick={() => void savePostit()} className="text-xs px-2.5 py-1 rounded bg-amber-500 text-white font-medium hover:bg-amber-600">Invia</button>
+                <button onClick={() => { setPlacing(null); setReplaceMode(false); setReplaceId(null) }} className="text-xs px-2 py-1 rounded text-amber-800 hover:bg-amber-100">Annulla</button>
+                <button onClick={() => void savePostit()} className="text-xs px-2.5 py-1 rounded bg-amber-500 text-white font-medium hover:bg-amber-600">{replaceMode ? 'Chiedi sostituzione' : 'Invia'}</button>
               </div>
             </div>
           ) : null}
-          renderBubble={(p) => (
+          renderBubble={(p) => {
+            const isRepl = p.kind === 'REPLACE'
+            const rep = p.replace_media_id ? mediaById.get(p.replace_media_id) : null
+            return (
             <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 -rotate-1">
-              <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>
+              {isRepl && <p className="text-[10px] font-medium text-amber-800 mb-1 flex items-center gap-1">🔄 Sostituisci questa foto{rep ? ' con:' : ''}</p>}
+              {isRepl && rep && <img src={thumbUrl(rep)} alt="" className="w-full h-20 object-cover rounded mb-1.5" />}
+              {p.body && p.body !== '(senza testo)' && <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>}
               <div className="mt-1.5 flex items-center justify-between gap-2">
                 <span className="text-[10px] text-amber-700">{p.author_name ?? 'Cliente'}{p.status === 'DONE' ? ' · fatto ✓' : ''}</span>
                 <button onClick={() => void deleteRev(p.id)} className="text-[10px] text-rose-500 hover:underline">Elimina</button>
               </div>
             </div>
-          )}
+          )}}
         />
       </div>
     )
@@ -1322,18 +1364,24 @@ function AlbumDesignerInner() {
                     {spreadPages.length === 2 && !spreadPages[0]?.tavolaFree && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.55)] pointer-events-none z-50" title="Dorso (non viene stampato)" />}
                     {/* POST-IT del cliente, appuntati sulla tavola: il fotografo li legge e li segna fatti */}
                     <PostitLayer pins={revList.filter((r) => r.anchor_x != null && r.tavola_index === activeSpread)} openId={openPin} onOpen={setOpenPin}
-                      renderBubble={(p) => (
+                      renderBubble={(p) => {
+                        const isRepl = p.kind === 'REPLACE'
+                        const rep = p.replace_media_id ? mediaById.get(p.replace_media_id) : null
+                        return (
                         <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 text-[rgb(var(--fg))]">
-                          <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>
+                          {isRepl && <p className="text-[11px] font-semibold text-amber-800 mb-1">🔄 Richiesta: sostituisci questa foto{rep ? ' con quella scelta:' : ' (foto a tua scelta)'}</p>}
+                          {isRepl && rep && <img src={thumbUrl(rep)} alt="" className="w-full h-24 object-cover rounded mb-1.5" />}
+                          {p.body && p.body !== '(senza testo)' && <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>}
                           <p className="text-[10px] text-amber-700 mt-1">{p.author_name ?? 'Cliente'} · {new Date(p.created_at).toLocaleDateString('it-IT')}</p>
-                          <div className="mt-1.5 flex items-center gap-2 justify-end">
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 justify-end">
+                            {isRepl && rep && p.status === 'OPEN' && <button onClick={() => applyReplacePostit(p)} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-[rgb(var(--gold-500))] text-white font-medium"><Shuffle size={11} /> Inserisci la foto</button>}
                             {p.status === 'OPEN'
                               ? <button onClick={() => void resolveRev(p.id)} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-emerald-500 text-white"><Check size={11} /> Fatto</button>
                               : <button onClick={() => void reopenRev(p.id)} className="text-[11px] px-2 py-0.5 rounded border border-amber-300">Riapri</button>}
                             <button onClick={() => void deleteRev(p.id)} className="text-[11px] text-rose-500 hover:underline">Elimina</button>
                           </div>
                         </div>
-                      )} />
+                      )}} />
                   </div>
                 ) : (
                   <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
