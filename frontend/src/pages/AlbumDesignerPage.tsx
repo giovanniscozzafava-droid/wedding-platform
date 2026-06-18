@@ -24,6 +24,14 @@ type M = {
   album_choice: 'KEPT' | 'DISCARDED' | null; album_moment: string | null
 }
 
+// POST-IT: richiesta di modifica del cliente appuntata in un punto della tavola (anchor 0..1) ed
+// eventualmente su una foto (media_id). page_index/tavola_index per retro-compatibilità.
+type Postit = {
+  id: string; author_name: string | null; page_index: number | null
+  tavola_index: number | null; anchor_x: number | null; anchor_y: number | null; media_id: string | null
+  body: string; status: string; created_at: string
+}
+
 const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:')
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
 const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
@@ -67,6 +75,52 @@ function Wireframe({ slots, aspect }: { slots: { x: number; y: number; w: number
           style={{ left: `${(s.x + 0.015) * 100}%`, top: `${(s.y + 0.02) * 100}%`, width: `${(s.w - 0.03) * 100}%`, height: `${(s.h - 0.04) * 100}%`, transform: s.rot ? `rotate(${s.rot}deg)` : undefined }} />
       ))}
       <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[rgba(184,146,63,.35)]" />
+    </div>
+  )
+}
+
+// POST-IT layer: overlay trasparente sopra la TAVOLA (coord. 0..1) con le puntine delle richieste
+// di modifica. Il cliente tocca un punto → onPlaceAt(x,y) (con la foto sotto il dito). Cliccando
+// una puntina si apre la sua bolla (renderBubble). Stesso componente per cliente (posa) e fotografo
+// (legge/segna fatto). Va dentro un contenitore `relative` esattamente grande come la tavola.
+function PostitLayer({ pins, openId, onOpen, canPlace, onPlaceAt, placing, composer, renderBubble }: {
+  pins: Postit[]; openId: string | null; onOpen: (id: string | null) => void
+  canPlace?: boolean; onPlaceAt?: (x: number, y: number) => void
+  placing?: { x: number; y: number } | null; composer?: ReactNode
+  renderBubble?: (pin: Postit) => ReactNode
+}) {
+  // canPlace → il layer cattura i tocchi (per posare). Altrimenti è "trasparente" (pointer-events
+  // none) così sotto resta interagibile (il fotografo trascina le foto in FreeStage); solo puntine
+  // e bolle restano cliccabili (pointer-events auto su di esse).
+  return (
+    <div className="absolute inset-0 z-[55]" style={{ pointerEvents: canPlace ? 'auto' : 'none' }}
+      onPointerDown={(e) => {
+        if (!canPlace || !onPlaceAt || e.target !== e.currentTarget) return // solo tocco sul vuoto del layer
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
+        const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
+        onOpen(null); onPlaceAt(x, y)
+      }}>
+      {pins.map((p, i) => {
+        if (p.anchor_x == null || p.anchor_y == null) return null
+        const open = openId === p.id, done = p.status === 'DONE'
+        return (
+          <div key={p.id} className="absolute" style={{ left: `${p.anchor_x * 100}%`, top: `${p.anchor_y * 100}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'auto' }}>
+            <button onPointerDown={(e) => { e.stopPropagation(); onOpen(open ? null : p.id) }}
+              className={`grid place-items-center h-6 w-6 rounded-full rounded-bl-none shadow-md ring-2 ring-white text-[11px] font-bold text-white transition-transform ${open ? 'scale-125' : ''} ${done ? 'bg-emerald-500' : 'bg-[rgb(var(--gold-500))]'}`}
+              title={p.body}>{done ? '✓' : i + 1}</button>
+            {open && renderBubble && (
+              <div className="absolute left-1/2 top-7 -translate-x-1/2 z-[60] w-60 max-w-[70vw]" onPointerDown={(e) => e.stopPropagation()}>{renderBubble(p)}</div>
+            )}
+          </div>
+        )
+      })}
+      {placing && (
+        <div className="absolute" style={{ left: `${placing.x * 100}%`, top: `${placing.y * 100}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'auto' }}>
+          <div className="grid h-6 w-6 place-items-center rounded-full rounded-bl-none bg-[rgb(var(--gold-500))] ring-2 ring-white shadow-md text-white text-sm">＋</div>
+          {composer && <div className="absolute left-1/2 top-7 -translate-x-1/2 z-[60] w-64 max-w-[78vw]" onPointerDown={(e) => e.stopPropagation()}>{composer}</div>}
+        </div>
+      )}
     </div>
   )
 }
@@ -219,9 +273,14 @@ function AlbumDesignerInner() {
   const loadedRef = useRef(false)
   const autoTimer = useRef<number | null>(null)
   const [revOpen, setRevOpen] = useState(false)                 // popup richieste modifiche
-  const [revList, setRevList] = useState<Array<{ id: string; author_name: string | null; page_index: number | null; body: string; status: string; created_at: string }>>([])
+  const [revList, setRevList] = useState<Postit[]>([])
   const [revBody, setRevBody] = useState('')
   const [revPageRef, setRevPageRef] = useState(false)
+  // POST-IT ancorati: il cliente tocca una foto/punto → bigliettino appuntato lì (lo vede anche il
+  // fotografo). `placing` = post-it in composizione (coord. tavola 0..1 + foto toccata); `openPin`
+  // = post-it aperto (per leggerlo/segnarlo fatto).
+  const [placing, setPlacing] = useState<{ tav: number; x: number; y: number; mediaId: string | null } | null>(null)
+  const [openPin, setOpenPin] = useState<string | null>(null)
 
   const role = albumRoleOf(profile?.role)
   const action = primaryAction(role, status as never)
@@ -761,8 +820,8 @@ function AlbumDesignerInner() {
   // ── richieste di modifica (cliente ↔ fotografo) ────────────────────────────
   const loadRevs = useCallback(async () => {
     if (!entryId) return
-    const { data } = await (supabase.from as any)('album_revision_requests').select('id, author_name, page_index, body, status, created_at').eq('entry_id', entryId).order('created_at', { ascending: false })
-    setRevList((data as typeof revList) ?? [])
+    const { data } = await (supabase.from as any)('album_revision_requests').select('id, author_name, page_index, tavola_index, anchor_x, anchor_y, media_id, body, status, created_at').eq('entry_id', entryId).order('created_at', { ascending: false })
+    setRevList((data as Postit[]) ?? [])
   }, [entryId])
   useEffect(() => { void loadRevs() }, [loadRevs])
   const openRevs = revList.filter((r) => r.status === 'OPEN').length
@@ -774,11 +833,31 @@ function AlbumDesignerInner() {
     toast.success('Richiesta inviata al fotografo'); setRevBody(''); setRevPageRef(false); await loadRevs()
   }
   async function resolveRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'DONE' }).eq('id', id); await loadRevs() }
+  async function reopenRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'OPEN' }).eq('id', id); await loadRevs() }
+  async function deleteRev(id: string) { await (supabase.from as any)('album_revision_requests').delete().eq('id', id); setOpenPin(null); await loadRevs() }
   async function sendClientReq() {
     if (!revBody.trim() || !entryId) return
     const { error } = await (supabase.from as any)('album_revision_requests').insert({ entry_id: entryId, body: revBody.trim(), page_index: clientIdx * 2 + 1 })
     if (error) { toast.error(error.message); return }
     toast.success('Richiesta inviata al fotografo'); setRevBody(''); setClientReqOpen(false); await loadRevs()
+  }
+  // ── POST-IT ancorati ───────────────────────────────────────────────────────
+  // Tocco sulla tavola → (x,y) in 0..1 della tavola intera + foto sotto il dito (se tavolaFree).
+  function hitMediaAt(tavLeft: AlbumPage | undefined, x: number, y: number): string | null {
+    const els = tavLeft?.tavolaFree ? (tavLeft.elements ?? []) : []
+    // l'ultimo elemento che contiene il punto sta "sopra" (z-order = ordine array)
+    for (let i = els.length - 1; i >= 0; i--) { const e = els[i]!; if (x >= e.x && x <= e.x + e.w && y >= e.y && y <= e.y + e.h) return e.mediaId }
+    return null
+  }
+  async function savePostit() {
+    if (!placing || !entryId) return
+    const body = revBody.trim()
+    const { error } = await (supabase.from as any)('album_revision_requests').insert({
+      entry_id: entryId, body: body || '(senza testo)', page_index: placing.tav * 2 + 1,
+      tavola_index: placing.tav, anchor_x: placing.x, anchor_y: placing.y, media_id: placing.mediaId,
+    })
+    if (error) { toast.error(error.message); return }
+    toast.success('Post-it inviato al fotografo'); setRevBody(''); setPlacing(null); await loadRevs()
   }
 
   const exportRef = useRef<HTMLDivElement>(null)
@@ -904,13 +983,41 @@ function AlbumDesignerInner() {
   //    schermo, richiedi modifiche. Sola lettura: il cliente non modifica per sbaglio la struttura. ──
   if (lite) {
     const myOpen = revList.filter((r) => r.status === 'OPEN').length
-    const SpreadView = ({ pair, max }: { pair: AlbumPage[]; max: string }) => (
+    const tavPins = (si: number) => revList.filter((r) => r.anchor_x != null && r.tavola_index === si)
+    // NB: funzione (non componente <SpreadView/>): definirla inline come componente la rimonterebbe
+    // a ogni render → la textarea del post-it perderebbe il focus a ogni tasto.
+    const renderSpread = ({ pair, si, max, interactive }: { pair: AlbumPage[]; si: number; max: string; interactive?: boolean }) => (
       <div className="relative flex bg-white shadow-xl mx-auto" style={{ aspectRatio: String(asp * pair.length), width: max }}>
         {pair[0]?.tavolaFree
           ? <FreeSurface page={pair[0]} mediaById={mediaById} thumb={hiUrl} />
           : pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={hiUrl} /></div>)}
         {!pair[0]?.tavolaFree && pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} /> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-black/10 pointer-events-none" />}
+        <PostitLayer
+          pins={tavPins(si)} openId={interactive ? openPin : null} onOpen={interactive ? setOpenPin : () => {}}
+          canPlace={!!interactive && isCouple}
+          onPlaceAt={(x, y) => { setRevBody(''); setPlacing({ tav: si, x, y, mediaId: hitMediaAt(pair[0], x, y) }) }}
+          placing={placing && placing.tav === si ? placing : null}
+          composer={interactive && placing && placing.tav === si ? (
+            <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 space-y-2 -rotate-1">
+              <p className="text-[11px] text-amber-800 font-medium">{placing.mediaId ? '📷 Su questa foto' : '📍 Su questo punto'} · Tav. {si + 1}</p>
+              <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={3} autoFocus placeholder="Cosa vorresti cambiare qui?" className="w-full text-sm rounded border border-amber-300 bg-white/90 px-2 py-1.5 outline-none focus:border-amber-500" />
+              <div className="flex justify-end gap-1.5">
+                <button onClick={() => setPlacing(null)} className="text-xs px-2 py-1 rounded text-amber-800 hover:bg-amber-100">Annulla</button>
+                <button onClick={() => void savePostit()} className="text-xs px-2.5 py-1 rounded bg-amber-500 text-white font-medium hover:bg-amber-600">Invia</button>
+              </div>
+            </div>
+          ) : null}
+          renderBubble={(p) => (
+            <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 -rotate-1">
+              <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <span className="text-[10px] text-amber-700">{p.author_name ?? 'Cliente'}{p.status === 'DONE' ? ' · fatto ✓' : ''}</span>
+                <button onClick={() => void deleteRev(p.id)} className="text-[10px] text-rose-500 hover:underline">Elimina</button>
+              </div>
+            </div>
+          )}
+        />
       </div>
     )
     return (
@@ -936,32 +1043,35 @@ function AlbumDesignerInner() {
               onScroll={(e) => { const el = e.currentTarget; setClientIdx(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }}>
               {spreads.map((pair, si) => (
                 <div key={si} className="shrink-0 w-full snap-center flex items-center justify-center p-4">
-                  <button onClick={() => setZoomSpread(si)} className="w-full" title="Tocca per ingrandire"><SpreadView pair={pair} max="min(94vw, 680px)" /></button>
+                  <button onClick={() => setZoomSpread(si)} className="w-full" title="Tocca per ingrandire e lasciare un post-it">{renderSpread({ pair, si, max: 'min(94vw, 680px)' })}</button>
                 </div>
               ))}
             </div>
-            <div className="sticky bottom-0 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-4 py-2.5 flex items-center gap-3">
-              <span className="text-xs text-[rgb(var(--fg-muted))] tabular-nums w-20">Tav. {clientIdx + 1}/{spreads.length}</span>
-              <div className="flex-1 flex justify-center gap-1">{spreads.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === clientIdx ? 'w-4 bg-[rgb(var(--gold-500))]' : 'w-1.5 bg-[rgb(var(--border))]'}`} />)}</div>
-              <Button variant="gold" size="sm" onClick={() => setClientReqOpen(true)}><MessageSquare size={14} /> Richiedi modifica</Button>
+            <div className="sticky bottom-0 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-4 py-2 flex flex-col gap-1.5">
+              <p className="text-center text-[11px] text-[rgb(var(--fg-muted))]">Tocca una tavola e poi una foto per lasciare un <span className="text-amber-600 font-medium">post-it</span> al fotografo</p>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[rgb(var(--fg-muted))] tabular-nums w-20">Tav. {clientIdx + 1}/{spreads.length}</span>
+                <div className="flex-1 flex justify-center gap-1">{spreads.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === clientIdx ? 'w-4 bg-[rgb(var(--gold-500))]' : 'w-1.5 bg-[rgb(var(--border))]'}`} />)}</div>
+                <Button variant="gold" size="sm" onClick={() => setZoomSpread(clientIdx)}><MessageSquare size={14} /> Post-it</Button>
+              </div>
             </div>
           </>
         )}
 
-        {/* zoom a tutto schermo della tavola */}
+        {/* zoom a tutto schermo della tavola — qui il cliente APPUNTA i post-it toccando le foto */}
         {zoomSpread != null && spreads[zoomSpread] && (
-          <div className="fixed inset-0 z-[80] bg-black/90 flex flex-col" onClick={() => setZoomSpread(null)}>
+          <div className="fixed inset-0 z-[80] bg-black/90 flex flex-col" onClick={() => { setZoomSpread(null); setPlacing(null); setOpenPin(null) }}>
             <div className="flex items-center justify-between px-4 py-2 text-white" onClick={(e) => e.stopPropagation()}>
               <span className="text-sm">Tavola {zoomSpread + 1}</span>
               <div className="flex items-center gap-2">
-                <Button variant="gold" size="sm" onClick={() => { setClientIdx(zoomSpread); setZoomSpread(null); setClientReqOpen(true) }}><MessageSquare size={14} /> Modifica</Button>
-                <button onClick={() => setZoomSpread(null)} className="p-1.5 rounded hover:bg-white/10"><X size={20} className="text-white" /></button>
+                <Button variant="outline" size="sm" className="!text-white !border-white/30" onClick={() => { setClientIdx(zoomSpread); setClientReqOpen(true) }}><MessageSquare size={14} /> Nota generale</Button>
+                <button onClick={() => { setZoomSpread(null); setPlacing(null); setOpenPin(null) }} className="p-1.5 rounded hover:bg-white/10"><X size={20} className="text-white" /></button>
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-auto p-3 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-              <SpreadView pair={spreads[zoomSpread]!} max="min(180vw, 1400px)" />
+              {renderSpread({ pair: spreads[zoomSpread]!, si: zoomSpread, max: 'min(180vw, 1400px)', interactive: true })}
             </div>
-            <p className="text-center text-white/60 text-xs pb-3">Scorri per vedere i dettagli · tocca fuori per chiudere</p>
+            <p className="text-center text-white/70 text-xs pb-3">{isCouple ? 'Tocca una foto o un punto della tavola per lasciare un post-it · tocca una puntina per rileggerla' : 'Tocca una puntina per leggere il post-it'}</p>
           </div>
         )}
 
@@ -1210,6 +1320,20 @@ function AlbumDesignerInner() {
                     })()}
                     {/* filigrana del dorso (solo editor, non in stampa) — in tavola unica la disegna la FreeStage */}
                     {spreadPages.length === 2 && !spreadPages[0]?.tavolaFree && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.55)] pointer-events-none z-50" title="Dorso (non viene stampato)" />}
+                    {/* POST-IT del cliente, appuntati sulla tavola: il fotografo li legge e li segna fatti */}
+                    <PostitLayer pins={revList.filter((r) => r.anchor_x != null && r.tavola_index === activeSpread)} openId={openPin} onOpen={setOpenPin}
+                      renderBubble={(p) => (
+                        <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 text-[rgb(var(--fg))]">
+                          <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>
+                          <p className="text-[10px] text-amber-700 mt-1">{p.author_name ?? 'Cliente'} · {new Date(p.created_at).toLocaleDateString('it-IT')}</p>
+                          <div className="mt-1.5 flex items-center gap-2 justify-end">
+                            {p.status === 'OPEN'
+                              ? <button onClick={() => void resolveRev(p.id)} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-emerald-500 text-white"><Check size={11} /> Fatto</button>
+                              : <button onClick={() => void reopenRev(p.id)} className="text-[11px] px-2 py-0.5 rounded border border-amber-300">Riapri</button>}
+                            <button onClick={() => void deleteRev(p.id)} className="text-[11px] text-rose-500 hover:underline">Elimina</button>
+                          </div>
+                        </div>
+                      )} />
                   </div>
                 ) : (
                   <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
