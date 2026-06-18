@@ -59,12 +59,12 @@ function FreeSurface({ page, mediaById, thumb }: { page: AlbumPage; mediaById: M
 }
 
 // Miniatura SCHEMATICA di una disposizione (solo griglia/riquadri vuoti, niente foto). aspect = 2W/H.
-function Wireframe({ slots, aspect }: { slots: Slot[]; aspect: number }) {
+function Wireframe({ slots, aspect }: { slots: { x: number; y: number; w: number; h: number; rot?: number }[]; aspect: number }) {
   return (
-    <div className="relative w-full bg-[rgb(var(--bg-sunken))]" style={{ aspectRatio: String(aspect) }}>
+    <div className="relative w-full overflow-hidden bg-[rgb(var(--bg-sunken))]" style={{ aspectRatio: String(aspect) }}>
       {slots.map((s, i) => (
         <div key={i} className="absolute rounded-[1px] border border-[rgb(var(--fg-muted))] bg-[rgb(var(--bg))]"
-          style={{ left: `${(s.x + 0.015) * 100}%`, top: `${(s.y + 0.02) * 100}%`, width: `${(s.w - 0.03) * 100}%`, height: `${(s.h - 0.04) * 100}%` }} />
+          style={{ left: `${(s.x + 0.015) * 100}%`, top: `${(s.y + 0.02) * 100}%`, width: `${(s.w - 0.03) * 100}%`, height: `${(s.h - 0.04) * 100}%`, transform: s.rot ? `rotate(${s.rot}deg)` : undefined }} />
       ))}
       <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[rgba(184,146,63,.35)]" />
     </div>
@@ -417,7 +417,9 @@ function AlbumDesignerInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tavMediaKey, mediaById])
   const tavOrients = useMemo<Orient[]>(() => tavEls.map((e) => classifyAspect(photoAspect.get(e.mediaId) ?? 1)), [tavMediaKey, photoAspect]) // eslint-disable-line react-hooks/exhaustive-deps
-  const tavPresets = useMemo<GenLayout[]>(() => { const f = getFormat(format); return tavMediaKey ? genTavolaLayouts(tavOrients, f.w * 2, f.h, 30) : [] }, [tavOrients, format, tavMediaKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const tavPresets = useMemo<GenLayout[]>(() => { const f = getFormat(format); return tavMediaKey ? genTavolaLayouts(tavOrients, f.w * 2, f.h, 48) : [] }, [tavOrients, format, tavMediaKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // I TUOI preset (composizioni libere salvate, in coord. tavola) applicabili alla tavola corrente.
+  const myTavPresets = useMemo(() => layouts.filter((l) => l.els && l.els.length), [layouts])
   useEffect(() => {
     setEverPlaced((prev) => {
       let changed = false; const next = new Set(prev)
@@ -738,6 +740,23 @@ function AlbumDesignerInner() {
     }).filter(Boolean) as FreeEl[]
     updatePage(lp.id, (p) => ({ ...p, elements: newEls })); setSelEl(null); setMultiSel([])
     toast.success('Disposizione applicata')
+  }
+  // Applica un PRESET SALVATO (composizione libera con rotazioni) alla tavola: assegna le foto
+  // correnti agli slot per orientamento, conservando posizioni E rotazioni del preset.
+  function applySavedToTavola(saved: SavedLayout) {
+    const lp = spreadPages[0]; if (!lp?.tavolaFree) return
+    const els = lp.elements ?? []; if (!els.length) return
+    const sl = saved.els ?? []; if (!sl.length) return
+    const slots: Slot[] = sl.map((s) => ({ x: s.x, y: s.y, w: s.w, h: s.h }))
+    const orients = els.map((e) => classifyAspect(photoAspect.get(e.mediaId) ?? 1))
+    const assign = assignPhotos(slots, orients, fmt.w * 2, fmt.h)
+    const newEls: FreeEl[] = sl.map((s, k) => {
+      const ai = assign[k] ?? -1
+      const src = els[ai >= 0 ? ai : k] ?? els[k]; if (!src) return null
+      return { ...newFreeEl(src.mediaId), x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot, cell: { ...DEFAULT_CELL }, border: src.border, shadow: src.shadow }
+    }).filter(Boolean) as FreeEl[]
+    updatePage(lp.id, (p) => ({ ...p, elements: newEls })); setSelEl(null); setMultiSel([])
+    toast.success('Preset applicato')
   }
 
   // ── VISTA CLIENTE (mobile-first, stile Canva mobile): sfoglia le tavole grandi, zoom a tutto
@@ -1094,6 +1113,7 @@ function AlbumDesignerInner() {
                   onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
                   onSaveLayout={saveCurLayout}
                   presets={tavPresets} tavAspect={asp * 2} onApplyTavolaLayout={applyTavolaLayout}
+                  myPresets={myTavPresets} onApplySaved={applySavedToTavola} onDeleteSaved={removeLayout}
                   crop={(() => {
                     const el = (currentPage.elements ?? []).find((e) => e.id === selEl)
                     const m = el ? mediaById.get(el.mediaId) : undefined
@@ -1943,9 +1963,10 @@ function FreePanel(props: {
   onElCrop: (id: string) => void; onElRemove: (id: string) => void
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void; onSaveLayout?: () => void
   presets?: GenLayout[]; tavAspect?: number; onApplyTavolaLayout?: (slots: Slot[]) => void
+  myPresets?: SavedLayout[]; onApplySaved?: (l: SavedLayout) => void; onDeleteSaved?: (id: string) => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -1959,19 +1980,42 @@ function FreePanel(props: {
       </div>
 
       {/* DISPOSIZIONI: schemi (solo griglia, niente foto) per il numero esatto di foto sulla tavola,
-          con slot che rispecchiano gli orientamenti (verticali/orizzontali). Clic = applica. */}
-      {!lite && onApplyTavolaLayout && presets && presets.length > 0 && (
+          con slot che rispecchiano gli orientamenti. Clic = applica. + I TUOI preset salvati. */}
+      {!lite && onApplyTavolaLayout && (page.elements ?? []).length > 0 && (
         <div className="border-t border-[rgb(var(--border))] pt-3">
-          <p className="font-medium mb-1.5 flex items-center gap-1.5"><Grid3x3 size={14} /> Disposizioni <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({presets.length} · {(page.elements ?? []).length} foto)</span></p>
-          <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-2">Schemi su tutta la tavola. Le foto entrano negli slot adatti al loro verso.</p>
-          <div className="grid grid-cols-3 gap-1.5 max-h-72 overflow-auto pr-0.5">
-            {presets.map((pz, i) => (
-              <button key={pz.sig} title={`Disposizione ${i + 1}`} onClick={() => onApplyTavolaLayout(pz.slots)}
-                className="rounded-md overflow-hidden border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-500))] hover:ring-1 hover:ring-[rgb(var(--gold-500))] transition">
-                <Wireframe slots={pz.slots} aspect={tavAspect ?? 2} />
-              </button>
-            ))}
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="font-medium flex items-center gap-1.5"><Grid3x3 size={14} /> Disposizioni <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({presets?.length ?? 0} · {(page.elements ?? []).length} foto)</span></p>
+            {onSaveLayout && <button onClick={onSaveLayout} title="Salva la composizione attuale tra i tuoi preset" className="text-[11px] inline-flex items-center gap-1 text-[rgb(var(--gold-700))] hover:underline"><Save size={12} /> Salva questa</button>}
           </div>
+          {myPresets && myPresets.length > 0 && (
+            <>
+              <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1">I tuoi preset</p>
+              <div className="grid grid-cols-3 gap-1.5 mb-3">
+                {myPresets.map((l) => (
+                  <div key={l.id} className="relative group/mp">
+                    <button title={`${l.name} · applica`} onClick={() => onApplySaved?.(l)}
+                      className="w-full rounded-md overflow-hidden border border-[rgb(var(--gold-400))] hover:ring-1 hover:ring-[rgb(var(--gold-500))] transition">
+                      <Wireframe slots={l.els ?? []} aspect={tavAspect ?? 2} />
+                    </button>
+                    {onDeleteSaved && <button title="Elimina preset" onClick={() => onDeleteSaved(l.id)} className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-rose-500 text-white text-[10px] leading-none hidden group-hover/mp:flex items-center justify-center">×</button>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {presets && presets.length > 0 && (
+            <>
+              <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1.5">Suggerite — a vivo, con cornice o a fascia. Le foto entrano negli slot adatti al loro verso.</p>
+              <div className="grid grid-cols-3 gap-1.5 max-h-72 overflow-auto pr-0.5">
+                {presets.map((pz, i) => (
+                  <button key={pz.sig} title={`Disposizione ${i + 1}`} onClick={() => onApplyTavolaLayout(pz.slots)}
+                    className="rounded-md overflow-hidden border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-500))] hover:ring-1 hover:ring-[rgb(var(--gold-500))] transition">
+                    <Wireframe slots={pz.slots} aspect={tavAspect ?? 2} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 

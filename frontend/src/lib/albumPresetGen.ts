@@ -82,38 +82,59 @@ function balancePenalty(slots: Slot[]): number {
   return (v / Math.max(1e-6, avg)) * 0.5
 }
 
-// API: genera le disposizioni per N foto (orientamenti dati), ordinate dalla migliore.
-// Filtra le celle TROPPO estreme/sottili (album = riquadri equilibrati): se ne restano troppo
-// poche, allenta progressivamente la soglia. `max` = numero massimo di preset restituiti.
-export function genTavolaLayouts(photoOrients: Orient[], tavW: number, tavH: number, max = 18): GenLayout[] {
+// "Regioni" entro cui collocare lo schema sulla tavola: dal pieno (copre tutto) a varianti con
+// bordo bianco o a fascia → disposizioni più creative da impaginatore (non coprono tutta l'area).
+type Region = { key: string; r: Slot; bonus: number }
+const REGIONS: Region[] = [
+  { key: 'full', r: { x: 0, y: 0, w: 1, h: 1 }, bonus: 0.35 },                 // a vivo, copre tutto
+  { key: 'frameS', r: { x: 0.04, y: 0.055, w: 0.92, h: 0.89 }, bonus: 0.22 },   // bordino bianco
+  { key: 'frameM', r: { x: 0.10, y: 0.12, w: 0.80, h: 0.76 }, bonus: 0.05 },    // cornice bianca ampia
+  { key: 'frameL', r: { x: 0.17, y: 0.20, w: 0.66, h: 0.60 }, bonus: -0.1 },    // molto raccolto al centro
+  { key: 'bandH', r: { x: 0.05, y: 0.26, w: 0.90, h: 0.48 }, bonus: 0.0 },      // fascia orizzontale
+  { key: 'bandV', r: { x: 0.30, y: 0.06, w: 0.40, h: 0.88 }, bonus: -0.15 },    // colonna centrale stretta
+]
+function placeInRegion(slots: Slot[], R: Slot): Slot[] {
+  return slots.map((s) => ({ x: R.x + s.x * R.w, y: R.y + s.y * R.h, w: s.w * R.w, h: s.h * R.h }))
+}
+
+// API: genera MOLTE disposizioni per N foto (orientamenti dati), ordinate dalla migliore. Include
+// varianti a vivo, con cornice bianca e a fascia (più creative). `max` = preset restituiti.
+export function genTavolaLayouts(photoOrients: Orient[], tavW: number, tavH: number, max = 48): GenLayout[] {
   const n = Math.max(1, photoOrients.length)
-  const cap = n <= 4 ? 300 : n <= 6 ? 520 : 720
+  const cap = n <= 4 ? 360 : n <= 6 ? 640 : 900
   const raw = gen({ x: 0, y: 0, w: 1, h: 1 }, n, cap)
-  // soglie di "estremità" rilassate finché non abbiamo abbastanza schemi puliti
+  // 1) SCHEMI BASE puliti (celle equilibrate), soglia di estremità rilassata se servono di più.
+  let base: { slots: Slot[]; q: number }[] = []
   for (const lim of [2.6, 3.2, 4.2, 99]) {
-    const seen = new Set<string>()
-    const layouts: GenLayout[] = []
+    const seen = new Set<string>(); base = []
     for (const slots of raw) {
       if (slots.length !== n) continue
       let bad = false
       for (const s of slots) {
         const a = (s.w * tavW) / (s.h * tavH)
         if (a > lim || a < 1 / lim) { bad = true; break }
-        if (s.w < 0.06 || s.h < 0.08) { bad = true; break }
+        if (s.w < 0.05 || s.h < 0.07) { bad = true; break }
       }
       if (bad) continue
-      const sig = sigOf(slots)
-      if (seen.has(sig)) continue
-      seen.add(sig)
-      const score = orientScore(slots, photoOrients, tavW, tavH) - uglyPenalty(slots, tavW, tavH) - balancePenalty(slots)
-      layouts.push({ slots, score, sig })
+      const sig = sigOf(slots); if (seen.has(sig)) continue; seen.add(sig)
+      base.push({ slots, q: uglyPenalty(slots, tavW, tavH) + balancePenalty(slots) })
     }
-    if (layouts.length >= Math.min(8, max) || lim === 99) {
-      layouts.sort((a, b) => b.score - a.score)
-      return layouts.slice(0, max)
+    if (base.length >= 10 || lim === 99) break
+  }
+  base.sort((a, b) => a.q - b.q)
+  base = base.slice(0, 16)
+  // 2) VARIANTI: ogni schema base collocato nelle varie regioni (pieno / cornice / fascia).
+  const seen2 = new Set<string>(); const out: GenLayout[] = []
+  for (const b of base) {
+    for (const R of REGIONS) {
+      const slots = placeInRegion(b.slots, R.r)
+      const sig = sigOf(slots); if (seen2.has(sig)) continue; seen2.add(sig)
+      const score = orientScore(slots, photoOrients, tavW, tavH) - b.q + R.bonus
+      out.push({ slots, score, sig })
     }
   }
-  return []
+  out.sort((a, b) => b.score - a.score)
+  return out.slice(0, max)
 }
 
 // Assegna ogni foto allo slot più adatto per orientamento → ordine [indice foto per slot].
