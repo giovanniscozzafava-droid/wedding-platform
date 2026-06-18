@@ -1751,7 +1751,7 @@ function FreeStage(props: {
               <>
                 {(['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
                   <div key={c} onPointerDown={(e) => down(e, 'resize', el, c)}
-                    className="absolute h-3 w-3 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none"
+                    className="absolute h-3 w-3 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none transition-[background-color,box-shadow] hover:bg-[rgb(var(--gold-400))] hover:shadow-[0_0_0_3px_rgba(184,146,63,.35)] before:absolute before:content-[''] before:-inset-2"
                     style={{ left: c.includes('w') ? -6 : undefined, right: c.includes('e') ? -6 : undefined, top: c.includes('n') ? -6 : undefined, bottom: c.includes('s') ? -6 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />
                 ))}
                 {/* PUNTI CARDINE centro-lato della singola foto: e/w = larghezza, n/s = altezza */}
@@ -1759,7 +1759,7 @@ function FreeStage(props: {
                   const horiz = c === 'e' || c === 'w'
                   return (
                     <div key={c} onPointerDown={(e) => down(e, 'resize', el, c)} title={horiz ? 'Larghezza' : 'Altezza'}
-                      className="absolute h-3 w-3 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none"
+                      className="absolute h-3 w-3 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none transition-[background-color,box-shadow] hover:bg-[rgb(var(--gold-400))] hover:shadow-[0_0_0_3px_rgba(184,146,63,.35)] before:absolute before:content-[''] before:-inset-2"
                       style={{ left: c === 'w' ? -6 : c === 'e' ? undefined : '50%', right: c === 'e' ? -6 : undefined, bottom: c === 's' ? -6 : undefined, top: c === 's' ? undefined : '50%', transform: horiz ? 'translateY(-50%)' : 'translateX(-50%)', cursor: horiz ? 'ew-resize' : 'ns-resize' }} />
                   )
                 })}
@@ -1785,7 +1785,7 @@ function FreeStage(props: {
             <div className="absolute inset-0 border-2 border-dashed border-[rgb(var(--gold-500))]" />
             {(['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
               <div key={c} onPointerDown={(e) => downGroup(e, c)}
-                className="absolute h-3.5 w-3.5 bg-white border-2 border-[rgb(var(--gold-500))] rounded-sm touch-none pointer-events-auto"
+                className="absolute h-3.5 w-3.5 bg-white border-2 border-[rgb(var(--gold-500))] rounded-sm touch-none pointer-events-auto transition-[background-color,box-shadow] hover:bg-[rgb(var(--gold-400))] hover:shadow-[0_0_0_3px_rgba(184,146,63,.35)] before:absolute before:content-[''] before:-inset-2"
                 style={{ left: c.includes('w') ? -7 : undefined, right: c.includes('e') ? -7 : undefined, top: c.includes('n') ? -7 : undefined, bottom: c.includes('s') ? -7 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />
             ))}
             {/* PUNTI CARDINE centro-lato: solo larghezza (e/w) o solo altezza (n/s) */}
@@ -1793,7 +1793,7 @@ function FreeStage(props: {
               const horiz = c === 'e' || c === 'w'
               return (
                 <div key={c} onPointerDown={(e) => downGroup(e, c)} title={horiz ? 'Larghezza' : 'Altezza'}
-                  className="absolute h-3.5 w-3.5 bg-white border-2 border-[rgb(var(--gold-500))] rounded-sm touch-none pointer-events-auto"
+                  className="absolute h-3.5 w-3.5 bg-white border-2 border-[rgb(var(--gold-500))] rounded-sm touch-none pointer-events-auto transition-[background-color,box-shadow] hover:bg-[rgb(var(--gold-400))] hover:shadow-[0_0_0_3px_rgba(184,146,63,.35)] before:absolute before:content-[''] before:-inset-2"
                   style={{
                     left: c === 'w' ? -7 : c === 'e' ? undefined : '50%',
                     right: c === 'e' ? -7 : undefined,
@@ -2128,15 +2128,17 @@ function FreePanel(props: {
           {/* SPAZIATURA ESATTA: stessa distanza in mm tra le foto adiacenti, con 2 modalità */}
           {onSpaceExact && (
             <div className="mt-2 pt-2 border-t border-[rgb(var(--border))]">
+              <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1">Stessa distanza tra le foto</p>
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[11px] text-[rgb(var(--fg-muted))] whitespace-nowrap">Stessa distanza</span>
+                <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Distanza</span>
                 <input type="number" min={0} max={30} value={gutterMm ?? 3} onChange={(e) => onGutter?.(Math.max(0, Math.min(30, +e.target.value || 0)))} className="w-12 text-[11px] px-1 py-0.5 rounded border border-[rgb(var(--border))] bg-[rgb(var(--bg))]" />
-                <span className="text-[11px] text-[rgb(var(--fg-muted))]">mm</span>
+                <span className="text-[11px] text-[rgb(var(--fg-subtle))]">mm · poi premi:</span>
               </div>
               <div className="grid grid-cols-2 gap-1">
-                <button onClick={() => onSpaceExact(false)} title="Stessa distanza in mm tra le foto, mantenendo la loro posizione" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">⇿ Solo spazio</button>
-                <button onClick={() => onSpaceExact(true)} title="Stessa distanza in mm + allinea i bordi (riga/colonna pulita)" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--gold-400))] hover:bg-[rgb(var(--bg-sunken))]">⇿ Spazio + allinea</button>
+                <button onClick={() => onSpaceExact(false)} title="Mette la stessa distanza (mm) tra le foto selezionate, lasciandole alla stessa altezza/posizione" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">Solo distanza</button>
+                <button onClick={() => onSpaceExact(true)} title="Stessa distanza (mm) E allinea i bordi: le foto diventano una riga/colonna pulita" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--gold-400))] hover:bg-[rgb(var(--bg-sunken))]">Distanza + allinea</button>
               </div>
+              <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1 leading-tight">Seleziona 2+ foto vicine, scegli i mm e premi. “Solo distanza” cambia solo lo spazio; “+ allinea” le mette anche in fila dritta.</p>
             </div>
           )}
         </div>
