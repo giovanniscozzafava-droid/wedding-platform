@@ -70,6 +70,7 @@ function AlbumDesignerInner() {
   const rootRef = useRef<HTMLDivElement>(null)
   const spreadRef = useRef<HTMLDivElement>(null)
   const guideDrag = useRef<{ axis: 'v' | 'h'; index: number } | null>(null)
+  const [selGuide, setSelGuide] = useState<{ axis: 'v' | 'h'; index: number } | null>(null) // righello selezionato (Canc per eliminarlo)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [canvasBox, setCanvasBox] = useState({ w: 0, h: 0 }) // area disponibile per la tavola (per il fit)
   const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
@@ -183,9 +184,13 @@ function AlbumDesignerInner() {
       if (mod && k === 'a' && free) { e.preventDefault(); selectAllFree(); return }
       if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return }
       const sel = multiSel.length || selEl
-      if ((k === 'delete' || k === 'backspace') && sel) { e.preventDefault(); deleteSel(); return }
-      // ESC: cancella la/e foto selezionata/e (se non c'è selezione, deseleziona soltanto)
-      if (k === 'escape') { if (sel) { e.preventDefault(); deleteSel() } else { selectEl(null) }; return }
+      if (k === 'delete' || k === 'backspace') {
+        // priorità al RIGHELLO selezionato (linea guida blu): Canc lo elimina
+        if (selGuide) { e.preventDefault(); removeGuide(selGuide.axis, selGuide.index); setSelGuide(null); return }
+        if (sel) { e.preventDefault(); deleteSel(); return }
+      }
+      // ESC: prima deseleziona il righello; poi cancella la/e foto selezionata/e
+      if (k === 'escape') { if (selGuide) { setSelGuide(null); return } if (sel) { e.preventDefault(); deleteSel() } else { selectEl(null) }; return }
       // frecce: sposta la selezione (Shift = passo grande). 1 cella griglia ≈ 0.04
       if (free && sel && ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) {
         e.preventDefault(); const s = e.shiftKey ? 0.04 : 0.005
@@ -195,7 +200,7 @@ function AlbumDesignerInner() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pages, currentPageId, multiSel, selEl])
+  }, [pages, currentPageId, multiSel, selEl, selGuide])
   // AUTOSAVE: i lavori di impaginazione si salvano da soli (debounce 1.5s dopo ogni modifica).
   useEffect(() => {
     if (!loadedRef.current || step !== 'design' || !entryId) return
@@ -270,6 +275,11 @@ function AlbumDesignerInner() {
     setPages((arr) => arr.map((p) => (p.id === id ? fn(p) : p)))
   }
   function placeInto(pageId: string, slot: number | null, mediaId: string) { updatePage(pageId, (p) => placeInPage(p, slot, mediaId)) }
+  // Scambia le foto di due riquadri (template). Le CELLE (ritaglio) restano sui rispettivi
+  // slot → ogni foto eredita il ritaglio del riquadro in cui finisce.
+  function swapSlots(pageId: string, a: number, b: number) {
+    updatePage(pageId, (p) => { const ids = [...p.mediaIds]; const t = ids[a]; ids[a] = ids[b]!; ids[b] = t!; return { ...p, mediaIds: ids } })
+  }
   function clearSlot(pageId: string, slot: number) { updatePage(pageId, (p) => clearSlotInPage(p, slot)) }
   function updateCell(pageId: string, slot: number, partial: Partial<Cell>) { updatePage(pageId, (p) => setCell(p, slot, partial)) }
   function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => ({ ...setPageTemplate(p, t), mode: 'template' as const })) }
@@ -330,6 +340,7 @@ function AlbumDesignerInner() {
   function removeLayout(id: string) { setLayouts(deleteLayout(id)) }
   // ── selezione multipla (Shift) + scorciatoie tastiera stile Canva ───────────
   function selectEl(id: string | null, additive = false) {
+    setSelGuide(null) // selezionando/deselezionando una foto, il righello non è più "armato"
     if (id == null) { setSelEl(null); setMultiSel([]); return }
     if (additive) { setMultiSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); setSelEl(id) }
     else { setSelEl(id); setMultiSel([id]) }
@@ -460,7 +471,7 @@ function AlbumDesignerInner() {
     if (axis === 'v') setGuidesV((g) => [...g, p]); else setGuidesH((g) => [...g, p])
   }
   function startGuideDrag(e: React.PointerEvent, axis: 'v' | 'h', index: number) {
-    e.stopPropagation(); guideDrag.current = { axis, index }
+    e.stopPropagation(); guideDrag.current = { axis, index }; setSelGuide({ axis, index })
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   function moveGuideDrag(e: React.PointerEvent) {
@@ -640,7 +651,10 @@ function AlbumDesignerInner() {
             <ToolToggle on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
             <ToolToggle on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
             {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
-            {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => currentPage.mode === 'free' ? setTemplate(currentPage.id, currentPage.template) : convertToFree(currentPage.id)} icon={<Move size={14} />} label="Libera" />}
+            {/* "Libera" è a senso unico: una volta entrati, la composizione costruita a mano
+                RESTA com'è — togliendo la libera NON si torna più al preset (niente perdita
+                del lavoro). Per ripartire da una griglia si usa "Nuova tavola". */}
+            {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => { if (currentPage.mode !== 'free') convertToFree(currentPage.id); else toast('Sei in modalità libera: la composizione resta come l’hai fatta.') }} icon={<Move size={14} />} label="Libera" />}
             {!lite && spreadPages[0] && <ToolToggle on={!!spreadPages[0]?.spreadImage} onClick={() => { const lp = spreadPages[0]!; if (lp.spreadImage) clearSpreadImg(lp.id); else makeSpreadFromActive(lp.id, spreadPages) }} icon={<Maximize size={14} />} label="Doppia pagina" />}
             <div className="inline-flex items-center gap-0.5 ml-0.5">
               <button title="Riduci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
@@ -668,10 +682,11 @@ function AlbumDesignerInner() {
                     onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
                     title={getMoment(m.album_moment)?.label ?? 'senza momento'}
                     className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'border-[rgb(var(--border))]' : 'border-[rgb(var(--gold-400))] ring-1 ring-[rgb(var(--gold-400))]'}`}>
-                    {/* INSERITE: desaturate (si capisce che sono già a posto). NON inserite: piene
-                        e nitide, con bordino, così le foto che MANCANO saltano subito all'occhio. */}
+                    {/* SEMPRE a colori. INSERITE: sfumate (opacità) → si capisce che sono a posto.
+                        NON inserite: piene e nitide, con bordino dorato → le foto che MANCANO
+                        saltano subito all'occhio. (niente bianco/nero) */}
                     <img src={thumbUrl(m)} alt="" loading="lazy"
-                      className={`w-full h-full object-cover ${placedIds.has(m.id) ? 'opacity-45 grayscale' : ''}`} />
+                      className={`w-full h-full object-cover ${placedIds.has(m.id) ? 'opacity-40' : ''}`} />
                     {(() => { const n = usageCount.get(m.id) ?? 0; return n >= 1 ? (
                       <span title={n > 1 ? `Usata ${n} volte` : 'Usata 1 volta'}
                         className={`absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full text-[9px] font-bold leading-[15px] text-center text-white ${n > 1 ? 'bg-[rgb(var(--rose-500))] ring-1 ring-white' : 'bg-black/55'}`}>{n > 1 ? `×${n}` : '✓'}</span>
@@ -690,8 +705,8 @@ function AlbumDesignerInner() {
                     className="relative flex items-stretch shadow-[var(--shadow-lift)] bg-[rgb(var(--border))] gap-px transition-[height]" style={{ height: `${spreadHpx.toFixed(0)}px` }}>
                     {rulerOn && <SpreadRuler cmX={(fmt.w * spreadPages.length) / 10} cmY={fmt.h / 10} onAddGuide={addGuide} />}
                     {/* guide Photoshop: linee precise trascinabili (doppio clic per rimuoverle) */}
-                    {guidesV.map((g, i) => <div key={`gv${i}`} onPointerDown={(e) => startGuideDrag(e, 'v', i)} onDoubleClick={() => removeGuide('v', i)} className="absolute top-0 bottom-0 z-[45] -ml-1 w-2 cursor-ew-resize group/guide" style={{ left: `${g * 100}%` }}><div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-cyan-500 group-hover/guide:w-0.5" /></div>)}
-                    {guidesH.map((g, i) => <div key={`gh${i}`} onPointerDown={(e) => startGuideDrag(e, 'h', i)} onDoubleClick={() => removeGuide('h', i)} className="absolute left-0 right-0 z-[45] -mt-1 h-2 cursor-ns-resize group/guide" style={{ top: `${g * 100}%` }}><div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-px bg-cyan-500 group-hover/guide:h-0.5" /></div>)}
+                    {guidesV.map((g, i) => { const on = selGuide?.axis === 'v' && selGuide.index === i; return <div key={`gv${i}`} onPointerDown={(e) => startGuideDrag(e, 'v', i)} onDoubleClick={() => removeGuide('v', i)} className="absolute top-0 bottom-0 z-[45] -ml-1 w-2 cursor-ew-resize group/guide" style={{ left: `${g * 100}%` }} title="Trascina per spostare · Canc/doppio-clic per eliminare"><div className={`absolute left-1/2 -translate-x-1/2 top-0 bottom-0 ${on ? 'w-0.5 bg-rose-500' : 'w-px bg-cyan-500 group-hover/guide:w-0.5'}`} /></div> })}
+                    {guidesH.map((g, i) => { const on = selGuide?.axis === 'h' && selGuide.index === i; return <div key={`gh${i}`} onPointerDown={(e) => startGuideDrag(e, 'h', i)} onDoubleClick={() => removeGuide('h', i)} className="absolute left-0 right-0 z-[45] -mt-1 h-2 cursor-ns-resize group/guide" style={{ top: `${g * 100}%` }} title="Trascina per spostare · Canc/doppio-clic per eliminare"><div className={`absolute top-1/2 -translate-y-1/2 left-0 right-0 ${on ? 'h-0.5 bg-rose-500' : 'h-px bg-cyan-500 group-hover/guide:h-0.5'}`} /></div> })}
                     {spreadPages.map((p) => {
                       const isAct = p.id === currentPageId
                       const pnum = pageNums ? pages.findIndex((x) => x.id === p.id) + 1 : null
@@ -710,7 +725,7 @@ function AlbumDesignerInner() {
                               aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={isAct ? activeSlot : null}
                               onSlot={setActiveSlot} onDropMedia={(s, id) => placeInto(p.id, s, id)}
                               onClearSlot={(s) => clearSlot(p.id, s)} onCell={(s, partial) => updateCell(p.id, s, partial)} onCrop={(s) => setCropFor(s)}
-                              onFree={() => convertToFree(p.id)} />
+                              onFree={() => convertToFree(p.id)} onSwap={(a, b) => swapSlots(p.id, a, b)} />
                           )}
                           {isAct && <div className="absolute inset-0 ring-2 ring-[rgb(var(--gold-500))] pointer-events-none" />}
                         </div>
@@ -813,6 +828,15 @@ function AlbumDesignerInner() {
                   onElUpdate={(id, patch) => freeUpdate(currentPage.id, id, patch)}
                   onElCrop={(id) => setCropElId(id)} onElRemove={(id) => freeRemove(currentPage.id, id)}
                   onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
+                  crop={(() => {
+                    const el = (currentPage.elements ?? []).find((e) => e.id === selEl)
+                    const m = el ? mediaById.get(el.mediaId) : undefined
+                    if (!el || !m) return null
+                    const fmt = getFormat(format)
+                    return { src: hiUrl(m), aspect: (el.w / Math.max(0.001, el.h)) * (fmt.w / fmt.h), cell: el.cell,
+                      onChange: (c) => freeUpdate(currentPage.id, el.id, { cell: c }),
+                      onRotate90: (dir) => freeUpdate(currentPage.id, el.id, { rot: (((el.rot + dir * 90) % 360) + 360) % 360 }) }
+                  })()}
                 />
               ) : (
                 <PropsPanel
@@ -823,6 +847,18 @@ function AlbumDesignerInner() {
                   onCrop={(s) => setCropFor(s)} onFree={() => convertToFree(currentPage.id)}
                   onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
                   savedLayouts={layouts} onSaveLayout={saveCurLayout} onApplyLayout={applyLayoutCur} onDeleteLayout={removeLayout}
+                  crop={(() => {
+                    if (activeSlot == null) return null
+                    const fr = framesForPage(currentPage)[activeSlot]
+                    const mid = currentPage.mediaIds[activeSlot]
+                    const m = mid ? mediaById.get(mid) : undefined
+                    if (!fr || !m) return null
+                    const fmt = getFormat(format)
+                    // template: rotazione 90° non disponibile (geometria slot) → per ruotare,
+                    // doppio clic sulla foto = modalità libera (lì si ruota).
+                    return { src: hiUrl(m), aspect: slotAspectOf(fr, fmt.w, fmt.h), cell: currentPage.cells?.[activeSlot] ?? DEFAULT_CELL,
+                      onChange: (c) => updateCell(currentPage.id, activeSlot, c) }
+                  })()}
                 />
               ))}
             </aside>
@@ -1066,9 +1102,9 @@ function PageStage(props: {
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; activeSlot: number | null
   onSlot: (s: number | null) => void; onDropMedia: (s: number, id: string) => void
   onClearSlot: (s: number) => void; onCell: (s: number, partial: Partial<Cell>) => void; onCrop: (s: number) => void
-  onFree?: () => void
+  onFree?: () => void; onSwap?: (a: number, b: number) => void
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop, onFree } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop, onFree, onSwap } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const frames = framesForPage(page)
@@ -1099,9 +1135,9 @@ function PageStage(props: {
             onClick={(e) => { e.stopPropagation(); onSlot(i) }}
             onDoubleClick={(e) => { if (m) { e.stopPropagation(); onFree?.() } }}
             onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(i, mid) }}
+            onDrop={(e) => { e.preventDefault(); const sl = e.dataTransfer.getData('text/slot'); if (sl !== '') { const from = Number(sl); if (!Number.isNaN(from) && from !== i) onSwap?.(from, i); return } const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(i, mid) }}
             onWheel={(e) => { if (!m) return; e.preventDefault(); const nz = Math.min(4, Math.max(1, +(cell.z + (e.deltaY < 0 ? 0.12 : -0.12)).toFixed(2))); onCell(i, { z: nz }) }}
-            className={`absolute overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-10' : 'outline outline-1 outline-black/5'}`}
+            className={`group/slot absolute overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-10' : 'outline outline-1 outline-black/5'}`}
             style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%`, padding: '1px' }}>
             {m ? (
               <div className="relative w-full h-full">
@@ -1109,6 +1145,17 @@ function PageStage(props: {
                   className="w-full h-full touch-none cursor-move relative overflow-hidden">
                   <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(cell)} />
                 </div>
+                {/* maniglia per SCAMBIARE la foto con un altro riquadro (trascina e rilascia
+                    su un altro slot). Le foto si scambiano e ognuna eredita il ritaglio del
+                    riquadro in cui finisce. */}
+                {onSwap && (
+                  <span draggable title="Trascina su un altro riquadro per scambiare le foto"
+                    onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+                    onDragStart={(e) => { e.dataTransfer.setData('text/slot', String(i)); e.dataTransfer.effectAllowed = 'move' }}
+                    className="absolute top-0.5 left-0.5 z-20 h-5 w-5 rounded bg-black/55 text-white items-center justify-center cursor-grab active:cursor-grabbing hidden group-hover/slot:flex">
+                    <Move size={11} />
+                  </span>
+                )}
                 {sel && (
                   <>
                     <span className="absolute -top-px -left-px h-2 w-2 border-t-2 border-l-2 border-[rgb(var(--gold-500))]" />
@@ -1426,14 +1473,57 @@ function FramesDiagram({ frames, active }: { frames: { x: number; y: number; w: 
   )
 }
 
+// Navigatore di RITAGLIO inline (nel pannello): trascina per spostare il fuoco, slider
+// per lo zoom, Riempi per azzerare, ±90° per ruotare. Usa lo stesso Cell del rendering
+// → l'anteprima coincide col PDF. Compare cliccando una foto.
+function InlineCrop({ src, aspect, cell, onChange, onRotate90 }: {
+  src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null)
+  const z = Math.max(1, cell.z || 1)
+  function down(e: React.PointerEvent) { drag.current = { x: e.clientX, y: e.clientY, fx: cell.fx ?? 0.5, fy: cell.fy ?? 0.5 }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) }
+  function move(e: React.PointerEvent) {
+    const d = drag.current; if (!d) return
+    const r = ref.current!.getBoundingClientRect()
+    const nfx = Math.min(1, Math.max(0, d.fx - (e.clientX - d.x) / Math.max(1, r.width) / z))
+    const nfy = Math.min(1, Math.max(0, d.fy - (e.clientY - d.y) / Math.max(1, r.height) / z))
+    onChange({ ...cell, fx: nfx, fy: nfy })
+  }
+  function up() { drag.current = null }
+  return (
+    <div className="space-y-1.5">
+      <div ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}
+        className="relative w-full overflow-hidden rounded border border-[rgb(var(--border))] cursor-move touch-none bg-black/5"
+        style={{ aspectRatio: String(aspect > 0 ? aspect : 1) }}>
+        <img src={src} alt="" draggable={false} style={coverImgStyle(cell)} />
+        <span className="absolute bottom-0.5 left-0.5 text-[8px] bg-black/55 text-white rounded px-1 pointer-events-none">trascina · zoom</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <ZoomOut size={13} className="text-[rgb(var(--fg-subtle))] shrink-0" />
+        <input type="range" min={1} max={4} step={0.05} value={z} onChange={(e) => onChange({ ...cell, z: +e.target.value })} className="flex-1 accent-[rgb(var(--gold-600))]" />
+        <ZoomIn size={13} className="text-[rgb(var(--fg-subtle))] shrink-0" />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <button onClick={() => onChange({ z: 1, fx: 0.5, fy: 0.5 })} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">Riempi</button>
+        {onRotate90 && <>
+          <button title="Ruota a sinistra 90°" onClick={() => onRotate90(-1)} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center gap-1"><RotateCw size={11} className="-scale-x-100" /> 90°</button>
+          <button title="Ruota a destra 90°" onClick={() => onRotate90(1)} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center gap-1"><RotateCw size={11} /> 90°</button>
+        </>}
+      </div>
+    </div>
+  )
+}
+
 function PropsPanel(props: {
   page: AlbumPage; activeSlot: number | null; mediaById: Map<string, M>; formatKey: string; aspects: Record<string, number>; lite?: boolean
   onTemplate: (t: TemplateKey) => void; onCycle: () => void; onCell: (s: number, partial: Partial<Cell>) => void
   onClearSlot: (s: number) => void; onCrop: (s: number) => void; onFree: () => void
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void
   savedLayouts: SavedLayout[]; onSaveLayout: () => void; onApplyLayout: (l: SavedLayout) => void; onDeleteLayout: (id: string) => void
+  crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, activeSlot, mediaById, formatKey, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate, savedLayouts, onSaveLayout, onApplyLayout, onDeleteLayout } = props
+  const { page, activeSlot, mediaById, formatKey, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate, savedLayouts, onSaveLayout, onApplyLayout, onDeleteLayout, crop } = props
   const moment = getMoment(page.moment)
   const alts = templatesFor(Math.max(1, page.mediaIds.length))
   const slotMediaId = activeSlot != null ? page.mediaIds[activeSlot] : undefined
@@ -1509,6 +1599,13 @@ function PropsPanel(props: {
             <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
           </div>
         )}
+        {/* NAVIGATORE DI RITAGLIO inline: appare cliccando una foto dello slot */}
+        {crop && (
+          <div className="mt-3 border-t border-[rgb(var(--border))] pt-3">
+            <p className="text-[11px] font-medium mb-1.5 flex items-center gap-1"><Crop size={12} /> Ritaglia la foto</p>
+            <InlineCrop src={crop.src} aspect={crop.aspect} cell={crop.cell} onChange={crop.onChange} onRotate90={crop.onRotate90} />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1520,8 +1617,9 @@ function FreePanel(props: {
   onBg: (c: string) => void; onElUpdate: (id: string, patch: Partial<FreeEl>) => void
   onElCrop: (id: string) => void; onElRemove: (id: string) => void
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void
+  crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -1565,9 +1663,16 @@ function FreePanel(props: {
 
       {!lite && (
         <div className="border-t border-[rgb(var(--border))] pt-3 flex gap-1.5 flex-wrap">
-          <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Pagina</Button>
+          <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Tavola</Button>
           <Button variant="outline" size="sm" onClick={onDuplicate}><Copy size={13} /> Duplica</Button>
           <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
+        </div>
+      )}
+      {/* NAVIGATORE DI RITAGLIO inline (sotto i pulsanti): clic sulla foto → ritagli qui */}
+      {crop && (
+        <div className="border-t border-[rgb(var(--border))] pt-3">
+          <p className="text-[11px] font-medium mb-1.5 flex items-center gap-1"><Crop size={12} /> Ritaglia la foto</p>
+          <InlineCrop src={crop.src} aspect={crop.aspect} cell={crop.cell} onChange={crop.onChange} onRotate90={crop.onRotate90} />
         </div>
       )}
     </div>
