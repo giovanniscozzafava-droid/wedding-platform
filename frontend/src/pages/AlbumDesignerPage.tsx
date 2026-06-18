@@ -40,6 +40,23 @@ function SpreadImg({ src, cell, frame, pointerNone }: { src: string; cell: Cell;
   )
 }
 
+// TAVOLA UNICA (sola lettura): rende gli elementi liberi su tutta la superficie. Il contenitore
+// padre deve avere l'aspetto della tavola (2×W × H). Usato in anteprima, vista cliente, miniatura.
+function FreeSurface({ page, mediaById, thumb }: { page: AlbumPage; mediaById: Map<string, M>; thumb: (m: M) => string }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden" style={{ background: page.bg ?? '#ffffff' }}>
+      {(page.elements ?? []).map((el) => {
+        const m = mediaById.get(el.mediaId)
+        return (
+          <div key={el.id} className="absolute overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>
+            {m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function AlbumDesignerInner() {
   const { entryId } = useParams<{ entryId: string }>()
   const { profile } = useAuth()
@@ -347,7 +364,7 @@ function AlbumDesignerInner() {
   function materializeFree(p: AlbumPage): AlbumPage {
     if (p.mode !== 'free') return p
     const photos = (p.elements ?? []).filter((e) => e.mediaId)
-    return { ...p, mode: 'template' as const, frozen: false, elements: [], mediaIds: photos.map((e) => e.mediaId), cells: photos.map((e) => e.cell ?? DEFAULT_CELL) }
+    return { ...p, mode: 'template' as const, frozen: false, tavolaFree: false, elements: [], mediaIds: photos.map((e) => e.mediaId), cells: photos.map((e) => e.cell ?? DEFAULT_CELL) }
   }
   function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => ({ ...setPageTemplate(materializeFree(p), t), mode: 'template' as const })) }
   function cycleLayout(pageId: string) { updatePage(pageId, (p) => { const mp = materializeFree(p); return { ...setPageTemplate(mp, cycleTemplate(mp.template, mp.mediaIds.length)), mode: 'template' as const } }) }
@@ -388,6 +405,37 @@ function AlbumDesignerInner() {
   }
   // ── elementi liberi (stile Canva) ──────────────────────────────────────────
   function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, frozen: false, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)), mediaIds: [], cells: [] })) }
+  // id della pagina SINISTRA della tavola che contiene `pageId` (gli spread sono coppie pari/dispari)
+  function tavolaLeftIdOf(pageId: string): string {
+    const i = pages.findIndex((p) => p.id === pageId); if (i < 0) return pageId
+    return (i % 2 === 0 ? pages[i] : pages[i - 1])!.id
+  }
+  // TAVOLA UNICA: fonde le due pagine in UNA superficie libera (coordinate 0..1 dell'intera
+  // tavola, largh. 2×W). Le foto della pagina sx finiscono in x∈[0,0.5], quelle della dx in
+  // [0.5,1]; visivamente identico (w si dimezza ma la tavola è 2× più larga). Così le foto si
+  // spostano attraverso la piega e i righelli agganciano da una metà all'altra.
+  function convertTavolaToFree(leftId: string) {
+    const idx = pages.findIndex((p) => p.id === leftId); if (idx < 0) return
+    const left = pages[idx]!; const right = pages[idx + 1]
+    const els: FreeEl[] = []
+    if (left.spreadImage) {
+      const fr = spreadFrameOf(left.spreadImage)
+      els.push({ ...newFreeEl(left.spreadImage.mediaId), x: fr.x, y: fr.y, w: fr.w, h: fr.h, cell: { ...left.spreadImage.cell } })
+    } else {
+      const addPage = (p: AlbumPage | undefined, xOff: number) => {
+        if (!p) return
+        const src = p.mode === 'free' ? (p.elements ?? []) : toFreeElements(p, format)
+        for (const e of src) els.push({ ...newFreeEl(e.mediaId), x: xOff + e.x * 0.5, y: e.y, w: e.w * 0.5, h: e.h, rot: e.rot, cell: { ...e.cell }, border: e.border, shadow: e.shadow })
+      }
+      addPage(left, 0); addPage(right, 0.5)
+    }
+    setPages((arr) => arr.map((p, i) => {
+      if (i === idx) return { ...p, mode: 'free' as const, frozen: false, tavolaFree: true, bg: p.bg ?? '#ffffff', elements: els, mediaIds: [], cells: [], spreadImage: null }
+      if (i === idx + 1) return { ...p, mode: 'template' as const, mediaIds: [], cells: [], elements: [], tavolaFree: false, spreadImage: null }
+      return p
+    }))
+    setCurrentPageId(leftId); setActiveSlot(null); setSelEl(null); setMultiSel([])
+  }
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
   function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
   function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null); setMultiSel((s) => s.filter((x) => x !== id)) }
@@ -591,8 +639,10 @@ function AlbumDesignerInner() {
     const myOpen = revList.filter((r) => r.status === 'OPEN').length
     const SpreadView = ({ pair, max }: { pair: AlbumPage[]; max: string }) => (
       <div className="relative flex bg-white shadow-xl mx-auto" style={{ aspectRatio: String(asp * pair.length), width: max }}>
-        {pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={hiUrl} /></div>)}
-        {pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} /> : null })()}
+        {pair[0]?.tavolaFree
+          ? <FreeSurface page={pair[0]} mediaById={mediaById} thumb={hiUrl} />
+          : pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={hiUrl} /></div>)}
+        {!pair[0]?.tavolaFree && pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} /> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-black/10 pointer-events-none" />}
       </div>
     )
@@ -738,7 +788,7 @@ function AlbumDesignerInner() {
             {/* "Libera": ON = editi a mano (handle); spegnendola ESCI → la composizione resta
                 CONGELATA IDENTICA (stesse posizioni/ritagli/rotazioni), solo non più editabile a
                 mano. Riaccendendola rientri in modifica. Un preset/griglia la SOVRASCRIVE. */}
-            {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free' && !currentPage.frozen} onClick={() => { if (currentPage.mode !== 'free') convertToFree(currentPage.id); else updatePage(currentPage.id, (p) => ({ ...p, frozen: !p.frozen })) }} icon={<Move size={14} />} label="Libera" />}
+            {!lite && spreadPages[0] && (() => { const lp = spreadPages[0]!; const isFree = !!lp.tavolaFree; return <ToolToggle on={isFree && !lp.frozen} onClick={() => { if (!isFree) convertTavolaToFree(lp.id); else updatePage(lp.id, (p) => ({ ...p, frozen: !p.frozen })) }} icon={<Move size={14} />} label="Libera" /> })()}
             {!lite && spreadPages[0] && <ToolToggle on={!!spreadPages[0]?.spreadImage} onClick={() => { const lp = spreadPages[0]!; if (lp.spreadImage) clearSpreadImg(lp.id); else makeSpreadFromActive(lp.id, spreadPages) }} icon={<Maximize size={14} />} label="Doppia pagina" />}
             <div className="inline-flex items-center gap-0.5 ml-0.5">
               <button title="Riduci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
@@ -801,7 +851,20 @@ function AlbumDesignerInner() {
                     {/* guide Photoshop: linee precise trascinabili (doppio clic per rimuoverle) */}
                     {guidesV.map((g, i) => { const on = selGuide?.axis === 'v' && selGuide.index === i; return <div key={`gv${i}`} onPointerDown={(e) => startGuideDrag(e, 'v', i)} onDoubleClick={() => removeGuide('v', i)} className="absolute top-0 bottom-0 z-[45] -ml-1 w-2 cursor-ew-resize group/guide" style={{ left: `${g * 100}%` }} title="Trascina per spostare · Canc/doppio-clic per eliminare"><div className={`absolute left-1/2 -translate-x-1/2 top-0 bottom-0 ${on ? 'w-0.5 bg-rose-500' : 'w-px bg-cyan-500 group-hover/guide:w-0.5'}`} /></div> })}
                     {guidesH.map((g, i) => { const on = selGuide?.axis === 'h' && selGuide.index === i; return <div key={`gh${i}`} onPointerDown={(e) => startGuideDrag(e, 'h', i)} onDoubleClick={() => removeGuide('h', i)} className="absolute left-0 right-0 z-[45] -mt-1 h-2 cursor-ns-resize group/guide" style={{ top: `${g * 100}%` }} title="Trascina per spostare · Canc/doppio-clic per eliminare"><div className={`absolute top-1/2 -translate-y-1/2 left-0 right-0 ${on ? 'h-0.5 bg-rose-500' : 'h-px bg-cyan-500 group-hover/guide:h-0.5'}`} /></div> })}
-                    {spreadPages.map((p) => {
+                    {spreadPages[0]?.tavolaFree ? (() => {
+                      const lp = spreadPages[0]!
+                      const activate = () => { if (lp.id !== currentPageId) { setCurrentPageId(lp.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) } }
+                      return (
+                        <div key={lp.id} onPointerDownCapture={activate} className="relative h-full" style={{ aspectRatio: String(asp * spreadPages.length) }}>
+                          <FreeStage page={lp} formatKey={format} spread bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={null}
+                            aspects={aspects} mediaById={mediaById} thumb={thumbUrl} locked={!!lp.frozen} selEl={!lp.frozen ? selEl : null} multiSel={!lp.frozen ? multiSel : []}
+                            onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(lp.id, id, patch)}
+                            onUpdateMany={(patches) => freeUpdateMany(lp.id, patches)}
+                            onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(lp.id, id)} onDuplicateEl={(id) => freeDuplicate(lp.id, id)}
+                            onDropMedia={(id) => freeAdd(lp.id, id)} />
+                        </div>
+                      )
+                    })() : spreadPages.map((p) => {
                       const isAct = p.id === currentPageId
                       const pnum = pageNums ? pages.findIndex((x) => x.id === p.id) + 1 : null
                       const activate = () => { if (p.id !== currentPageId) { setCurrentPageId(p.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) } }
@@ -819,7 +882,7 @@ function AlbumDesignerInner() {
                               aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={isAct ? activeSlot : null}
                               onSlot={setActiveSlot} onDropMedia={(s, id) => placeInto(p.id, s, id)}
                               onClearSlot={(s) => clearSlot(p.id, s)} onCell={(s, partial) => updateCell(p.id, s, partial)} onCrop={(s) => setCropFor(s)}
-                              onFree={() => convertToFree(p.id)} onSwap={(a, b) => swapSlots(p.id, a, b)} />
+                              onFree={() => convertTavolaToFree(tavolaLeftIdOf(p.id))} onSwap={(a, b) => swapSlots(p.id, a, b)} />
                           )}
                           {isAct && <div className="absolute inset-0 ring-2 ring-[rgb(var(--gold-500))] pointer-events-none" />}
                         </div>
@@ -877,8 +940,8 @@ function AlbumDesignerInner() {
                         </div>
                       )
                     })()}
-                    {/* filigrana del dorso (solo editor, non in stampa) */}
-                    {spreadPages.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.55)] pointer-events-none z-50" title="Dorso (non viene stampato)" />}
+                    {/* filigrana del dorso (solo editor, non in stampa) — in tavola unica la disegna la FreeStage */}
+                    {spreadPages.length === 2 && !spreadPages[0]?.tavolaFree && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.55)] pointer-events-none z-50" title="Dorso (non viene stampato)" />}
                   </div>
                 ) : (
                   <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
@@ -1091,8 +1154,11 @@ function AlbumDesignerInner() {
               <div className="fixed inset-0 z-[80] bg-black/85 flex flex-col items-center justify-center p-6" onClick={() => setPreviewOpen(false)}>
                 <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                   <button disabled={left <= 0} onClick={() => setPreviewIdx(Math.max(0, left - 2))} className="p-2 rounded-full bg-white/10 disabled:opacity-30"><ChevLeft size={24} className="text-white" /></button>
-                  <div className="relative flex gap-1">{lp && <Mini p={lp} />}{rp && <Mini p={rp} />}
-                    {lp?.spreadImage && (() => { const m = mediaById.get(lp.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={lp.spreadImage!.cell} frame={spreadFrameOf(lp.spreadImage)} /> : null })()}
+                  <div className="relative flex gap-1">
+                    {lp?.tavolaFree
+                      ? <div className="relative bg-white shadow-xl shrink-0 overflow-hidden" style={{ aspectRatio: String(asp * 2), height: `min(74vh, ${(46 / asp).toFixed(2)}vw)` }}><FreeSurface page={lp} mediaById={mediaById} thumb={hiUrl} /></div>
+                      : <>{lp && <Mini p={lp} />}{rp && <Mini p={rp} />}
+                        {lp?.spreadImage && (() => { const m = mediaById.get(lp.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={lp.spreadImage!.cell} frame={spreadFrameOf(lp.spreadImage)} /> : null })()}</>}
                   </div>
                   <button disabled={left + 2 >= pages.length} onClick={() => setPreviewIdx(left + 2)} className="p-2 rounded-full bg-white/10 disabled:opacity-30"><ChevRight size={24} className="text-white" /></button>
                 </div>
@@ -1311,11 +1377,13 @@ function FreeStage(props: {
   onUpdateMany: (patches: { id: string; patch: Partial<FreeEl> }[]) => void
   onCrop: (id: string) => void; onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
   locked?: boolean   // libera "uscita": mostra la composizione identica ma non editabile a mano
+  spread?: boolean   // TAVOLA UNICA: superficie larga 2×W (la riga centrale è solo la piega)
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia, locked } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia, locked, spread } = props
   const fmt = getFormat(formatKey)
-  const aspect = fmt.w / fmt.h
-  const mx = MARGIN_MM / fmt.w, my = MARGIN_MM / fmt.h
+  const effW = spread ? fmt.w * 2 : fmt.w
+  const aspect = effW / fmt.h
+  const mx = MARGIN_MM / effW, my = MARGIN_MM / fmt.h
   const boxRef = useRef<HTMLDivElement>(null)
   const drag = useRef<{ kind: 'move' | 'resize' | 'rotate' | 'gresize'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl; group: FreeEl[]; anchor?: { x: number; y: number }; h0?: { x: number; y: number } } | null>(null)
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
@@ -1408,6 +1476,7 @@ function FreeStage(props: {
       onClick={locked ? undefined : (e) => { if (e.target === e.currentTarget) onSelect(null) }}
       onDragOver={locked ? undefined : (e) => e.preventDefault()}
       onDrop={locked ? undefined : (e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(mid) }}>
+      {spread && <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-px bg-[rgba(184,146,63,.5)] pointer-events-none z-[48]" title="Piega (non stampata)" />}
       {els.map((el) => {
         const m = mediaById.get(el.mediaId)
         const sel = selEl === el.id
@@ -1515,13 +1584,18 @@ function SpreadThumb(props: {
       onDrop={(e) => { const side = over; setOver(false); const raw = e.dataTransfer.getData('text/spread'); if (raw === '') return; e.preventDefault(); e.stopPropagation(); const from = Number(raw); if (Number.isNaN(from)) return; const to = side === 'r' ? index + 1 : index; if (to !== from && to !== from + 1) onReorder(from, to) }}>
       {over && <div className={`absolute top-0 bottom-0 w-1 rounded bg-[rgb(var(--gold-500))] z-10 ${over === 'l' ? '-left-1.5' : '-right-1.5'}`} />}
       <button onClick={onSelect} className={`relative flex h-16 overflow-hidden border bg-white ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'} ${!lite ? 'cursor-grab active:cursor-grabbing' : ''}`} style={{ aspectRatio: String(w) }}>
-        {pair.map((p) => (
+        {pair[0]?.tavolaFree ? (
+          <div className="relative h-full w-full"
+            onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => { const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropMedia(pair[0]!.id, mid) } }}>
+            <FreeSurface page={pair[0]} mediaById={mediaById} thumb={thumb} />
+          </div>
+        ) : pair.map((p) => (
           <div key={p.id} className="h-full" style={{ aspectRatio: String(aspect) }}
             onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => { const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropMedia(p.id, mid) } }}>
             <MiniPage page={p} formatKey={formatKey} aspects={aspects} mediaById={mediaById} thumb={thumb} />
           </div>
         ))}
-        {pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={thumb(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} pointerNone /> : null })()}
+        {!pair[0]?.tavolaFree && pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={thumb(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} pointerNone /> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.5)] pointer-events-none" />}
       </button>
       <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">Tav. {index + 1}</span>

@@ -10,6 +10,10 @@ export type Frame = { x: number; y: number; w: number; h: number } // normalizza
 export type AlbumPage = {
   id: string; moment: string | null; template: TemplateKey; mediaIds: string[]; cells?: (Cell | null)[]
   mode?: 'template' | 'free'   // 'free' = elementi liberi stile Canva
+  // TAVOLA UNICA: se true (solo sulla pagina SINISTRA dello spread), l'intera tavola è una
+  // sola superficie libera. `elements` sono in coordinate 0..1 dell'INTERA tavola (largh. 2×W,
+  // alt. H); la riga centrale è solo la piega. La pagina destra dello spread viene assorbita.
+  tavolaFree?: boolean
   frozen?: boolean             // libera "uscita": composizione bloccata (identica, non editabile a mano)
   bg?: string                  // colore di sfondo pagina
   elements?: FreeEl[]          // elementi liberi (in mode 'free')

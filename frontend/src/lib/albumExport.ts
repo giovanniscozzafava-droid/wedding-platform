@@ -149,10 +149,15 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
     for (let i = 0; i < pages.length; i += 2) {
       if (i > 0) pdf.addPage([sheetW, sheetH], land ? 'landscape' : 'portrait')
       pdf.setFillColor(255, 255, 255); pdf.rect(0, 0, sheetW, sheetH, 'F')
-      await renderPageInto(pdf, pages[i]!, f.w, f.h, b, b, resolve, dpi, 0)
-      if (pages[i + 1]) await renderPageInto(pdf, pages[i + 1]!, f.w, f.h, b + f.w, b, resolve, dpi, 0)
-      const spS = pages[i]?.spreadImage
-      if (spS) { try { const img = await loadImage(resolve(spS.mediaId)); const data = framedSpreadDataUrl(img, f.w * dpi / 25.4, f.h * dpi / 25.4, spS.cell, spS.frame ?? FULL_FRAME, 'both'); pdf.addImage(data, 'PNG', b, b, trimW, trimH) } catch { /* ignora foto mancante */ } }
+      if (pages[i]!.tavolaFree) {
+        // TAVOLA UNICA: gli elementi liberi coprono l'intera tavola (largh. 2×W)
+        await renderFreePage(pdf, pages[i]!, trimW, trimH, b, b, resolve, dpi)
+      } else {
+        await renderPageInto(pdf, pages[i]!, f.w, f.h, b, b, resolve, dpi, 0)
+        if (pages[i + 1]) await renderPageInto(pdf, pages[i + 1]!, f.w, f.h, b + f.w, b, resolve, dpi, 0)
+        const spS = pages[i]?.spreadImage
+        if (spS) { try { const img = await loadImage(resolve(spS.mediaId)); const data = framedSpreadDataUrl(img, f.w * dpi / 25.4, f.h * dpi / 25.4, spS.cell, spS.frame ?? FULL_FRAME, 'both'); pdf.addImage(data, 'PNG', b, b, trimW, trimH) } catch { /* ignora foto mancante */ } }
+      }
       if (cutMarks && b > 0) drawCutMarks(pdf, 0, 0, trimW, trimH, b)
       if (pageNumbers) { pageNumText(pdf, i + 1, b + f.w / 2, b + f.h - 5); if (pages[i + 1]) pageNumText(pdf, i + 2, b + f.w + f.w / 2, b + f.h - 5) }
     }
@@ -218,12 +223,17 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
     for (let s = 0; s < pages.length; s += 2) {
       const lp = pages[s]!, rp = pages[s + 1]
       const c = document.createElement('canvas')
-      c.width = wpx * (rp ? 2 : 1); c.height = hpx
+      c.width = wpx * (rp || lp.tavolaFree ? 2 : 1); c.height = hpx
       const ctx = c.getContext('2d')!
       ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
-      await drawPageInto(ctx, lp, 0, wpx, hpx, pxPerMm, resolve, pageNumbers ? s + 1 : null)
-      if (rp) await drawPageInto(ctx, rp, wpx, wpx, hpx, pxPerMm, resolve, pageNumbers ? s + 2 : null)
-      if (lp.spreadImage && rp) { try { const img = await loadImage(resolve(lp.spreadImage.mediaId)); drawFramedSpread(ctx, img, wpx, hpx, lp.spreadImage.cell, lp.spreadImage.frame ?? FULL_FRAME, 'both') } catch { /* ignora */ } }
+      if (lp.tavolaFree) {
+        // TAVOLA UNICA: una sola superficie libera larga 2×W
+        await drawPageInto(ctx, lp, 0, wpx * 2, hpx, pxPerMm, resolve, pageNumbers ? s + 1 : null)
+      } else {
+        await drawPageInto(ctx, lp, 0, wpx, hpx, pxPerMm, resolve, pageNumbers ? s + 1 : null)
+        if (rp) await drawPageInto(ctx, rp, wpx, wpx, hpx, pxPerMm, resolve, pageNumbers ? s + 2 : null)
+        if (lp.spreadImage && rp) { try { const img = await loadImage(resolve(lp.spreadImage.mediaId)); drawFramedSpread(ctx, img, wpx, hpx, lp.spreadImage.cell, lp.spreadImage.frame ?? FULL_FRAME, 'both') } catch { /* ignora */ } }
+      }
       const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
       zip.file(`tavola-${String(s / 2 + 1).padStart(3, '0')}.jpg`, blob)
     }
