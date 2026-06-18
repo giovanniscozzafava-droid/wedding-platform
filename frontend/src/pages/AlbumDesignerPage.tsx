@@ -292,20 +292,29 @@ function AlbumDesignerInner() {
 
   // ── selezione guidata ──────────────────────────────────────────────────────
   async function toggleKeep(m: M) {
+    const prev = m.album_choice
     const next = m.album_choice === 'KEPT' ? 'DISCARDED' : 'KEPT'
     setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: next } : x)))
-    await (supabase.rpc as any)('set_album_choice', { p_media: m.id, p_choice: next })
+    // VERIFICA il salvataggio: se la RPC fallisce (es. permessi), ANNULLA l'ottimistico e avvisa,
+    // così il cuore non resta "acceso" a vuoto e poi sparisce al reload.
+    const { data, error } = await (supabase.rpc as any)('set_album_choice', { p_media: m.id, p_choice: next })
+    if (error || (data && (data as { error?: string }).error)) {
+      setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: prev } : x)))
+      toast.error(`Non riesco a salvare il like: ${error?.message ?? (data as { error?: string }).error}`)
+    }
   }
-  // Seleziona/deseleziona TUTTI i cuori in un colpo (solo le foto che cambiano davvero).
+  // Seleziona/deseleziona TUTTI i cuori in UN colpo (RPC atomica: niente fallimenti parziali).
   async function setKeepAll(choice: 'KEPT' | 'DISCARDED') {
-    const toChange = photos.filter((m) => (m.album_choice ?? 'DISCARDED') !== choice).map((m) => m.id)
-    if (!toChange.length) { toast(choice === 'KEPT' ? 'Sono già tutte selezionate' : 'Nessun cuore da togliere'); return }
-    const ids = new Set(toChange)
+    const changing = photos.filter((m) => (m.album_choice ?? 'DISCARDED') !== choice)
+    if (!changing.length) { toast(choice === 'KEPT' ? 'Sono già tutte selezionate' : 'Nessun cuore da togliere'); return }
+    const toChange = changing.map((m) => m.id); const ids = new Set(toChange)
+    const before = new Map(changing.map((m) => [m.id, m.album_choice] as const))
     setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, album_choice: choice } : x)))
-    try {
-      await Promise.all(toChange.map((id) => (supabase.rpc as any)('set_album_choice', { p_media: id, p_choice: choice })))
-      toast.success(choice === 'KEPT' ? `${toChange.length} foto selezionate per l'album` : `${toChange.length} foto deselezionate`)
-    } catch { toast.error('Qualche foto non è stata aggiornata, riprova') }
+    const { data, error } = await (supabase.rpc as any)('album_set_choices', { p_ids: toChange, p_choice: choice })
+    if (error || (data && (data as { error?: string }).error)) {
+      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, album_choice: before.get(x.id) ?? null } : x)))
+      toast.error(`Selezione non salvata: ${error?.message ?? (data as { error?: string }).error}`)
+    } else toast.success(choice === 'KEPT' ? `${toChange.length} foto selezionate per l'album` : `${toChange.length} foto deselezionate`)
   }
   async function setMoment(m: M, moment: string) {
     setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_moment: moment || null } : x)))
