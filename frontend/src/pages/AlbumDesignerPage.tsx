@@ -23,7 +23,7 @@ type M = {
   album_choice: 'KEPT' | 'DISCARDED' | null; album_moment: string | null
 }
 
-const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:')
+const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:')
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
 const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
 
@@ -233,6 +233,38 @@ function AlbumDesignerInner() {
   async function setMoment(m: M, moment: string) {
     setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_moment: moment || null } : x)))
     await (supabase.rpc as any)('album_set_moments', { p_items: [{ id: m.id, moment }] })
+  }
+  // IMPORT FOTO: l'utente aggiunge altre foto all'album (upload diretto su storage →
+  // RPC album_add_media → entrano KEPT nella selezione). Niente Drive.
+  const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
+  const trayFileRef = useRef<HTMLInputElement>(null)
+  async function importPhotos(files: File[]) {
+    if (!entryId || !files.length) return
+    const list = files.filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'))
+    if (!list.length) { toast.error('Seleziona immagini o video'); return }
+    setImporting({ done: 0, total: list.length })
+    let ok = 0; const fails: string[] = []
+    for (let i = 0; i < list.length; i++) {
+      const file = list[i]!; setImporting({ done: i, total: list.length })
+      try {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+        const path = `${entryId}/album/${crypto.randomUUID()}.${ext}`
+        const up = await supabase.storage.from('event-guest-uploads').upload(path, file, { upsert: false, contentType: file.type || undefined })
+        if (up.error) throw up.error
+        const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
+        const mt: 'PHOTO' | 'VIDEO' = file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO'
+        const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: mt, p_moment: null })
+        if (error) throw error
+        const newId = (data as { id?: string } | null)?.id
+        if (newId) {
+          setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: mt, guest_tag_name: null, album_choice: 'KEPT', album_moment: null }])
+          ok++
+        }
+      } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
+    }
+    setImporting(null)
+    if (ok) toast.success(`${ok} foto aggiunte all'album`)
+    if (fails.length) toast.error(`${fails.length} non caricate — ${fails[0]}`)
   }
 
   const perMoment = useMemo(() => {
@@ -683,6 +715,7 @@ function AlbumDesignerInner() {
             missingMin={missingMin} perMoment={perMoment}
             onToggle={toggleKeep} onMoment={setMoment} onGenerate={generate} thumb={thumbUrl}
             onKeepAll={() => void setKeepAll('KEPT')} onKeepNone={() => void setKeepAll('DISCARDED')}
+            onImport={importPhotos} importing={importing}
           />
         </div>
       ) : (
@@ -724,7 +757,17 @@ function AlbumDesignerInner() {
           <div className="flex h-[calc(100vh-104px)]">
             {/* foto */}
             <aside className="w-40 shrink-0 border-r border-[rgb(var(--border))] overflow-auto p-2">
-              <p className="text-[11px] font-medium mb-1.5 text-[rgb(var(--fg-muted))]">Foto ({trayMedia.length})</p>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))]">Foto ({trayMedia.length})</p>
+                {!lite && <>
+                  <input ref={trayFileRef} type="file" accept="image/*,video/*" multiple className="hidden"
+                    onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; if (fs.length) void importPhotos(fs) }} />
+                  <button title="Aggiungi altre foto all'album" disabled={!!importing} onClick={() => trayFileRef.current?.click()}
+                    className="text-[10px] inline-flex items-center gap-0.5 text-[rgb(var(--gold-700))] hover:underline disabled:opacity-50">
+                    {importing ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}{importing ? `${importing.done + 1}/${importing.total}` : 'Aggiungi'}
+                  </button>
+                </>}
+              </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {trayMedia.map((m) => (
                   <button key={m.id}
@@ -1079,14 +1122,22 @@ function SelectStep(props: {
   missingMin: typeof MOMENTS; perMoment: Map<string, number>
   onToggle: (m: M) => void; onMoment: (m: M, moment: string) => void; onGenerate: () => void; thumb: (m: M) => string
   onKeepAll: () => void; onKeepNone: () => void
+  onImport: (files: File[]) => void; importing: { done: number; total: number } | null
 }) {
-  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone } = props
+  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing } = props
   const allKept = photos.length > 0 && total >= photos.length
+  const fileRef = useRef<HTMLInputElement>(null)
   return (
     <div className="grid lg:grid-cols-[1fr_300px] gap-5">
       <div>
-        {photos.length > 0 && (
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden"
+            onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; if (fs.length) onImport(fs) }} />
+          <Button variant="gold" size="sm" disabled={!!importing} onClick={() => fileRef.current?.click()}>
+            {importing ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            {importing ? `Carico ${importing.done + 1}/${importing.total}…` : 'Aggiungi foto'}
+          </Button>
+          {photos.length > 0 && <>
             <Button variant={allKept ? 'outline' : 'gold'} size="sm" onClick={onKeepAll} disabled={allKept}>
               <Heart size={14} className="fill-current" /> Seleziona tutti i cuori
             </Button>
@@ -1094,8 +1145,8 @@ function SelectStep(props: {
               <Heart size={14} /> Deseleziona tutti
             </Button>
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto"><strong>{total}</strong>/{photos.length} selezionate</span>
-          </div>
-        )}
+          </>}
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {photos.map((m) => {
             const keptOn = m.album_choice === 'KEPT'
