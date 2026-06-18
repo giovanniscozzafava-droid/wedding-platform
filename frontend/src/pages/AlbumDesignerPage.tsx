@@ -610,6 +610,32 @@ function AlbumDesignerInner() {
       }) }
     })
   }
+  // SPAZIATURA ESATTA: mette lo STESSO margine in mm tra le foto selezionate adiacenti (riga o
+  // colonna, rilevata in automatico). align=false → cambia solo lo spazio, le foto restano dove
+  // sono sull'altro asse; align=true → allinea anche i bordi (riga/colonna pulita sulle guide).
+  function spaceExactSel(align: boolean) {
+    if (!currentPageId) return
+    const mm = Math.max(0, gutterMm)
+    updatePage(currentPageId, (p) => {
+      const all = p.elements ?? []; const g = all.filter((x) => multiSel.includes(x.id)); if (g.length < 2) return p
+      const tw = p.tavolaFree ? fmt.w * 2 : fmt.w
+      const gapX = mm / tw, gapY = mm / fmt.h
+      const cx = (e: FreeEl) => e.x + e.w / 2, cy = (e: FreeEl) => e.y + e.h / 2
+      const horiz = (Math.max(...g.map(cx)) - Math.min(...g.map(cx))) >= (Math.max(...g.map(cy)) - Math.min(...g.map(cy)))
+      const ord = [...g].sort((a, b) => (horiz ? a.x - b.x : a.y - b.y))
+      const first = ord[0]!; const cross = horiz ? first.y : first.x
+      const patch = new Map<string, Partial<FreeEl>>()
+      patch.set(first.id, align ? (horiz ? { y: cross } : { x: cross }) : {})
+      let cursor = horiz ? first.x + first.w : first.y + first.h
+      for (let i = 1; i < ord.length; i++) {
+        const e = ord[i]!
+        if (horiz) { const nx = cursor + gapX; patch.set(e.id, align ? { x: nx, y: cross } : { x: nx }); cursor = nx + e.w }
+        else { const ny = cursor + gapY; patch.set(e.id, align ? { y: ny, x: cross } : { y: ny }); cursor = ny + e.h }
+      }
+      return { ...p, elements: all.map((e) => { const pp = patch.get(e.id); return pp ? { ...e, ...pp } : e }) }
+    })
+    toast.success(`Spaziatura ${mm} mm applicata`)
+  }
   const selIds = () => (multiSel.length ? multiSel : selEl ? [selEl] : [])
   function nudgeSel(dx: number, dy: number) {
     if (!currentPageId) return; const ids = selIds(); if (!ids.length) return
@@ -1156,7 +1182,7 @@ function AlbumDesignerInner() {
                   onSaveLayout={saveCurLayout}
                   presets={tavPresets} tavAspect={asp * 2} onApplyTavolaLayout={applyTavolaLayout}
                   myPresets={myTavPresets} onApplySaved={applySavedToTavola} onDeleteSaved={removeLayout}
-                  selCount={multiSel.length} onAlign={alignSel} onDistribute={distributeSel}
+                  selCount={multiSel.length} onAlign={alignSel} onDistribute={distributeSel} onSpaceExact={spaceExactSel}
                   gutterMm={gutterMm} onGutter={setGutterMm}
                   crop={(() => {
                     const el = (currentPage.elements ?? []).find((e) => e.id === selEl)
@@ -2048,10 +2074,11 @@ function FreePanel(props: {
   presets?: GenLayout[]; tavAspect?: number; onApplyTavolaLayout?: (slots: Slot[]) => void
   myPresets?: SavedLayout[]; onApplySaved?: (l: SavedLayout) => void; onDeleteSaved?: (id: string) => void
   selCount?: number; onAlign?: (k: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'bottom') => void; onDistribute?: (a: 'h' | 'v') => void
+  onSpaceExact?: (align: boolean) => void
   gutterMm?: number; onGutter?: (mm: number) => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, gutterMm, onGutter, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, onSpaceExact, gutterMm, onGutter, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -2077,6 +2104,20 @@ function FreePanel(props: {
             <div className="grid grid-cols-2 gap-1 mt-1">
               <button onClick={() => onDistribute('h')} title="Spazia uniformemente in orizzontale" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">↔ Distrib. orizz.</button>
               <button onClick={() => onDistribute('v')} title="Spazia uniformemente in verticale" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">↕ Distrib. vert.</button>
+            </div>
+          )}
+          {/* SPAZIATURA ESATTA: stessa distanza in mm tra le foto adiacenti, con 2 modalità */}
+          {onSpaceExact && (
+            <div className="mt-2 pt-2 border-t border-[rgb(var(--border))]">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[11px] text-[rgb(var(--fg-muted))] whitespace-nowrap">Stessa distanza</span>
+                <input type="number" min={0} max={30} value={gutterMm ?? 3} onChange={(e) => onGutter?.(Math.max(0, Math.min(30, +e.target.value || 0)))} className="w-12 text-[11px] px-1 py-0.5 rounded border border-[rgb(var(--border))] bg-[rgb(var(--bg))]" />
+                <span className="text-[11px] text-[rgb(var(--fg-muted))]">mm</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                <button onClick={() => onSpaceExact(false)} title="Stessa distanza in mm tra le foto, mantenendo la loro posizione" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">⇿ Solo spazio</button>
+                <button onClick={() => onSpaceExact(true)} title="Stessa distanza in mm + allinea i bordi (riga/colonna pulita)" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--gold-400))] hover:bg-[rgb(var(--bg-sunken))]">⇿ Spazio + allinea</button>
+              </div>
             </div>
           )}
         </div>
