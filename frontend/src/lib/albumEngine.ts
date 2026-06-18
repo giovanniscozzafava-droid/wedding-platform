@@ -10,6 +10,7 @@ export type Frame = { x: number; y: number; w: number; h: number } // normalizza
 export type AlbumPage = {
   id: string; moment: string | null; template: TemplateKey; mediaIds: string[]; cells?: (Cell | null)[]
   mode?: 'template' | 'free'   // 'free' = elementi liberi stile Canva
+  frozen?: boolean             // libera "uscita": composizione bloccata (identica, non editabile a mano)
   bg?: string                  // colore di sfondo pagina
   elements?: FreeEl[]          // elementi liberi (in mode 'free')
   frames?: Frame[]             // frame espliciti per template === 'custom' (layout salvato)

@@ -219,6 +219,17 @@ function AlbumDesignerInner() {
     setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: next } : x)))
     await (supabase.rpc as any)('set_album_choice', { p_media: m.id, p_choice: next })
   }
+  // Seleziona/deseleziona TUTTI i cuori in un colpo (solo le foto che cambiano davvero).
+  async function setKeepAll(choice: 'KEPT' | 'DISCARDED') {
+    const toChange = photos.filter((m) => (m.album_choice ?? 'DISCARDED') !== choice).map((m) => m.id)
+    if (!toChange.length) { toast(choice === 'KEPT' ? 'Sono già tutte selezionate' : 'Nessun cuore da togliere'); return }
+    const ids = new Set(toChange)
+    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, album_choice: choice } : x)))
+    try {
+      await Promise.all(toChange.map((id) => (supabase.rpc as any)('set_album_choice', { p_media: id, p_choice: choice })))
+      toast.success(choice === 'KEPT' ? `${toChange.length} foto selezionate per l'album` : `${toChange.length} foto deselezionate`)
+    } catch { toast.error('Qualche foto non è stata aggiornata, riprova') }
+  }
   async function setMoment(m: M, moment: string) {
     setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_moment: moment || null } : x)))
     await (supabase.rpc as any)('album_set_moments', { p_items: [{ id: m.id, moment }] })
@@ -267,12 +278,26 @@ function AlbumDesignerInner() {
   }, [pages])
   // tutte le foto già piazzate = chiavi del conteggio (coerente al 100% col badge)
   const placedIds = useMemo(() => new Set(usageCount.keys()), [usageCount])
-  // a sinistra: TUTTE le foto del progetto — opache se già usate, nitide se ancora da usare
+  // MEMORIA della libreria: l'insieme delle foto piazzate cresce in modo monotòno e NON si
+  // svuota quando tolgo una foto dalla tavola → così la foto torna disponibile a sinistra
+  // (nitida) invece di sparire. I "cuori" (KEPT) sono già persistiti in DB; questo evita il
+  // caos di vedere sparire dalla libreria una foto solo perché l'ho rimossa dall'impaginato.
+  const [everPlaced, setEverPlaced] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    setEverPlaced((prev) => {
+      let changed = false; const next = new Set(prev)
+      for (const id of placedIds) if (!next.has(id)) { next.add(id); changed = true }
+      return changed ? next : prev
+    })
+  }, [placedIds])
+  // a sinistra: TUTTE le foto del progetto — opache se già usate, nitide se ancora da usare.
+  // Ordine: prima i cuori (selezione), poi eventuali extra mai tolti dalla memoria.
   const trayMedia = useMemo(() => {
-    const map = new Map(kept.map((m) => [m.id, m]))
-    for (const id of placedIds) { if (!map.has(id)) { const m = mediaById.get(id); if (m) map.set(id, m) } }
-    return [...map.values()]
-  }, [kept, placedIds, mediaById])
+    const out: M[] = []; const seen = new Set<string>()
+    for (const m of kept) { if (!seen.has(m.id)) { seen.add(m.id); out.push(m) } }
+    for (const id of everPlaced) { if (!seen.has(id)) { const m = mediaById.get(id); if (m) { seen.add(id); out.push(m) } } }
+    return out
+  }, [kept, everPlaced, mediaById])
 
   function updatePage(id: string, fn: (p: AlbumPage) => AlbumPage) {
     setPages((arr) => arr.map((p) => (p.id === id ? fn(p) : p)))
@@ -285,8 +310,15 @@ function AlbumDesignerInner() {
   }
   function clearSlot(pageId: string, slot: number) { updatePage(pageId, (p) => clearSlotInPage(p, slot)) }
   function updateCell(pageId: string, slot: number, partial: Partial<Cell>) { updatePage(pageId, (p) => setCell(p, slot, partial)) }
-  function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => ({ ...setPageTemplate(p, t), mode: 'template' as const })) }
-  function cycleLayout(pageId: string) { updatePage(pageId, (p) => ({ ...setPageTemplate(p, cycleTemplate(p.template, p.mediaIds.length)), mode: 'template' as const })) }
+  // Da pagina LIBERA (anche congelata) → dati template: le foto degli elementi liberi
+  // diventano mediaIds/cells (la rotazione/posizione si perdono perché un preset le SOVRASCRIVE).
+  function materializeFree(p: AlbumPage): AlbumPage {
+    if (p.mode !== 'free') return p
+    const photos = (p.elements ?? []).filter((e) => e.mediaId)
+    return { ...p, mode: 'template' as const, frozen: false, elements: [], mediaIds: photos.map((e) => e.mediaId), cells: photos.map((e) => e.cell ?? DEFAULT_CELL) }
+  }
+  function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => ({ ...setPageTemplate(materializeFree(p), t), mode: 'template' as const })) }
+  function cycleLayout(pageId: string) { updatePage(pageId, (p) => { const mp = materializeFree(p); return { ...setPageTemplate(mp, cycleTemplate(mp.template, mp.mediaIds.length)), mode: 'template' as const } }) }
   function duplicatePage(pageId: string) {
     const src = pages.find((p) => p.id === pageId); if (!src) return
     const copy: AlbumPage = { ...src, id: newPage().id, cells: src.cells ? src.cells.map((c) => (c ? { ...c } : c)) : undefined, elements: src.elements ? src.elements.map((e) => ({ ...e, id: newPage().id, cell: { ...e.cell } })) : undefined }
@@ -323,7 +355,7 @@ function AlbumDesignerInner() {
     setSpreadImg(leftId, mediaId, cell); toast.success('Foto estesa su entrambe le pagine.')
   }
   // ── elementi liberi (stile Canva) ──────────────────────────────────────────
-  function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)), mediaIds: [], cells: [] })) }
+  function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, frozen: false, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)), mediaIds: [], cells: [] })) }
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
   function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
   function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null); setMultiSel((s) => s.filter((x) => x !== id)) }
@@ -346,7 +378,7 @@ function AlbumDesignerInner() {
   function applyLayoutCur(l: SavedLayout) {
     if (!currentPageId) return
     updatePage(currentPageId, (p) => {
-      if (!l.els || !l.els.length) return applyLayout(p, l.frames)
+      if (!l.els || !l.els.length) return applyLayout(materializeFree(p), l.frames)
       const photos = p.mode === 'free'
         ? (p.elements ?? []).map((e) => ({ mediaId: e.mediaId, cell: e.cell }))
         : (p.mediaIds ?? []).map((id, i) => ({ mediaId: id, cell: p.cells?.[i] ?? DEFAULT_CELL })).filter((x) => x.mediaId)
@@ -650,6 +682,7 @@ function AlbumDesignerInner() {
             photos={photos} kept={kept} total={total} okRange={okRange} untagged={untagged}
             missingMin={missingMin} perMoment={perMoment}
             onToggle={toggleKeep} onMoment={setMoment} onGenerate={generate} thumb={thumbUrl}
+            onKeepAll={() => void setKeepAll('KEPT')} onKeepNone={() => void setKeepAll('DISCARDED')}
           />
         </div>
       ) : (
@@ -668,10 +701,10 @@ function AlbumDesignerInner() {
             <ToolToggle on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
             <ToolToggle on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
             {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
-            {/* "Libera" è a senso unico: una volta entrati, la composizione costruita a mano
-                RESTA com'è — togliendo la libera NON si torna più al preset (niente perdita
-                del lavoro). Per ripartire da una griglia si usa "Nuova tavola". */}
-            {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free'} onClick={() => { if (currentPage.mode !== 'free') convertToFree(currentPage.id); else toast('Sei in modalità libera: la composizione resta come l’hai fatta.') }} icon={<Move size={14} />} label="Libera" />}
+            {/* "Libera": ON = editi a mano (handle); spegnendola ESCI → la composizione resta
+                CONGELATA IDENTICA (stesse posizioni/ritagli/rotazioni), solo non più editabile a
+                mano. Riaccendendola rientri in modifica. Un preset/griglia la SOVRASCRIVE. */}
+            {!lite && currentPage && <ToolToggle on={currentPage.mode === 'free' && !currentPage.frozen} onClick={() => { if (currentPage.mode !== 'free') convertToFree(currentPage.id); else updatePage(currentPage.id, (p) => ({ ...p, frozen: !p.frozen })) }} icon={<Move size={14} />} label="Libera" />}
             {!lite && spreadPages[0] && <ToolToggle on={!!spreadPages[0]?.spreadImage} onClick={() => { const lp = spreadPages[0]!; if (lp.spreadImage) clearSpreadImg(lp.id); else makeSpreadFromActive(lp.id, spreadPages) }} icon={<Maximize size={14} />} label="Doppia pagina" />}
             <div className="inline-flex items-center gap-0.5 ml-0.5">
               <button title="Riduci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
@@ -732,7 +765,7 @@ function AlbumDesignerInner() {
                         <div key={p.id} onPointerDownCapture={activate} className="relative h-full" style={{ aspectRatio: String(asp) }}>
                           {p.mode === 'free' ? (
                             <FreeStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
-                              aspects={aspects} mediaById={mediaById} thumb={thumbUrl} selEl={isAct ? selEl : null} multiSel={isAct ? multiSel : []}
+                              aspects={aspects} mediaById={mediaById} thumb={thumbUrl} locked={!!p.frozen} selEl={isAct && !p.frozen ? selEl : null} multiSel={isAct && !p.frozen ? multiSel : []}
                               onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(p.id, id, patch)}
                               onUpdateMany={(patches) => freeUpdateMany(p.id, patches)}
                               onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(p.id, id)} onDuplicateEl={(id) => freeDuplicate(p.id, id)}
@@ -838,7 +871,7 @@ function AlbumDesignerInner() {
 
             {/* pannello proprietà */}
             <aside className="w-56 shrink-0 border-l border-[rgb(var(--border))] overflow-auto p-3">
-              {currentPage && (currentPage.mode === 'free' ? (
+              {currentPage && (currentPage.mode === 'free' && !currentPage.frozen ? (
                 <FreePanel
                   page={currentPage} selEl={selEl} lite={lite}
                   onBg={(c) => setPageBg(currentPage.id, c)}
@@ -1045,11 +1078,24 @@ function SelectStep(props: {
   photos: M[]; kept: M[]; total: number; okRange: boolean; untagged: number
   missingMin: typeof MOMENTS; perMoment: Map<string, number>
   onToggle: (m: M) => void; onMoment: (m: M, moment: string) => void; onGenerate: () => void; thumb: (m: M) => string
+  onKeepAll: () => void; onKeepNone: () => void
 }) {
-  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb } = props
+  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone } = props
+  const allKept = photos.length > 0 && total >= photos.length
   return (
     <div className="grid lg:grid-cols-[1fr_300px] gap-5">
       <div>
+        {photos.length > 0 && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <Button variant={allKept ? 'outline' : 'gold'} size="sm" onClick={onKeepAll} disabled={allKept}>
+              <Heart size={14} className="fill-current" /> Seleziona tutti i cuori
+            </Button>
+            <Button variant="outline" size="sm" onClick={onKeepNone} disabled={total === 0}>
+              <Heart size={14} /> Deseleziona tutti
+            </Button>
+            <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto"><strong>{total}</strong>/{photos.length} selezionate</span>
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {photos.map((m) => {
             const keptOn = m.album_choice === 'KEPT'
@@ -1221,8 +1267,9 @@ function FreeStage(props: {
   onSelect: (id: string | null, additive?: boolean) => void; onUpdateEl: (id: string, patch: Partial<FreeEl>) => void
   onUpdateMany: (patches: { id: string; patch: Partial<FreeEl> }[]) => void
   onCrop: (id: string) => void; onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
+  locked?: boolean   // libera "uscita": mostra la composizione identica ma non editabile a mano
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia, locked } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const mx = MARGIN_MM / fmt.w, my = MARGIN_MM / fmt.h
@@ -1314,10 +1361,10 @@ function FreeStage(props: {
   return (
     <div ref={boxRef} className="relative shadow-[var(--shadow-lift)] h-full max-h-full max-w-full overflow-hidden"
       style={{ aspectRatio: String(aspect), background: page.bg ?? '#ffffff' }}
-      onPointerMove={move} onPointerUp={up} onPointerLeave={up}
-      onClick={(e) => { if (e.target === e.currentTarget) onSelect(null) }}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(mid) }}>
+      onPointerMove={locked ? undefined : move} onPointerUp={locked ? undefined : up} onPointerLeave={locked ? undefined : up}
+      onClick={locked ? undefined : (e) => { if (e.target === e.currentTarget) onSelect(null) }}
+      onDragOver={locked ? undefined : (e) => e.preventDefault()}
+      onDrop={locked ? undefined : (e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(mid) }}>
       {els.map((el) => {
         const m = mediaById.get(el.mediaId)
         const sel = selEl === el.id
@@ -1325,9 +1372,9 @@ function FreeStage(props: {
         return (
           <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : inSel ? 10 : 1 }}>
             <div
-              onPointerDown={(e) => down(e, 'move', el)}
-              onDoubleClick={(e) => { e.stopPropagation(); onCrop(el.id) }}
-              className={`w-full h-full touch-none cursor-move relative overflow-hidden ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : inSel ? 'outline outline-2 outline-dashed outline-[rgb(var(--gold-400))]' : ''}`}
+              onPointerDown={locked ? undefined : (e) => down(e, 'move', el)}
+              onDoubleClick={locked ? undefined : (e) => { e.stopPropagation(); onCrop(el.id) }}
+              className={`w-full h-full relative overflow-hidden ${locked ? '' : 'touch-none cursor-move'} ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : inSel ? 'outline outline-2 outline-dashed outline-[rgb(var(--gold-400))]' : ''}`}
               style={{ backgroundColor: m ? undefined : 'rgba(0,0,0,.06)', boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${Math.max(1, el.border.w)}px solid ${el.border.color}` : undefined }}>
               {m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}
             </div>
@@ -1543,7 +1590,10 @@ function PropsPanel(props: {
 }) {
   const { page, activeSlot, mediaById, formatKey, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate, savedLayouts, onSaveLayout, onApplyLayout, onDeleteLayout, crop } = props
   const moment = getMoment(page.moment)
-  const alts = templatesFor(Math.max(1, page.mediaIds.length))
+  // foto in pagina: dalle celle template OPPURE dagli elementi liberi (pagina libera "congelata")
+  const isFrozenFree = page.mode === 'free'
+  const nPhotos = isFrozenFree ? (page.elements?.length ?? 0) : page.mediaIds.length
+  const alts = templatesFor(Math.max(1, nPhotos))
   const slotMediaId = activeSlot != null ? page.mediaIds[activeSlot] : undefined
   const slotMedia = slotMediaId ? mediaById.get(slotMediaId) : undefined
   const cell = activeSlot != null ? (page.cells?.[activeSlot] ?? DEFAULT_CELL) : DEFAULT_CELL
@@ -1569,13 +1619,19 @@ function PropsPanel(props: {
             <Button variant="outline" size="sm" onClick={() => onClearSlot(activeSlot!)}><Trash2 size={13} /> Togli</Button>
           </div>
         </div>
+      ) : isFrozenFree ? (
+        <div className="rounded-lg border border-[rgb(var(--gold-400))] bg-[rgb(var(--gold-100))] p-2.5">
+          <p className="text-xs font-medium flex items-center gap-1.5"><Move size={13} /> Composizione libera bloccata</p>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Resta esattamente com'è. Riaccendi <strong>Libera</strong> per modificarla, o scegli un preset qui sotto per rifarla.</p>
+          {!lite && <Button variant="gold" size="sm" className="w-full mt-2" onClick={onFree}><Move size={13} /> Riprendi modifica libera</Button>}
+        </div>
       ) : (
         <p className="text-xs text-[rgb(var(--fg-subtle))]">Seleziona una foto: poi <strong>Ritaglia</strong>, sposta, zooma o allinea.</p>
       )}
 
       <div className="border-t border-[rgb(var(--border))] pt-3">
         <p className="font-medium mb-2 flex items-center gap-1.5"><LayoutGrid size={14} /> Layout pagina {moment && <span className={`text-[10px] px-1.5 py-0.5 rounded ${moment.color}`}>{moment.label}</span>}</p>
-        <p className="text-xs text-[rgb(var(--fg-muted))] mb-1.5">Preset per {page.mediaIds.length || 1} foto — tocca per applicare</p>
+        <p className="text-xs text-[rgb(var(--fg-muted))] mb-1.5">Preset per {nPhotos || 1} foto — tocca per applicare{isFrozenFree ? ' (sovrascrive la composizione)' : ''}</p>
         <div className="grid grid-cols-3 gap-1.5">
           {alts.map((t) => {
             const tp: AlbumPage = { ...page, template: t, mode: 'template' }
@@ -1609,7 +1665,7 @@ function PropsPanel(props: {
                 ))}
               </div>}
         </div>
-        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">{page.mediaIds.length}/{MAX_PER_PAGE} foto in pagina</p>
+        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">{nPhotos}/{MAX_PER_PAGE} foto in pagina</p>
         {!lite && (
           <div className="flex gap-1.5 mt-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Tavola</Button>
