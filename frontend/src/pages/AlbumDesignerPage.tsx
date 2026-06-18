@@ -436,18 +436,32 @@ function AlbumDesignerInner() {
     }))
     setCurrentPageId(leftId); setActiveSlot(null); setSelEl(null); setMultiSel([])
   }
-  // Stende una foto su TUTTA la tavola (0,0,1,1). Se la tavola non è ancora "Libera", la
-  // converte prima. Usa la foto selezionata; se non c'è selezione ma c'è una sola foto, quella.
+  // Stende una foto su TUTTA la tavola (0,0,1,1) e la SELEZIONA (così è subito eliminabile con
+  // Canc → torna nella libreria). Converte la tavola a "Libera" se serve. Usa la foto selezionata;
+  // se non c'è selezione ma c'è una sola foto, quella.
   function fillElToTavola(leftId: string) {
-    const lp = pages.find((p) => p.id === leftId); if (!lp) return
-    if (!lp.tavolaFree) { convertTavolaToFree(leftId) }
-    setPages((arr) => arr.map((p) => {
-      if (p.id !== leftId) return p
-      const els = p.elements ?? []
-      const id = selEl && els.some((e) => e.id === selEl) ? selEl : (els.length === 1 ? els[0]!.id : null)
-      if (!id) { return p }
-      return { ...p, elements: els.map((e) => (e.id === id ? { ...e, x: 0, y: 0, w: 1, h: 1, rot: 0 } : e)) }
+    const idx = pages.findIndex((p) => p.id === leftId); if (idx < 0) return
+    const left = pages[idx]!; const right = pages[idx + 1]
+    let els: FreeEl[]
+    const alreadyFree = !!left.tavolaFree
+    if (alreadyFree) els = (left.elements ?? []).map((e) => ({ ...e }))
+    else {
+      els = []
+      if (left.spreadImage) { const fr = spreadFrameOf(left.spreadImage); els.push({ ...newFreeEl(left.spreadImage.mediaId), x: fr.x, y: fr.y, w: fr.w, h: fr.h, cell: { ...left.spreadImage.cell } }) }
+      else { const add = (p: AlbumPage | undefined, xOff: number) => { if (!p) return; const src = p.mode === 'free' ? (p.elements ?? []) : toFreeElements(p, format); for (const e of src) els.push({ ...newFreeEl(e.mediaId), x: xOff + e.x * 0.5, y: e.y, w: e.w * 0.5, h: e.h, rot: e.rot, cell: { ...e.cell }, border: e.border, shadow: e.shadow }) }; add(left, 0); add(right, 0.5) }
+    }
+    const targetId = (alreadyFree && selEl && els.some((e) => e.id === selEl)) ? selEl : (els.length === 1 ? els[0]?.id ?? null : null)
+    if (!targetId) {
+      if (!alreadyFree) convertTavolaToFree(leftId)
+      toast.message('Seleziona la foto da stendere su tutta la tavola'); return
+    }
+    const filled = els.map((e) => (e.id === targetId ? { ...e, x: 0, y: 0, w: 1, h: 1, rot: 0 } : e))
+    setPages((arr) => arr.map((p, i) => {
+      if (i === idx) return { ...p, mode: 'free' as const, frozen: false, tavolaFree: true, bg: p.bg ?? '#ffffff', elements: filled, mediaIds: [], cells: [], spreadImage: null }
+      if (i === idx + 1) return { ...p, mode: 'template' as const, mediaIds: [], cells: [], elements: [], tavolaFree: false, spreadImage: null }
+      return p
     }))
+    setCurrentPageId(leftId); setActiveSlot(null); setSelEl(targetId); setMultiSel([])
   }
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
   function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
