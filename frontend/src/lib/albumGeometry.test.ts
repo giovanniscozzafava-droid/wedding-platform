@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { coverWindow, cellBackground, sourceRect, slotRect, pageBox, slotAspectOf, cropToCell, cellToCrop, baseWindowFrac, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM } from './albumGeometry'
+import { coverWindow, coverImgStyle, cellBackground, sourceRect, slotRect, pageBox, slotAspectOf, cropToCell, cellToCrop, baseWindowFrac, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM } from './albumGeometry'
 
 const approx = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) <= eps
 
@@ -114,5 +114,20 @@ describe('pageBox & slotAspectOf', () => {
     const a = slotAspectOf({ x: 0, y: 0, w: 1, h: 1 }, 300, 200)
     const expected = (300 - 2 * MARGIN_MM) / (200 - 2 * MARGIN_MM)
     expect(approx(a, expected)).toBe(true)
+  })
+})
+
+// REGRESSIONE: la vista cliente (FreeSurface) crashava su `cell` null/assente di un dato
+// persistito → "Cannot read properties of null (reading 'z')". Le funzioni geometria devono
+// tollerare cell mancante usando DEFAULT_CELL.
+describe('robustezza cell null/assente', () => {
+  it('coverImgStyle non lancia su null/undefined/{}', () => {
+    expect(() => coverImgStyle(null)).not.toThrow()
+    expect(() => coverImgStyle(undefined)).not.toThrow()
+    expect(() => coverImgStyle({} as never)).not.toThrow()
+  })
+  it('coverWindow non lancia su null/undefined', () => {
+    expect(() => coverWindow(1.5, 1, null)).not.toThrow()
+    expect(() => coverWindow(1.5, 1, undefined)).not.toThrow()
   })
 })

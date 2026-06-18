@@ -12,15 +12,16 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 
 // Finestra del sorgente (normalizzato: larghezza=1, altezza=1/imgAspect) mostrata nello slot,
 // per coprire lo slot all'aspetto richiesto, con zoom e focale. Restituisce wx,wy,ww,wh,sw,sh.
-export function coverWindow(imgAspect: number, slotAspect: number, cell: Cell) {
-  const z = Math.max(1, cell.z || 1)
+export function coverWindow(imgAspect: number, slotAspect: number, cell?: Cell | null) {
+  const c = cell ?? DEFAULT_CELL // robusto: dato persistito può avere cell null/assente
+  const z = Math.max(1, c.z || 1)
   const ia = imgAspect > 0 ? imgAspect : 1
   const sw = 1, sh = 1 / ia
   let bw: number, bh: number
   if (ia > slotAspect) { bh = sh; bw = sh * slotAspect } else { bw = sw; bh = sw / slotAspect }
   const ww = bw / z, wh = bh / z
-  const cx = clamp(cell.fx ?? 0.5, 0, 1) * sw
-  const cy = clamp(cell.fy ?? 0.5, 0, 1) * sh
+  const cx = clamp(c.fx ?? 0.5, 0, 1) * sw
+  const cy = clamp(c.fy ?? 0.5, 0, 1) * sh
   const wx = clamp(cx - ww / 2, 0, Math.max(0, sw - ww))
   const wy = clamp(cy - wh / 2, 0, Math.max(0, sh - wh))
   return { wx, wy, ww, wh, sw, sh }
@@ -30,10 +31,11 @@ export function coverWindow(imgAspect: number, slotAspect: number, cell: Cell) {
 // dipendere dall'aspetto dell'immagine: il browser fa il "cover" nativo, quindi le
 // proporzioni sono SEMPRE preservate (niente foto stirate). Va su un'<img> dentro un
 // contenitore relative+overflow-hidden. Parità con l'export: stesso fuoco e zoom.
-export function coverImgStyle(cell: Cell): CSSProperties {
-  const z = Math.max(1, cell.z || 1)
-  const fx = Math.min(1, Math.max(0, cell.fx ?? 0.5))
-  const fy = Math.min(1, Math.max(0, cell.fy ?? 0.5))
+export function coverImgStyle(cell?: Cell | null): CSSProperties {
+  const c = cell ?? DEFAULT_CELL // robusto: dato persistito può avere cell null/assente
+  const z = Math.max(1, c.z || 1)
+  const fx = Math.min(1, Math.max(0, c.fx ?? 0.5))
+  const fy = Math.min(1, Math.max(0, c.fy ?? 0.5))
   return {
     position: 'absolute', inset: 0, width: '100%', height: '100%',
     objectFit: 'cover', objectPosition: `${fx * 100}% ${fy * 100}%`,

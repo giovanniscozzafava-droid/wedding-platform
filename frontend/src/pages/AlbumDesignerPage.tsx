@@ -2383,17 +2383,22 @@ function CropModal(props: { src: string; imgAspect: number; slotAspect: number; 
 }
 
 // Cattura eventuali errori di render: invece di white-screen mostra un messaggio + l'errore.
-class AlbumBoundary extends Component<{ children: ReactNode }, { err: Error | null }> {
-  constructor(props: { children: ReactNode }) { super(props); this.state = { err: null } }
+class AlbumBoundary extends Component<{ children: ReactNode }, { err: Error | null; info: string }> {
+  constructor(props: { children: ReactNode }) { super(props); this.state = { err: null, info: '' } }
   static getDerivedStateFromError(err: Error) { return { err } }
-  componentDidCatch(err: Error) { console.error('AlbumDesigner crash', err) }
+  componentDidCatch(err: Error, info: { componentStack?: string | null }) {
+    console.error('AlbumDesigner crash', err, info)
+    // prima riga utile dello stack del componente → diagnosi immediata da screenshot
+    const cs = (info.componentStack ?? '').trim().split('\n').slice(0, 3).join('\n')
+    this.setState({ info: cs })
+  }
   render() {
     if (this.state.err) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-[rgb(var(--bg-sunken))]">
           <p className="font-display text-xl mb-2">Qualcosa è andato storto nell'album</p>
           <p className="text-sm text-[rgb(var(--fg-muted))] max-w-md">Ricarica la pagina. Se continua, mostra questo messaggio al fotografo:</p>
-          <pre className="mt-3 text-[11px] text-rose-500 max-w-md overflow-auto whitespace-pre-wrap">{this.state.err.message}</pre>
+          <pre className="mt-3 text-[11px] text-rose-500 max-w-md overflow-auto whitespace-pre-wrap">{this.state.err.message}{this.state.info ? `\n${this.state.info}` : ''}</pre>
           <button onClick={() => location.reload()} className="mt-5 px-4 py-2 rounded-lg bg-[rgb(var(--gold-500))] text-white text-sm">Ricarica</button>
         </div>
       )
