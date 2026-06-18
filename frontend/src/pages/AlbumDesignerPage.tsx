@@ -114,6 +114,55 @@ function migrateTavoleToFree(pages: AlbumPage[], formatKey: string): AlbumPage[]
   return out
 }
 
+// MARGINI UGUALI: ricostruisce la struttura a tagli "guillotine" delle foto (ricava i tagli
+// verticali/orizzontali netti) e la riemette dentro `region` con lo STESSO margine (gx/gy) ovunque
+// → tutti gli spazi bianchi tra le foto diventano uguali (in mm). Ritorna id→rettangolo, o null se
+// le foto si sovrappongono e non sono separabili in modo netto.
+type GRect = { id: string; x: number; y: number; w: number; h: number }
+function gqCut(rs: GRect[], axis: 'V' | 'H'): { L: GRect[]; R: GRect[]; gap: number } | null {
+  const lo = (e: GRect) => (axis === 'V' ? e.x : e.y)
+  const hi = (e: GRect) => (axis === 'V' ? e.x + e.w : e.y + e.h)
+  const sorted = [...rs].sort((a, b) => lo(a) - lo(b))
+  let best: { L: GRect[]; R: GRect[]; gap: number } | null = null
+  for (let i = 1; i < sorted.length; i++) {
+    const L = sorted.slice(0, i), R = sorted.slice(i)
+    const lMax = Math.max(...L.map(hi)), rMin = Math.min(...R.map(lo))
+    if (lMax <= rMin + 1e-6) { const gap = rMin - lMax; if (!best || gap > best.gap) best = { L, R, gap } }
+  }
+  return best
+}
+function gqSpan(rs: GRect[], axis: 'V' | 'H'): number {
+  const lo = (e: GRect) => (axis === 'V' ? e.x : e.y), hi = (e: GRect) => (axis === 'V' ? e.x + e.w : e.y + e.h)
+  return Math.max(...rs.map(hi)) - Math.min(...rs.map(lo))
+}
+function guillotineLayout(rs: GRect[], region: { x: number; y: number; w: number; h: number }, gx: number, gy: number): Map<string, { x: number; y: number; w: number; h: number }> | null {
+  if (rs.length === 1) { const m = new Map(); m.set(rs[0]!.id, { ...region }); return m }
+  const v = gqCut(rs, 'V'), h = gqCut(rs, 'H')
+  let cut: { L: GRect[]; R: GRect[]; gap: number } | null = null, dir: 'V' | 'H' = 'V'
+  if (v && h) { if (v.gap >= h.gap) { cut = v; dir = 'V' } else { cut = h; dir = 'H' } }
+  else if (v) { cut = v; dir = 'V' } else if (h) { cut = h; dir = 'H' }
+  if (!cut) return null
+  const out = new Map<string, { x: number; y: number; w: number; h: number }>()
+  if (dir === 'V') {
+    const aw = gqSpan(cut.L, 'V'), bw = gqSpan(cut.R, 'V'), tot = aw + bw || 1
+    const avail = Math.max(0.001, region.w - gx)
+    const wa = avail * aw / tot
+    const ma = guillotineLayout(cut.L, { x: region.x, y: region.y, w: wa, h: region.h }, gx, gy)
+    const mb = guillotineLayout(cut.R, { x: region.x + wa + gx, y: region.y, w: avail - wa, h: region.h }, gx, gy)
+    if (!ma || !mb) return null
+    ma.forEach((val, k) => out.set(k, val)); mb.forEach((val, k) => out.set(k, val))
+  } else {
+    const ah = gqSpan(cut.L, 'H'), bh = gqSpan(cut.R, 'H'), tot = ah + bh || 1
+    const avail = Math.max(0.001, region.h - gy)
+    const ha = avail * ah / tot
+    const ma = guillotineLayout(cut.L, { x: region.x, y: region.y, w: region.w, h: ha }, gx, gy)
+    const mb = guillotineLayout(cut.R, { x: region.x, y: region.y + ha + gy, w: region.w, h: avail - ha }, gx, gy)
+    if (!ma || !mb) return null
+    ma.forEach((val, k) => out.set(k, val)); mb.forEach((val, k) => out.set(k, val))
+  }
+  return out
+}
+
 function AlbumDesignerInner() {
   const { entryId } = useParams<{ entryId: string }>()
   const { profile } = useAuth()
@@ -389,6 +438,12 @@ function AlbumDesignerInner() {
     setStep('design')
     toast.success('Impaginazione generata — ora puoi rifinirla')
   }
+  // SPOSI: confermano la selezione e danno il via libera al fotografo per impaginare la bozza.
+  async function coupleReadyToLayout() {
+    if (kept.length === 0) { toast.error('Seleziona prima le foto col cuore'); return }
+    await save('PHOTOGRAPHER_EDIT', true)
+    toast.success('Perfetto! Selezione confermata: il fotografo può impaginare la bozza.')
+  }
 
   // ── editor pagine ───────────────────────────────────────────────────────────
   // CONTEGGIO PRECISO delle foto usate (badge ×N + sfumatura "già inserita").
@@ -629,31 +684,27 @@ function AlbumDesignerInner() {
       }) }
     })
   }
-  // SPAZIATURA ESATTA: mette lo STESSO margine in mm tra le foto selezionate adiacenti (riga o
-  // colonna, rilevata in automatico). align=false → cambia solo lo spazio, le foto restano dove
-  // sono sull'altro asse; align=true → allinea anche i bordi (riga/colonna pulita sulle guide).
-  function spaceExactSel(align: boolean) {
+  // MARGINI UGUALI (mosaico 2D): rende TUTTI gli spazi bianchi tra le foto uguali a N mm — sia i
+  // margini verticali sia quelli orizzontali — ricostruendo i tagli guillotine dentro il riquadro
+  // attuale della selezione (o di tutta la tavola se non c'è selezione).
+  function uniformGapsSel() {
     if (!currentPageId) return
     const mm = Math.max(0, gutterMm)
+    let okFlag = true
     updatePage(currentPageId, (p) => {
-      const all = p.elements ?? []; const g = all.filter((x) => multiSel.includes(x.id)); if (g.length < 2) return p
+      const all = p.elements ?? []
+      const selSet = new Set(multiSel)
+      const g = selSet.size >= 2 ? all.filter((e) => selSet.has(e.id)) : all
+      if (g.length < 2) { okFlag = false; return p }
       const tw = p.tavolaFree ? fmt.w * 2 : fmt.w
-      const gapX = mm / tw, gapY = mm / fmt.h
-      const cx = (e: FreeEl) => e.x + e.w / 2, cy = (e: FreeEl) => e.y + e.h / 2
-      const horiz = (Math.max(...g.map(cx)) - Math.min(...g.map(cx))) >= (Math.max(...g.map(cy)) - Math.min(...g.map(cy)))
-      const ord = [...g].sort((a, b) => (horiz ? a.x - b.x : a.y - b.y))
-      const first = ord[0]!; const cross = horiz ? first.y : first.x
-      const patch = new Map<string, Partial<FreeEl>>()
-      patch.set(first.id, align ? (horiz ? { y: cross } : { x: cross }) : {})
-      let cursor = horiz ? first.x + first.w : first.y + first.h
-      for (let i = 1; i < ord.length; i++) {
-        const e = ord[i]!
-        if (horiz) { const nx = cursor + gapX; patch.set(e.id, align ? { x: nx, y: cross } : { x: nx }); cursor = nx + e.w }
-        else { const ny = cursor + gapY; patch.set(e.id, align ? { y: ny, x: cross } : { y: ny }); cursor = ny + e.h }
-      }
-      return { ...p, elements: all.map((e) => { const pp = patch.get(e.id); return pp ? { ...e, ...pp } : e }) }
+      const gx = mm / tw, gy = mm / fmt.h
+      const bx = Math.min(...g.map((e) => e.x)), by = Math.min(...g.map((e) => e.y))
+      const ex = Math.max(...g.map((e) => e.x + e.w)), ey = Math.max(...g.map((e) => e.y + e.h))
+      const res = guillotineLayout(g.map((e) => ({ id: e.id, x: e.x, y: e.y, w: e.w, h: e.h })), { x: bx, y: by, w: ex - bx, h: ey - by }, gx, gy)
+      if (!res) { okFlag = false; return p }
+      return { ...p, elements: all.map((e) => { const r = res.get(e.id); return r ? { ...e, x: r.x, y: r.y, w: r.w, h: r.h } : e }) }
     })
-    toast.success(`Spaziatura ${mm} mm applicata`)
+    toast[okFlag ? 'success' : 'message'](okFlag ? `Margini uguali a ${mm} mm` : 'Le foto si sovrappongono: disponile in righe/colonne nette, poi riprova')
   }
   const selIds = () => (multiSel.length ? multiSel : selEl ? [selEl] : [])
   function nudgeSel(dx: number, dy: number) {
@@ -978,6 +1029,7 @@ function AlbumDesignerInner() {
             photos={photos} kept={kept} total={total} okRange={okRange} untagged={untagged}
             missingMin={missingMin} perMoment={perMoment}
             onToggle={toggleKeep} onMoment={setMoment} onGenerate={generate} thumb={thumbUrl}
+            isCouple={isCouple} onReadyToLayout={coupleReadyToLayout}
             onKeepAll={() => void setKeepAll('KEPT')} onKeepNone={() => void setKeepAll('DISCARDED')}
             onImport={importPhotos} importing={importing}
           />
@@ -1201,7 +1253,7 @@ function AlbumDesignerInner() {
                   onSaveLayout={saveCurLayout}
                   presets={tavPresets} tavAspect={asp * 2} onApplyTavolaLayout={applyTavolaLayout}
                   myPresets={myTavPresets} onApplySaved={applySavedToTavola} onDeleteSaved={removeLayout}
-                  selCount={multiSel.length} onAlign={alignSel} onDistribute={distributeSel} onSpaceExact={spaceExactSel}
+                  selCount={multiSel.length} onAlign={alignSel} onDistribute={distributeSel} onUniformGaps={uniformGapsSel}
                   gutterMm={gutterMm} onGutter={setGutterMm}
                   crop={(() => {
                     const el = (currentPage.elements ?? []).find((e) => e.id === selEl)
@@ -1398,8 +1450,9 @@ function SelectStep(props: {
   onToggle: (m: M) => void; onMoment: (m: M, moment: string) => void; onGenerate: () => void; thumb: (m: M) => string
   onKeepAll: () => void; onKeepNone: () => void
   onImport: (files: File[]) => void; importing: { done: number; total: number } | null
+  isCouple?: boolean; onReadyToLayout?: () => void
 }) {
-  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing } = props
+  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing, isCouple, onReadyToLayout } = props
   const allKept = photos.length > 0 && total >= photos.length
   const fileRef = useRef<HTMLInputElement>(null)
   return (
@@ -1465,8 +1518,17 @@ function SelectStep(props: {
             })}
           </ul>
         </Card>
-        <Button variant="gold" className="w-full" disabled={total === 0} onClick={onGenerate}><Wand2 size={15} /> Genera impaginazione</Button>
-        {!okRange && total > 0 && <p className="text-[11px] text-center text-[rgb(var(--fg-muted))]">Puoi generare comunque: l'ideale è {ALBUM_MIN_PHOTOS}–{ALBUM_MAX_PHOTOS}{missingMin.length ? `, mancano minimi: ${missingMin.map((x) => x.label).join(', ')}` : ''}.</p>}
+        {isCouple && onReadyToLayout ? (
+          <>
+            <Button variant="gold" className="w-full" disabled={total === 0} onClick={onReadyToLayout}><Check size={15} /> Ok, puoi impaginare la bozza</Button>
+            <p className="text-[11px] text-center text-[rgb(var(--fg-muted))]">Conferma la tua selezione ({total} foto): il fotografo riceverà l'ok e impaginerà la bozza dell'album.</p>
+          </>
+        ) : (
+          <>
+            <Button variant="gold" className="w-full" disabled={total === 0} onClick={onGenerate}><Wand2 size={15} /> Genera impaginazione</Button>
+            {!okRange && total > 0 && <p className="text-[11px] text-center text-[rgb(var(--fg-muted))]">Puoi generare comunque: l'ideale è {ALBUM_MIN_PHOTOS}–{ALBUM_MAX_PHOTOS}{missingMin.length ? `, mancano minimi: ${missingMin.map((x) => x.label).join(', ')}` : ''}.</p>}
+          </>
+        )}
       </div>
     </div>
   )
@@ -2093,11 +2155,11 @@ function FreePanel(props: {
   presets?: GenLayout[]; tavAspect?: number; onApplyTavolaLayout?: (slots: Slot[]) => void
   myPresets?: SavedLayout[]; onApplySaved?: (l: SavedLayout) => void; onDeleteSaved?: (id: string) => void
   selCount?: number; onAlign?: (k: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'bottom') => void; onDistribute?: (a: 'h' | 'v') => void
-  onSpaceExact?: (align: boolean) => void
+  onUniformGaps?: () => void
   gutterMm?: number; onGutter?: (mm: number) => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, onSpaceExact, gutterMm, onGutter, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, onUniformGaps, gutterMm, onGutter, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -2125,20 +2187,16 @@ function FreePanel(props: {
               <button onClick={() => onDistribute('v')} title="Spazia uniformemente in verticale" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">↕ Distrib. vert.</button>
             </div>
           )}
-          {/* SPAZIATURA ESATTA: stessa distanza in mm tra le foto adiacenti, con 2 modalità */}
-          {onSpaceExact && (
+          {/* MARGINI UGUALI: tutti gli spazi bianchi tra le foto uguali a N mm (anche mosaico 2D) */}
+          {onUniformGaps && (
             <div className="mt-2 pt-2 border-t border-[rgb(var(--border))]">
-              <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1">Stessa distanza tra le foto</p>
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Distanza</span>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[11px] text-[rgb(var(--fg-muted))] whitespace-nowrap">Margine uguale</span>
                 <input type="number" min={0} max={30} value={gutterMm ?? 3} onChange={(e) => onGutter?.(Math.max(0, Math.min(30, +e.target.value || 0)))} className="w-12 text-[11px] px-1 py-0.5 rounded border border-[rgb(var(--border))] bg-[rgb(var(--bg))]" />
-                <span className="text-[11px] text-[rgb(var(--fg-subtle))]">mm · poi premi:</span>
+                <span className="text-[11px] text-[rgb(var(--fg-muted))]">mm</span>
               </div>
-              <div className="grid grid-cols-2 gap-1">
-                <button onClick={() => onSpaceExact(false)} title="Mette la stessa distanza (mm) tra le foto selezionate, lasciandole alla stessa altezza/posizione" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">Solo distanza</button>
-                <button onClick={() => onSpaceExact(true)} title="Stessa distanza (mm) E allinea i bordi: le foto diventano una riga/colonna pulita" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--gold-400))] hover:bg-[rgb(var(--bg-sunken))]">Distanza + allinea</button>
-              </div>
-              <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1 leading-tight">Seleziona 2+ foto vicine, scegli i mm e premi. “Solo distanza” cambia solo lo spazio; “+ allinea” le mette anche in fila dritta.</p>
+              <Button variant="gold" size="sm" className="w-full" onClick={onUniformGaps}><Grid3x3 size={13} /> Rendi tutti i margini uguali</Button>
+              <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1 leading-tight">Tutti gli spazi bianchi tra le foto selezionate diventano uguali ({gutterMm ?? 3} mm), sia in verticale sia in orizzontale.</p>
             </div>
           )}
         </div>
