@@ -56,6 +56,11 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     && !location.pathname.startsWith('/feed/')
     && !location.pathname.startsWith('/scopri')
     && !location.pathname.startsWith('/fornitore/')
+    // album impaginato dal fotografo e revisione video: la coppia ci accede dal suo cruscotto
+    // (link in EventGalleryTab → /album/:id e /video/:id, target=_blank). Senza queste eccezioni
+    // il confinamento la rimbalzava su /couple → "l'album non si apre".
+    && !location.pathname.startsWith('/album/')
+    && !location.pathname.startsWith('/video/')
     && !location.pathname.startsWith('/faq')) {
     return <Navigate to="/couple" replace />
   }
