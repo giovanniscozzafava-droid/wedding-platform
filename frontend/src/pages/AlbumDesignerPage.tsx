@@ -237,19 +237,38 @@ function AlbumDesignerInner() {
   const histFuture = useRef<AlbumPage[][]>([])
   const prevPagesRef = useRef<AlbumPage[]>([])
   const skipHist = useRef(false)
+  const lastHistTs = useRef(0)
   const [, forceHist] = useState(0)
   useEffect(() => {
     if (skipHist.current) { skipHist.current = false; prevPagesRef.current = pages; return }
     if (loadedRef.current && prevPagesRef.current !== pages && prevPagesRef.current.length) {
-      histPast.current.push(prevPagesRef.current)
-      if (histPast.current.length > 60) histPast.current.shift()
-      histFuture.current = []
+      // COALESCING: un trascinamento genera decine di setPages. Registriamo UN solo checkpoint
+      // (lo stato PRIMA del gesto) e ignoriamo i cambi rapidi successivi → un undo = un'azione.
+      const now = Date.now()
+      if (now - lastHistTs.current > 450) {
+        histPast.current.push(prevPagesRef.current)
+        if (histPast.current.length > 80) histPast.current.shift()
+        histFuture.current = []
+      }
+      lastHistTs.current = now
     }
     prevPagesRef.current = pages
     forceHist((n) => n + 1)
   }, [pages])
-  function undo() { if (!histPast.current.length) return; histFuture.current.push(pages); const p = histPast.current.pop()!; skipHist.current = true; setPages(p); forceHist((n) => n + 1) }
-  function redo() { if (!histFuture.current.length) return; histPast.current.push(pages); const p = histFuture.current.pop()!; skipHist.current = true; setPages(p); forceHist((n) => n + 1) }
+  function undo() {
+    if (!histPast.current.length) return
+    histFuture.current.push(pages); const p = histPast.current.pop()!
+    skipHist.current = true; lastHistTs.current = 0
+    setSelEl(null); setMultiSel([]); setActiveSlot(null)
+    setPages(p); forceHist((n) => n + 1)
+  }
+  function redo() {
+    if (!histFuture.current.length) return
+    histPast.current.push(pages); const p = histFuture.current.pop()!
+    skipHist.current = true; lastHistTs.current = 0
+    setSelEl(null); setMultiSel([]); setActiveSlot(null)
+    setPages(p); forceHist((n) => n + 1)
+  }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
