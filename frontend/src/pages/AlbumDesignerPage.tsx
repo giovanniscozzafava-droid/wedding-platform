@@ -1549,26 +1549,45 @@ function FreeStage(props: {
       const live = neighborGaps(finalEl, otherEls)
       setGapMarks([...sp.marks, ...live.filter((mk) => !eq.has(`${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))])
     } else if (d.kind === 'resize' && d.corner) {
-      const r = resizeEl(d.el, d.corner, f.x, f.y); onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
-      // RIGHELLI AUTOMATICI anche in resize: allineamenti bordi/centri + distanze in cm
+      // SINGOLA: solo mouse = LIBERO (w/h indipendenti); SHIFT = PROPORZIONALE (mantiene l'aspetto
+      // del riquadro, ancorato all'angolo opposto). L'immagine non si deforma mai (riempie, cover).
+      let r = resizeEl(d.el, d.corner, f.x, f.y)
+      if (e.shiftKey) {
+        const c = d.corner
+        const ax = c.includes('e') ? d.el.x : d.el.x + d.el.w
+        const ay = c.includes('s') ? d.el.y : d.el.y + d.el.h
+        const sc = Math.max(0.02 / d.el.w, 0.02 / d.el.h, Math.abs(f.x - ax) / d.el.w, Math.abs(f.y - ay) / d.el.h)
+        const nw = d.el.w * sc, nh = d.el.h * sc
+        r = { ...d.el, x: c.includes('e') ? ax : ax - nw, y: c.includes('s') ? ay : ay - nh, w: nw, h: nh }
+      }
+      onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
       const otherEls = els.filter((x) => x.id !== d.id)
       const snap = snapMove(r, otherEls, mx, my)
       setGuides({ v: snap.vGuides, h: snap.hGuides })
       setGapMarks(neighborGaps(r, otherEls))
     } else if (d.kind === 'gresize' && d.anchor && d.h0) {
+      // GRUPPO: solo mouse = LIBERO (scala X e Y indipendenti → il box si stira, le foto riempiono
+      // senza deformarsi); SHIFT = PROPORZIONALE (scala uniforme, mantiene le proporzioni dell'insieme).
       const a = d.anchor, h0 = d.h0
-      // SCALA UNIFORME come una singola foto: l'angolo afferrato segue il cursore PROIETTATO sulla
-      // diagonale del box (mantiene le proporzioni interne del gruppo). Proiezione = (f-a)·(h0-a)/|h0-a|².
       const dx = h0.x - a.x, dy = h0.y - a.y
-      const denom = dx * dx + dy * dy; if (denom < 1e-7) return
       const lim = (av: number, hv: number) => { const dd = hv - av; if (Math.abs(dd) < 1e-6) return Infinity; return dd > 0 ? (1 - av) / dd : (0 - av) / dd }
-      const maxS = Math.max(0.2, Math.min(lim(a.x, h0.x), lim(a.y, h0.y)))
-      const s = Math.max(0.12, Math.min(((f.x - a.x) * dx + (f.y - a.y) * dy) / denom, maxS, 8))
-      onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * s, y: a.y + (g.y - a.y) * s, w: Math.max(0.02, g.w * s), h: Math.max(0.02, g.h * s) } })))
-      // righelli automatici per il BOX di gruppo scalato verso le foto esterne
+      let nx2: number, ny2: number
+      if (e.shiftKey) {
+        const denom = dx * dx + dy * dy; if (denom < 1e-7) return
+        const maxS = Math.max(0.2, Math.min(lim(a.x, h0.x), lim(a.y, h0.y)))
+        const s = Math.max(0.12, Math.min(((f.x - a.x) * dx + (f.y - a.y) * dy) / denom, maxS, 8))
+        onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * s, y: a.y + (g.y - a.y) * s, w: Math.max(0.02, g.w * s), h: Math.max(0.02, g.h * s) } })))
+        nx2 = a.x + dx * s; ny2 = a.y + dy * s
+      } else {
+        let sx = Math.abs(dx) < 1e-6 ? 1 : (f.x - a.x) / dx
+        let sy = Math.abs(dy) < 1e-6 ? 1 : (f.y - a.y) / dy
+        sx = Math.max(0.12, Math.min(sx, Math.max(0.2, lim(a.x, h0.x)), 8))
+        sy = Math.max(0.12, Math.min(sy, Math.max(0.2, lim(a.y, h0.y)), 8))
+        onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * sx, y: a.y + (g.y - a.y) * sy, w: Math.max(0.02, g.w * sx), h: Math.max(0.02, g.h * sy) } })))
+        nx2 = a.x + dx * sx; ny2 = a.y + dy * sy
+      }
       const others = els.filter((x) => !d.group.some((gg) => gg.id === x.id))
-      const nx = a.x + (h0.x - a.x) * s, ny = a.y + (h0.y - a.y) * s
-      const bb = { ...d.el, x: Math.min(a.x, nx), y: Math.min(a.y, ny), w: Math.abs(nx - a.x), h: Math.abs(ny - a.y) }
+      const bb = { ...d.el, x: Math.min(a.x, nx2), y: Math.min(a.y, ny2), w: Math.abs(nx2 - a.x), h: Math.abs(ny2 - a.y) }
       const snap = snapMove(bb, others, mx, my)
       setGuides({ v: snap.vGuides, h: snap.hGuides })
       setGapMarks(neighborGaps(bb, others))
@@ -1637,7 +1656,7 @@ function FreeStage(props: {
                 className="absolute h-3.5 w-3.5 bg-white border-2 border-[rgb(var(--gold-500))] rounded-sm touch-none pointer-events-auto"
                 style={{ left: c.includes('w') ? -7 : undefined, right: c.includes('e') ? -7 : undefined, top: c.includes('n') ? -7 : undefined, bottom: c.includes('s') ? -7 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />
             ))}
-            <span className="absolute -top-5 left-0 text-[9px] px-1 rounded bg-[rgb(var(--gold-500))] text-white pointer-events-none">{g.length} foto · ridimensiona insieme</span>
+            <span className="absolute -top-5 left-0 text-[9px] px-1 rounded bg-[rgb(var(--gold-500))] text-white pointer-events-none whitespace-nowrap">{g.length} foto · angolo = libero · Shift = proporzionale</span>
           </div>
         )
       })()}
