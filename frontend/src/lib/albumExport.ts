@@ -138,16 +138,23 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
   const { default: jsPDF } = await import('jspdf')
 
   if (mode === 'spreads') {
-    // spread = revisione: niente abbondanza (sarebbe nel dorso). Pagine affiancate.
-    const sw = f.w * 2, sh = f.h
-    const pdf = new jsPDF({ orientation: sw >= sh ? 'landscape' : 'portrait', unit: 'mm', format: [sw, sh] })
+    // LA TAVOLA È UN UNICO FOGLIO: larghezza = 2× pagina (es. 30×40 → 60×40). La linea
+    // centrale è solo la piega (dorso), non un confine. L'abbondanza è sui 4 bordi ESTERNI
+    // del foglio (mai sul dorso); i crocini segnano il trim della tavola intera.
+    const b = bleed ? BLEED_MM : 0
+    const trimW = f.w * 2, trimH = f.h
+    const sheetW = trimW + 2 * b, sheetH = trimH + 2 * b
+    const land = sheetW >= sheetH
+    const pdf = new jsPDF({ orientation: land ? 'landscape' : 'portrait', unit: 'mm', format: [sheetW, sheetH] })
     for (let i = 0; i < pages.length; i += 2) {
-      if (i > 0) pdf.addPage([sw, sh], sw >= sh ? 'landscape' : 'portrait')
-      await renderPageInto(pdf, pages[i]!, f.w, f.h, 0, 0, resolve, dpi, 0)
-      if (pages[i + 1]) await renderPageInto(pdf, pages[i + 1]!, f.w, f.h, f.w, 0, resolve, dpi, 0)
+      if (i > 0) pdf.addPage([sheetW, sheetH], land ? 'landscape' : 'portrait')
+      pdf.setFillColor(255, 255, 255); pdf.rect(0, 0, sheetW, sheetH, 'F')
+      await renderPageInto(pdf, pages[i]!, f.w, f.h, b, b, resolve, dpi, 0)
+      if (pages[i + 1]) await renderPageInto(pdf, pages[i + 1]!, f.w, f.h, b + f.w, b, resolve, dpi, 0)
       const spS = pages[i]?.spreadImage
-      if (spS) { try { const img = await loadImage(resolve(spS.mediaId)); const data = framedSpreadDataUrl(img, f.w * dpi / 25.4, f.h * dpi / 25.4, spS.cell, spS.frame ?? FULL_FRAME, 'both'); pdf.addImage(data, 'PNG', 0, 0, sw, sh) } catch { /* ignora foto mancante */ } }
-      if (pageNumbers) { pageNumText(pdf, i + 1, f.w / 2, f.h - 5); if (pages[i + 1]) pageNumText(pdf, i + 2, f.w + f.w / 2, f.h - 5) }
+      if (spS) { try { const img = await loadImage(resolve(spS.mediaId)); const data = framedSpreadDataUrl(img, f.w * dpi / 25.4, f.h * dpi / 25.4, spS.cell, spS.frame ?? FULL_FRAME, 'both'); pdf.addImage(data, 'PNG', b, b, trimW, trimH) } catch { /* ignora foto mancante */ } }
+      if (cutMarks && b > 0) drawCutMarks(pdf, 0, 0, trimW, trimH, b)
+      if (pageNumbers) { pageNumText(pdf, i + 1, b + f.w / 2, b + f.h - 5); if (pages[i + 1]) pageNumText(pdf, i + 2, b + f.w + f.w / 2, b + f.h - 5) }
     }
     pdf.save(filename)
     return

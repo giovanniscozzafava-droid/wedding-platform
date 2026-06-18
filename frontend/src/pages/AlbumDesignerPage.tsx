@@ -521,8 +521,9 @@ function AlbumDesignerInner() {
       }
       const base = (title || 'album').toLowerCase().replace(/\s+/g, '-')
       // con l'originale Drive possiamo stampare in alta: 300 dpi per le pagine, 220 per JPG/spread
-      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${kind === 'jpgspread' ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: kind === 'jpgspread' ? 'spreads' : 'pages' })
-      else await exportAlbumPdf(pages, format, resolve, { mode: kind === 'spread' ? 'spreads' : 'pages', filename: `${base}-${kind === 'spread' ? 'tavole' : 'pagine'}.pdf`, bleed: kind === 'pdf' && bleed, dpi: kind === 'spread' ? Math.min(exportDpi, 200) : exportDpi, cutMarks: kind === 'pdf' && cutMarks && bleed, pageNumbers: pageNums })
+      const isSpread = kind === 'spread' || kind === 'jpgspread'
+      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${isSpread ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: isSpread ? 'spreads' : 'pages' })
+      else await exportAlbumPdf(pages, format, resolve, { mode: isSpread ? 'spreads' : 'pages', filename: `${base}-${isSpread ? 'tavole' : 'pagine'}.pdf`, bleed, dpi: exportDpi, cutMarks: cutMarks && bleed, pageNumbers: pageNums })
       toast.success('Export pronto')
     } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false) }
   }
@@ -1060,21 +1061,12 @@ function AlbumDesignerInner() {
                   <label className="flex items-center gap-2 text-sm cursor-pointer select-none"><input type="checkbox" checked={bleed} onChange={(e) => setBleed(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Abbondanza <span className="text-xs text-[rgb(var(--fg-muted))]">(3 mm a filo bordo, per il taglio)</span></label>
                   <label className={`flex items-center gap-2 text-sm cursor-pointer select-none ${!bleed ? 'opacity-40' : ''}`}><input type="checkbox" disabled={!bleed} checked={cutMarks} onChange={(e) => setCutMarks(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--gold-600))]" /> Crocini di taglio <span className="text-xs text-[rgb(var(--fg-muted))]">(segni dove tagliare)</span></label>
                   <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Le foto su Drive vengono scaricate in originale ad alta risoluzione durante l'export.</p>
-                  <div className="pt-1 space-y-2">
-                    <div>
-                      <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1 flex items-center gap-1.5"><FileText size={12} /> PDF</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button variant="gold" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('spread') }}><LayoutGrid size={14} /> Tavola intera</Button>
-                        <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('pdf') }}><FileText size={14} /> Pagine divise</Button>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1 flex items-center gap-1.5"><FileImage size={12} /> JPG (una immagine per…)</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('jpgspread') }}><LayoutGrid size={14} /> Tavola intera</Button>
-                        <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('jpg') }}><FileImage size={14} /> Pagine divise</Button>
-                      </div>
-                    </div>
+                  <div className="rounded-lg bg-[rgb(var(--bg-sunken))] p-2.5">
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Ogni <strong>tavola</strong> è un foglio unico: <strong>{(fmt.w * 2 / 10).toFixed(0)}×{(fmt.h / 10).toFixed(0)} cm</strong> (la riga centrale è solo la piega). {pages.length > 0 ? `${Math.ceil(pages.length / 2)} tavole.` : ''}</p>
+                  </div>
+                  <div className="pt-1 grid grid-cols-2 gap-2">
+                    <Button variant="gold" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('spread') }}><FileText size={14} /> Esporta PDF</Button>
+                    <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('jpgspread') }}><FileImage size={14} /> Esporta JPG (ZIP)</Button>
                   </div>
                 </div>
               </div>
