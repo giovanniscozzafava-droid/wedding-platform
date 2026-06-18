@@ -138,7 +138,7 @@ export function autoLayout(selected: MediaLite[], formatKey: string): AlbumLayou
 
 // Frame per una pagina, ricalcolati se il numero di foto non combacia col template.
 export function framesForPage(p: AlbumPage): Frame[] {
-  const n = p.mediaIds.length
+  const n = (p.mediaIds ?? []).length // robusto: dato persistito può non avere mediaIds
   if (p.template === 'custom') {
     const f = p.frames ?? []
     if (f.length >= n && n > 0) return f.slice(0, n)

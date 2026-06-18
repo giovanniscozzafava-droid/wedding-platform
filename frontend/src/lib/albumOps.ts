@@ -4,7 +4,7 @@ import { framesForPage, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '.
 import { DEFAULT_CELL, type Cell } from './albumGeometry'
 
 export function placeInPage(p: AlbumPage, slot: number | null, mediaId: string): AlbumPage {
-  const ids = [...p.mediaIds]; const cells = [...(p.cells ?? [])]
+  const ids = [...(p.mediaIds ?? [])]; const cells = [...(p.cells ?? [])]
   const cap = framesForPage(p).length
   if (slot != null && slot >= 0 && slot < Math.max(cap, ids.length) && slot < MAX_PER_PAGE) {
     ids[slot] = mediaId; cells[slot] = { ...DEFAULT_CELL }
@@ -18,8 +18,8 @@ export function placeInPage(p: AlbumPage, slot: number | null, mediaId: string):
 }
 
 export function clearSlotInPage(p: AlbumPage, slot: number): AlbumPage {
-  if (slot < 0 || slot >= p.mediaIds.length) return p
-  const ids = [...p.mediaIds]; const cells = [...(p.cells ?? [])]
+  if (slot < 0 || slot >= (p.mediaIds ?? []).length) return p
+  const ids = [...(p.mediaIds ?? [])]; const cells = [...(p.cells ?? [])]
   ids.splice(slot, 1); cells.splice(slot, 1)
   return { ...p, mediaIds: ids, cells }
 }

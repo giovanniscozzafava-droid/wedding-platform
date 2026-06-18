@@ -30,10 +30,11 @@ export function toFreeElements(page: AlbumPage, formatKey: string): FreeEl[] {
   const cw = 1 - 2 * mx, ch = 1 - 2 * my
   const g = 0.004 // micro-gutter
   const frames = framesForPage(page)
+  const ids = page.mediaIds ?? []
   const out: FreeEl[] = []
   for (let i = 0; i < frames.length; i++) {
     const fr = frames[i] as Frame
-    const mediaId = page.mediaIds[i]
+    const mediaId = ids[i]
     if (!mediaId) continue
     out.push({
       id: uid(), mediaId,

@@ -102,7 +102,10 @@ function tavolaHasPhotos(p: AlbumPage | undefined): boolean {
 // così sono attive ovunque sostituisci-foto, disposizioni, riempi-tavola, resize gruppo. Le tavole
 // vuote restano template (mostrano gli slot da riempire). Visivamente identica.
 function migrateTavoleToFree(pages: AlbumPage[], formatKey: string): AlbumPage[] {
-  const out = pages.map((p) => ({ ...p }))
+  // NORMALIZZA il dato persistito: pagine vecchie/corrotte possono avere mediaIds/cells/elements
+  // assenti o null → senza questo, `for (const id of pg.mediaIds)` e simili crashano l'INTERA
+  // pagina (vista cliente compresa). Qui garantiamo che siano sempre array.
+  const out = pages.map((p) => ({ ...p, mediaIds: p.mediaIds ?? [], cells: p.cells ?? [], elements: p.elements ?? [] }))
   for (let i = 0; i < out.length; i += 2) {
     const left = out[i]; if (!left || left.tavolaFree) continue
     const right = out[i + 1]
@@ -469,7 +472,7 @@ function AlbumDesignerInner() {
       for (const pg of [left, right]) {
         if (!pg) continue
         if (pg.mode === 'free') { for (const e of pg.elements ?? []) bump(e.mediaId) }
-        else { for (const id of pg.mediaIds) bump(id) }
+        else { for (const id of pg.mediaIds ?? []) bump(id) }
       }
     }
     return c
