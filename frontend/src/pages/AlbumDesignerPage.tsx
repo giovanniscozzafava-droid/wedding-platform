@@ -1514,7 +1514,7 @@ function FreeStage(props: {
   const aspect = effW / fmt.h
   const mx = MARGIN_MM / effW, my = MARGIN_MM / fmt.h
   const boxRef = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate' | 'gresize'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl; group: FreeEl[]; anchor?: { x: number; y: number }; h0?: { x: number; y: number } } | null>(null)
+  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate' | 'gresize'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl; group: FreeEl[]; anchor?: { x: number; y: number }; h0?: { x: number; y: number }; gAxes?: { x: boolean; y: boolean } } | null>(null)
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
   const [gapMarks, setGapMarks] = useState<GapMark[]>([])
   const [dropId, setDropId] = useState<string | null>(null) // foto sotto il cursore durante un drop (sostituzione)
@@ -1534,16 +1534,19 @@ function FreeStage(props: {
   }
   // Resize di GRUPPO: scala insieme tutte le foto selezionate, attorno all'angolo opposto
   // (uniforme, stile Canva). Lo snapshot del gruppo è preso all'inizio del drag.
-  function downGroup(e: React.PointerEvent, corner: Corner) {
+  // handle = angolo (nw/ne/sw/se → due assi) OPPURE lato (n/s/e/w → un solo asse: i "punti cardine"
+  // centro-lato che ridimensionano solo la larghezza (e/w) o solo l'altezza (n/s) dell'insieme).
+  function downGroup(e: React.PointerEvent, handle: string) {
     e.stopPropagation()
     const g = els.filter((x) => multiSel.includes(x.id))
     if (g.length < 2) return
     const bx = Math.min(...g.map((x) => x.x)), by = Math.min(...g.map((x) => x.y))
     const ex = Math.max(...g.map((x) => x.x + x.w)), ey = Math.max(...g.map((x) => x.y + x.h))
-    const anchor = { x: corner.includes('e') ? bx : ex, y: corner.includes('s') ? by : ey }
-    const h0 = { x: corner.includes('e') ? ex : bx, y: corner.includes('s') ? ey : by }
+    const hasE = handle.includes('e'), hasW = handle.includes('w'), hasN = handle.includes('n'), hasS = handle.includes('s')
+    const anchor = { x: hasW ? ex : bx, y: hasN ? ey : by }     // bordo opposto a quello afferrato
+    const h0 = { x: hasW ? bx : ex, y: hasN ? by : ey }         // bordo afferrato
     const f = frac(e)
-    drag.current = { kind: 'gresize', id: '__group__', corner, sx: f.x, sy: f.y, el: g[0]!, group: g, anchor, h0 }
+    drag.current = { kind: 'gresize', id: '__group__', sx: f.x, sy: f.y, el: g[0]!, group: g, anchor, h0, gAxes: { x: hasE || hasW, y: hasN || hasS } }
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   function move(e: React.PointerEvent) {
@@ -1586,25 +1589,26 @@ function FreeStage(props: {
       setGuides({ v: snap.vGuides, h: snap.hGuides })
       setGapMarks(neighborGaps(r, otherEls))
     } else if (d.kind === 'gresize' && d.anchor && d.h0) {
-      // GRUPPO: solo mouse = LIBERO (scala X e Y indipendenti → il box si stira, le foto riempiono
-      // senza deformarsi); SHIFT = PROPORZIONALE (scala uniforme, mantiene le proporzioni dell'insieme).
+      // GRUPPO: angolo = due assi (LIBERO indipendenti, o SHIFT = uniforme); maniglia di lato
+      // (punto cardine) = un solo asse → solo larghezza (e/w) o solo altezza (n/s).
       const a = d.anchor, h0 = d.h0
+      const ax = d.gAxes?.x ?? true, ay = d.gAxes?.y ?? true
       const dx = h0.x - a.x, dy = h0.y - a.y
       const lim = (av: number, hv: number) => { const dd = hv - av; if (Math.abs(dd) < 1e-6) return Infinity; return dd > 0 ? (1 - av) / dd : (0 - av) / dd }
       let nx2: number, ny2: number
-      if (e.shiftKey) {
+      if (e.shiftKey && ax && ay) {
         const denom = dx * dx + dy * dy; if (denom < 1e-7) return
         const maxS = Math.max(0.2, Math.min(lim(a.x, h0.x), lim(a.y, h0.y)))
         const s = Math.max(0.12, Math.min(((f.x - a.x) * dx + (f.y - a.y) * dy) / denom, maxS, 8))
         onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * s, y: a.y + (g.y - a.y) * s, w: Math.max(0.02, g.w * s), h: Math.max(0.02, g.h * s) } })))
         nx2 = a.x + dx * s; ny2 = a.y + dy * s
       } else {
-        let sx = Math.abs(dx) < 1e-6 ? 1 : (f.x - a.x) / dx
-        let sy = Math.abs(dy) < 1e-6 ? 1 : (f.y - a.y) / dy
-        sx = Math.max(0.12, Math.min(sx, Math.max(0.2, lim(a.x, h0.x)), 8))
-        sy = Math.max(0.12, Math.min(sy, Math.max(0.2, lim(a.y, h0.y)), 8))
+        let sx = ax && Math.abs(dx) >= 1e-6 ? (f.x - a.x) / dx : 1
+        let sy = ay && Math.abs(dy) >= 1e-6 ? (f.y - a.y) / dy : 1
+        if (ax) sx = Math.max(0.12, Math.min(sx, Math.max(0.2, lim(a.x, h0.x)), 8))
+        if (ay) sy = Math.max(0.12, Math.min(sy, Math.max(0.2, lim(a.y, h0.y)), 8))
         onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * sx, y: a.y + (g.y - a.y) * sy, w: Math.max(0.02, g.w * sx), h: Math.max(0.02, g.h * sy) } })))
-        nx2 = a.x + dx * sx; ny2 = a.y + dy * sy
+        nx2 = a.x + dx * (ax ? sx : 1); ny2 = a.y + dy * (ay ? sy : 1)
       }
       const others = els.filter((x) => !d.group.some((gg) => gg.id === x.id))
       const bb = { ...d.el, x: Math.min(a.x, nx2), y: Math.min(a.y, ny2), w: Math.abs(nx2 - a.x), h: Math.abs(ny2 - a.y) }
@@ -1676,7 +1680,23 @@ function FreeStage(props: {
                 className="absolute h-3.5 w-3.5 bg-white border-2 border-[rgb(var(--gold-500))] rounded-sm touch-none pointer-events-auto"
                 style={{ left: c.includes('w') ? -7 : undefined, right: c.includes('e') ? -7 : undefined, top: c.includes('n') ? -7 : undefined, bottom: c.includes('s') ? -7 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />
             ))}
-            <span className="absolute -top-5 left-0 text-[9px] px-1 rounded bg-[rgb(var(--gold-500))] text-white pointer-events-none whitespace-nowrap">{g.length} foto · angolo = libero · Shift = proporzionale</span>
+            {/* PUNTI CARDINE centro-lato: solo larghezza (e/w) o solo altezza (n/s) */}
+            {(['n', 's', 'e', 'w'] as const).map((c) => {
+              const horiz = c === 'e' || c === 'w'
+              return (
+                <div key={c} onPointerDown={(e) => downGroup(e, c)} title={horiz ? 'Larghezza' : 'Altezza'}
+                  className="absolute h-3.5 w-3.5 bg-white border-2 border-[rgb(var(--gold-500))] rounded-sm touch-none pointer-events-auto"
+                  style={{
+                    left: c === 'w' ? -7 : c === 'e' ? undefined : '50%',
+                    right: c === 'e' ? -7 : undefined,
+                    top: c === 'n' ? -7 : c === 's' ? undefined : '50%',
+                    bottom: c === 's' ? -7 : undefined,
+                    transform: horiz ? 'translateY(-50%)' : 'translateX(-50%)',
+                    cursor: horiz ? 'ew-resize' : 'ns-resize',
+                  }} />
+              )
+            })}
+            <span className="absolute -top-5 left-0 text-[9px] px-1 rounded bg-[rgb(var(--gold-500))] text-white pointer-events-none whitespace-nowrap">{g.length} foto · angoli = libero (Shift = proporz.) · lati = larghezza/altezza</span>
           </div>
         )
       })()}
