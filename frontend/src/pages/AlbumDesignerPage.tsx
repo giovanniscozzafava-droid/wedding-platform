@@ -71,6 +71,49 @@ function Wireframe({ slots, aspect }: { slots: Slot[]; aspect: number }) {
   )
 }
 
+// Aggiunge alla lista `els` le foto di una pagina (template o libera) mappate in coord. tavola.
+function addPageEls(els: FreeEl[], p: AlbumPage | undefined, xOff: number, formatKey: string) {
+  if (!p) return
+  const src = p.mode === 'free' ? (p.elements ?? []) : toFreeElements(p, formatKey)
+  for (const e of src) els.push({ ...newFreeEl(e.mediaId), x: xOff + e.x * 0.5, y: e.y, w: e.w * 0.5, h: e.h, rot: e.rot, cell: { ...e.cell }, border: e.border, shadow: e.shadow })
+}
+// Elementi di una TAVOLA UNICA (coord. 0..1 dell'intera tavola) dalle due pagine. spreadImage =
+// foto sulla pagina sinistra: se NON copre tutto, aggiunge SOLO la pagina destra (niente overlap).
+function buildTavolaElsPure(left: AlbumPage, right: AlbumPage | undefined, formatKey: string): FreeEl[] {
+  if (left.tavolaFree) return (left.elements ?? []).map((e) => ({ ...e }))
+  const els: FreeEl[] = []
+  if (left.spreadImage) {
+    const fr = spreadFrameOf(left.spreadImage)
+    const full = fr.x <= 0.001 && fr.y <= 0.001 && fr.w >= 0.999 && fr.h >= 0.999
+    els.push({ ...newFreeEl(left.spreadImage.mediaId), x: fr.x, y: fr.y, w: fr.w, h: fr.h, cell: { ...left.spreadImage.cell } })
+    if (!full) addPageEls(els, right, 0.5, formatKey)
+  } else {
+    addPageEls(els, left, 0, formatKey); addPageEls(els, right, 0.5, formatKey)
+  }
+  return els
+}
+function tavolaHasPhotos(p: AlbumPage | undefined): boolean {
+  if (!p) return false
+  if (p.spreadImage) return true
+  if (p.mode === 'free') return (p.elements ?? []).length > 0
+  return (p.mediaIds ?? []).some(Boolean)
+}
+// MIGRAZIONE: "esiste solo la tavola". Converte ogni tavola con foto in TAVOLA UNICA (tavolaFree),
+// così sono attive ovunque sostituisci-foto, disposizioni, riempi-tavola, resize gruppo. Le tavole
+// vuote restano template (mostrano gli slot da riempire). Visivamente identica.
+function migrateTavoleToFree(pages: AlbumPage[], formatKey: string): AlbumPage[] {
+  const out = pages.map((p) => ({ ...p }))
+  for (let i = 0; i < out.length; i += 2) {
+    const left = out[i]; if (!left || left.tavolaFree) continue
+    const right = out[i + 1]
+    if (!tavolaHasPhotos(left) && !tavolaHasPhotos(right)) continue
+    const els = buildTavolaElsPure(left, right, formatKey)
+    out[i] = { ...left, mode: 'free', frozen: false, tavolaFree: true, bg: left.bg ?? '#ffffff', elements: els, mediaIds: [], cells: [], spreadImage: null }
+    if (right) out[i + 1] = { ...right, mode: 'template', mediaIds: [], cells: [], elements: [], tavolaFree: false, spreadImage: null }
+  }
+  return out
+}
+
 function AlbumDesignerInner() {
   const { entryId } = useParams<{ entryId: string }>()
   const { profile } = useAuth()
@@ -157,10 +200,10 @@ function AlbumDesignerInner() {
         setStatus((proj as any).status ?? 'DRAFT')
         const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean } | null
         if (typeof lay?.bleed === 'boolean') setBleed(lay.bleed)
-        // SANIFICA: una pagina "libera" tiene le foto SOLO negli elementi. Eventuali
-        // mediaIds residui (dopo template→libera) falsano il conteggio "foto usate" →
-        // li azzeriamo, così togliendo una foto la barra di sinistra si aggiorna sempre.
-        if (lay?.pages?.length) { setPages(lay.pages.map((p) => (p.mode === 'free' ? { ...p, mediaIds: [], cells: [] } : p))); setStep('design') }
+        // MIGRA a TAVOLA UNICA: ogni tavola con foto diventa tavolaFree (così sostituisci-foto,
+        // disposizioni, riempi-tavola e resize gruppo sono attivi ovunque, senza premere "Libera"
+        // tavola per tavola). Visivamente identica; le tavole vuote restano template.
+        if (lay?.pages?.length) { setPages(migrateTavoleToFree(lay.pages, (proj as any).format_key ?? DEFAULT_FORMAT)); setStep('design') }
       }
     } catch (e) { console.error('album load', e) } finally { setLoading(false) }
   }, [entryId])
@@ -446,25 +489,7 @@ function AlbumDesignerInner() {
   // - sx già tavolaFree → elementi as-is; - spreadImage → un elemento alla sua cornice (+ le foto
   //   delle pagine se NON copre tutto); - altrimenti foto sx in x∈[0,0.5], dx in [0.5,1] (w dimezzata,
   //   ma tavola 2× più larga = identico). Nessuna foto viene persa.
-  function buildTavolaEls(left: AlbumPage, right: AlbumPage | undefined): FreeEl[] {
-    if (left.tavolaFree) return (left.elements ?? []).map((e) => ({ ...e }))
-    const els: FreeEl[] = []
-    let full = false
-    if (left.spreadImage) {
-      const fr = spreadFrameOf(left.spreadImage)
-      full = fr.x <= 0.001 && fr.y <= 0.001 && fr.w >= 0.999 && fr.h >= 0.999
-      els.push({ ...newFreeEl(left.spreadImage.mediaId), x: fr.x, y: fr.y, w: fr.w, h: fr.h, cell: { ...left.spreadImage.cell } })
-    }
-    if (!full) {
-      const add = (p: AlbumPage | undefined, xOff: number) => {
-        if (!p) return
-        const src = p.mode === 'free' ? (p.elements ?? []) : toFreeElements(p, format)
-        for (const e of src) els.push({ ...newFreeEl(e.mediaId), x: xOff + e.x * 0.5, y: e.y, w: e.w * 0.5, h: e.h, rot: e.rot, cell: { ...e.cell }, border: e.border, shadow: e.shadow })
-      }
-      add(left, 0); add(right, 0.5)
-    }
-    return els
-  }
+  function buildTavolaEls(left: AlbumPage, right: AlbumPage | undefined): FreeEl[] { return buildTavolaElsPure(left, right, format) }
   // TAVOLA UNICA: fonde le due pagine in UNA superficie libera. Così le foto si spostano attraverso
   // la piega e i righelli agganciano da una metà all'altra.
   function convertTavolaToFree(leftId: string) {
