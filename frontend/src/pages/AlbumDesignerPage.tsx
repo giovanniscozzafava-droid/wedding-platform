@@ -436,6 +436,19 @@ function AlbumDesignerInner() {
     }))
     setCurrentPageId(leftId); setActiveSlot(null); setSelEl(null); setMultiSel([])
   }
+  // Stende una foto su TUTTA la tavola (0,0,1,1). Se la tavola non è ancora "Libera", la
+  // converte prima. Usa la foto selezionata; se non c'è selezione ma c'è una sola foto, quella.
+  function fillElToTavola(leftId: string) {
+    const lp = pages.find((p) => p.id === leftId); if (!lp) return
+    if (!lp.tavolaFree) { convertTavolaToFree(leftId) }
+    setPages((arr) => arr.map((p) => {
+      if (p.id !== leftId) return p
+      const els = p.elements ?? []
+      const id = selEl && els.some((e) => e.id === selEl) ? selEl : (els.length === 1 ? els[0]!.id : null)
+      if (!id) { return p }
+      return { ...p, elements: els.map((e) => (e.id === id ? { ...e, x: 0, y: 0, w: 1, h: 1, rot: 0 } : e)) }
+    }))
+  }
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
   function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
   function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null); setMultiSel((s) => s.filter((x) => x !== id)) }
@@ -789,7 +802,7 @@ function AlbumDesignerInner() {
                 CONGELATA IDENTICA (stesse posizioni/ritagli/rotazioni), solo non più editabile a
                 mano. Riaccendendola rientri in modifica. Un preset/griglia la SOVRASCRIVE. */}
             {!lite && spreadPages[0] && (() => { const lp = spreadPages[0]!; const isFree = !!lp.tavolaFree; return <ToolToggle on={isFree && !lp.frozen} onClick={() => { if (!isFree) convertTavolaToFree(lp.id); else updatePage(lp.id, (p) => ({ ...p, frozen: !p.frozen })) }} icon={<Move size={14} />} label="Libera" /> })()}
-            {!lite && spreadPages[0] && <ToolToggle on={!!spreadPages[0]?.spreadImage} onClick={() => { const lp = spreadPages[0]!; if (lp.spreadImage) clearSpreadImg(lp.id); else makeSpreadFromActive(lp.id, spreadPages) }} icon={<Maximize size={14} />} label="Doppia pagina" />}
+            {!lite && spreadPages[0] && (() => { const lp = spreadPages[0]!; return <ToolToggle on={!lp.tavolaFree && !!lp.spreadImage} onClick={() => { if (lp.tavolaFree) fillElToTavola(lp.id); else if (lp.spreadImage) clearSpreadImg(lp.id); else makeSpreadFromActive(lp.id, spreadPages) }} icon={<Maximize size={14} />} label="Piena tavola" /> })()}
             <div className="inline-flex items-center gap-0.5 ml-0.5">
               <button title="Riduci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
               <span className="text-[11px] w-9 text-center text-[rgb(var(--fg-muted))]">{Math.round(zoom * 100)}%</span>
@@ -1827,6 +1840,7 @@ function FreePanel(props: {
         <div className="border-t border-[rgb(var(--border))] pt-3 space-y-2">
           <p className="font-medium flex items-center gap-1.5"><Move size={14} /> Foto</p>
           <Button variant="gold" size="sm" className="w-full" onClick={() => onElCrop(el.id)}><Crop size={14} /> Ritaglia</Button>
+          <Button variant="outline" size="sm" className="w-full" onClick={() => onElUpdate(el.id, { x: 0, y: 0, w: 1, h: 1, rot: 0 })}><Maximize size={14} /> Riempi tutta la tavola</Button>
           <label className="text-xs text-[rgb(var(--fg-muted))] flex items-center gap-1"><RotateCw size={12} /> Rotazione <strong>{Math.round(el.rot)}°</strong></label>
           <input type="range" min={0} max={360} value={Math.round(el.rot)} onChange={(e) => onElUpdate(el.id, { rot: +e.target.value })} className="w-full accent-[rgb(var(--gold-600))]" />
           <div className="flex gap-1.5">
