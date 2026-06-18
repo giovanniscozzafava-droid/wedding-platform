@@ -355,6 +355,26 @@ function AlbumDesignerInner() {
   // caos di vedere sparire dalla libreria una foto solo perché l'ho rimossa dall'impaginato.
   const [everPlaced, setEverPlaced] = useState<Set<string>>(() => new Set())
   const [photoAspect, setPhotoAspect] = useState<Map<string, number>>(() => new Map()) // aspect nativo foto (per preset intelligenti)
+  // ── DISPOSIZIONI (preset) INTELLIGENTI per la TAVOLA UNICA ── (hook PRIMA di ogni return!) ──
+  const curTavLeft = useMemo<AlbumPage | null>(() => {
+    const i = pages.findIndex((p) => p.id === currentPageId); if (i < 0) return null
+    const lp = pages[i - (i % 2)]; return lp?.tavolaFree ? lp : null
+  }, [pages, currentPageId])
+  const tavEls = useMemo(() => curTavLeft?.elements ?? [], [curTavLeft])
+  const tavMediaKey = tavEls.map((e) => e.mediaId).join(',')
+  useEffect(() => {
+    if (!curTavLeft) return
+    for (const e of tavEls) {
+      const id = e.mediaId; if (photoAspect.has(id)) continue
+      const m = mediaById.get(id); if (!m) continue
+      const img = new Image()
+      img.onload = () => setPhotoAspect((prev) => (prev.has(id) ? prev : new Map(prev).set(id, img.naturalWidth / Math.max(1, img.naturalHeight))))
+      img.src = thumbUrl(m)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tavMediaKey, mediaById])
+  const tavOrients = useMemo<Orient[]>(() => tavEls.map((e) => classifyAspect(photoAspect.get(e.mediaId) ?? 1)), [tavMediaKey, photoAspect]) // eslint-disable-line react-hooks/exhaustive-deps
+  const tavPresets = useMemo<GenLayout[]>(() => { const f = getFormat(format); return tavMediaKey ? genTavolaLayouts(tavOrients, f.w * 2, f.h, 30) : [] }, [tavOrients, format, tavMediaKey]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setEverPlaced((prev) => {
       let changed = false; const next = new Set(prev)
@@ -677,24 +697,6 @@ function AlbumDesignerInner() {
   const fitH = canvasBox.h && canvasBox.w ? Math.min(canvasBox.h, canvasBox.w / (asp * spreadCount)) * 0.96 : 0
   const spreadHpx = Math.max(180, (fitH || 560) * zoom)
 
-  // ── DISPOSIZIONI (preset) INTELLIGENTI per la TAVOLA UNICA ────────────────────────────────
-  // Orientamento nativo delle foto della tavola corrente (aspect via miniatura, in cache).
-  const tavLeft = spreadPages[0]?.tavolaFree ? spreadPages[0] : null
-  const tavEls = useMemo(() => tavLeft?.elements ?? [], [tavLeft])
-  const tavMediaKey = tavEls.map((e) => e.mediaId).join(',')
-  useEffect(() => {
-    if (!tavLeft) return
-    for (const e of tavEls) {
-      const id = e.mediaId; if (photoAspect.has(id)) continue
-      const m = mediaById.get(id); if (!m) continue
-      const img = new Image()
-      img.onload = () => setPhotoAspect((prev) => (prev.has(id) ? prev : new Map(prev).set(id, img.naturalWidth / Math.max(1, img.naturalHeight))))
-      img.src = thumbUrl(m)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tavMediaKey, mediaById])
-  const tavOrients = useMemo<Orient[]>(() => tavEls.map((e) => classifyAspect(photoAspect.get(e.mediaId) ?? 1)), [tavMediaKey, photoAspect]) // eslint-disable-line react-hooks/exhaustive-deps
-  const tavPresets = useMemo<GenLayout[]>(() => (tavMediaKey ? genTavolaLayouts(tavOrients, fmt.w * 2, fmt.h, 30) : []), [tavOrients, fmt.w, fmt.h, tavMediaKey]) // eslint-disable-line react-hooks/exhaustive-deps
   // Applica una disposizione: ricostruisce gli elementi della tavola assegnando ogni foto allo
   // slot più adatto per orientamento; gutter tra le foto; il ritaglio si azzera (riempi slot).
   function applyTavolaLayout(slots: Slot[]) {
