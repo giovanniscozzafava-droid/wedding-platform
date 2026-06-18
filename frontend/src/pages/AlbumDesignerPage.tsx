@@ -14,6 +14,7 @@ import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFA
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, neighborGaps, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
+import { genTavolaLayouts, assignPhotos, gutterSlot, classifyAspect, type Orient, type Slot, type GenLayout } from '@/lib/albumPresetGen'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 
@@ -53,6 +54,19 @@ function FreeSurface({ page, mediaById, thumb }: { page: AlbumPage; mediaById: M
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// Miniatura SCHEMATICA di una disposizione (solo griglia/riquadri vuoti, niente foto). aspect = 2W/H.
+function Wireframe({ slots, aspect }: { slots: Slot[]; aspect: number }) {
+  return (
+    <div className="relative w-full bg-[rgb(var(--bg-sunken))]" style={{ aspectRatio: String(aspect) }}>
+      {slots.map((s, i) => (
+        <div key={i} className="absolute rounded-[1px] border border-[rgb(var(--fg-muted))] bg-[rgb(var(--bg))]"
+          style={{ left: `${(s.x + 0.015) * 100}%`, top: `${(s.y + 0.02) * 100}%`, width: `${(s.w - 0.03) * 100}%`, height: `${(s.h - 0.04) * 100}%` }} />
+      ))}
+      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[rgba(184,146,63,.35)]" />
     </div>
   )
 }
@@ -340,6 +354,7 @@ function AlbumDesignerInner() {
   // (nitida) invece di sparire. I "cuori" (KEPT) sono già persistiti in DB; questo evita il
   // caos di vedere sparire dalla libreria una foto solo perché l'ho rimossa dall'impaginato.
   const [everPlaced, setEverPlaced] = useState<Set<string>>(() => new Set())
+  const [photoAspect, setPhotoAspect] = useState<Map<string, number>>(() => new Map()) // aspect nativo foto (per preset intelligenti)
   useEffect(() => {
     setEverPlaced((prev) => {
       let changed = false; const next = new Set(prev)
@@ -661,6 +676,42 @@ function AlbumDesignerInner() {
   const spreadCount = spreadPages.length || 1
   const fitH = canvasBox.h && canvasBox.w ? Math.min(canvasBox.h, canvasBox.w / (asp * spreadCount)) * 0.96 : 0
   const spreadHpx = Math.max(180, (fitH || 560) * zoom)
+
+  // ── DISPOSIZIONI (preset) INTELLIGENTI per la TAVOLA UNICA ────────────────────────────────
+  // Orientamento nativo delle foto della tavola corrente (aspect via miniatura, in cache).
+  const tavLeft = spreadPages[0]?.tavolaFree ? spreadPages[0] : null
+  const tavEls = useMemo(() => tavLeft?.elements ?? [], [tavLeft])
+  const tavMediaKey = tavEls.map((e) => e.mediaId).join(',')
+  useEffect(() => {
+    if (!tavLeft) return
+    for (const e of tavEls) {
+      const id = e.mediaId; if (photoAspect.has(id)) continue
+      const m = mediaById.get(id); if (!m) continue
+      const img = new Image()
+      img.onload = () => setPhotoAspect((prev) => (prev.has(id) ? prev : new Map(prev).set(id, img.naturalWidth / Math.max(1, img.naturalHeight))))
+      img.src = thumbUrl(m)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tavMediaKey, mediaById])
+  const tavOrients = useMemo<Orient[]>(() => tavEls.map((e) => classifyAspect(photoAspect.get(e.mediaId) ?? 1)), [tavMediaKey, photoAspect]) // eslint-disable-line react-hooks/exhaustive-deps
+  const tavPresets = useMemo<GenLayout[]>(() => (tavMediaKey ? genTavolaLayouts(tavOrients, fmt.w * 2, fmt.h, 30) : []), [tavOrients, fmt.w, fmt.h, tavMediaKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Applica una disposizione: ricostruisce gli elementi della tavola assegnando ogni foto allo
+  // slot più adatto per orientamento; gutter tra le foto; il ritaglio si azzera (riempi slot).
+  function applyTavolaLayout(slots: Slot[]) {
+    const lp = spreadPages[0]; if (!lp?.tavolaFree) return
+    const els = lp.elements ?? []; if (!els.length) return
+    const orients = els.map((e) => classifyAspect(photoAspect.get(e.mediaId) ?? 1))
+    const assign = assignPhotos(slots, orients, fmt.w * 2, fmt.h)
+    const gx = 4 / (fmt.w * 2), gy = 4 / fmt.h // ~4 mm di gutter tra le foto
+    const newEls: FreeEl[] = slots.map((s, k) => {
+      const ai = assign[k] ?? -1
+      const src = els[ai >= 0 ? ai : k] ?? els[k]; if (!src) return null
+      const g = gutterSlot(s, gx, gy)
+      return { ...newFreeEl(src.mediaId), x: g.x, y: g.y, w: g.w, h: g.h, rot: 0, cell: { ...DEFAULT_CELL }, border: src.border, shadow: src.shadow }
+    }).filter(Boolean) as FreeEl[]
+    updatePage(lp.id, (p) => ({ ...p, elements: newEls })); setSelEl(null); setMultiSel([])
+    toast.success('Disposizione applicata')
+  }
 
   // ── VISTA CLIENTE (mobile-first, stile Canva mobile): sfoglia le tavole grandi, zoom a tutto
   //    schermo, richiedi modifiche. Sola lettura: il cliente non modifica per sbaglio la struttura. ──
@@ -1015,6 +1066,7 @@ function AlbumDesignerInner() {
                   onElCrop={(id) => setCropElId(id)} onElRemove={(id) => freeRemove(currentPage.id, id)}
                   onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
                   onSaveLayout={saveCurLayout}
+                  presets={tavPresets} tavAspect={asp * 2} onApplyTavolaLayout={applyTavolaLayout}
                   crop={(() => {
                     const el = (currentPage.elements ?? []).find((e) => e.id === selEl)
                     const m = el ? mediaById.get(el.mediaId) : undefined
@@ -1478,12 +1530,13 @@ function FreeStage(props: {
       setGapMarks(neighborGaps(r, otherEls))
     } else if (d.kind === 'gresize' && d.anchor && d.h0) {
       const a = d.anchor, h0 = d.h0
-      const dist = (p: { x: number; y: number }, q: { x: number; y: number }) => Math.hypot(p.x - q.x, p.y - q.y)
-      const d0 = dist(h0, a); if (d0 < 1e-4) return
-      // limite per non far uscire il gruppo dalla tavola
+      // SCALA UNIFORME come una singola foto: l'angolo afferrato segue il cursore PROIETTATO sulla
+      // diagonale del box (mantiene le proporzioni interne del gruppo). Proiezione = (f-a)·(h0-a)/|h0-a|².
+      const dx = h0.x - a.x, dy = h0.y - a.y
+      const denom = dx * dx + dy * dy; if (denom < 1e-7) return
       const lim = (av: number, hv: number) => { const dd = hv - av; if (Math.abs(dd) < 1e-6) return Infinity; return dd > 0 ? (1 - av) / dd : (0 - av) / dd }
       const maxS = Math.max(0.2, Math.min(lim(a.x, h0.x), lim(a.y, h0.y)))
-      const s = Math.max(0.15, Math.min(dist(f, a) / d0, maxS, 6))
+      const s = Math.max(0.12, Math.min(((f.x - a.x) * dx + (f.y - a.y) * dy) / denom, maxS, 8))
       onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * s, y: a.y + (g.y - a.y) * s, w: Math.max(0.02, g.w * s), h: Math.max(0.02, g.h * s) } })))
       // righelli automatici per il BOX di gruppo scalato verso le foto esterne
       const others = els.filter((x) => !d.group.some((gg) => gg.id === x.id))
@@ -1843,9 +1896,10 @@ function FreePanel(props: {
   onBg: (c: string) => void; onElUpdate: (id: string, patch: Partial<FreeEl>) => void
   onElCrop: (id: string) => void; onElRemove: (id: string) => void
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void; onSaveLayout?: () => void
+  presets?: GenLayout[]; tavAspect?: number; onApplyTavolaLayout?: (slots: Slot[]) => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -1857,6 +1911,23 @@ function FreePanel(props: {
           <input type="color" value={page.bg ?? '#ffffff'} onChange={(e) => onBg(e.target.value)} className="h-7 w-7 rounded cursor-pointer" title="Colore personalizzato" />
         </div>
       </div>
+
+      {/* DISPOSIZIONI: schemi (solo griglia, niente foto) per il numero esatto di foto sulla tavola,
+          con slot che rispecchiano gli orientamenti (verticali/orizzontali). Clic = applica. */}
+      {!lite && onApplyTavolaLayout && presets && presets.length > 0 && (
+        <div className="border-t border-[rgb(var(--border))] pt-3">
+          <p className="font-medium mb-1.5 flex items-center gap-1.5"><Grid3x3 size={14} /> Disposizioni <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({presets.length} · {(page.elements ?? []).length} foto)</span></p>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-2">Schemi su tutta la tavola. Le foto entrano negli slot adatti al loro verso.</p>
+          <div className="grid grid-cols-3 gap-1.5 max-h-72 overflow-auto pr-0.5">
+            {presets.map((pz, i) => (
+              <button key={pz.sig} title={`Disposizione ${i + 1}`} onClick={() => onApplyTavolaLayout(pz.slots)}
+                className="rounded-md overflow-hidden border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-500))] hover:ring-1 hover:ring-[rgb(var(--gold-500))] transition">
+                <Wireframe slots={pz.slots} aspect={tavAspect ?? 2} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {el ? (
         <div className="border-t border-[rgb(var(--border))] pt-3 space-y-2">
