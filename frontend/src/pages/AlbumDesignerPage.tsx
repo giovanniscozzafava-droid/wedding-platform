@@ -130,7 +130,9 @@ function AlbumDesignerInner() {
     try {
       const [pr, mr, er] = await Promise.all([
         (supabase.from as any)('album_projects').select('format_key, status, layout').eq('entry_id', entryId).maybeSingle(),
-        (supabase.from as any)('gallery_media').select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment').eq('entry_id', entryId),
+        // ORDINE STABILE (created_at, poi id): così la griglia di Selezione e il cassetto NON
+        // si rimescolano ad ogni apertura → i "cuori" restano dove sono, selezione stabile.
+        (supabase.from as any)('gallery_media').select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment').eq('entry_id', entryId).order('created_at', { ascending: true }).order('id', { ascending: true }),
         (supabase.from as any)('calendar_entries').select('title').eq('id', entryId).maybeSingle(),
       ])
       const proj = (pr as any)?.data, med = (mr as any)?.data, ent = (er as any)?.data
@@ -315,8 +317,14 @@ function AlbumDesignerInner() {
     const bump = (id?: string | null) => { if (id) c.set(id, (c.get(id) ?? 0) + 1) }
     for (let k = 0; k < pages.length; k += 2) {
       const left = pages[k], right = pages[k + 1]
-      const spreadMid = left?.spreadImage?.mediaId ?? right?.spreadImage?.mediaId
-      if (spreadMid) { bump(spreadMid); continue }
+      const sp = left?.spreadImage ?? right?.spreadImage
+      if (sp) {
+        bump(sp.mediaId)
+        const fr = sp.frame
+        const full = !fr || (fr.x <= 0.001 && fr.y <= 0.001 && fr.w >= 0.999 && fr.h >= 0.999)
+        if (full) continue // copre TUTTA la tavola: le foto sotto sono nascoste, non si contano
+        // spreadImage PARZIALE: le foto delle pagine restano visibili → vanno contate anch'esse
+      }
       for (const pg of [left, right]) {
         if (!pg) continue
         if (pg.mode === 'free') { for (const e of pg.elements ?? []) bump(e.mediaId) }
@@ -392,17 +400,6 @@ function AlbumDesignerInner() {
   function updateSpreadFrame(leftId: string, frame: { x: number; y: number; w: number; h: number }) {
     updatePage(leftId, (p) => (p.spreadImage ? { ...p, spreadImage: { ...p.spreadImage, frame } } : p))
   }
-  // Estende su due pagine la foto selezionata (o la prima foto della tavola corrente).
-  function makeSpreadFromActive(leftId: string, pair: AlbumPage[]) {
-    let mediaId: string | undefined; let cell: Cell | undefined
-    if (selEl) { const e = pair.flatMap((p) => p.elements ?? []).find((x) => x.id === selEl); if (e) { mediaId = e.mediaId; cell = e.cell } }
-    if (!mediaId) for (const p of pair) {
-      const e = (p.elements ?? []).find((x) => x.mediaId); if (e) { mediaId = e.mediaId; cell = e.cell; break }
-      const idx = (p.mediaIds ?? []).findIndex(Boolean); if (idx >= 0) { mediaId = p.mediaIds[idx]; cell = p.cells?.[idx] ?? undefined; break }
-    }
-    if (!mediaId) { toast.error('Aggiungi prima una foto nella tavola, poi premi “Doppia pagina”.'); return }
-    setSpreadImg(leftId, mediaId, cell); toast.success('Foto estesa su entrambe le pagine.')
-  }
   // ── elementi liberi (stile Canva) ──────────────────────────────────────────
   function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, frozen: false, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)), mediaIds: [], cells: [] })) }
   // id della pagina SINISTRA della tavola che contiene `pageId` (gli spread sono coppie pari/dispari)
@@ -410,25 +407,34 @@ function AlbumDesignerInner() {
     const i = pages.findIndex((p) => p.id === pageId); if (i < 0) return pageId
     return (i % 2 === 0 ? pages[i] : pages[i - 1])!.id
   }
-  // TAVOLA UNICA: fonde le due pagine in UNA superficie libera (coordinate 0..1 dell'intera
-  // tavola, largh. 2×W). Le foto della pagina sx finiscono in x∈[0,0.5], quelle della dx in
-  // [0.5,1]; visivamente identico (w si dimezza ma la tavola è 2× più larga). Così le foto si
-  // spostano attraverso la piega e i righelli agganciano da una metà all'altra.
-  function convertTavolaToFree(leftId: string) {
-    const idx = pages.findIndex((p) => p.id === leftId); if (idx < 0) return
-    const left = pages[idx]!; const right = pages[idx + 1]
+  // Costruisce gli elementi di una TAVOLA UNICA (coord. 0..1 dell'INTERA tavola) dalle due pagine:
+  // - sx già tavolaFree → elementi as-is; - spreadImage → un elemento alla sua cornice (+ le foto
+  //   delle pagine se NON copre tutto); - altrimenti foto sx in x∈[0,0.5], dx in [0.5,1] (w dimezzata,
+  //   ma tavola 2× più larga = identico). Nessuna foto viene persa.
+  function buildTavolaEls(left: AlbumPage, right: AlbumPage | undefined): FreeEl[] {
+    if (left.tavolaFree) return (left.elements ?? []).map((e) => ({ ...e }))
     const els: FreeEl[] = []
+    let full = false
     if (left.spreadImage) {
       const fr = spreadFrameOf(left.spreadImage)
+      full = fr.x <= 0.001 && fr.y <= 0.001 && fr.w >= 0.999 && fr.h >= 0.999
       els.push({ ...newFreeEl(left.spreadImage.mediaId), x: fr.x, y: fr.y, w: fr.w, h: fr.h, cell: { ...left.spreadImage.cell } })
-    } else {
-      const addPage = (p: AlbumPage | undefined, xOff: number) => {
+    }
+    if (!full) {
+      const add = (p: AlbumPage | undefined, xOff: number) => {
         if (!p) return
         const src = p.mode === 'free' ? (p.elements ?? []) : toFreeElements(p, format)
         for (const e of src) els.push({ ...newFreeEl(e.mediaId), x: xOff + e.x * 0.5, y: e.y, w: e.w * 0.5, h: e.h, rot: e.rot, cell: { ...e.cell }, border: e.border, shadow: e.shadow })
       }
-      addPage(left, 0); addPage(right, 0.5)
+      add(left, 0); add(right, 0.5)
     }
+    return els
+  }
+  // TAVOLA UNICA: fonde le due pagine in UNA superficie libera. Così le foto si spostano attraverso
+  // la piega e i righelli agganciano da una metà all'altra.
+  function convertTavolaToFree(leftId: string) {
+    const idx = pages.findIndex((p) => p.id === leftId); if (idx < 0) return
+    const els = buildTavolaEls(pages[idx]!, pages[idx + 1])
     setPages((arr) => arr.map((p, i) => {
       if (i === idx) return { ...p, mode: 'free' as const, frozen: false, tavolaFree: true, bg: p.bg ?? '#ffffff', elements: els, mediaIds: [], cells: [], spreadImage: null }
       if (i === idx + 1) return { ...p, mode: 'template' as const, mediaIds: [], cells: [], elements: [], tavolaFree: false, spreadImage: null }
@@ -441,18 +447,11 @@ function AlbumDesignerInner() {
   // se non c'è selezione ma c'è una sola foto, quella.
   function fillElToTavola(leftId: string) {
     const idx = pages.findIndex((p) => p.id === leftId); if (idx < 0) return
-    const left = pages[idx]!; const right = pages[idx + 1]
-    let els: FreeEl[]
-    const alreadyFree = !!left.tavolaFree
-    if (alreadyFree) els = (left.elements ?? []).map((e) => ({ ...e }))
-    else {
-      els = []
-      if (left.spreadImage) { const fr = spreadFrameOf(left.spreadImage); els.push({ ...newFreeEl(left.spreadImage.mediaId), x: fr.x, y: fr.y, w: fr.w, h: fr.h, cell: { ...left.spreadImage.cell } }) }
-      else { const add = (p: AlbumPage | undefined, xOff: number) => { if (!p) return; const src = p.mode === 'free' ? (p.elements ?? []) : toFreeElements(p, format); for (const e of src) els.push({ ...newFreeEl(e.mediaId), x: xOff + e.x * 0.5, y: e.y, w: e.w * 0.5, h: e.h, rot: e.rot, cell: { ...e.cell }, border: e.border, shadow: e.shadow }) }; add(left, 0); add(right, 0.5) }
-    }
-    const targetId = (alreadyFree && selEl && els.some((e) => e.id === selEl)) ? selEl : (els.length === 1 ? els[0]?.id ?? null : null)
+    const left = pages[idx]!
+    const els = buildTavolaEls(left, pages[idx + 1])
+    const targetId = (left.tavolaFree && selEl && els.some((e) => e.id === selEl)) ? selEl : (els.length === 1 ? els[0]?.id ?? null : null)
     if (!targetId) {
-      if (!alreadyFree) convertTavolaToFree(leftId)
+      if (!left.tavolaFree) convertTavolaToFree(leftId)
       toast.message('Seleziona la foto da stendere su tutta la tavola'); return
     }
     const filled = els.map((e) => (e.id === targetId ? { ...e, x: 0, y: 0, w: 1, h: 1, rot: 0 } : e))
@@ -816,7 +815,7 @@ function AlbumDesignerInner() {
                 CONGELATA IDENTICA (stesse posizioni/ritagli/rotazioni), solo non più editabile a
                 mano. Riaccendendola rientri in modifica. Un preset/griglia la SOVRASCRIVE. */}
             {!lite && spreadPages[0] && (() => { const lp = spreadPages[0]!; const isFree = !!lp.tavolaFree; return <ToolToggle on={isFree && !lp.frozen} onClick={() => { if (!isFree) convertTavolaToFree(lp.id); else updatePage(lp.id, (p) => ({ ...p, frozen: !p.frozen })) }} icon={<Move size={14} />} label="Libera" /> })()}
-            {!lite && spreadPages[0] && (() => { const lp = spreadPages[0]!; return <ToolToggle on={!lp.tavolaFree && !!lp.spreadImage} onClick={() => { if (lp.tavolaFree) fillElToTavola(lp.id); else if (lp.spreadImage) clearSpreadImg(lp.id); else makeSpreadFromActive(lp.id, spreadPages) }} icon={<Maximize size={14} />} label="Piena tavola" /> })()}
+            {!lite && spreadPages[0] && <ToolToggle on={false} onClick={() => fillElToTavola(spreadPages[0]!.id)} icon={<Maximize size={14} />} label="Piena tavola" />}
             <div className="inline-flex items-center gap-0.5 ml-0.5">
               <button title="Riduci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
               <span className="text-[11px] w-9 text-center text-[rgb(var(--fg-muted))]">{Math.round(zoom * 100)}%</span>
