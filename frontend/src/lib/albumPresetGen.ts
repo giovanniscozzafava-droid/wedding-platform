@@ -74,24 +74,46 @@ function sigOf(slots: Slot[]): string {
   return slots.map((s) => `${s.x.toFixed(2)},${s.y.toFixed(2)},${s.w.toFixed(2)},${s.h.toFixed(2)}`).sort().join('|')
 }
 
+// Penalità per celle di area MOLTO diversa tra loro (un album bello ha riquadri equilibrati).
+function balancePenalty(slots: Slot[]): number {
+  const areas = slots.map((s) => s.w * s.h)
+  const avg = areas.reduce((a, b) => a + b, 0) / Math.max(1, areas.length)
+  let v = 0; for (const a of areas) v += Math.abs(a - avg)
+  return (v / Math.max(1e-6, avg)) * 0.5
+}
+
 // API: genera le disposizioni per N foto (orientamenti dati), ordinate dalla migliore.
-// `max` = numero massimo di preset restituiti (dedotti & deduplicati).
-export function genTavolaLayouts(photoOrients: Orient[], tavW: number, tavH: number, max = 24): GenLayout[] {
+// Filtra le celle TROPPO estreme/sottili (album = riquadri equilibrati): se ne restano troppo
+// poche, allenta progressivamente la soglia. `max` = numero massimo di preset restituiti.
+export function genTavolaLayouts(photoOrients: Orient[], tavW: number, tavH: number, max = 18): GenLayout[] {
   const n = Math.max(1, photoOrients.length)
-  const cap = n <= 4 ? 240 : n <= 6 ? 360 : 520
+  const cap = n <= 4 ? 300 : n <= 6 ? 520 : 720
   const raw = gen({ x: 0, y: 0, w: 1, h: 1 }, n, cap)
-  const seen = new Set<string>()
-  const layouts: GenLayout[] = []
-  for (const slots of raw) {
-    if (slots.length !== n) continue
-    const sig = sigOf(slots)
-    if (seen.has(sig)) continue
-    seen.add(sig)
-    const score = orientScore(slots, photoOrients, tavW, tavH) - uglyPenalty(slots, tavW, tavH)
-    layouts.push({ slots, score, sig })
+  // soglie di "estremità" rilassate finché non abbiamo abbastanza schemi puliti
+  for (const lim of [2.6, 3.2, 4.2, 99]) {
+    const seen = new Set<string>()
+    const layouts: GenLayout[] = []
+    for (const slots of raw) {
+      if (slots.length !== n) continue
+      let bad = false
+      for (const s of slots) {
+        const a = (s.w * tavW) / (s.h * tavH)
+        if (a > lim || a < 1 / lim) { bad = true; break }
+        if (s.w < 0.06 || s.h < 0.08) { bad = true; break }
+      }
+      if (bad) continue
+      const sig = sigOf(slots)
+      if (seen.has(sig)) continue
+      seen.add(sig)
+      const score = orientScore(slots, photoOrients, tavW, tavH) - uglyPenalty(slots, tavW, tavH) - balancePenalty(slots)
+      layouts.push({ slots, score, sig })
+    }
+    if (layouts.length >= Math.min(8, max) || lim === 99) {
+      layouts.sort((a, b) => b.score - a.score)
+      return layouts.slice(0, max)
+    }
   }
-  layouts.sort((a, b) => b.score - a.score)
-  return layouts.slice(0, max)
+  return []
 }
 
 // Assegna ogni foto allo slot più adatto per orientamento → ordine [indice foto per slot].
