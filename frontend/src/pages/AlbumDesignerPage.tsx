@@ -235,15 +235,30 @@ function AlbumDesignerInner() {
   }
 
   // ── editor pagine ───────────────────────────────────────────────────────────
-  // tutte le foto piazzate (slot template + elementi liberi)
-  const placedIds = useMemo(() => new Set(pages.flatMap((p) => [...p.mediaIds, ...((p.elements ?? []).map((e) => e.mediaId))]).filter(Boolean)), [pages])
-  // quante volte ogni foto è usata (template + liberi + foto a piena tavola): per il badge "×N"
+  // CONTEGGIO PRECISO delle foto usate (badge ×N + sfumatura "già inserita").
+  // Regole per non sbagliare il conto:
+  //  • si conta per TAVOLA: una foto a piena tavola COPRE lo spread → conta solo lei,
+  //    non gli slot/elementi sottostanti (che non si vedono).
+  //  • si conta solo il contenuto REALE di ogni pagina secondo la sua modalità:
+  //    free → gli elementi liberi; template → gli slot (mediaIds). Così una pagina
+  //    convertita in libera non conta due volte la stessa foto (mediaIds "stantii").
   const usageCount = useMemo(() => {
     const c = new Map<string, number>()
     const bump = (id?: string | null) => { if (id) c.set(id, (c.get(id) ?? 0) + 1) }
-    for (const p of pages) { for (const id of p.mediaIds) bump(id); for (const e of p.elements ?? []) bump(e.mediaId); bump(p.spreadImage?.mediaId) }
+    for (let k = 0; k < pages.length; k += 2) {
+      const left = pages[k], right = pages[k + 1]
+      const spreadMid = left?.spreadImage?.mediaId ?? right?.spreadImage?.mediaId
+      if (spreadMid) { bump(spreadMid); continue }
+      for (const pg of [left, right]) {
+        if (!pg) continue
+        if (pg.mode === 'free') { for (const e of pg.elements ?? []) bump(e.mediaId) }
+        else { for (const id of pg.mediaIds) bump(id) }
+      }
+    }
     return c
   }, [pages])
+  // tutte le foto già piazzate = chiavi del conteggio (coerente al 100% col badge)
+  const placedIds = useMemo(() => new Set(usageCount.keys()), [usageCount])
   // a sinistra: TUTTE le foto del progetto — opache se già usate, nitide se ancora da usare
   const trayMedia = useMemo(() => {
     const map = new Map(kept.map((m) => [m.id, m]))
