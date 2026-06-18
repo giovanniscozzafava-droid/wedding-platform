@@ -158,6 +158,7 @@ function AlbumDesignerInner() {
   const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero "primario" (pannello/crop)
   const [multiSel, setMultiSel] = useState<string[]>([])        // selezione multipla (Shift) sulla tavola
   const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
+  const [gutterMm, setGutterMm] = useState(3) // margine (mm) tra le foto quando si applica una disposizione
   const [cropElId, setCropElId] = useState<string | null>(null) // elemento libero in ritaglio
   const [cropSpread, setCropSpread] = useState<string | null>(null) // id pagina-sx in ritaglio foto a piena tavola
   // move/resize della cornice spread (trasformazione libera su due tavole)
@@ -568,6 +569,38 @@ function AlbumDesignerInner() {
   function freeUpdateMany(pageId: string, patches: { id: string; patch: Partial<FreeEl> }[]) {
     updatePage(pageId, (p) => { let els = p.elements ?? []; for (const { id, patch } of patches) els = updateFreeEl(els, id, patch); return { ...p, elements: els } })
   }
+  // ALLINEA / DISTRIBUISCI le foto selezionate (stile impaginatore pro). Operano sul bounding box
+  // della selezione; la distribuzione spazia uniformemente i centri.
+  function alignSel(kind: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'bottom') {
+    if (!currentPageId) return
+    updatePage(currentPageId, (p) => {
+      const all = p.elements ?? []; const g = all.filter((x) => multiSel.includes(x.id)); if (g.length < 2) return p
+      const bx = Math.min(...g.map((x) => x.x)), ex = Math.max(...g.map((x) => x.x + x.w))
+      const by = Math.min(...g.map((x) => x.y)), ey = Math.max(...g.map((x) => x.y + x.h))
+      const sel = new Set(multiSel)
+      return { ...p, elements: all.map((el) => {
+        if (!sel.has(el.id)) return el
+        let { x, y } = el
+        if (kind === 'left') x = bx; else if (kind === 'right') x = ex - el.w; else if (kind === 'hcenter') x = (bx + ex) / 2 - el.w / 2
+        else if (kind === 'top') y = by; else if (kind === 'bottom') y = ey - el.h; else if (kind === 'vmiddle') y = (by + ey) / 2 - el.h / 2
+        return { ...el, x, y }
+      }) }
+    })
+  }
+  function distributeSel(axis: 'h' | 'v') {
+    if (!currentPageId) return
+    updatePage(currentPageId, (p) => {
+      const all = p.elements ?? []; const g = all.filter((x) => multiSel.includes(x.id)); if (g.length < 3) return p
+      const cen = (el: FreeEl) => (axis === 'h' ? el.x + el.w / 2 : el.y + el.h / 2)
+      const ord = [...g].sort((a, b) => cen(a) - cen(b))
+      const c0 = cen(ord[0]!), c1 = cen(ord[ord.length - 1]!), step = (c1 - c0) / (ord.length - 1)
+      const target = new Map<string, number>(); ord.forEach((el, i) => target.set(el.id, c0 + step * i))
+      return { ...p, elements: all.map((el) => {
+        const c = target.get(el.id); if (c == null) return el
+        return axis === 'h' ? { ...el, x: c - el.w / 2 } : { ...el, y: c - el.h / 2 }
+      }) }
+    })
+  }
   const selIds = () => (multiSel.length ? multiSel : selEl ? [selEl] : [])
   function nudgeSel(dx: number, dy: number) {
     if (!currentPageId) return; const ids = selIds(); if (!ids.length) return
@@ -731,7 +764,7 @@ function AlbumDesignerInner() {
     const els = lp.elements ?? []; if (!els.length) return
     const orients = els.map((e) => classifyAspect(photoAspect.get(e.mediaId) ?? 1))
     const assign = assignPhotos(slots, orients, fmt.w * 2, fmt.h)
-    const gx = 4 / (fmt.w * 2), gy = 4 / fmt.h // ~4 mm di gutter tra le foto
+    const gx = gutterMm / (fmt.w * 2), gy = gutterMm / fmt.h // margine impostato (mm) tra le foto
     const newEls: FreeEl[] = slots.map((s, k) => {
       const ai = assign[k] ?? -1
       const src = els[ai >= 0 ? ai : k] ?? els[k]; if (!src) return null
@@ -1114,6 +1147,8 @@ function AlbumDesignerInner() {
                   onSaveLayout={saveCurLayout}
                   presets={tavPresets} tavAspect={asp * 2} onApplyTavolaLayout={applyTavolaLayout}
                   myPresets={myTavPresets} onApplySaved={applySavedToTavola} onDeleteSaved={removeLayout}
+                  selCount={multiSel.length} onAlign={alignSel} onDistribute={distributeSel}
+                  gutterMm={gutterMm} onGutter={setGutterMm}
                   crop={(() => {
                     const el = (currentPage.elements ?? []).find((e) => e.id === selEl)
                     const m = el ? mediaById.get(el.mediaId) : undefined
@@ -1514,7 +1549,7 @@ function FreeStage(props: {
   const aspect = effW / fmt.h
   const mx = MARGIN_MM / effW, my = MARGIN_MM / fmt.h
   const boxRef = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate' | 'gresize'; id: string; corner?: Corner; sx: number; sy: number; el: FreeEl; group: FreeEl[]; anchor?: { x: number; y: number }; h0?: { x: number; y: number }; gAxes?: { x: boolean; y: boolean } } | null>(null)
+  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate' | 'gresize'; id: string; corner?: Corner | 'n' | 's' | 'e' | 'w'; sx: number; sy: number; el: FreeEl; group: FreeEl[]; anchor?: { x: number; y: number }; h0?: { x: number; y: number }; gAxes?: { x: boolean; y: boolean } } | null>(null)
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
   const [gapMarks, setGapMarks] = useState<GapMark[]>([])
   const [dropId, setDropId] = useState<string | null>(null) // foto sotto il cursore durante un drop (sostituzione)
@@ -1524,7 +1559,7 @@ function FreeStage(props: {
     const r = boxRef.current!.getBoundingClientRect()
     return { x: (e.clientX - r.left) / Math.max(1, r.width), y: (e.clientY - r.top) / Math.max(1, r.height) }
   }
-  function down(e: React.PointerEvent, kind: 'move' | 'resize' | 'rotate', el: FreeEl, corner?: Corner) {
+  function down(e: React.PointerEvent, kind: 'move' | 'resize' | 'rotate', el: FreeEl, corner?: Corner | 'n' | 's' | 'e' | 'w') {
     e.stopPropagation()
     if (kind === 'move' && e.shiftKey) { onSelect(el.id, true) } else if (!multiSel.includes(el.id)) { onSelect(el.id) }
     const inGroup = kind === 'move' && multiSel.length > 1 && multiSel.includes(el.id)
@@ -1572,16 +1607,26 @@ function FreeStage(props: {
       const live = neighborGaps(finalEl, otherEls)
       setGapMarks([...sp.marks, ...live.filter((mk) => !eq.has(`${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))])
     } else if (d.kind === 'resize' && d.corner) {
-      // SINGOLA: solo mouse = LIBERO (w/h indipendenti); SHIFT = PROPORZIONALE (mantiene l'aspetto
-      // del riquadro, ancorato all'angolo opposto). L'immagine non si deforma mai (riempie, cover).
-      let r = resizeEl(d.el, d.corner, f.x, f.y)
-      if (e.shiftKey) {
-        const c = d.corner
-        const ax = c.includes('e') ? d.el.x : d.el.x + d.el.w
-        const ay = c.includes('s') ? d.el.y : d.el.y + d.el.h
-        const sc = Math.max(0.02 / d.el.w, 0.02 / d.el.h, Math.abs(f.x - ax) / d.el.w, Math.abs(f.y - ay) / d.el.h)
-        const nw = d.el.w * sc, nh = d.el.h * sc
-        r = { ...d.el, x: c.includes('e') ? ax : ax - nw, y: c.includes('s') ? ay : ay - nh, w: nw, h: nh }
+      // SINGOLA: angolo = solo mouse LIBERO (w/h indip.), SHIFT = PROPORZIONALE; punto cardine
+      // (lato) = un solo asse (e/w larghezza, n/s altezza). L'immagine non si deforma mai (cover).
+      const c = d.corner
+      let r: FreeEl
+      if (c === 'n' || c === 's' || c === 'e' || c === 'w') {
+        const el = d.el; let { x, y, w, h } = el
+        if (c === 'e') w = Math.max(0.02, f.x - el.x)
+        else if (c === 'w') { const right = el.x + el.w; const nx = Math.min(right - 0.02, f.x); x = nx; w = right - nx }
+        else if (c === 's') h = Math.max(0.02, f.y - el.y)
+        else { const bot = el.y + el.h; const ny = Math.min(bot - 0.02, f.y); y = ny; h = bot - ny }
+        r = { ...el, x, y, w, h }
+      } else {
+        r = resizeEl(d.el, c, f.x, f.y)
+        if (e.shiftKey) {
+          const ax = c.includes('e') ? d.el.x : d.el.x + d.el.w
+          const ay = c.includes('s') ? d.el.y : d.el.y + d.el.h
+          const sc = Math.max(0.02 / d.el.w, 0.02 / d.el.h, Math.abs(f.x - ax) / d.el.w, Math.abs(f.y - ay) / d.el.h)
+          const nw = d.el.w * sc, nh = d.el.h * sc
+          r = { ...d.el, x: c.includes('e') ? ax : ax - nw, y: c.includes('s') ? ay : ay - nh, w: nw, h: nh }
+        }
       }
       onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
       const otherEls = els.filter((x) => x.id !== d.id)
@@ -1655,6 +1700,15 @@ function FreeStage(props: {
                     className="absolute h-3 w-3 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none"
                     style={{ left: c.includes('w') ? -6 : undefined, right: c.includes('e') ? -6 : undefined, top: c.includes('n') ? -6 : undefined, bottom: c.includes('s') ? -6 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />
                 ))}
+                {/* PUNTI CARDINE centro-lato della singola foto: e/w = larghezza, n/s = altezza */}
+                {(['s', 'e', 'w'] as const).map((c) => {
+                  const horiz = c === 'e' || c === 'w'
+                  return (
+                    <div key={c} onPointerDown={(e) => down(e, 'resize', el, c)} title={horiz ? 'Larghezza' : 'Altezza'}
+                      className="absolute h-3 w-3 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none"
+                      style={{ left: c === 'w' ? -6 : c === 'e' ? undefined : '50%', right: c === 'e' ? -6 : undefined, bottom: c === 's' ? -6 : undefined, top: c === 's' ? undefined : '50%', transform: horiz ? 'translateY(-50%)' : 'translateX(-50%)', cursor: horiz ? 'ew-resize' : 'ns-resize' }} />
+                  )
+                })}
                 <div onPointerDown={(e) => down(e, 'rotate', el)} className="absolute left-1/2 -top-6 -translate-x-1/2 h-4 w-4 bg-white border border-[rgb(var(--gold-500))] rounded-full touch-none cursor-grab flex items-center justify-center"><RotateCw size={9} /></div>
                 <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1" style={{ transform: `rotate(${-el.rot}deg)` }}>
                   <button title="Ritaglia" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onCrop(el.id) }}><Crop size={12} /></button>
@@ -1706,7 +1760,7 @@ function FreeStage(props: {
       {guides.h.map((g, i) => <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-rose-500 pointer-events-none" style={{ top: `${g * 100}%` }} />)}
       {/* righelli viola di distanza/margine verso le altre foto, con misura in cm */}
       {gapMarks.map((mk, i) => {
-        const cm = (Math.abs(mk.b - mk.a) * (mk.axis === 'x' ? fmt.w : fmt.h) / 10)
+        const cm = (Math.abs(mk.b - mk.a) * (mk.axis === 'x' ? effW : fmt.h) / 10)
         const lbl = <span className="absolute bg-fuchsia-600 text-white text-[8px] leading-none px-1 py-0.5 rounded -translate-x-1/2 -translate-y-1/2 z-40">{cm.toFixed(1)}</span>
         return mk.axis === 'x'
           ? <div key={`gx${i}`} className="absolute pointer-events-none z-30" style={{ left: `${Math.min(mk.a, mk.b) * 100}%`, width: `${Math.abs(mk.b - mk.a) * 100}%`, top: `${mk.cross * 100}%` }}><div className="h-0.5 bg-fuchsia-500" style={{ boxShadow: '0 0 0 1px white' }} /><div className="absolute left-1/2 top-0">{lbl}</div></div>
@@ -1984,9 +2038,11 @@ function FreePanel(props: {
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void; onSaveLayout?: () => void
   presets?: GenLayout[]; tavAspect?: number; onApplyTavolaLayout?: (slots: Slot[]) => void
   myPresets?: SavedLayout[]; onApplySaved?: (l: SavedLayout) => void; onDeleteSaved?: (id: string) => void
+  selCount?: number; onAlign?: (k: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'bottom') => void; onDistribute?: (a: 'h' | 'v') => void
+  gutterMm?: number; onGutter?: (mm: number) => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, gutterMm, onGutter, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -1999,6 +2055,24 @@ function FreePanel(props: {
         </div>
       </div>
 
+      {/* ALLINEA / DISTRIBUISCI la selezione multipla (impaginatore pro) */}
+      {!lite && onAlign && (selCount ?? 0) >= 2 && (
+        <div className="border-t border-[rgb(var(--border))] pt-3">
+          <p className="font-medium mb-1.5 flex items-center gap-1.5"><Grid3x3 size={14} /> Allinea <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({selCount} foto)</span></p>
+          <div className="grid grid-cols-3 gap-1">
+            {([['left', '⊣ Sx'], ['hcenter', '╪ Centro'], ['right', '⊢ Dx'], ['top', '⊤ Alto'], ['vmiddle', '╫ Mezzo'], ['bottom', '⊥ Basso']] as const).map(([k, lbl]) => (
+              <button key={k} onClick={() => onAlign(k)} className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">{lbl}</button>
+            ))}
+          </div>
+          {onDistribute && (selCount ?? 0) >= 3 && (
+            <div className="grid grid-cols-2 gap-1 mt-1">
+              <button onClick={() => onDistribute('h')} title="Spazia uniformemente in orizzontale" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">↔ Distrib. orizz.</button>
+              <button onClick={() => onDistribute('v')} title="Spazia uniformemente in verticale" className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">↕ Distrib. vert.</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* DISPOSIZIONI: schemi (solo griglia, niente foto) per il numero esatto di foto sulla tavola,
           con slot che rispecchiano gli orientamenti. Clic = applica. + I TUOI preset salvati. */}
       {!lite && onApplyTavolaLayout && (page.elements ?? []).length > 0 && (
@@ -2007,6 +2081,14 @@ function FreePanel(props: {
             <p className="font-medium flex items-center gap-1.5"><Grid3x3 size={14} /> Disposizioni <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({presets?.length ?? 0} · {(page.elements ?? []).length} foto)</span></p>
             {onSaveLayout && <button onClick={onSaveLayout} title="Salva la composizione attuale tra i tuoi preset" className="text-[11px] inline-flex items-center gap-1 text-[rgb(var(--gold-700))] hover:underline"><Save size={12} /> Salva questa</button>}
           </div>
+          {onGutter && (
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] text-[rgb(var(--fg-muted))] whitespace-nowrap">Margine tra le foto</span>
+              <input type="range" min={0} max={15} step={1} value={gutterMm ?? 3} onChange={(e) => onGutter(+e.target.value)} className="flex-1 accent-[rgb(var(--gold-600))]" />
+              <input type="number" min={0} max={30} value={gutterMm ?? 3} onChange={(e) => onGutter(Math.max(0, Math.min(30, +e.target.value || 0)))} className="w-12 text-[11px] px-1 py-0.5 rounded border border-[rgb(var(--border))] bg-[rgb(var(--bg))]" />
+              <span className="text-[11px] text-[rgb(var(--fg-muted))]">mm</span>
+            </div>
+          )}
           {myPresets && myPresets.length > 0 && (
             <>
               <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1">I tuoi preset</p>
