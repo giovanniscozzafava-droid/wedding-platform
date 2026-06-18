@@ -652,8 +652,11 @@ function AlbumDesignerInner() {
                     draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
                     onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
                     title={getMoment(m.album_moment)?.label ?? 'senza momento'}
-                    className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'opacity-50' : ''} border-[rgb(var(--border))]`}>
-                    <img src={thumbUrl(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'border-[rgb(var(--border))]' : 'border-[rgb(var(--gold-400))] ring-1 ring-[rgb(var(--gold-400))]'}`}>
+                    {/* INSERITE: desaturate (si capisce che sono già a posto). NON inserite: piene
+                        e nitide, con bordino, così le foto che MANCANO saltano subito all'occhio. */}
+                    <img src={thumbUrl(m)} alt="" loading="lazy"
+                      className={`w-full h-full object-cover ${placedIds.has(m.id) ? 'opacity-45 grayscale' : ''}`} />
                     {(() => { const n = usageCount.get(m.id) ?? 0; return n >= 1 ? (
                       <span title={n > 1 ? `Usata ${n} volte` : 'Usata 1 volta'}
                         className={`absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full text-[9px] font-bold leading-[15px] text-center text-white ${n > 1 ? 'bg-[rgb(var(--rose-500))] ring-1 ring-white' : 'bg-black/55'}`}>{n > 1 ? `×${n}` : '✓'}</span>
@@ -691,7 +694,8 @@ function AlbumDesignerInner() {
                             <PageStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
                               aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={isAct ? activeSlot : null}
                               onSlot={setActiveSlot} onDropMedia={(s, id) => placeInto(p.id, s, id)}
-                              onClearSlot={(s) => clearSlot(p.id, s)} onCell={(s, partial) => updateCell(p.id, s, partial)} onCrop={(s) => setCropFor(s)} />
+                              onClearSlot={(s) => clearSlot(p.id, s)} onCell={(s, partial) => updateCell(p.id, s, partial)} onCrop={(s) => setCropFor(s)}
+                              onFree={() => convertToFree(p.id)} />
                           )}
                           {isAct && <div className="absolute inset-0 ring-2 ring-[rgb(var(--gold-500))] pointer-events-none" />}
                         </div>
@@ -1047,8 +1051,9 @@ function PageStage(props: {
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; activeSlot: number | null
   onSlot: (s: number | null) => void; onDropMedia: (s: number, id: string) => void
   onClearSlot: (s: number) => void; onCell: (s: number, partial: Partial<Cell>) => void; onCrop: (s: number) => void
+  onFree?: () => void
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, activeSlot, onSlot, onDropMedia, onClearSlot, onCell, onCrop, onFree } = props
   const fmt = getFormat(formatKey)
   const aspect = fmt.w / fmt.h
   const frames = framesForPage(page)
@@ -1077,6 +1082,7 @@ function PageStage(props: {
         return (
           <div key={i}
             onClick={(e) => { e.stopPropagation(); onSlot(i) }}
+            onDoubleClick={(e) => { if (m) { e.stopPropagation(); onFree?.() } }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(i, mid) }}
             onWheel={(e) => { if (!m) return; e.preventDefault(); const nz = Math.min(4, Math.max(1, +(cell.z + (e.deltaY < 0 ? 0.12 : -0.12)).toFixed(2))); onCell(i, { z: nz }) }}
