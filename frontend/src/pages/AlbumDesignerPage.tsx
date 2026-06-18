@@ -13,7 +13,7 @@ import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExp
 import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, neighborGaps, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
-import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, type SavedLayout } from '@/lib/albumLayouts'
+import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 
@@ -124,7 +124,10 @@ function AlbumDesignerInner() {
         setStatus((proj as any).status ?? 'DRAFT')
         const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean } | null
         if (typeof lay?.bleed === 'boolean') setBleed(lay.bleed)
-        if (lay?.pages?.length) { setPages(lay.pages); setStep('design') }
+        // SANIFICA: una pagina "libera" tiene le foto SOLO negli elementi. Eventuali
+        // mediaIds residui (dopo template→libera) falsano il conteggio "foto usate" →
+        // li azzeriamo, così togliendo una foto la barra di sinistra si aggiorna sempre.
+        if (lay?.pages?.length) { setPages(lay.pages.map((p) => (p.mode === 'free' ? { ...p, mediaIds: [], cells: [] } : p))); setStep('design') }
       }
     } catch (e) { console.error('album load', e) } finally { setLoading(false) }
   }, [entryId])
@@ -320,7 +323,7 @@ function AlbumDesignerInner() {
     setSpreadImg(leftId, mediaId, cell); toast.success('Foto estesa su entrambe le pagine.')
   }
   // ── elementi liberi (stile Canva) ──────────────────────────────────────────
-  function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)) })) }
+  function convertToFree(pageId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: (p.elements && p.elements.length ? p.elements : toFreeElements(p, format)), mediaIds: [], cells: [] })) }
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
   function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
   function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null); setMultiSel((s) => s.filter((x) => x !== id)) }
@@ -334,9 +337,23 @@ function AlbumDesignerInner() {
   function saveCurLayout() {
     const page = pages.find((p) => p.id === currentPageId); if (!page) { toast.error('Apri prima una pagina'); return }
     const frames = pageToFrames(page); if (!frames.length) { toast.error('La pagina è vuota'); return }
-    setLayouts(saveLayout(`Layout ${frames.length} foto`, frames)); toast.success('Layout salvato tra i tuoi')
+    const els = pageToFreeEls(page) // se libera: salva la composizione completa (con rotazione)
+    const label = page.mode === 'free' ? `Composizione libera ${frames.length} foto` : `Layout ${frames.length} foto`
+    setLayouts(saveLayout(label, frames, els)); toast.success(page.mode === 'free' ? 'Composizione libera salvata come preset' : 'Layout salvato tra i tuoi')
   }
-  function applyLayoutCur(l: SavedLayout) { if (currentPageId) updatePage(currentPageId, (p) => applyLayout(p, l.frames)) }
+  // Applica un preset: se è una composizione LIBERA (els), ricrea gli elementi liberi
+  // (con rotazione) mappando le foto già presenti nella pagina; altrimenti griglia template.
+  function applyLayoutCur(l: SavedLayout) {
+    if (!currentPageId) return
+    updatePage(currentPageId, (p) => {
+      if (!l.els || !l.els.length) return applyLayout(p, l.frames)
+      const photos = p.mode === 'free'
+        ? (p.elements ?? []).map((e) => ({ mediaId: e.mediaId, cell: e.cell }))
+        : (p.mediaIds ?? []).map((id, i) => ({ mediaId: id, cell: p.cells?.[i] ?? DEFAULT_CELL })).filter((x) => x.mediaId)
+      const els = l.els.map((s, i) => (photos[i] ? { ...newFreeEl(photos[i]!.mediaId), x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot, cell: photos[i]!.cell ?? DEFAULT_CELL } : null)).filter(Boolean) as FreeEl[]
+      return { ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: els, mediaIds: [], cells: [] }
+    })
+  }
   function removeLayout(id: string) { setLayouts(deleteLayout(id)) }
   // ── selezione multipla (Shift) + scorciatoie tastiera stile Canva ───────────
   function selectEl(id: string | null, additive = false) {
@@ -674,7 +691,7 @@ function AlbumDesignerInner() {
           <div className="flex h-[calc(100vh-104px)]">
             {/* foto */}
             <aside className="w-40 shrink-0 border-r border-[rgb(var(--border))] overflow-auto p-2">
-              <p className="text-[11px] font-medium mb-1.5 text-[rgb(var(--fg-muted))]">Foto ({kept.length})</p>
+              <p className="text-[11px] font-medium mb-1.5 text-[rgb(var(--fg-muted))]">Foto ({trayMedia.length})</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {trayMedia.map((m) => (
                   <button key={m.id}
@@ -828,6 +845,7 @@ function AlbumDesignerInner() {
                   onElUpdate={(id, patch) => freeUpdate(currentPage.id, id, patch)}
                   onElCrop={(id) => setCropElId(id)} onElRemove={(id) => freeRemove(currentPage.id, id)}
                   onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
+                  onSaveLayout={saveCurLayout}
                   crop={(() => {
                     const el = (currentPage.elements ?? []).find((e) => e.id === selEl)
                     const m = el ? mediaById.get(el.mediaId) : undefined
@@ -1616,10 +1634,10 @@ function FreePanel(props: {
   page: AlbumPage; selEl: string | null; lite?: boolean
   onBg: (c: string) => void; onElUpdate: (id: string, patch: Partial<FreeEl>) => void
   onElCrop: (id: string) => void; onElRemove: (id: string) => void
-  onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void
+  onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void; onSaveLayout?: () => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -1662,10 +1680,13 @@ function FreePanel(props: {
       )}
 
       {!lite && (
-        <div className="border-t border-[rgb(var(--border))] pt-3 flex gap-1.5 flex-wrap">
-          <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Tavola</Button>
-          <Button variant="outline" size="sm" onClick={onDuplicate}><Copy size={13} /> Duplica</Button>
-          <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
+        <div className="border-t border-[rgb(var(--border))] pt-3 space-y-1.5">
+          <div className="flex gap-1.5 flex-wrap">
+            <Button variant="outline" size="sm" onClick={onAddPage}><Plus size={13} /> Tavola</Button>
+            <Button variant="outline" size="sm" onClick={onDuplicate}><Copy size={13} /> Duplica</Button>
+            <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
+          </div>
+          {onSaveLayout && <Button variant="outline" size="sm" className="w-full" onClick={onSaveLayout}><Hash size={13} /> Salva questa composizione come preset</Button>}
         </div>
       )}
       {/* NAVIGATORE DI RITAGLIO inline (sotto i pulsanti): clic sulla foto → ritagli qui */}
