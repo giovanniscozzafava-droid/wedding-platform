@@ -46,12 +46,13 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     return <Navigate to="/" replace />
   }
   // COUPLE: forziamo accesso a /couple (no sidebar capostipite, no /weddings, no /quotes)
-  // Eccezioni: /profile, /onboarding, /feed (community), /scopri, /fornitore (vetrine pubbliche), /faq, /area-cliente
+  // Eccezioni: /profile, /feed (community), /scopri, /fornitore (vetrine pubbliche), /faq, /area-cliente
+  // NB: /onboarding NON è un'eccezione → un cliente non deve mai sostare sulla profilazione
+  // (che è solo per i professionisti): lo rimbalziamo sulla sua area.
   if (profile?.role === 'COUPLE'
     && !location.pathname.startsWith('/couple')
     && !location.pathname.startsWith('/area-cliente')
     && location.pathname !== '/profile'
-    && location.pathname !== '/onboarding'
     && location.pathname !== '/feed'
     && !location.pathname.startsWith('/feed/')
     && !location.pathname.startsWith('/scopri')

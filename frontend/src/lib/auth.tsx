@@ -50,25 +50,37 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+  // authReady = la sessione È stata risolta E (se c'è un utente) il suo profilo è stato caricato.
+  // Finché è false, RequireAuth mostra lo skeleton: così le rotte protette non renderizzano MAI
+  // per un istante l'area/onboarding del ruolo sbagliato (es. una coppia che vede di sfuggita la
+  // profilazione professionisti). loading esposto al resto dell'app = !authReady.
+  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
     let mounted = true
     let lastSessionId: string | undefined
+    const loadProfile = async (userId: string) => {
+      const p = await fetchProfile(userId)
+      if (!mounted) return
+      setProfile(p)
+      setAuthReady(true)
+    }
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return
       setSession(data.session)
       lastSessionId = data.session?.user?.id
-      if (data.session?.user) {
-        void fetchProfile(data.session.user.id).then((p) => mounted && setProfile(p))
-      }
-      setLoading(false)
+      if (data.session?.user) void loadProfile(data.session.user.id)
+      else setAuthReady(true)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       if (s?.user) {
+        // Cambio utente (login/switch account): azzera il profilo e torna "non pronto" finché non
+        // arriva quello nuovo → nessun flash del ruolo precedente. Su TOKEN_REFRESHED (stesso id)
+        // non azzeriamo nulla: il profilo si aggiorna in silenzio, niente skeleton.
+        if (s.user.id !== lastSessionId) { setProfile(null); setAuthReady(false) }
         lastSessionId = s.user.id
-        void fetchProfile(s.user.id).then((p) => setProfile(p))
+        void loadProfile(s.user.id)
         // Redeem pending referral code (impostato da RegisterPage se email confirm flow)
         try {
           const pending = localStorage.getItem('pending_ref_code')
@@ -96,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         lastSessionId = undefined
         setProfile(null)
+        setAuthReady(true)
       }
     })
 
@@ -124,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      loading,
+      loading: !authReady,
       session,
       user: session?.user ?? null,
       profile,
@@ -135,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut()
       },
     }),
-    [loading, session, profile],
+    [authReady, session, profile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
