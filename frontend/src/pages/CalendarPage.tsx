@@ -66,9 +66,12 @@ export default function CalendarPage() {
   const [availMap, setAvailMap] = useState<Map<string, AvailSlot>>(new Map())
   type Appt = { id: string; kind: string; title: string; date: string; end_date: string | null; start_time: string | null; end_time: string | null; notes: string | null; location: string | null; done: boolean }
   const [apptsByDay, setApptsByDay] = useState<Map<string, Appt[]>>(new Map())
+  // FASCE di disponibilità (più blocchi orari nello stesso giorno).
+  type DaySlot = { id: string; date: string; start_time: string | null; end_time: string | null; status: 'AVAILABLE' | 'BUSY' | 'TENTATIVE'; label: string | null }
+  const [slotsByDay, setSlotsByDay] = useState<Map<string, DaySlot[]>>(new Map())
 
   const reloadAvail = useCallback(async () => {
-    if (!isSupplier || !user) { setAvailMap(new Map()); setApptsByDay(new Map()); return }
+    if (!isSupplier || !user) { setAvailMap(new Map()); setApptsByDay(new Map()); setSlotsByDay(new Map()); return }
     const start = `${range.from.slice(0, 7)}-01`
     const end = range.to
     const av = await (supabase.from('supplier_availability' as any) as any)
@@ -84,6 +87,12 @@ export default function CalendarPage() {
       const arr = am.get(r.date) ?? []; arr.push(r); am.set(r.date, arr)
     }
     setApptsByDay(am)
+    const sl = await (supabase.from('supplier_availability_slots' as any) as any)
+      .select('id, date, start_time, end_time, status, label')
+      .eq('fornitore_id', user.id).gte('date', start).lte('date', end).order('start_time', { ascending: true, nullsFirst: true })
+    const sm = new Map<string, DaySlot[]>()
+    for (const r of (sl.data ?? []) as DaySlot[]) { const arr = sm.get(r.date) ?? []; arr.push(r); sm.set(r.date, arr) }
+    setSlotsByDay(sm)
   }, [isSupplier, user, range.from, range.to])
 
   useEffect(() => { void reloadAvail() }, [reloadAvail])
@@ -99,6 +108,19 @@ export default function CalendarPage() {
   }
   async function deleteAppointment(id: string) {
     await (supabase.from('supplier_appointments' as any) as any).delete().eq('id', id)
+    await reloadAvail()
+  }
+  async function addSlot(date: string, status: 'AVAILABLE' | 'BUSY' | 'TENTATIVE', start?: string, end?: string, label?: string) {
+    if (!user) return
+    const { error } = await (supabase.from('supplier_availability_slots' as any) as any).insert({
+      fornitore_id: user.id, date, status, start_time: start || null, end_time: end || null, label: label || null,
+    })
+    if (error) { toast.error(error.message); return }
+    toast.success('Fascia aggiunta')
+    await reloadAvail()
+  }
+  async function deleteSlot(id: string) {
+    await (supabase.from('supplier_availability_slots' as any) as any).delete().eq('id', id)
     await reloadAvail()
   }
   // Blocca/sblocca la data con un click: verde = libero (nessuno slot),
@@ -294,6 +316,14 @@ export default function CalendarPage() {
             </div>
             <CardContent className="p-0">
               {isSupplier && selectedDay && (
+                <SupplierDaySlots
+                  date={selectedDay}
+                  slots={slotsByDay.get(selectedDay) ?? []}
+                  onAdd={addSlot}
+                  onDelete={deleteSlot}
+                />
+              )}
+              {isSupplier && selectedDay && (
                 <SupplierDayAgenda
                   date={selectedDay}
                   appts={apptsByDay.get(selectedDay) ?? []}
@@ -380,6 +410,71 @@ export default function CalendarPage() {
 
 const KIND_LABEL: Record<string, string> = {
   EVENTO: 'Evento', APPUNTAMENTO: 'Appuntamento', PERSONALE: 'Personale', BLOCCO: 'Blocco', VACANZA: 'Vacanza', TODO: 'Da fare',
+}
+
+const SLOT_STATUS: Record<string, { label: string; bg: string; fg: string }> = {
+  AVAILABLE:  { label: 'Libero',  bg: 'rgb(var(--emerald-500))', fg: 'rgb(var(--emerald-600,5_150_105))' },
+  TENTATIVE:  { label: 'Forse',   bg: 'rgb(var(--amber-500))',   fg: 'rgb(var(--amber-600,217_119_6))' },
+  BUSY:       { label: 'Occupato', bg: 'rgb(var(--rose-500))',   fg: 'rgb(var(--rose-500))' },
+}
+
+// FASCE di disponibilità: più finestre orarie nello STESSO giorno (es. libero 9–13, occupato 14–18).
+function SupplierDaySlots({ date, slots, onAdd, onDelete }: {
+  date: string
+  slots: { id: string; start_time: string | null; end_time: string | null; status: 'AVAILABLE' | 'BUSY' | 'TENTATIVE'; label: string | null }[]
+  onAdd: (date: string, status: 'AVAILABLE' | 'BUSY' | 'TENTATIVE', start?: string, end?: string, label?: string) => Promise<void>
+  onDelete: (id: string) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [status, setStatus] = useState<'AVAILABLE' | 'BUSY' | 'TENTATIVE'>('AVAILABLE')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [label, setLabel] = useState('')
+  async function submit() {
+    if (start && end && end <= start) { toast.error('L’orario di fine deve essere dopo l’inizio'); return }
+    await onAdd(date, status, start, end, label.trim())
+    setStart(''); setEnd(''); setLabel(''); setStatus('AVAILABLE'); setOpen(false)
+  }
+  return (
+    <div className="px-5 py-4 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))]">Disponibilità a fasce</p>
+        <button onClick={() => setOpen((v) => !v)} className="text-xs inline-flex items-center gap-1 text-[rgb(var(--gold-600))]"><Plus size={13} /> Aggiungi fascia</button>
+      </div>
+      {slots.length === 0 ? (
+        <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessuna fascia. Puoi indicare più finestre nello stesso giorno (es. libero 9–13, occupato 14–18).</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {slots.map((s) => { const st = SLOT_STATUS[s.status]; return (
+            <li key={s.id} className="flex items-center gap-2 text-sm">
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: st?.bg }} />
+              <span className="text-xs tabular-nums text-[rgb(var(--fg-muted))] w-24 shrink-0">
+                {s.start_time ? s.start_time.slice(0, 5) : 'inizio'}–{s.end_time ? s.end_time.slice(0, 5) : 'fine'}
+              </span>
+              <span className="font-medium" style={{ color: st?.fg }}>{st?.label}</span>
+              {s.label && <span className="text-[rgb(var(--fg-muted))] truncate">· {s.label}</span>}
+              <button onClick={() => void onDelete(s.id)} className="ml-auto text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))] text-xs">✕</button>
+            </li>
+          ) })}
+        </ul>
+      )}
+      {open && (
+        <div className="mt-3 space-y-2 p-3 rounded-lg" style={{ background: 'rgb(var(--bg-sunken))' }}>
+          <div className="flex gap-2">
+            <select value={status} onChange={(e) => setStatus(e.target.value as 'AVAILABLE' | 'BUSY' | 'TENTATIVE')} className="text-sm px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }}>
+              {(['AVAILABLE', 'TENTATIVE', 'BUSY'] as const).map((k) => <option key={k} value={k}>{SLOT_STATUS[k]!.label}</option>)}
+            </select>
+            <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="text-sm px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }} />
+            <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="text-sm px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }} />
+          </div>
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nota (facoltativa) — es. Cerimonia mattina"
+            className="w-full text-sm px-2 py-1.5 rounded border bg-transparent" style={{ borderColor: 'rgb(var(--border))' }} />
+          <Button variant="gold" className="w-full" onClick={() => void submit()}>Salva fascia</Button>
+          <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Le fasce sono informative per chi ti propone un preventivo: lo stato GROSSO del giorno (sopra) resta il vincolo per il blocco automatico.</p>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function SupplierDayAgenda({ date, appts, onAdd, onDelete }: {

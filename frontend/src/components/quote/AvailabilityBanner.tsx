@@ -28,13 +28,19 @@ type Props = {
  * fornitore-data. Si aggiorna ogni volta che cambia la lista fornitori o la
  * data del preventivo.
  */
+type DaySlot = { fornitore_id: string; start_time: string | null; end_time: string | null; status: 'AVAILABLE' | 'BUSY' | 'TENTATIVE'; label: string | null }
+const SLOT_LABEL: Record<string, string> = { AVAILABLE: 'Libero', TENTATIVE: 'Forse', BUSY: 'Occupato' }
+const hhmm = (t: string | null, fb: string) => (t ? t.slice(0, 5) : fb)
+
 export function AvailabilityBanner({ date, dateTo, supplierIds, excludeQuoteId }: Props) {
   const [conflicts, setConflicts] = useState<Conflict[]>([])
+  const [slots, setSlots] = useState<DaySlot[]>([])
+  const [names, setNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!date || supplierIds.length === 0) {
-      setConflicts([])
+      setConflicts([]); setSlots([])
       return
     }
     let cancelled = false
@@ -47,19 +53,32 @@ export function AvailabilityBanner({ date, dateTo, supplierIds, excludeQuoteId }
           p_date_to: dateTo ?? date,
           p_exclude_quote_id: excludeQuoteId ?? null,
         })
-        if (!cancelled) {
-          if (error) {
-            setConflicts([])
-          } else {
-            setConflicts((data ?? []) as Conflict[])
-          }
-        }
+        if (!cancelled) setConflicts(error ? [] : ((data ?? []) as Conflict[]))
+        // FASCE dichiarate dai fornitori per la data (più finestre nello stesso giorno)
+        const { data: sd } = await (supabase as any).rpc('supplier_day_slots', { p_ids: supplierIds, p_date: date })
+        if (!cancelled) setSlots((sd ?? []) as DaySlot[])
+        const { data: pf } = await (supabase.from('profiles') as any).select('id, business_name, full_name').in('id', supplierIds)
+        if (!cancelled) { const nm: Record<string, string> = {}; for (const p of (pf ?? []) as any[]) nm[p.id] = p.business_name ?? p.full_name ?? 'Fornitore'; setNames(nm) }
       } finally {
         if (!cancelled) setLoading(false)
       }
     })()
     return () => { cancelled = true }
   }, [date, dateTo, JSON.stringify(supplierIds), excludeQuoteId])
+
+  // Blocco "fasce orarie dichiarate" (per-fornitore) — riusato in entrambi gli stati del banner.
+  const slotsBlock = slots.length === 0 ? null : (
+    <div className="mt-2 pt-2 border-t border-[rgb(var(--border))]">
+      <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Fasce orarie dichiarate</p>
+      <ul className="space-y-0.5">
+        {Object.entries(slots.reduce((acc, s) => { (acc[s.fornitore_id] ??= []).push(s); return acc }, {} as Record<string, DaySlot[]>)).map(([fid, ss]) => (
+          <li key={fid} className="text-xs text-[rgb(var(--fg-muted))]">
+            <strong className="text-[rgb(var(--fg))]">{names[fid] ?? 'Fornitore'}</strong>: {ss.map((s) => `${SLOT_LABEL[s.status]} ${hhmm(s.start_time, '0:00')}–${hhmm(s.end_time, '24:00')}${s.label ? ` (${s.label})` : ''}`).join(' · ')}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 
   if (!date || supplierIds.length === 0) return null
   if (loading) return null
@@ -69,12 +88,15 @@ export function AvailabilityBanner({ date, dateTo, supplierIds, excludeQuoteId }
 
   if (busy.length === 0 && tentative.length === 0) {
     return (
-      <Card className="p-3 mb-4 flex items-center gap-3"
+      <Card className="p-3 mb-4"
         style={{ background: 'rgb(var(--bg-sunken))', borderColor: 'rgb(34 197 94 / 0.4)' }}>
-        <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-        <p className="text-sm text-[rgb(var(--fg-muted))]">
-          Tutti i fornitori del preventivo sono <strong>liberi</strong> nella data selezionata.
-        </p>
+        <div className="flex items-center gap-3">
+          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+          <p className="text-sm text-[rgb(var(--fg-muted))]">
+            Tutti i fornitori del preventivo sono <strong>liberi</strong> nella data selezionata.
+          </p>
+        </div>
+        {slotsBlock}
       </Card>
     )
   }
@@ -129,6 +151,7 @@ export function AvailabilityBanner({ date, dateTo, supplierIds, excludeQuoteId }
               Cambia la data del preventivo o sostituisci il fornitore.
             </p>
           )}
+          {slotsBlock}
         </div>
       </div>
     </Card>
