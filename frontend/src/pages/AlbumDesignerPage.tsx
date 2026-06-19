@@ -147,12 +147,6 @@ function buildTavolaElsPure(left: AlbumPage, right: AlbumPage | undefined, forma
   }
   return els
 }
-function tavolaHasPhotos(p: AlbumPage | undefined): boolean {
-  if (!p) return false
-  if (p.spreadImage) return true
-  if (p.mode === 'free') return (p.elements ?? []).length > 0
-  return (p.mediaIds ?? []).some(Boolean)
-}
 // MIGRAZIONE: "esiste solo la tavola". Converte ogni tavola con foto in TAVOLA UNICA (tavolaFree),
 // così sono attive ovunque sostituisci-foto, disposizioni, riempi-tavola, resize gruppo. Le tavole
 // vuote restano template (mostrano gli slot da riempire). Visivamente identica.
@@ -164,7 +158,8 @@ function migrateTavoleToFree(pages: AlbumPage[], formatKey: string): AlbumPage[]
   for (let i = 0; i < out.length; i += 2) {
     const left = out[i]; if (!left || left.tavolaFree) continue
     const right = out[i + 1]
-    if (!tavolaHasPhotos(left) && !tavolaHasPhotos(right)) continue
+    // SEMPRE tavola unica: anche le tavole vuote diventano una superficie unica (vuota), così
+    // l'editor apre OGNI tavola intera e mai a due pagine separate.
     const els = buildTavolaElsPure(left, right, formatKey)
     out[i] = { ...left, mode: 'free', frozen: false, tavolaFree: true, bg: left.bg ?? '#ffffff', elements: els, mediaIds: [], cells: [], spreadImage: null }
     if (right) out[i + 1] = { ...right, mode: 'template', mediaIds: [], cells: [], elements: [], tavolaFree: false, spreadImage: null }
@@ -628,7 +623,12 @@ function AlbumDesignerInner() {
     setPages((a) => insertPageAfter(a, pageId, () => copy)); setCurrentPageId(copy.id)
   }
   // ── TAVOLE (spread = 2 pagine affiancate, come in stampa) ───────────────────
-  function addSpread() { const a = newPage(), b = newPage(); setPages((arr) => [...arr, a, b]); setCurrentPageId(a.id) }
+  function addSpread() {
+    // nuova tavola = superficie UNICA vuota (tavolaFree) + pagina destra svuotata: si apre intera.
+    const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
+    const b: AlbumPage = { ...newPage(), tavolaFree: false }
+    setPages((arr) => [...arr, a, b]); setCurrentPageId(a.id)
+  }
   function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
   function moveSpread(si: number, dir: -1 | 1) {
     setPages((arr) => { const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2)); const j = si + dir; if (j < 0 || j >= blocks.length) return arr; const t = blocks[si]!; blocks[si] = blocks[j]!; blocks[j] = t; return blocks.flat() })
@@ -1606,7 +1606,7 @@ function AlbumDesignerInner() {
                   <CtxItem label="Incolla" sk="⌘V" disabled={!clipboard.current.length} onClick={() => run(pasteSel)} />
                   <CtxItem label="Duplica" sk="⌘D" onClick={() => run(duplicateSel)} />
                   <CtxSep />
-                  <CtxItem label="Apri in Photoshop" onClick={() => run(() => void openInPhotoshop(cm.id))} />
+                  <CtxItem label="Apri in Photoshop" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) void openInPhotoshop(el.mediaId) })} />
                   <CtxItem label="Ritaglia la foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]) })} />
                   <CtxItem label="Sostituisci foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]); toast.message('Trascina una foto dalla libreria sopra questa per sostituirla.') })} />
                   <CtxSep />
