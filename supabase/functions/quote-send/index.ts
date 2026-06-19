@@ -141,6 +141,25 @@ Deno.serve(async (req) => {
           role_in_entry: 'fornitore',
         }))
         await admin.from('calendar_entry_participants').upsert(rows, { onConflict: 'entry_id,user_id' })
+        // Avvisa via EMAIL i fornitori che è stata chiesta la loro disponibilità per la data
+        // (la notifica in-app + campanella la crea il trigger su quote_items). Best-effort: un
+        // fallimento email non blocca l'invio del preventivo. Solo al primo invio (non sui re-send).
+        if (!body.force_resend) {
+          const dateStr = q.event_date ? new Date(q.event_date).toLocaleDateString('it-IT') : ''
+          const link = `${APP_BASE}/lavori-da-confermare`
+          for (const uid of uniq) {
+            if (uid === q.owner_id) continue
+            try {
+              const { data: au } = await admin.auth.admin.getUserById(uid)
+              const to = au?.user?.email
+              if (!to) continue
+              const subject = `Conferma la tua disponibilità · ${q.title ?? 'evento'}${dateStr ? ` (${dateStr})` : ''}`
+              const html = `<p>Ciao,</p><p>Sei stato inserito in un preventivo per <strong>${escapeHtml(q.title ?? 'un evento')}</strong>${dateStr ? ` del <strong>${dateStr}</strong>` : ''}.</p>`
+                + `<p>Per favore conferma la tua disponibilità dall'area <a href="${link}">Lavori da confermare</a>.</p>`
+              await sendResend(to, subject, html)
+            } catch (_e) { /* best-effort */ }
+          }
+        }
       }
     }
   }

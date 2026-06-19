@@ -103,7 +103,9 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
       const url = d.accept_url || window.location.origin
       const text = `Ciao! Ti invito su Planfully per collaborare a un evento${pick?.label ? ` come ${pick.label}` : ''}. Registrati qui: ${url}`
       if (waWin) waWin.location.href = `https://wa.me/?text=${encodeURIComponent(text)}`
-      toast.success(`Invito inviato a ${email} — email + WhatsApp`)
+      // Sii onesti: se l'email NON è partita (es. provider non configurato) non dire "email inviata".
+      if (d?.mode === 'email_failed_link_fallback') toast.message(`Email non inviata a ${email} — ho aperto WhatsApp col link`)
+      else toast.success(`Invito inviato a ${email} — email + WhatsApp`)
       setInvite({ email: '', sending: false })
     } catch (e) { waWin?.close(); toast.error((e as Error).message) } finally { setInvite((s) => ({ ...s, sending: false })) }
   }
