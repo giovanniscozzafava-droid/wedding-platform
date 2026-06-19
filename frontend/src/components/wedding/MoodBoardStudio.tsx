@@ -116,7 +116,7 @@ export function MoodBoardStudio({ entryId, images, title, dateText, onRemove }: 
     if (!boardRef.current || ordered.length === 0) { toast.error('Aggiungi almeno una foto'); return }
     setExporting(true)
     try {
-      const html2canvas = (await import('html2canvas')).default
+      const html2canvas = (await import('html2canvas-pro')).default
       const canvas = await html2canvas(boardRef.current, { useCORS: true, backgroundColor: '#ffffff', scale: 2 })
       const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'moodboard.png'; a.click()
       toast.success('Moodboard scaricato')
@@ -130,7 +130,7 @@ export function MoodBoardStudio({ entryId, images, title, dateText, onRemove }: 
     if (!boardRef.current || ordered.length === 0) { toast.error('Aggiungi almeno una foto'); return }
     setExporting(true)
     try {
-      const html2canvas = (await import('html2canvas')).default
+      const html2canvas = (await import('html2canvas-pro')).default
       const { jsPDF } = await import('jspdf')
       const snap = await html2canvas(boardRef.current, { useCORS: true, backgroundColor: '#ffffff', scale: 2 })
       const imgData = snap.toDataURL('image/jpeg', 0.92)
