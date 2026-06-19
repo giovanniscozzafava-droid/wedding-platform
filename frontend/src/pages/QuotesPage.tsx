@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useCreateQuote, useDeleteQuote, useQuotes } from '@/hooks/useQuotes'
 import { HelpDot } from '@/components/help/HelpDot'
+import { QuotesMonthlyReport } from '@/components/quotes/QuotesMonthlyReport'
 import { useAuth } from '@/lib/auth'
 
 type BusyCheck = {
@@ -110,6 +111,9 @@ export default function QuotesPage() {
             </span>
           }
         />
+
+        {/* CATALOGO: preventivi inviati per mese/anno, accettati / non accettati */}
+        <QuotesMonthlyReport />
 
         {isLoading && (
           <div className="space-y-2">
