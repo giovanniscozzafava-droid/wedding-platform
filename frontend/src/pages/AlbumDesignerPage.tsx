@@ -1339,7 +1339,7 @@ function AlbumDesignerInner() {
             {/* foto */}
             <aside className="shrink-0 border-r border-[rgb(var(--border))] overflow-auto p-2" style={{ width: libW }}>
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))]">Foto ({trayMedia.length})</p>
+                <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))]" title="Foto della libreria già inserite nell'album / totale">Usate {trayMedia.filter((m) => placedIds.has(m.id)).length}/{trayMedia.length}</p>
                 {!lite && <>
                   <input ref={trayFileRef} type="file" accept="image/*,video/*" multiple className="hidden"
                     onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; if (fs.length) void importPhotos(fs) }} />
