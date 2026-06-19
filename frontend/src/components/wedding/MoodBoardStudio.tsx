@@ -62,11 +62,14 @@ function buildLayout(preset: string, n: number, aspect: number): Slot[] {
   return justifiedInRect(n, { x: 0, y: 0, w: 1, h: 1 }, aspect, g)
 }
 
-export function MoodBoardStudio({ entryId, images, title, dateText, onRemove }: {
+export function MoodBoardStudio({ entryId, images, title, dateText, location, brandName, brandEmail, onRemove }: {
   entryId: string
   images: MoodImg[]
   title?: string | null
   dateText?: string | null
+  location?: string | null
+  brandName?: string | null
+  brandEmail?: string | null
   onRemove?: (id: string) => void
 }) {
   const [preset, setPreset] = useState<string>('editoriale')
@@ -124,48 +127,19 @@ export function MoodBoardStudio({ entryId, images, title, dateText, onRemove }: 
     finally { setExporting(false) }
   }
 
-  // PDF DESCRITTIVO lato client (WYSIWYG): pagina 1 = la composizione dello studio, poi le schede
-  // descrittive (didascalia, categoria, fonte) di ogni immagine. jsPDF gira nel browser (no edge fn).
+  // PDF EDITORIALE stile rivista (copertina con i nomi degli sposi + capitoli con testo).
+  // Generato lato client (jsPDF) caricando le immagini reali — vedi lib/moodboardPdf.ts.
   async function exportPdf() {
-    if (!boardRef.current || ordered.length === 0) { toast.error('Aggiungi almeno una foto'); return }
+    if (ordered.length === 0) { toast.error('Aggiungi almeno una foto'); return }
     setExporting(true)
     try {
-      const html2canvas = (await import('html2canvas-pro')).default
-      const { jsPDF } = await import('jspdf')
-      const snap = await html2canvas(boardRef.current, { useCORS: true, backgroundColor: '#ffffff', scale: 2 })
-      const imgData = snap.toDataURL('image/jpeg', 0.92)
-      const portrait = ratio < 1
-      const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: portrait ? 'portrait' : 'landscape' })
-      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight()
-      const M = 40
-      // intestazione
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18); pdf.setTextColor(26, 23, 20)
-      pdf.text(title || 'Mood board', pw / 2, M, { align: 'center' })
-      if (dateText) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(150, 140, 128); pdf.text(dateText, pw / 2, M + 16, { align: 'center' }) }
-      // composizione, fit nella pagina
-      const top = M + 30, availW = pw - 2 * M, availH = ph - top - M
-      const cAsp = snap.width / Math.max(1, snap.height)
-      let iw = availW, ih = iw / cAsp
-      if (ih > availH) { ih = availH; iw = ih * cAsp }
-      pdf.addImage(imgData, 'JPEG', (pw - iw) / 2, top, iw, ih, undefined, 'FAST')
-      // pagina/e descrittiva/e
-      pdf.addPage('a4', 'portrait')
-      const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight()
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15); pdf.setTextColor(26, 23, 20)
-      pdf.text('Le ispirazioni', M, M + 4)
-      let y = M + 28
-      ordered.forEach((m, i) => {
-        if (y > PH - M - 30) { pdf.addPage('a4', 'portrait'); y = M + 10 }
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(26, 23, 20)
-        pdf.text(`${i + 1}. ${(m.caption || m.tag || 'Ispirazione').slice(0, 90)}`, M, y); y += 14
-        const meta = [m.tag ? `Categoria: ${m.tag}` : null, m.source ? `Fonte: ${m.source}` : null].filter(Boolean).join('   ·   ')
-        if (meta) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(120, 113, 100); pdf.text(meta, M, y); y += 12 }
-        if (m.source_url) { pdf.setFontSize(8); pdf.setTextColor(165, 156, 142); pdf.text(String(m.source_url).slice(0, PW > 500 ? 110 : 80), M, y); y += 12 }
-        pdf.setDrawColor(235, 230, 220); pdf.line(M, y, PW - M, y); y += 14
+      const { buildMoodboardPdf } = await import('@/lib/moodboardPdf')
+      await buildMoodboardPdf({
+        images: ordered.map((m) => ({ url: m.url, caption: m.caption, tag: m.tag, source: m.source })),
+        coupleNames: title, dateText, location, brandName, brandEmail, palette,
       })
-      pdf.save('moodboard.pdf')
-      toast.success('PDF moodboard pronto')
-    } catch (e) { toast.error('PDF non riuscito: ' + ((e as Error).message || 'alcune immagini bloccano il salvataggio per CORS')) }
+      toast.success('PDF editoriale pronto')
+    } catch (e) { toast.error('PDF non riuscito: ' + ((e as Error).message || 'errore')) }
     finally { setExporting(false) }
   }
 

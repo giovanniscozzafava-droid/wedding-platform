@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { useMood, useMoodMutations, useWedding } from '@/hooks/useWedding'
+import { useAuth } from '@/lib/auth'
 import { PaletteSection } from '@/components/wedding/PaletteSection'
 import { MoodBoardStudio } from '@/components/wedding/MoodBoardStudio'
 import { SectionRings } from '@/components/event/SectionRings'
@@ -16,8 +17,12 @@ export function MoodTab({ entryId }: { entryId: string }) {
   const { data: images } = useMood(entryId)
   const { data: wedding } = useWedding(entryId)
   const { add, remove } = useMoodMutations(entryId)
+  const { profile, user } = useAuth()
   const moodTitle = (wedding as any)?.client_name ?? null
   const moodDate = (wedding as any)?.date_from ? new Date((wedding as any).date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+  const moodLocation = (wedding as any)?.quote?.event_location ?? null
+  const moodBrand = (profile as any)?.business_name ?? (profile as any)?.full_name ?? null
+  const moodBrandEmail = user?.email ?? null
   const [search, setSearch] = useState('')
   const [tag, setTag] = useState('fiori')
   const [results, setResults] = useState<Array<{ src: { medium: string; large: string } }>>([])
@@ -126,7 +131,8 @@ export function MoodTab({ entryId }: { entryId: string }) {
       <PaletteSection entryId={entryId} />
 
       {/* STUDIO moodboard: auto-impaginazione editoriale stile Canva (derivata dall'album) */}
-      <MoodBoardStudio entryId={entryId} images={(images ?? []) as any} title={moodTitle} dateText={moodDate} onRemove={(id) => remove.mutate(id)} />
+      <MoodBoardStudio entryId={entryId} images={(images ?? []) as any} title={moodTitle} dateText={moodDate}
+        location={moodLocation} brandName={moodBrand} brandEmail={moodBrandEmail} onRemove={(id) => remove.mutate(id)} />
 
       <div className="flex gap-2 mb-3">
         <button onClick={() => setMode('pexels')}
