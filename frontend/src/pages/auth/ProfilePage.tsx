@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [togglingFlag, setTogglingFlag] = useState(false)
   const [form, setForm] = useState({
     full_name: '', business_name: '', phone: '', subrole: '',
+    tagline: '', is_discoverable: true,
     work_style: '', offers_full_dining: false,
     auto_suggest_when_busy: false, auto_suggest_message: '',
     // Dati fiscali — riusati su ogni contratto generato
@@ -75,7 +76,7 @@ export default function ProfilePage() {
     if (!user) return
     void (async () => {
       const { data } = await (supabase.from('profiles') as any)
-        .select('full_name, business_name, phone, subrole, work_style, offers_full_dining, auto_suggest_when_busy, auto_suggest_message, deletion_requested_at, business_legal_name, legal_form, vat_number, fiscal_code, address, city, zip, province, country, sdi_code, pec_email')
+        .select('full_name, business_name, phone, subrole, tagline, is_discoverable, work_style, offers_full_dining, auto_suggest_when_busy, auto_suggest_message, deletion_requested_at, business_legal_name, legal_form, vat_number, fiscal_code, address, city, zip, province, country, sdi_code, pec_email')
         .eq('id', user.id).maybeSingle()
       if (data) {
         setForm({
@@ -83,6 +84,8 @@ export default function ProfilePage() {
           business_name: data.business_name ?? '',
           phone: data.phone ?? '',
           subrole: data.subrole ?? '',
+          tagline: (data as any).tagline ?? '',
+          is_discoverable: (data as any).is_discoverable ?? true,
           work_style: (data as any).work_style ?? '',
           offers_full_dining: !!(data as any).offers_full_dining,
           auto_suggest_when_busy: !!(data as any).auto_suggest_when_busy,
@@ -114,6 +117,8 @@ export default function ProfilePage() {
         business_name: form.business_name || null,
         phone: form.phone || null,
         subrole: form.subrole || null,
+        tagline: form.tagline || null,
+        is_discoverable: form.is_discoverable,
         work_style: form.work_style || null,
         offers_full_dining: form.offers_full_dining,
         auto_suggest_when_busy: form.auto_suggest_when_busy,
@@ -192,14 +197,35 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {(profile?.role === 'FORNITORE' || profile?.role === 'LOCATION') && (
+              {(profile?.role === 'FORNITORE' || profile?.role === 'LOCATION' || profile?.role === 'WEDDING_PLANNER') && (
+                <div className="space-y-1">
+                  <Label htmlFor="tagline">Tagline (una riga sola, es. la tua mission)</Label>
+                  <Input id="tagline" value={form.tagline} maxLength={200}
+                    onChange={(e) => setForm((f) => ({ ...f, tagline: e.target.value }))}
+                    placeholder="Es. Matrimoni su misura, senza pensieri. Dalla prima idea all'ultimo brindisi." />
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Appare come sottotitolo nella tua vetrina pubblica.</p>
+                </div>
+              )}
+
+              {(profile?.role === 'FORNITORE' || profile?.role === 'LOCATION' || profile?.role === 'WEDDING_PLANNER') && (
                 <div className="space-y-1">
                   <Label htmlFor="work_style">Come lavori (modo di lavorare, filosofia, stile)</Label>
                   <Textarea id="work_style" rows={4} value={form.work_style}
                     onChange={(e) => setForm((f) => ({ ...f, work_style: e.target.value }))}
                     placeholder="Es. Stile reportage naturale, mai posato. Lavoro sempre con luce naturale. Sopralluogo gratuito prima dell'evento. Disponibile per destination wedding in Italia e Europa." />
-                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Questo testo è visibile ai wedding planner che ti aggiungono in network.</p>
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Visibile nella tua vetrina pubblica e ai wedding planner che ti aggiungono in network.</p>
                 </div>
+              )}
+
+              {(profile?.role === 'FORNITORE' || profile?.role === 'LOCATION' || profile?.role === 'WEDDING_PLANNER') && (
+                <label className="flex items-start gap-3 p-3 rounded-lg border" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <input type="checkbox" className="mt-1" checked={form.is_discoverable}
+                    onChange={(e) => setForm((f) => ({ ...f, is_discoverable: e.target.checked }))} />
+                  <div className="text-sm">
+                    <p className="font-medium">Profilo visibile nella ricerca pubblica</p>
+                    <p className="text-xs text-[rgb(var(--fg-muted))]">Se lo disattivi, la tua vetrina resta raggiungibile dal link diretto ma non compari tra i risultati di ricerca (utile quando sei pieno di lavoro).</p>
+                  </div>
+                </label>
               )}
 
               {(profile?.role === 'FORNITORE' || profile?.role === 'LOCATION' || profile?.role === 'WEDDING_PLANNER') && (

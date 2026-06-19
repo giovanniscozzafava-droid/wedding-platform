@@ -36,11 +36,13 @@ import { EventGalleryTab } from '@/components/event/EventGalleryTab'
 import { MoodBoardEditor } from '@/components/wedding/MoodBoardEditor'
 import { AudioWishes } from '@/components/event/AudioWishes'
 import { Guestbook } from '@/components/event/Guestbook'
-import { Images, Mic, BookHeart, Film } from 'lucide-react'
+import { Images, Mic, BookHeart, Film, MessageCircle } from 'lucide-react'
+import { ChatEvento } from '@/components/wedding/ChatEvento'
+import { CoupleRequestsCard } from '@/components/wedding/CoupleRequestsCard'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
 
-type Tab = 'overview' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'scaletta' | 'checklist' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto' | 'audio' | 'guestbook' | 'video'
+type Tab = 'overview' | 'chat' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'scaletta' | 'checklist' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto' | 'audio' | 'guestbook' | 'video'
 
 // La tab "Questionario" (planning) e' stata rimossa dalla coppia:
 // le domande sono gia` raccolte nel questionario di presentazione iniziale
@@ -48,6 +50,7 @@ type Tab = 'overview' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 
 // il preventivo non include alcun servizio di ristorazione.
 const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'overview',   label: 'Overview',     icon: Heart },
+  { key: 'chat',       label: 'Chat',         icon: MessageCircle },
   { key: 'preventivo', label: 'Preventivo',   icon: FileSignature },
   { key: 'fornitori',  label: 'I miei fornitori', icon: Package },
   { key: 'foto',       label: 'Foto',         icon: Images },
@@ -78,7 +81,7 @@ const TAB_GROUPS: Array<{ label: string; keys: Tab[] }> = [
   { label: 'Ricordi', keys: ['foto', 'video', 'audio', 'guestbook'] },
   { label: 'Stile & festa', keys: ['mood', 'playlist', 'menu', 'gadgets'] },
   { label: 'Ospiti', keys: ['invitati', 'tavoli', 'website'] },
-  { label: 'Organizzazione', keys: ['preventivo', 'fornitori', 'documenti', 'checklist', 'alloggi', 'trasporti', 'planning'] },
+  { label: 'Organizzazione', keys: ['chat', 'preventivo', 'fornitori', 'documenti', 'checklist', 'alloggi', 'trasporti', 'planning'] },
 ]
 
 const RESTAURATION_SUBROLES = new Set(['location', 'catering', 'chef', 'food_truck', 'pasticcere', 'sweet_table', 'bartender', 'sommelier'])
@@ -294,6 +297,8 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewCouple wedding={wedding} entryId={entryId} memberRole={memberRole} />}
+            {tab === 'overview' && <div className="mt-6"><CoupleRequestsCard entryId={entryId} /></div>}
+            {tab === 'chat' && <ChatEvento entryId={entryId} />}
             {tab === 'foto' && <EventGalleryTab entryId={entryId} role="sposi" />}
             {tab === 'audio' && <AudioWishes entryId={entryId} readOnly />}
             {tab === 'guestbook' && <Guestbook entryId={entryId} readOnly />}
@@ -725,6 +730,7 @@ function WebsiteCouple({ wedding }: { wedding: any }) {
 function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }) {
   const [quote, setQuote] = useState<any | null>(null)
   const [contracts, setContracts] = useState<any[]>([])
+  const [sharedDocs, setSharedDocs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -739,9 +745,21 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
           .eq('entry_id', entryId)
           .order('created_at', { ascending: false })
         setContracts((cs ?? []) as any[])
+        // documenti che il WP ha esplicitamente condiviso (RLS restituisce solo gli shared)
+        const { data: docs } = await (supabase.from('event_documents' as any) as any)
+          .select('id, kind, name, storage_path, size_bytes, created_at')
+          .eq('entry_id', entryId)
+          .order('created_at', { ascending: false })
+        setSharedDocs((docs ?? []) as any[])
       } finally { setLoading(false) }
     })()
   }, [wedding.quote_id, entryId])
+
+  async function openDoc(path: string) {
+    const { data } = await supabase.storage.from('event-documents').createSignedUrl(path, 3600)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+    else toast.error('Documento non disponibile')
+  }
 
   const fmtEUR = (n: any) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n ?? 0))
 
@@ -833,6 +851,25 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
           ) : (
             <p className="text-sm text-[rgb(var(--fg-subtle))]">Il contratto non è ancora stato preparato dal organizzatore.</p>
           )}
+        </Card>
+      )}
+
+      {/* DOCUMENTI CONDIVISI dal wedding planner (fatture, ricevute, permessi, liberatorie…) */}
+      {!loading && sharedDocs.length > 0 && (
+        <Card className="p-6">
+          <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-3">Documenti condivisi</p>
+          <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+            {sharedDocs.map((d) => (
+              <li key={d.id} className="py-2.5 flex items-center gap-3">
+                <FileText size={16} className="text-[rgb(var(--fg-muted))] shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">{d.name}</p>
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">{d.kind} · {Math.round((d.size_bytes ?? 0) / 1024)} KB</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => void openDoc(d.storage_path)}><FileText size={13} /> Apri</Button>
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
     </div>

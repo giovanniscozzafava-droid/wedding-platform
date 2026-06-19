@@ -52,6 +52,14 @@ export function DocumentsTab({ entryId }: { entryId: string }) {
     return data?.signedUrl
   }
 
+  async function toggleShare(d: any) {
+    const next = !d.shared_with_couple
+    const { error } = await supabase.from('event_documents').update({ shared_with_couple: next } as any).eq('id', d.id)
+    if (error) { toast.error(error.message); return }
+    toast.success(next ? 'Documento condiviso con la coppia' : 'Documento non più condiviso')
+    await load()
+  }
+
   async function remove(id: string, path: string) {
     if (!confirm('Eliminare?')) return
     await supabase.storage.from('event-documents').remove([path])
@@ -64,7 +72,7 @@ export function DocumentsTab({ entryId }: { entryId: string }) {
     <div>
       <header className="mb-6">
         <h2 className="font-display text-2xl">Vault documenti</h2>
-        <p className="text-sm text-[rgb(var(--fg-muted))]">Contratti firmati, fatture, ricevute, liberatorie. Privati: solo tu (owner).</p>
+        <p className="text-sm text-[rgb(var(--fg-muted))]">Contratti firmati, fatture, ricevute, liberatorie. Privati per default: usa <strong>Condividi</strong> per renderli visibili alla coppia nella sua area.</p>
       </header>
 
       <Card className="p-4 mb-6">
@@ -97,6 +105,7 @@ export function DocumentsTab({ entryId }: { entryId: string }) {
                   </p>
                 </div>
                 <Badge tone="neutral">{d.kind}</Badge>
+                <Button variant={d.shared_with_couple ? 'gold' : 'ghost'} size="sm" onClick={() => toggleShare(d)} title="Mostra/nascondi alla coppia nella sua area">{d.shared_with_couple ? 'Condiviso' : 'Condividi'}</Button>
                 <Button variant="ghost" size="sm" onClick={async () => {
                   const url = await getUrl(d.storage_path); if (url) window.open(url, '_blank')
                 }}>Apri</Button>

@@ -21,6 +21,7 @@ type WpProfile = {
   business_name: string | null
   role: 'WEDDING_PLANNER' | 'LOCATION' | 'ADMIN'
   brand_logo_url: string | null
+  cover_image_url: string | null
   brand_primary_color: string | null
   city: string | null
   province: string | null
@@ -221,6 +222,13 @@ export default function PublicWpPage() {
           className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-4">
           <ArrowLeft size={14} /> Indietro
         </button>
+
+        {/* Cover/banner (hero) */}
+        {wp.cover_image_url && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl overflow-hidden mb-5 surface-lift">
+            <img src={wp.cover_image_url} alt="" className="w-full h-40 sm:h-56 object-cover" />
+          </motion.div>
+        )}
 
         {/* Hero */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
