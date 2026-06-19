@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2, Search, Link as LinkIcon, ImageIcon, FileDown } from 'lucide-react'
+import { Trash2, Search, Link as LinkIcon, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,21 +25,6 @@ export function MoodTab({ entryId }: { entryId: string }) {
   const [pinUrl, setPinUrl] = useState('')
   const [pinBusy, setPinBusy] = useState(false)
   const [mode, setMode] = useState<'pexels' | 'pinterest'>('pexels')
-  const [exporting, setExporting] = useState(false)
-
-  async function exportMoodboardPdf() {
-    if (!images || images.length === 0) { toast.error('Aggiungi almeno una foto prima di esportare'); return }
-    setExporting(true)
-    try {
-      const { data, error } = await supabase.functions.invoke('moodboard-pdf', { body: { entry_id: entryId } })
-      if (error) throw error
-      const url = (data as any)?.url
-      if (!url) throw new Error('URL PDF non generato')
-      window.open(url, '_blank')
-      toast.success(`PDF moodboard generato (${(data as any).count} immagini)`)
-    } catch (e) { toast.error((e as Error).message) }
-    finally { setExporting(false) }
-  }
 
   async function searchPexels() {
     if (!search.trim()) return
@@ -134,11 +119,8 @@ export function MoodTab({ entryId }: { entryId: string }) {
       <header className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl">Mood board</h2>
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Pexels per stock, oppure incolla qualsiasi URL (Pinterest, Instagram, blog) per importare l'immagine.</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Cerca su Pexels o incolla un URL, poi lo studio impagina tutto. Esporta PDF o PNG dallo studio qui sotto.</p>
         </div>
-        <Button variant="gold" onClick={exportMoodboardPdf} disabled={exporting || !images || images.length === 0}>
-          <FileDown size={14} /> {exporting ? 'Genero PDF...' : 'Esporta PDF editoriale'}
-        </Button>
       </header>
 
       <PaletteSection entryId={entryId} />

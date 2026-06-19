@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutGrid, Square, RectangleVertical, Smartphone, Shuffle, Download, Trash2, Sparkles, Type } from 'lucide-react'
+import { LayoutGrid, Square, RectangleVertical, Smartphone, Shuffle, Download, FileDown, Trash2, Sparkles, Type } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase'
 // scarica un'immagine pronta da condividere. Slot in frazione 0..1 del canvas.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type MoodImg = { id: string; url: string; caption?: string | null; tag?: string | null; source?: string | null }
+export type MoodImg = { id: string; url: string; caption?: string | null; tag?: string | null; source?: string | null; source_url?: string | null }
 type Slot = { x: number; y: number; w: number; h: number; rot?: number }
 
 const FORMATS = [
@@ -120,7 +120,52 @@ export function MoodBoardStudio({ entryId, images, title, dateText, onRemove }: 
       const canvas = await html2canvas(boardRef.current, { useCORS: true, backgroundColor: '#ffffff', scale: 2 })
       const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'moodboard.png'; a.click()
       toast.success('Moodboard scaricato')
-    } catch { toast.error('Export non riuscito (alcune immagini bloccano il salvataggio per via del CORS). Usa "Esporta PDF editoriale".') }
+    } catch { toast.error('Export non riuscito: alcune immagini bloccano il salvataggio (CORS). Riprova con foto da Pexels o caricate.') }
+    finally { setExporting(false) }
+  }
+
+  // PDF DESCRITTIVO lato client (WYSIWYG): pagina 1 = la composizione dello studio, poi le schede
+  // descrittive (didascalia, categoria, fonte) di ogni immagine. jsPDF gira nel browser (no edge fn).
+  async function exportPdf() {
+    if (!boardRef.current || ordered.length === 0) { toast.error('Aggiungi almeno una foto'); return }
+    setExporting(true)
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const { jsPDF } = await import('jspdf')
+      const snap = await html2canvas(boardRef.current, { useCORS: true, backgroundColor: '#ffffff', scale: 2 })
+      const imgData = snap.toDataURL('image/jpeg', 0.92)
+      const portrait = ratio < 1
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: portrait ? 'portrait' : 'landscape' })
+      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight()
+      const M = 40
+      // intestazione
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18); pdf.setTextColor(26, 23, 20)
+      pdf.text(title || 'Mood board', pw / 2, M, { align: 'center' })
+      if (dateText) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(150, 140, 128); pdf.text(dateText, pw / 2, M + 16, { align: 'center' }) }
+      // composizione, fit nella pagina
+      const top = M + 30, availW = pw - 2 * M, availH = ph - top - M
+      const cAsp = snap.width / Math.max(1, snap.height)
+      let iw = availW, ih = iw / cAsp
+      if (ih > availH) { ih = availH; iw = ih * cAsp }
+      pdf.addImage(imgData, 'JPEG', (pw - iw) / 2, top, iw, ih, undefined, 'FAST')
+      // pagina/e descrittiva/e
+      pdf.addPage('a4', 'portrait')
+      const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight()
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15); pdf.setTextColor(26, 23, 20)
+      pdf.text('Le ispirazioni', M, M + 4)
+      let y = M + 28
+      ordered.forEach((m, i) => {
+        if (y > PH - M - 30) { pdf.addPage('a4', 'portrait'); y = M + 10 }
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(26, 23, 20)
+        pdf.text(`${i + 1}. ${(m.caption || m.tag || 'Ispirazione').slice(0, 90)}`, M, y); y += 14
+        const meta = [m.tag ? `Categoria: ${m.tag}` : null, m.source ? `Fonte: ${m.source}` : null].filter(Boolean).join('   ·   ')
+        if (meta) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(120, 113, 100); pdf.text(meta, M, y); y += 12 }
+        if (m.source_url) { pdf.setFontSize(8); pdf.setTextColor(165, 156, 142); pdf.text(String(m.source_url).slice(0, PW > 500 ? 110 : 80), M, y); y += 12 }
+        pdf.setDrawColor(235, 230, 220); pdf.line(M, y, PW - M, y); y += 14
+      })
+      pdf.save('moodboard.pdf')
+      toast.success('PDF moodboard pronto')
+    } catch (e) { toast.error('PDF non riuscito: ' + ((e as Error).message || 'alcune immagini bloccano il salvataggio per CORS')) }
     finally { setExporting(false) }
   }
 
@@ -140,7 +185,8 @@ export function MoodBoardStudio({ entryId, images, title, dateText, onRemove }: 
       <button onClick={() => setShowHeader((v) => !v)} title="Intestazione con titolo e palette"
         className={`text-xs px-2.5 py-1 rounded-full border inline-flex items-center gap-1 ${showHeader ? 'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}><Type size={12} /> Intestazione</button>
       <button onClick={shuffle} className="text-xs px-2.5 py-1 rounded-full border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center gap-1"><Shuffle size={12} /> Rimescola</button>
-      <button onClick={() => void exportPng()} disabled={exporting} className="text-xs px-2.5 py-1 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] inline-flex items-center gap-1 disabled:opacity-50"><Download size={12} /> {exporting ? 'Esporto…' : 'Scarica PNG'}</button>
+      <button onClick={() => void exportPdf()} disabled={exporting} className="text-xs px-2.5 py-1 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] inline-flex items-center gap-1 disabled:opacity-50"><FileDown size={12} /> {exporting ? 'Esporto…' : 'Esporta PDF'}</button>
+      <button onClick={() => void exportPng()} disabled={exporting} className="text-xs px-2.5 py-1 rounded-full border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center gap-1 disabled:opacity-50"><Download size={12} /> PNG</button>
     </div>
   )
 
