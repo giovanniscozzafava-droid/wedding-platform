@@ -2421,14 +2421,6 @@ function FreePanel(props: {
             <p className="font-medium flex items-center gap-1.5"><Grid3x3 size={14} /> Disposizioni <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({presets?.length ?? 0} · {(page.elements ?? []).length} foto)</span></p>
             {onSaveLayout && <button onClick={onSaveLayout} title="Salva la composizione attuale tra i tuoi preset" className="text-[11px] inline-flex items-center gap-1 text-[rgb(var(--gold-700))] hover:underline"><Save size={12} /> Salva questa</button>}
           </div>
-          {onGutter && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[11px] text-[rgb(var(--fg-muted))] whitespace-nowrap">Margine tra le foto</span>
-              <input type="range" min={0} max={15} step={1} value={gutterMm ?? 3} onChange={(e) => onGutter(+e.target.value)} className="flex-1 accent-[rgb(var(--gold-600))]" />
-              <input type="number" min={0} max={30} value={gutterMm ?? 3} onChange={(e) => onGutter(Math.max(0, Math.min(30, +e.target.value || 0)))} className="w-12 text-[11px] px-1 py-0.5 rounded border border-[rgb(var(--border))] bg-[rgb(var(--bg))]" />
-              <span className="text-[11px] text-[rgb(var(--fg-muted))]">mm</span>
-            </div>
-          )}
           {myPresets && myPresets.length > 0 && (
             <>
               <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1">I tuoi preset</p>
