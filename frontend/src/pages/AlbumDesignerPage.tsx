@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import HTMLFlipBook from 'react-pageflip'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X } from 'lucide-react'
@@ -64,6 +64,19 @@ function FreeSurface({ page, mediaById, thumb }: { page: AlbumPage; mediaById: M
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// MEZZA tavola (pagina SINISTRA o DESTRA) della superficie unica: renderizza l'intera tavola (2W)
+// in un wrapper largo il doppio e ne clippa la metà richiesta → usata come "foglio" del libro
+// sfogliabile lato cliente (react-pageflip), così lo sfoglio è pagina-per-pagina come un vero album.
+function HalfSurface({ page, side, mediaById, thumb }: { page: AlbumPage; side: 'L' | 'R'; mediaById: Map<string, M>; thumb: (m: M) => string }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden" style={{ background: page.bg ?? '#ffffff' }}>
+      <div className="absolute top-0 h-full" style={{ width: '200%', left: side === 'L' ? '0%' : '-100%' }}>
+        <FreeSurface page={page} mediaById={mediaById} thumb={thumb} />
+      </div>
     </div>
   )
 }
@@ -254,7 +267,16 @@ function AlbumDesignerInner() {
   const [previewIdx, setPreviewIdx] = useState(0)
   // vista cliente mobile-first
   const [clientIdx, setClientIdx] = useState(0)
-  const [flipDir, setFlipDir] = useState(1) // direzione dello sfoglio (1 avanti, -1 indietro) per il flip cliente
+  const bookRef = useRef<any>(null) // react-pageflip: per flipNext/flipPrev dai pulsanti freccia
+  const [readerBox, setReaderBox] = useState({ w: 0, h: 0 }) // area disponibile per il libro sfogliabile (lite)
+  // callback-ref: misura il contenitore del reader anche quando gli spread compaiono in modo async
+  const readerRoRef = useRef<ResizeObserver | null>(null)
+  const setReaderEl = useCallback((el: HTMLDivElement | null) => {
+    readerRoRef.current?.disconnect(); readerRoRef.current = null
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => setReaderBox({ w: el.clientWidth, h: el.clientHeight })
+    const ro = new ResizeObserver(measure); ro.observe(el); measure(); readerRoRef.current = ro
+  }, [])
   const [clientReqOpen, setClientReqOpen] = useState(false)
   const [zoomSpread, setZoomSpread] = useState<number | null>(null)
   const [reqListOpen, setReqListOpen] = useState(false)
@@ -1114,7 +1136,26 @@ function AlbumDesignerInner() {
   if (lite) {
     const myOpen = revList.filter((r) => r.status === 'OPEN').length
     const tavPins = (si: number) => revList.filter((r) => r.anchor_x != null && r.tavola_index === si)
-    const goSpread = (d: number) => { const n = Math.min(spreads.length - 1, Math.max(0, clientIdx + d)); if (n !== clientIdx) { setFlipDir(d > 0 ? 1 : -1); setClientIdx(n) } }
+    const goSpread = (d: number) => { const pf = bookRef.current?.pageFlip?.(); if (!pf) return; if (d > 0) pf.flipNext(); else pf.flipPrev() }
+    // FOGLI del libro: ogni tavola → pagina SINISTRA + pagina DESTRA (mezze superfici), così il
+    // cliente sfoglia pagina-per-pagina (react-pageflip) da pag. 1 in poi, come un vero album.
+    const flatPages = spreads.flatMap((pair, si) => [
+      { si, side: 'L' as const, page: pair[0]!, other: pair[1] },
+      { si, side: 'R' as const, page: pair[0]!, other: pair[1] },
+    ])
+    const renderHalf = (fp: { si: number; side: 'L' | 'R'; page: AlbumPage; other?: AlbumPage }) =>
+      fp.page?.tavolaFree
+        ? <HalfSurface page={fp.page} side={fp.side} mediaById={mediaById} thumb={hiUrl} />
+        : fp.side === 'L'
+          ? <div className="absolute inset-0">{fp.page ? <MiniPage page={fp.page} formatKey={format} mediaById={mediaById} thumb={hiUrl} /> : null}</div>
+          : <div className="absolute inset-0 bg-white">{fp.other ? <MiniPage page={fp.other} formatKey={format} mediaById={mediaById} thumb={hiUrl} /> : null}</div>
+    // dimensioni FISSE del singolo foglio: fitta lo spread (2 pagine) nell'area del reader
+    const rbW = readerBox.w || 360, rbH = readerBox.h || 480
+    const availW = Math.max(120, rbW - 32), availH = Math.max(120, rbH - 56)
+    let leafW = Math.min(availW / 2, availH * asp)
+    let leafH = leafW / asp
+    if (leafH > availH) { leafH = availH; leafW = leafH * asp }
+    leafW = Math.max(60, Math.round(leafW)); leafH = Math.max(60, Math.round(leafH))
     // NB: funzione (non componente <SpreadView/>): definirla inline come componente la rimonterebbe
     // a ogni render → la textarea del post-it perderebbe il focus a ogni tasto.
     const renderSpread = ({ pair, si, max, interactive }: { pair: AlbumPage[]; si: number; max: string; interactive?: boolean }) => (
@@ -1199,29 +1240,52 @@ function AlbumDesignerInner() {
           </div>
         ) : (
           <>
-            {/* READER SFOGLIABILE: una tavola alla volta, con effetto pagina che gira (flip 3D) +
-                swipe/trascinamento. Le frecce ai lati cambiano pagina. */}
-            {(() => { const ci = Math.min(clientIdx, spreads.length - 1); const pair = spreads[ci]!; return (
-              <div className="flex-1 min-h-0 relative overflow-hidden flex items-center justify-center select-none" style={{ perspective: 2000 }}>
-                <AnimatePresence initial={false} custom={flipDir} mode="popLayout">
-                  <motion.div key={ci} custom={flipDir}
-                    variants={{
-                      // pagina che GIRA attorno al dorso (centro): si mette di taglio (edge-on) e la
-                      // successiva entra dall'altro lato → effetto sfoglio pagina-pagina.
-                      enter: (d: number) => ({ rotateY: d > 0 ? -90 : 90, opacity: 0 }),
-                      center: { rotateY: 0, opacity: 1 },
-                      exit: (d: number) => ({ rotateY: d > 0 ? 90 : -90, opacity: 0 }),
-                    }}
-                    initial="enter" animate="center" exit="exit" transition={{ duration: 0.55, ease: 'easeInOut' }}
-                    drag="x" dragSnapToOrigin dragElastic={0.16} dragConstraints={{ left: 0, right: 0 }}
-                    onDragEnd={(_e, info) => { if (info.offset.x < -60) goSpread(1); else if (info.offset.x > 60) goSpread(-1) }}
-                    className="absolute inset-0 flex items-center justify-center p-4"
-                    style={{ transformStyle: 'preserve-3d', transformOrigin: 'center center', backfaceVisibility: 'hidden', cursor: 'grab' }}>
-                    <button onClick={() => setZoomSpread(ci)} className="w-full" title="Tocca per ingrandire e lasciare un post-it">{renderSpread({ pair, si: ci, max: 'min(94vw, 680px)' })}</button>
-                  </motion.div>
-                </AnimatePresence>
-                {ci > 0 && <button onClick={() => goSpread(-1)} title="Pagina precedente" className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-start pl-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:bg-black/[0.03]"><ChevronLeft size={26} /></button>}
-                {ci < spreads.length - 1 && <button onClick={() => goSpread(1)} title="Pagina successiva" className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-end pr-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:bg-black/[0.03]"><ChevronRight size={26} /></button>}
+            {/* READER SFOGLIABILE come un VERO ALBUM: ogni tavola = pagina sinistra + destra; si
+                sfoglia foglio-per-foglio (react-pageflip) con ombre, drag/swipe e frecce. Tap su una
+                pagina → zoom a tutto schermo per il post-it. */}
+            {(() => { const ci = Math.min(clientIdx, spreads.length - 1); return (
+              <div ref={setReaderEl} className="flex-1 min-h-0 relative overflow-hidden flex items-center justify-center select-none">
+                {readerBox.w > 0 && (
+                  <HTMLFlipBook
+                    key={`fb-${leafW}x${leafH}-${flatPages.length}`}
+                    ref={bookRef}
+                    startPage={ci * 2}
+                    size="fixed"
+                    width={leafW} height={leafH}
+                    minWidth={60} maxWidth={3000} minHeight={60} maxHeight={3000}
+                    drawShadow maxShadowOpacity={0.5}
+                    flippingTime={700}
+                    usePortrait={false}
+                    startZIndex={0}
+                    autoSize={false}
+                    showCover={false}
+                    mobileScrollSupport={false}
+                    clickEventForward
+                    useMouseEvents
+                    swipeDistance={24}
+                    showPageCorners
+                    disableFlipByClick
+                    className="" style={{}}
+                    onFlip={(e: any) => setClientIdx(Math.max(0, Math.floor((e?.data ?? 0) / 2)))}
+                  >
+                    {flatPages.map((fp, i) => (
+                      <div key={i} className="bg-white" style={{ width: leafW, height: leafH }}>
+                        <div className="relative w-full h-full cursor-zoom-in" onClick={() => setZoomSpread(fp.si)} title="Tocca per ingrandire e lasciare un post-it">
+                          {renderHalf(fp)}
+                          {/* numero pagina FUORI dall'immagine, nel margine inferiore */}
+                          <span className={`absolute bottom-1 ${fp.side === 'L' ? 'left-2' : 'right-2'} text-[10px] font-medium text-[rgb(var(--fg-subtle))] tabular-nums pointer-events-none select-none`}>{fp.side === 'L' ? fp.si * 2 + 1 : fp.si * 2 + 2}</span>
+                          {/* puntine post-it (sola lettura) sulla metà giusta della tavola */}
+                          {tavPins(fp.si).filter((p) => p.anchor_x != null && ((fp.side === 'L') === ((p.anchor_x as number) < 0.5))).map((p) => {
+                            const lx = fp.side === 'L' ? (p.anchor_x as number) * 2 : ((p.anchor_x as number) - 0.5) * 2
+                            return <span key={p.id} className="absolute h-3 w-3 rounded-full bg-amber-400 border border-white shadow -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ left: `${lx * 100}%`, top: `${(p.anchor_y as number) * 100}%` }} />
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </HTMLFlipBook>
+                )}
+                {ci > 0 && <button onClick={() => goSpread(-1)} title="Pagina precedente" className="absolute left-0 top-0 bottom-0 w-10 z-10 flex items-center justify-start pl-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:bg-black/[0.03]"><ChevronLeft size={26} /></button>}
+                {ci < spreads.length - 1 && <button onClick={() => goSpread(1)} title="Pagina successiva" className="absolute right-0 top-0 bottom-0 w-10 z-10 flex items-center justify-end pr-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:bg-black/[0.03]"><ChevronRight size={26} /></button>}
               </div>
             ) })()}
             <div className="sticky bottom-0 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-4 py-2 flex flex-col gap-1.5">
