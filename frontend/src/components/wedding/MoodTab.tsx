@@ -5,15 +5,19 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
-import { useMood, useMoodMutations } from '@/hooks/useWedding'
+import { useMood, useMoodMutations, useWedding } from '@/hooks/useWedding'
 import { PaletteSection } from '@/components/wedding/PaletteSection'
+import { MoodBoardStudio } from '@/components/wedding/MoodBoardStudio'
 import { SectionRings } from '@/components/event/SectionRings'
 
 const TAGS = ['vestito', 'fiori', 'location', 'torta', 'allestimento', 'altro']
 
 export function MoodTab({ entryId }: { entryId: string }) {
   const { data: images } = useMood(entryId)
+  const { data: wedding } = useWedding(entryId)
   const { add, remove } = useMoodMutations(entryId)
+  const moodTitle = (wedding as any)?.client_name ?? null
+  const moodDate = (wedding as any)?.date_from ? new Date((wedding as any).date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : null
   const [search, setSearch] = useState('')
   const [tag, setTag] = useState('fiori')
   const [results, setResults] = useState<Array<{ src: { medium: string; large: string } }>>([])
@@ -139,6 +143,9 @@ export function MoodTab({ entryId }: { entryId: string }) {
 
       <PaletteSection entryId={entryId} />
 
+      {/* STUDIO moodboard: auto-impaginazione editoriale stile Canva (derivata dall'album) */}
+      <MoodBoardStudio entryId={entryId} images={(images ?? []) as any} title={moodTitle} dateText={moodDate} onRemove={(id) => remove.mutate(id)} />
+
       <div className="flex gap-2 mb-3">
         <button onClick={() => setMode('pexels')}
           className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${mode === 'pexels' ? 'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))]' : 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]'}`}>
@@ -202,7 +209,8 @@ export function MoodTab({ entryId }: { entryId: string }) {
         )}
       </Card>
 
-      <h3 className="font-display text-lg mb-3">Board ({images?.length ?? 0})</h3>
+      <h3 className="font-display text-lg mb-1">Tutte le immagini ({images?.length ?? 0})</h3>
+      <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">Lo studio qui sopra le impagina da solo. Qui le gestisci (elimina, apri sorgente).</p>
       {(images ?? []).length === 0 ? (
         <Card className="p-10 text-center"><p className="text-[rgb(var(--fg-muted))]">Mood board vuoto. Cerca su Pexels o incolla un URL per iniziare.</p></Card>
       ) : (
