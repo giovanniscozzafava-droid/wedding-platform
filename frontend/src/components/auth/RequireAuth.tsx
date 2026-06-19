@@ -9,6 +9,14 @@ type Props = {
   bare?: boolean
 }
 
+// Home "giusta" per ruolo: dove rimbalzare chi apre una rotta non sua (niente vicolo cieco
+// "accesso non consentito"). I professionisti tornano alla dashboard ('/').
+function homeFor(role: AppRole): string {
+  if (role === 'COUPLE') return '/couple'
+  if (role === 'CLIENT') return '/area-cliente'
+  return '/'
+}
+
 export function RequireAuth({ children, roles, bare = false }: Props) {
   const { loading, session, profile } = useAuth()
   const location = useLocation()
@@ -75,16 +83,11 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     && !location.pathname.startsWith('/fornitore/')) {
     return <Navigate to="/area-cliente" replace />
   }
+  // Ruolo sbagliato per questa rotta → NON un vicolo cieco: lo riportiamo alla sua home
+  // (es. un FORNITORE che apre /couple torna alla dashboard invece di "accesso non consentito").
   if (roles && profile && !roles.includes(profile.role)) {
-    return (
-      <AppShell>
-        <div className="p-10 text-center">
-          <p className="text-lg" style={{ color: 'rgb(var(--fg-muted))' }}>
-            Accesso non consentito al tuo ruolo ({profile.role}).
-          </p>
-        </div>
-      </AppShell>
-    )
+    const dest = homeFor(profile.role)
+    if (location.pathname !== dest) return <Navigate to={dest} replace />
   }
   if (bare) return <>{children}</>
   // La sidebar AppShell e' progettata per WP/LOCATION/FORNITORE/ADMIN.

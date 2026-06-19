@@ -52,8 +52,11 @@ Deno.serve(async (req) => {
   }
   if (!body.quote_id) return json({ error: 'quote_id required' }, 400)
 
-  // Propaga JWT user del caller (quote-generate-pdf richiede JWT user, non SERVICE_KEY)
-  const callerAuth = req.headers.get('Authorization') ?? `Bearer ${SERVICE_KEY}`
+  // Propaga JWT user del caller (quote-generate-pdf richiede JWT user, non SERVICE_KEY).
+  // NIENTE fallback a SERVICE_KEY: senza un JWT valido la funzione non deve agire (altrimenti
+  // chiunque la chiamasse senza Authorization opererebbe con privilegi service-role).
+  const callerAuth = req.headers.get('Authorization') ?? ''
+  if (!callerAuth.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401)
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 

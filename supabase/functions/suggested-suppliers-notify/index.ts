@@ -32,8 +32,20 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
+  // AUTORIZZAZIONE: invocata dal professionista loggato → richiediamo un JWT valido e che il
+  // chiamante sia l'OWNER del preventivo (o un admin). Senza questo, chiunque con l'anon key
+  // potrebbe scatenare l'email-ai-fornitori per un quote_id altrui.
+  const authHeader = req.headers.get('Authorization') ?? ''
+  if (!authHeader.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401)
+  const { data: au } = await admin.auth.getUser(authHeader.slice(7))
+  const caller = au?.user
+  if (!caller) return json({ error: 'unauthorized' }, 401)
+
   const { data: q } = await admin.from('quotes').select('id, client_email, client_name, owner_id, event_kind').eq('id', body.quote_id).maybeSingle()
   if (!q || !q.client_email) return json({ error: 'quote_or_email_not_found' }, 404)
+
+  const { data: me } = await admin.from('profiles').select('role').eq('id', caller.id).maybeSingle()
+  if (q.owner_id !== caller.id && me?.role !== 'ADMIN') return json({ error: 'forbidden' }, 403)
 
   // Segnalazioni per questo cliente da parte dell'owner del preventivo
   const { data: refs } = await admin.from('supplier_referrals')

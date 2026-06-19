@@ -148,8 +148,23 @@ Deno.serve(async (req) => {
   try { body = await req.json() } catch { body = {} }
 
   // Modo 2: single-user (chiamata da SQL via pg_net).
+  // SICUREZZA: NON ci fidiamo del contenuto passato nel body (totale/primi_10): se la funzione
+  // fosse raggiungibile pubblicamente, chiunque potrebbe inviare un'email brandizzata Planfully
+  // con testo e link arbitrari a un utente noto (phishing). Rileggiamo il digest dal DB per quel
+  // destinatario e usiamo SOLO quei dati.
   if (body.destinatario_id) {
-    const res = await sendDigestForUser(admin, body as DigestPayload)
+    const { data: row } = await admin
+      .from('v_notifiche_digest_per_utente')
+      .select('destinatario_id,totale,primi_10')
+      .eq('destinatario_id', body.destinatario_id)
+      .eq('data_digest', new Date().toISOString().slice(0, 10))
+      .maybeSingle()
+    if (!row || !row.totale) return json({ ok: false, reason: 'empty_digest' }, 400)
+    const res = await sendDigestForUser(admin, {
+      destinatario_id: row.destinatario_id as string,
+      totale: row.totale as number,
+      primi_10: (row.primi_10 ?? []) as DigestItem[],
+    })
     return json(res, res.ok ? 200 : 400)
   }
 
