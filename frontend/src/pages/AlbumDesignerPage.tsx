@@ -266,6 +266,13 @@ function AlbumDesignerInner() {
   const [multiSel, setMultiSel] = useState<string[]>([])        // selezione multipla (Shift) sulla tavola
   const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
   const [gutterMm, setGutterMm] = useState(3) // margine (mm) tra le foto quando si applica una disposizione
+  const [momentFilter, setMomentFilter] = useState<string>('') // filtro libreria per "momento" (tag); '' = tutti
+  // PANNELLI RIDIMENSIONABILI (persistiti): libreria sx, pannello funzioni dx, striscia tavole.
+  const lsNum = (k: string, def: number, min: number) => { try { const v = Number(localStorage.getItem(k)); return v >= min ? v : def } catch { return def } }
+  const [libW, setLibW] = useState(() => lsNum('albumLibW', 160, 120))
+  const [panelW, setPanelW] = useState(() => lsNum('albumPanelW', 224, 180))
+  const [stripH, setStripH] = useState(() => lsNum('albumStripH', 64, 48))
+  useEffect(() => { try { localStorage.setItem('albumLibW', String(libW)); localStorage.setItem('albumPanelW', String(panelW)); localStorage.setItem('albumStripH', String(stripH)) } catch { /* no-op */ } }, [libW, panelW, stripH])
   const [cropSpread, setCropSpread] = useState<string | null>(null) // id pagina-sx in ritaglio foto a piena tavola
   // move/resize della cornice spread (trasformazione libera su due tavole)
   const spreadDrag = useRef<{ kind: 'move' | 'nw' | 'ne' | 'sw' | 'se'; sx: number; sy: number; w: number; h: number; id: string; f: { x: number; y: number; w: number; h: number } } | null>(null)
@@ -587,6 +594,13 @@ function AlbumDesignerInner() {
     for (const id of everPlaced) { if (!seen.has(id)) { const m = mediaById.get(id); if (m) { seen.add(id); out.push(m) } } }
     return out
   }, [kept, everPlaced, mediaById])
+  // FILTRO "momento" della libreria (legge il tag album_moment). '' = tutti, '_none' = senza momento.
+  const trayMoments = useMemo(() => { const c = new Map<string, number>(); for (const m of trayMedia) c.set(m.album_moment ?? '_none', (c.get(m.album_moment ?? '_none') ?? 0) + 1); return c }, [trayMedia])
+  const trayFiltered = useMemo(() => {
+    if (!momentFilter) return trayMedia
+    if (momentFilter === '_none') return trayMedia.filter((m) => !m.album_moment)
+    return trayMedia.filter((m) => m.album_moment === momentFilter)
+  }, [trayMedia, momentFilter])
 
   function updatePage(id: string, fn: (p: AlbumPage) => AlbumPage) {
     setPages((arr) => arr.map((p) => (p.id === id ? fn(p) : p)))
@@ -1295,7 +1309,7 @@ function AlbumDesignerInner() {
           {/* workspace a 3 colonne + filmstrip */}
           <div className="flex h-[calc(100vh-104px)]">
             {/* foto */}
-            <aside className="w-40 shrink-0 border-r border-[rgb(var(--border))] overflow-auto p-2">
+            <aside className="shrink-0 border-r border-[rgb(var(--border))] overflow-auto p-2" style={{ width: libW }}>
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))]">Foto ({trayMedia.length})</p>
                 {!lite && <>
@@ -1307,8 +1321,15 @@ function AlbumDesignerInner() {
                   </button>
                 </>}
               </div>
+              {/* FILTRO per MOMENTO: legge i tag (album_moment) e mostra solo quelle foto */}
+              <select value={momentFilter} onChange={(e) => setMomentFilter(e.target.value)}
+                className="w-full mb-1.5 text-[11px] px-1 py-1 rounded border border-[rgb(var(--border))] bg-[rgb(var(--bg))]">
+                <option value="">Tutti i momenti ({trayMedia.length})</option>
+                {MOMENTS.filter((mm) => (trayMoments.get(mm.key) ?? 0) > 0).map((mm) => <option key={mm.key} value={mm.key}>{mm.label} ({trayMoments.get(mm.key)})</option>)}
+                {(trayMoments.get('_none') ?? 0) > 0 && <option value="_none">Senza momento ({trayMoments.get('_none')})</option>}
+              </select>
               <div className="grid grid-cols-2 gap-1.5">
-                {trayMedia.map((m) => (
+                {trayFiltered.map((m) => (
                   <button key={m.id}
                     draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
                     onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
@@ -1327,6 +1348,8 @@ function AlbumDesignerInner() {
                 ))}
               </div>
             </aside>
+            {/* maniglia: allarga/stringi la libreria */}
+            {!lite && <DragSize axis="x" onResize={(d) => setLibW((w) => clampPx(w + d, 120, 440))} className="w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-[rgb(var(--gold-400))] transition-colors" />}
 
             {/* canvas + filmstrip */}
             <main className="flex-1 flex flex-col min-w-0 relative">
@@ -1471,21 +1494,25 @@ function AlbumDesignerInner() {
                   <button title="Allarga" onClick={() => setZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ZoomIn size={16} /></button>
                 </div>
               )}
+              {/* maniglia: alza/abbassa la striscia delle tavole (le miniature scalano) */}
+              {!lite && <DragSize axis="y" onResize={(d) => setStripH((h) => clampPx(h - d, 48, 240))} className="h-1.5 shrink-0 cursor-row-resize bg-transparent hover:bg-[rgb(var(--gold-400))] transition-colors" />}
               {/* filmstrip TAVOLE (doppia pagina, come in stampa) */}
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
                 {spreads.map((pair, si) => (
-                  <SpreadThumb key={si} pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite}
+                  <SpreadThumb key={si} pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
                     mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                     onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
                     onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
                     onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => moveSpreadInsert(from, to)} />
                 ))}
-                {!lite && <button onClick={addSpread} className="shrink-0 h-16 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
+                {!lite && <button onClick={addSpread} className="shrink-0 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ height: stripH, aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
             </main>
 
+            {/* maniglia: allarga/stringi il pannello funzioni */}
+            {!lite && <DragSize axis="x" onResize={(d) => setPanelW((w) => clampPx(w - d, 180, 560))} className="w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-[rgb(var(--gold-400))] transition-colors" />}
             {/* pannello proprietà */}
-            <aside className="w-56 shrink-0 border-l border-[rgb(var(--border))] overflow-auto p-3">
+            <aside className="shrink-0 border-l border-[rgb(var(--border))] overflow-auto p-3" style={{ width: panelW }}>
               {currentPage && (currentPage.mode === 'free' && !currentPage.frozen ? (
                 <FreePanel
                   page={currentPage} selEl={selEl} lite={lite}
@@ -2192,12 +2219,12 @@ function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; form
 
 // Miniatura di una TAVOLA (2 pagine) con la filigrana del dorso al centro.
 function SpreadThumb(props: {
-  pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string
+  pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string; thumbH?: number
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
   onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
   onReorder: (from: number, to: number) => void
 }) {
-  const { pair, index, aspect, active, lite, formatKey, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onReorder } = props
+  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onReorder } = props
   const w = aspect * pair.length
   const [over, setOver] = useState<false | 'l' | 'r'>(false)
   return (
@@ -2208,7 +2235,7 @@ function SpreadThumb(props: {
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { const side = over; setOver(false); const raw = e.dataTransfer.getData('text/spread'); if (raw === '') return; e.preventDefault(); e.stopPropagation(); const from = Number(raw); if (Number.isNaN(from)) return; const to = side === 'r' ? index + 1 : index; if (to !== from && to !== from + 1) onReorder(from, to) }}>
       {over && <div className={`absolute top-0 bottom-0 w-1 rounded bg-[rgb(var(--gold-500))] z-10 ${over === 'l' ? '-left-1.5' : '-right-1.5'}`} />}
-      <button onClick={onSelect} className={`relative flex h-16 overflow-hidden border bg-white ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'} ${!lite ? 'cursor-grab active:cursor-grabbing' : ''}`} style={{ aspectRatio: String(w) }}>
+      <button onClick={onSelect} className={`relative flex overflow-hidden border bg-white ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'} ${!lite ? 'cursor-grab active:cursor-grabbing' : ''}`} style={{ height: thumbH, aspectRatio: String(w) }}>
         {pair[0]?.tavolaFree ? (
           <div className="relative h-full w-full"
             onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => { const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropMedia(pair[0]!.id, mid) } }}>
@@ -2438,6 +2465,21 @@ function CtxItem({ label, sk, onClick, disabled, danger }: { label: string; sk?:
   )
 }
 function CtxSep() { return <div className="my-1 h-px bg-[rgb(var(--border))]" /> }
+
+const clampPx = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
+// Maniglia di ridimensionamento (trascina): emette il delta incrementale in px sull'asse scelto.
+function DragSize({ axis, onResize, className }: { axis: 'x' | 'y'; onResize: (delta: number) => void; className?: string }) {
+  const last = useRef(0)
+  return (
+    <div role="separator" className={className}
+      onPointerDown={(e) => {
+        e.preventDefault(); last.current = axis === 'x' ? e.clientX : e.clientY
+        const move = (ev: PointerEvent) => { const cur = axis === 'x' ? ev.clientX : ev.clientY; onResize(cur - last.current); last.current = cur }
+        const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+        window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
+      }} />
+  )
+}
 
 function FreePanel(props: {
   page: AlbumPage; selEl: string | null; lite?: boolean
