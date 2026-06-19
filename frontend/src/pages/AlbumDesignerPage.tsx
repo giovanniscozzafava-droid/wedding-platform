@@ -266,7 +266,6 @@ function AlbumDesignerInner() {
   const [multiSel, setMultiSel] = useState<string[]>([])        // selezione multipla (Shift) sulla tavola
   const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
   const [gutterMm, setGutterMm] = useState(3) // margine (mm) tra le foto quando si applica una disposizione
-  const [cropElId, setCropElId] = useState<string | null>(null) // elemento libero in ritaglio
   const [cropSpread, setCropSpread] = useState<string | null>(null) // id pagina-sx in ritaglio foto a piena tavola
   // move/resize della cornice spread (trasformazione libera su due tavole)
   const spreadDrag = useRef<{ kind: 'move' | 'nw' | 'ne' | 'sw' | 'se'; sx: number; sy: number; w: number; h: number; id: string; f: { x: number; y: number; w: number; h: number } } | null>(null)
@@ -396,6 +395,10 @@ function AlbumDesignerInner() {
       const free = cur?.mode === 'free'
       if (mod && k === 'a' && free) { e.preventDefault(); selectAllFree(); return }
       if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return }
+      // CLIPBOARD stile Illustrator/InDesign: Cmd+C copia, Cmd+X taglia, Cmd+V incolla
+      if (mod && k === 'c' && free && (multiSel.length || selEl)) { e.preventDefault(); copySelToast(); return }
+      if (mod && k === 'x' && free && (multiSel.length || selEl)) { e.preventDefault(); cutSel(); return }
+      if (mod && k === 'v' && free && clipboard.current.length) { e.preventDefault(); pasteSel(); return }
       const sel = multiSel.length || selEl
       if (k === 'delete' || k === 'backspace') {
         // priorità al RIGHELLO selezionato (linea guida blu): Canc lo elimina
@@ -698,6 +701,40 @@ function AlbumDesignerInner() {
     const copy = { ...src, id: newPage().id, x: Math.min(0.9, src.x + 0.04), y: Math.min(0.9, src.y + 0.04), cell: { ...src.cell } }
     updatePage(pageId, (p) => ({ ...p, elements: bringToFront([...(p.elements ?? []), copy], copy.id) })); setSelEl(copy.id)
   }
+  // Z-ORDER + ADATTA (per il menu contestuale stile InDesign)
+  function freeBringFront(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: bringToFront(p.elements ?? [], id) })) }
+  function freeSendBack(pageId: string, id: string) { updatePage(pageId, (p) => { const els = p.elements ?? []; const el = els.find((e) => e.id === id); return el ? { ...p, elements: [el, ...els.filter((e) => e.id !== id)] } : p }) }
+  function freeFillFrame(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: (p.elements ?? []).map((e) => (e.id === id ? { ...e, cell: { ...DEFAULT_CELL } } : e)) })) }
+  function freeCenterContent(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: (p.elements ?? []).map((e) => (e.id === id ? { ...e, cell: { ...e.cell, fx: 0.5, fy: 0.5 } } : e)) })) }
+  // MENU CONTESTUALE (tasto destro su una foto)
+  const [ctxMenu, setCtxMenu] = useState<{ pageId: string; id: string; x: number; y: number } | null>(null)
+  function openCtx(pageId: string, id: string, x: number, y: number) { if (!multiSel.includes(id)) { setSelEl(id); setMultiSel([]) } setCtxMenu({ pageId, id, x, y }) }
+  // APRI IN PHOTOSHOP: (1) scarica l'ORIGINALE a piena risoluzione come file su disco, (2) tenta di
+  // AVVIARE Photoshop via protocol-handler `photoshop://`. Un'app web non può forzare l'apertura di
+  // un'app desktop se non tramite protocollo registrato: se Photoshop non parte da solo, il file è
+  // comunque scaricato (impostando Photoshop come app predefinita per i .jpg si apre col doppio clic).
+  async function openInPhotoshop(mediaId: string) {
+    const m = mediaById.get(mediaId); if (!m) { toast.error('Foto non disponibile'); return }
+    let url = hiUrl(m)
+    try {
+      if (isDrive(m) && entryId) {
+        const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId })
+        const grant = (data as string) ?? null
+        if (grant) url = hiResProxyUrl(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, grant, mediaId)
+      }
+    } catch { /* fallback all'URL hi */ }
+    // (1) scarica come file vero (fetch→blob→download). Se il CORS lo blocca, apre in una scheda.
+    try {
+      const r = await fetch(url); if (!r.ok) throw new Error('fetch')
+      const b = await r.blob()
+      const a = document.createElement('a'); const obj = URL.createObjectURL(b)
+      a.href = obj; a.download = `foto-${mediaId.slice(0, 8)}.jpg`; document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(obj), 15000)
+    } catch { window.open(url, '_blank') }
+    // (2) tenta di avviare Photoshop (protocol handler, best-effort: se non registrato, non fa nulla)
+    try { const f = document.createElement('iframe'); f.style.display = 'none'; f.src = 'photoshop://'; document.body.appendChild(f); setTimeout(() => f.remove(), 1500) } catch { /* ignora */ }
+    toast.message('Scarico l’originale e avvio Photoshop. Se non parte da solo, apri il file scaricato (imposta Photoshop come app predefinita per i .jpg).')
+  }
   function setPageBg(pageId: string, color: string) { updatePage(pageId, (p) => ({ ...p, bg: color })) }
   // ── layout personalizzati (salva la disposizione corrente, riapplicala dove vuoi) ──
   function saveCurLayout() {
@@ -804,6 +841,23 @@ function AlbumDesignerInner() {
   function selectAllFree() {
     if (!currentPageId) return; const page = pages.find((p) => p.id === currentPageId); if (!page || page.mode !== 'free') return
     const ids = (page.elements ?? []).map((e) => e.id); setMultiSel(ids); setSelEl(ids[ids.length - 1] ?? null)
+  }
+  // CLIPBOARD (Cmd+C/X/V): copia/taglia/incolla le foto selezionate, stile Illustrator/InDesign.
+  const clipboard = useRef<FreeEl[]>([])
+  function copySel(): number {
+    if (!currentPageId) return 0; const ids = selIds(); if (!ids.length) return 0
+    const page = pages.find((p) => p.id === currentPageId); if (!page) return 0
+    clipboard.current = (page.elements ?? []).filter((e) => ids.includes(e.id)).map((e) => ({ ...e, cell: { ...e.cell } }))
+    return clipboard.current.length
+  }
+  function copySelToast() { const n = copySel(); if (n) toast.success(n === 1 ? 'Foto copiata' : `${n} foto copiate`) }
+  function cutSel() { const n = copySel(); if (n) { deleteSel(); toast.success(n === 1 ? 'Foto tagliata' : `${n} foto tagliate`) } }
+  function pasteSel() {
+    if (!currentPageId || !clipboard.current.length) return
+    const copies = clipboard.current.map((e) => ({ ...e, id: newPage().id, x: Math.min(0.94, e.x + 0.03), y: Math.min(0.94, e.y + 0.03), cell: { ...e.cell } }))
+    updatePage(currentPageId, (p) => ({ ...p, mode: 'free' as const, elements: [...(p.elements ?? []), ...copies] }))
+    setMultiSel(copies.map((c) => c.id)); setSelEl(copies[copies.length - 1]!.id)
+    toast.success(copies.length === 1 ? 'Foto incollata' : `${copies.length} foto incollate`)
   }
   // riordino libero delle TAVOLE: inserimento alla posizione esatta indicata dal drop
   // (sinistra/destra della tavola di destinazione).
@@ -1294,8 +1348,8 @@ function AlbumDesignerInner() {
                             aspects={aspects} mediaById={mediaById} thumb={thumbUrl} locked={!!lp.frozen} selEl={!lp.frozen ? selEl : null} multiSel={!lp.frozen ? multiSel : []}
                             onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(lp.id, id, patch)}
                             onUpdateMany={(patches) => freeUpdateMany(lp.id, patches)}
-                            onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(lp.id, id)} onDuplicateEl={(id) => freeDuplicate(lp.id, id)}
-                            onDropMedia={(id) => freeAdd(lp.id, id)} onReplaceEl={(id, mid) => freeReplace(lp.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(lp.id, a, b)} />
+                            onRemove={(id) => freeRemove(lp.id, id)} onDuplicateEl={(id) => freeDuplicate(lp.id, id)}
+                            onDropMedia={(id) => freeAdd(lp.id, id)} onReplaceEl={(id, mid) => freeReplace(lp.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(lp.id, a, b)} onContext={(id, x, y) => openCtx(lp.id, id, x, y)} />
                         </div>
                       )
                     })() : spreadPages.map((p) => {
@@ -1309,8 +1363,8 @@ function AlbumDesignerInner() {
                               aspects={aspects} mediaById={mediaById} thumb={thumbUrl} locked={!!p.frozen} selEl={isAct && !p.frozen ? selEl : null} multiSel={isAct && !p.frozen ? multiSel : []}
                               onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(p.id, id, patch)}
                               onUpdateMany={(patches) => freeUpdateMany(p.id, patches)}
-                              onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(p.id, id)} onDuplicateEl={(id) => freeDuplicate(p.id, id)}
-                              onDropMedia={(id) => freeAdd(p.id, id)} onReplaceEl={(id, mid) => freeReplace(p.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(p.id, a, b)} />
+                              onRemove={(id) => freeRemove(p.id, id)} onDuplicateEl={(id) => freeDuplicate(p.id, id)}
+                              onDropMedia={(id) => freeAdd(p.id, id)} onReplaceEl={(id, mid) => freeReplace(p.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(p.id, a, b)} onContext={(id, x, y) => openCtx(p.id, id, x, y)} />
                           ) : (
                             <PageStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
                               aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={isAct ? activeSlot : null}
@@ -1437,7 +1491,7 @@ function AlbumDesignerInner() {
                   page={currentPage} selEl={selEl} lite={lite}
                   onBg={(c) => setPageBg(currentPage.id, c)}
                   onElUpdate={(id, patch) => freeUpdate(currentPage.id, id, patch)}
-                  onElCrop={(id) => setCropElId(id)} onElRemove={(id) => freeRemove(currentPage.id, id)}
+                  onElRemove={(id) => freeRemove(currentPage.id, id)}
                   onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
                   onSaveLayout={saveCurLayout}
                   presets={tavPresets} tavAspect={asp * 2} onApplyTavolaLayout={applyTavolaLayout}
@@ -1496,20 +1550,7 @@ function AlbumDesignerInner() {
             )
           })()}
 
-          {/* Ritaglio di un elemento libero */}
-          {currentPage && cropElId && (() => {
-            const el = (currentPage.elements ?? []).find((x) => x.id === cropElId)
-            const m = el ? mediaById.get(el.mediaId) : undefined
-            if (!el || !m) return null
-            return (
-              <CropModal
-                src={hiUrl(m)} imgAspect={aspects[m.id] ?? 1.5} slotAspect={(el.w * fmt.w) / (el.h * fmt.h)}
-                cell={el.cell}
-                onApply={(c) => { freeUpdate(currentPage.id, el.id, { cell: c }); setCropElId(null) }}
-                onClose={() => setCropElId(null)}
-              />
-            )
-          })()}
+          {/* (Ritaglio elemento libero: ora SOLO via navigatore inline nel pannello, non più modale) */}
 
           {/* Ritaglio della foto a PIENA TAVOLA (slot = 2 pagine affiancate) */}
           {cropSpread && (() => {
@@ -1523,6 +1564,34 @@ function AlbumDesignerInner() {
                 onApply={(c) => { updateSpreadCell(lp.id, c); setCropSpread(null) }}
                 onClose={() => setCropSpread(null)}
               />
+            )
+          })()}
+
+          {/* MENU CONTESTUALE (tasto destro su una foto) stile InDesign */}
+          {ctxMenu && (() => {
+            const cm = ctxMenu; const close = () => setCtxMenu(null); const run = (fn: () => void) => { fn(); close() }
+            const left = Math.min(cm.x, window.innerWidth - 232); const top = Math.min(cm.y, window.innerHeight - 372)
+            return (
+              <div className="fixed inset-0 z-[90]" onPointerDown={close} onContextMenu={(e) => { e.preventDefault(); close() }}>
+                <div className="absolute min-w-[210px] rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-xl py-1 text-sm" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
+                  <CtxItem label="Copia" sk="⌘C" onClick={() => run(copySelToast)} />
+                  <CtxItem label="Taglia" sk="⌘X" onClick={() => run(cutSel)} />
+                  <CtxItem label="Incolla" sk="⌘V" disabled={!clipboard.current.length} onClick={() => run(pasteSel)} />
+                  <CtxItem label="Duplica" sk="⌘D" onClick={() => run(duplicateSel)} />
+                  <CtxSep />
+                  <CtxItem label="Apri in Photoshop" onClick={() => run(() => void openInPhotoshop(cm.id))} />
+                  <CtxItem label="Ritaglia la foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]) })} />
+                  <CtxItem label="Sostituisci foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]); toast.message('Trascina una foto dalla libreria sopra questa per sostituirla.') })} />
+                  <CtxSep />
+                  <CtxItem label="Riempi la cornice" onClick={() => run(() => freeFillFrame(cm.pageId, cm.id))} />
+                  <CtxItem label="Centra il contenuto" onClick={() => run(() => freeCenterContent(cm.pageId, cm.id))} />
+                  <CtxSep />
+                  <CtxItem label="Porta in primo piano" onClick={() => run(() => freeBringFront(cm.pageId, cm.id))} />
+                  <CtxItem label="Porta in fondo" onClick={() => run(() => freeSendBack(cm.pageId, cm.id))} />
+                  <CtxSep />
+                  <CtxItem label="Elimina" sk="⌫" danger onClick={() => run(deleteSel)} />
+                </div>
+              </div>
             )
           })()}
 
@@ -1843,13 +1912,14 @@ function FreeStage(props: {
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; selEl: string | null; multiSel: string[]
   onSelect: (id: string | null, additive?: boolean) => void; onUpdateEl: (id: string, patch: Partial<FreeEl>) => void
   onUpdateMany: (patches: { id: string; patch: Partial<FreeEl> }[]) => void
-  onCrop: (id: string) => void; onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
+  onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
   onReplaceEl: (id: string, mediaId: string) => void   // drop di una foto SOPRA un'altra → sostituisce
   onSwapEls?: (a: string, b: string) => void           // trascina (senza Shift) una foto su un'altra → SCAMBIA
+  onContext?: (id: string, x: number, y: number) => void // tasto destro su una foto → menu contestuale
   locked?: boolean   // libera "uscita": mostra la composizione identica ma non editabile a mano
   spread?: boolean   // TAVOLA UNICA: superficie larga 2×W (la riga centrale è solo la piega)
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, locked, spread } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, onContext, locked, spread } = props
   const fmt = getFormat(formatKey)
   const effW = spread ? fmt.w * 2 : fmt.w
   const aspect = effW / fmt.h
@@ -2011,7 +2081,8 @@ function FreeStage(props: {
           <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : inSel ? 10 : 1 }}>
             <div
               onPointerDown={locked ? undefined : (e) => down(e, 'move', el)}
-              onDoubleClick={locked ? undefined : (e) => { e.stopPropagation(); onCrop(el.id) }}
+              onContextMenu={locked || !onContext ? undefined : (e) => { e.preventDefault(); e.stopPropagation(); onContext(el.id, e.clientX, e.clientY) }}
+              onDoubleClick={locked ? undefined : (e) => { e.stopPropagation(); onSelect(el.id) }}
               onDragOver={locked ? undefined : (e) => { if (e.dataTransfer.types.includes('text/media')) { e.preventDefault(); e.stopPropagation(); if (dropId !== el.id) setDropId(el.id) } }}
               onDragLeave={locked ? undefined : () => setDropId((d) => (d === el.id ? null : d))}
               onDrop={locked ? undefined : (e) => { const mid = e.dataTransfer.getData('text/media'); setDropId(null); if (mid) { e.preventDefault(); e.stopPropagation(); onReplaceEl(el.id, mid) } }}
@@ -2038,7 +2109,6 @@ function FreeStage(props: {
                 })}
                 <div onPointerDown={(e) => down(e, 'rotate', el)} className="absolute left-1/2 -top-6 -translate-x-1/2 h-4 w-4 bg-white border border-[rgb(var(--gold-500))] rounded-full touch-none cursor-grab flex items-center justify-center"><RotateCw size={9} /></div>
                 <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1" style={{ transform: `rotate(${-el.rot}deg)` }}>
-                  <button title="Ritaglia" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onCrop(el.id) }}><Crop size={12} /></button>
                   <button title="Duplica" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDuplicateEl(el.id) }}><Copy size={12} /></button>
                   <button title="Elimina" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onRemove(el.id) }}><Trash2 size={12} /></button>
                 </div>
@@ -2358,10 +2428,21 @@ function PropsPanel(props: {
 }
 
 // Pannello proprietà in modalità LIBERA (Canva): sfondo pagina + trasformazioni elemento.
+// Voce del menu contestuale (tasto destro).
+function CtxItem({ label, sk, onClick, disabled, danger }: { label: string; sk?: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
+  return (
+    <button disabled={disabled} onClick={onClick}
+      className={`w-full text-left px-3 py-1.5 flex items-center justify-between gap-6 ${disabled ? 'opacity-40 cursor-default' : danger ? 'text-rose-500 hover:bg-rose-500/10' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>
+      <span>{label}</span>{sk && <span className="text-[11px] text-[rgb(var(--fg-subtle))] tabular-nums">{sk}</span>}
+    </button>
+  )
+}
+function CtxSep() { return <div className="my-1 h-px bg-[rgb(var(--border))]" /> }
+
 function FreePanel(props: {
   page: AlbumPage; selEl: string | null; lite?: boolean
   onBg: (c: string) => void; onElUpdate: (id: string, patch: Partial<FreeEl>) => void
-  onElCrop: (id: string) => void; onElRemove: (id: string) => void
+  onElRemove: (id: string) => void
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void; onSaveLayout?: () => void
   presets?: GenLayout[]; tavAspect?: number; onApplyTavolaLayout?: (slots: Slot[]) => void
   myPresets?: SavedLayout[]; onApplySaved?: (l: SavedLayout) => void; onDeleteSaved?: (id: string) => void
@@ -2370,7 +2451,7 @@ function FreePanel(props: {
   gutterMm?: number; onGutter?: (mm: number) => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElCrop, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, onUniformGaps, gutterMm, onGutter, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, onUniformGaps, gutterMm, onGutter, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -2456,7 +2537,6 @@ function FreePanel(props: {
       {el ? (
         <div className="border-t border-[rgb(var(--border))] pt-3 space-y-2">
           <p className="font-medium flex items-center gap-1.5"><Move size={14} /> Foto</p>
-          <Button variant="gold" size="sm" className="w-full" onClick={() => onElCrop(el.id)}><Crop size={14} /> Ritaglia</Button>
           <Button variant="outline" size="sm" className="w-full" onClick={() => onElUpdate(el.id, { x: 0, y: 0, w: 1, h: 1, rot: 0 })}><Maximize size={14} /> Riempi tutta la tavola</Button>
           <label className="text-xs text-[rgb(var(--fg-muted))] flex items-center gap-1"><RotateCw size={12} /> Rotazione <strong>{Math.round(el.rot)}°</strong></label>
           <input type="range" min={0} max={360} value={Math.round(el.rot)} onChange={(e) => onElUpdate(el.id, { rot: +e.target.value })} className="w-full accent-[rgb(var(--gold-600))]" />
