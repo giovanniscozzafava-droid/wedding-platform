@@ -297,7 +297,9 @@ function TierBar({ tier, current, count, threshold, maxThreshold }: { tier: 'BRO
   const reached = count >= threshold
   const isCurrent = current === tier
   const max = maxThreshold ?? (count + 10)
-  const pct = Math.min(100, Math.max(0, ((count - threshold) / (max - threshold + 1)) * 100))
+  // la barra deve arrivare a 100% quando count raggiunge maxThreshold (fine del tier): il
+  // denominatore è (max - threshold), non +1 (che bloccava la barra a ~89% in cima al tier).
+  const pct = Math.min(100, Math.max(0, ((count - threshold) / Math.max(1, max - threshold)) * 100))
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
