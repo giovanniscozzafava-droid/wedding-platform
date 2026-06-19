@@ -718,6 +718,10 @@ function AlbumDesignerInner() {
   // Z-ORDER + ADATTA (per il menu contestuale stile InDesign)
   function freeBringFront(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: bringToFront(p.elements ?? [], id) })) }
   function freeSendBack(pageId: string, id: string) { updatePage(pageId, (p) => { const els = p.elements ?? []; const el = els.find((e) => e.id === id); return el ? { ...p, elements: [el, ...els.filter((e) => e.id !== id)] } : p }) }
+  // riordino di UN passo (pannello Livelli): dir +1 = verso il davanti, -1 = verso il fondo.
+  function freeReorderOne(pageId: string, id: string, dir: -1 | 1) {
+    updatePage(pageId, (p) => { const els = [...(p.elements ?? [])]; const i = els.findIndex((e) => e.id === id); const j = i + dir; if (i < 0 || j < 0 || j >= els.length) return p; const t = els[i]!; els[i] = els[j]!; els[j] = t; return { ...p, elements: els } })
+  }
   function freeFillFrame(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: (p.elements ?? []).map((e) => (e.id === id ? { ...e, cell: { ...DEFAULT_CELL } } : e)) })) }
   function freeCenterContent(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: (p.elements ?? []).map((e) => (e.id === id ? { ...e, cell: { ...e.cell, fx: 0.5, fy: 0.5 } } : e)) })) }
   // MENU CONTESTUALE (tasto destro su una foto)
@@ -748,6 +752,30 @@ function AlbumDesignerInner() {
     // (2) tenta di avviare Photoshop (protocol handler, best-effort: se non registrato, non fa nulla)
     try { const f = document.createElement('iframe'); f.style.display = 'none'; f.src = 'photoshop://'; document.body.appendChild(f); setTimeout(() => f.remove(), 1500) } catch { /* ignora */ }
     toast.message('Scarico l’originale e avvio Photoshop. Se non parte da solo, apri il file scaricato (imposta Photoshop come app predefinita per i .jpg).')
+  }
+  // ROUND-TRIP: carica il file MODIFICATO (salvato da Photoshop), lo uppa su Planfully e SOSTITUISCE
+  // la foto nell'elemento → te lo ritrovi nella tavola e in libreria. (Il browser non può fare
+  // l'upload automatico dopo il salvataggio in PS: serve scegliere il file salvato.)
+  const psFileRef = useRef<HTMLInputElement>(null)
+  const psTarget = useRef<{ pageId: string; elId: string } | null>(null)
+  async function replaceElWithFile(pageId: string, elId: string, file: File) {
+    if (!entryId) return
+    if (!file.type.startsWith('image/')) { toast.error('Serve un file immagine'); return }
+    setImporting({ done: 0, total: 1 })
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+      const path = `${entryId}/album/${crypto.randomUUID()}.${ext}`
+      const up = await supabase.storage.from('event-guest-uploads').upload(path, file, { upsert: false, contentType: file.type || undefined })
+      if (up.error) throw up.error
+      const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
+      const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: 'PHOTO', p_moment: null })
+      if (error) throw error
+      const newId = (data as { id?: string } | null)?.id
+      if (!newId) throw new Error('upload non riuscito')
+      setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: null }])
+      freeReplace(pageId, elId, newId)
+      toast.success('Versione modificata caricata e inserita nella tavola')
+    } catch (e) { toast.error('Caricamento non riuscito: ' + (e as Error).message) } finally { setImporting(null) }
   }
   function setPageBg(pageId: string, color: string) { updatePage(pageId, (p) => ({ ...p, bg: color })) }
   // ── layout personalizzati (salva la disposizione corrente, riapplicala dove vuoi) ──
@@ -1525,6 +1553,9 @@ function AlbumDesignerInner() {
                   myPresets={myTavPresets} onApplySaved={applySavedToTavola} onDeleteSaved={removeLayout}
                   selCount={multiSel.length} onAlign={alignSel} onDistribute={distributeSel} onUniformGaps={uniformGapsSel}
                   gutterMm={gutterMm} onGutter={setGutterMm}
+                  layers={[...(currentPage.elements ?? [])].reverse().map((e) => { const m = mediaById.get(e.mediaId); return { id: e.id, thumb: m ? thumbUrl(m) : '' } })}
+                  onSelectEl={(id) => { setSelEl(id); setMultiSel([]) }}
+                  onReorderEl={(id, dir) => freeReorderOne(currentPage.id, id, dir)}
                   crop={(() => {
                     const el = (currentPage.elements ?? []).find((e) => e.id === selEl)
                     const m = el ? mediaById.get(el.mediaId) : undefined
@@ -1607,6 +1638,7 @@ function AlbumDesignerInner() {
                   <CtxItem label="Duplica" sk="⌘D" onClick={() => run(duplicateSel)} />
                   <CtxSep />
                   <CtxItem label="Apri in Photoshop" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) void openInPhotoshop(el.mediaId) })} />
+                  <CtxItem label="Carica versione modificata" onClick={() => run(() => { psTarget.current = { pageId: cm.pageId, elId: cm.id }; psFileRef.current?.click() })} />
                   <CtxItem label="Ritaglia la foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]) })} />
                   <CtxItem label="Sostituisci foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]); toast.message('Trascina una foto dalla libreria sopra questa per sostituirla.') })} />
                   <CtxSep />
@@ -1621,6 +1653,10 @@ function AlbumDesignerInner() {
               </div>
             )
           })()}
+
+          {/* input nascosto: file modificato in Photoshop → upload + sostituzione nell'elemento */}
+          <input ref={psFileRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; const t = psTarget.current; psTarget.current = null; if (f && t) void replaceElWithFile(t.pageId, t.elId, f) }} />
 
           {/* Richieste di modifica: il cliente scrive, il fotografo le segna fatte */}
           {revOpen && (
@@ -2491,9 +2527,10 @@ function FreePanel(props: {
   selCount?: number; onAlign?: (k: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'bottom') => void; onDistribute?: (a: 'h' | 'v') => void
   onUniformGaps?: () => void
   gutterMm?: number; onGutter?: (mm: number) => void
+  layers?: { id: string; thumb: string }[]; onSelectEl?: (id: string) => void; onReorderEl?: (id: string, dir: -1 | 1) => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, onUniformGaps, gutterMm, onGutter, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, onUniformGaps, gutterMm, onGutter, layers, onSelectEl, onReorderEl, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -2505,6 +2542,26 @@ function FreePanel(props: {
           <input type="color" value={page.bg ?? '#ffffff'} onChange={(e) => onBg(e.target.value)} className="h-7 w-7 rounded cursor-pointer" title="Colore personalizzato" />
         </div>
       </div>
+
+      {/* LIVELLI: pila delle foto della tavola (in alto = davanti). Seleziona, riordina, elimina. */}
+      {!lite && layers && layers.length > 0 && (
+        <div className="border-t border-[rgb(var(--border))] pt-3">
+          <p className="font-medium mb-1.5 flex items-center gap-1.5"><LayoutGrid size={14} /> Livelli <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({layers.length})</span></p>
+          <ul className="space-y-1 max-h-64 overflow-auto">
+            {layers.map((l, i) => (
+              <li key={l.id} className={`flex items-center gap-1.5 rounded px-1 py-1 ${selEl === l.id ? 'bg-[rgb(var(--gold-100))] ring-1 ring-[rgb(var(--gold-400))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                <button onClick={() => onSelectEl?.(l.id)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                  {l.thumb ? <img src={l.thumb} alt="" className="h-8 w-8 rounded object-cover border border-[rgb(var(--border))] shrink-0" /> : <span className="h-8 w-8 rounded bg-[rgb(var(--bg-sunken))] shrink-0" />}
+                  <span className="text-[11px] truncate">Livello {layers.length - i}</span>
+                </button>
+                <button title="Porta avanti" disabled={i === 0} onClick={() => onReorderEl?.(l.id, 1)} className="px-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] disabled:opacity-25">↑</button>
+                <button title="Porta indietro" disabled={i === layers.length - 1} onClick={() => onReorderEl?.(l.id, -1)} className="px-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] disabled:opacity-25">↓</button>
+                <button title="Elimina" onClick={() => onElRemove(l.id)} className="px-1 text-[rgb(var(--fg-subtle))] hover:text-rose-500"><Trash2 size={12} /></button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ALLINEA / DISTRIBUISCI la selezione multipla (impaginatore pro) */}
       {!lite && onAlign && (selCount ?? 0) >= 2 && (
