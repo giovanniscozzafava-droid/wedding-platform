@@ -1,4 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X } from 'lucide-react'
@@ -253,6 +254,7 @@ function AlbumDesignerInner() {
   const [previewIdx, setPreviewIdx] = useState(0)
   // vista cliente mobile-first
   const [clientIdx, setClientIdx] = useState(0)
+  const [flipDir, setFlipDir] = useState(1) // direzione dello sfoglio (1 avanti, -1 indietro) per il flip cliente
   const [clientReqOpen, setClientReqOpen] = useState(false)
   const [zoomSpread, setZoomSpread] = useState<number | null>(null)
   const [reqListOpen, setReqListOpen] = useState(false)
@@ -1112,6 +1114,7 @@ function AlbumDesignerInner() {
   if (lite) {
     const myOpen = revList.filter((r) => r.status === 'OPEN').length
     const tavPins = (si: number) => revList.filter((r) => r.anchor_x != null && r.tavola_index === si)
+    const goSpread = (d: number) => { const n = Math.min(spreads.length - 1, Math.max(0, clientIdx + d)); if (n !== clientIdx) { setFlipDir(d > 0 ? 1 : -1); setClientIdx(n) } }
     // NB: funzione (non componente <SpreadView/>): definirla inline come componente la rimonterebbe
     // a ogni render → la textarea del post-it perderebbe il focus a ogni tasto.
     const renderSpread = ({ pair, si, max, interactive }: { pair: AlbumPage[]; si: number; max: string; interactive?: boolean }) => (
@@ -1121,6 +1124,9 @@ function AlbumDesignerInner() {
           : pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={hiUrl} /></div>)}
         {!pair[0]?.tavolaFree && pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} /> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-black/10 pointer-events-none" />}
+        {/* NUMERI DI PAGINA (sinistra/destra), visibili al cliente */}
+        <span className="absolute bottom-1.5 left-2.5 text-[10px] text-black/45 tabular-nums pointer-events-none select-none">{si * 2 + 1}</span>
+        <span className="absolute bottom-1.5 right-2.5 text-[10px] text-black/45 tabular-nums pointer-events-none select-none">{si * 2 + 2}</span>
         <PostitLayer
           pins={tavPins(si)} openId={interactive ? openPin : null} onOpen={interactive ? setOpenPin : () => {}}
           canPlace={!!interactive && isCouple}
@@ -1191,19 +1197,34 @@ function AlbumDesignerInner() {
           </div>
         ) : (
           <>
-            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory"
-              onScroll={(e) => { const el = e.currentTarget; setClientIdx(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }}>
-              {spreads.map((pair, si) => (
-                <div key={si} className="shrink-0 w-full snap-center flex items-center justify-center p-4">
-                  <button onClick={() => setZoomSpread(si)} className="w-full" title="Tocca per ingrandire e lasciare un post-it">{renderSpread({ pair, si, max: 'min(94vw, 680px)' })}</button>
-                </div>
-              ))}
-            </div>
+            {/* READER SFOGLIABILE: una tavola alla volta, con effetto pagina che gira (flip 3D) +
+                swipe/trascinamento. Le frecce ai lati cambiano pagina. */}
+            {(() => { const ci = Math.min(clientIdx, spreads.length - 1); const pair = spreads[ci]!; return (
+              <div className="flex-1 min-h-0 relative overflow-hidden flex items-center justify-center select-none" style={{ perspective: 2000 }}>
+                <AnimatePresence initial={false} custom={flipDir} mode="popLayout">
+                  <motion.div key={ci} custom={flipDir}
+                    variants={{
+                      enter: (d: number) => ({ rotateY: d > 0 ? -85 : 85, x: d > 0 ? 50 : -50, opacity: 0 }),
+                      center: { rotateY: 0, x: 0, opacity: 1 },
+                      exit: (d: number) => ({ rotateY: d > 0 ? 85 : -85, x: d > 0 ? -50 : 50, opacity: 0 }),
+                    }}
+                    initial="enter" animate="center" exit="exit" transition={{ duration: 0.5, ease: [0.22, 0.61, 0.36, 1] }}
+                    drag="x" dragSnapToOrigin dragElastic={0.16} dragConstraints={{ left: 0, right: 0 }}
+                    onDragEnd={(_e, info) => { if (info.offset.x < -60) goSpread(1); else if (info.offset.x > 60) goSpread(-1) }}
+                    className="absolute inset-0 flex items-center justify-center p-4"
+                    style={{ transformStyle: 'preserve-3d', transformOrigin: flipDir > 0 ? 'left center' : 'right center', cursor: 'grab' }}>
+                    <button onClick={() => setZoomSpread(ci)} className="w-full" title="Tocca per ingrandire e lasciare un post-it">{renderSpread({ pair, si: ci, max: 'min(94vw, 680px)' })}</button>
+                  </motion.div>
+                </AnimatePresence>
+                {ci > 0 && <button onClick={() => goSpread(-1)} title="Pagina precedente" className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-start pl-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:bg-black/[0.03]"><ChevronLeft size={26} /></button>}
+                {ci < spreads.length - 1 && <button onClick={() => goSpread(1)} title="Pagina successiva" className="absolute right-0 top-0 bottom-0 w-12 flex items-center justify-end pr-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:bg-black/[0.03]"><ChevronRight size={26} /></button>}
+              </div>
+            ) })()}
             <div className="sticky bottom-0 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-4 py-2 flex flex-col gap-1.5">
-              <p className="text-center text-[11px] text-[rgb(var(--fg-muted))]">Tocca una tavola e poi una foto per lasciare un <span className="text-amber-600 font-medium">post-it</span> al fotografo</p>
+              <p className="text-center text-[11px] text-[rgb(var(--fg-muted))]">Sfoglia con le frecce o trascinando · tocca una pagina per il post-it</p>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-[rgb(var(--fg-muted))] tabular-nums w-20">Tav. {clientIdx + 1}/{spreads.length}</span>
-                <div className="flex-1 flex justify-center gap-1">{spreads.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === clientIdx ? 'w-4 bg-[rgb(var(--gold-500))]' : 'w-1.5 bg-[rgb(var(--border))]'}`} />)}</div>
+                <span className="text-xs text-[rgb(var(--fg-muted))] tabular-nums w-24">Pag. {clientIdx * 2 + 1}–{clientIdx * 2 + 2}</span>
+                <div className="flex-1 flex justify-center gap-1 flex-wrap">{spreads.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === clientIdx ? 'w-4 bg-[rgb(var(--gold-500))]' : 'w-1.5 bg-[rgb(var(--border))]'}`} />)}</div>
                 <Button variant="gold" size="sm" onClick={() => setZoomSpread(clientIdx)}><MessageSquare size={14} /> Post-it</Button>
               </div>
             </div>
@@ -1214,7 +1235,7 @@ function AlbumDesignerInner() {
         {zoomSpread != null && spreads[zoomSpread] && (
           <div className="fixed inset-0 z-[80] bg-black/90 flex flex-col" onClick={() => { setZoomSpread(null); setPlacing(null); setOpenPin(null) }}>
             <div className="flex items-center justify-between px-4 py-2 text-white" onClick={(e) => e.stopPropagation()}>
-              <span className="text-sm">Tavola {zoomSpread + 1}</span>
+              <span className="text-sm">Pagine {zoomSpread * 2 + 1}–{zoomSpread * 2 + 2}</span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="!text-white !border-white/30" onClick={() => { setClientIdx(zoomSpread); setClientReqOpen(true) }}><MessageSquare size={14} /> Nota generale</Button>
                 <button onClick={() => { setZoomSpread(null); setPlacing(null); setOpenPin(null) }} className="p-1.5 rounded hover:bg-white/10"><X size={20} className="text-white" /></button>
@@ -1232,7 +1253,7 @@ function AlbumDesignerInner() {
           <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setClientReqOpen(false)}>
             <div className="bg-[rgb(var(--bg))] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
               <p className="font-medium flex items-center gap-2"><MessageSquare size={16} /> Richiedi una modifica</p>
-              <p className="text-xs text-[rgb(var(--fg-muted))]">Riferita alla <strong>Tavola {clientIdx + 1}</strong>. Scrivi cosa vorresti cambiare (foto, posizione, ritaglio…): il fotografo la sistema.</p>
+              <p className="text-xs text-[rgb(var(--fg-muted))]">Riferita alle <strong>pagine {clientIdx * 2 + 1}–{clientIdx * 2 + 2}</strong>. Scrivi cosa vorresti cambiare (foto, posizione, ritaglio…): il fotografo la sistema.</p>
               <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={4} autoFocus placeholder="Es. Nella tavola 3, sposterei la foto grande a sinistra…" className="w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setClientReqOpen(false)}>Annulla</Button>
