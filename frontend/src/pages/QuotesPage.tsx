@@ -1,7 +1,7 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,6 +45,19 @@ export default function QuotesPage() {
       setActivity(((r as { map?: Record<string, Act> })?.map) ?? {})
     })()
   }, [data])
+  // Filtri lista: ricerca per nome (cliente/titolo) + stato accettati / non accettati.
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'accepted' | 'not'>('all')
+  const filtered = useMemo(() => {
+    const ACCEPTED = new Set(['ACCETTATO', 'CONVERTITO_IN_CONTRATTO'])
+    const q = search.trim().toLowerCase()
+    return (data ?? []).filter((x) => {
+      if (statusFilter === 'accepted' && !ACCEPTED.has(x.status)) return false
+      if (statusFilter === 'not' && ACCEPTED.has(x.status)) return false
+      if (q && !`${x.title ?? ''} ${x.client_name ?? ''}`.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [data, search, statusFilter])
   const create = useCreateQuote()
   const del = useDeleteQuote()
   const nav = useNavigate()
@@ -135,8 +148,26 @@ export default function QuotesPage() {
           </div>
         )}
 
+        {!isLoading && (data ?? []).length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--fg-subtle))]" />
+              <Input className="pl-9" placeholder="Cerca per nome cliente o titolo…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-1">
+              {(([['all', 'Tutti'], ['accepted', 'Accettati'], ['not', 'Non accettati']]) as ['all' | 'accepted' | 'not', string][]).map(([k, l]) => (
+                <button key={k} onClick={() => setStatusFilter(k)} className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap ${statusFilter === k ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{l}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isLoading && (data ?? []).length > 0 && filtered.length === 0 && (
+          <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun preventivo corrisponde ai filtri.</p>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(data ?? []).map((q, idx) => (
+          {filtered.map((q, idx) => (
             <motion.div key={q.id} data-testid={`quote-${q.id}`}
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(idx * 0.02, 0.3) }}
             >
