@@ -678,6 +678,20 @@ function AlbumDesignerInner() {
   // Trascinando una foto SOPRA una foto già presente, la SOSTITUISCE: resta posizione/dimensione/
   // rotazione del riquadro, cambia solo la foto (ritaglio azzerato così la nuova riempie il riquadro).
   function freeReplace(pageId: string, id: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, elements: (p.elements ?? []).map((e) => (e.id === id ? { ...e, mediaId, cell: { ...DEFAULT_CELL } } : e)) })) }
+  // SCAMBIA due foto della tavola: si scambiano contenuto (foto + ritaglio + bordo/ombra) mantenendo
+  // ciascuna il proprio riquadro (posizione/dimensione/rotazione). Usato dal drag senza Shift.
+  function freeSwapEls(pageId: string, idA: string, idB: string) {
+    updatePage(pageId, (p) => {
+      const els = p.elements ?? []
+      const a = els.find((e) => e.id === idA), b = els.find((e) => e.id === idB)
+      if (!a || !b) return p
+      return { ...p, elements: els.map((e) => {
+        if (e.id === idA) return { ...e, mediaId: b.mediaId, cell: { ...b.cell }, border: b.border, shadow: b.shadow }
+        if (e.id === idB) return { ...e, mediaId: a.mediaId, cell: { ...a.cell }, border: a.border, shadow: a.shadow }
+        return e
+      }) }
+    })
+  }
   function freeRemove(pageId: string, id: string) { updatePage(pageId, (p) => ({ ...p, elements: removeFreeEl(p.elements ?? [], id) })); if (selEl === id) setSelEl(null); setMultiSel((s) => s.filter((x) => x !== id)) }
   function freeDuplicate(pageId: string, id: string) {
     const src = pages.find((p) => p.id === pageId)?.elements?.find((e) => e.id === id); if (!src) return
@@ -1281,7 +1295,7 @@ function AlbumDesignerInner() {
                             onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(lp.id, id, patch)}
                             onUpdateMany={(patches) => freeUpdateMany(lp.id, patches)}
                             onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(lp.id, id)} onDuplicateEl={(id) => freeDuplicate(lp.id, id)}
-                            onDropMedia={(id) => freeAdd(lp.id, id)} onReplaceEl={(id, mid) => freeReplace(lp.id, id, mid)} />
+                            onDropMedia={(id) => freeAdd(lp.id, id)} onReplaceEl={(id, mid) => freeReplace(lp.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(lp.id, a, b)} />
                         </div>
                       )
                     })() : spreadPages.map((p) => {
@@ -1296,7 +1310,7 @@ function AlbumDesignerInner() {
                               onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(p.id, id, patch)}
                               onUpdateMany={(patches) => freeUpdateMany(p.id, patches)}
                               onCrop={(id) => setCropElId(id)} onRemove={(id) => freeRemove(p.id, id)} onDuplicateEl={(id) => freeDuplicate(p.id, id)}
-                              onDropMedia={(id) => freeAdd(p.id, id)} onReplaceEl={(id, mid) => freeReplace(p.id, id, mid)} />
+                              onDropMedia={(id) => freeAdd(p.id, id)} onReplaceEl={(id, mid) => freeReplace(p.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(p.id, a, b)} />
                           ) : (
                             <PageStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
                               aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={isAct ? activeSlot : null}
@@ -1831,19 +1845,24 @@ function FreeStage(props: {
   onUpdateMany: (patches: { id: string; patch: Partial<FreeEl> }[]) => void
   onCrop: (id: string) => void; onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
   onReplaceEl: (id: string, mediaId: string) => void   // drop di una foto SOPRA un'altra → sostituisce
+  onSwapEls?: (a: string, b: string) => void           // trascina (senza Shift) una foto su un'altra → SCAMBIA
   locked?: boolean   // libera "uscita": mostra la composizione identica ma non editabile a mano
   spread?: boolean   // TAVOLA UNICA: superficie larga 2×W (la riga centrale è solo la piega)
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, locked, spread } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onCrop, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, locked, spread } = props
   const fmt = getFormat(formatKey)
   const effW = spread ? fmt.w * 2 : fmt.w
   const aspect = effW / fmt.h
   const mx = MARGIN_MM / effW, my = MARGIN_MM / fmt.h
   const boxRef = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate' | 'gresize'; id: string; corner?: Corner | 'n' | 's' | 'e' | 'w'; sx: number; sy: number; el: FreeEl; group: FreeEl[]; anchor?: { x: number; y: number }; h0?: { x: number; y: number }; gAxes?: { x: boolean; y: boolean } } | null>(null)
+  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate' | 'gresize'; id: string; corner?: Corner | 'n' | 's' | 'e' | 'w'; sx: number; sy: number; el: FreeEl; group: FreeEl[]; anchor?: { x: number; y: number }; h0?: { x: number; y: number }; gAxes?: { x: boolean; y: boolean }; swap?: boolean; swapTo?: string | null } | null>(null)
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
   const [gapMarks, setGapMarks] = useState<GapMark[]>([])
   const [dropId, setDropId] = useState<string | null>(null) // foto sotto il cursore durante un drop (sostituzione)
+  // SCAMBIO: trascinando una foto SENZA Shift, evidenzia quella sotto il cursore e al rilascio le
+  // due si scambiano (la foto presa = swapSrc, il bersaglio = swapTarget). Con Shift: spostamento libero.
+  const [swapSrc, setSwapSrc] = useState<string | null>(null)
+  const [swapTarget, setSwapTarget] = useState<string | null>(null)
   const els = page.elements ?? []
 
   function frac(e: React.PointerEvent) {
@@ -1855,7 +1874,11 @@ function FreeStage(props: {
     if (kind === 'move' && e.shiftKey) { onSelect(el.id, true) } else if (!multiSel.includes(el.id)) { onSelect(el.id) }
     const inGroup = kind === 'move' && multiSel.length > 1 && multiSel.includes(el.id)
     const group = inGroup ? els.filter((x) => multiSel.includes(x.id)) : [el]
-    const f = frac(e); drag.current = { kind, id: el.id, corner, sx: f.x, sy: f.y, el, group }
+    // SENZA Shift su una singola foto → modalità SCAMBIO (trascina su un'altra → si scambiano).
+    // CON Shift (o gruppo) → spostamento libero, come prima.
+    const swapMode = kind === 'move' && !e.shiftKey && !inGroup
+    const f = frac(e); drag.current = { kind, id: el.id, corner, sx: f.x, sy: f.y, el, group, swap: swapMode, swapTo: null }
+    if (swapMode) { setSwapSrc(el.id); setSwapTarget(null) }
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   // Resize di GRUPPO: scala insieme tutte le foto selezionate, attorno all'angolo opposto
@@ -1878,6 +1901,15 @@ function FreeStage(props: {
   function move(e: React.PointerEvent) {
     const d = drag.current; if (!d) return
     const f = frac(e)
+    if (d.kind === 'move' && d.swap) {
+      // SCAMBIO: non sposto la foto; evidenzio quella sotto il cursore (la più in alto). Lo scambio
+      // avviene al rilascio.
+      let target: string | null = null
+      for (let i = els.length - 1; i >= 0; i--) { const x = els[i]!; if (x.id !== d.id && f.x >= x.x && f.x <= x.x + x.w && f.y >= x.y && f.y <= x.y + x.h) { target = x.id; break } }
+      d.swapTo = target
+      setSwapTarget(target)
+      return
+    }
     if (d.kind === 'move') {
       const nx = d.el.x + (f.x - d.sx), ny = d.el.y + (f.y - d.sy)
       const moved = moveEl(d.el, nx, ny)
@@ -1957,7 +1989,11 @@ function FreeStage(props: {
       onUpdateEl(d.id, { rot: snapAngle(deg) })
     }
   }
-  function up() { drag.current = null; setGuides({ v: [], h: [] }); setGapMarks([]) }
+  function up() {
+    const d = drag.current
+    if (d?.swap && d.swapTo && d.swapTo !== d.id) onSwapEls?.(d.id, d.swapTo)
+    drag.current = null; setGuides({ v: [], h: [] }); setGapMarks([]); setSwapSrc(null); setSwapTarget(null)
+  }
 
   return (
     <div ref={boxRef} className="relative shadow-[var(--shadow-lift)] h-full max-h-full max-w-full overflow-hidden"
@@ -1979,7 +2015,7 @@ function FreeStage(props: {
               onDragOver={locked ? undefined : (e) => { if (e.dataTransfer.types.includes('text/media')) { e.preventDefault(); e.stopPropagation(); if (dropId !== el.id) setDropId(el.id) } }}
               onDragLeave={locked ? undefined : () => setDropId((d) => (d === el.id ? null : d))}
               onDrop={locked ? undefined : (e) => { const mid = e.dataTransfer.getData('text/media'); setDropId(null); if (mid) { e.preventDefault(); e.stopPropagation(); onReplaceEl(el.id, mid) } }}
-              className={`w-full h-full relative overflow-hidden ${locked ? '' : 'touch-none cursor-move'} ${sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : inSel ? 'outline outline-2 outline-dashed outline-[rgb(var(--gold-400))]' : ''}`}
+              className={`w-full h-full relative overflow-hidden transition-[transform,opacity] ${locked ? '' : 'touch-none cursor-move'} ${swapTarget === el.id ? 'outline outline-[3px] outline-[rgb(var(--gold-600))] ring-4 ring-[rgba(184,146,63,.4)]' : sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : inSel ? 'outline outline-2 outline-dashed outline-[rgb(var(--gold-400))]' : ''} ${swapSrc === el.id ? 'opacity-50 scale-95' : ''}`}
               style={{ backgroundColor: m ? undefined : 'rgba(0,0,0,.06)', boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${Math.max(1, el.border.w)}px solid ${el.border.color}` : undefined }}>
               {m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}
               {dropId === el.id && <div className="absolute inset-0 ring-4 ring-inset ring-[rgb(var(--gold-500))] bg-[rgb(var(--gold-500))]/20 flex items-center justify-center pointer-events-none"><span className="text-[10px] font-semibold text-white bg-black/55 rounded px-1.5 py-0.5">Sostituisci</span></div>}
