@@ -32,7 +32,22 @@ type Postit = {
   tavola_index: number | null; anchor_x: number | null; anchor_y: number | null; media_id: string | null
   kind?: string | null; replace_media_id?: string | null // 'REPLACE' = sostituisci la foto
   body: string; status: string; created_at: string
+  reply?: string | null; reply_reason?: string | null; reply_at?: string | null // risposta del fotografo ("perché meglio di no")
 }
+
+// Motivazioni tecniche con cui il fotografo può rispondere "perché meglio di no" a una richiesta
+// del cliente: ognuna precompila una spiegazione (modificabile) e resta come tag rapido.
+const ALBUM_REPLY_REASONS: { key: string; label: string; hint: string }[] = [
+  { key: 'proporzioni', label: 'Proporzioni', hint: 'La foto è verticale: ingrandirla per riempire lo spazio orizzontale la taglierebbe troppo. Così mantiene le giuste proporzioni.' },
+  { key: 'pagine', label: 'Numero pagine', hint: 'Aggiungere altre foto qui sfora il numero di pagine concordato del libro (e ne aumenta il costo). Le ho selezionate per restare nel formato.' },
+  { key: 'qualita', label: 'Qualità / risoluzione', hint: 'Questo scatto è a risoluzione più bassa: ingrandito in stampa risulterebbe sgranato. Meglio tenerlo a questa dimensione.' },
+  { key: 'ritaglio', label: 'Taglio / inquadratura', hint: 'Spostando o ritagliando come chiesto si perderebbe parte del soggetto (testa/piedi). L’inquadratura attuale è più equilibrata.' },
+  { key: 'dorso', label: 'Dorso / piega', hint: 'In quel punto cadrebbe la piega centrale del libro: un viso sul dorso si rovinerebbe. L’ho spostato apposta.' },
+  { key: 'stampa', label: 'Margini di stampa', hint: 'È troppo vicino al bordo di taglio: in stampa si rischia di tagliare il soggetto. Ho lasciato l’abbondanza di sicurezza.' },
+  { key: 'estetica', label: 'Equilibrio impaginazione', hint: 'La doppia pagina perderebbe equilibrio visivo. La disposizione attuale fa respirare meglio le foto.' },
+  { key: 'racconto', label: 'Coerenza del racconto', hint: 'Spostarla qui rompe la sequenza cronologica del racconto. L’ho messa dov’è per far filare la storia.' },
+  { key: 'altro', label: 'Altro', hint: '' },
+]
 
 const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:')
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
@@ -300,6 +315,9 @@ function AlbumDesignerInner() {
   const autoTimer = useRef<number | null>(null)
   const [revOpen, setRevOpen] = useState(false)                 // popup richieste modifiche
   const [revList, setRevList] = useState<Postit[]>([])
+  const [replyFor, setReplyFor] = useState<string | null>(null) // richiesta a cui il fotografo risponde
+  const [replyText, setReplyText] = useState('')
+  const [replyReason, setReplyReason] = useState<string>('')
   const [revBody, setRevBody] = useState('')
   const [revPageRef, setRevPageRef] = useState(false)
   // POST-IT ancorati: il cliente tocca una foto/punto → bigliettino appuntato lì (lo vede anche il
@@ -957,7 +975,7 @@ function AlbumDesignerInner() {
   // ── richieste di modifica (cliente ↔ fotografo) ────────────────────────────
   const loadRevs = useCallback(async () => {
     if (!entryId) return
-    const { data } = await (supabase.from as any)('album_revision_requests').select('id, author_name, page_index, tavola_index, anchor_x, anchor_y, media_id, kind, replace_media_id, body, status, created_at').eq('entry_id', entryId).order('created_at', { ascending: false })
+    const { data } = await (supabase.from as any)('album_revision_requests').select('id, author_name, page_index, tavola_index, anchor_x, anchor_y, media_id, kind, replace_media_id, body, status, created_at, reply, reply_reason, reply_at').eq('entry_id', entryId).order('created_at', { ascending: false })
     setRevList((data as Postit[]) ?? [])
   }, [entryId])
   useEffect(() => { void loadRevs() }, [loadRevs])
@@ -972,6 +990,19 @@ function AlbumDesignerInner() {
   async function resolveRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'DONE' }).eq('id', id); await loadRevs() }
   async function reopenRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'OPEN' }).eq('id', id); await loadRevs() }
   async function deleteRev(id: string) { await (supabase.from as any)('album_revision_requests').delete().eq('id', id); setOpenPin(null); await loadRevs() }
+  // fotografo: risponde "perché meglio di no" → la richiesta passa a DECLINED con la motivazione
+  // (tecnica: proporzioni, pagine, risoluzione, taglio, dorso…) e la coppia viene avvisata.
+  async function replyRev(id: string, reason: string, text: string) {
+    const body = text.trim(); if (!body) { toast.error('Scrivi la motivazione'); return }
+    const { error } = await (supabase.from as any)('album_revision_requests').update({ reply: body, reply_reason: reason || null, status: 'DECLINED' }).eq('id', id)
+    if (error) { toast.error(error.message); return }
+    setReplyFor(null); setReplyText(''); setReplyReason(''); toast.success('Risposta inviata al cliente'); await loadRevs()
+  }
+  // apre il composer di risposta precompilando la frase tecnica della motivazione scelta
+  function startReply(id: string, reasonKey: string) {
+    const r = ALBUM_REPLY_REASONS.find((x) => x.key === reasonKey)
+    setReplyFor(id); setReplyReason(reasonKey); setReplyText(r?.hint ?? '')
+  }
   async function sendClientReq() {
     if (!revBody.trim() || !entryId) return
     const { error } = await (supabase.from as any)('album_revision_requests').insert({ entry_id: entryId, body: revBody.trim(), page_index: clientIdx * 2 + 1 })
@@ -1213,9 +1244,16 @@ function AlbumDesignerInner() {
               {isRepl && rep && <img src={thumbUrl(rep)} alt="" className="w-full h-20 object-cover rounded mb-1.5" />}
               {p.body && p.body !== '(senza testo)' && <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>}
               <div className="mt-1.5 flex items-center justify-between gap-2">
-                <span className="text-[10px] text-amber-700">{p.author_name ?? 'Cliente'}{p.status === 'DONE' ? ' · fatto ✓' : ''}</span>
+                <span className="text-[10px] text-amber-700">{p.author_name ?? 'Cliente'}{p.status === 'DONE' ? ' · fatto ✓' : p.status === 'DECLINED' ? ' · risposta dal fotografo' : ''}</span>
                 <button onClick={() => void deleteRev(p.id)} className="text-[10px] text-rose-500 hover:underline">Elimina</button>
               </div>
+              {p.reply && (
+                <div className="mt-1.5 rounded bg-sky-50 border border-sky-200 p-1.5">
+                  {p.reply_reason && <span className="block text-[9px] uppercase tracking-wider text-sky-700">{ALBUM_REPLY_REASONS.find((x) => x.key === p.reply_reason)?.label ?? p.reply_reason}</span>}
+                  <p className="text-[12px] text-[rgb(var(--fg))]">{p.reply}</p>
+                  <p className="text-[9px] text-sky-700/70 mt-0.5">— il fotografo</p>
+                </div>
+              )}
             </div>
           )}}
         />
@@ -1342,9 +1380,17 @@ function AlbumDesignerInner() {
                     <div key={r.id} className="rounded-lg border border-[rgb(var(--border))] p-2.5">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
                         <span className="text-[11px] text-[rgb(var(--fg-muted))]">{r.page_index ? `Tavola ${Math.ceil(r.page_index / 2)}` : 'Generale'}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.status === 'OPEN' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{r.status === 'OPEN' ? 'In attesa' : 'Fatto'}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.status === 'OPEN' ? 'bg-amber-100 text-amber-700' : r.status === 'DECLINED' ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'}`}>{r.status === 'OPEN' ? 'In attesa' : r.status === 'DECLINED' ? 'Risposta dal fotografo' : 'Fatto'}</span>
                       </div>
                       <p className="text-sm">{r.body}</p>
+                      {r.reply && (
+                        <div className="mt-2 rounded-md bg-sky-50 border border-sky-200 p-2">
+                          {r.reply_reason && <span className="inline-block text-[10px] uppercase tracking-wider text-sky-700 mb-0.5">{ALBUM_REPLY_REASONS.find((x) => x.key === r.reply_reason)?.label ?? r.reply_reason}</span>}
+                          <p className="text-[13px]">{r.reply}</p>
+                          <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-0.5">— il fotografo</p>
+                          {r.status === 'DECLINED' && <button onClick={() => void reopenRev(r.id)} className="mt-1.5 text-[11px] px-2 py-1 rounded-full border border-amber-300 text-amber-700 hover:bg-amber-50">Insisti comunque</button>}
+                        </div>
+                      )}
                     </div>
                   ))}
               </div>
@@ -1767,14 +1813,45 @@ function AlbumDesignerInner() {
                 <div className="p-4 overflow-auto space-y-2">
                   {revList.length === 0 && <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessuna richiesta ancora.</p>}
                   {revList.map((r) => (
-                    <div key={r.id} className={`rounded-lg border p-2.5 text-sm ${r.status === 'DONE' ? 'opacity-50 border-[rgb(var(--border))]' : 'border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/30'}`}>
+                    <div key={r.id} className={`rounded-lg border p-2.5 text-sm ${r.status === 'DONE' ? 'opacity-60 border-[rgb(var(--border))]' : r.status === 'DECLINED' ? 'border-sky-300 bg-sky-50' : 'border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/30'}`}>
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0">
                           <p>{r.body}</p>
-                          <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">— {r.author_name ?? 'Cliente'}{r.page_index ? ` · pag. ${r.page_index}` : ''}{r.status === 'DONE' ? ' · fatto ✓' : ''}</p>
+                          <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">— {r.author_name ?? 'Cliente'}{r.page_index ? ` · pag. ${r.page_index}` : ''}{r.status === 'DONE' ? ' · fatto ✓' : r.status === 'DECLINED' ? ' · risposto' : ''}</p>
                         </div>
-                        {r.status === 'OPEN' && <button onClick={() => void resolveRev(r.id)} title="Segna fatto" className="shrink-0 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><Check size={12} /> Fatto</button>}
+                        {!isCouple && r.status === 'OPEN' && (
+                          <div className="shrink-0 flex items-center gap-1">
+                            <button onClick={() => void resolveRev(r.id)} title="Segna fatto" className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><Check size={12} /> Fatto</button>
+                            <button onClick={() => (replyFor === r.id ? setReplyFor(null) : startReply(r.id, 'proporzioni'))} title="Spiega perché conviene tenerla così" className="inline-flex items-center text-[11px] px-2 py-1 rounded border border-sky-300 text-sky-700 hover:bg-sky-100">Perché meglio di no</button>
+                          </div>
+                        )}
                       </div>
+
+                      {/* risposta del fotografo già inviata (visibile anche al cliente nella sua app) */}
+                      {r.reply && (
+                        <div className="mt-2 rounded-md bg-white/70 border border-sky-200 p-2">
+                          {r.reply_reason && <span className="inline-block text-[10px] uppercase tracking-wider text-sky-700 mb-0.5">{ALBUM_REPLY_REASONS.find((x) => x.key === r.reply_reason)?.label ?? r.reply_reason}</span>}
+                          <p className="text-[13px] text-[rgb(var(--fg))]">{r.reply}</p>
+                          <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-0.5">{isCouple ? 'Risposta del fotografo' : 'La tua risposta al cliente'}</p>
+                        </div>
+                      )}
+
+                      {/* composer "perché meglio di no" — motivazioni tecniche preimpostate */}
+                      {!isCouple && replyFor === r.id && (
+                        <div className="mt-2 rounded-md border border-sky-200 bg-sky-50/60 p-2 space-y-2">
+                          <div className="flex flex-wrap gap-1">
+                            {ALBUM_REPLY_REASONS.map((rr) => (
+                              <button key={rr.key} onClick={() => { setReplyReason(rr.key); if (rr.hint) setReplyText(rr.hint) }}
+                                className={`text-[11px] px-2 py-0.5 rounded-full border ${replyReason === rr.key ? 'bg-sky-600 text-white border-sky-600' : 'border-sky-300 text-sky-700 hover:bg-sky-100'}`}>{rr.label}</button>
+                            ))}
+                          </div>
+                          <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={3} placeholder="Spiega al cliente perché conviene tenerla così…" className="w-full text-sm rounded border border-sky-300 bg-white px-2 py-1.5 outline-none focus:border-sky-500" />
+                          <div className="flex justify-end gap-1.5">
+                            <button onClick={() => { setReplyFor(null); setReplyText(''); setReplyReason('') }} className="text-xs px-2 py-1 rounded border border-[rgb(var(--border))]">Annulla</button>
+                            <button onClick={() => void replyRev(r.id, replyReason, replyText)} className="text-xs px-2.5 py-1 rounded bg-sky-600 text-white font-medium hover:bg-sky-700">Invia risposta</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

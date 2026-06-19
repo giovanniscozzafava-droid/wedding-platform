@@ -130,6 +130,14 @@ export function TableauPlan({
     return { t, x: (c + 1) / (cols + 1), y: rows > 0 ? (r + 1) / (rows + 1) : 0.5 }
   })
 
+  // AMPIEZZA SALA ∝ INVITATI: con tanti tavoli la planimetria si proietta più grande (canvas
+  // scrollabile/zoomabile) così TUTTI i nomi entrano leggibili. Identità: il canvas cresce di
+  // `roomScale` e la frazione dei tavoli si riduce di `roomScale` → ogni tavolo resta della STESSA
+  // dimensione in px (nomi leggibili) ma su una sala più ampia, quindi senza accavallarsi. Sotto la
+  // capienza base (≈120 invitati) la sala resta identica a prima.
+  const BASE_CAP = 12 // tavoli che entrano comodi al 100% (≈10 posti l'uno ≈ 120 invitati)
+  const roomScale = Math.max(1, Math.sqrt(Math.max(1, tables.length) / BASE_CAP))
+
   function onTablePointerDown(e: React.PointerEvent, id: string, x: number, y: number) {
     e.stopPropagation()
     const r = planRef.current!.getBoundingClientRect()
@@ -165,6 +173,7 @@ export function TableauPlan({
           <button onClick={() => setZoom(1)} title="Adatta" disabled={zoom === 1}
             className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-40 text-[11px]"><Maximize size={13} /> Adatta</button>
           {zoom > 1 && <span className="text-[10px] text-[rgb(var(--fg-subtle))]">scorri per spostarti · ingrandisci per leggere i nomi alle sedie</span>}
+          {roomScale > 1.01 && <span className="text-[10px] text-[rgb(var(--gold-700))]">Sala proiettata in grande per {tables.length} tavoli — scorri per esplorarla, i nomi restano leggibili</span>}
         </div>
 
         {/* Zone & punti: aree (poligono) + POI (1 clic). Entrate/uscite/bagni utili per la mobilità ridotta. */}
@@ -201,7 +210,7 @@ export function TableauPlan({
         <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
           className="relative overflow-hidden select-none"
           style={{
-            width: `${zoom * 100}%`,
+            width: `${(zoom * roomScale * 100).toFixed(1)}%`,
             aspectRatio: String(floorPlanUrl ? (floorPlanRatio || room?.ratio || 1.6) : (room?.ratio ?? 1.6)),
             background: floorPlanUrl
               ? `#ffffff url("${floorPlanUrl}") center / contain no-repeat`
@@ -258,7 +267,7 @@ export function TableauPlan({
             const x = livePos && livePos.id === t.id ? livePos.x : bx
             const y = livePos && livePos.id === t.id ? livePos.y : by
             const sz = tableSize(t)
-            const wpx = Math.max(28, sz.w * box.w), hpx = sz.round ? wpx : Math.max(18, sz.h * box.h)
+            const wpx = Math.max(28, (sz.w / roomScale) * box.w), hpx = sz.round ? wpx : Math.max(18, (sz.h / roomScale) * box.h)
             const seated = seatedAt(t.id)
             const over = (t.seats ?? 0) - seated.length
             const isOver = overTable === t.id
