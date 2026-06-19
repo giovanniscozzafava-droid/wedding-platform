@@ -1124,9 +1124,11 @@ function AlbumDesignerInner() {
           : pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={hiUrl} /></div>)}
         {!pair[0]?.tavolaFree && pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={hiUrl(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} /> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-black/10 pointer-events-none" />}
-        {/* NUMERI DI PAGINA (sinistra/destra), visibili al cliente */}
-        <span className="absolute bottom-1.5 left-2.5 text-[10px] text-black/45 tabular-nums pointer-events-none select-none">{si * 2 + 1}</span>
-        <span className="absolute bottom-1.5 right-2.5 text-[10px] text-black/45 tabular-nums pointer-events-none select-none">{si * 2 + 2}</span>
+        {/* NUMERI DI PAGINA (sinistra/destra) FUORI dalla pagina, sotto i bordi (solo nel reader) */}
+        {!interactive && <>
+          <span className="absolute -bottom-6 left-0 text-[11px] font-medium text-[rgb(var(--fg-muted))] tabular-nums pointer-events-none select-none">{si * 2 + 1}</span>
+          <span className="absolute -bottom-6 right-0 text-[11px] font-medium text-[rgb(var(--fg-muted))] tabular-nums pointer-events-none select-none">{si * 2 + 2}</span>
+        </>}
         <PostitLayer
           pins={tavPins(si)} openId={interactive ? openPin : null} onOpen={interactive ? setOpenPin : () => {}}
           canPlace={!!interactive && isCouple}
@@ -1204,15 +1206,17 @@ function AlbumDesignerInner() {
                 <AnimatePresence initial={false} custom={flipDir} mode="popLayout">
                   <motion.div key={ci} custom={flipDir}
                     variants={{
-                      enter: (d: number) => ({ rotateY: d > 0 ? -85 : 85, x: d > 0 ? 50 : -50, opacity: 0 }),
-                      center: { rotateY: 0, x: 0, opacity: 1 },
-                      exit: (d: number) => ({ rotateY: d > 0 ? 85 : -85, x: d > 0 ? -50 : 50, opacity: 0 }),
+                      // pagina che GIRA attorno al dorso (centro): si mette di taglio (edge-on) e la
+                      // successiva entra dall'altro lato → effetto sfoglio pagina-pagina.
+                      enter: (d: number) => ({ rotateY: d > 0 ? -90 : 90, opacity: 0 }),
+                      center: { rotateY: 0, opacity: 1 },
+                      exit: (d: number) => ({ rotateY: d > 0 ? 90 : -90, opacity: 0 }),
                     }}
-                    initial="enter" animate="center" exit="exit" transition={{ duration: 0.5, ease: [0.22, 0.61, 0.36, 1] }}
+                    initial="enter" animate="center" exit="exit" transition={{ duration: 0.55, ease: 'easeInOut' }}
                     drag="x" dragSnapToOrigin dragElastic={0.16} dragConstraints={{ left: 0, right: 0 }}
                     onDragEnd={(_e, info) => { if (info.offset.x < -60) goSpread(1); else if (info.offset.x > 60) goSpread(-1) }}
                     className="absolute inset-0 flex items-center justify-center p-4"
-                    style={{ transformStyle: 'preserve-3d', transformOrigin: flipDir > 0 ? 'left center' : 'right center', cursor: 'grab' }}>
+                    style={{ transformStyle: 'preserve-3d', transformOrigin: 'center center', backfaceVisibility: 'hidden', cursor: 'grab' }}>
                     <button onClick={() => setZoomSpread(ci)} className="w-full" title="Tocca per ingrandire e lasciare un post-it">{renderSpread({ pair, si: ci, max: 'min(94vw, 680px)' })}</button>
                   </motion.div>
                 </AnimatePresence>
