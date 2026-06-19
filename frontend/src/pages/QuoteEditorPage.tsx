@@ -24,6 +24,7 @@ import { shareWhatsAppLink } from '@/lib/share'
 import { waQuoteToClient } from '@/lib/waMessages'
 import { ClientBriefEditor } from '@/components/quotes/ClientBriefEditor'
 import { SuggestColleaguesCard } from '@/components/quotes/SuggestColleaguesCard'
+import { QuoteActivityCard } from '@/components/quotes/QuoteActivityCard'
 import { HelpDot } from '@/components/help/HelpDot'
 import { eventTerm } from '@/lib/eventKind'
 
@@ -698,6 +699,9 @@ export default function QuoteEditorPage() {
             </p>
           )}
         </Card>
+
+        {/* METRICHE: quando e quante volte il cliente ha visto il preventivo (timeline di ogni vista) */}
+        {id && <QuoteActivityCard quoteId={id} />}
 
         {/* Suggerisci colleghi al cliente — SOLO fornitori (non capostipiti/WP),
             e solo dopo la firma del preventivo */}

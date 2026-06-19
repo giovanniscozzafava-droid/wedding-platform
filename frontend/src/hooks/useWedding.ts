@@ -395,6 +395,25 @@ export function useQuoteViews(quoteId: string | null) {
   })
 }
 
+// Attività del preventivo per l'OWNER: stage + conteggio aperture + timeline di OGNI vista.
+export function useQuoteActivity(quoteId: string | null) {
+  return useQuery({
+    queryKey: ['quote-activity', quoteId],
+    enabled: !!quoteId,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('quote_activity', { p_quote_id: quoteId })
+      if (error) throw error
+      return data as {
+        ok?: boolean; stage?: string; sent_at?: string | null; email_sent?: boolean
+        open_count?: number; first_opened_at?: string | null; last_opened_at?: string | null
+        registered_at?: string | null; accepted_at?: string | null; rejected_at?: string | null
+        status?: string; views?: Array<{ at: string; ua: string | null }>
+      }
+    },
+  })
+}
+
 // ── PIANTINE SALA (floor plans) ────────────────────────────────────────────
 export function useEventFloorPlan(entryId: string | null) {
   return useQuery({

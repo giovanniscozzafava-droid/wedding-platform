@@ -36,7 +36,7 @@ function QuotePreviewPageInner() {
     finally { setLoading(false) }
   }
   useEffect(() => { setLoading(true); void load() }, [token])
-  useEffect(() => { if (token) void (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<unknown> }).rpc('track_quote_open', { p_token: token }) }, [token])
+  useEffect(() => { if (token) void (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<unknown> }).rpc('track_quote_open', { p_token: token, p_ua: navigator.userAgent }) }, [token])
 
   if (loading) {
     return (

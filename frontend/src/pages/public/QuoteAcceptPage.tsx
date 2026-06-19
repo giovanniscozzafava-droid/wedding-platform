@@ -125,7 +125,7 @@ function QuoteAcceptPageInner() {
       finally { setLoading(false) }
   }
   useEffect(() => { if (token) void load() }, [token])
-  useEffect(() => { if (token) void (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<unknown> }).rpc('track_quote_open', { p_token: token }) }, [token])
+  useEffect(() => { if (token) void (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<unknown> }).rpc('track_quote_open', { p_token: token, p_ua: navigator.userAgent }) }, [token])
 
   async function submit() {
     if (!token) return
