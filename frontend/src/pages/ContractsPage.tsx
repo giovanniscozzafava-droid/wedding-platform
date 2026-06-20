@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FileSignature, FileDown, X, Copy, Mail, MessageCircle } from 'lucide-react'
 import { shareWhatsAppLink } from '@/lib/share'
@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { SearchFilterBar } from '@/components/common/SearchFilterBar'
 import { supabase } from '@/lib/supabase'
 
 type ContractRow = {
@@ -31,6 +32,17 @@ export default function ContractsPage() {
   const [rows, setRows] = useState<ContractRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<ContractRow | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'signed' | 'unsigned'>('all')
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return rows.filter((c) => {
+      if (statusFilter === 'signed' && !c.signed_at) return false
+      if (statusFilter === 'unsigned' && c.signed_at) return false
+      if (q && !`${c.title ?? ''} ${c.client_name ?? ''} ${c.client_email ?? ''}`.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [rows, search, statusFilter])
 
   useEffect(() => {
     void (async () => {
@@ -142,8 +154,15 @@ export default function ContractsPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rows.map((c, i) => (
+        <>
+          <SearchFilterBar value={search} onChange={setSearch} placeholder="Cerca per nome cliente, email o titolo…"
+            chips={[{ key: 'all', label: 'Tutti' }, { key: 'signed', label: 'Firmati' }, { key: 'unsigned', label: 'Da firmare' }]}
+            active={statusFilter} onChip={(k) => setStatusFilter(k as 'all' | 'signed' | 'unsigned')} />
+          {filtered.length === 0 ? (
+            <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun contratto corrisponde ai filtri.</p>
+          ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((c, i) => (
             <motion.div key={c.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}>
               <button
                 type="button"
@@ -178,7 +197,9 @@ export default function ContractsPage() {
               </button>
             </motion.div>
           ))}
-        </div>
+          </div>
+          )}
+        </>
       )}
 
       {selected && (

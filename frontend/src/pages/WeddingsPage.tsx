@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchUnreadByEntry, type UnreadEntry } from '@/lib/notifGuide'
 import { motion } from 'framer-motion'
@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { SearchFilterBar } from '@/components/common/SearchFilterBar'
 import { useWeddings } from '@/hooks/useWedding'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -27,6 +28,12 @@ export default function WeddingsPage() {
   const [delBusy, setDelBusy] = useState(false)
   const [unread, setUnread] = useState<Record<string, UnreadEntry>>({})
   useEffect(() => { void fetchUnreadByEntry().then(setUnread) }, [])
+  const [search, setSearch] = useState('')
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return data ?? []
+    return (data ?? []).filter((w) => `${w.title ?? ''} ${w.client_name ?? ''}`.toLowerCase().includes(q))
+  }, [data, search])
 
   function deleteWedding(id: string, title: string) {
     setDelPhrase(''); setDelLoseAll(false); setDelNoBackup(false); setDelTarget({ id, title })
@@ -123,8 +130,14 @@ export default function WeddingsPage() {
           </Card>
         )}
 
+        {!isLoading && (data ?? []).length > 0 && (
+          <SearchFilterBar value={search} onChange={setSearch} placeholder="Cerca evento per nome o cliente…" />
+        )}
+        {!isLoading && (data ?? []).length > 0 && filtered.length === 0 && (
+          <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun evento corrisponde alla ricerca.</p>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(data ?? []).map((w, idx) => (
+          {filtered.map((w, idx) => (
             <motion.div key={w.id}
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}>

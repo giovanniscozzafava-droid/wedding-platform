@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Plus, UserPlus, Mail, PackageSearch, ImageIcon, ArrowUpRight, Clock, X, Link2, Copy } from 'lucide-react'
@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { StarsBadge } from '@/components/social/StarsBadge'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { SearchFilterBar } from '@/components/common/SearchFilterBar'
 import {
   useInviteSupplier, useRevokeCollaboration, useSuppliers,
   useSupplierInvites, useCancelSupplierInvite,
@@ -33,6 +34,12 @@ Iscriviti dal link qui sotto e ci colleghiamo subito.`
 export default function SuppliersPage() {
   const { data, isLoading } = useSuppliers()
   const { data: invites } = useSupplierInvites()
+  const [search, setSearch] = useState('')
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return data ?? []
+    return (data ?? []).filter((s) => `${s.business_name ?? ''} ${s.full_name ?? ''} ${s.subrole ?? ''}`.toLowerCase().includes(q))
+  }, [data, search])
   const invite = useInviteSupplier()
   const cancelInvite = useCancelSupplierInvite()
   const revoke = useRevokeCollaboration()
@@ -137,8 +144,14 @@ export default function SuppliersPage() {
           </div>
         )}
 
+        {!isLoading && (data ?? []).length > 0 && (
+          <SearchFilterBar value={search} onChange={setSearch} placeholder="Cerca fornitore per nome o categoria…" />
+        )}
+        {!isLoading && (data ?? []).length > 0 && filtered.length === 0 && (
+          <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun fornitore corrisponde alla ricerca.</p>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(data ?? []).map((s, idx) => (
+          {filtered.map((s, idx) => (
             <motion.div key={s.id}
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}>
