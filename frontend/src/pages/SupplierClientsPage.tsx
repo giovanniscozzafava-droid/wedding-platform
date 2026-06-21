@@ -157,8 +157,11 @@ export default function SupplierClientsPage() {
   // preventivo nuovo a 0, anche quando il cliente ne aveva già uno. Se non ne trova, ne crea uno.
   async function openLatestQuote(c: SupplierClientWithStats) {
     try {
+      // Apre il preventivo che CONTA: valore più alto prima (così non apre una bozza vuota a 0
+      // lasciata da un vecchio bug), a parità il più recente.
       const { data, error } = await supabase
         .from('quotes').select('id').eq('direct_client_id', c.id)
+        .order('total_client', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false }).limit(1).maybeSingle()
       if (error) throw error
       if (data?.id) nav(`/quotes/${data.id}`)
