@@ -137,6 +137,17 @@ export function useFoodCostMutations() {
     delSupplierProduct: m(async (id: string) => { const { error } = await sb('fb_supplier_products').delete().eq('id', id); if (error) throw error }),
     setEventMenu: m(async (p: { entry_id: string; menu_id: string; covers: number | null }) => { const id = await uid(); const { error } = await sb('fb_event_menus').insert({ location_id: id, ...p }); if (error) throw error }),
     delEventMenu: m(async (id: string) => { const { error } = await sb('fb_event_menus').delete().eq('id', id); if (error) throw error }),
+    // Bolla fornitore (PDF/JPG) → Claude estrae le righe → lotti in magazzino
+    importBolla: m(async (p: { base64: string; media_type: string }) => {
+      const { data: ex, error: e1 } = await (supabase as any).functions.invoke('fb-read-bolla', { body: { base64: p.base64, media_type: p.media_type } })
+      if (e1) throw new Error(e1.message)
+      if (ex?.error) throw new Error(ex.error === 'no_ai_key' ? 'Manca la chiave AI (ANTHROPIC_API_KEY) sulle funzioni.' : 'Lettura bolla non riuscita: ' + ex.error)
+      const righe = ex?.righe ?? []
+      if (!righe.length) throw new Error('Nessuna riga riconosciuta nella bolla')
+      const { data: rec, error: e2 } = await (supabase as any).rpc('fb_receive_from_bolla', { p_lines: righe })
+      if (e2) throw new Error(e2.message)
+      if (rec?.error) throw new Error(rec.error)
+    }),
     delMenu: m(async (id: string) => { const { error } = await sb('fb_menus').update({ is_active: false }).eq('id', id); if (error) throw error }),
     linkMenuService: m(async (p: { id: string; service_id: string | null }) => { const { error } = await sb('fb_menus').update({ service_id: p.service_id }).eq('id', p.id); if (error) throw error }),
     addMenuItem: m(async (p: { menu_id: string; recipe_id: string; qty_per_cover: number }) => { const { error } = await sb('fb_menu_items').insert(p); if (error) throw error }),

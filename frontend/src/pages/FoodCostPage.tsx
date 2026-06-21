@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle } from 'lucide-react'
+import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle, FileUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -393,6 +393,18 @@ function FabbisognoTab() {
 // ── FASE C: Magazzino + Scadenziario ────────────────────────────────────────
 function MagazzinoTab() {
   const { data: lots } = useStock()
+  const mut = useFoodCostMutations()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; e.target.value = ''; if (!f) return
+    setBusy(true)
+    try {
+      const base64 = await new Promise<string>((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.onerror = rej; rd.readAsDataURL(f) })
+      await mut.importBolla.mutateAsync({ base64, media_type: f.type || 'image/jpeg' })
+      toast.success('Documento letto: merce caricata in magazzino')
+    } catch (err) { toast.error((err as Error).message) } finally { setBusy(false) }
+  }
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() }, [])
   const bigUnitOf = (u: string) => (u === 'G' ? 'kg' : u === 'ML' ? 'L' : 'pz')
   const fac = (u: string) => (u === 'G' || u === 'ML' ? 1000 : 1)
@@ -408,7 +420,14 @@ function MagazzinoTab() {
   const dated = (lots ?? []).filter((l) => l.expiry_date).slice().sort((a, b) => (a.expiry_date! < b.expiry_date! ? -1 : 1))
   const daysTo = (d: string) => Math.round((new Date(d).getTime() - today) / 86400000)
   return (
-    <div className="grid md:grid-cols-2 gap-4">
+    <div className="space-y-4">
+      <Card className="p-3 flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium inline-flex items-center gap-1.5"><FileUp size={15} /> Ricezione da documento</span>
+        <input ref={fileRef} type="file" accept="image/*,application/pdf,.pdf" className="hidden" onChange={onFile} />
+        <Button size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? 'Leggo il documento…' : 'Importa bolla / scontrino / fattura'}</Button>
+        <span className="text-[11px] text-[rgb(var(--fg-subtle))]">PDF o foto: l'AI legge le righe e le carica in magazzino come lotti.</span>
+      </Card>
+      <div className="grid md:grid-cols-2 gap-4">
       <Card className="overflow-hidden">
         <div className="px-4 py-2 border-b border-[rgb(var(--border))] flex items-center justify-between"><span className="font-medium text-sm inline-flex items-center gap-1.5"><Boxes size={14} /> Giacenze</span><span className="text-sm">valore {eur(totalValue)}</span></div>
         <table className="w-full text-sm"><tbody>
@@ -430,6 +449,7 @@ function MagazzinoTab() {
           {dated.length === 0 && <tr><td className="p-6 text-center text-[rgb(var(--fg-subtle))]" colSpan={3}>Nessun lotto con scadenza.</td></tr>}
         </tbody></table>
       </Card>
+      </div>
     </div>
   )
 }
