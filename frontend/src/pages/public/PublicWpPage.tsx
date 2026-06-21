@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { ArrowLeft, MapPin, Users, Briefcase, Globe, Send, AlertCircle, Heart, Sparkles, FileText } from 'lucide-react'
+import { ArrowLeft, MapPin, Users, Briefcase, Globe, Send, AlertCircle, Heart, Sparkles, FileText, UserPlus, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
@@ -235,7 +235,7 @@ export default function PublicWpPage() {
           className="surface surface-lift p-6 sm:p-8 mb-5">
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             {wp.brand_logo_url ? (
-              <img src={wp.brand_logo_url} alt="" className="w-24 h-24 rounded-full object-cover shrink-0" />
+              <img src={wp.brand_logo_url} alt="" className="w-24 h-24 rounded-full object-contain bg-white p-1.5 shrink-0 border border-[rgb(var(--border))]" />
             ) : (
               <div className="w-24 h-24 rounded-full flex items-center justify-center font-display text-3xl shrink-0"
                 style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
@@ -265,7 +265,11 @@ export default function PublicWpPage() {
                     <Send size={14} /> Richiedi preventivo
                   </Button>
                 )}
-                {!isPublicVisitor && <FollowButton userId={wp.id} targetRole="WEDDING_PLANNER" variant="outline" />}
+                {!isPublicVisitor && (
+                  profile?.role === 'WEDDING_PLANNER' && wp.role === 'LOCATION'
+                    ? <AddLocationToTeamButton locationId={wp.id} />
+                    : <FollowButton userId={wp.id} targetRole="WEDDING_PLANNER" variant="outline" />
+                )}
                 {wp.website && (
                   <a href={wp.website} target="_blank" rel="noreferrer"
                     className="inline-flex items-center gap-1 text-xs px-3 py-2 rounded-full border hover:bg-[rgb(var(--bg-sunken))]"
@@ -363,7 +367,7 @@ export default function PublicWpPage() {
                 <Link key={s.id} to={s.slug ? `/p/fornitore/${s.slug}` : '#'}
                   className="flex flex-col items-center text-center gap-2 p-3 rounded-lg hover:bg-[rgb(var(--bg-sunken))] transition-colors">
                   {s.brand_logo_url ? (
-                    <img src={s.brand_logo_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    <img src={s.brand_logo_url} alt="" className="w-12 h-12 rounded-full object-contain bg-white p-0.5 border border-[rgb(var(--border))]" />
                   ) : (
                     <div className="w-12 h-12 rounded-full flex items-center justify-center font-display"
                       style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
@@ -550,5 +554,30 @@ function Centered({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'rgb(var(--bg))' }}>
       <div className="surface p-10 text-center max-w-md">{children}</div>
     </div>
+  )
+}
+
+// La WP recluta una LOCATION esistente nel proprio team (gerarchia: WP sopra Location).
+function AddLocationToTeamButton({ locationId }: { locationId: string }) {
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  async function add() {
+    setBusy(true)
+    try {
+      const { data, error } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; error?: string } | null; error: { message: string } | null }> })
+        .rpc('wp_add_location_to_team', { p_location_id: locationId })
+      if (error) throw new Error(error.message)
+      if (data?.error) {
+        toast.error(data.error === 'forbidden' ? 'Solo le wedding planner possono aggiungere una location al team.'
+          : data.error === 'not_a_location' ? 'Questo profilo non è una location.' : data.error)
+        return
+      }
+      setDone(true); toast.success('Location aggiunta al tuo team')
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Errore') } finally { setBusy(false) }
+  }
+  return (
+    <Button variant="outline" disabled={busy || done} onClick={add}>
+      {done ? <><Check size={14} /> Nel tuo team</> : <><UserPlus size={14} /> Aggiungi al team</>}
+    </Button>
   )
 }

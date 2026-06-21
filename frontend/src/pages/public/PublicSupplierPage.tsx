@@ -235,7 +235,7 @@ export default function PublicSupplierPage() {
           className="surface surface-lift p-6 sm:p-8 mb-6">
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             {data.brand_logo_url ? (
-              <img src={data.brand_logo_url} alt="" className="w-24 h-24 rounded-full object-cover shrink-0" />
+              <img src={data.brand_logo_url} alt="" className="w-24 h-24 rounded-full object-contain bg-white p-1.5 shrink-0 border border-[rgb(var(--border))]" />
             ) : (
               <div className="w-24 h-24 rounded-full flex items-center justify-center font-display text-3xl shrink-0"
                 style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
