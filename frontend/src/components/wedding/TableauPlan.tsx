@@ -89,10 +89,12 @@ export function TableauPlan({
   const [overUnseat, setOverUnseat] = useState(false)
   // Zone/POI (mirror locale per feedback immediato, persistito via onZonesChange)
   const [localZones, setLocalZones] = useState<Zone[]>(zones ?? [])
-  useEffect(() => { setLocalZones(zones ?? []) }, [zones])
   const [drawKind, setDrawKind] = useState<string | null>(null)
   const [pending, setPending] = useState<Array<{ x: number; y: number }>>([])
   const poiDrag = useRef<string | null>(null)
+  // Sync dalla prop SOLO quando non stai disegnando/trascinando: altrimenti un refetch
+  // (re-render) sovrascriveva lo stato locale e "cancellava tutto" mentre creavi una zona.
+  useEffect(() => { if (!drawKind && !poiDrag.current) setLocalZones(zones ?? []) }, [zones, drawKind])
 
   function persistZones(next: Zone[]) { setLocalZones(next); onZonesChange?.(next) }
   function ptFromEvent(e: { clientX: number; clientY: number }) {

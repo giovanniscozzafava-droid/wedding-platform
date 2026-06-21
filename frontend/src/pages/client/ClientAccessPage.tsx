@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Sparkles, Mail, ArrowRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -7,39 +7,51 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
 // ============================================================================
-// Accesso area cliente: il cliente diretto entra con un link magico inviato
-// alla SUA email (la stessa che il professionista ha usato per il preventivo).
-// Nessuna password. Al primo accesso nasce un profilo con ruolo CLIENT.
+// Accesso area cliente: EMAIL + PASSWORD (come i professionisti). Niente magic
+// link. Chi non ha ancora una password (o l'ha dimenticata) usa "Imposta /
+// recupera la password" → riceve via email il link per crearla (/reset-password).
+// Il primo accesso vero arriva dall'invito del professionista quando manda il
+// preventivo: anche quello porta a impostare la password sulla propria email.
 // ============================================================================
 
 export default function ClientAccessPage() {
   const [params] = useSearchParams()
-  // Dopo il login il cliente atterra dove serve (es. la pagina del preventivo).
+  const nav = useNavigate()
   const nextParam = params.get('next')
   const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/area-cliente'
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [sending, setSending] = useState(false)
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [resetSent, setResetSent] = useState(false)
 
-  async function send() {
+  const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim())
+
+  async function login() {
     setErr('')
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setErr('Email non valida'); return }
-    setSending(true)
+    if (!emailOk(email)) { setErr('Email non valida'); return }
+    if (password.length < 6) { setErr('Inserisci la password (almeno 6 caratteri)'); return }
+    setBusy(true)
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
-        options: {
-          shouldCreateUser: true,
-          data: { role: 'CLIENT' },
-          emailRedirectTo: `${window.location.origin}${dest}`,
-        },
-      })
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
+      if (error) {
+        if (/invalid login credentials/i.test(error.message)) setErr('Email o password non corretti. È la prima volta? Usa "Imposta / recupera la password" qui sotto.')
+        else setErr(error.message)
+        return
+      }
+      nav(dest)
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Accesso non riuscito') } finally { setBusy(false) }
+  }
+
+  async function sendReset() {
+    setErr('')
+    if (!emailOk(email)) { setErr('Inserisci prima la tua email, poi premi qui'); return }
+    setBusy(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/reset-password` })
       if (error) throw error
-      setSent(true)
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Invio non riuscito')
-    } finally { setSending(false) }
+      setResetSent(true)
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Invio non riuscito') } finally { setBusy(false) }
   }
 
   return (
@@ -50,38 +62,37 @@ export default function ClientAccessPage() {
           <span className="font-display text-xl">La mia area cliente</span>
         </div>
 
-        {sent ? (
+        {resetSent ? (
           <div className="text-center py-4">
             <Mail size={36} className="mx-auto mb-3 text-[rgb(var(--gold-500))]" />
             <h2 className="font-display text-lg mb-1">Controlla la posta</h2>
             <p className="text-sm text-[rgb(var(--fg-muted))]">
-              Ti abbiamo inviato un link di accesso a <strong>{email}</strong>. Cliccalo per entrare nella tua area —
-              niente password da ricordare.
+              Ti abbiamo inviato un link a <strong>{email}</strong> per impostare la password. Aprilo, scegli la
+              password, poi torna qui per accedere.
             </p>
+            <button onClick={() => setResetSent(false)} className="text-sm mt-4 hover:underline text-[rgb(var(--fg-muted))]">← Torna al login</button>
           </div>
         ) : (
           <>
             <p className="text-sm text-[rgb(var(--fg-muted))] mb-5">
-              Inserisci l’email a cui hai ricevuto il preventivo. Ti invieremo un link sicuro per accedere e vedere,
-              in un unico posto, tutti i tuoi professionisti, preventivi e contratti.
+              Accedi con l’email a cui hai ricevuto il preventivo e la tua password. Qui trovi, in un unico posto,
+              tutti i tuoi professionisti, preventivi e contratti.
             </p>
             <label className="block text-sm font-medium mb-1.5">Email</label>
-            <Input type="email" value={email} placeholder="tua@email.it"
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void send() }} />
-            {err && <p className="text-xs text-[rgb(var(--danger,220_38_38))] mt-2" style={{ color: '#dc2626' }}>{err}</p>}
-            <Button className="w-full mt-4" onClick={() => void send()} disabled={sending}>
-              {sending ? 'Invio…' : <>Invia link di accesso <ArrowRight size={16} className="ml-1" /></>}
+            <Input type="email" autoComplete="email" value={email} placeholder="tua@email.it"
+              onChange={(e) => setEmail(e.target.value)} />
+            <label className="block text-sm font-medium mb-1.5 mt-3">Password</label>
+            <Input type="password" autoComplete="current-password" value={password} placeholder="••••••••"
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void login() }} />
+            {err && <p className="text-xs mt-2" style={{ color: '#dc2626' }}>{err}</p>}
+            <Button className="w-full mt-4" onClick={() => void login()} disabled={busy}>
+              {busy ? 'Accesso…' : <>Accedi <ArrowRight size={16} className="ml-1" /></>}
             </Button>
 
-            {/* Chi ha già una password (es. account registrato) può accedere o reimpostarla */}
-            <div className="mt-5 pt-4 border-t border-[rgb(var(--border))] text-center text-sm text-[rgb(var(--fg-muted))]">
-              <p>Hai già una password?{' '}
-                <Link to="/login" className="font-medium text-[rgb(var(--fg))] hover:underline">Accedi</Link>
-              </p>
-              <p className="mt-1.5">
-                <Link to="/forgot-password" className="hover:underline">Non ricordi la password?</Link>
-              </p>
+            <div className="mt-5 pt-4 border-t border-[rgb(var(--border))] text-center">
+              <button onClick={() => void sendReset()} disabled={busy} className="text-sm text-[rgb(var(--fg))] hover:underline font-medium">Imposta / recupera la password</button>
+              <p className="mt-2 text-xs text-[rgb(var(--fg-subtle))]">Prima volta qui o password dimenticata? Inserisci l’email qui sopra e premi questo tasto: ti mandiamo il link per crearla.</p>
             </div>
           </>
         )}

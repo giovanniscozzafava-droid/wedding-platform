@@ -502,6 +502,15 @@ export function useSetEventZones(entryId: string) {
       const { error } = await (supabase.from('event_plan_zones' as any) as any).upsert({ entry_id: entryId, zones, updated_at: new Date().toISOString() })
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['zones', entryId] }),
+    // Ottimistico: la cache (= prop zones) riflette subito il nuovo stato, così il round-trip
+    // col server non fa "sparire" le zone appena disegnate prima che il refetch completi.
+    onMutate: async (zones: any[]) => {
+      await qc.cancelQueries({ queryKey: ['zones', entryId] })
+      const prev = qc.getQueryData(['zones', entryId])
+      qc.setQueryData(['zones', entryId], zones)
+      return { prev }
+    },
+    onError: (_e, _v, ctx: any) => { if (ctx?.prev !== undefined) qc.setQueryData(['zones', entryId], ctx.prev) },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['zones', entryId] }),
   })
 }
