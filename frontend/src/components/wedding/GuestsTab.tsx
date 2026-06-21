@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, Trash2, Filter, Download, Accessibility, GripVertical, Star, ArrowDownAZ, Heart } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Trash2, Filter, Download, Accessibility, GripVertical, Star, ArrowDownAZ, Heart, Baby } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -169,6 +170,19 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
           {canReorder ? 'oppure trascina ⠿ una riga su/giù per l’ordine manuale · ★ = parente stretto' : 'azzera i filtri per riordinare a mano'}
         </span>
       </div>
+
+      {/* Tanti bambini → consiglia animazione + baby-sitting (anche come servizio da Scopri) */}
+      {(stats.kids + stats.infants) >= 6 && (
+        <Card className="p-3 mb-3 flex flex-wrap items-center gap-3" style={{ background: 'rgb(var(--gold-100))', borderColor: 'rgb(var(--gold-400))' }}>
+          <span className="inline-flex items-start gap-2 text-sm flex-1 min-w-[240px]">
+            <Baby size={18} className="text-[rgb(var(--gold-600))] shrink-0 mt-0.5" />
+            <span><strong>{stats.kids + stats.infants} bambini</strong> tra i confermati. Con così tanti piccoli conviene prevedere <strong>animazione e baby-sitting</strong>: li tieni occupati e sereni e i genitori si godono la festa. Poi, dalla lista, assegni i bimbi a chi se ne occupa.</span>
+          </span>
+          <Link to="/scopri?subrole=animazione" className="ml-auto">
+            <Button variant="gold" size="sm"><Baby size={14} /> Trova animazione</Button>
+          </Link>
+        </Card>
+      )}
 
       {/* Desktop: table */}
       <Card className="overflow-hidden hidden md:block">

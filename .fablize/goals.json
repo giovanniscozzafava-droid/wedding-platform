@@ -6,8 +6,8 @@
    "id": "G001",
    "title": "Lenza stress full",
    "objective": "Popolare e verificare ogni snodo (team, turni, finance, magazzino, calendario) per Casino Lenza e trovare cosa si rompe",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "4 matrimoni: preventivi (3 CONVERTITO+1 ACCETTATO) con total_client, 3 contratti FIRMATI, 6 team, 4 turni (assegnazioni+runsheet), 32 magazzino (rotazione); eventi in calendario."
   }
  ]
 }
