@@ -1,176 +1,147 @@
-// Printable dell'evento in stile TABLEAU MARIAGE (carta avorio, inchiostro, oro, serif Times):
-//  · segnaposto (place card) — tanti nomi su A4, ritagliabili, 2 stili (cartoncino / tenda)
-//  · cavalieri per tavolo — tenda autoportante con nome tavolo + invitati
-//  · menu (per la location) — scheda elegante col logo della location
-// Tutto testo disegnato in jsPDF (niente raster): la rotazione delle facce usa { angle: 180 }.
+// Printable dell'evento (segnaposto, cavalieri per tavolo, menu) negli stessi 6 STILI del tableau
+// mariage. Ogni pagina A4 è costruita come HTML tematizzato e rasterizzata con html2canvas: così la
+// centratura è esatta (CSS), le facce a tendina si ruotano con rotate(180deg) e gli stili coincidono
+// con quelli del poster (POSTER_TEMPLATES).
 import { attendingGuests, guestsByTable, chunk, tableName, guestTableLabel, type PGuest, type PTable } from './eventPrintShared'
+import { getTemplate, type PosterTemplate } from './tableauPosters'
 
-type RGB = [number, number, number]
-const PAPER: RGB = [253, 251, 246]
-const INK: RGB = [26, 23, 20]
-const GOLD: RGB = [196, 154, 92]
-const MUTED: RGB = [95, 87, 76]
+const A4 = { w: 794, h: 1123 } // px @ 96dpi (A4 ritratto)
+const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Great+Vibes&family=Jost:wght@300;400;500&display=swap'
+const esc = (s: string) => (s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] || c))
 
-type Doc = import('jspdf').jsPDF
-const setFill = (d: Doc, c: RGB) => d.setFillColor(c[0], c[1], c[2])
-const setText = (d: Doc, c: RGB) => d.setTextColor(c[0], c[1], c[2])
-const setDraw = (d: Doc, c: RGB) => d.setDrawColor(c[0], c[1], c[2])
-
-// riduce la dimensione finché il testo entra in maxW
-function fitSize(d: Doc, text: string, maxW: number, base: number, min = 7): number {
-  let s = base
-  d.setFontSize(s)
-  while (s > min && d.getTextWidth(text) > maxW) { s -= 0.5; d.setFontSize(s) }
-  return s
+function ensureFonts() {
+  if (!document.getElementById('printable-fonts')) {
+    const l = document.createElement('link'); l.id = 'printable-fonts'; l.rel = 'stylesheet'; l.href = FONT_LINK
+    document.head.appendChild(l)
+  }
 }
-// scritta centrata con letter-spacing reale
-function spaced(d: Doc, t: string, x: number, y: number, cs: number) {
-  const w = d.getTextWidth(t) + cs * Math.max(0, t.length - 1)
-  d.text(t, x - w / 2, y, { align: 'left', charSpace: cs })
+function nameSize(name: string, base: number): number {
+  const n = name.length
+  if (n > 30) return Math.round(base * 0.55)
+  if (n > 22) return Math.round(base * 0.68)
+  if (n > 16) return Math.round(base * 0.82)
+  return base
 }
-
-async function loadLogoPng(url?: string | null): Promise<{ data: string; w: number; h: number } | null> {
+async function loadLogoPng(url?: string | null): Promise<string | null> {
   if (!url) return null
   try {
     const im = new Image(); im.crossOrigin = 'anonymous'
     await new Promise<void>((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error('logo')); im.src = url })
-    const w = im.naturalWidth || 1, h = im.naturalHeight || 1
-    const c = document.createElement('canvas'); c.width = w; c.height = h
+    const c = document.createElement('canvas'); c.width = im.naturalWidth || 1; c.height = im.naturalHeight || 1
     c.getContext('2d')!.drawImage(im, 0, 0)
-    return { data: c.toDataURL('image/png'), w, h }
+    return c.toDataURL('image/png')
   } catch { return null }
 }
 
-// ── SEGNAPOSTO ──────────────────────────────────────────────────────────────
-export async function exportPlaceCards(guests: PGuest[], tables: PTable[], opts: { style?: 'card' | 'tent' } = {}) {
+function newPage(bg: string): HTMLDivElement {
+  const el = document.createElement('div')
+  el.style.cssText = `width:${A4.w}px;height:${A4.h}px;position:relative;box-sizing:border-box;background:${bg};overflow:hidden`
+  return el
+}
+
+async function pagesToPdf(pages: HTMLElement[], filename: string) {
+  if (pages.length === 0) throw new Error('Niente da stampare')
+  ensureFonts()
+  const html2canvas = (await import('html2canvas-pro')).default
+  const { jsPDF } = await import('jspdf')
+  const host = document.createElement('div')
+  host.style.cssText = 'position:fixed;left:-100000px;top:0;pointer-events:none;opacity:1'
+  pages.forEach((p) => host.appendChild(p))
+  document.body.appendChild(host)
+  try {
+    try { await (document as any).fonts?.ready } catch { /* no-op */ }
+    await new Promise((r) => setTimeout(r, 60)) // lascia applicare i font
+    const d = new jsPDF({ unit: 'mm', format: 'a4' })
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = await html2canvas(pages[i]!, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false })
+      if (i > 0) d.addPage()
+      d.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297)
+    }
+    d.save(filename)
+  } finally { document.body.removeChild(host) }
+}
+
+// ── pezzo di faccia (nome) centrato via CSS ──────────────────────────────────
+function nameFaceHTML(t: PosterTemplate, name: string, table: string, base: number): string {
+  const fs = nameSize(name, base)
+  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:0 18px;box-sizing:border-box">
+    <div style="font-family:${t.nameFont};color:${t.nameColor};font-size:${fs}px;line-height:1.05;text-align:center;${t.nameItalic ? 'font-style:italic;' : ''}${t.nameUpper ? 'text-transform:uppercase;letter-spacing:.05em;' : ''}overflow-wrap:anywhere">${esc(name)}</div>
+    <div style="width:38px;height:2px;background:${t.accent};margin:9px 0"></div>
+    ${table ? `<div style="font-family:${t.bodyFont};color:${t.accent};font-size:12px;letter-spacing:.2em;text-transform:uppercase;text-align:center">${esc(table)}</div>` : ''}
+  </div>`
+}
+
+// ── SEGNAPOSTO ───────────────────────────────────────────────────────────────
+export async function exportPlaceCards(guests: PGuest[], tables: PTable[], opts: { variant?: 'card' | 'tent'; styleId?: string }) {
   const att = attendingGuests(guests)
   if (att.length === 0) throw new Error('Nessun invitato da stampare')
-  const { jsPDF } = await import('jspdf')
-  const d = new jsPDF({ unit: 'mm', format: 'a4' })
-  const style = opts.style ?? 'card'
+  const t = getTemplate(opts.styleId ?? 'sereno')
+  const variant = opts.variant ?? 'card'
   const items = att.map((g) => ({ name: g.full_name.trim(), table: guestTableLabel(g, tables) }))
-
-  if (style === 'card') {
-    const M = 10, cols = 2, rows = 5, gap = 6
-    const cw = (210 - 2 * M - (cols - 1) * gap) / cols  // ~92
-    const ch = (297 - 2 * M - (rows - 1) * gap) / rows   // ~51
-    const pages = chunk(items, cols * rows)
-    pages.forEach((page, pi) => {
-      if (pi > 0) d.addPage()
-      page.forEach((it, i) => {
-        const c = i % cols, r = Math.floor(i / cols)
-        const x = M + c * (cw + gap), y = M + r * (ch + gap)
-        setFill(d, PAPER); d.rect(x, y, cw, ch, 'F')
-        setDraw(d, [225, 220, 208]); d.setLineWidth(0.2); d.rect(x, y, cw, ch)
-        const cx = x + cw / 2
-        setText(d, INK); d.setFont('times', 'normal')
-        const s = fitSize(d, it.name, cw - 12, 22)
-        d.text(it.name, cx, y + ch / 2 - (it.table ? 1 : -2), { align: 'center' })
-        setDraw(d, GOLD); d.setLineWidth(0.4); d.line(cx - 9, y + ch / 2 + 4, cx + 9, y + ch / 2 + 4)
-        if (it.table) { setText(d, GOLD); d.setFont('helvetica', 'normal'); d.setFontSize(8); spaced(d, it.table.toUpperCase(), cx, y + ch / 2 + 11, 1.2) }
-        void s
-      })
-    })
-  } else {
-    // TENDA: ogni cella = due facce (sopra ruotata 180) con piega centrale → segnaposto a tendina
-    const M = 10, cols = 2, rows = 4, gap = 7
-    const cw = (210 - 2 * M - (cols - 1) * gap) / cols   // ~92
-    const th = (297 - 2 * M - (rows - 1) * gap) / rows    // ~64 (tenda intera)
-    const fh = th / 2                                     // faccia
-    const pages = chunk(items, cols * rows)
-    pages.forEach((page, pi) => {
-      if (pi > 0) d.addPage()
-      page.forEach((it, i) => {
-        const c = i % cols, r = Math.floor(i / cols)
-        const x = M + c * (cw + gap), y = M + r * (th + gap)
-        const cx = x + cw / 2
-        setFill(d, PAPER); d.rect(x, y, cw, th, 'F')
-        // faccia alta (ruotata 180): centro a y+fh/2
-        drawNameFace(d, cx, y + fh / 2, cw, it.name, it.table, true)
-        // faccia bassa (dritta)
-        drawNameFace(d, cx, y + fh + fh / 2, cw, it.name, it.table, false)
-        // bordo taglio + piega
-        setDraw(d, [225, 220, 208]); d.setLineWidth(0.2); d.rect(x, y, cw, th)
-        setDraw(d, GOLD); d.setLineWidth(0.3); d.setLineDashPattern([1.4, 1.1], 0); d.line(x, y + fh, x + cw, y + fh); d.setLineDashPattern([], 0)
-      })
-    })
-  }
-  d.save(`segnaposto-${style}.pdf`)
+  const perPage = variant === 'card' ? 10 : 8
+  const cols = 2, rows = variant === 'card' ? 5 : 4
+  const cut = t.dark ? 'rgba(255,255,255,.28)' : 'rgba(0,0,0,.18)'
+  const pages = chunk(items, perPage).map((group) => {
+    const page = newPage('#ffffff')
+    const cells = group.map((it) => {
+      if (variant === 'card') {
+        return `<div style="background:${t.bg};border:1px dashed ${cut};display:flex;align-items:center;justify-content:center">${nameFaceHTML(t, it.name, it.table, 32)}</div>`
+      }
+      return `<div style="background:${t.bg};border:1px dashed ${cut};display:flex;flex-direction:column">
+        <div style="flex:1;transform:rotate(180deg)">${nameFaceHTML(t, it.name, it.table, 26)}</div>
+        <div style="border-top:1.5px dashed ${t.accent};opacity:.7"></div>
+        <div style="flex:1">${nameFaceHTML(t, it.name, it.table, 26)}</div>
+      </div>`
+    }).join('')
+    page.innerHTML = `<div style="position:absolute;inset:38px;display:grid;grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr);gap:16px">${cells}</div>
+      <div style="position:absolute;left:0;right:0;top:14px;text-align:center;font-family:${t.bodyFont};font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:${t.accent}">Ritaglia lungo le linee${variant === 'tent' ? ' · piega a metà' : ''}</div>`
+    return page
+  })
+  await pagesToPdf(pages, `segnaposto-${variant}.pdf`)
 }
 
-function drawNameFace(d: Doc, cx: number, cy: number, cw: number, name: string, table: string, rotated: boolean) {
-  const dir = rotated ? -1 : 1
-  const ang = rotated ? 180 : 0
-  setText(d, INK); d.setFont('times', 'normal')
-  fitSize(d, name, cw - 14, 18)
-  d.text(name, cx, cy - dir * 2, { align: 'center', angle: ang })
-  setDraw(d, GOLD); d.setLineWidth(0.35); d.line(cx - 8, cy + dir * 3, cx + 8, cy + dir * 3)
-  if (table) { setText(d, GOLD); d.setFont('helvetica', 'normal'); d.setFontSize(7.5); d.text(table.toUpperCase(), cx, cy + dir * 8, { align: 'center', angle: ang }) }
-}
-
-// ── CAVALIERI PER TAVOLO (autoportanti, stile tableau) ───────────────────────
-export async function exportTableSigns(tables: PTable[], guests: PGuest[], opts: { coupleNames?: string; dateText?: string } = {}) {
-  const groups = guestsByTable(guests, tables).filter((g) => g.table) // solo tavoli reali
+// ── CAVALIERI PER TAVOLO (autoportanti) ──────────────────────────────────────
+export async function exportTableSigns(tables: PTable[], guests: PGuest[], opts: { styleId?: string; coupleNames?: string; dateText?: string }) {
+  const groups = guestsByTable(guests, tables).filter((g) => g.table)
   if (groups.length === 0) throw new Error('Nessun tavolo con invitati')
-  const { jsPDF } = await import('jspdf')
-  const d = new jsPDF({ unit: 'mm', format: 'a4' })
-  const W = 150, H = 100, BASE = 50, TABH = 10, LIP = 12
-  const x0 = (210 - W) / 2, x1 = x0 + W, cx = (x0 + x1) / 2
-  const yTop = 18, yApex = yTop + H, yBaseFold = yApex + H, yBaseEnd = yBaseFold + BASE, yTabEnd = yBaseEnd + TABH
-  const tabHalf = 22, slitHalf = 24
+  const t = getTemplate(opts.styleId ?? 'sereno')
+  const head = [opts.coupleNames?.trim(), opts.dateText?.trim()].filter(Boolean).join(' · ')
+  const guide = t.dark ? 'rgba(255,255,255,.45)' : 'rgba(0,0,0,.35)'
 
-  groups.forEach((g, gi) => {
-    if (gi > 0) d.addPage()
+  const faceHTML = (tname: string, names: string[]) => {
+    const fs = nameSize(tname, 50)
+    const two = names.length > 6
+    const list = two
+      ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 26px;width:100%;max-width:480px">${names.map((n) => `<div style="text-align:center;font-family:${t.bodyFont};color:${t.guestColor};font-size:16px;line-height:1.5">${esc(n)}</div>`).join('')}</div>`
+      : names.map((n) => `<div style="text-align:center;font-family:${t.bodyFont};color:${t.guestColor};font-size:19px;line-height:1.55">${esc(n)}</div>`).join('')
+    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:18px 28px;box-sizing:border-box">
+      ${head ? `<div style="font-family:${t.bodyFont};color:${t.accent};font-size:11px;letter-spacing:.22em;text-transform:uppercase;margin-bottom:6px">${esc(head)}</div>` : ''}
+      <div style="font-family:${t.nameFont};color:${t.nameColor};font-size:${fs}px;line-height:1.04;${t.nameItalic ? 'font-style:italic;' : ''}${t.nameUpper ? 'text-transform:uppercase;letter-spacing:.05em;' : ''}">${esc(tname)}</div>
+      <div style="width:46px;height:2px;background:${t.accent};margin:11px 0 14px"></div>
+      ${list}
+    </div>`
+  }
+
+  const W = 560, FACE = 332, BASE = 188, TAB = 58, SLIT = 56
+  const pages = groups.map((g) => {
+    const page = newPage('#ffffff')
     const tname = tableName(g.table!)
     const names = g.guests.map((x) => x.full_name.trim())
-    drawTableFace(d, x0, yTop + LIP, W, H - LIP, tname, names, opts, true)   // faccia A (ruotata)
-    drawTableFace(d, x0, yApex, W, H - LIP, tname, names, opts, false)       // faccia B (dritta)
-    // base
-    setText(d, [150, 140, 125]); d.setFont('helvetica', 'normal'); d.setFontSize(9)
-    d.text('BASE — piega e infila la linguetta nella fessura in cima', cx, yBaseFold + BASE / 2, { align: 'center' })
-    // contorno + linguetta
-    setDraw(d, [120, 120, 120]); d.setLineWidth(0.3); d.setLineDashPattern([], 0)
-    const cut: Array<[number, number]> = [[x0, yTop], [x1, yTop], [x1, yBaseEnd], [cx + tabHalf, yBaseEnd], [cx + tabHalf, yTabEnd], [cx - tabHalf, yTabEnd], [cx - tabHalf, yBaseEnd], [x0, yBaseEnd], [x0, yTop]]
-    for (let i = 0; i < cut.length - 1; i++) d.line(cut[i]![0], cut[i]![1], cut[i + 1]![0], cut[i + 1]![1])
-    // fessura nella fascia bianca
-    setText(d, [150, 150, 150]); d.setFont('helvetica', 'normal'); d.setFontSize(7); d.text('fessura (taglia)', cx, yTop + 4, { align: 'center' })
-    d.setLineWidth(0.5); d.line(cx - slitHalf, yTop + 6.5, cx + slitHalf, yTop + 6.5)
-    // pieghe
-    setDraw(d, GOLD); d.setLineWidth(0.3); d.setLineDashPattern([1.6, 1.2], 0)
-    d.line(x0, yApex, x1, yApex); d.line(x0, yBaseFold, x1, yBaseFold); d.line(cx - tabHalf, yBaseEnd, cx + tabHalf, yBaseEnd)
-    d.setLineDashPattern([], 0)
+    page.innerHTML = `<div style="position:absolute;left:50%;top:36px;transform:translateX(-50%);width:${W}px">
+      <div style="height:${SLIT}px;position:relative;text-align:center">
+        <div style="font-family:Arial;font-size:11px;color:${guide};letter-spacing:.1em;padding-top:8px">fessura · taglia</div>
+        <div style="position:absolute;left:50%;top:34px;transform:translateX(-50%);width:210px;border-top:2px solid ${guide}"></div>
+      </div>
+      <div style="height:${FACE}px;background:${t.bg};transform:rotate(180deg);border:1px solid ${guide}">${faceHTML(tname, names)}</div>
+      <div style="border-top:1.5px dashed ${t.accent}"></div>
+      <div style="height:${FACE}px;background:${t.bg};border:1px solid ${guide};border-top:none">${faceHTML(tname, names)}</div>
+      <div style="border-top:1.5px dashed ${t.accent}"></div>
+      <div style="height:${BASE}px;background:${t.bg};border:1px solid ${guide};border-top:none;display:flex;align-items:center;justify-content:center;text-align:center;font-family:Arial;font-size:12px;color:${guide};padding:0 40px">BASE — piega e infila la linguetta nella fessura in cima: il cavaliere sta in piedi da solo</div>
+      <div style="width:240px;height:${TAB}px;margin:0 auto;background:${t.bg};border:1px solid ${guide};border-top:1.5px dashed ${t.accent};display:flex;align-items:center;justify-content:center;font-family:Arial;font-size:11px;color:${guide}">linguetta</div>
+    </div>`
+    return page
   })
-  d.save('cavalieri-tavolo.pdf')
-}
-
-function drawTableFace(d: Doc, x: number, y: number, w: number, h: number, tname: string, names: string[], opts: { coupleNames?: string; dateText?: string }, rotated: boolean) {
-  setFill(d, PAPER); d.rect(x, y, w, h, 'F')
-  // Per la faccia ruotata disegniamo in un sistema "capovolto" calcolando da sé gli y mirror.
-  const cx = x + w / 2
-  const top = (yy: number) => (rotated ? y + h - (yy - y) : yy) // specchia verticalmente
-  const ang = rotated ? 180 : 0
-  // header coppia (piccolo)
-  const head = [opts.coupleNames?.trim(), opts.dateText?.trim()].filter(Boolean).join(' · ')
-  if (head) { setText(d, MUTED); d.setFont('helvetica', 'normal'); d.setFontSize(7.5); d.text(head.toUpperCase(), cx, top(y + 9), { align: 'center', angle: ang }) }
-  // nome tavolo
-  setText(d, INK); d.setFont('times', 'normal'); fitSize(d, tname, w - 20, 26)
-  d.text(tname, cx, top(y + 22), { align: 'center', angle: ang })
-  setDraw(d, GOLD); d.setLineWidth(0.5); const ry = top(y + 27); d.line(cx - 14, ry, cx + 14, ry)
-  // invitati (due colonne se tanti)
-  setText(d, INK); d.setFont('helvetica', 'normal')
-  const fs = names.length > 8 ? 9 : 11; d.setFontSize(fs)
-  const startY = y + 33, lineH = fs * 0.52
-  const twoCol = names.length > 6
-  if (!twoCol) {
-    names.forEach((n, i) => d.text(n, cx, top(startY + i * lineH), { align: 'center', angle: ang }))
-  } else {
-    const half = Math.ceil(names.length / 2)
-    const colL = x + w * 0.27, colR = x + w * 0.73
-    names.forEach((n, i) => {
-      const col = i < half ? colL : colR, row = i < half ? i : i - half
-      d.text(n, col, top(startY + row * lineH), { align: 'center', angle: ang })
-    })
-  }
+  await pagesToPdf(pages, 'cavalieri-tavolo.pdf')
 }
 
 // ── MENU (per la location, col suo logo) ─────────────────────────────────────
@@ -183,44 +154,35 @@ const MENU_ORDER: Array<{ key: string; label: string }> = [
 ]
 type MenuItem = { section: string; name: string; description?: string | null }
 
-export async function exportMenu(items: MenuItem[], opts: { logoUrl?: string | null; venueName?: string | null; coupleNames?: string; dateText?: string } = {}) {
+export async function exportMenu(items: MenuItem[], opts: { styleId?: string; logoUrl?: string | null; venueName?: string | null; coupleNames?: string; dateText?: string }) {
   const valid = (items ?? []).filter((i) => i.name && i.name.trim())
   if (valid.length === 0) throw new Error('Il menu è vuoto')
-  const { jsPDF } = await import('jspdf')
-  const d = new jsPDF({ unit: 'mm', format: 'a4' })
+  const t = getTemplate(opts.styleId ?? 'sereno')
   const logo = await loadLogoPng(opts.logoUrl)
-
-  // Due menu identici per A4 (A5 ciascuno, da tagliare a metà).
-  const halfW = 210, halfH = 297 / 2
-  drawMenu(d, 0, 0, halfW, halfH, valid, opts, logo)
-  setDraw(d, [220, 214, 202]); d.setLineWidth(0.2); d.setLineDashPattern([1.6, 1.4], 0); d.line(8, halfH, 202, halfH); d.setLineDashPattern([], 0)
-  drawMenu(d, 0, halfH, halfW, halfH, valid, opts, logo)
-  d.save('menu.pdf')
-}
-
-function drawMenu(d: Doc, ox: number, oy: number, w: number, h: number, items: MenuItem[], opts: { logoUrl?: string | null; venueName?: string | null; coupleNames?: string; dateText?: string }, logo: { data: string; w: number; h: number } | null) {
-  setFill(d, PAPER); d.rect(ox, oy, w, h, 'F')
-  const cx = ox + w / 2
-  let y = oy + 14
-  if (logo) { const lw = Math.min(34, (logo.w / logo.h) * 14), lh = lw * (logo.h / logo.w); d.addImage(logo.data, 'PNG', cx - lw / 2, y - 4, lw, lh); y += lh + 4 }
-  else if (opts.venueName) { setText(d, INK); d.setFont('times', 'normal'); d.setFontSize(16); d.text(opts.venueName, cx, y + 4, { align: 'center' }); y += 10 }
-  // titolo + coppia/data
-  setText(d, GOLD); d.setFont('helvetica', 'normal'); d.setFontSize(9); spaced(d, 'M E N U', cx, y + 4, 3); y += 8
   const head = [opts.coupleNames?.trim(), opts.dateText?.trim()].filter(Boolean).join(' · ')
-  if (head) { setText(d, MUTED); d.setFont('times', 'italic'); d.setFontSize(10); d.text(head, cx, y + 2, { align: 'center' }); y += 7 }
-  y += 2
-  // sezioni
-  const present = MENU_ORDER.map((s) => ({ ...s, dishes: items.filter((i) => (i.section || '').toUpperCase() === s.key) })).filter((s) => s.dishes.length)
-  for (const s of present) {
-    if (y > oy + h - 16) break
-    setText(d, GOLD); d.setFont('helvetica', 'normal'); d.setFontSize(7.5); spaced(d, s.label.toUpperCase(), cx, y, 2); y += 5
-    for (const dish of s.dishes) {
-      if (y > oy + h - 12) break
-      setText(d, INK); d.setFont('times', 'normal'); d.setFontSize(11.5)
-      for (const ln of d.splitTextToSize(dish.name, w - 40) as string[]) { d.text(ln, cx, y, { align: 'center' }); y += 5 }
-      if (dish.description) { setText(d, MUTED); d.setFont('helvetica', 'normal'); d.setFontSize(8); for (const ln of d.splitTextToSize(dish.description, w - 48) as string[]) { d.text(ln, cx, y, { align: 'center' }); y += 3.6 } }
-      y += 1.5
-    }
-    y += 3
-  }
+  const present = MENU_ORDER.map((s) => ({ ...s, dishes: valid.filter((i) => (i.section || '').toUpperCase() === s.key) })).filter((s) => s.dishes.length)
+
+  const sectionsHTML = present.map((s) => `
+    <div style="margin-bottom:14px">
+      <div style="font-family:${t.bodyFont};color:${t.accent};font-size:12px;letter-spacing:.24em;text-transform:uppercase;margin-bottom:7px">${esc(s.label)}</div>
+      ${s.dishes.map((dish) => `
+        <div style="margin-bottom:6px">
+          <div style="font-family:${t.nameFont};color:${t.nameColor};font-size:18px;line-height:1.2">${esc(dish.name)}</div>
+          ${dish.description ? `<div style="font-family:${t.bodyFont};color:${t.guestColor};font-size:12px;line-height:1.35;opacity:.85">${esc(dish.description)}</div>` : ''}
+        </div>`).join('')}
+    </div>`).join('')
+
+  const cardHTML = `<div style="height:100%;box-sizing:border-box;background:${t.bg};display:flex;flex-direction:column;align-items:center;text-align:center;padding:34px 56px">
+    ${logo ? `<img src="${logo}" style="max-height:54px;max-width:200px;object-fit:contain;margin-bottom:10px" />` : opts.venueName ? `<div style="font-family:${t.nameFont};color:${t.nameColor};font-size:22px;margin-bottom:8px">${esc(opts.venueName)}</div>` : ''}
+    <div style="font-family:${t.bodyFont};color:${t.accent};font-size:13px;letter-spacing:.5em;text-transform:uppercase;margin-bottom:4px">Menu</div>
+    ${head ? `<div style="font-family:${t.nameFont};font-style:italic;color:${t.guestColor};font-size:15px;margin-bottom:14px">${esc(head)}</div>` : '<div style="height:8px"></div>'}
+    <div style="width:100%;text-align:center">${sectionsHTML}</div>
+  </div>`
+
+  const page = newPage('#ffffff')
+  page.innerHTML = `
+    <div style="position:absolute;left:0;right:0;top:0;height:50%">${cardHTML}</div>
+    <div style="position:absolute;left:30px;right:30px;top:50%;border-top:1px dashed ${t.accent};opacity:.6"></div>
+    <div style="position:absolute;left:0;right:0;top:50%;height:50%">${cardHTML}</div>`
+  await pagesToPdf([page], 'menu.pdf')
 }

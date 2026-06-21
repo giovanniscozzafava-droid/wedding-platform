@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding, useEventFloorPlan, useEventZones, useSetEventZones, useMenu } from '@/hooks/useWedding'
-import { exportPlaceCards, exportTableSigns, exportMenu } from '@/lib/eventPrintables'
+import { PrintStudio } from './PrintStudio'
 import { useAuth } from '@/lib/auth'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { exportTableauPlanPdf, type TableauFormat } from '@/lib/tableauExport'
@@ -62,6 +62,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const { data: guests } = useGuests(entryId)
   const { data: wedding } = useWedding(entryId)
   const { data: menu } = useMenu(entryId)
+  const [showPrint, setShowPrint] = useState(false)
   const { data: floorPlan } = useEventFloorPlan(entryId)
   const { data: zones } = useEventZones(entryId)
   const setZones = useSetEventZones(entryId)
@@ -131,21 +132,6 @@ export function TablesTab({ entryId }: { entryId: string }) {
     })
   }
 
-  // ── STAMPABILI (stile tableau): segnaposto, cavalieri per tavolo, menu (logo location) ──
-  async function doPrint(kind: 'place-card' | 'place-tent' | 'table-signs' | 'menu') {
-    const gs = (guests ?? []) as any[]; const ts = (tables ?? []) as any[]
-    const coupleNames = (wedding as any)?.client_name ?? ''
-    const dateText = (wedding as any)?.date_from ? new Date((wedding as any).date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
-    try {
-      if (kind === 'place-card') await exportPlaceCards(gs, ts, { style: 'card' })
-      else if (kind === 'place-tent') await exportPlaceCards(gs, ts, { style: 'tent' })
-      else if (kind === 'table-signs') await exportTableSigns(ts, gs, { coupleNames, dateText })
-      else {
-        const items = ((menu ?? []) as any[]).map((m) => ({ section: m.section, name: m.name, description: m.description }))
-        await exportMenu(items, { logoUrl: (profile as any)?.brand_logo_url ?? null, venueName: (profile as any)?.business_name ?? null, coupleNames, dateText })
-      }
-    } catch (e) { toast.error((e as Error).message) }
-  }
 
   async function applyNamingPreset(style: string) {
     const list = (tables ?? []) as any[]
@@ -288,11 +274,8 @@ export function TablesTab({ entryId }: { entryId: string }) {
       {view === 'plan' && (
         <Card className="p-3 mb-4 flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-[rgb(var(--fg-muted))] inline-flex items-center gap-1"><Printer size={13} /> Stampa per gli ospiti:</span>
-          <Button variant="outline" size="sm" onClick={() => doPrint('place-card')}>Segnaposto · cartoncino</Button>
-          <Button variant="outline" size="sm" onClick={() => doPrint('place-tent')}>Segnaposto · tenda</Button>
-          <Button variant="outline" size="sm" onClick={() => doPrint('table-signs')}>Cavalieri per tavolo</Button>
-          <Button variant="outline" size="sm" onClick={() => doPrint('menu')}>Menu (col tuo logo)</Button>
-          <span className="text-[11px] text-[rgb(var(--fg-subtle))] w-full">A4 da ritagliare · i nomi vengono dagli invitati, le portate dal menu dell'evento.</span>
+          <Button variant="outline" size="sm" onClick={() => setShowPrint(true)}>Segnaposto · cavalieri · menu…</Button>
+          <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Scegli cosa stampare e lo stile, come per il tableau.</span>
         </Card>
       )}
 
@@ -545,6 +528,19 @@ export function TablesTab({ entryId }: { entryId: string }) {
         theme={currentTheme}
         logoUrl={(profile as { brand_logo_url?: string | null } | null)?.brand_logo_url ?? null}
         logoName={(profile as { business_name?: string | null } | null)?.business_name ?? null}
+      />
+
+      <PrintStudio
+        open={showPrint}
+        onClose={() => setShowPrint(false)}
+        guests={(guests ?? []) as any}
+        tables={(tables ?? []) as any}
+        menu={((menu ?? []) as any[]).map((m) => ({ section: m.section, name: m.name, description: m.description }))}
+        coupleNames={(wedding as any)?.client_name ?? ''}
+        dateText={(wedding as any)?.date_from ? new Date((wedding as any).date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+        logoUrl={(profile as { brand_logo_url?: string | null } | null)?.brand_logo_url ?? null}
+        venueName={(profile as { business_name?: string | null } | null)?.business_name ?? null}
+        theme={currentTheme}
       />
     </div>
   )
