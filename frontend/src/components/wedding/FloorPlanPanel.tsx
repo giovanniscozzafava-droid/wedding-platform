@@ -49,7 +49,7 @@ export function FloorPlanPanel({ entryId }: { entryId: string }) {
         </div>
       </div>
 
-      {current ? (
+      {current && current.image_url ? (
         <div className="flex items-center gap-3">
           <img src={current.image_url} alt="" className="h-16 w-24 object-contain rounded border border-[rgb(var(--border))] bg-white" />
           <div className="text-xs text-[rgb(var(--fg-muted))]">
@@ -62,16 +62,16 @@ export function FloorPlanPanel({ entryId }: { entryId: string }) {
       )}
 
       {/* Libreria piantine riutilizzabili */}
-      {lib.length > 0 && (
+      {lib.some((p) => p.image_url) && (
         <div className="mt-3 pt-3 border-t border-[rgb(var(--border))]">
           <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1.5">Le tue piantine</p>
           <div className="flex flex-wrap gap-2">
-            {lib.map((p) => {
+            {lib.filter((p) => !!p.image_url).map((p) => {
               const active = current?.image_url === p.image_url
               return (
                 <div key={p.id} className={`relative group rounded-lg border overflow-hidden ${active ? 'border-[rgb(var(--gold-500))] ring-1 ring-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`}>
-                  <button onClick={() => setForEvent.mutate({ image_url: p.image_url, ratio: p.ratio, name: p.name, floor_plan_id: p.id })} title={`Usa "${p.name}"`} className="block">
-                    <img src={p.image_url} alt={p.name} className="h-14 w-20 object-contain bg-white" />
+                  <button onClick={() => setForEvent.mutate({ image_url: p.image_url!, ratio: p.ratio, name: p.name, floor_plan_id: p.id })} title={`Usa "${p.name}"`} className="block">
+                    <img src={p.image_url!} alt={p.name} className="h-14 w-20 object-contain bg-white" />
                     <span className="block px-1.5 py-0.5 text-[10px] truncate max-w-[80px]">{p.name}</span>
                   </button>
                   {active && <span className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-[rgb(var(--gold-500))] text-white flex items-center justify-center"><Check size={10} /></span>}

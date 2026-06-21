@@ -153,6 +153,21 @@ export default function SupplierClientsPage() {
     }
   }
 
+  // Apre il preventivo ESISTENTE del cliente (il più recente). Bug: il bottone creava sempre un
+  // preventivo nuovo a 0, anche quando il cliente ne aveva già uno. Se non ne trova, ne crea uno.
+  async function openLatestQuote(c: SupplierClientWithStats) {
+    try {
+      const { data, error } = await supabase
+        .from('quotes').select('id').eq('direct_client_id', c.id)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (error) throw error
+      if (data?.id) nav(`/quotes/${data.id}`)
+      else await handleNewQuoteFor(c)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
@@ -241,7 +256,16 @@ export default function SupplierClientsPage() {
                           <CalendarHeart size={14} /> Gestisci evento
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => handleNewQuoteFor(c)} disabled={createQuote.isPending} title="Nuovo preventivo">
-                          <FileText size={14} />
+                          <Plus size={14} />
+                        </Button>
+                      </>
+                    ) : (c.quote_count ?? 0) > 0 ? (
+                      <>
+                        <Button size="sm" variant="gold" onClick={() => openLatestQuote(c)} title="Apri il preventivo">
+                          <FileText size={14} /> Apri preventivo
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleNewQuoteFor(c)} disabled={createQuote.isPending} title="Nuovo preventivo">
+                          <Plus size={14} />
                         </Button>
                       </>
                     ) : (

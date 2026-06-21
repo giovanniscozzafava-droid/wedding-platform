@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { UserPlus, Pencil, Trash2, ZoomIn, ZoomOut, Maximize, RotateCw } from 'lucide-react'
+import { tableFootprint } from '@/lib/seatingStandards'
 
 // Piantina grafica del tableau mariage: tavoli disegnati nella loro forma, trascinabili,
 // con assegnazione invitati (clic o drag-and-drop). pos_x/pos_y = frazione 0..1 della sala.
@@ -62,10 +63,11 @@ function seatLayout(shape: string, seats: number): Array<{ x: number; y: number;
 const label = (t: PlanTable) => t.label ?? `Tavolo ${t.table_no}`
 
 export function TableauPlan({
-  tables, guests, room, floorPlanUrl, floorPlanRatio, zones, onZonesChange, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable, onRotate,
+  tables, guests, room, roomDims, floorPlanUrl, floorPlanRatio, zones, onZonesChange, onMove, onAssignGuest, onOpenAssign, onEditTable, onDeleteTable, onRotate,
 }: {
   tables: PlanTable[]; guests: PlanGuest[]
   room?: { shape: string; ratio: number }
+  roomDims?: { width_m: number; length_m: number } | null  // metratura reale → planimetria IN SCALA
   floorPlanUrl?: string | null    // piantina reale della location, proiettata come sfondo
   floorPlanRatio?: number | null
   zones?: Zone[]
@@ -138,6 +140,13 @@ export function TableauPlan({
   const BASE_CAP = 12 // tavoli che entrano comodi al 100% (≈10 posti l'uno ≈ 120 invitati)
   const roomScale = Math.max(1, Math.sqrt(Math.max(1, tables.length) / BASE_CAP))
 
+  // SCALA REALE: se conosco la metratura della sala (m), disegno tutto in scala — i tavoli alla
+  // loro misura fisica standard (footprint), niente più tavoli "elastici". px_per_metro = larghezza
+  // canvas / larghezza sala. In questa modalità non serve la crescita artificiale `roomScale`.
+  const scaleMode = !!(roomDims && roomDims.width_m > 0 && roomDims.length_m > 0)
+  const effRoomScale = scaleMode ? 1 : roomScale
+  const pxPerM = scaleMode && box.w ? box.w / roomDims!.width_m : 0
+
   function onTablePointerDown(e: React.PointerEvent, id: string, x: number, y: number) {
     e.stopPropagation()
     const r = planRef.current!.getBoundingClientRect()
@@ -173,7 +182,8 @@ export function TableauPlan({
           <button onClick={() => setZoom(1)} title="Adatta" disabled={zoom === 1}
             className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-40 text-[11px]"><Maximize size={13} /> Adatta</button>
           {zoom > 1 && <span className="text-[10px] text-[rgb(var(--fg-subtle))]">scorri per spostarti · ingrandisci per leggere i nomi alle sedie</span>}
-          {roomScale > 1.01 && <span className="text-[10px] text-[rgb(var(--gold-700))]">Sala proiettata in grande per {tables.length} tavoli — scorri per esplorarla, i nomi restano leggibili</span>}
+          {scaleMode && <span className="text-[10px] text-[rgb(var(--gold-700))]">In scala · sala {roomDims!.width_m}×{roomDims!.length_m} m — ingrandisci per leggere i nomi alle sedie</span>}
+          {!scaleMode && roomScale > 1.01 && <span className="text-[10px] text-[rgb(var(--gold-700))]">Sala proiettata in grande per {tables.length} tavoli — scorri per esplorarla, i nomi restano leggibili</span>}
         </div>
 
         {/* Zone & punti: aree (poligono) + POI (1 clic). Entrate/uscite/bagni utili per la mobilità ridotta. */}
@@ -210,8 +220,8 @@ export function TableauPlan({
         <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
           className="relative overflow-hidden select-none"
           style={{
-            width: `${(zoom * roomScale * 100).toFixed(1)}%`,
-            aspectRatio: String(floorPlanUrl ? (floorPlanRatio || room?.ratio || 1.6) : (room?.ratio ?? 1.6)),
+            width: `${(zoom * effRoomScale * 100).toFixed(1)}%`,
+            aspectRatio: String(scaleMode ? (roomDims!.width_m / roomDims!.length_m) : floorPlanUrl ? (floorPlanRatio || room?.ratio || 1.6) : (room?.ratio ?? 1.6)),
             background: floorPlanUrl
               ? `#ffffff url("${floorPlanUrl}") center / contain no-repeat`
               : 'repeating-linear-gradient(45deg, rgb(var(--bg-sunken)) 0 12px, rgb(var(--bg)) 12px 24px)',
@@ -267,11 +277,19 @@ export function TableauPlan({
             const x = livePos && livePos.id === t.id ? livePos.x : bx
             const y = livePos && livePos.id === t.id ? livePos.y : by
             const sz = tableSize(t)
-            const wpx = Math.max(28, (sz.w / roomScale) * box.w), hpx = sz.round ? wpx : Math.max(18, (sz.h / roomScale) * box.h)
+            let wpx: number, hpx: number
+            if (scaleMode) {
+              const fp = tableFootprint(t.shape, t.seats ?? 8)
+              wpx = Math.max(24, fp.w * pxPerM)
+              hpx = fp.round ? wpx : Math.max(16, fp.l * pxPerM)
+            } else {
+              wpx = Math.max(28, (sz.w / roomScale) * box.w)
+              hpx = sz.round ? wpx : Math.max(18, (sz.h / roomScale) * box.h)
+            }
             const seated = seatedAt(t.id)
             const over = (t.seats ?? 0) - seated.length
             const isOver = overTable === t.id
-            const realHpx = sz.u ? wpx * 0.7 : hpx
+            const realHpx = (!scaleMode && sz.u) ? wpx * 0.7 : hpx
             const showSeatNames = !t.is_staff && wpx >= 44 && seated.length > 0
             return (
               <div key={t.id}

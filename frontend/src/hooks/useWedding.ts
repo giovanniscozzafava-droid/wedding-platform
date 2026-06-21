@@ -421,7 +421,7 @@ export function useEventFloorPlan(entryId: string | null) {
     queryFn: async () => {
       const { data, error } = await (supabase.from('event_floor_plans' as any) as any).select('*').eq('entry_id', entryId!).maybeSingle()
       if (error) throw error
-      return data as { entry_id: string; image_url: string; ratio: number; name: string | null; floor_plan_id: string | null } | null
+      return data as { entry_id: string; image_url: string | null; ratio: number; name: string | null; floor_plan_id: string | null; width_m: number | null; length_m: number | null; venue_name: string | null; room_name: string | null } | null
     },
   })
 }
@@ -434,7 +434,7 @@ export function useFloorPlanLibrary() {
       if (!au?.user) return []
       const { data, error } = await (supabase.from('floor_plans' as any) as any).select('*').eq('owner_id', au.user.id).order('sort_order')
       if (error) throw error
-      return (data ?? []) as Array<{ id: string; name: string; image_url: string; ratio: number }>
+      return (data ?? []) as Array<{ id: string; name: string; image_url: string | null; ratio: number; width_m: number | null; length_m: number | null }>
     },
   })
 }
@@ -451,6 +451,25 @@ export function useFloorPlanMutations(entryId: string) {
     }),
     clearForEvent: useMutation({
       mutationFn: async () => { const { error } = await (supabase.from('event_floor_plans' as any) as any).delete().eq('entry_id', entryId); if (error) throw error }, onSuccess: inv,
+    }),
+    // Metratura sala (m) per la piantina in scala. Upsert che NON tocca image_url esistente.
+    setDims: useMutation({
+      mutationFn: async (p: { width_m: number | null; length_m: number | null; venue_name?: string | null; room_name?: string | null }) => {
+        const row: any = { entry_id: entryId, width_m: p.width_m, length_m: p.length_m, updated_at: new Date().toISOString() }
+        if (p.venue_name !== undefined) row.venue_name = p.venue_name
+        if (p.room_name !== undefined) row.room_name = p.room_name
+        const { error } = await (supabase.from('event_floor_plans' as any) as any).upsert(row)
+        if (error) throw error
+      }, onSuccess: inv,
+    }),
+    // Salva la sala (solo metratura, senza immagine) nella libreria del proprietario, riusabile.
+    saveRoom: useMutation({
+      mutationFn: async (p: { name: string; width_m: number; length_m: number }) => {
+        const { data: au } = await supabase.auth.getUser(); if (!au?.user) throw new Error('Non autenticato')
+        const ratio = p.length_m > 0 ? p.width_m / p.length_m : 1.6
+        const { data, error } = await (supabase.from('floor_plans' as any) as any).insert({ owner_id: au.user.id, name: p.name, width_m: p.width_m, length_m: p.length_m, ratio }).select().single()
+        if (error) throw error; return data
+      }, onSuccess: inv,
     }),
     addToLibrary: useMutation({
       mutationFn: async (p: { image_url: string; ratio: number; name: string }) => {
