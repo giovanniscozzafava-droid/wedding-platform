@@ -5,6 +5,7 @@ import { Wallet, TrendingUp, CalendarDays, Hourglass, CheckCircle2, FileText, Ex
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { eventTerm } from '@/lib/eventKind'
+import { eur, eurInt } from '@/lib/money'
 
 type FinanceRow = {
   id: string
@@ -31,8 +32,6 @@ type FinanceStats = {
   pending: FinanceRow[]
 }
 
-const EUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 })
-const EUR2 = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
 export default function BilancioPage() {
   const { profile } = useAuth()
@@ -112,19 +111,19 @@ export default function BilancioPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <KpiCard
           label="Questo mese"
-          value={EUR.format(stats.month_total)}
+          value={eurInt(stats.month_total)}
           icon={TrendingUp}
           accent="gold"
         />
         <KpiCard
           label="Quest'anno"
-          value={EUR.format(stats.year_total)}
+          value={eurInt(stats.year_total)}
           icon={CalendarDays}
           accent="sage"
         />
         <KpiCard
           label="Totale lifetime"
-          value={EUR.format(stats.lifetime_total)}
+          value={eurInt(stats.lifetime_total)}
           icon={Wallet}
           accent="ink"
         />
@@ -161,7 +160,7 @@ export default function BilancioPage() {
                 <div key={m.month} className="flex-1 flex flex-col items-center gap-1 group">
                   <div className="text-[10px] tabular-nums opacity-0 group-hover:opacity-100 transition-opacity"
                     style={{ color: 'rgb(var(--fg-muted))' }}>
-                    {EUR.format(Number(m.total))}
+                    {eurInt(Number(m.total))}
                   </div>
                   <div className="w-full rounded-t-md transition-all"
                     style={{
@@ -319,7 +318,7 @@ function RowList({ rows, kind }: { rows: FinanceRow[]; kind: 'pending' | 'upcomi
             </div>
             <div className="text-right shrink-0">
               <span className="font-medium tabular-nums whitespace-nowrap">
-                {EUR2.format(Number(r.total_client))}
+                {eur(Number(r.total_client))}
               </span>
             </div>
           </li>

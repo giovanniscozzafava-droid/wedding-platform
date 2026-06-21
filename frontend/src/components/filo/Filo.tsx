@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
+
+type FiloSignal = { key: string; priority: number; area: string; title: string; body: string; link: string }
 
 // FILO v1 — la guida dentro Planfully. Presenza fluttuante (glifo ring-and-dot) che, toccata,
 // dice "a cosa serve + la prossima mossa" dell'area in cui sei, con la voce del fondatore.
@@ -76,6 +80,22 @@ export function Filo() {
   }, [open])
 
   const tip = useMemo(() => tipFor(location.pathname), [location.pathname])
+  const nav = useNavigate()
+
+  // Filo legge lo stato reale del business (RPC filo_brief) e ne ricava i consigli prioritizzati.
+  const { data: brief } = useQuery({
+    queryKey: ['filo-brief'],
+    enabled: isPro,
+    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('filo_brief')
+      if (error) throw error
+      return data as { signals?: FiloSignal[] }
+    },
+  })
+  const signals = useMemo(() => [...(brief?.signals ?? [])].sort((a, b) => a.priority - b.priority).slice(0, 4), [brief])
+  const hasUrgent = signals.some((s) => s.priority === 1)
 
   if (!isPro) return null
 
@@ -110,10 +130,29 @@ export function Filo() {
               </>
             ) : (
               <>
-                <p className="text-sm text-[rgb(var(--fg-muted))] leading-relaxed">{tip.what}</p>
-                <div className="rounded-lg bg-[rgb(var(--gold-100))]/60 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))] mb-0.5">La prossima mossa</p>
-                  <p className="text-sm leading-snug">{tip.next}</p>
+                {signals.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Filo ti consiglia</p>
+                    {signals.map((s, i) => (
+                      <button key={i} onClick={() => { close(); nav(s.link) }}
+                        className="w-full text-left rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-400))] hover:bg-[rgb(var(--bg-sunken))] px-3 py-2 transition-colors">
+                        <div className="flex items-center gap-2">
+                          {s.priority === 1 && <span className="h-1.5 w-1.5 rounded-full bg-[rgb(var(--gold-500))] shrink-0" />}
+                          <span className="text-[13px] font-medium leading-none">{s.title}</span>
+                          <span className="ml-auto text-[9px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] shrink-0">{s.area}</span>
+                        </div>
+                        <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 leading-snug">{s.body}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className={signals.length > 0 ? 'pt-2 mt-1 border-t border-[rgb(var(--border))]' : ''}>
+                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Dove sei · {tip.area}</p>
+                  <p className="text-sm text-[rgb(var(--fg-muted))] leading-relaxed">{tip.what}</p>
+                  <div className="rounded-lg bg-[rgb(var(--gold-100))]/60 px-3 py-2 mt-2">
+                    <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))] mb-0.5">La prossima mossa</p>
+                    <p className="text-sm leading-snug">{tip.next}</p>
+                  </div>
                 </div>
               </>
             )}
@@ -129,9 +168,10 @@ export function Filo() {
       )}
 
       <button onClick={() => (open ? close() : setOpen(true))} aria-label="Filo — la tua guida" title="Filo"
-        className="h-12 w-12 rounded-full border flex items-center justify-center shadow-[var(--shadow-lift)] transition-transform hover:scale-105 text-[rgb(var(--gold-600))]"
+        className="relative h-12 w-12 rounded-full border flex items-center justify-center shadow-[var(--shadow-lift)] transition-transform hover:scale-105 text-[rgb(var(--gold-600))]"
         style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))' }}>
         {RING(24)}
+        {!open && hasUrgent && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-[rgb(var(--gold-500))]" style={{ boxShadow: '0 0 0 2px rgb(var(--bg))' }} />}
       </button>
 
       <style>{`@keyframes filoIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
