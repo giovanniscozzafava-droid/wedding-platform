@@ -517,7 +517,15 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Oppure stampa il <strong>cavaliere da tavolo</strong>: un A4 da ritagliare e piegare, con base a incastro che lo tiene in piedi e QR su entrambe le facce. Stampane uno per tavolo.</p>
             <div className="flex flex-wrap gap-2 justify-center">
               <Button variant="outline" size="sm" onClick={() => { void navigator.clipboard.writeText(guestLinkUrl); toast.success('Link copiato') }}>Copia link</Button>
-              <Button variant="outline" size="sm" onClick={() => { void exportTableTents({ url: guestLinkUrl }).catch((e) => toast.error('PDF non riuscito: ' + ((e as Error).message || 'errore'))) }}>Cavaliere da tavolo (PDF)</Button>
+              <Button variant="outline" size="sm" onClick={async () => {
+                let cn: string | undefined
+                try {
+                  const { data } = await (supabase.from as any)('calendar_entries').select('calendar_entries_private(client_name)').eq('id', entryId).maybeSingle()
+                  const priv = (data as any)?.calendar_entries_private
+                  cn = (Array.isArray(priv) ? priv[0]?.client_name : priv?.client_name) || undefined
+                } catch { /* copy generica se i nomi non sono leggibili */ }
+                void exportTableTents({ url: guestLinkUrl, coupleNames: cn }).catch((e) => toast.error('PDF non riuscito: ' + ((e as Error).message || 'errore')))
+              }}>Cavaliere da tavolo (PDF)</Button>
               <Button variant="gold" size="sm" onClick={() => setGuestLinkUrl(null)}>Chiudi</Button>
             </div>
           </div>

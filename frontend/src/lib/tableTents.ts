@@ -7,26 +7,36 @@
 
 const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 
-export async function exportTableTents(opts: { url: string; title?: string; subtitle?: string }) {
+export async function exportTableTents(opts: { url: string; title?: string; subtitle?: string; coupleNames?: string }) {
   if (!opts.url) throw new Error('Manca il link della galleria')
   const QRCode = (await import('qrcode')).default
   const html2canvas = (await import('html2canvas-pro')).default
   const { jsPDF } = await import('jspdf')
 
-  const title = opts.title || 'Le foto del nostro evento'
-  const subtitle = opts.subtitle || 'Inquadra il QR con la fotocamera del telefono: vedi tutte le foto dell’evento e carichi le tue. È il nostro album condiviso, in un posto solo.'
+  const names = (opts.coupleNames ?? '').trim()
+  const title = opts.title || (names || 'Le foto del nostro evento')
+  const subtitle = opts.subtitle || (names
+    ? 'Avrebbero piacere di condividere con voi le foto del loro matrimonio. Inquadra il QR: le vedi tutte e carichi le tue.'
+    : 'Inquadra il QR con la fotocamera del telefono: vedi tutte le foto dell’evento e carichi le tue. È il nostro album condiviso, in un posto solo.')
 
   const qr = await QRCode.toDataURL(opts.url, { margin: 1, width: 720, color: { dark: '#1A1714', light: '#ffffff' } })
 
-  // LOGO Planfully reale (lockup orizzontale: simbolo + wordmark). Rimuoviamo la media-query
-  // dark-mode dell'SVG (altrimenti su OS scuro il logo diventa avorio → invisibile sull'avorio).
-  let logoTag = '<span style="font-family:Georgia,serif;font-size:24px;letter-spacing:.01em">Planfully</span>'
+  // LOGO: simbolo Planfully reale rasterizzato in PNG (html2canvas non disegna affidabilmente gli
+  // SVG data-url → per quello prima non compariva). Rimossa la media-query dark così resta
+  // inchiostro anche su OS scuro. Accanto, il wordmark testuale.
+  let symPng: string | null = null
   try {
-    let txt = await (await fetch('/brand/planfully-logo-horizontal.svg')).text()
+    let txt = await (await fetch('/brand/planfully-symbol.svg')).text()
     txt = txt.replace(/@media\(prefers-color-scheme:dark\)\{[^{}]*\{[^{}]*\}\}/g, '')
-    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(txt)
-    logoTag = `<img src="${url}" alt="Planfully" style="height:34px;width:auto;display:block"/>`
-  } catch { /* resta il wordmark testuale */ }
+    if (!/<svg[^>]*\swidth=/.test(txt)) txt = txt.replace('<svg ', '<svg width="220" height="220" ')
+    const lurl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(txt)
+    const im = new Image()
+    await new Promise<void>((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error('logo')); im.src = lurl })
+    const lc = document.createElement('canvas'); lc.width = (im.naturalWidth || 220) * 2; lc.height = (im.naturalHeight || 220) * 2
+    lc.getContext('2d')!.drawImage(im, 0, 0, lc.width, lc.height)
+    symPng = lc.toDataURL('image/png')
+  } catch { symPng = null }
+  const logoTag = `<div style="display:flex;align-items:center;gap:9px">${symPng ? `<img src="${symPng}" alt="" style="height:30px;width:30px;display:block"/>` : ''}<span style="font-family:Georgia,serif;font-size:23px;letter-spacing:.01em">Planfully</span></div>`
 
   // ── Geometria A4 (mm) ──────────────────────────────────────────────
   const PW = 210

@@ -56,8 +56,11 @@ export function Filo() {
   const location = useLocation()
   const [open, setOpen] = useState(false)
   const [firstRun, setFirstRun] = useState(false)
+  const [peek, setPeek] = useState<FiloSignal | null>(null) // Filo che "fa capolino" da solo
   const panelRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const lastPeekKey = useRef<string | null>(null)
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const role = profile?.role
   const isPro = role === 'WEDDING_PLANNER' || role === 'LOCATION' || role === 'FORNITORE' || role === 'ADMIN'
@@ -101,6 +104,18 @@ export function Filo() {
   })
   const signals = useMemo(() => [...(brief?.signals ?? [])].sort((a, b) => a.priority - b.priority).slice(0, 4), [brief])
   const hasUrgent = signals.some((s) => s.priority === 1)
+
+  // Filo PROATTIVO: quando arriva un consiglio urgente NUOVO (chiave diversa), fa capolino da solo
+  // con un'anteprima per qualche secondo, poi si richiude nel badge. Non si ripete sulla stessa cosa.
+  useEffect(() => {
+    if (open || firstRun) { setPeek(null); return }
+    const top = signals.find((s) => s.priority === 1)
+    if (!top || lastPeekKey.current === top.key) return
+    lastPeekKey.current = top.key
+    setPeek(top)
+    if (peekTimer.current) clearTimeout(peekTimer.current)
+    peekTimer.current = setTimeout(() => setPeek(null), 8000)
+  }, [signals, open, firstRun])
 
   if (!isPro) return null
 
@@ -174,14 +189,39 @@ export function Filo() {
         </div>
       )}
 
+      {/* Filo proattivo: fa capolino da solo con il consiglio più importante, poi si richiude. */}
+      {peek && !open && (
+        <div className="fixed z-[61] bottom-[5.25rem] right-4 left-4 sm:left-auto sm:right-5 sm:w-[300px] rounded-2xl border shadow-[var(--shadow-lift)] overflow-hidden animate-[filoIn_.2s_ease-out] print:hidden"
+          style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))' }}>
+          <div className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[rgb(var(--gold-600))]">{RING(16)}</span>
+              <span className="text-[11px] font-medium text-[rgb(var(--gold-700))]">Filo · {peek.area}</span>
+              <button onClick={() => setPeek(null)} aria-label="Chiudi" className="ml-auto p-0.5 text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--fg))]"><X size={14} /></button>
+            </div>
+            <button onClick={() => { setPeek(null); setOpen(true) }} className="block w-full text-left">
+              <p className="text-sm font-medium leading-snug">{peek.title}</p>
+              <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5 leading-snug line-clamp-2">{peek.body}</p>
+            </button>
+            <div className="flex justify-end mt-2">
+              <button onClick={() => { const l = peek.link; setPeek(null); nav(l) }} className="text-xs font-medium px-3 py-1 rounded-full bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]">Vai</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <button ref={btnRef} onClick={() => (open ? close() : setOpen(true))} aria-label="Filo — la tua guida" title="Filo"
         className="fixed z-[62] bottom-4 right-4 sm:bottom-5 sm:right-5 h-12 w-12 rounded-full border flex items-center justify-center shadow-[var(--shadow-lift)] transition-transform hover:scale-105 text-[rgb(var(--gold-600))] print:hidden"
         style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))' }}>
+        {!open && hasUrgent && <span className="absolute inset-0 rounded-full animate-[filoPing_2.6s_ease-out_infinite]" style={{ background: 'rgb(var(--gold-400))' }} aria-hidden="true" />}
         {RING(24)}
-        {!open && hasUrgent && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-[rgb(var(--gold-500))]" style={{ boxShadow: '0 0 0 2px rgb(var(--bg))' }} />}
+        {!open && signals.length > 0 && (
+          <span className={`absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[rgb(var(--gold-500))] text-white text-[10px] font-bold leading-none flex items-center justify-center ${hasUrgent ? 'animate-pulse' : ''}`}
+            style={{ boxShadow: '0 0 0 2px rgb(var(--bg))' }} aria-label={`${signals.length} consigli da Filo`}>{signals.length}</span>
+        )}
       </button>
 
-      <style>{`@keyframes filoIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes filoIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}@keyframes filoPing{0%{transform:scale(1);opacity:.5}70%{transform:scale(1.85);opacity:0}100%{opacity:0}}`}</style>
     </>
   )
 }
