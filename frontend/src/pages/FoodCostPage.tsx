@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2 } from 'lucide-react'
+import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
-  type FbIngredient, type FbRecipe, type FbMenu,
+  useSuppliers, useLocationEvents, useRequirements,
+  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier,
 } from '@/hooks/useFoodCost'
 
 const eur = (n: number) => '€ ' + (n ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -18,20 +19,23 @@ const toStock = (v: number, u: string) => v / factor(u)                      // 
 const fromStock = (c: number, u: string) => c * factor(u)                    // €/g → €/kg
 
 export default function FoodCostPage() {
-  const [tab, setTab] = useState<'ing' | 'rec' | 'menu'>('ing')
+  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'sup' | 'ev' | 'fab'>('ing')
   return (
     <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
-        <PageHeader eyebrow="Gestionale F&B" title="Food cost"
-          description="Ingredienti e costi, ricette, menu: sai esattamente quanto ti costa un coperto e che margine fai. Aggancia il menu a un servizio per vedere il margine reale del preventivo." />
-        <div className="flex gap-2 mb-5">
-          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed]] as const).map(([k, l, Icon]) => (
+        <PageHeader eyebrow="Gestionale ristorazione" title="Food cost & approvvigionamento"
+          description="Ingredienti e costi → ricette → menu (food cost a coperto) → fornitori e listini → fabbisogno dagli eventi → lista spesa. Tutto connesso: dal menu dell'evento esce la spesa da fare." />
+        <div className="flex flex-wrap gap-2 mb-5">
+          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart]] as const).map(([k, l, Icon]) => (
             <Button key={k} variant={tab === k ? 'gold' : 'outline'} size="sm" onClick={() => setTab(k)}><Icon size={14} /> {l}</Button>
           ))}
         </div>
         {tab === 'ing' && <IngredientiTab />}
         {tab === 'rec' && <RicetteTab />}
         {tab === 'menu' && <MenuTab />}
+        {tab === 'sup' && <FornitoriTab />}
+        {tab === 'ev' && <EventiTab />}
+        {tab === 'fab' && <FabbisognoTab />}
       </div>
     </div>
   )
@@ -240,6 +244,146 @@ function MenuEditor({ menu, recipes, services }: { menu: FbMenu; recipes: FbReci
         <label className="text-[11px] text-[rgb(var(--fg-muted))]">Per coperto<Input value={qpc} onChange={(e) => setQpc(e.target.value)} className="w-24 mt-0.5" /></label>
         <Button size="sm" onClick={addItem}><Plus size={14} /> Aggiungi</Button>
       </div>
+    </div>
+  )
+}
+
+// ── FASE B ──────────────────────────────────────────────────────────────────
+function FornitoriTab() {
+  const { data: suppliers } = useSuppliers()
+  const { data: ings } = useIngredients()
+  const mut = useFoodCostMutations()
+  const [name, setName] = useState(''); const [phone, setPhone] = useState('')
+  async function add() { if (name.trim().length < 2) { toast.error('Nome fornitore'); return } try { await mut.addSupplier.mutateAsync({ name: name.trim(), phone: phone.trim() || null }); setName(''); setPhone(''); toast.success('Fornitore aggiunto') } catch (e) { toast.error((e as Error).message) } }
+  return (
+    <div className="space-y-4">
+      <Card className="p-3 flex flex-wrap items-end gap-2">
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Fornitore<Input value={name} onChange={(e) => setName(e.target.value)} className="w-48 mt-0.5" placeholder="Molino Rossi" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Telefono<Input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-36 mt-0.5" /></label>
+        <Button size="sm" onClick={add}><Plus size={14} /> Aggiungi</Button>
+      </Card>
+      {(suppliers ?? []).map((s) => <SupplierCard key={s.id} sup={s} ings={ings ?? []} />)}
+      {(suppliers ?? []).length === 0 && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Nessun fornitore. Aggiungine uno + i suoi listini (le confezioni d'acquisto).</Card>}
+    </div>
+  )
+}
+function SupplierCard({ sup, ings }: { sup: FbSupplier; ings: FbIngredient[] }) {
+  const mut = useFoodCostMutations()
+  const ingMap = useMemo(() => new Map(ings.map((i) => [i.id, i])), [ings])
+  const [ingId, setIngId] = useState(''); const [label, setLabel] = useState(''); const [packQty, setPackQty] = useState(''); const [price, setPrice] = useState('')
+  async function addProd() {
+    const ing = ingMap.get(ingId); const q = parseFloat(packQty.replace(',', '.')); const pr = parseFloat(price.replace(',', '.'))
+    if (!ing || !(q > 0) || !(pr > 0) || !label.trim()) { toast.error('Compila ingrediente, confezione, quantità e prezzo'); return }
+    // packQty in kg/L/pz → stock_unit (g/ml/pz)
+    const factor = ing.stock_unit === 'G' || ing.stock_unit === 'ML' ? 1000 : 1
+    try { await mut.addSupplierProduct.mutateAsync({ supplier_id: sup.id, ingredient_id: ingId, pack_label: label.trim(), pack_qty_stock_unit: q * factor, pack_price: pr, is_preferred: true }); setLabel(''); setPackQty(''); setPrice('') } catch (e) { toast.error((e as Error).message) }
+  }
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div><h3 className="font-display text-lg">{sup.name}</h3>{sup.phone && <p className="text-xs text-[rgb(var(--fg-muted))]">{sup.phone}</p>}</div>
+        <button onClick={() => { if (confirm(`Eliminare ${sup.name}?`)) mut.delSupplier.mutate(sup.id) }} className="text-[rgb(var(--rose-500))]"><Trash2 size={16} /></button>
+      </div>
+      <div className="space-y-1 mb-3">
+        {(sup.products ?? []).map((pr) => { const ing = ingMap.get(pr.ingredient_id); const bu = ing?.stock_unit === 'G' ? 'kg' : ing?.stock_unit === 'ML' ? 'L' : 'pz'; const factor = ing?.stock_unit === 'G' || ing?.stock_unit === 'ML' ? 1000 : 1; return (
+          <div key={pr.id} className="flex items-center gap-2 text-sm py-1 border-b border-[rgb(var(--border))] last:border-0">
+            <span className="flex-1">{ing?.name ?? '—'} · <span className="text-[rgb(var(--fg-muted))]">{pr.pack_label}</span></span>
+            <span className="text-[rgb(var(--fg-muted))]">{(pr.pack_qty_stock_unit / factor).toLocaleString('it-IT')} {bu} · {eur(pr.pack_price)}</span>
+            <button onClick={() => mut.delSupplierProduct.mutate(pr.id)} className="text-[rgb(var(--rose-500))]"><Trash2 size={13} /></button>
+          </div>
+        ) })}
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-[11px] text-[rgb(var(--fg-muted))] flex-1 min-w-[160px]">Ingrediente<Select value={ingId} onChange={(e) => setIngId(e.target.value)} className="mt-0.5"><option value="">Scegli…</option>{ings.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</Select></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Confezione<Input value={label} onChange={(e) => setLabel(e.target.value)} className="w-28 mt-0.5" placeholder="Sacco 25kg" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Qtà ({ingMap.get(ingId)?.stock_unit === 'PZ' ? 'pz' : (ingMap.get(ingId)?.stock_unit === 'ML' ? 'L' : 'kg')})<Input value={packQty} onChange={(e) => setPackQty(e.target.value)} className="w-20 mt-0.5" placeholder="25" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Prezzo €<Input value={price} onChange={(e) => setPrice(e.target.value)} className="w-20 mt-0.5" placeholder="20" /></label>
+        <Button size="sm" onClick={addProd}><Plus size={14} /> Listino</Button>
+      </div>
+    </Card>
+  )
+}
+
+function EventiTab() {
+  const { data: events } = useLocationEvents()
+  const { data: menus } = useMenus()
+  const mut = useFoodCostMutations()
+  const menuMap = useMemo(() => new Map((menus ?? []).map((m) => [m.id, m])), [menus])
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-[rgb(var(--fg-muted))]">Assegna a ogni evento il menu (costato) e i coperti: da qui esce il fabbisogno della spesa.</p>
+      {(events ?? []).map((ev) => <EventRow key={ev.id} ev={ev} menus={menus ?? []} menuMap={menuMap} mut={mut} />)}
+      {(events ?? []).length === 0 && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Nessun evento.</Card>}
+    </div>
+  )
+}
+function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuMap: Map<string, FbMenu>; mut: ReturnType<typeof useFoodCostMutations> }) {
+  const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState('')
+  async function add() { if (!menuId) { toast.error('Scegli un menu'); return } try { await mut.setEventMenu.mutateAsync({ entry_id: ev.id, menu_id: menuId, covers: covers ? Number(covers) : null }); setMenuId(''); setCovers('') } catch (e) { toast.error((e as Error).message) } }
+  return (
+    <Card className="p-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div><p className="font-medium text-sm">{ev.title ?? 'Evento'}</p><p className="text-[11px] text-[rgb(var(--fg-subtle))]">{new Date(ev.date_from).toLocaleDateString('it-IT')}{ev.guest_count ? ` · ${ev.guest_count} coperti` : ''}</p></div>
+        <div className="flex items-end gap-1.5">
+          <Select value={menuId} onChange={(e) => setMenuId(e.target.value)} className="h-8 w-40"><option value="">+ menu…</option>{menus.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</Select>
+          <Input value={covers} onChange={(e) => setCovers(e.target.value)} className="h-8 w-20" placeholder="coperti" />
+          <Button size="sm" onClick={add}><Plus size={14} /></Button>
+        </div>
+      </div>
+      {(ev.menus ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {ev.menus.map((em: any) => (
+            <span key={em.id} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--gold-100))]">
+              {menuMap.get(em.menu_id)?.name ?? 'menu'}{em.covers ? ` ×${em.covers}` : ''}
+              <button onClick={() => mut.delEventMenu.mutate(em.id)} className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function FabbisognoTab() {
+  const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [go, setGo] = useState(false)
+  const { data: req, isFetching } = useRequirements(from, to, go)
+  const groups = useMemo(() => {
+    const m = new Map<string, { name: string; rows: typeof req; total: number }>()
+    for (const r of req ?? []) {
+      const k = r.supplier_id ?? 'none'
+      const g = m.get(k) ?? { name: r.supplier_name ?? '— senza fornitore (manca il listino) —', rows: [] as any, total: 0 }
+      ;(g.rows as any).push(r); g.total += r.line_cost ?? 0; m.set(k, g)
+    }
+    return [...m.values()]
+  }, [req])
+  const grand = (req ?? []).reduce((s, r) => s + (r.line_cost ?? 0), 0)
+  return (
+    <div className="space-y-4">
+      <Card className="p-3 flex flex-wrap items-end gap-2">
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Dal<Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setGo(false) }} className="mt-0.5" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Al<Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setGo(false) }} className="mt-0.5" /></label>
+        <Button size="sm" onClick={() => setGo(true)} disabled={!from || !to}><ShoppingCart size={14} /> Calcola fabbisogno</Button>
+        {go && req && <span className="text-sm ml-auto">Totale spesa: <strong>{eur(grand)}</strong></span>}
+      </Card>
+      {go && isFetching && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Calcolo…</Card>}
+      {go && req && req.length === 0 && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Nessun fabbisogno nel periodo. Assegna menu+coperti agli eventi (tab Eventi).</Card>}
+      {groups.map((g, i) => (
+        <Card key={i} className="overflow-hidden">
+          <div className="px-4 py-2 border-b border-[rgb(var(--border))] flex items-center justify-between"><span className="font-medium text-sm inline-flex items-center gap-1.5"><Truck size={14} /> {g.name}</span><span className="text-sm">{eur(g.total)}</span></div>
+          <table className="w-full text-sm">
+            <tbody>
+              {(g.rows as any[]).map((r, j) => (
+                <tr key={j} className="border-b border-[rgb(var(--border))] last:border-0">
+                  <td className="p-2">{r.ingredient_name}</td>
+                  <td className="p-2 text-[rgb(var(--fg-muted))] text-right">{Number(r.qty_needed).toLocaleString('it-IT')} {r.stock_unit}</td>
+                  <td className="p-2 text-right">{r.packs_needed ? `${r.packs_needed} × ${r.pack_label}` : <span className="text-[rgb(var(--rose-600))]">manca listino</span>}</td>
+                  <td className="p-2 text-right font-medium">{r.line_cost != null ? eur(r.line_cost) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      ))}
     </div>
   )
 }

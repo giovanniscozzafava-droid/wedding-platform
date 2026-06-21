@@ -66,9 +66,46 @@ export function useMenuFoodcost(menuId: string | null, covers: number) {
   })
 }
 
+// ── FASE B: fornitori, listini, eventi↔menu, fabbisogno ────────────────────
+export type FbSupplier = { id: string; name: string; email: string | null; phone: string | null; min_order_value: number; products: Array<{ id: string; ingredient_id: string; pack_label: string; pack_qty_stock_unit: number; pack_price: number; is_preferred: boolean }> }
+export function useSuppliers() {
+  return useQuery<FbSupplier[]>({
+    queryKey: ['fb-sup'],
+    queryFn: async () => {
+      const { data, error } = await sb('fb_suppliers').select('*, products:fb_supplier_products(*)').eq('is_active', true).order('name')
+      if (error) throw error
+      return (data ?? []) as FbSupplier[]
+    },
+  })
+}
+export type FbLocEvent = { id: string; title: string | null; date_from: string; guest_count: number | null; menus: Array<{ id: string; menu_id: string; covers: number | null }> }
+export function useLocationEvents() {
+  return useQuery<FbLocEvent[]>({
+    queryKey: ['fb-events'],
+    queryFn: async () => {
+      const id = await uid(); if (!id) return []
+      const { data, error } = await sb('calendar_entries').select('id, title, date_from, guest_count, menus:fb_event_menus(id, menu_id, covers)').eq('owner_id', id).order('date_from')
+      if (error) throw error
+      return (data ?? []) as FbLocEvent[]
+    },
+  })
+}
+export type FbRequirement = { ingredient_id: string; ingredient_name: string; stock_unit: string; qty_needed: number; supplier_id: string | null; supplier_name: string | null; supplier_product_id: string | null; pack_label: string | null; pack_qty: number | null; packs_needed: number | null; pack_price: number | null; line_cost: number | null }
+export function useRequirements(from: string, to: string, enabled: boolean) {
+  return useQuery<FbRequirement[]>({
+    queryKey: ['fb-req', from, to],
+    enabled: enabled && !!from && !!to,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('fb_compute_requirements', { p_from: from, p_to: to })
+      if (error) throw error
+      return (data ?? []) as FbRequirement[]
+    },
+  })
+}
+
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-sup', 'fb-events', 'fb-req'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {
@@ -82,6 +119,13 @@ export function useFoodCostMutations() {
     delRecipeItem: m(async (id: string) => { const { error } = await sb('fb_recipe_items').delete().eq('id', id); if (error) throw error }),
     addMenu: m(async (p: { name: string; service_id?: string | null }) => { const id = await uid(); const { error } = await sb('fb_menus').insert({ location_id: id, ...p }); if (error) throw error }),
     loadPreset: m(async () => { const { data, error } = await (supabase as any).rpc('fb_load_isole_preset'); if (error) throw error; if (data?.error) throw new Error(data.error) }),
+    // Fase B
+    addSupplier: m(async (p: { name: string; email?: string | null; phone?: string | null; min_order_value?: number }) => { const id = await uid(); const { error } = await sb('fb_suppliers').insert({ location_id: id, ...p }); if (error) throw error }),
+    delSupplier: m(async (id: string) => { const { error } = await sb('fb_suppliers').update({ is_active: false }).eq('id', id); if (error) throw error }),
+    addSupplierProduct: m(async (p: { supplier_id: string; ingredient_id: string; pack_label: string; pack_qty_stock_unit: number; pack_price: number; is_preferred?: boolean }) => { const { error } = await sb('fb_supplier_products').insert(p); if (error) throw error }),
+    delSupplierProduct: m(async (id: string) => { const { error } = await sb('fb_supplier_products').delete().eq('id', id); if (error) throw error }),
+    setEventMenu: m(async (p: { entry_id: string; menu_id: string; covers: number | null }) => { const id = await uid(); const { error } = await sb('fb_event_menus').insert({ location_id: id, ...p }); if (error) throw error }),
+    delEventMenu: m(async (id: string) => { const { error } = await sb('fb_event_menus').delete().eq('id', id); if (error) throw error }),
     delMenu: m(async (id: string) => { const { error } = await sb('fb_menus').update({ is_active: false }).eq('id', id); if (error) throw error }),
     linkMenuService: m(async (p: { id: string; service_id: string | null }) => { const { error } = await sb('fb_menus').update({ service_id: p.service_id }).eq('id', p.id); if (error) throw error }),
     addMenuItem: m(async (p: { menu_id: string; recipe_id: string; qty_per_cover: number }) => { const { error } = await sb('fb_menu_items').insert(p); if (error) throw error }),
