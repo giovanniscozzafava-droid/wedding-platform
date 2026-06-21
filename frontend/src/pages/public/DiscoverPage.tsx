@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase, BadgeCheck } from 'lucide-react'
+import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase, BadgeCheck, Check } from 'lucide-react'
 import { StarsBadge } from '@/components/social/StarsBadge'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 type DiscoverSupplier = {
@@ -30,11 +31,22 @@ type DiscoverSupplier = {
 
 export default function DiscoverPage() {
   const nav = useNavigate()
+  const { user } = useAuth()
   const [list, setList] = useState<DiscoverSupplier[]>([])
   const [loading, setLoading] = useState(true)
   const [city, setCity] = useState('')
   const [subrole, setSubrole] = useState('')
   const [search, setSearch] = useState('')
+  const [followed, setFollowed] = useState<Set<string>>(new Set())
+
+  // Chi seguo già (una sola query) → badge "Segui già" sulle card
+  useEffect(() => {
+    if (!user) { setFollowed(new Set()); return }
+    void (async () => {
+      const { data } = await (supabase.from as any)('follows').select('followed_id').eq('follower_id', user.id).eq('status', 'APPROVED')
+      setFollowed(new Set(((data ?? []) as Array<{ followed_id: string }>).map((r) => r.followed_id)))
+    })()
+  }, [user])
 
   useEffect(() => {
     let cancelled = false
@@ -138,7 +150,7 @@ export default function DiscoverPage() {
               <Link to={`${s.role === 'WEDDING_PLANNER' || s.role === 'LOCATION' ? '/p/wp' : '/p/fornitore'}/${s.slug}`} className="block surface surface-elev p-5 hover:surface-lift transition-all">
                 <div className="flex items-start gap-3 mb-3">
                   {s.brand_logo_url ? (
-                    <img src={s.brand_logo_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    <img src={s.brand_logo_url} alt="" className="w-12 h-12 rounded-full object-contain bg-white p-0.5 border border-[rgb(var(--border))]" />
                   ) : (
                     <div className="w-12 h-12 rounded-full flex items-center justify-center font-display text-lg"
                       style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
@@ -157,8 +169,14 @@ export default function DiscoverPage() {
                     )}
                     <div className="mt-1"><StarsBadge userId={s.id} size="sm" /></div>
                   </div>
+                  {followed.has(s.id) && (
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 shrink-0"
+                      style={{ background: 'rgb(16 185 129 / 0.12)', color: 'rgb(5 150 105)' }}>
+                      <Check size={10} /> Segui già
+                    </span>
+                  )}
                   {s.discover_tier === 'PREMIUM' && (
-                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full"
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0"
                       style={{ background: 'rgb(var(--gold-500))', color: 'white' }}>
                       <Sparkles size={9} className="inline mr-0.5" /> Pro
                     </span>
