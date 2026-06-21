@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid, Music, Wrench } from 'lucide-react'
+import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid, Music, Wrench, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding, useEventFloorPlan, useEventZones, useSetEventZones } from '@/hooks/useWedding'
+import { useGuests, useGuestMutations, useTables, useTableMutations, useUpdateWedding, useWedding, useEventFloorPlan, useEventZones, useSetEventZones, useMenu } from '@/hooks/useWedding'
+import { exportPlaceCards, exportTableSigns, exportMenu } from '@/lib/eventPrintables'
 import { useAuth } from '@/lib/auth'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { exportTableauPlanPdf, type TableauFormat } from '@/lib/tableauExport'
@@ -60,6 +61,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
   const { data: tables } = useTables(entryId)
   const { data: guests } = useGuests(entryId)
   const { data: wedding } = useWedding(entryId)
+  const { data: menu } = useMenu(entryId)
   const { data: floorPlan } = useEventFloorPlan(entryId)
   const { data: zones } = useEventZones(entryId)
   const setZones = useSetEventZones(entryId)
@@ -127,6 +129,22 @@ export function TablesTab({ entryId }: { entryId: string }) {
       subtitle: `${(tables ?? []).length} tavoli · ${(guests ?? []).filter((g: any) => g.table_id).length} invitati seduti`,
       filename: `tableau-${format.toLowerCase()}.pdf`,
     })
+  }
+
+  // ── STAMPABILI (stile tableau): segnaposto, cavalieri per tavolo, menu (logo location) ──
+  async function doPrint(kind: 'place-card' | 'place-tent' | 'table-signs' | 'menu') {
+    const gs = (guests ?? []) as any[]; const ts = (tables ?? []) as any[]
+    const coupleNames = (wedding as any)?.client_name ?? ''
+    const dateText = (wedding as any)?.date_from ? new Date((wedding as any).date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
+    try {
+      if (kind === 'place-card') await exportPlaceCards(gs, ts, { style: 'card' })
+      else if (kind === 'place-tent') await exportPlaceCards(gs, ts, { style: 'tent' })
+      else if (kind === 'table-signs') await exportTableSigns(ts, gs, { coupleNames, dateText })
+      else {
+        const items = ((menu ?? []) as any[]).map((m) => ({ section: m.section, name: m.name, description: m.description }))
+        await exportMenu(items, { logoUrl: (profile as any)?.brand_logo_url ?? null, venueName: (profile as any)?.business_name ?? null, coupleNames, dateText })
+      }
+    } catch (e) { toast.error((e as Error).message) }
   }
 
   async function applyNamingPreset(style: string) {
@@ -263,6 +281,18 @@ export function TablesTab({ entryId }: { entryId: string }) {
           <Button variant="outline" size="sm" onClick={addStaffTable}><Crown size={13} /> Tavolo sposi</Button>
           <Button variant="outline" size="sm" onClick={() => addServiceTable('Band / DJ', 'RECT', { x: 0.5, y: 0.88 })}><Music size={13} /> Band / DJ</Button>
           <Button variant="outline" size="sm" onClick={() => addServiceTable('Tecnico (audio/luci)', 'SQUARE', { x: 0.12, y: 0.88 })}><Wrench size={13} /> Tavolo tecnico</Button>
+        </Card>
+      )}
+
+      {/* Stampabili in stile tableau: segnaposto, cavalieri per tavolo, menu (col logo) */}
+      {view === 'plan' && (
+        <Card className="p-3 mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-[rgb(var(--fg-muted))] inline-flex items-center gap-1"><Printer size={13} /> Stampa per gli ospiti:</span>
+          <Button variant="outline" size="sm" onClick={() => doPrint('place-card')}>Segnaposto · cartoncino</Button>
+          <Button variant="outline" size="sm" onClick={() => doPrint('place-tent')}>Segnaposto · tenda</Button>
+          <Button variant="outline" size="sm" onClick={() => doPrint('table-signs')}>Cavalieri per tavolo</Button>
+          <Button variant="outline" size="sm" onClick={() => doPrint('menu')}>Menu (col tuo logo)</Button>
+          <span className="text-[11px] text-[rgb(var(--fg-subtle))] w-full">A4 da ritagliare · i nomi vengono dagli invitati, le portate dal menu dell'evento.</span>
         </Card>
       )}
 
