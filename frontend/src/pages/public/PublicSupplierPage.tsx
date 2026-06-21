@@ -188,6 +188,8 @@ export default function PublicSupplierPage() {
   const isOwner = user?.id === data.id
   const isFornitoreViewer = profile?.role === 'FORNITORE'
   const isCoupleViewer = profile?.role === 'COUPLE'
+  // Un PROFESSIONISTA (fornitore/WP/location) non è un cliente: niente form "richiedi preventivo".
+  const viewerIsPro = !!profile && (profile.role === 'FORNITORE' || profile.role === 'WEDDING_PLANNER' || profile.role === 'LOCATION')
   // Chi può essere subordinato: un WP può aggiungere fornitori E location; una
   // location può aggiungere solo fornitori. (Specchio della RPC capostipite_add_supplier.)
   const canAddTarget =
@@ -409,8 +411,8 @@ export default function PublicSupplierPage() {
           </section>
         )}
 
-        {/* Contatta — modulo che CERTIFICA il contatto cliente↔fornitore */}
-        {!isOwner && (
+        {/* Contatta — modulo cliente↔fornitore. Solo per potenziali clienti, MAI per i pro. */}
+        {!isOwner && !viewerIsPro && (
           <section id="contatta" className="surface p-6 mb-6">
             <h2 className="font-display text-xl mb-1 flex items-center gap-2">
               <Send size={18} /> Contatta {data.business_name ?? data.full_name}
