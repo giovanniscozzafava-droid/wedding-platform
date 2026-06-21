@@ -57,6 +57,7 @@ export function Filo() {
   const [open, setOpen] = useState(false)
   const [firstRun, setFirstRun] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
 
   const role = profile?.role
   const isPro = role === 'WEDDING_PLANNER' || role === 'LOCATION' || role === 'FORNITORE' || role === 'ADMIN'
@@ -73,7 +74,11 @@ export function Filo() {
   // chiudi col click fuori / Esc
   useEffect(() => {
     if (!open) return
-    const onDoc = (e: MouseEvent) => { if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false) }
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (panelRef.current?.contains(t) || btnRef.current?.contains(t)) return
+      setOpen(false)
+    }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
@@ -110,11 +115,11 @@ export function Filo() {
     : 'Ti accompagno i primi giorni, poi resto qui nell’angolo. Partiamo dalla cosa che conta: il primo preventivo. Lo costruisci in due minuti, te lo monto io pulito e lo mandi al cliente.'
 
   return (
-    <div className="fixed z-[60] right-4 bottom-4 sm:right-5 sm:bottom-5 print:hidden" ref={panelRef}>
-      {/* Su smartphone: sfoca e oscura il dietro, così il testo di Filo non si confonde con la pagina. */}
-      {open && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm sm:hidden" onClick={close} aria-hidden="true" />}
+    <>
+      {/* Mobile: sfoca e oscura il dietro così il testo di Filo non si confonde con la pagina. */}
+      {open && <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-sm sm:hidden print:hidden" onClick={close} aria-hidden="true" />}
       {open && (
-        <div className="mb-3 w-[min(92vw,330px)] rounded-2xl border shadow-[var(--shadow-lift)] overflow-hidden animate-[filoIn_.18s_ease-out]"
+        <div ref={panelRef} className="fixed z-[61] bottom-[5.25rem] right-4 left-4 sm:left-auto sm:right-5 sm:w-[330px] max-h-[80vh] overflow-y-auto rounded-2xl border shadow-[var(--shadow-lift)] animate-[filoIn_.18s_ease-out] print:hidden"
           style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
             <span className="text-[rgb(var(--gold-600))]">{RING(20)}</span>
@@ -169,14 +174,14 @@ export function Filo() {
         </div>
       )}
 
-      <button onClick={() => (open ? close() : setOpen(true))} aria-label="Filo — la tua guida" title="Filo"
-        className="relative h-12 w-12 rounded-full border flex items-center justify-center shadow-[var(--shadow-lift)] transition-transform hover:scale-105 text-[rgb(var(--gold-600))]"
+      <button ref={btnRef} onClick={() => (open ? close() : setOpen(true))} aria-label="Filo — la tua guida" title="Filo"
+        className="fixed z-[62] bottom-4 right-4 sm:bottom-5 sm:right-5 h-12 w-12 rounded-full border flex items-center justify-center shadow-[var(--shadow-lift)] transition-transform hover:scale-105 text-[rgb(var(--gold-600))] print:hidden"
         style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))' }}>
         {RING(24)}
         {!open && hasUrgent && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-[rgb(var(--gold-500))]" style={{ boxShadow: '0 0 0 2px rgb(var(--bg))' }} />}
       </button>
 
       <style>{`@keyframes filoIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
-    </div>
+    </>
   )
 }
