@@ -91,21 +91,32 @@ export function useLocationEvents() {
   })
 }
 export type FbRequirement = { ingredient_id: string; ingredient_name: string; stock_unit: string; qty_needed: number; supplier_id: string | null; supplier_name: string | null; supplier_product_id: string | null; pack_label: string | null; pack_qty: number | null; packs_needed: number | null; pack_price: number | null; line_cost: number | null }
-export function useRequirements(from: string, to: string, enabled: boolean) {
+export function useRequirements(from: string, to: string, enabled: boolean, net = false) {
   return useQuery<FbRequirement[]>({
-    queryKey: ['fb-req', from, to],
+    queryKey: ['fb-req', from, to, net],
     enabled: enabled && !!from && !!to,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc('fb_compute_requirements', { p_from: from, p_to: to })
+      const { data, error } = await (supabase as any).rpc('fb_compute_requirements', { p_from: from, p_to: to, p_net: net })
       if (error) throw error
       return (data ?? []) as FbRequirement[]
+    },
+  })
+}
+export type FbLot = { id: string; ingredient_id: string; lot_code: string | null; qty_remaining: number; unit_cost: number; expiry_date: string | null; ingredient: { name: string; stock_unit: string } | null }
+export function useStock() {
+  return useQuery<FbLot[]>({
+    queryKey: ['fb-stock'],
+    queryFn: async () => {
+      const { data, error } = await sb('fb_stock_lots').select('id, ingredient_id, lot_code, qty_remaining, unit_cost, expiry_date, ingredient:fb_ingredients(name, stock_unit)').gt('qty_remaining', 0).order('expiry_date', { nullsFirst: false })
+      if (error) throw error
+      return (data ?? []) as FbLot[]
     },
   })
 }
 
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-sup', 'fb-events', 'fb-req'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-sup', 'fb-events', 'fb-req', 'fb-stock'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {

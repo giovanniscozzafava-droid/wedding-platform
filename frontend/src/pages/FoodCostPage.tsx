@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart } from 'lucide-react'
+import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
-  useSuppliers, useLocationEvents, useRequirements,
+  useSuppliers, useLocationEvents, useRequirements, useStock,
   type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier,
 } from '@/hooks/useFoodCost'
 
@@ -19,14 +19,14 @@ const toStock = (v: number, u: string) => v / factor(u)                      // 
 const fromStock = (c: number, u: string) => c * factor(u)                    // €/g → €/kg
 
 export default function FoodCostPage() {
-  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'sup' | 'ev' | 'fab'>('ing')
+  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'sup' | 'ev' | 'fab' | 'mag'>('ing')
   return (
     <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader eyebrow="Gestionale ristorazione" title="Food cost & approvvigionamento"
           description="Ingredienti e costi → ricette → menu (food cost a coperto) → fornitori e listini → fabbisogno dagli eventi → lista spesa. Tutto connesso: dal menu dell'evento esce la spesa da fare." />
         <div className="flex flex-wrap gap-2 mb-5">
-          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart]] as const).map(([k, l, Icon]) => (
+          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart], ['mag', 'Magazzino', Boxes]] as const).map(([k, l, Icon]) => (
             <Button key={k} variant={tab === k ? 'gold' : 'outline'} size="sm" onClick={() => setTab(k)}><Icon size={14} /> {l}</Button>
           ))}
         </div>
@@ -36,6 +36,7 @@ export default function FoodCostPage() {
         {tab === 'sup' && <FornitoriTab />}
         {tab === 'ev' && <EventiTab />}
         {tab === 'fab' && <FabbisognoTab />}
+        {tab === 'mag' && <MagazzinoTab />}
       </div>
     </div>
   )
@@ -345,8 +346,8 @@ function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuM
 }
 
 function FabbisognoTab() {
-  const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [go, setGo] = useState(false)
-  const { data: req, isFetching } = useRequirements(from, to, go)
+  const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [go, setGo] = useState(false); const [net, setNet] = useState(true)
+  const { data: req, isFetching } = useRequirements(from, to, go, net)
   const groups = useMemo(() => {
     const m = new Map<string, { name: string; rows: typeof req; total: number }>()
     for (const r of req ?? []) {
@@ -362,6 +363,7 @@ function FabbisognoTab() {
       <Card className="p-3 flex flex-wrap items-end gap-2">
         <label className="text-[11px] text-[rgb(var(--fg-muted))]">Dal<Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setGo(false) }} className="mt-0.5" /></label>
         <label className="text-[11px] text-[rgb(var(--fg-muted))]">Al<Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setGo(false) }} className="mt-0.5" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))] inline-flex items-center gap-1.5 pb-2"><input type="checkbox" checked={net} onChange={(e) => { setNet(e.target.checked); setGo(false) }} /> sottrai giacenza</label>
         <Button size="sm" onClick={() => setGo(true)} disabled={!from || !to}><ShoppingCart size={14} /> Calcola fabbisogno</Button>
         {go && req && <span className="text-sm ml-auto">Totale spesa: <strong>{eur(grand)}</strong></span>}
       </Card>
@@ -384,6 +386,50 @@ function FabbisognoTab() {
           </table>
         </Card>
       ))}
+    </div>
+  )
+}
+
+// ── FASE C: Magazzino + Scadenziario ────────────────────────────────────────
+function MagazzinoTab() {
+  const { data: lots } = useStock()
+  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() }, [])
+  const bigUnitOf = (u: string) => (u === 'G' ? 'kg' : u === 'ML' ? 'L' : 'pz')
+  const fac = (u: string) => (u === 'G' || u === 'ML' ? 1000 : 1)
+  const giacenze = useMemo(() => {
+    const m = new Map<string, { name: string; unit: string; qty: number; value: number }>()
+    for (const l of lots ?? []) {
+      const g = m.get(l.ingredient_id) ?? { name: l.ingredient?.name ?? '—', unit: l.ingredient?.stock_unit ?? 'PZ', qty: 0, value: 0 }
+      g.qty += l.qty_remaining; g.value += l.qty_remaining * l.unit_cost; m.set(l.ingredient_id, g)
+    }
+    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, 'it'))
+  }, [lots])
+  const totalValue = (lots ?? []).reduce((s, l) => s + l.qty_remaining * l.unit_cost, 0)
+  const dated = (lots ?? []).filter((l) => l.expiry_date).slice().sort((a, b) => (a.expiry_date! < b.expiry_date! ? -1 : 1))
+  const daysTo = (d: string) => Math.round((new Date(d).getTime() - today) / 86400000)
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <Card className="overflow-hidden">
+        <div className="px-4 py-2 border-b border-[rgb(var(--border))] flex items-center justify-between"><span className="font-medium text-sm inline-flex items-center gap-1.5"><Boxes size={14} /> Giacenze</span><span className="text-sm">valore {eur(totalValue)}</span></div>
+        <table className="w-full text-sm"><tbody>
+          {giacenze.map((g, i) => (
+            <tr key={i} className="border-b border-[rgb(var(--border))] last:border-0"><td className="p-2">{g.name}</td><td className="p-2 text-right text-[rgb(var(--fg-muted))]">{(g.qty / fac(g.unit)).toLocaleString('it-IT', { maximumFractionDigits: 2 })} {bigUnitOf(g.unit)}</td><td className="p-2 text-right">{eur(g.value)}</td></tr>
+          ))}
+          {giacenze.length === 0 && <tr><td className="p-6 text-center text-[rgb(var(--fg-subtle))]" colSpan={3}>Magazzino vuoto. La giacenza si carica ricevendo gli ordini.</td></tr>}
+        </tbody></table>
+      </Card>
+      <Card className="overflow-hidden">
+        <div className="px-4 py-2 border-b border-[rgb(var(--border))] font-medium text-sm inline-flex items-center gap-1.5"><AlertTriangle size={14} /> Scadenziario (FEFO)</div>
+        <table className="w-full text-sm"><tbody>
+          {dated.map((l) => { const d = daysTo(l.expiry_date!); const danger = d < 0; const warn = d >= 0 && d <= 7; const u = l.ingredient?.stock_unit ?? 'PZ'; return (
+            <tr key={l.id} className="border-b border-[rgb(var(--border))] last:border-0" style={{ background: danger ? 'rgb(220 38 38 / 0.08)' : warn ? 'rgb(245 158 11 / 0.10)' : undefined }}>
+              <td className="p-2">{l.ingredient?.name ?? '—'}{l.lot_code && <span className="text-[rgb(var(--fg-subtle))] text-xs"> · {l.lot_code}</span>}</td>
+              <td className="p-2 text-right text-[rgb(var(--fg-muted))]">{(l.qty_remaining / fac(u)).toLocaleString('it-IT', { maximumFractionDigits: 2 })} {bigUnitOf(u)}</td>
+              <td className="p-2 text-right text-xs">{new Date(l.expiry_date!).toLocaleDateString('it-IT')}<span className={danger ? 'text-[rgb(var(--rose-600))] font-medium' : warn ? 'text-[rgb(var(--gold-700))] font-medium' : 'text-[rgb(var(--fg-subtle))]'}> · {danger ? `scaduto ${-d}g fa` : `tra ${d}g`}</span></td>
+            </tr>) })}
+          {dated.length === 0 && <tr><td className="p-6 text-center text-[rgb(var(--fg-subtle))]" colSpan={3}>Nessun lotto con scadenza.</td></tr>}
+        </tbody></table>
+      </Card>
     </div>
   )
 }
