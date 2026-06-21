@@ -384,7 +384,7 @@ function BusinessModelToggle({ wedding }: { wedding: any }) {
               <button onClick={() => setOpen(false)} aria-label="Chiudi"
                 className="shrink-0 -mr-1 -mt-1 h-8 w-8 inline-flex items-center justify-center rounded-full text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]">✕</button>
             </div>
-            <p className="text-xs text-[rgb(var(--fg-muted))] mb-4">Come gestirai questo matrimonio dal punto di vista commerciale.</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))] mb-4">Come gestirai questo evento dal punto di vista commerciale.</p>
             <div className="space-y-2">
               <button onClick={() => set('GLOBAL')}
                 className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${current === 'GLOBAL' ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--bg-sunken))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>

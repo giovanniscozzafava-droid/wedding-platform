@@ -80,8 +80,8 @@ export default function WeddingsPage() {
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader
           eyebrow="Hub eventi"
-          title="I tuoi matrimoni"
-          description="Ogni evento ha la sua dashboard: scaletta, tavoli, invitati, budget, checklist, mood, playlist, contratti, documenti."
+          title="I tuoi eventi"
+          description="Matrimoni, compleanni, battesimi, eventi aziendali… ognuno con la sua dashboard: scaletta, tavoli, invitati, budget, checklist, mood, playlist, contratti, documenti."
         />
 
         <div className="flex justify-end mb-4 -mt-2">
@@ -123,7 +123,7 @@ export default function WeddingsPage() {
               style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
               <CalendarHeart size={20} />
             </span>
-            <h3 className="font-display text-xl mb-1">Nessun matrimonio attivo</h3>
+            <h3 className="font-display text-xl mb-1">Nessun evento attivo</h3>
             <p className="text-sm text-[rgb(var(--fg-muted))]">
               Quando un preventivo verra` accettato, l&apos;evento associato comparira` qui pronto da gestire.
             </p>
@@ -160,7 +160,7 @@ export default function WeddingsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          title="Elimina matrimonio + dati coppia (GDPR)"
+                          title="Elimina evento + dati cliente (GDPR)"
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); void deleteWedding(w.id, w.title) }}
                           className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
                         >
