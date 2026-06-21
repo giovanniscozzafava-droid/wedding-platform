@@ -42,6 +42,7 @@ import { HelpModeToggle } from '@/components/help/HelpDot'
 import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { BetaBanner } from '@/components/BetaBanner'
 import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
+import { Filo } from '@/components/filo/Filo'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -374,6 +375,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <ImpersonationBanner />
+      <Filo />
     </div>
   )
 }
