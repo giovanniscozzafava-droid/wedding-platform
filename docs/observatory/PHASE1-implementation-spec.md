@@ -220,14 +220,37 @@ select cron.schedule('observatory-refresh-monthly', '0 3 1 * *',
 
 ---
 
-## 5. Lettura dal client (RPC k-safe, solo capostipiti)
+## 5. Lettura dal client (RPC k-safe, solo capostipiti, dietro feature flag)
+
+### 5.1 Interruttore unico di pubblicazione (deploy dormiente)
+
+Il motore può girare e **accumulare** snapshot fin da subito (sono k-safe → innocui). Ma la
+**pubblicazione** resta dietro un singolo flag che un umano gira **una volta sola, dopo la firma del
+legale §7**. Pattern identico a `referral_accounting_enabled`.
+
+```sql
+create table if not exists public.observatory_config (
+  id boolean primary key default true check (id),   -- riga singola
+  live boolean not null default false,              -- false = dormiente; true = pubblica
+  updated_at timestamptz not null default now()
+);
+insert into public.observatory_config(id, live) values (true, false) on conflict do nothing;
+
+create or replace function public.is_observatory_live()
+returns boolean language sql stable set search_path = public as $$
+  select coalesce((select live from public.observatory_config where id), false);
+$$;
+```
+
+### 5.2 RPC di lettura
 
 ```sql
 create or replace function public.get_observatory(p_metric text default null)
 returns setof public.observatory_snapshots
 language sql stable security definer set search_path = public as $$
   select s.* from public.observatory_snapshots s
-  where exists (select 1 from public.profiles p where p.id = auth.uid()
+  where public.is_observatory_live()                          -- finché false → ritorna 0 righe
+    and exists (select 1 from public.profiles p where p.id = auth.uid()
                and p.role in ('WEDDING_PLANNER','LOCATION','ADMIN'))
     and (p_metric is null or s.metric_key = p_metric)
   order by s.period_end desc, s.metric_key;
@@ -235,8 +258,17 @@ $$;
 grant execute on function public.get_observatory(text) to authenticated;  -- mai anon
 ```
 
-> `observatory_snapshots` contiene **solo** celle già oltre `k` + anti-dominanza: servirle è sicuro.
-> Nessuna RPC tocca le mv o le tabelle operative (principio 7).
+> Con `live = false` la RPC non restituisce nulla, anche se gli snapshot esistono: il dato si
+> accumula da solo (cella-per-cella, D8) ma **non si vede** finché un umano non gira il flag dopo la
+> firma legale. `observatory_snapshots` contiene comunque **solo** celle oltre `k` + anti-dominanza:
+> nessuna RPC tocca le mv o le tabelle operative (principio 7).
+
+### 5.3 Perché NON auto-attivare sul numero di clienti
+
+Il `k`-gate protegge dal mostrare celle *sotto soglia*; **non** sostituisce i due lucchetti
+**non-tecnici** che il PRP §7 mette prima della prima cella pubblicata: **firma legale** e **flusso
+di consenso attivo**. Auto-pubblicare al crescere del campione li scavalcherebbe. Quindi: deploy
+dormiente + flag manuale = "già dentro, si riempie da solo, ma si accende con un interruttore unico".
 
 ---
 
@@ -261,7 +293,10 @@ Celle assenti (sotto `k`) → **"dati insufficienti"**, mai un valore.
       successivo (test con `refresh_observatory()` forzato; la cella può ri-spegnersi se scende sotto k).
 - [ ] **Contratto UI**: ogni metrica mostra n/intervallo/periodo/metodologia (e2e).
 - [ ] **No-network**: nessuna chiamata di rete a fonti esterne nel runtime.
-- [ ] **Firma legale §7** ottenuta (antitrust / GDPR / IP) prima del go-live in produzione.
+- [ ] **Feature flag**: con `observatory_config.live = false` la RPC `get_observatory` ritorna **0
+      righe** anche se gli snapshot esistono; con `live = true` ritorna le celle k-safe. (Garantisce
+      che l'accumulo dati non equivale a pubblicazione.)
+- [ ] **Firma legale §7** ottenuta (antitrust / GDPR / IP) **prima** di girare il flag a `true`.
 
 I test k/anti-dominanza/consenso girano su un seed sintetico in transazione + `refresh_observatory()`,
 poi rollback — niente dati finti in prod (coerente con la disciplina del progetto).
@@ -274,8 +309,11 @@ poi rollback — niente dati finti in prod (coerente con la disciplina del proge
 2. `*_observatory_snapshots.sql` — §2.2.
 3. `*_observatory_engine.sql` — §3 (le 3 mv) + §4 (refresh + cron).
 4. `*_observatory_read.sql` — §5 (RPC).
-5. Frontend: una scheda metrica nel cruscotto capostipite (contratto UI §6), poi le altre due.
-6. Test DoD §7 → verde. Firma legale → go-live cella-per-cella (D8).
+5. `*_observatory_read.sql` include il **flag** `observatory_config` (default `live = false`) — §5.1:
+   il motore gira e accumula snapshot, ma nulla è visibile.
+6. Frontend: una scheda metrica nel cruscotto capostipite (contratto UI §6), poi le altre due.
+7. Test DoD §7 → verde. **Firma legale §7 → si gira `observatory_config.live = true`** (un solo
+   `update`, da admin): da qui go-live **automatico cella-per-cella** (D8), senza altri interventi.
 
 La Fase 2 (ricarico, trend storico, "tuo dato vs benchmark" fornitore) e la Fase 3 (fonti esterne)
 riusano questo scheletro.
