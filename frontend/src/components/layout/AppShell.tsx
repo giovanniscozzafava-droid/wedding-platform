@@ -19,6 +19,7 @@ import {
   Calculator,
   Wallet,
   PiggyBank,
+  Carrot,
   ShieldCheck,
   FileSignature,
   Contact,
@@ -200,11 +201,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isFornitore = profile?.role === 'FORNITORE'
   const isStaff = (profile as any)?.is_support_staff || profile?.role === 'ADMIN'
-  const baseGroups = isCapostipite
+  const baseGroupsRaw = isCapostipite
     ? NAV_CAPOSTIPITE_GROUPS
     : isFornitore
     ? NAV_FORNITORE_GROUPS
     : NAV_FALLBACK_GROUPS
+  // Food cost: strumento gestionale SOLO per le Location (PRP-4 Fase A).
+  const baseGroups = profile?.role === 'LOCATION'
+    ? baseGroupsRaw.map((g) => g.section === 'Gestione'
+        ? { ...g, items: [...g.items, { to: '/food-cost', label: 'Food cost', icon: Carrot }] }
+        : g)
+    : baseGroupsRaw
   // Gruppo riservato a staff/admin (gestione piattaforma + ticket).
   const NAV_GROUPS: NavGroup[] = isStaff
     ? [...baseGroups, { section: 'Staff', items: [
