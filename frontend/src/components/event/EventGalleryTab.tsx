@@ -520,10 +520,12 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               <Button variant="outline" size="sm" onClick={async () => {
                 let cn: string | undefined
                 try {
-                  const { data } = await (supabase.from as any)('calendar_entries').select('calendar_entries_private(client_name)').eq('id', entryId).maybeSingle()
+                  // client_name è PII (RLS): un fornitore collaboratore può non leggerlo → uso il TITOLO
+                  // dell'evento come ripiego (di norma = nome coppia, leggibile dai partecipanti).
+                  const { data } = await (supabase.from as any)('calendar_entries').select('title, calendar_entries_private(client_name)').eq('id', entryId).maybeSingle()
                   const priv = (data as any)?.calendar_entries_private
-                  cn = (Array.isArray(priv) ? priv[0]?.client_name : priv?.client_name) || undefined
-                } catch { /* copy generica se i nomi non sono leggibili */ }
+                  cn = (Array.isArray(priv) ? priv[0]?.client_name : priv?.client_name) || (data as any)?.title || undefined
+                } catch { /* copy generica se nemmeno il titolo è leggibile */ }
                 void exportTableTents({ url: guestLinkUrl, coupleNames: cn }).catch((e) => toast.error('PDF non riuscito: ' + ((e as Error).message || 'errore')))
               }}>Cavaliere da tavolo (PDF)</Button>
               <Button variant="gold" size="sm" onClick={() => setGuestLinkUrl(null)}>Chiudi</Button>

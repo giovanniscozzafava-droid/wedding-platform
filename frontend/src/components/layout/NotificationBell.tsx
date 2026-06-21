@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 // ============================================================================
-// Campanella notifiche con badge rosso (+N). Mostra preventivi accettati,
-// contratti firmati, nuove richieste. Polling leggero ogni 30s.
+// Campanella notifiche con badge rosso (+N). Il pannello è in un PORTALE con
+// posizione fixed calcolata dal campanello: così non viene tagliato dalla
+// sidebar né la copre (bug: con align=start sbordava sul contenuto).
 // ============================================================================
 
 type Notif = { id: string; type: string; title: string; body: string | null; link: string | null; read_at: string | null; created_at: string }
@@ -17,7 +19,9 @@ export function NotificationBell({ align = 'end' }: { align?: 'start' | 'end' })
   const [count, setCount] = useState(0)
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<Notif[]>([])
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const refresh = useCallback(async () => {
     const { data } = await rpc('unread_notifications_count')
@@ -31,22 +35,52 @@ export function NotificationBell({ align = 'end' }: { align?: 'start' | 'end' })
   }, [refresh])
 
   useEffect(() => {
-    function onDoc(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    function onDoc(e: MouseEvent) {
+      const t = e.target as Node
+      if (ref.current?.contains(t) || panelRef.current?.contains(t)) return
+      setOpen(false)
+    }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
 
+  function computePos() {
+    const r = ref.current?.getBoundingClientRect(); if (!r) return
+    const width = Math.min(320, window.innerWidth - 16)
+    let left: number, top: number
+    if (align === 'start') {
+      // sidebar: apri a DESTRA del campanello (verso il contenuto), non sopra la nav
+      left = r.right + 8
+      top = r.top
+      if (left + width > window.innerWidth - 8) left = Math.max(8, r.left - width - 8)
+    } else {
+      // topbar: allineato a destra, sotto il campanello
+      top = r.bottom + 8
+      left = Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8))
+    }
+    top = Math.max(8, Math.min(top, window.innerHeight - 140))
+    setPos({ top, left, width })
+  }
+
   async function toggle() {
     const next = !open
+    if (next) computePos()
     setOpen(next)
     if (next) {
       const { data } = await rpc('list_notifications', { p_limit: 20 })
       setItems((data as Notif[]) ?? [])
-      // segna lette dopo aver aperto
       await rpc('mark_notifications_read')
       setCount(0)
     }
   }
+
+  useEffect(() => {
+    if (!open) return
+    const onResize = () => computePos()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   return (
     <div className="relative" ref={ref}>
@@ -60,10 +94,10 @@ export function NotificationBell({ align = 'end' }: { align?: 'start' | 'end' })
         )}
       </button>
 
-      {open && (
-        <div className={`absolute ${align === 'start' ? 'left-0' : 'right-0'} mt-2 w-[min(92vw,20rem)] max-h-96 overflow-y-auto rounded-xl border shadow-lg z-50`}
-          style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
-          <div className="px-4 py-2.5 border-b text-sm font-medium" style={{ borderColor: 'rgb(var(--border))' }}>Notifiche</div>
+      {open && pos && createPortal(
+        <div ref={panelRef} className="fixed max-h-[24rem] overflow-y-auto rounded-xl border shadow-xl z-[100]"
+          style={{ top: pos.top, left: pos.left, width: pos.width, borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
+          <div className="px-4 py-2.5 border-b text-sm font-medium sticky top-0" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>Notifiche</div>
           {items.length === 0 ? (
             <p className="px-4 py-6 text-center text-xs text-[rgb(var(--fg-subtle))]">Nessuna notifica.</p>
           ) : (
@@ -81,8 +115,7 @@ export function NotificationBell({ align = 'end' }: { align?: 'start' | 'end' })
               ))}
             </ul>
           )}
-        </div>
-      )}
+        </div>, document.body)}
     </div>
   )
 }
