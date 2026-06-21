@@ -1,0 +1,13 @@
+{
+ "brief": "Per ogni matrimonio popolare TUTTI gli snodi: team interno, turni (events+assignments+runsheet), preventivi ACCETTATO/CONVERTITO con total_client collegati + contratti FIRMATI (Bilancio si popola), magazzino/packing con rotazione. Poi verifica incrociata: Bilancio, /team, /calendario, contratti.",
+ "created": "2026-06-21T14:56:24.058495+00:00",
+ "goals": [
+  {
+   "id": "G001",
+   "title": "Lenza stress full",
+   "objective": "Popolare e verificare ogni snodo (team, turni, finance, magazzino, calendario) per Casino Lenza e trovare cosa si rompe",
+   "status": "pending",
+   "evidence": null
+  }
+ ]
+}
