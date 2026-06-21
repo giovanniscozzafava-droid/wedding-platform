@@ -13,6 +13,7 @@ import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { getDriveToken, ensureDriveFolder, uploadAnyToDrive } from '@/lib/driveUpload'
 import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
 import { QRCodeSVG } from 'qrcode.react'
+import { exportTableTents } from '@/lib/tableTents'
 import { PhotoSocial } from './PhotoSocial'
 import { GallerySettingsPanel, DEFAULT_GALLERY_SETTINGS, type GallerySettings } from './GallerySettingsPanel'
 
@@ -513,8 +514,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <h4 className="font-display text-lg">QR per gli invitati</h4>
             <div className="rounded-2xl bg-white p-4 inline-block border border-[rgb(var(--border))]"><QRCodeSVG value={guestLinkUrl} size={220} level="M" fgColor="#1A1714" bgColor="#ffffff" /></div>
             <p className="text-xs text-[rgb(var(--fg-muted))]">Stampalo o mostralo all'evento: gli invitati lo inquadrano, si registrano e vedono/caricano le foto.</p>
-            <div className="flex gap-2 justify-center">
+            <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Oppure stampa i <strong>cavalieri da tavolo</strong>: A4 da ritagliare e piegare a tenda, QR su entrambe le facce, uno per tavolo.</p>
+            <div className="flex flex-wrap gap-2 justify-center">
               <Button variant="outline" size="sm" onClick={() => { void navigator.clipboard.writeText(guestLinkUrl); toast.success('Link copiato') }}>Copia link</Button>
+              <Button variant="outline" size="sm" onClick={() => { void exportTableTents({ url: guestLinkUrl }).catch((e) => toast.error('PDF non riuscito: ' + ((e as Error).message || 'errore'))) }}>Cavalieri da tavolo (PDF)</Button>
               <Button variant="gold" size="sm" onClick={() => setGuestLinkUrl(null)}>Chiudi</Button>
             </div>
           </div>

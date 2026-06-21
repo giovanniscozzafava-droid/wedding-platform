@@ -111,6 +111,8 @@ export function Filo() {
 
   return (
     <div className="fixed z-[60] right-4 bottom-4 sm:right-5 sm:bottom-5 print:hidden" ref={panelRef}>
+      {/* Su smartphone: sfoca e oscura il dietro, così il testo di Filo non si confonde con la pagina. */}
+      {open && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm sm:hidden" onClick={close} aria-hidden="true" />}
       {open && (
         <div className="mb-3 w-[min(92vw,330px)] rounded-2xl border shadow-[var(--shadow-lift)] overflow-hidden animate-[filoIn_.18s_ease-out]"
           style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
