@@ -172,6 +172,8 @@ function MenuTab() {
         <Card className="p-3 space-y-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome menu (es. Menu Mare)" />
           <Button size="sm" className="w-full" onClick={add}><Plus size={14} /> Crea menu</Button>
+          <Button size="sm" variant="outline" className="w-full" onClick={async () => { try { await mut.loadPreset.mutateAsync(undefined as never); toast.success('Buffet pronti caricati: giromano · isole · dolci. Modifica grammi e costi a piacere.') } catch (e) { toast.error((e as Error).message) } }}>Carica buffet pronti (giromano · isole · dolci)</Button>
+          <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Grammature realistiche a ospite, già pronte. Le ritocchi tu.</p>
         </Card>
         <Card className="overflow-hidden">
           {(menus ?? []).map((m) => (

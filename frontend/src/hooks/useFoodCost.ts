@@ -81,6 +81,7 @@ export function useFoodCostMutations() {
     addRecipeItem: m(async (p: { recipe_id: string; ingredient_id: string; qty: number; unit: string }) => { const { error } = await sb('fb_recipe_items').insert(p); if (error) throw error }),
     delRecipeItem: m(async (id: string) => { const { error } = await sb('fb_recipe_items').delete().eq('id', id); if (error) throw error }),
     addMenu: m(async (p: { name: string; service_id?: string | null }) => { const id = await uid(); const { error } = await sb('fb_menus').insert({ location_id: id, ...p }); if (error) throw error }),
+    loadPreset: m(async () => { const { data, error } = await (supabase as any).rpc('fb_load_isole_preset'); if (error) throw error; if (data?.error) throw new Error(data.error) }),
     delMenu: m(async (id: string) => { const { error } = await sb('fb_menus').update({ is_active: false }).eq('id', id); if (error) throw error }),
     linkMenuService: m(async (p: { id: string; service_id: string | null }) => { const { error } = await sb('fb_menus').update({ service_id: p.service_id }).eq('id', p.id); if (error) throw error }),
     addMenuItem: m(async (p: { menu_id: string; recipe_id: string; qty_per_cover: number }) => { const { error } = await sb('fb_menu_items').insert(p); if (error) throw error }),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -6,7 +6,7 @@ import {
   ArrowLeft, CalendarClock, Table2, Users as UsersIcon, Wallet, ListChecks,
   Palette, Music, FileSignature, FolderOpen, BarChart3, FileText,
   BedDouble, Bus, Gift, PartyPopper, Globe, Heart, Utensils, Church, ClipboardList,
-  Scale, MessageCircle,
+  Scale, MessageCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -93,6 +93,8 @@ export default function WeddingDashboard() {
   const { id } = useParams<{ id: string }>()
   const { data: wedding, isLoading } = useWedding(id ?? null)
   const [tab, setTab] = useState<TabKey>('overview')
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const scrollTabs = (dir: number) => tabsRef.current?.scrollBy({ left: dir * 260, behavior: 'smooth' })
   const [rateOpen, setRateOpen] = useState(false)
   const [ambitoSkipped, setAmbitoSkipped] = useState(false)
   const nuovoModello = useNuovoModello()
@@ -241,7 +243,8 @@ export default function WeddingDashboard() {
 
         {/* Tabs — scrollable on mobile with edge-fade indicators */}
         <div className="border-t relative z-20" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
-          <div className="max-w-7xl mx-auto px-6 sm:px-10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <div ref={tabsRef} onWheel={(e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) tabsRef.current?.scrollBy({ left: e.deltaY }) }}
+            className="max-w-7xl mx-auto px-6 sm:px-10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <div className="flex gap-1 py-2 min-w-max">
               {visibleTabs.map((t) => {
                 const Icon = t.icon
@@ -286,9 +289,13 @@ export default function WeddingDashboard() {
               })}
             </div>
           </div>
-          {/* Edge-fade indicators: rivelano scroll laterale */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-6" style={{ background: 'linear-gradient(90deg, rgb(var(--bg-elev)), transparent)' }} />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-6" style={{ background: 'linear-gradient(-90deg, rgb(var(--bg-elev)), transparent)' }} />
+          {/* Frecce: spostano la barra anche con un mouse normale (clic) — oltre a rotella e trascinamento */}
+          <button type="button" aria-label="Scorri i tab a sinistra" onClick={() => scrollTabs(-1)}
+            className="absolute inset-y-0 left-0 w-10 flex items-center justify-start pl-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"
+            style={{ background: 'linear-gradient(90deg, rgb(var(--bg-elev)) 60%, transparent)' }}><ChevronLeft size={18} /></button>
+          <button type="button" aria-label="Scorri i tab a destra" onClick={() => scrollTabs(1)}
+            className="absolute inset-y-0 right-0 w-10 flex items-center justify-end pr-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"
+            style={{ background: 'linear-gradient(-90deg, rgb(var(--bg-elev)) 60%, transparent)' }}><ChevronRight size={18} /></button>
         </div>
       </div>
 
