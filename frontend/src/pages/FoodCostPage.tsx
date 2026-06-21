@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
-  useSuppliers, useLocationEvents, useRequirements, useStock,
+  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet,
   type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier,
 } from '@/hooks/useFoodCost'
 
@@ -393,9 +393,11 @@ function FabbisognoTab() {
 // ── FASE C: Magazzino + Scadenziario ────────────────────────────────────────
 function MagazzinoTab() {
   const { data: lots } = useStock()
+  const { data: wallet } = useAiWallet()
   const mut = useFoodCostMutations()
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const noCredit = wallet != null && wallet.balance_eur <= 0
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; e.target.value = ''; if (!f) return
     setBusy(true)
@@ -424,8 +426,13 @@ function MagazzinoTab() {
       <Card className="p-3 flex flex-wrap items-center gap-3">
         <span className="text-sm font-medium inline-flex items-center gap-1.5"><FileUp size={15} /> Ricezione da documento</span>
         <input ref={fileRef} type="file" accept="image/*,application/pdf,.pdf" className="hidden" onChange={onFile} />
-        <Button size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? 'Leggo il documento…' : 'Importa bolla / scontrino / fattura'}</Button>
-        <span className="text-[11px] text-[rgb(var(--fg-subtle))]">PDF o foto: l'AI legge le righe e le carica in magazzino come lotti.</span>
+        <Button size="sm" disabled={busy || noCredit} onClick={() => fileRef.current?.click()}>{busy ? 'Leggo il documento…' : 'Importa bolla / scontrino / fattura'}</Button>
+        {wallet != null && (
+          <span className={`text-xs px-2 py-1 rounded-full ${noCredit ? 'bg-[rgb(var(--rose-100))] text-[rgb(var(--rose-700))]' : 'bg-[rgb(var(--gold-100))]'}`}>
+            Credito AI {eur(wallet.balance_eur)}{noCredit && ' · esaurito, ricarica'}
+          </span>
+        )}
+        <span className="text-[11px] text-[rgb(var(--fg-subtle))]">PDF o foto: l'AI legge le righe e le carica in magazzino. Ogni lettura scala i token dal credito.</span>
       </Card>
       <div className="grid md:grid-cols-2 gap-4">
       <Card className="overflow-hidden">

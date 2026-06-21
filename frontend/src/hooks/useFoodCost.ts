@@ -114,9 +114,21 @@ export function useStock() {
   })
 }
 
+export type FbAiWallet = { balance_eur: number; monthly_min_eur: number; active: boolean }
+export function useAiWallet() {
+  return useQuery<FbAiWallet | null>({
+    queryKey: ['fb-ai-wallet'],
+    queryFn: async () => {
+      const id = await uid(); if (!id) return null
+      const { data } = await sb('fb_ai_wallet').select('balance_eur, monthly_min_eur, active').eq('location_id', id).maybeSingle()
+      return (data ?? null) as FbAiWallet | null
+    },
+  })
+}
+
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-sup', 'fb-events', 'fb-req', 'fb-stock'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-sup', 'fb-events', 'fb-req', 'fb-stock', 'fb-ai-wallet'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {
@@ -141,9 +153,20 @@ export function useFoodCostMutations() {
     importBolla: m(async (p: { base64: string; media_type: string }) => {
       const { data: ex, error: e1 } = await (supabase as any).functions.invoke('fb-read-bolla', { body: { base64: p.base64, media_type: p.media_type } })
       if (e1) throw new Error(e1.message)
-      if (ex?.error) throw new Error(ex.error === 'no_ai_key' ? 'Manca la chiave AI (ANTHROPIC_API_KEY) sulle funzioni.' : 'Lettura bolla non riuscita: ' + ex.error)
-      const righe = ex?.righe ?? []
-      if (!righe.length) throw new Error('Nessuna riga riconosciuta nella bolla')
+      if (!ex?.ok) {
+        const map: Record<string, string> = {
+          no_ai_key: 'Chiave AI non configurata (ANTHROPIC_API_KEY).',
+          no_credit: 'Credito AI esaurito: ricarica per leggere altri documenti.',
+          forbidden: 'Solo le location possono importare documenti.',
+          auth: 'Sessione scaduta, rientra e riprova.',
+          ai_error: 'Documento non letto (errore del servizio AI).',
+          parse: 'Non sono riuscito a interpretare il documento.',
+          no_file: 'File mancante.',
+        }
+        throw new Error(map[ex?.error as string] ?? ('Lettura non riuscita: ' + (ex?.error ?? 'sconosciuto')))
+      }
+      const righe = ex.righe ?? []
+      if (!righe.length) throw new Error('Nessuna riga merce riconosciuta nel documento')
       const { data: rec, error: e2 } = await (supabase as any).rpc('fb_receive_from_bolla', { p_lines: righe })
       if (e2) throw new Error(e2.message)
       if (rec?.error) throw new Error(rec.error)
