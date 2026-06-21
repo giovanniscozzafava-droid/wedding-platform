@@ -12,6 +12,10 @@ export function lazyWithRetry<T extends ComponentType<any>>(
   return lazy(async () => {
     try {
       const mod = await factory()
+      // A volte (chunk stale dopo un deploy) l'import RISOLVE a undefined/modulo vuoto invece di
+      // fallire → React legge .default e crasha ("undefined reading default"). Trattalo come errore
+      // così scatta il reload-una-volta sotto.
+      if (!mod || (mod as { default?: unknown }).default == null) throw new Error('chunk_resolved_empty')
       try { sessionStorage.removeItem(RELOAD_KEY) } catch { /* no-op */ }
       return mod
     } catch (err) {
