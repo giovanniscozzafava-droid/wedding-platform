@@ -11,6 +11,7 @@ import {
   CATEGORIES, BOXES, COLORS, FORMATS,
   modelsByCategory, materialsForModel, paletteFor, modelByKey,
   sizesForFormat, defaultSizeKey, sizeByKey,
+  coverPrice, euro,
   type Cover, type ColorDef, type Format,
 } from '@/components/album/albumCatalog'
 import { sendAlbumToPrint } from '@/hooks/useAlbumLab'
@@ -49,6 +50,7 @@ export default function CoverConfigurator() {
   const models = modelsByCategory(category)
   const allowedMaterials = materialsForModel(cover.model)
   const palette = paletteFor(cover.fabric)
+  const price = coverPrice(cover, copies)
 
   function pickCategory(cat: string) {
     setCategory(cat)
@@ -76,7 +78,7 @@ export default function CoverConfigurator() {
   }
   async function send() {
     setBusy(true)
-    try { await sendAlbumToPrint(entryId, cover, copies); toast.success('Album inviato in stampa! Lo trovi nella coda della stamperia.') }
+    try { await sendAlbumToPrint(entryId, cover, copies); toast.success(`Album inviato in stampa! Totale ${euro(price.total)} · in coda alla stamperia.`) }
     catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 
@@ -193,7 +195,23 @@ export default function CoverConfigurator() {
             </div>
 
             <label className="text-xs text-[rgb(var(--fg-muted))] block">Copie<Input type="number" min={1} value={copies} onChange={(e) => setCopies(Math.max(1, Number(e.target.value) || 1))} className="mt-1 w-24" /></label>
-            <Button className="w-full" disabled={busy} onClick={send}><Send size={16} /> {busy ? 'Invio…' : 'Invia in stampa'}</Button>
+            <Card className="p-3 bg-[rgb(var(--bg-sunken))]">
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Prezzo</p>
+              <div className="space-y-1">
+                {price.lines.map((l, i) => (
+                  <div key={i} className="flex justify-between text-sm gap-3">
+                    <span className="text-[rgb(var(--fg-muted))]">{l.label}</span>
+                    <span className="whitespace-nowrap">{euro(l.amount)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between items-baseline mt-2 pt-2 border-t border-[rgb(var(--border))]">
+                <span className="text-sm font-medium">Totale{price.copies > 1 ? ` · ${price.copies} copie` : ''}</span>
+                <span className="font-display text-2xl">{euro(price.total)}</span>
+              </div>
+              <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Prezzi indicativi · IVA inclusa</p>
+            </Card>
+            <Button className="w-full" disabled={busy} onClick={send}><Send size={16} /> {busy ? 'Invio…' : `Invia in stampa · ${euro(price.total)}`}</Button>
             <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Per la stampa la stamperia usa la selezione album e il layout; qui definisci la copertina, il box e le copie.</p>
           </div>
         </div>

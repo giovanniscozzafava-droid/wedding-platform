@@ -396,3 +396,57 @@ export function coverSummary(cover?: Cover): string {
   if (cover.box && cover.box !== 'nessuno') parts.push(`box ${boxLabel(cover.box)}`)
   return parts.join(' · ')
 }
+
+// ---------------------------------------------------------------------------
+// LISTINO — prezzi che si sommano per ogni scelta (€).
+// ⚠️ VALORI PLACEHOLDER: il catalogo PDF non riporta prezzi. Sostituire con il
+// listino reale (basta cambiare i numeri qui sotto).
+// ---------------------------------------------------------------------------
+export const PRICING = {
+  // base per misura ~ in funzione dell'area (cm²); formula editabile
+  sizeBase: (w: number, h: number) => Math.round(((w * h) * 0.2 + 70) / 5) * 5,
+  // sovrapprezzo per categoria modello
+  modelByCategory: {
+    base: 0, wood: 40, ottone: 60, sposi: 45, laserati: 50, stampati: 30, swarovski: 130, eventi: 30, famiglia: 20,
+  } as Record<string, number>,
+  // sovrapprezzo materiale
+  material: {
+    alcantara: 0, pelle: 0, crazy: 0, 'soft-touch': 0, sequoia: 10, acero: 10, safir: 10, skill: 20, juta: 20, 'velu-arte': 30, suade: 30, metal: 40,
+  } as Record<string, number>,
+  // box / contenitore
+  box: {
+    nessuno: 0, 'wood-clak': 90, 'wood-duo': 130, 'wood-case': 110, 'twin-box': 120, valigetta: 150,
+  } as Record<string, number>,
+  personalization: 0,   // nome/logo standard incluso
+  extraCopyFactor: 0.45, // copia aggiuntiva = 45% del prezzo base copertina
+}
+
+export type PriceLine = { label: string; amount: number }
+export type PriceBreakdown = { lines: PriceLine[]; unit: number; copies: number; total: number }
+
+export function coverPrice(cover?: Cover, copies = 1): PriceBreakdown {
+  const size = sizeByKey(cover?.sizeKey)
+  let bw = 22.5, bh = 30
+  if (size) { bw = size.w; bh = size.h }
+  const base = PRICING.sizeBase(bw, bh)
+  const cat = modelByKey(cover?.model)?.category
+  const mAdd = (cat && PRICING.modelByCategory[cat]) || 0
+  const matAdd = (cover?.fabric && PRICING.material[cover.fabric]) || 0
+  const boxAdd = (cover?.box && PRICING.box[cover.box]) || 0
+  const lines: PriceLine[] = [
+    { label: `Album ${size?.label ?? ''} (${formatLabel(coverFormat(cover))})`, amount: base },
+  ]
+  if (mAdd) lines.push({ label: `Modello ${modelLabel(cover?.model)}`, amount: mAdd })
+  if (matAdd) lines.push({ label: `Materiale ${materialLabel(cover?.fabric)}`, amount: matAdd })
+  if (boxAdd) lines.push({ label: `Box ${boxLabel(cover?.box)}`, amount: boxAdd })
+  const unit = base + mAdd + matAdd + boxAdd
+  const n = Math.max(1, copies)
+  let total = unit
+  if (n > 1) {
+    const extra = Math.round(base * PRICING.extraCopyFactor) * (n - 1)
+    lines.push({ label: `${n - 1} copia/e in più`, amount: extra })
+    total = unit + extra
+  }
+  return { lines, unit, copies: n, total }
+}
+export const euro = (n: number) => `€ ${n.toLocaleString('it-IT')}`

@@ -61,12 +61,13 @@ export function AlbumFlipbook({ cover, photos, onClose }: { cover: Cover; photos
     const dist = Math.max(pw * 2.2, ph) * 1.85
     camera.position.set(0, dist * 0.18, dist)
     camera.lookAt(0, 0, 0)
+    const render = () => renderer.render(scene, camera)
 
     const key = new THREE.DirectionalLight(0xffffff, 2.1); key.position.set(2, 5, 6); key.castShadow = true
     key.shadow.mapSize.set(1024, 1024); key.shadow.camera.near = 1; key.shadow.camera.far = 30
     key.shadow.camera.left = -8; key.shadow.camera.right = 8; key.shadow.camera.top = 8; key.shadow.camera.bottom = -8
     scene.add(key)
-    scene.add(Object.assign(new THREE.DirectionalLight(0xffffff, 0.55), { position: new THREE.Vector3(-5, 3, 2) }))
+    const fill = new THREE.DirectionalLight(0xffffff, 0.55); fill.position.set(-5, 3, 2); scene.add(fill)
     scene.add(new THREE.AmbientLight(0xffffff, 0.35))
 
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.16 }))
@@ -179,7 +180,6 @@ export function AlbumFlipbook({ cover, photos, onClose }: { cover: Cover; photos
     renderer.domElement.addEventListener('click', onClick)
 
     let raf = 0
-    const render = () => renderer.render(scene, camera)
     const idle = () => { render(); raf = requestAnimationFrame(idle) }
     raf = requestAnimationFrame(idle)
 
