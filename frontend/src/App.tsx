@@ -22,6 +22,8 @@ const ProfilePage = lazyWithRetry(() => import('@/pages/auth/ProfilePage'))
 const CatalogPage = lazyWithRetry(() => import('@/pages/CatalogPage'))
 const FoodCostPage = lazyWithRetry(() => import('@/pages/FoodCostPage'))
 const ProvaMenuVote = lazyWithRetry(() => import('@/pages/ProvaMenuVote'))
+const AlbumLabPage = lazyWithRetry(() => import('@/pages/AlbumLabPage'))
+const CoverConfigurator = lazyWithRetry(() => import('@/pages/CoverConfigurator'))
 const SupplierAssetsPage = lazyWithRetry(() => import('@/pages/SupplierAssetsPage'))
 const CalendarPage = lazyWithRetry(() => import('@/pages/CalendarPage'))
 const SuppliersPage = lazyWithRetry(() => import('@/pages/SuppliersPage'))
@@ -131,6 +133,8 @@ export default function App() {
             }
           />
           <Route path="/food-cost" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><FoodCostPage /></RequireAuth>} />
+          <Route path="/album-lab" element={<RequireAuth><AlbumLabPage /></RequireAuth>} />
+          <Route path="/album-copertina/:entryId" element={<RequireAuth><CoverConfigurator /></RequireAuth>} />
           <Route path="/stili" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SupplierAssetsPage /></RequireAuth>} />
           <Route
             path="/suppliers"
