@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DesignAlbum — Schede 2D per sviluppo 3D</title>
+<style>
+  :root{ --ink:#2b2622; --mut:#8a8378; --line:#d8d2c6; --bg:#fbf9f4; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:#e9e6df; color:var(--ink); font-family:"Helvetica Neue",Arial,sans-serif; }
+  .toc{ max-width:1480px; margin:24px auto; padding:0 24px; }
+  .toc h1{ font-weight:300; letter-spacing:.04em; }
+  .toc a{ display:inline-block; margin:4px 8px 4px 0; padding:4px 10px; border:1px solid #bbb; border-radius:6px; text-decoration:none; color:#333; font-size:13px; }
+  .sheet{
+    width:1480px; height:1040px; margin:22px auto; background:var(--bg);
+    border:1px solid #c9c3b6; box-shadow:0 8px 30px rgba(0,0,0,.12); padding:34px 40px; position:relative;
+    page-break-after:always; display:grid; grid-template-rows:auto auto 1fr auto; gap:18px;
+  }
+  .hd{ border-bottom:1.5px solid var(--ink); padding-bottom:10px; }
+  .hd .t{ font-size:40px; font-weight:300; letter-spacing:.06em; }
+  .hd .s{ font-size:15px; color:var(--mut); margin-top:2px; }
+  .lbl{ font-size:12px; letter-spacing:.18em; color:var(--mut); margin-bottom:8px; }
+  .views{ display:grid; grid-template-columns:1.35fr .35fr 1.35fr; gap:30px; align-items:start; }
+  .vcol{ text-align:center; }
+  .vcap{ font-size:12px; letter-spacing:.16em; color:var(--mut); margin-bottom:8px; }
+  /* copertina */
+  .cover{ position:relative; border-radius:6px 10px 10px 6px; overflow:hidden; box-shadow:0 10px 24px rgba(0,0,0,.18);
+    background-size:cover; background-position:center; }
+  .spine-l{ position:absolute; left:0; top:0; bottom:0; width:7%; background-size:cover; filter:brightness(.82); box-shadow:inset -6px 0 10px rgba(0,0,0,.25); }
+  .nameTxt{ position:absolute; font-family:Georgia, 'Times New Roman', serif; font-style:italic; color:rgba(40,30,22,.9); }
+  .plate{ position:absolute; border-radius:4px; background:linear-gradient(135deg,#e9eaec,#b8bcc2 45%,#dfe1e4); box-shadow:0 2px 5px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.5);
+    display:flex; align-items:center; justify-content:center; font-family:Georgia,serif; font-size:13px; color:#3a3a3a; }
+  .mono{ position:absolute; font-family:Georgia,serif; color:rgba(30,22,16,.78); text-align:center; line-height:1; }
+  .sw{ position:absolute; height:10px; display:flex; align-items:center; }
+  .photoIns{ position:absolute; border-radius:3px; overflow:hidden; box-shadow:0 3px 10px rgba(0,0,0,.4), 0 0 0 3px rgba(255,255,255,.85);
+    background-size:cover; background-position:center; }
+  .spineV{ width:46px; height:300px; margin:0 auto; border-radius:18px; background-size:cover; box-shadow:inset 0 0 14px rgba(0,0,0,.35); }
+  .dimrow{ display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:26px; align-items:center; }
+  .dims b{ font-weight:600; }
+  .dims div{ font-size:13px; margin:3px 0; color:#4a443c; }
+  .dims .k{ color:var(--mut); }
+  .bottom{ border-top:1.5px solid var(--ink); padding-top:14px; display:grid; grid-template-columns:1.1fr 1.1fr .9fr 1.1fr; gap:30px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:10px; }
+  .chip{ width:66px; text-align:center; font-size:10.5px; color:#5a544c; }
+  .chip .sw2{ width:66px; height:46px; border-radius:5px; background-size:cover; background-position:center; box-shadow:inset 0 0 0 1px rgba(0,0,0,.12); margin-bottom:4px; }
+  .chip b{ display:block; font-size:11px; color:var(--ink); }
+  .notes li{ font-size:12.5px; margin:5px 0; color:#4a443c; }
+  .gline{ height:26px; border-radius:4px; display:flex; align-items:center; padding:0 8px; }
+  svg.dieline{ width:100%; height:120px; }
+  @media print{ body{background:#fff} .toc{display:none} .sheet{margin:0;box-shadow:none;border:none} }
+</style>
+</head>
+<body>
+<div class="toc"><h1>DesignAlbum — Schede 2D per sviluppo 3D</h1><div id="toc"></div></div>
+<div id="app"></div>
+<script>
+const WOOD = n => `/textures/wood/${n}.jpg`;
+const MAT  = n => `/textures/materials/${n}.jpg`;
+const SW   = k => `/textures/swatches/colors/${k}.jpg`;
+const COUPLE = '/textures/demo/couple.jpg';
+// base finish helpers
+const wood = (tex,label,sub)=>({kind:'wood',tex:WOOD(tex),label,sub});
+const matf = (tex,label,sub,tint)=>({kind:'mat',tex:MAT(tex),label,sub,tint});
+const col  = (hex,label,sub)=>({kind:'color',hex,label,sub});
+
+// ---- MODEL SPECS (tutto il repertorio) ----
+// layout: 'plate'|'monogram'|'fascia'|'fascia-ornament'|'oblique'|'photo-vertical'|'photo-small'|'photo-panoramic'|'trilogy'|'swarovski-line'|'print'|'laser'|'plain'
+const SPECS = [
+ // ---- WOOD COLLECTION ----
+ { key:'claire', title:'CLAIRE', cat:'Wood Collection', fmt:'square', base:wood('noce','Noce','Sequoia tormalina'),
+   spine:'tormalina', layout:'fascia', band:{mat:col('#6f7f93','Tormalina Spirit'),sw:true,plate:'right'}, name:'Loredana e Federico',
+   materials:[wood('noce','Noce','Sequoia tormalina'),col('#6f7f93','Tormalina','Spirit'),col('#cfd1d4','Targhetta','Alluminio')],
+   colors:[['#9c6a3f','Tabacco'],['#6f5a44','Terra'],['#6f7f93','Tormalina'],['#7c8a4a','Aloe'],['#3f3128','Cioccolato']],
+   graphic:'Fascia centrale Tormalina + linea Swarovski + targhetta alluminio dx',
+   notes:['Copertina effetto legno noce, venatura orizzontale.','Ampia fascia centrale coordinata Tormalina Spirit.','Fila di cristalli Swarovski sulla fascia.','Targhetta personalizzabile in alluminio spazzolato a destra.','Interno layflat, apertura 180°.'] },
+
+ { key:'comete', title:'COMETE', cat:'Wood Collection', fmt:'square', base:wood('noce','Noce','Sequoia aloe'),
+   spine:'aloe', layout:'fascia-ornament', band:{mat:col('#eef0df','Fascia decorativa'),ornament:'#9bb06a'}, name:'Antonio e Sofia',
+   materials:[wood('noce','Noce','Sequoia aloe'),col('#eef0df','Fascia decorativa','verde chiaro'),col('#7c8a4a','Aloe','Sequoia aloe')],
+   colors:[['#9c6a3f','Noce'],['#c79a63','Rovere'],['#c98a5e','Okumè'],['#7c8a4a','Aloe'],['#6f5a44','Terra'],['#3f3128','Cioccolato']],
+   graphic:'Motivo ornamentale verde su fascia orizzontale',
+   notes:['Copertina legno con fascia decorativa orizzontale.','Dorso rivestito in materiale coordinato aloe.','Personalizzazione frontale incisione laser (nome/iniziali).','Interno layflat 180°.'] },
+
+ { key:'almond', title:'ALMOND', cat:'Wood Collection', fmt:'square', base:wood('rovere','Rovere','Sequoia terra'),
+   spine:'safir', layout:'oblique', band:{second:col('#f3efe8','Cristalwhite'),sw:true}, name:'Alessia & Salvo',
+   materials:[wood('rovere','Rovere','Sequoia terra'),wood('noce','Noce','Sequoia camel'),col('#f3efe8','Cristalwhite','Pelle sintetica'),col('#a39a8c','Safir Grigio','Pelle sint.')],
+   colors:[['#8a6650','Terra'],['#9a9186','Grigio'],['#aac4d6','Nuage'],['#7c8a4a','Aloe']],
+   graphic:'Separazione obliqua legno/Cristalwhite + linea Swarovski',
+   notes:['Composizione bicolore Pelle di Legno.','Separazione obliqua impreziosita da Cristal Line Swarovski.','Dorso in materiale coordinato.','Interno layflat 180°.'] },
+
+ { key:'brand', title:'BRAND', cat:'Wood Collection', fmt:'square', base:wood('noce','Noce','Sequoia aloe'),
+   spine:'noce', layout:'monogram', mono:'ES', name:'wedding album memories',
+   materials:[wood('noce','Noce','Sequoia aloe'),wood('ciliegio','Ciliegio','Safir tabacco'),wood('rovere','Rovere','Sequoia terra'),wood('okume','Okumè','Crazy naturale')],
+   colors:[['#9c6a3f','Tabacco'],['#6f5a44','Terra'],['#7c8a4a','Aloe'],['#3f3128','Cioccolato']],
+   graphic:'Monogramma inciso centrato sul fronte',
+   notes:['Copertina effetto legno, venatura orizzontale.','Monogramma inciso a secco / laser.','Dorso rivestito coordinato.','Interno layflat 180°.'] },
+
+ { key:'trilogy', title:'TRILOGY', cat:'Wood Collection', fmt:'landscape', base:wood('okume','Okumè','Sequoia nuage'),
+   spine:'safir', layout:'trilogy', name:'',
+   materials:[wood('okume','Okumè','Sequoia nuage'),wood('noce','Noce','Sequoia aloe'),wood('rovere','Rovere','Sequoia terra'),wood('ciliegio','Ciliegio','Safir tabacco')],
+   colors:[['#9a8a7a','Nuage'],['#9c6a3f','Tabacco'],['#6f5a44','Terra'],['#3f3128','Moka']],
+   graphic:'Tre inserti modulari quadrati allineati',
+   notes:['Tre inserti modulari quadrati a filo superficie.','Dorso rivestito coordinato.','Interno layflat 180°.'] },
+
+ { key:'elsie', title:'ELSIE', cat:'Wood Collection', fmt:'landscape', base:wood('noce','Noce','Sequoia noce'),
+   spine:'cuoio', layout:'photo-small', name:'',
+   materials:[wood('ulivo','Ulivo','Sequoia cioccolato'),wood('ciliegio','Spirit','Sequoia cuoio')],
+   colors:[['#8a6a4a','Ulivo'],['#9c6a3f','Noce'],['#a05a3c','Cuoio'],['#3f3128','Moka'],['#6f5a44','Terra']],
+   graphic:'Inserto foto rettangolare decentrato sul fronte',
+   notes:['Inserto foto applicato e incassato a filo.','Posizione consigliata: decentrata (area frontale destra).','Interno layflat 180°.'] },
+
+ { key:'thea', title:'THEA', cat:'Wood Collection', fmt:'square', base:wood('rovere','Rovere','Sequoia terra'),
+   spine:'rovere', layout:'laser', name:'',
+   materials:[wood('rovere','Rovere','Sequoia terra'),wood('noce','Noce','Sequoia aloe')],
+   colors:[['#c79a63','Rovere'],['#9c6a3f','Noce'],['#6f5a44','Terra'],['#3f3128','Cioccolato']],
+   graphic:'Cornice essenziale incisa a laser',
+   notes:['Decoro inciso essenziale a laser sul fronte.','Interno layflat 180°.'] },
+
+ { key:'adel', title:'ADEL', cat:'Wood Collection', fmt:'square', base:wood('ciliegio','Ciliegio','Safir tabacco'),
+   spine:'ciliegio', layout:'plate', plate:'center', name:'A & S',
+   materials:[wood('ciliegio','Ciliegio','Safir tabacco'),wood('noce','Noce','Sequoia aloe')],
+   colors:[['#a05a3c','Tabacco'],['#9c6a3f','Noce'],['#6f5a44','Terra']],
+   graphic:'Placca centrale su pelle di legno',
+   notes:['Placca metallica centrale personalizzabile.','Interno layflat 180°.'] },
+
+ // ---- OTTONE / ALLUMINIO ----
+ { key:'vega', title:'VEGA', cat:'Ottone / Alluminio', fmt:'square', base:wood('ciliegio','Ciliegio','Sequoia cuoio spirit'),
+   spine:'ciliegio', layout:'monogram', mono:'GR', monoMetal:true,
+   materials:[wood('ciliegio','Ciliegio','Sequoia cuoio spirit')],
+   colors:[['#a05a3c','Ciliegio'],['#6f4a36','Noce'],['#8a6a4a','Tabacco'],['#b07a44','Cuoio'],['#9a9186','Tortora']],
+   graphic:'Monogramma inciso o in metallo applicato',
+   notes:['Copertina interamente in legno Ciliegio.','Monogramma centrale inciso o in metallo applicato.','Interno layflat 180°.','Lavorazione artigianale Made in Italy.'] },
+
+ { key:'diez', title:'DIEZ', cat:'Ottone / Alluminio', fmt:'square', base:wood('noce','Noce','Sequoia camel'),
+   spine:'noce', layout:'swarovski-line', plate:'top-right', name:'Loredana e Federico',
+   materials:[wood('noce','Noce','Sequoia camel'),wood('ciliegio','Safir Tabacco','Pelle di legno'),col('#efeae0','Cristalwhite','Pelle di legno'),col('#f4f1ea','Carta','Interno')],
+   colors:[['#9c6a3f','Tabacco'],['#9a9186','Tortora'],['#7c8a4a','Aloe'],['#cdbfa6','Safir Grigio']],
+   graphic:'Linea Swarovski orizzontale + targhetta argento dx',
+   notes:['Inserto Swarovski Crystal orizzontale applicato.','Targhetta personalizzata in metallo in alto a destra.','Dorso rivestito coordinato.','Interno layflat 180°.'] },
+
+ { key:'plaza', title:'PLAZA', cat:'Ottone / Alluminio', fmt:'square', base:wood('moka','Moka','Sequoia moka'),
+   spine:'moka', layout:'fascia', band:{mat:col('#cfd1d4','Alluminio'),plate:'center'}, name:'',
+   materials:[wood('moka','Moka','Sequoia moka'),col('#cfd1d4','Alluminio','spazzolato')],
+   colors:[['#3f3128','Moka'],['#6f5a44','Terra'],['#9c6a3f','Tabacco']],
+   graphic:'Fascia/placca in alluminio centrale',
+   notes:['Fascia centrale in alluminio spazzolato.','Interno layflat 180°.'] },
+
+ { key:'comete2', title:'COMETE LUX', cat:'Ottone / Alluminio', fmt:'square', base:wood('rovere','Rovere','Sequoia terra'),
+   spine:'rovere', layout:'fascia-ornament', band:{mat:col('#eef0df','Fascia'),ornament:'#b8923a'}, name:'',
+   materials:[wood('rovere','Rovere','Sequoia terra'),col('#b8923a','Ottone','dettaglio')],
+   colors:[['#c79a63','Rovere'],['#9c6a3f','Noce'],['#6f5a44','Terra']],
+   graphic:'Fascia decorativa + dettaglio ottone',
+   notes:['Fascia decorativa con dettaglio in ottone.','Interno layflat 180°.'] },
+
+ // ---- PERSONALIZZATO SPOSI / CRISTALWHITE ----
+ { key:'andromeda', title:'ANDROMEDA', cat:'Personalizzato Sposi', fmt:'square', base:wood('noce','Noce','Sequoia aloe'),
+   spine:'noce', layout:'photo-vertical', mono:'A&F', name:'andrea e federica',
+   materials:[wood('noce','Noce','Sequoia aloe'),wood('ciliegio','Ciliegio','Safir tabacco'),wood('rovere','Rovere','Sequoia terra'),wood('ulivo','Ulivo','Sequoia cioccolato')],
+   colors:[['#6f4a36','Moka'],['#a05a3c','Tabacco'],['#6f5a44','Terra'],['#3f3128','Cioccolato']],
+   graphic:'Fotoinserto verticale fronte destro, finitura Cristalplex',
+   notes:['Monogramma inciso (iniziali, nomi e data).','Fotoinserto verticale grande sul fronte, finitura Cristalplex.','Dorso rivestito coordinato.','Interno layflat 180°.'] },
+
+ { key:'cassiopea', title:'CASSIOPEA', cat:'Personalizzato Sposi', fmt:'square', base:wood('noce','Noce','Wood Collection'),
+   spine:'moka', layout:'photo-panoramic', name:'CASSIOPEA · wedding memories',
+   materials:[wood('noce','Noce','Wood Collection'),col('#5a4438','Safir Moka','Similpelle'),col('#f4f1ea','Carta fotografica','Opaca'),col('#d8c8a8','Cartone rigido','struttura')],
+   colors:[['#9c6a3f','Tabacco'],['#6f5a44','Terra'],['#7c8a4a','Muschio'],['#5a4438','Safir Moka']],
+   graphic:'Inserto fotografico panoramico orizzontale centrale',
+   notes:['Legno Wood Collection.','Inserto fotografico panoramico orizzontale centrale incassato.','Dorso rivestito in similpelle coordinata.','Interno layflat 180°.'] },
+
+ { key:'chloe', title:'CHLOE', cat:'Personalizzato Sposi', fmt:'portrait', base:matf('pelle','Pelle','Bianco neve','#e6ded2'),
+   spine:'pelle', layout:'photo-vertical', name:'Chloe', photoTint:'#efe7da',
+   materials:[matf('pelle','Pelle','semilucida','#e6ded2'),matf('soft-touch','Soft Touch','ecopelle','#d8d0c4')],
+   colors:[['#e6ded2','Ecru'],['#c8b8a8','Tortora'],['#a8223c','Rosso'],['#1a2b4a','Dark Blue']],
+   graphic:'Foto personalizzata grande in copertina',
+   notes:['Foto personalizzata sul fronte.','Interno layflat 180°.'] },
+
+ { key:'hera', title:'HERA', cat:'Personalizzato Sposi', fmt:'square', base:matf('suade','Suade','Crema','#cbb89c'),
+   spine:'suade', layout:'photo-panoramic', name:'',
+   materials:[matf('suade','Suade','Cristalplex','#cbb89c')],
+   colors:[['#cbb89c','Crema'],['#827c77','Grafite'],['#2c2918','Chocolate']],
+   graphic:'Inserto Cristalplex con foto, suade crema',
+   notes:['Inserto Cristalplex con fotografia.','Suade crema.','Interno layflat 180°.'] },
+
+ { key:'frame-cristalplex', title:'FRAME CRISTALPLEX', cat:'Personalizzato Sposi', fmt:'portrait', base:matf('suade','Suade','Nero','#2a2a2a'),
+   spine:'suade', layout:'photo-vertical', plex:true, name:'',
+   materials:[matf('suade','Suade','Nero','#2a2a2a'),col('#cfe6f2','Cristalplex','plexi lucido')],
+   colors:[['#2a2a2a','Nero'],['#827c77','Grafite'],['#cbb89c','Crema']],
+   graphic:'Foto incassata sotto lastra Cristalplex lucida',
+   notes:['Foto incassata sotto lastra Cristalplex lucida con bordo.','Effetto vetro/plexiglass.','Interno layflat 180°.'] },
+
+ { key:'frame-plexy', title:'FRAME PLEXY', cat:'Personalizzato Sposi', fmt:'portrait', base:matf('pelle','Pelle','Bianco neve','#ece7df'),
+   spine:'pelle', layout:'photo-vertical', plex:true, name:'',
+   materials:[matf('pelle','Pelle','Cristalwhite','#ece7df')],
+   colors:[['#ece7df','Bianco Neve'],['#c8b8a8','Tortora']],
+   graphic:'Cornice plexi lucida con foto',
+   notes:['Cornice plexi lucida applicata sul fronte.','Interno layflat 180°.'] },
+
+ { key:'graphic-touch', title:'GRAPHIC TOUCH', cat:'Personalizzato Sposi', fmt:'portrait', base:matf('soft-touch','Soft Touch','Grigio','#a3958a'),
+   spine:'soft-touch', layout:'photo-small', graphicBand:true, name:'Marco & Anna',
+   materials:[matf('soft-touch','Soft Touch','ecopelle','#a3958a')],
+   colors:[['#a3958a','Grigio'],['#2a2a2a','Nero'],['#b0977f','Sabbia']],
+   graphic:'Grafica + foto personalizzata',
+   notes:['Grafica stampata + foto personalizzata sul fronte.','Interno layflat 180°.'] },
+
+ { key:'charme', title:'CHARME', cat:'Personalizzato Sposi', fmt:'portrait', base:col('#f1ede6','Cristalwhite','Bianco'),
+   spine:'pelle', layout:'photo-vertical', name:'Charme',
+   materials:[col('#f1ede6','Cristalwhite','Pelle sintetica')],
+   colors:[['#f1ede6','Bianco'],['#e6ded2','Ecru']],
+   graphic:'Cristalwhite con foto in copertina',
+   notes:['Cristalwhite, foto in copertina.','Interno layflat 180°.'] },
+
+ { key:'azulejo', title:'AZULEJO', cat:'Personalizzato Sposi', fmt:'square', base:col('#f1ede6','Cristalwhite','Bianco'),
+   spine:'pelle', layout:'print', printColor:'#6f7f93', name:'',
+   materials:[col('#f1ede6','Cristalwhite','Pelle sintetica')],
+   colors:[['#6f7f93','Azulejo'],['#a8223c','Rosso'],['#1a2b4a','Blu']],
+   graphic:'Cristalwhite con decoro azulejo stampato',
+   notes:['Cristalwhite con decoro maiolica (azulejo) stampato.','Interno layflat 180°.'] },
+
+ { key:'canvas', title:'CANVAS', cat:'Personalizzato Sposi', fmt:'portrait', base:col('#efe7da','Canvas','stampa integrale'),
+   spine:'canvas', layout:'photo-full', name:'',
+   materials:[col('#efe7da','Canvas','tela stampabile')],
+   colors:[['#efe7da','Tela']],
+   graphic:'Stampa integrale fotografica su canvas',
+   notes:['Stampa integrale fotografica su tela canvas.','Interno layflat 180°.'] },
+
+ // ---- CLASSICI ----
+ { key:'rimboccato', title:'RIMBOCCATO 2', cat:'Classici', fmt:'portrait', base:matf('alcantara','Alcantara','Crema','#e8d8c4'),
+   spine:'alcantara', layout:'plate', plate:'center', name:'Marco & Anna',
+   materials:[matf('alcantara','Alcantara','suede','#e8d8c4'),matf('pelle','Pelle','semilucida','#e6ded2'),matf('crazy','Crazy','pebble','#a89878'),matf('juta','Juta','tela','#e8d8c4')],
+   colors:[['#e8d8c4','Crema'],['#8c6c54','Mogano'],['#a8223c','Rosso'],['#1a2b4a','Bluette']],
+   graphic:'Placca con logo centrale — qualsiasi materiale',
+   notes:['Lavorazione rimboccata classica.','Placca logo personalizzabile.','Monta qualsiasi materiale del listino.','Interno layflat 180°.'] },
+
+ { key:'blocco-libro', title:'BLOCCO A LIBRO', cat:'Classici', fmt:'portrait', base:matf('pelle','Pelle','Tortora','#c8b8a8'),
+   spine:'pelle', layout:'plain', name:'Marco & Anna',
+   materials:[matf('pelle','Pelle','semilucida','#c8b8a8'),matf('alcantara','Alcantara','suede','#e8d8c4')],
+   colors:[['#c8b8a8','Tortora'],['#e6ded2','Ecru'],['#2a2a2a','Nero']],
+   graphic:'Copertina pulita, nome inciso',
+   notes:['Rilegatura blocco a libro, copertina pulita.','Nome inciso opzionale.','Interno layflat 180°.'] },
+
+ // ---- LASERATI ----
+ { key:'betulla', title:'BETULLA', cat:'Laserati', fmt:'square', base:wood('rovere','Rovere','effetto betulla'),
+   spine:'rovere', layout:'laser', laserFloral:true, name:'',
+   materials:[wood('rovere','Rovere','effetto betulla'),wood('okume','Okumè','chiaro')],
+   colors:[['#c79a63','Rovere'],['#9a8a7a','Naturale']],
+   graphic:'Incisione laser decorativa',
+   notes:['Decoro inciso a laser.','Interno layflat 180°.'] },
+
+ { key:'dream', title:'DREAM', cat:'Laserati', fmt:'square', base:wood('noce','Noce','Sequoia aloe'),
+   spine:'noce', layout:'laser', laserFloral:true, name:'',
+   materials:[wood('noce','Noce','Sequoia aloe')],
+   colors:[['#9c6a3f','Noce'],['#6f5a44','Terra']],
+   graphic:'Decoro laser onirico',
+   notes:['Decoro laser onirico floreale.','Interno layflat 180°.'] },
+
+ // ---- STAMPATI ----
+ { key:'amelie', title:'AMELIE', cat:'Stampati', fmt:'landscape', base:matf('safir','Safir','Carta da zucchero','#9fb0c0'),
+   spine:'safir', layout:'print', printSposi:true, name:'Angela e Gianni',
+   materials:[matf('safir','Safir','tela','#9fb0c0'),matf('crazy','Crazy','naturale','#a89878')],
+   colors:[['#9fb0c0','Carta da Zucchero'],['#a89878','Crazy'],['#c8b8a8','Tortora']],
+   graphic:'Stampa decorativa all-over + coppia + nomi (disegno A/B/C)',
+   notes:['Stampa decorativa con illustrazione sposi.','Varianti disegno A / B / C.','Interno layflat 180°.'] },
+
+ { key:'darling', title:'DARLING', cat:'Stampati', fmt:'portrait', base:matf('soft-touch','Soft Touch','Rosa','#efcfdc'),
+   spine:'soft-touch', layout:'print', printColor:'#d88aa0', name:'',
+   materials:[matf('soft-touch','Soft Touch','ecopelle','#efcfdc')],
+   colors:[['#efcfdc','Rosa'],['#cfe2f0','Celeste'],['#e8d8c4','Sabbia']],
+   graphic:'Motivo stampato all-over',
+   notes:['Motivo stampato delicato.','Interno layflat 180°.'] },
+
+ { key:'sirene', title:'SIRENE', cat:'Stampati', fmt:'portrait', base:matf('safir','Safir','Acquamarina','#4ca8a8'),
+   spine:'safir', layout:'print', printColor:'#2f8a8a', name:'',
+   materials:[matf('safir','Safir','tela','#4ca8a8')],
+   colors:[['#4ca8a8','Acquamarina'],['#7cb8d4','Celeste']],
+   graphic:'Onde e intrecci stampati',
+   notes:['Onde e intrecci stampati all-over.','Interno layflat 180°.'] },
+
+ { key:'frejus', title:'FREJUS', cat:'Stampati', fmt:'portrait', base:matf('soft-touch','Soft Touch','Grigio','#a3958a'),
+   spine:'soft-touch', layout:'print', printColor:'#5a544c', printGeo:true, name:'',
+   materials:[matf('soft-touch','Soft Touch','ecopelle','#a3958a')],
+   colors:[['#a3958a','Grigio'],['#2a2a2a','Nero']],
+   graphic:'Stampa geometrica',
+   notes:['Stampa geometrica all-over.','Interno layflat 180°.'] },
+
+ { key:'dhyana', title:'DHYANA', cat:'Stampati', fmt:'portrait', base:matf('suade','Suade','Grigio','#827c77'),
+   spine:'suade', layout:'print', printColor:'#b0a896', name:'',
+   materials:[matf('suade','Suade','laminato','#827c77')],
+   colors:[['#827c77','Grigio'],['#cbb89c','Crema']],
+   graphic:'Volute stampate a secco',
+   notes:['Volute stampate a secco.','Interno layflat 180°.'] },
+
+ // ---- SWAROVSKI ----
+ { key:'diez-sw', title:'DIEZ SWAROVSKI', cat:'Swarovski', fmt:'square', base:wood('noce','Noce','Sequoia camel'),
+   spine:'noce', layout:'swarovski-line', plate:'top-right', name:'Loredana e Federico',
+   materials:[wood('noce','Noce','Sequoia camel'),wood('ciliegio','Safir Tabacco','Pelle di legno'),col('#efeae0','Cristalwhite','Pelle di legno')],
+   colors:[['#9c6a3f','Tabacco'],['#9a9186','Tortora'],['#7c8a4a','Aloe'],['#cdbfa6','Safir Grigio']],
+   graphic:'Linea Swarovski orizzontale + targhetta argento',
+   notes:['Inserto Swarovski Crystal orizzontale.','Targhetta personalizzata argento satinato in alto a destra.','Interno layflat 180°.'] },
+
+ { key:'xante-sw', title:'XANTE SWAROVSKI', cat:'Swarovski', fmt:'square', base:wood('moka','Moka','Sequoia tormalina'),
+   spine:'moka', layout:'swarovski-cluster', mono:'mandala', name:'Paolo e Piera',
+   materials:[wood('moka','Moka','Sequoia tormalina'),col('#6f7f93','Tormalina','Spirit')],
+   colors:[['#3f3128','Tormalina'],['#6f7f93','Spirit'],['#9c6a3f','Tabacco']],
+   graphic:'Mandala di cristalli Swarovski centrale',
+   notes:['Decoro mandala in cristalli Swarovski.','Stampa UV a rilievo.','Interno layflat 180°.'] },
+
+ { key:'bouquet-sw', title:'BOUQUET SWAROVSKI', cat:'Swarovski', fmt:'square', base:matf('suade','Suade','Nero','#2a2a2a'),
+   spine:'suade', layout:'swarovski-cluster', mono:'bouquet', name:'',
+   materials:[matf('suade','Suade','nero','#2a2a2a')],
+   colors:[['#2a2a2a','Nero'],['#827c77','Grafite']],
+   graphic:'Bouquet di cristalli Swarovski',
+   notes:['Bouquet di cristalli Swarovski applicato.','Interno layflat 180°.'] },
+
+ { key:'ninfea-sw', title:'NINFEA SWAROVSKI', cat:'Swarovski', fmt:'square', base:matf('velu-arte','Velù Artè','Cielo','#a8b2ac'),
+   spine:'velu-arte', layout:'swarovski-cluster', mono:'floral', name:'',
+   materials:[matf('velu-arte','Velù Artè','velluto','#a8b2ac')],
+   colors:[['#a8b2ac','Cielo'],['#1a8c6c','Pavone']],
+   graphic:'Floreale + cristalli Swarovski',
+   notes:['Decoro floreale con cristalli Swarovski.','Interno layflat 180°.'] },
+
+ // ---- EVENTI ----
+ { key:'bimbi', title:'BIMBI (CANVAS)', cat:'Eventi', fmt:'portrait', base:col('#cfe2f0','Canvas','stampa tematica'),
+   spine:'canvas', layout:'photo-full', name:'',
+   materials:[col('#cfe2f0','Canvas','tela stampabile')],
+   colors:[['#cfe2f0','Celeste'],['#efcfdc','Rosa']],
+   graphic:'Linea bimbi, stampa integrale tematica',
+   notes:['Stampa integrale tematica bimbi.','Interno layflat 180°.'] },
+
+ { key:'comunione', title:'COMUNIONE', cat:'Eventi', fmt:'portrait', base:col('#f1ede6','Canvas','bianco'),
+   spine:'canvas', layout:'photo-full', name:'',
+   materials:[col('#f1ede6','Canvas','tela stampabile')],
+   colors:[['#f1ede6','Bianco'],['#e8d8c4','Avorio']],
+   graphic:'Canvas comunione',
+   notes:['Stampa integrale comunione.','Interno layflat 180°.'] },
+
+ { key:'diciottesimo', title:'18° / EVENTO', cat:'Eventi', fmt:'portrait', base:matf('metal','Metal','Gold','#d4b878'),
+   spine:'metal', layout:'photo-vertical', name:'',
+   materials:[matf('metal','Metal','metallizzato','#d4b878')],
+   colors:[['#d4b878','Gold'],['#e2e2e2','Silver']],
+   graphic:'Evento, foto in copertina, finitura metal',
+   notes:['Foto in copertina, finitura Metal.','Interno layflat 180°.'] },
+
+ // ---- FAMIGLIA ----
+ { key:'family-classic', title:'FAMIGLIA CLASSICO', cat:'Famiglia', fmt:'portrait', base:matf('crazy','Crazy','Tortora','#a89878'),
+   spine:'crazy', layout:'plate', plate:'center', name:'Famiglia Rossi',
+   materials:[matf('crazy','Crazy','pebble','#a89878'),matf('alcantara','Alcantara','suede','#e8d8c4')],
+   colors:[['#a89878','Tortora'],['#7c5c4c','Cuoio'],['#e8d8c4','Crema']],
+   graphic:'Album di famiglia con placca',
+   notes:['Album di famiglia rimboccato con placca.','Monta qualsiasi materiale.','Interno layflat 180°.'] },
+
+ { key:'family-canvas', title:'FAMIGLIA FOTO', cat:'Famiglia', fmt:'landscape', base:wood('noce','Noce','Wood'),
+   spine:'noce', layout:'photo-panoramic', name:'',
+   materials:[wood('noce','Noce','Wood Collection')],
+   colors:[['#9c6a3f','Noce'],['#6f5a44','Terra']],
+   graphic:'Ritratto di famiglia panoramico in copertina',
+   notes:['Ritratto di famiglia panoramico in copertina.','Interno layflat 180°.'] },
+
+ { key:'family-frame', title:'FAMIGLIA CORNICE', cat:'Famiglia', fmt:'portrait', base:wood('ciliegio','Ciliegio','Wood'),
+   spine:'ciliegio', layout:'laser', name:'',
+   materials:[wood('ciliegio','Ciliegio','Wood Collection')],
+   colors:[['#a05a3c','Ciliegio'],['#9c6a3f','Noce']],
+   graphic:'Cornice incisa, per generazioni',
+   notes:['Cornice incisa a laser.','Interno layflat 180°.'] },
+
+ { key:'family-wood', title:'FAMIGLIA WOOD', cat:'Famiglia', fmt:'square', base:wood('rovere','Rovere','Pelle di legno'),
+   spine:'rovere', layout:'laser', name:'',
+   materials:[wood('rovere','Rovere','Pelle di legno')],
+   colors:[['#c79a63','Rovere'],['#9c6a3f','Noce']],
+   graphic:'Pelle di legno, formato quadrato',
+   notes:['Pelle di legno, formato quadrato.','Interno layflat 180°.'] },
+];
+
+const FMT = { square:{w:300,h:300}, portrait:{w:225,h:300}, landscape:{w:300,h:225} };
+const PX = 1.12; // mm -> px scale per cover render
+
+function bgOf(b){ if(!b) return 'background:#cdc6ba'; if(b.kind==='color') return `background:${b.hex}`; return `background-image:url(${b.tex});background-size:cover;background-position:center`; }
+function spineTexOf(spec){ const b=spec.base; if(b.kind==='color') return `background:${b.hex}`; return `background-image:url(${b.tex})`; }
+
+// row di cristalli Swarovski (SVG diamanti)
+function swLine(widthPx, color='#dfe6ee'){
+  const n=Math.max(8, Math.round(widthPx/9)); let d='';
+  for(let i=0;i<n;i++){ const x=i*(widthPx/n)+ (widthPx/n)/2; d+=`<g transform="translate(${x.toFixed(1)},6) rotate(45)"><rect x="-3" y="-3" width="6" height="6" rx="1" fill="${color}" stroke="#9aa6b2" stroke-width=".4"/></g>`; }
+  return `<svg width="${widthPx}" height="12">${d}</svg>`;
+}
+
+function renderCover(spec){
+  const f=FMT[spec.fmt]; const W=f.w*PX, H=f.h*PX;
+  let inner='';
+  const L=spec.layout;
+  const nameHtml = spec.name ? `<div class="nameTxt" style="left:0;right:0;bottom:8%;text-align:center;font-size:${W*0.045}px">${spec.name}</div>` : '';
+  // fascia centrale
+  if(L==='fascia'||L==='fascia-ornament'){
+    const band = spec.band||{}; const bm = band.mat;
+    const bandBg = bm? (bm.kind==='color'?`background:${bm.hex}`:`background-image:url(${bm.tex});background-size:cover`) : 'background:#6f7f93';
+    let orn=''; if(L==='fascia-ornament'){ orn = `<svg width="100%" height="100%" style="position:absolute;inset:0;opacity:.55"><defs><pattern id="orn" width="60" height="40" patternUnits="userSpaceOnUse"><path d="M5 20 q15 -18 30 0 q15 18 25 0" stroke="${band.ornament||'#9bb06a'}" fill="none" stroke-width="2"/></pattern></defs><rect width="100%" height="100%" fill="url(#orn)"/></svg>`; }
+    inner += `<div style="position:absolute;left:0;right:0;top:38%;height:24%;${bandBg};box-shadow:0 2px 6px rgba(0,0,0,.18) inset, 0 -1px 0 rgba(0,0,0,.1)">${orn}
+      ${band.sw?`<div class="sw" style="left:6%;right:30%;top:50%;transform:translateY(-50%)">${swLine(W*0.62)}</div>`:''}</div>`;
+    if(band.plate==='right'){ inner += `<div class="plate" style="right:6%;top:50%;transform:translateY(-50%);width:${W*0.26}px;height:${W*0.1}px;font-size:${W*0.03}px">${spec.name||''}</div>`; }
+    if(band.plate==='center'){ inner += `<div class="plate" style="left:50%;top:50%;transform:translate(-50%,-50%);width:${W*0.3}px;height:${W*0.11}px"></div>`; }
+  }
+  // obliquo
+  if(L==='oblique'){
+    const sec = (spec.band&&spec.band.second)||col('#f3efe8','Cristalwhite');
+    inner += `<div style="position:absolute;inset:0;background:${sec.hex||'#f3efe8'};clip-path:polygon(0 62%,100% 38%,100% 100%,0 100%)"></div>`;
+    inner += `<div class="sw" style="left:0;right:0;top:50%;transform:rotate(-9deg);transform-origin:center">${swLine(W,'#dfe6ee')}</div>`;
+    inner += `<div class="nameTxt" style="right:8%;bottom:16%;font-size:${W*0.05}px">${spec.name||''}</div>`;
+  }
+  // monogramma
+  if(L==='monogram'){
+    inner += `<div class="mono" style="left:0;right:0;top:34%;font-size:${W*0.16}px;${spec.monoMetal?'color:transparent;background:linear-gradient(135deg,#c9ad6a,#8a6a2a);-webkit-background-clip:text;background-clip:text;':''}">${spec.mono||''}</div>`;
+    if(spec.name) inner += `<div class="nameTxt" style="left:0;right:0;top:52%;text-align:center;font-size:${W*0.035}px;letter-spacing:.15em">${spec.name}</div>`;
+  }
+  // plate
+  if(L==='plate'){
+    const pos = spec.plate==='center' ? `left:50%;top:50%;transform:translate(-50%,-50%)` : `right:8%;top:8%`;
+    inner += `<div class="plate" style="${pos};width:${W*0.3}px;height:${W*0.12}px;font-size:${W*0.032}px">${spec.name||''}</div>`;
+  }
+  // swarovski line orizzontale + plate
+  if(L==='swarovski-line'){
+    inner += `<div class="sw" style="left:4%;right:4%;top:46%">${swLine(W*0.92,'#e8eef4')}</div>`;
+    if(spec.plate==='top-right') inner += `<div class="plate" style="right:6%;top:14%;width:${W*0.3}px;height:${W*0.1}px;font-size:${W*0.028}px">${spec.name||''}</div>`;
+  }
+  // swarovski cluster (mandala/bouquet/floral)
+  if(L==='swarovski-cluster'){
+    let g=''; const cx=W/2, cy=H*0.42, R=W*0.13;
+    for(let i=0;i<16;i++){ const a=i/16*Math.PI*2; const r=R*(0.5+(i%3)*0.28); g+=`<g transform="translate(${cx+Math.cos(a)*r},${cy+Math.sin(a)*r}) rotate(45)"><rect x="-3.5" y="-3.5" width="7" height="7" rx="1.3" fill="#eef3f8" stroke="#aab4be" stroke-width=".4"/></g>`; }
+    inner += `<svg style="position:absolute;inset:0">${g}</svg>`;
+    if(spec.name) inner += `<div class="nameTxt" style="left:0;right:0;bottom:18%;text-align:center;font-size:${W*0.04}px">${spec.name}</div>`;
+  }
+  // photo inserts
+  if(L==='photo-vertical'){
+    if(spec.mono) inner += `<div class="mono" style="left:10%;top:30%;text-align:left;font-size:${W*0.12}px">${spec.mono}<div style="font-size:${W*0.03}px;font-style:italic;margin-top:4px">${spec.name||''}</div></div>`;
+    inner += `<div class="photoIns" style="right:8%;top:14%;width:${W*0.4}px;height:${H*0.58}px;${spec.plex?'box-shadow:0 3px 10px rgba(0,0,0,.4),0 0 0 4px rgba(220,235,245,.7),inset 0 0 30px rgba(255,255,255,.3);':''}background-image:url(${COUPLE})"></div>`;
+  }
+  if(L==='photo-small'){
+    inner += `<div class="photoIns" style="right:16%;top:42%;width:${W*0.3}px;height:${H*0.22}px;background-image:url(${COUPLE})"></div>`;
+    if(spec.name) inner += nameHtml;
+  }
+  if(L==='photo-panoramic'){
+    inner += `<div class="photoIns" style="left:10%;right:10%;top:38%;height:${H*0.26}px;background-image:url(${COUPLE})"></div>`;
+    if(spec.name) inner += `<div class="nameTxt" style="left:0;right:0;top:66%;text-align:center;font-size:${W*0.035}px">${spec.name}</div>`;
+  }
+  if(L==='photo-full'){
+    inner += `<div style="position:absolute;inset:6%;border-radius:3px;background-image:url(${COUPLE});background-size:cover;background-position:center;box-shadow:0 0 0 4px rgba(255,255,255,.7)"></div>`;
+  }
+  if(L==='trilogy'){
+    const s=W*0.16; for(let i=0;i<3;i++){ inner += `<div class="photoIns" style="left:${27+i*16}%;top:42%;width:${s}px;height:${s}px;background-image:url(${COUPLE})"></div>`; }
+  }
+  // print all-over
+  if(L==='print'){
+    const pc = spec.printColor||'#9bb06a';
+    let pat;
+    if(spec.printGeo) pat=`<pattern id="p" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M0 20 L20 0 L40 20 L20 40 Z" fill="none" stroke="${pc}" stroke-width="1.4"/></pattern>`;
+    else pat=`<pattern id="p" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M10 40 q18 -22 36 0 M28 40 q-10 -16 0 -30" stroke="${pc}" fill="none" stroke-width="1.4" opacity=".7"/><circle cx="14" cy="14" r="2.4" fill="${pc}"/></pattern>`;
+    inner += `<svg style="position:absolute;inset:0;opacity:.7" width="100%" height="100%"><defs>${pat}</defs><rect width="100%" height="100%" fill="url(#p)"/></svg>`;
+    if(spec.printSposi){ inner += `<svg style="position:absolute;left:10%;top:30%" width="${W*0.18}" height="${W*0.18}" viewBox="0 0 40 40"><circle cx="14" cy="10" r="4" fill="#3a3026"/><circle cx="26" cy="11" r="4" fill="#caa"/><path d="M10 34 q4 -14 8 -16 M22 34 q6 -16 10 -14" stroke="#3a3026" fill="none" stroke-width="2"/><path d="M19 7 l1.5 2.5 l-3 0 z" fill="#c33"/></svg>`; }
+    if(spec.name) inner += nameHtml;
+  }
+  if(L==='laser'){
+    inner += `<svg style="position:absolute;inset:8%" width="84%" height="84%" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="3" y="3" width="94" height="94" fill="none" stroke="rgba(60,44,30,.5)" stroke-width="1"/>${spec.laserFloral?'<path d="M50 18 q14 16 0 34 q-14 -18 0 -34 M30 50 q16 -10 40 0 M30 60 q16 10 40 0" stroke="rgba(60,44,30,.45)" fill="none" stroke-width="1.2"/>':''}</svg>`;
+    if(spec.name) inner += nameHtml;
+  }
+  if(L==='plain'){ inner += nameHtml; }
+
+  return `<div class="cover" style="width:${W}px;height:${H}px;${bgOf(spec.base)}">
+    <div class="spine-l" style="${spineTexOf(spec)}"></div>${inner}</div>`;
+}
+
+function chipsHtml(items){
+  return `<div class="chips">${items.map(m=>{
+    const bg = m.kind==='color'?`background:${m.hex}`:`background-image:url(${m.tex})`;
+    return `<div class="chip"><div class="sw2" style="${bg}"></div><b>${m.label}</b>${m.sub?m.sub:''}</div>`;
+  }).join('')}</div>`;
+}
+function colorChips(cols){
+  return `<div class="chips">${cols.map(c=>`<div class="chip"><div class="sw2" style="background:${c[0]};height:34px"></div>${c[1]}</div>`).join('')}</div>`;
+}
+const dieline = `<svg class="dieline" viewBox="0 0 200 110"><g fill="none" stroke="#b9b2a4" stroke-width="1"><rect x="60" y="35" width="80" height="40"/><path d="M60 35 L40 15 L160 15 L140 35 M140 75 L160 95 L40 95 L60 75 M60 35 L40 15 M60 75 L40 95 M140 35 L160 15 M140 75 L160 95"/><rect x="40" y="15" width="120" height="20" stroke-dasharray="3 3"/><rect x="40" y="75" width="120" height="20" stroke-dasharray="3 3"/></g></svg>`;
+
+function renderSheet(spec){
+  const f=FMT[spec.fmt];
+  const spineBg = spineTexOf(spec);
+  return `<div class="sheet" id="m-${spec.key}">
+    <div class="hd"><div class="t">MODELLO ${spec.title}</div><div class="s">scheda 2D per sviluppo 3D · ${spec.cat}</div></div>
+    <div>
+      <div class="lbl">VISTE</div>
+      <div class="views">
+        <div class="vcol"><div class="vcap">FRONTE</div>${renderCover(spec)}</div>
+        <div class="vcol"><div class="vcap">DORSO · 30 mm</div><div class="spineV" style="${spineBg}"></div></div>
+        <div class="vcol"><div class="vcap">RETRO</div><div class="cover" style="width:${f.w*PX}px;height:${f.h*PX}px;${bgOf(spec.base)}"><div class="spine-l" style="${spineBg};left:auto;right:0;box-shadow:inset 6px 0 10px rgba(0,0,0,.25)"></div></div></div>
+      </div>
+    </div>
+    <div class="dimrow">
+      <div><div class="lbl">VISTA SUPERIORE (chiuso)</div><div style="height:30px;width:${f.w*0.7*PX}px;background:#efe9dc;border:1px solid #cfc7b6;border-radius:3px;box-shadow:inset 0 0 10px rgba(0,0,0,.12)"></div></div>
+      <div class="dims"><div class="lbl">DIMENSIONI</div>
+        <div><span class="k">Formato:</span> <b>${f.w}×${f.h} mm</b></div>
+        <div><span class="k">Dorso:</span> 30 mm</div>
+        <div><span class="k">Spessore:</span> ~35 mm</div>
+        <div><span class="k">Apertura:</span> Libro piano (layflat)</div></div>
+      <div><div class="lbl">SCATOLA (opz.)</div>${dieline}</div>
+      <div><div class="lbl">BOX</div><div style="font-size:12px;color:#5a544c">310×310×40 mm coordinato</div></div>
+    </div>
+    <div class="bottom">
+      <div><div class="lbl">MATERIALI / TRAMA</div>${chipsHtml(spec.materials)}</div>
+      <div><div class="lbl">COLORI</div>${colorChips(spec.colors)}</div>
+      <div><div class="lbl">ELEMENTI GRAFICI</div><div style="font-size:12.5px;color:#4a443c">${spec.graphic}</div></div>
+      <div><div class="lbl">NOTE COSTRUTTIVE</div><ul class="notes" style="margin:0;padding-left:16px">${spec.notes.map(n=>`<li>${n}</li>`).join('')}</ul></div>
+    </div>
+  </div>`;
+}
+
+document.getElementById('app').innerHTML = SPECS.map(renderSheet).join('');
+document.getElementById('toc').innerHTML = SPECS.map(s=>`<a href="#m-${s.key}">${s.title}</a>`).join('');
+</script>
+</body>
+</html>
