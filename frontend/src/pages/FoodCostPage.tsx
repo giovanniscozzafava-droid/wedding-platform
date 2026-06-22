@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
-  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost,
+  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost, useEventTasting,
   fetchEventSheet, fetchBrand, COURSES,
   type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember,
 } from '@/hooks/useFoodCost'
@@ -343,7 +343,7 @@ function EventiTab() {
   )
 }
 function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuMap: Map<string, FbMenu>; mut: ReturnType<typeof useFoodCostMutations> }) {
-  const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState(''); const [pdfBusy, setPdfBusy] = useState(false)
+  const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState(''); const [pdfBusy, setPdfBusy] = useState(false); const [showProva, setShowProva] = useState(false)
   async function add() { if (!menuId) { toast.error('Scegli un menu'); return } try { await mut.setEventMenu.mutateAsync({ entry_id: ev.id, menu_id: menuId, covers: covers ? Number(covers) : null }); setMenuId(''); setCovers('') } catch (e) { toast.error((e as Error).message) } }
   async function foglio() {
     setPdfBusy(true)
@@ -375,7 +375,67 @@ function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuM
           ))}
         </div>
       )}
+      <button onClick={() => setShowProva((v) => !v)} className="mt-2 text-xs text-[rgb(var(--gold-700))] font-medium">{showProva ? '− Chiudi prova menu' : '🍽 Prova menu & voti ospiti'}</button>
+      {showProva && <ProvaMenuPanel ev={ev} menus={menus} mut={mut} />}
     </Card>
+  )
+}
+
+function ProvaMenuPanel({ ev, menus, mut }: { ev: any; menus: FbMenu[]; mut: ReturnType<typeof useFoodCostMutations> }) {
+  const { data: t } = useEventTasting(ev.id, true)
+  const [pick, setPick] = useState<Record<string, boolean>>({})
+  const [when, setWhen] = useState(''); const [sala, setSala] = useState('')
+  const proposedIds = new Set((t?.proposals ?? []).map((p) => p.menu_id))
+  const link = t?.tasting ? `${window.location.origin}/prova-menu/${t.tasting.vote_token}` : ''
+  const covers = ev.guest_count || 100
+  async function propose() {
+    const ids = Object.keys(pick).filter((k) => pick[k])
+    if (!ids.length) { toast.error('Seleziona almeno un menu'); return }
+    try { await mut.proposeMenus.mutateAsync({ entry_id: ev.id, menu_ids: ids }); setPick({}) } catch (e) { toast.error((e as Error).message) }
+  }
+  async function createT() { try { await mut.createTasting.mutateAsync({ entry_id: ev.id, when: when ? new Date(when).toISOString() : null, sala }); toast.success('Prova menu creata') } catch (e) { toast.error((e as Error).message) } }
+  async function choose(menuId: string) { try { await mut.chooseMenu.mutateAsync({ entry_id: ev.id, menu_id: menuId, covers }); toast.success('Menu scelto: parte la spesa') } catch (e) { toast.error((e as Error).message) } }
+  return (
+    <div className="mt-3 rounded-xl border border-[rgb(var(--border))] p-3 space-y-3 bg-[rgb(var(--bg-sunken))]">
+      <div>
+        <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">1 · Proponi i menu</p>
+        <div className="flex flex-wrap gap-2">
+          {menus.map((m) => proposedIds.has(m.id)
+            ? <span key={m.id} className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))]">{m.name} ✓</span>
+            : <label key={m.id} className="text-[11px] px-2 py-1 rounded-full border border-[rgb(var(--border))] inline-flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={!!pick[m.id]} onChange={(e) => setPick((p) => ({ ...p, [m.id]: e.target.checked }))} />{m.name}</label>)}
+        </div>
+        {menus.some((m) => !proposedIds.has(m.id)) && <Button size="sm" variant="outline" className="mt-2" onClick={propose}><Plus size={13} /> Proponi selezionati</Button>}
+      </div>
+      <div className="border-t border-[rgb(var(--border))] pt-3">
+        <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">2 · Giornata di prova menu</p>
+        {!t?.tasting ? (
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-[11px] text-[rgb(var(--fg-muted))]">Quando<Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="mt-0.5" /></label>
+            <label className="text-[11px] text-[rgb(var(--fg-muted))]">Sala<Input value={sala} onChange={(e) => setSala(e.target.value)} className="w-36 mt-0.5" placeholder="Sala degustazione" /></label>
+            <Button size="sm" onClick={createT} disabled={proposedIds.size === 0}><Plus size={13} /> Crea prova</Button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-[rgb(var(--fg-muted))]">{t.tasting.scheduled_at ? new Date(t.tasting.scheduled_at).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' }) : 'data da definire'}{t.tasting.sala ? ` · ${t.tasting.sala}` : ''}</span>
+            <Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(link); toast.success('Link voto copiato — invialo agli ospiti') }}><Link2 size={13} /> Copia link voto</Button>
+          </div>
+        )}
+      </div>
+      {(t?.results ?? []).length > 0 && (
+        <div className="border-t border-[rgb(var(--border))] pt-3">
+          <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">3 · Risultati & scelta</p>
+          <table className="w-full text-sm"><tbody>
+            {(t?.results ?? []).map((r) => { const chosen = (t?.proposals ?? []).find((p) => p.menu_id === r.menu_id)?.is_chosen; return (
+              <tr key={r.menu_id} className="border-b border-[rgb(var(--border))] last:border-0">
+                <td className="py-1.5">{r.name}{chosen && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">scelto</span>}</td>
+                <td className="py-1.5 text-right text-[rgb(var(--fg-muted))]">★ {r.avg_score} · {r.votes} voti</td>
+                <td className="py-1.5 text-right">{!chosen && <Button size="sm" variant="outline" onClick={() => choose(r.menu_id)}>Scegli</Button>}</td>
+              </tr>
+            ) })}
+          </tbody></table>
+        </div>
+      )}
+    </div>
   )
 }
 

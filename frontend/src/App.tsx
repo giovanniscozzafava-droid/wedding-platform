@@ -21,6 +21,7 @@ const OnboardingPage = lazyWithRetry(() => import('@/pages/auth/OnboardingPage')
 const ProfilePage = lazyWithRetry(() => import('@/pages/auth/ProfilePage'))
 const CatalogPage = lazyWithRetry(() => import('@/pages/CatalogPage'))
 const FoodCostPage = lazyWithRetry(() => import('@/pages/FoodCostPage'))
+const ProvaMenuVote = lazyWithRetry(() => import('@/pages/ProvaMenuVote'))
 const SupplierAssetsPage = lazyWithRetry(() => import('@/pages/SupplierAssetsPage'))
 const CalendarPage = lazyWithRetry(() => import('@/pages/CalendarPage'))
 const SuppliersPage = lazyWithRetry(() => import('@/pages/SuppliersPage'))
@@ -104,6 +105,7 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/prova-menu/:token" element={<ProvaMenuVote />} />
           <Route
             path="/onboarding"
             element={
