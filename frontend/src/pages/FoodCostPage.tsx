@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
-  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade,
-  fetchEventSheet, fetchBrand,
+  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost,
+  fetchEventSheet, fetchBrand, COURSES,
   type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember,
 } from '@/hooks/useFoodCost'
 import { buildFoglioServizio } from '@/lib/foglioServizio'
@@ -169,6 +169,7 @@ function MenuTab() {
   const { data: menus } = useMenus()
   const { data: recipes } = useRecipes()
   const { data: services } = useMyServices()
+  const { data: allFc } = useAllMenusFoodcost()
   const mut = useFoodCostMutations()
   const [sel, setSel] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -180,9 +181,23 @@ function MenuTab() {
         <Card className="p-3 space-y-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome menu (es. Menu Mare)" />
           <Button size="sm" className="w-full" onClick={add}><Plus size={14} /> Crea menu</Button>
-          <Button size="sm" variant="outline" className="w-full" onClick={async () => { try { await mut.loadPreset.mutateAsync(undefined as never); toast.success('Buffet pronti caricati: giromano · isole · dolci. Modifica grammi e costi a piacere.') } catch (e) { toast.error((e as Error).message) } }}>Carica buffet pronti (giromano · isole · dolci)</Button>
-          <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Grammature realistiche a ospite, già pronte. Le ritocchi tu.</p>
+          <Button size="sm" variant="outline" className="w-full" onClick={async () => { try { await mut.loadStructured.mutateAsync(undefined as never); toast.success('Menu a fasce caricati: Argento · Oro · Platino (strutturati per portate).') } catch (e) { toast.error((e as Error).message) } }}>Carica menu a fasce (Argento · Oro · Platino)</Button>
+          <Button size="sm" variant="outline" className="w-full" onClick={async () => { try { await mut.loadPreset.mutateAsync(undefined as never); toast.success('Buffet pronti caricati: giromano · isole · dolci.') } catch (e) { toast.error((e as Error).message) } }}>Carica buffet pronti (giromano · isole)</Button>
+          <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Proposte strutturate per portate, già pronte. Le ritocchi tu.</p>
         </Card>
+        {(allFc ?? []).length > 0 && (
+          <Card className="overflow-hidden">
+            <div className="px-3 py-2 border-b border-[rgb(var(--border))] text-xs font-medium inline-flex items-center gap-1.5"><UtensilsCrossed size={13} /> Food cost generale (€/coperto)</div>
+            <table className="w-full text-xs"><tbody>
+              {(allFc ?? []).map((m) => (
+                <tr key={m.menu_id} className="border-b border-[rgb(var(--border))] last:border-0 cursor-pointer hover:bg-[rgb(var(--bg-sunken))]" onClick={() => setSel(m.menu_id)}>
+                  <td className="px-3 py-1.5">{m.name}</td>
+                  <td className="px-3 py-1.5 text-right font-medium">{eur(m.cost_per_cover)}</td>
+                </tr>
+              ))}
+            </tbody></table>
+          </Card>
+        )}
         <Card className="overflow-hidden">
           {(menus ?? []).map((m) => (
             <button key={m.id} onClick={() => setSel(m.id)} className={`w-full text-left px-3 py-2 border-b border-[rgb(var(--border))] last:border-0 ${sel === m.id ? 'bg-[rgb(var(--gold-100))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><span className="text-sm">{m.name}</span></button>
@@ -201,14 +216,14 @@ function MenuTab() {
 function MenuEditor({ menu, recipes, services }: { menu: FbMenu; recipes: FbRecipe[]; services: Array<{ id: string; name: string; base_price: number; unit: string }> }) {
   const mut = useFoodCostMutations()
   const [covers, setCovers] = useState(100)
-  const [recId, setRecId] = useState(''); const [qpc, setQpc] = useState('1')
+  const [recId, setRecId] = useState(''); const [qpc, setQpc] = useState('1'); const [course, setCourse] = useState('ANTIPASTO')
   const recMap = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes])
   const { data: fc } = useMenuFoodcost(menu.id, covers)
   const svc = services.find((s) => s.id === menu.service_id)
   const perCover = fc?.cost_per_cover ?? 0
   const price = svc?.base_price ?? 0
   const fcPct = price > 0 ? (perCover / price) * 100 : null
-  async function addItem() { const r = recMap.get(recId); const q = parseFloat(qpc.replace(',', '.')); if (!r || !(q > 0)) { toast.error('Scegli ricetta e quantità'); return } try { await mut.addMenuItem.mutateAsync({ menu_id: menu.id, recipe_id: recId, qty_per_cover: q }); setQpc('1') } catch (e) { toast.error((e as Error).message) } }
+  async function addItem() { const r = recMap.get(recId); const q = parseFloat(qpc.replace(',', '.')); if (!r || !(q > 0)) { toast.error('Scegli ricetta e quantità'); return } try { await mut.addMenuItem.mutateAsync({ menu_id: menu.id, recipe_id: recId, qty_per_cover: q, course }); setQpc('1') } catch (e) { toast.error((e as Error).message) } }
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
@@ -233,19 +248,25 @@ function MenuEditor({ menu, recipes, services }: { menu: FbMenu; recipes: FbReci
         {svc && perCover > 0 && <span className="text-xs text-[rgb(var(--fg-muted))]">margine/coperto <strong>{eur(price - perCover)}</strong></span>}
       </div>
 
-      <div className="space-y-1 mb-3">
-        {(menu.items ?? []).map((it) => { const r = recMap.get(it.recipe_id); return (
-          <div key={it.id} className="flex items-center gap-2 text-sm py-1 border-b border-[rgb(var(--border))] last:border-0">
-            <span className="flex-1">{r?.name ?? '—'}</span>
-            <span className="text-[rgb(var(--fg-muted))]">×{it.qty_per_cover} a coperto</span>
-            <button onClick={() => mut.delMenuItem.mutate(it.id)} className="text-[rgb(var(--rose-500))]"><Trash2 size={13} /></button>
+      <div className="space-y-3 mb-3">
+        {COURSES.filter((c) => (menu.items ?? []).some((it) => (it.course || 'ANTIPASTO') === c.key)).map((c) => (
+          <div key={c.key}>
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))] font-semibold mb-1">{c.label}</p>
+            {(menu.items ?? []).filter((it) => (it.course || 'ANTIPASTO') === c.key).map((it) => { const r = recMap.get(it.recipe_id); return (
+              <div key={it.id} className="flex items-center gap-2 text-sm py-1 border-b border-[rgb(var(--border))] last:border-0">
+                <span className="flex-1">{r?.name ?? '—'}{it.qty_per_cover !== 1 && <span className="text-[rgb(var(--fg-subtle))] text-xs"> · a scelta</span>}</span>
+                <span className="text-[rgb(var(--fg-muted))] text-xs">×{it.qty_per_cover}</span>
+                <button onClick={() => mut.delMenuItem.mutate(it.id)} className="text-[rgb(var(--rose-500))]"><Trash2 size={13} /></button>
+              </div>
+            ) })}
           </div>
-        ) })}
-        {(menu.items ?? []).length === 0 && <p className="text-xs text-[rgb(var(--fg-subtle))]">Nessuna ricetta nel menu.</p>}
+        ))}
+        {(menu.items ?? []).length === 0 && <p className="text-xs text-[rgb(var(--fg-subtle))]">Nessuna portata nel menu.</p>}
       </div>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="text-[11px] text-[rgb(var(--fg-muted))] flex-1 min-w-[180px]">Ricetta<Select value={recId} onChange={(e) => setRecId(e.target.value)} className="mt-0.5"><option value="">Scegli…</option>{recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</Select></label>
-        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Per coperto<Input value={qpc} onChange={(e) => setQpc(e.target.value)} className="w-24 mt-0.5" /></label>
+      <div className="flex flex-wrap items-end gap-2 border-t border-[rgb(var(--border))] pt-3">
+        <label className="text-[11px] text-[rgb(var(--fg-muted))] flex-1 min-w-[160px]">Ricetta<Select value={recId} onChange={(e) => setRecId(e.target.value)} className="mt-0.5"><option value="">Scegli…</option>{recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</Select></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Portata<Select value={course} onChange={(e) => setCourse(e.target.value)} className="mt-0.5">{COURSES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</Select></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Per coperto<Input value={qpc} onChange={(e) => setQpc(e.target.value)} className="w-20 mt-0.5" /></label>
         <Button size="sm" onClick={addItem}><Plus size={14} /> Aggiungi</Button>
       </div>
     </div>

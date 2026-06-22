@@ -9,7 +9,12 @@ async function uid(): Promise<string | null> { const { data } = await supabase.a
 export type FbIngredient = { id: string; name: string; category: string | null; stock_unit: 'G' | 'ML' | 'PZ'; yield_percent: number; current_cost: number | null }
 export type FbRecipeItem = { id: string; recipe_id: string; ingredient_id: string | null; subrecipe_id: string | null; qty: number; unit: string }
 export type FbRecipe = { id: string; name: string; yield_qty: number; yield_unit: string; is_subrecipe: boolean; items: FbRecipeItem[] }
-export type FbMenuItem = { id: string; menu_id: string; recipe_id: string; qty_per_cover: number }
+export type FbMenuItem = { id: string; menu_id: string; recipe_id: string; qty_per_cover: number; course: string | null; sort_order: number }
+export const COURSES: Array<{ key: string; label: string }> = [
+  { key: 'APERITIVO', label: 'Aperitivo' }, { key: 'ANTIPASTO', label: 'Antipasti' }, { key: 'PRIMO', label: 'Primi' },
+  { key: 'SECONDO', label: 'Secondi' }, { key: 'CONTORNO', label: 'Contorni' }, { key: 'DOLCE', label: 'Dolce' },
+  { key: 'FRUTTA', label: 'Frutta' }, { key: 'BEVANDE', label: 'Bevande' },
+]
 export type FbMenu = { id: string; name: string; service_id: string | null; basis: string; items: FbMenuItem[] }
 
 export function useIngredients() {
@@ -49,6 +54,17 @@ export function useMyServices() {
     queryFn: async () => {
       const id = await uid(); if (!id) return []
       const { data, error } = await sb('services').select('id,name,base_price,unit').eq('fornitore_id', id).eq('is_active', true).order('name')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+// Food cost GENERALE: costo a coperto di tutti i menu (vista listino/confronto)
+export function useAllMenusFoodcost() {
+  return useQuery<Array<{ menu_id: string; name: string; cost_per_cover: number; total_cost: number }>>({
+    queryKey: ['fb-allfc'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('fb_all_menus_foodcost')
       if (error) throw error
       return data ?? []
     },
@@ -151,7 +167,7 @@ export async function fetchBrand(): Promise<{ businessName: string; primary: str
 
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-sup', 'fb-events', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {
@@ -198,7 +214,8 @@ export function useFoodCostMutations() {
     }),
     delMenu: m(async (id: string) => { const { error } = await sb('fb_menus').update({ is_active: false }).eq('id', id); if (error) throw error }),
     linkMenuService: m(async (p: { id: string; service_id: string | null }) => { const { error } = await sb('fb_menus').update({ service_id: p.service_id }).eq('id', p.id); if (error) throw error }),
-    addMenuItem: m(async (p: { menu_id: string; recipe_id: string; qty_per_cover: number }) => { const { error } = await sb('fb_menu_items').insert(p); if (error) throw error }),
+    addMenuItem: m(async (p: { menu_id: string; recipe_id: string; qty_per_cover: number; course?: string | null }) => { const { error } = await sb('fb_menu_items').insert(p); if (error) throw error }),
+    loadStructured: m(async () => { const { data, error } = await (supabase as any).rpc('fb_seed_structured_menus'); if (error) throw error; if (data?.error) throw new Error(data.error) }),
     delMenuItem: m(async (id: string) => { const { error } = await sb('fb_menu_items').delete().eq('id', id); if (error) throw error }),
   }
 }
