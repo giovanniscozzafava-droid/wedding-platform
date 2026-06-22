@@ -167,7 +167,7 @@ class AlbumScene {
   setMaterial(materialKey: string | undefined, colorHex: string | undefined, onReady: () => void) {
     const mat = materialByKey(materialKey) ?? materialByKey('alcantara')!
     const p = mat.pbr
-    const bump = loadMatTexture(this.texLoader, mat.texture, p.repeat, onReady)
+    const bump = loadMatTexture(this.texLoader, mat.texture, 1, onReady) // 1 sola volta = copertina continua (no fasce)
     const apply = (mesh: THREE.Mesh | null) => {
       if (!mesh) return
       const cm = mesh.material as THREE.MeshPhysicalMaterial

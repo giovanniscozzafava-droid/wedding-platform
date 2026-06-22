@@ -59,7 +59,7 @@ export const MATERIALS: Material[] = [
       C('sequoia','Cuoio','#a9722f'), C('sequoia','Mango','#e07a3c'), C('sequoia','Cioccolato','#5c4434'),
     ] },
   { key: 'acero', label: 'Acero', texture: 'acero', swatch: '#d4c09c',
-    pbr: { roughness: 0.6, metalness: 0, clearcoat: 0.06, clearcoatRoughness: 0.6, bumpScale: 0.05, repeat: 1.8 },
+    pbr: { roughness: 0.6, metalness: 0, clearcoat: 0.06, clearcoatRoughness: 0.6, bumpScale: 0.1, repeat: 1.8 },
     colors: [
       C('acero','Naturale','#d4c09c'), C('acero','Grigio','#cfc7bf'), C('acero','Beige','#dcc8a8'),
       C('acero','Nocciola','#b8944c'), C('acero','Taupe','#9c8c78'), C('acero','Glicine','#b8a4d4'),
@@ -96,7 +96,7 @@ export const MATERIALS: Material[] = [
       C('suade','Nero','#2a2a2a'),
     ] },
   { key: 'safir', label: 'Safir', texture: 'safir', swatch: '#d8c8a8',
-    pbr: { roughness: 0.66, metalness: 0, clearcoat: 0.05, bumpScale: 0.04, repeat: 2.0 },
+    pbr: { roughness: 0.66, metalness: 0, clearcoat: 0.05, bumpScale: 0.09, repeat: 2.0 },
     colors: [
       C('safir','Pietra','#d8c8a8'), C('safir','Sabbia','#d4b894'), C('safir','Corda','#b89878'),
       C('safir','Terra','#c8a878'), C('safir','Grano','#a89454'), C('safir','Celeste','#7cb8d4'),
@@ -104,14 +104,14 @@ export const MATERIALS: Material[] = [
       C('safir','Tabacco','#7c5c4c'), C('safir','Moka','#6f5444'),
     ] },
   { key: 'crazy', label: 'Crazy', texture: 'crazy', swatch: '#a89878',
-    pbr: { roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.45, bumpScale: 0.06, repeat: 1.6 },
+    pbr: { roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.45, bumpScale: 0.1, repeat: 1.6 },
     colors: [
       C('crazy','Bianco','#f0f0f0'), C('crazy','Grigio','#d0c8c0'), C('crazy','Camel','#d4b894'),
       C('crazy','Tortora','#a89878'), C('crazy','Verde','#7c9c54'), C('crazy','Cuoio','#7c5c4c'),
       C('crazy','Cioccolato','#5c3c2c'), C('crazy','Nero','#2a2a2a'),
     ] },
   { key: 'juta', label: 'Juta', texture: 'juta', swatch: '#e8d8c4',
-    pbr: { roughness: 0.92, metalness: 0, clearcoat: 0, bumpScale: 0.07, repeat: 3.0 },
+    pbr: { roughness: 0.92, metalness: 0, clearcoat: 0, bumpScale: 0.16, repeat: 3.0 },
     colors: [
       C('juta','Neve','#f0e8dc'), C('juta','Platino','#d4c8b8'), C('juta','Canapa','#e8d8c4'),
       C('juta','Castagno','#a88c6c'), C('juta','Calendula','#e89854'), C('juta','Ciliegia','#b8223c'),
@@ -146,6 +146,7 @@ export const CATEGORIES: Category[] = [
   { key: 'stampati', label: 'Stampati' },
   { key: 'swarovski', label: 'Swarovski' },
   { key: 'eventi', label: 'Eventi' },
+  { key: 'famiglia', label: 'Famiglia' },
 ]
 
 export const MODELS: Model[] = [
@@ -201,6 +202,12 @@ export const MODELS: Model[] = [
   { key: 'bimbi', label: 'Bimbi (Canvas)', category: 'eventi', format: 'portrait', decoro: 'photo', blurb: 'Linea bimbi, stampa integrale tematica.' },
   { key: 'comunione', label: 'Comunione', category: 'eventi', format: 'portrait', decoro: 'photo', blurb: 'Canvas comunione.' },
   { key: 'diciottesimo', label: '18° / Evento', category: 'eventi', format: 'portrait', decoro: 'photo', blurb: 'Evento, foto in copertina.' },
+
+  // Famiglia — album da conservare in casa, ritratti di famiglia
+  { key: 'family-classic', label: 'Famiglia Classico', category: 'famiglia', format: 'portrait', decoro: 'plate', blurb: 'Album di famiglia rimboccato con placca. Qualsiasi materiale.' },
+  { key: 'family-canvas', label: 'Famiglia Foto', category: 'famiglia', format: 'landscape', decoro: 'photo', blurb: 'Ritratto di famiglia in copertina.' },
+  { key: 'family-frame', label: 'Famiglia Cornice', category: 'famiglia', format: 'portrait', decoro: 'frame', blurb: 'Cornice incisa, per generazioni.' },
+  { key: 'family-wood', label: 'Famiglia Wood', category: 'famiglia', format: 'square', decoro: 'frame', blurb: 'Pelle di legno, formato quadrato.' },
 ]
 
 // ---------------------------------------------------------------------------
