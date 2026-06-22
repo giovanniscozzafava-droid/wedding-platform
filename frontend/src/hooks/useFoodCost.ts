@@ -25,7 +25,7 @@ export function useRecipes() {
   return useQuery<FbRecipe[]>({
     queryKey: ['fb-rec'],
     queryFn: async () => {
-      const { data, error } = await sb('fb_recipes').select('*, items:fb_recipe_items(*)').order('name')
+      const { data, error } = await sb('fb_recipes').select('*, items:fb_recipe_items!recipe_id(*)').order('name')
       if (error) throw error
       return (data ?? []) as FbRecipe[]
     },
