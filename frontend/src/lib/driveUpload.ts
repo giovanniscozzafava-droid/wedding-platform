@@ -56,25 +56,55 @@ export async function uploadFileToDrive(token: string, folderId: string, file: F
   return { id, thumbnail: `https://drive.google.com/thumbnail?id=${id}&sz=w800` }
 }
 
-// Upload RESUMABLE a chunk: per file GRANDI (video da più GB). Robusto: ritenta il
-// singolo chunk in caso di blip, e riporta la progressione (0..1).
+// Chiave di ripresa per un file: stessa firma (cartella+nome+dimensione+data) → stessa sessione.
+const resumeKey = (folderId: string, file: File) => `drvup:${folderId}:${file.name}:${file.size}:${file.lastModified}`
+const finished = (id: string): { id: string; thumbnail: string } => ({ id, thumbnail: `https://drive.google.com/thumbnail?id=${id}&sz=w800` })
+
+// Upload RESUMABLE a chunk: per file GRANDI. Sopravvive alle INTERRUZIONI (chiusura tab, reload,
+// rete giù): la sessione Drive viene salvata in localStorage e al tentativo successivo l'upload
+// RIPRENDE dall'ultimo byte già caricato, invece di ripartire da zero.
 export async function uploadFileToDriveResumable(token: string, folderId: string, file: File, onProgress?: (frac: number) => void): Promise<{ id: string; thumbnail: string }> {
-  const init = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`, 'content-type': 'application/json',
-      'X-Upload-Content-Type': file.type || 'application/octet-stream',
-      'X-Upload-Content-Length': String(file.size),
-    },
-    body: JSON.stringify({ name: file.name, parents: [folderId] }),
-  })
-  if (!init.ok) throw new Error('Init upload Drive fallito: ' + (await init.text()).slice(0, 140))
-  const session = init.headers.get('location')
-  if (!session) throw new Error('Sessione upload Drive mancante (CORS Location)')
+  const key = resumeKey(folderId, file)
+  let session = (() => { try { return localStorage.getItem(key) } catch { return null } })()
+  let offset = 0
+
+  // C'è una sessione salvata? Chiedo a Drive quanti byte ha già ricevuto e riprendo da lì.
+  if (session) {
+    try {
+      const probe = await fetch(session, { method: 'PUT', headers: { 'Content-Range': `bytes */${file.size}` } })
+      if (probe.status === 308) {
+        const range = probe.headers.get('range') // es. "bytes=0-1048575" → ricevuti fino a 1048575
+        offset = range && range.includes('-') ? parseInt(range.split('-')[1] || '-1', 10) + 1 : 0
+      } else if (probe.ok) {
+        const j = await probe.json().catch(() => ({})); const id = (j as { id?: string }).id
+        try { localStorage.removeItem(key) } catch { /* ignore */ }
+        if (id) { onProgress?.(1); return finished(id) }
+        session = null
+      } else { session = null } // sessione scaduta/persa → reinizializzo
+    } catch { session = null }
+  }
+
+  // Nessuna sessione valida → ne apro una nuova e la salvo (per poter riprendere)
+  if (!session) {
+    offset = 0
+    const init = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`, 'content-type': 'application/json',
+        'X-Upload-Content-Type': file.type || 'application/octet-stream',
+        'X-Upload-Content-Length': String(file.size),
+      },
+      body: JSON.stringify({ name: file.name, parents: [folderId] }),
+    })
+    if (!init.ok) throw new Error('Init upload Drive fallito: ' + (await init.text()).slice(0, 140))
+    session = init.headers.get('location')
+    if (!session) throw new Error('Sessione upload Drive mancante (CORS Location)')
+    try { localStorage.setItem(key, session) } catch { /* quota piena: pazienza, niente ripresa */ }
+  }
 
   const CHUNK = 16 * 1024 * 1024 // 16MB, multiplo di 256KB
-  let offset = 0
   let id = ''
+  if (offset > 0) onProgress?.(offset / file.size) // mostra subito la progressione ripresa
   while (offset < file.size) {
     const end = Math.min(offset + CHUNK, file.size)
     const chunk = file.slice(offset, end)
@@ -85,13 +115,20 @@ export async function uploadFileToDriveResumable(token: string, folderId: string
         const res = await fetch(session, { method: 'PUT', headers: { 'Content-Range': `bytes ${offset}-${end - 1}/${file.size}` }, body: chunk })
         if (res.status === 308) { offset = end; onProgress?.(offset / file.size); break }
         if (res.ok) { const j = await res.json().catch(() => ({})); id = (j as { id?: string }).id ?? ''; offset = end; onProgress?.(1); break }
+        if (res.status === 404 || res.status === 410) { try { localStorage.removeItem(key) } catch { /* */ } throw new Error('Sessione Drive scaduta: riavvia l\'upload') }
         if (attempt >= 4) throw new Error('chunk ' + res.status)
-      } catch (e) { if (attempt >= 4) throw new Error('Upload interrotto: ' + (e as Error).message) }
+      } catch (e) {
+        const msg = (e as Error).message
+        if (msg.startsWith('Sessione Drive scaduta')) throw e
+        // Esauriti i retry del chunk: NON cancello la sessione → al prossimo tentativo riprende da qui.
+        if (attempt >= 4) throw new Error('Upload interrotto — riprenderà da dove si è fermato al prossimo tentativo (' + msg + ')')
+      }
       await new Promise((r) => setTimeout(r, 1000 * attempt))
     }
   }
+  try { localStorage.removeItem(key) } catch { /* ignore */ }
   if (!id) throw new Error('Upload completato ma id mancante')
-  return { id, thumbnail: `https://drive.google.com/thumbnail?id=${id}&sz=w800` }
+  return finished(id)
 }
 
 // Sceglie il metodo: file piccoli (<8MB) multipart (1 richiesta, veloce); grandi → resumable.
