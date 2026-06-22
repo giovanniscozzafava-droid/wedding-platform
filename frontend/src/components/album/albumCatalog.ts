@@ -15,6 +15,8 @@ export type Cover = {
   color?: string           // hex per il rendering
   colorKey?: string        // chiave colore catalogo (per FotoLab: nome da ordinare)
   box?: string             // chiave BOX/contenitore
+  format?: Format          // verticale / orizzontale / quadrato (scelta primaria)
+  sizeKey?: string         // misura reale scelta (es. portrait:30x40)
   photo_url?: string | null
   title?: string
 }
@@ -213,6 +215,50 @@ export const BOXES: Box[] = [
   { key: 'twin-box', label: 'Twin Box', blurb: 'Box doppio (album + USB).' },
   { key: 'valigetta', label: 'Valigetta / Scatola', blurb: 'Valigetta rivestita o scatola.' },
 ]
+
+// ---------------------------------------------------------------------------
+// FORMATI + MISURE reali (tabella pag. 66 del catalogo). Scelta PRIMARIA.
+// ---------------------------------------------------------------------------
+export type SizeDef = { key: string; label: string; w: number; h: number } // cm
+export type FormatDef = { key: Format; label: string; hint: string; sizes: SizeDef[] }
+const S = (fmt: string, w: number, h: number): SizeDef => ({ key: `${fmt}:${w}x${h}`, label: `${w}×${h} cm`, w, h })
+export const FORMATS: FormatDef[] = [
+  { key: 'portrait', label: 'Verticale', hint: 'Ritratti, sposi in piedi', sizes: [
+    S('portrait',15,20), S('portrait',20,30), S('portrait',22.5,30), S('portrait',25,35), S('portrait',30,40), S('portrait',35,45),
+  ] },
+  { key: 'landscape', label: 'Orizzontale', hint: 'Paesaggi, doppie pagine', sizes: [
+    S('landscape',20,15), S('landscape',24,18), S('landscape',30,20), S('landscape',35,25), S('landscape',35,30), S('landscape',40,30), S('landscape',45,35),
+  ] },
+  { key: 'square', label: 'Quadrato', hint: 'Equilibrato, moderno', sizes: [
+    S('square',15,15), S('square',20,20), S('square',25,25), S('square',30,30), S('square',35,35), S('square',38,38), S('square',40,40),
+  ] },
+]
+export const sizeByKey = (k?: string): SizeDef | undefined => {
+  for (const f of FORMATS) { const s = f.sizes.find((x) => x.key === k); if (s) return s }
+  return undefined
+}
+export const sizesForFormat = (f?: Format): SizeDef[] => FORMATS.find((x) => x.key === f)?.sizes ?? []
+export const formatLabel = (f?: Format): string => FORMATS.find((x) => x.key === f)?.label || '—'
+export const defaultSizeKey = (f: Format): string => {
+  const fav: Record<Format, string> = { portrait: 'portrait:30x40', landscape: 'landscape:40x30', square: 'square:30x30' }
+  return fav[f]
+}
+// dimensioni 3D (unità scena) derivate dalla misura reale scelta → proporzioni vere
+export function coverDims(cover?: Cover): { w: number; h: number; d: number } {
+  let rw = 22.5, rh = 30
+  const s = sizeByKey(cover?.sizeKey)
+  if (s) { rw = s.w; rh = s.h }
+  else {
+    const f = cover?.format || modelByKey(cover?.model)?.format || 'portrait'
+    if (f === 'landscape') { rw = 40; rh = 30 } else if (f === 'square') { rw = 30; rh = 30 } else { rw = 22.5; rh = 30 }
+  }
+  const k = 2.85 / Math.max(rw, rh)
+  // spessore album ~ cresce un filo coi formati grandi
+  const d = 0.42 + Math.min(0.18, (Math.max(rw, rh) - 20) * 0.006)
+  return { w: rw * k, h: rh * k, d }
+}
+export const coverFormat = (cover?: Cover): Format =>
+  cover?.format || sizeByKey(cover?.sizeKey)?.key.split(':')[0] as Format || modelByKey(cover?.model)?.format || 'portrait'
 
 // ---- lookup ----
 const _colorMap: Record<string, ColorDef> = {}

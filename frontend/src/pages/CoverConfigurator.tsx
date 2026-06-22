@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AlbumMockup3D } from '@/components/album/AlbumMockup3D'
 import {
-  CATEGORIES, BOXES, COLORS,
+  CATEGORIES, BOXES, COLORS, FORMATS,
   modelsByCategory, materialsForModel, paletteFor, modelByKey,
-  type Cover, type ColorDef,
+  sizesForFormat, defaultSizeKey, sizeByKey,
+  type Cover, type ColorDef, type Format,
 } from '@/components/album/albumCatalog'
 import { sendAlbumToPrint } from '@/hooks/useAlbumLab'
 
@@ -30,7 +31,7 @@ export default function CoverConfigurator() {
   const [category, setCategory] = useState<string>('base')
   const [cover, setCover] = useState<Cover>(() => {
     const c = ensureColor('alcantara', 'alcantara:crema')
-    return { model: 'rimboccato', fabric: 'alcantara', color: c.color, colorKey: c.colorKey, box: 'nessuno', photo_url: null, title: 'Marco & Anna' }
+    return { model: 'rimboccato', fabric: 'alcantara', color: c.color, colorKey: c.colorKey, box: 'nessuno', format: 'portrait', sizeKey: 'portrait:30x40', photo_url: null, title: 'Marco & Anna' }
   })
   const [copies, setCopies] = useState(1)
   const [busy, setBusy] = useState(false)
@@ -57,6 +58,8 @@ export default function CoverConfigurator() {
     set({ fabric: materialKey, color: c.color, colorKey: c.colorKey })
   }
   function pickColor(c: ColorDef) { set({ color: c.hex, colorKey: c.key }) }
+  function pickFormat(f: Format) { set({ format: f, sizeKey: defaultSizeKey(f) }) }
+  function pickSize(key: string) { set({ sizeKey: key, format: sizeByKey(key)?.key.split(':')[0] as Format }) }
 
   async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return
@@ -86,6 +89,30 @@ export default function CoverConfigurator() {
           </Card>
 
           <div className="space-y-5">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Formato</p>
+              <div className="grid grid-cols-3 gap-2">
+                {FORMATS.map((f) => {
+                  const active = cover.format === f.key
+                  const ar = f.key === 'portrait' ? '3 / 4' : f.key === 'landscape' ? '4 / 3' : '1 / 1'
+                  return (
+                    <button key={f.key} onClick={() => pickFormat(f.key)}
+                      className={`rounded-xl border p-3 flex flex-col items-center gap-2 transition ${active ? on : off}`}>
+                      <span className="bg-[rgb(var(--fg-subtle))] rounded-sm" style={{ aspectRatio: ar, width: f.key === 'landscape' ? 38 : 28 }} />
+                      <span className="text-sm font-medium">{f.label}</span>
+                      <span className="text-[10px] text-[rgb(var(--fg-subtle))] text-center leading-tight">{f.hint}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {sizesForFormat(cover.format).map((s) => (
+                  <button key={s.key} onClick={() => pickSize(s.key)}
+                    className={`px-2.5 py-1 rounded-md text-xs border transition ${cover.sizeKey === s.key ? on : off}`}>{s.label}</button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Categoria</p>
               <div className="flex flex-wrap gap-2">
