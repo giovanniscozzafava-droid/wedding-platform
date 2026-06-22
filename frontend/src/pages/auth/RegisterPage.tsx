@@ -18,7 +18,7 @@ const ROLES: Array<{ value: AppRole; label: string; description: string; icon: t
 ]
 
 const SUBROLE_BY_ROLE: Record<AppRole, { v: string; l: string }[]> = {
-  WEDDING_PLANNER: [], LOCATION: [], ADMIN: [], COUPLE: [], CLIENT: [], GUEST: [],
+  WEDDING_PLANNER: [], LOCATION: [], ADMIN: [], COUPLE: [], CLIENT: [], GUEST: [], FOTOLAB: [],
   // Sorgente unica: SUPPLIER_SUBROLES da lib/supplierSubroles.ts
   FORNITORE: SUPPLIER_SUBROLES,
 }

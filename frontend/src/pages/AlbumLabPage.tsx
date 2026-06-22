@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle } from 'lucide-react'
+import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle, Download, LogOut } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { supabase } from '@/lib/supabase'
 import { AlbumMockup } from '@/components/album/AlbumMockup'
-import { useIsAlbumLab, useAlbumLabList, useAlbumLabMutations, type AlbumOrder } from '@/hooks/useAlbumLab'
+import { useIsAlbumLab, useAlbumLabList, useAlbumLabMutations, exportAlbumZip, type AlbumOrder } from '@/hooks/useAlbumLab'
 
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
   NEW: { label: 'Nuovo', cls: 'bg-blue-100 text-blue-700', icon: Clock },
@@ -29,9 +30,15 @@ export default function AlbumLabPage() {
   )
   const counts = (orders ?? []).reduce((a, o) => { a[o.status] = (a[o.status] || 0) + 1; return a }, {} as Record<string, number>)
   return (
-    <div className="min-h-full">
+    <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
+      <header className="border-b border-[rgb(var(--border))]" style={{ background: 'rgb(var(--bg-elevated))' }}>
+        <div className="max-w-6xl mx-auto px-6 sm:px-10 py-3 flex items-center justify-between">
+          <span className="font-display text-lg inline-flex items-center gap-2"><Package size={18} /> FotoLab · Console stampa</span>
+          <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }} className="text-sm text-[rgb(var(--fg-muted))] inline-flex items-center gap-1.5 hover:text-[rgb(var(--fg))]"><LogOut size={15} /> Esci</button>
+        </div>
+      </header>
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
-        <PageHeader eyebrow="Stamperia album" title="Ordini di stampa"
+        <PageHeader eyebrow="Service piattaforma" title="Console stampa album"
           description="Tutti gli album inviati in stampa dai fotografi della piattaforma. Vedi la copertina, accetti, metti in produzione, spedisci o rifiuti — e ordini la coda di lavorazione." />
         <div className="flex flex-wrap gap-2 mb-5 text-xs">
           {Object.entries(STATUS).map(([k, s]) => <span key={k} className={`px-2.5 py-1 rounded-full ${s.cls}`}>{s.label}: {counts[k] || 0}</span>)}
@@ -49,9 +56,11 @@ function OrderCard({ o }: { o: AlbumOrder }) {
   const mut = useAlbumLabMutations()
   const [reason, setReason] = useState(o.reject_reason || '')
   const [showReject, setShowReject] = useState(false)
+  const [exp, setExp] = useState(false)
   const s = STATUS[o.status] ?? { label: o.status, cls: 'bg-stone-200 text-stone-600', icon: Package }
   async function set(status: string, rej?: string) { try { await mut.mutateAsync({ order_id: o.id, status, reason: rej ?? null }); toast.success('Aggiornato') } catch (e) { toast.error((e as Error).message) } }
   async function prio(delta: number) { try { await mut.mutateAsync({ order_id: o.id, queue: Math.max(0, o.queue_order + delta) }) } catch (e) { toast.error((e as Error).message) } }
+  async function exportZip() { setExp(true); try { await exportAlbumZip(o.entry_id, o.couple_label || 'ordine'); toast.success('Export pronto (originali in ZIP)') } catch (e) { toast.error((e as Error).message) } finally { setExp(false) } }
   return (
     <Card className="p-4 flex flex-col sm:flex-row gap-4">
       <div className="shrink-0 grid place-items-center"><AlbumMockup cover={o.cover} width={140} interactive={false} /></div>
@@ -65,6 +74,7 @@ function OrderCard({ o }: { o: AlbumOrder }) {
         {o.status === 'REJECTED' && o.reject_reason && <p className="text-xs text-[rgb(var(--rose-600))] mt-1">Motivo rifiuto: {o.reject_reason}</p>}
 
         <div className="flex flex-wrap items-center gap-2 mt-3">
+          <Button size="sm" variant="gold" disabled={exp} onClick={exportZip}><Download size={14} /> {exp ? 'Esporto…' : 'Esporta originali'}</Button>
           {o.status !== 'ACCEPTED' && o.status !== 'IN_PRODUCTION' && o.status !== 'SHIPPED' && <Button size="sm" variant="outline" onClick={() => set('ACCEPTED')}>Accetta</Button>}
           {(o.status === 'ACCEPTED' || o.status === 'ON_HOLD' || o.status === 'NEW') && <Button size="sm" variant="outline" onClick={() => set('IN_PRODUCTION')}>In produzione</Button>}
           {o.status === 'IN_PRODUCTION' && <Button size="sm" variant="gold" onClick={() => set('SHIPPED')}>Segna spedito</Button>}

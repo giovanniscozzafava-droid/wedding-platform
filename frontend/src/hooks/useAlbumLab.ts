@@ -5,8 +5,23 @@ import type { Cover } from '@/components/album/AlbumMockup'
 async function uid(): Promise<string | null> { const { data } = await supabase.auth.getUser(); return data.user?.id ?? null }
 
 export type AlbumOrder = {
-  id: string; couple_label: string | null; photographer: string; format_key: string; pages: number; copies: number
+  id: string; entry_id: string; couple_label: string | null; photographer: string; format_key: string; pages: number; copies: number
   cover: Cover; status: string; queue_order: number; reject_reason: string | null; created_at: string
+}
+
+// Esporta lo ZIP del lavoro (selezione album originale) — il server usa il Drive del fotografo.
+export async function exportAlbumZip(entryId: string, label: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('album-zip', { body: { entry_id: entryId, size: 'original' } })
+  if (error) {
+    let msg = (error as Error).message
+    try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error === 'no_selection' || b.error === 'empty' ? 'Nessun file da esportare (il fotografo non ha collegato Drive o manca la selezione)' : b.error } catch { /* */ }
+    throw new Error(msg)
+  }
+  if (!(data instanceof Blob)) throw new Error('Export non riuscito')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(data); a.download = `album-${(label || 'ordine').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-originali.zip`
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000)
 }
 
 export function useIsAlbumLab() {
@@ -15,7 +30,7 @@ export function useIsAlbumLab() {
     queryFn: async () => {
       const id = await uid(); if (!id) return false
       const { data } = await (supabase as any).from('profiles').select('is_album_lab, role').eq('id', id).maybeSingle()
-      return !!(data?.is_album_lab || data?.role === 'ADMIN')
+      return !!(data?.is_album_lab || data?.role === 'FOTOLAB' || data?.role === 'ADMIN')
     },
     staleTime: 5 * 60_000,
   })

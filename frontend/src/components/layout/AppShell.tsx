@@ -35,9 +35,7 @@ import {
   Coins,
   CheckSquare,
   TicketPercent,
-  Printer,
 } from 'lucide-react'
-import { useIsAlbumLab } from '@/hooks/useAlbumLab'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
 import { NotificationBell } from '@/components/layout/NotificationBell'
@@ -203,22 +201,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isFornitore = profile?.role === 'FORNITORE'
   const isStaff = (profile as any)?.is_support_staff || profile?.role === 'ADMIN'
-  const { data: isAlbumLab } = useIsAlbumLab()
   const baseGroupsRaw = isCapostipite
     ? NAV_CAPOSTIPITE_GROUPS
     : isFornitore
     ? NAV_FORNITORE_GROUPS
     : NAV_FALLBACK_GROUPS
   // Food cost: strumento gestionale SOLO per le Location (PRP-4 Fase A).
-  const baseGroupsLoc = profile?.role === 'LOCATION'
+  const baseGroups = profile?.role === 'LOCATION'
     ? baseGroupsRaw.map((g) => g.section === 'Gestione'
         ? { ...g, items: [...g.items, { to: '/food-cost', label: 'Food cost', icon: Carrot }] }
         : g)
     : baseGroupsRaw
-  // Stamperia album: voce dedicata per chi ha il flag is_album_lab (a prescindere dal ruolo).
-  const baseGroups: NavGroup[] = isAlbumLab
-    ? [...baseGroupsLoc, { section: 'Stamperia', items: [{ to: '/album-lab', label: 'Ordini stampa', icon: Printer }] }]
-    : baseGroupsLoc
   // Gruppo riservato a staff/admin (gestione piattaforma + ticket).
   const NAV_GROUPS: NavGroup[] = isStaff
     ? [...baseGroups, { section: 'Staff', items: [

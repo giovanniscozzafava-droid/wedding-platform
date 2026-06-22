@@ -14,6 +14,7 @@ type Props = {
 function homeFor(role: AppRole): string {
   if (role === 'COUPLE') return '/couple'
   if (role === 'CLIENT') return '/area-cliente'
+  if (role === 'FOTOLAB') return '/album-lab'
   return '/'
 }
 
@@ -44,10 +45,18 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     return <Navigate to="/" replace />
   }
   if (profile && !profile.onboarding_complete
-    && profile.role !== 'COUPLE' && profile.role !== 'CLIENT'
+    && profile.role !== 'COUPLE' && profile.role !== 'CLIENT' && profile.role !== 'FOTOLAB'
     && location.pathname !== '/onboarding'
     && !location.pathname.startsWith('/couple/accept')) {
     return <Navigate to="/onboarding" replace />
+  }
+  // FotoLab è un SERVICE della piattaforma: console dedicata, niente UI da professionista.
+  // Confinato alla sua area (ordini stampa + visualizzazione album), come COUPLE/CLIENT.
+  if (profile?.role === 'FOTOLAB'
+    && !location.pathname.startsWith('/album-lab')
+    && !location.pathname.startsWith('/album/')
+    && location.pathname !== '/profile') {
+    return <Navigate to="/album-lab" replace />
   }
   // Questionario-once: se il timestamp e` valorizzato, non riapriamo mai il wizard.
   if (profile?.onboarding_completato_il && location.pathname === '/onboarding') {
@@ -93,6 +102,6 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
   // La sidebar AppShell e' progettata per WP/LOCATION/FORNITORE/ADMIN.
   // Per il ruolo COUPLE forziamo bare anche sulle pagine condivise (es. /faq)
   // cosi' la coppia non vede mai voci di menu da professionista.
-  if (profile?.role === 'COUPLE' || profile?.role === 'CLIENT') return <>{children}</>
+  if (profile?.role === 'COUPLE' || profile?.role === 'CLIENT' || profile?.role === 'FOTOLAB') return <>{children}</>
   return <AppShell>{children}</AppShell>
 }

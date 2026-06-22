@@ -30,11 +30,12 @@ Deno.serve(async (req) => {
   const { data: gal } = await admin.from('event_galleries').select('owner_id').eq('entry_id', entry_id).maybeSingle()
   if (!gal) return json({ error: 'no_gallery' }, 404)
 
-  // autorizzazione: owner della galleria, membro coppia, o admin
+  // autorizzazione: owner della galleria, membro coppia, admin, o stamperia (FotoLab service)
   const isOwner = gal.owner_id === user.id
   const { data: cm } = await admin.from('wedding_couple_members').select('id').eq('entry_id', entry_id).eq('user_id', user.id).maybeSingle()
-  const { data: prof } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-  if (!isOwner && !cm && prof?.role !== 'ADMIN') return json({ error: 'forbidden' }, 403)
+  const { data: prof } = await admin.from('profiles').select('role, is_album_lab').eq('id', user.id).maybeSingle()
+  const isLab = !!prof?.is_album_lab || prof?.role === 'FOTOLAB'
+  if (!isOwner && !cm && prof?.role !== 'ADMIN' && !isLab) return json({ error: 'forbidden' }, 403)
 
   const { data: media } = await admin.from('gallery_media')
     .select('drive_file_id, thumbnail_link, media_type, guest_tag_name')
