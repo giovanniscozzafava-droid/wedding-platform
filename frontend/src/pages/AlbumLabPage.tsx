@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle, Download, LogOut, ArrowLeft, Images, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle, Download, LogOut, ArrowLeft, Images, X, UserRound } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -36,7 +37,10 @@ export default function AlbumLabPage() {
       <header className="border-b border-[rgb(var(--border))]" style={{ background: 'rgb(var(--bg-elevated))' }}>
         <div className="max-w-6xl mx-auto px-6 sm:px-10 py-3 flex items-center justify-between">
           <span className="font-display text-lg inline-flex items-center gap-2"><Package size={18} /> FotoLab · Console stampa</span>
-          <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }} className="text-sm text-[rgb(var(--fg-muted))] inline-flex items-center gap-1.5 hover:text-[rgb(var(--fg))]"><LogOut size={15} /> Esci</button>
+          <div className="flex items-center gap-4">
+            <Link to="/profile" className="text-sm text-[rgb(var(--fg-muted))] inline-flex items-center gap-1.5 hover:text-[rgb(var(--fg))]"><UserRound size={15} /> Profilo</Link>
+            <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }} className="text-sm text-[rgb(var(--fg-muted))] inline-flex items-center gap-1.5 hover:text-[rgb(var(--fg))]"><LogOut size={15} /> Esci</button>
+          </div>
         </div>
       </header>
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
