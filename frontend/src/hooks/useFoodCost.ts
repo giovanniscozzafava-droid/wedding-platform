@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 // Hook del gestionale F&B (PRP-4 Fase A). RLS owner-only: location_id = auth.uid().
-const sb = supabase.from as unknown as (t: string) => any
+// NB: chiamata inline (supabase.from(t)) per non perdere il `this` (from() usa this.rest).
+const sb = (t: string): any => (supabase as any).from(t)
 async function uid(): Promise<string | null> { const { data } = await supabase.auth.getUser(); return data.user?.id ?? null }
 
 export type FbIngredient = { id: string; name: string; category: string | null; stock_unit: 'G' | 'ML' | 'PZ'; yield_percent: number; current_cost: number | null }

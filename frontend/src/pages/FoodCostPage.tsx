@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
 import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle, FileUp, ChefHat, FileText } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
@@ -13,33 +12,6 @@ import {
   type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember,
 } from '@/hooks/useFoodCost'
 import { buildFoglioServizio } from '@/lib/foglioServizio'
-
-// Striscia diagnostica temporanea v2: storage-session + getUser/query con timeout + cattura eccezioni.
-function DiagBar() {
-  const [info, setInfo] = useState('v2 · avvio…')
-  useEffect(() => {
-    let alive = true
-    const to = (p: Promise<any>, ms: number, label: string) => Promise.race([p, new Promise((res) => setTimeout(() => res({ __t: label }), ms))])
-    ;(async () => {
-      try {
-        const sess: any = await to(supabase.auth.getSession(), 6000, 'getSession-TIMEOUT')
-        const sUid = sess?.__t ? sess.__t : (sess?.data?.session?.user?.id ? sess.data.session.user.id.slice(0, 8) : 'NO-STORAGE-SESSION')
-        if (alive) setInfo(`v2 · storage=${sUid} · interrogo…`)
-        const gu: any = await to(supabase.auth.getUser(), 6000, 'getUser-TIMEOUT')
-        const guUid = gu?.__t ? gu.__t : (gu?.data?.user?.id ? gu.data.user.id.slice(0, 8) : 'null' + (gu?.error ? ':' + gu.error.message : ''))
-        const sbf = supabase.from as any
-        const b: any = await to(sbf('fb_brigade_members').select('id', { count: 'exact', head: true }), 6000, 'TIMEOUT')
-        const s: any = await to(sbf('fb_suppliers').select('id', { count: 'exact', head: true }), 6000, 'TIMEOUT')
-        if (!alive) return
-        const bc = b?.__t ? b.__t : (b?.error ? 'ERR:' + b.error.code : b?.count)
-        const sc = s?.__t ? s.__t : (s?.error ? 'ERR:' + s.error.code : s?.count)
-        setInfo(`v2 · storage=${typeof sUid === 'string' ? sUid : '?'} · getUser=${guUid} · brigata=${bc} · fornitori=${sc}`)
-      } catch (e: any) { if (alive) setInfo('v2 · EXCEPTION: ' + (e?.message || String(e)).slice(0, 140)) }
-    })()
-    return () => { alive = false }
-  }, [])
-  return <div className="mb-4 text-[11px] font-mono px-3 py-2 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 break-all">🔍 DIAG — {info}</div>
-}
 
 const eur = (n: number) => '€ ' + (n ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 // l'ingrediente è in g/ml/pz; in UI mostriamo €/kg, €/L, €/pz (più leggibile)
@@ -55,7 +27,6 @@ export default function FoodCostPage() {
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader eyebrow="Gestionale ristorazione" title="Food cost & approvvigionamento"
           description="Ingredienti e costi → ricette → menu (food cost a coperto) → fornitori e listini → fabbisogno dagli eventi → lista spesa. Tutto connesso: dal menu dell'evento esce la spesa da fare." />
-        <DiagBar />
         <div className="flex flex-wrap gap-2 mb-5">
           {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart], ['mag', 'Magazzino', Boxes], ['brig', 'Brigata', ChefHat]] as const).map(([k, l, Icon]) => (
             <Button key={k} variant={tab === k ? 'gold' : 'outline'} size="sm" onClick={() => setTab(k)}><Icon size={14} /> {l}</Button>
