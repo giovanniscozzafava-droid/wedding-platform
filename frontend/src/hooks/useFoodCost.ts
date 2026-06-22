@@ -126,9 +126,31 @@ export function useAiWallet() {
   })
 }
 
+export type FbBrigadeMember = { id: string; full_name: string; role: string; reparto: string; phone: string | null; hourly_cost: number }
+export function useBrigade() {
+  return useQuery<FbBrigadeMember[]>({
+    queryKey: ['fb-brigade'],
+    queryFn: async () => {
+      const { data, error } = await sb('fb_brigade_members').select('id, full_name, role, reparto, phone, hourly_cost').eq('active', true).order('reparto')
+      if (error) throw error
+      return (data ?? []) as FbBrigadeMember[]
+    },
+  })
+}
+export async function fetchEventSheet(entryId: string) {
+  const { data, error } = await (supabase as any).rpc('fb_event_sheet', { p_entry: entryId })
+  if (error) throw error
+  return data
+}
+export async function fetchBrand(): Promise<{ businessName: string; primary: string | null }> {
+  const id = await uid(); if (!id) return { businessName: 'Evento', primary: null }
+  const { data } = await sb('profiles').select('business_name, full_name, brand_primary_color').eq('id', id).maybeSingle()
+  return { businessName: data?.business_name || data?.full_name || 'Evento', primary: data?.brand_primary_color ?? null }
+}
+
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-sup', 'fb-events', 'fb-req', 'fb-stock', 'fb-ai-wallet'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-sup', 'fb-events', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {
@@ -149,6 +171,8 @@ export function useFoodCostMutations() {
     delSupplierProduct: m(async (id: string) => { const { error } = await sb('fb_supplier_products').delete().eq('id', id); if (error) throw error }),
     setEventMenu: m(async (p: { entry_id: string; menu_id: string; covers: number | null }) => { const id = await uid(); const { error } = await sb('fb_event_menus').insert({ location_id: id, ...p }); if (error) throw error }),
     delEventMenu: m(async (id: string) => { const { error } = await sb('fb_event_menus').delete().eq('id', id); if (error) throw error }),
+    addBrigadeMember: m(async (p: { full_name: string; role: string; reparto: string; phone?: string | null; hourly_cost?: number }) => { const id = await uid(); const { error } = await sb('fb_brigade_members').insert({ location_id: id, ...p }); if (error) throw error }),
+    delBrigadeMember: m(async (id: string) => { const { error } = await sb('fb_brigade_members').update({ active: false }).eq('id', id); if (error) throw error }),
     // Bolla fornitore (PDF/JPG) → Claude estrae le righe → lotti in magazzino
     importBolla: m(async (p: { base64: string; media_type: string }) => {
       const { data: ex, error: e1 } = await (supabase as any).functions.invoke('fb-read-bolla', { body: { base64: p.base64, media_type: p.media_type } })

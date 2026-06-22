@@ -1,15 +1,17 @@
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle, FileUp } from 'lucide-react'
+import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle, FileUp, ChefHat, FileText } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
-  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet,
-  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier,
+  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade,
+  fetchEventSheet, fetchBrand,
+  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember,
 } from '@/hooks/useFoodCost'
+import { buildFoglioServizio } from '@/lib/foglioServizio'
 
 const eur = (n: number) => '€ ' + (n ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 // l'ingrediente è in g/ml/pz; in UI mostriamo €/kg, €/L, €/pz (più leggibile)
@@ -19,14 +21,14 @@ const toStock = (v: number, u: string) => v / factor(u)                      // 
 const fromStock = (c: number, u: string) => c * factor(u)                    // €/g → €/kg
 
 export default function FoodCostPage() {
-  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'sup' | 'ev' | 'fab' | 'mag'>('ing')
+  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'sup' | 'ev' | 'fab' | 'mag' | 'brig'>('ing')
   return (
     <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader eyebrow="Gestionale ristorazione" title="Food cost & approvvigionamento"
           description="Ingredienti e costi → ricette → menu (food cost a coperto) → fornitori e listini → fabbisogno dagli eventi → lista spesa. Tutto connesso: dal menu dell'evento esce la spesa da fare." />
         <div className="flex flex-wrap gap-2 mb-5">
-          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart], ['mag', 'Magazzino', Boxes]] as const).map(([k, l, Icon]) => (
+          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart], ['mag', 'Magazzino', Boxes], ['brig', 'Brigata', ChefHat]] as const).map(([k, l, Icon]) => (
             <Button key={k} variant={tab === k ? 'gold' : 'outline'} size="sm" onClick={() => setTab(k)}><Icon size={14} /> {l}</Button>
           ))}
         </div>
@@ -37,6 +39,7 @@ export default function FoodCostPage() {
         {tab === 'ev' && <EventiTab />}
         {tab === 'fab' && <FabbisognoTab />}
         {tab === 'mag' && <MagazzinoTab />}
+        {tab === 'brig' && <BrigataTab />}
       </div>
     </div>
   )
@@ -319,13 +322,23 @@ function EventiTab() {
   )
 }
 function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuMap: Map<string, FbMenu>; mut: ReturnType<typeof useFoodCostMutations> }) {
-  const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState('')
+  const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState(''); const [pdfBusy, setPdfBusy] = useState(false)
   async function add() { if (!menuId) { toast.error('Scegli un menu'); return } try { await mut.setEventMenu.mutateAsync({ entry_id: ev.id, menu_id: menuId, covers: covers ? Number(covers) : null }); setMenuId(''); setCovers('') } catch (e) { toast.error((e as Error).message) } }
+  async function foglio() {
+    setPdfBusy(true)
+    try {
+      const [sheet, brand] = await Promise.all([fetchEventSheet(ev.id), fetchBrand()])
+      if (!sheet || sheet.error) throw new Error('Aggancia prima un menu a questo evento')
+      const doc = await buildFoglioServizio(sheet, brand)
+      doc.save(`foglio-servizio-${(ev.title || 'evento').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`)
+    } catch (e) { toast.error((e as Error).message) } finally { setPdfBusy(false) }
+  }
   return (
     <Card className="p-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div><p className="font-medium text-sm">{ev.title ?? 'Evento'}</p><p className="text-[11px] text-[rgb(var(--fg-subtle))]">{new Date(ev.date_from).toLocaleDateString('it-IT')}{ev.guest_count ? ` · ${ev.guest_count} coperti` : ''}</p></div>
         <div className="flex items-end gap-1.5">
+          {(ev.menus ?? []).length > 0 && <Button size="sm" variant="outline" onClick={foglio} disabled={pdfBusy}><FileText size={14} /> {pdfBusy ? '…' : 'Foglio PDF'}</Button>}
           <Select value={menuId} onChange={(e) => setMenuId(e.target.value)} className="h-8 w-40"><option value="">+ menu…</option>{menus.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</Select>
           <Input value={covers} onChange={(e) => setCovers(e.target.value)} className="h-8 w-20" placeholder="coperti" />
           <Button size="sm" onClick={add}><Plus size={14} /></Button>
@@ -457,6 +470,49 @@ function MagazzinoTab() {
         </tbody></table>
       </Card>
       </div>
+    </div>
+  )
+}
+
+// ── BRIGATA ─────────────────────────────────────────────────────────────────
+function BrigataTab() {
+  const { data: brigata } = useBrigade()
+  const mut = useFoodCostMutations()
+  const [nome, setNome] = useState(''); const [ruolo, setRuolo] = useState(''); const [reparto, setReparto] = useState('CUCINA'); const [tel, setTel] = useState('')
+  async function add() {
+    if (nome.trim().length < 2 || ruolo.trim().length < 2) { toast.error('Nome e ruolo'); return }
+    try { await mut.addBrigadeMember.mutateAsync({ full_name: nome.trim(), role: ruolo.trim(), reparto, phone: tel.trim() || null }); setNome(''); setRuolo(''); setTel('') } catch (e) { toast.error((e as Error).message) }
+  }
+  const reparti = [['CUCINA', 'Cucina'], ['SALA', 'Sala'], ['BAR', 'Bar'], ['PLONGE', 'Lavaggio']] as const
+  return (
+    <div className="space-y-4">
+      <Card className="p-3 flex flex-wrap items-end gap-2">
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Nome<Input value={nome} onChange={(e) => setNome(e.target.value)} className="w-44 mt-0.5" placeholder="Mario Rossi" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Ruolo<Input value={ruolo} onChange={(e) => setRuolo(e.target.value)} className="w-40 mt-0.5" placeholder="Cameriere" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Reparto<Select value={reparto} onChange={(e) => setReparto(e.target.value)} className="mt-0.5">{reparti.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Telefono<Input value={tel} onChange={(e) => setTel(e.target.value)} className="w-32 mt-0.5" /></label>
+        <Button size="sm" onClick={add}><Plus size={14} /> Aggiungi</Button>
+      </Card>
+      {reparti.map(([k, l]) => {
+        const mem = (brigata ?? []).filter((b: FbBrigadeMember) => b.reparto === k)
+        if (!mem.length) return null
+        return (
+          <Card key={k} className="overflow-hidden">
+            <div className="px-4 py-2 border-b border-[rgb(var(--border))] font-medium text-sm inline-flex items-center gap-1.5"><ChefHat size={14} /> {l} ({mem.length})</div>
+            <table className="w-full text-sm"><tbody>
+              {mem.map((p: FbBrigadeMember) => (
+                <tr key={p.id} className="border-b border-[rgb(var(--border))] last:border-0">
+                  <td className="p-2 font-medium">{p.role}</td><td className="p-2">{p.full_name}</td>
+                  <td className="p-2 text-right text-[rgb(var(--fg-muted))]">{p.phone || ''}</td>
+                  <td className="p-2 text-right w-8"><button onClick={() => mut.delBrigadeMember.mutate(p.id)} className="text-[rgb(var(--rose-500))]"><Trash2 size={13} /></button></td>
+                </tr>
+              ))}
+            </tbody></table>
+          </Card>
+        )
+      })}
+      {(brigata ?? []).length === 0 && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Nessun membro. Aggiungi la tua brigata (cucina, sala, bar, lavaggio).</Card>}
+      <p className="text-[11px] text-[rgb(var(--fg-subtle))]">La brigata entra nel <strong>Foglio di servizio PDF</strong> di ogni evento (tab Eventi → Foglio PDF), insieme a piatti, fabbisogno, prelievo magazzino e tavoli.</p>
     </div>
   )
 }
