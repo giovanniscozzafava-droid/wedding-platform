@@ -87,6 +87,59 @@ type Preset = {
   region: string | null
 }
 
+const _CL: Record<string, string> = { APERITIVO: 'Aperitivo', ANTIPASTO: 'Antipasti', PRIMO: 'Primi', SECONDO: 'Secondi', CONTORNO: 'Contorni', DOLCE: 'Dolce', FRUTTA: 'Frutta', BEVANDE: 'Bevande' }
+const _CORD = ['APERITIVO', 'ANTIPASTO', 'PRIMO', 'SECONDO', 'CONTORNO', 'DOLCE', 'FRUTTA', 'BEVANDE']
+// Proposte di menu della location + risultati prova → la coppia sceglie (cross-tenant via RPC).
+function LocationMenuProposals({ entryId, readOnly }: { entryId: string; readOnly?: boolean }) {
+  const [d, setD] = useState<any>(null)
+  const [reload, setReload] = useState(0)
+  const [busy, setBusy] = useState('')
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data } = await (supabase as any).rpc('fb_event_choice_view', { p_entry: entryId })
+      if (alive) setD(data && data.ok ? data : null)
+    })()
+    return () => { alive = false }
+  }, [entryId, reload])
+  async function choose(menuId: string) {
+    setBusy(menuId)
+    try {
+      const { data, error } = await (supabase as any).rpc('fb_member_choose', { p_entry: entryId, p_menu_id: menuId })
+      if (error || data?.error) throw new Error(data?.error || 'errore')
+      toast.success('Menu scelto! La location preparerà la spesa su questo.')
+      setReload((n) => n + 1)
+    } catch { toast.error('Scelta non riuscita') } finally { setBusy('') }
+  }
+  if (!d || !d.proposte?.length) return null
+  return (
+    <Card className="p-5">
+      <h3 className="font-display text-lg flex items-center gap-2 mb-1"><Sparkles size={18} /> Proposte di menu della location</h3>
+      <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">{d.prova ? 'Dopo la prova menu, scegli il menu per il vostro evento.' : 'Scegli il menu per il vostro evento.'}{d.coperti ? ` · ${d.coperti} coperti` : ''}</p>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {d.proposte.map((m: any) => {
+          const byCourse: Record<string, string[]> = {}
+          for (const p of m.piatti || []) { const k = p.portata || 'ANTIPASTO'; (byCourse[k] = byCourse[k] || []).push(p.piatto) }
+          return (
+            <div key={m.menu_id} className={`rounded-xl border p-3 ${m.scelto ? 'border-emerald-400 bg-emerald-50' : 'border-[rgb(var(--border))]'}`}>
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="font-semibold">{m.nome}</h4>
+                {m.voti?.n > 0 && <span className="text-xs text-amber-600">★ {m.voti.media} ({m.voti.n})</span>}
+              </div>
+              <div className="space-y-1 mb-3">
+                {_CORD.filter((c) => byCourse[c]).map((c) => (
+                  <div key={c} className="text-xs"><span className="uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{_CL[c]}: </span><span className="text-[rgb(var(--fg-muted))]">{(byCourse[c] || []).join(', ')}</span></div>
+                ))}
+              </div>
+              {m.scelto ? <Badge>Menu scelto</Badge> : !readOnly && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => choose(m.menu_id)}>{busy === m.menu_id ? '…' : 'Scegli questo'}</Button>}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
 export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOnly?: boolean }) {
   const { data, isLoading } = useMenu(entryId)
   const { add, update, remove } = useMenuMutations(entryId)
@@ -208,6 +261,7 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
   return (
     <div className="space-y-6">
       <SectionRings entryId={entryId} keys={['menu']} />
+      <LocationMenuProposals entryId={entryId} readOnly={readOnly} />
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="font-display text-2xl flex items-center gap-2">
