@@ -167,7 +167,7 @@ class AlbumScene {
   setMaterial(materialKey: string | undefined, colorHex: string | undefined, onReady: () => void) {
     const mat = materialByKey(materialKey) ?? materialByKey('alcantara')!
     const p = mat.pbr
-    const bump = loadMatTexture(this.texLoader, mat.texture, 1, onReady) // 1 sola volta = copertina continua (no fasce)
+    const bump = loadMatTexture(this.texLoader, mat.texture, p.repeat, onReady) // texture procedurale tileable: nessuna fascia
     const apply = (mesh: THREE.Mesh | null) => {
       if (!mesh) return
       const cm = mesh.material as THREE.MeshPhysicalMaterial
@@ -305,8 +305,8 @@ export function AlbumMockup3D({ cover, width = 360, interactive = true }: { cove
     const frame = () => {
       const { w, h } = album
       floor.position.y = -h / 2 - 0.01
-      const dist = Math.max(w, h) * 2.15
-      camera.position.set(dist * 0.38, dist * 0.40, dist * 0.80)
+      const dist = Math.max(w, h) * 2.2
+      camera.position.set(dist * 0.52, dist * 0.34, dist * 0.74) // più 3/4: si vede il fianco (pagine chiuse)
       camera.lookAt(0, 0, 0)
       controls.target.set(0, 0, 0); controls.update()
     }

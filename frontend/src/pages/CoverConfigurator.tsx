@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ChevronLeft, Send, ImagePlus } from 'lucide-react'
+import { ChevronLeft, Send, ImagePlus, BookOpen } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AlbumMockup3D } from '@/components/album/AlbumMockup3D'
+import { AlbumFlipbook } from '@/components/album/AlbumFlipbook'
 import {
   CATEGORIES, BOXES, COLORS, FORMATS,
   modelsByCategory, materialsForModel, paletteFor, modelByKey,
@@ -35,7 +36,15 @@ export default function CoverConfigurator() {
   })
   const [copies, setCopies] = useState(1)
   const [busy, setBusy] = useState(false)
+  const [flipOpen, setFlipOpen] = useState(false)
   const set = (patch: Partial<Cover>) => setCover((c) => ({ ...c, ...patch }))
+
+  // foto demo per lo sfoglio (in futuro: impaginazione reale). La copertina della coppia apre la sequenza.
+  const demoPhotos = [
+    ...(cover.photo_url ? [cover.photo_url] : []),
+    '/textures/demo/p1.jpg', '/textures/demo/p2.jpg', '/textures/demo/p3.jpg', '/textures/demo/p4.jpg',
+    '/textures/demo/p5.jpg', '/textures/demo/p6.jpg', '/textures/demo/p7.jpg', '/textures/demo/p8.jpg',
+  ]
 
   const models = modelsByCategory(category)
   const allowedMaterials = materialsForModel(cover.model)
@@ -77,6 +86,7 @@ export default function CoverConfigurator() {
 
   return (
     <div className="min-h-full">
+      {flipOpen && <AlbumFlipbook cover={cover} photos={demoPhotos} onClose={() => setFlipOpen(false)} />}
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-8">
         <button onClick={() => navigate(-1)} className="text-sm text-[rgb(var(--fg-muted))] inline-flex items-center gap-1 mb-4"><ChevronLeft size={16} /> Indietro</button>
         <h1 className="font-display text-3xl mb-1">Copertina & stampa</h1>
@@ -86,6 +96,7 @@ export default function CoverConfigurator() {
           <Card className="p-4 grid place-items-center bg-gradient-to-br from-[rgb(var(--bg-sunken))] to-transparent md:sticky md:top-6">
             <AlbumMockup3D cover={cover} width={400} />
             <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2 text-center">{modelByKey(cover.model)?.blurb} · trascina per ruotare</p>
+            <Button variant="outline" className="mt-3" onClick={() => setFlipOpen(true)}><BookOpen size={16} /> Sfoglia l'album</Button>
           </Card>
 
           <div className="space-y-5">
@@ -147,8 +158,8 @@ export default function CoverConfigurator() {
               <div className="flex flex-wrap gap-2">
                 {palette.map((c) => (
                   <button key={c.key} onClick={() => pickColor(c)} title={c.label}
-                    className={`w-9 h-9 rounded-full border-2 transition ${cover.colorKey === c.key ? 'border-[rgb(var(--gold-600))] scale-110' : 'border-white shadow'}`}
-                    style={{ background: c.hex }} />
+                    className={`w-10 h-10 rounded-full border-2 transition bg-cover bg-center ${cover.colorKey === c.key ? 'border-[rgb(var(--gold-600))] scale-110 ring-2 ring-[rgb(var(--gold-300))]' : 'border-white shadow'}`}
+                    style={{ backgroundColor: c.hex, backgroundImage: `url(/textures/swatches/colors/${c.key.replace(':', '__')}.jpg)` }} />
                 ))}
               </div>
             </div>

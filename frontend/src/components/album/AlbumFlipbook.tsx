@@ -76,7 +76,7 @@ export function AlbumFlipbook({ cover, photos, onClose }: { cover: Cover; photos
     const matInfo = materialByKey(cover.fabric) ?? materialByKey('alcantara')!
     const texLoader = new THREE.TextureLoader()
     const fabricBump = texLoader.load(`/textures/materials/${matInfo.texture}.jpg`, () => render())
-    fabricBump.wrapS = fabricBump.wrapT = THREE.RepeatWrapping; fabricBump.colorSpace = THREE.NoColorSpace; fabricBump.repeat.set(1, 1)
+    fabricBump.wrapS = fabricBump.wrapT = THREE.RepeatWrapping; fabricBump.colorSpace = THREE.NoColorSpace; fabricBump.repeat.set(matInfo.pbr.repeat, matInfo.pbr.repeat)
     const fabricMat = () => {
       const m = new THREE.MeshPhysicalMaterial({ color: cover.color || matInfo.swatch, roughness: matInfo.pbr.roughness, metalness: matInfo.pbr.metalness, clearcoat: matInfo.pbr.clearcoat ?? 0 })
       m.bumpMap = fabricBump; m.bumpScale = matInfo.pbr.bumpScale * 3.0; m.envMapIntensity = matInfo.pbr.metalness > 0.2 ? 1.1 : 0.65
