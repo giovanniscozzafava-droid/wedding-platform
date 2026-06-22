@@ -349,7 +349,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <p className="text-sm font-medium flex items-center gap-2"><BookOpen size={16} className="text-[rgb(var(--gold-600))]" /> {role === 'sposi' ? 'Visualizza album e richiedi modifiche' : 'Impaginatore album'}</p>
             <p className="text-xs text-[rgb(var(--fg-muted))]">{role === 'sposi' ? 'Sfoglia l’album impaginato dal fotografo: dove vuoi cambiare qualcosa (foto, posizione, ritaglio) chiedi una modifica.' : 'Impagina e rifinisci in tutti i formati, poi esporta PDF / JPG.'}</p>
           </div>
-          <Link to={`/album/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><BookOpen size={14} /> {role === 'sposi' ? 'Visualizza album' : 'Apri impaginatore'}</Button></Link>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link to={`/album/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><BookOpen size={14} /> {role === 'sposi' ? 'Visualizza album' : 'Apri impaginatore'}</Button></Link>
+            {isOwner && <Link to={`/album-copertina/${entryId}`}><Button variant="outline" size="sm" title="Configura la copertina con il mockup 3D e invia in stampa a FotoLab"><Printer size={14} /> Copertina 3D & stampa</Button></Link>}
+          </div>
         </Card>
       )}
 
