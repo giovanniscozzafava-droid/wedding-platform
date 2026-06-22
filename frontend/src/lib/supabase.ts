@@ -15,5 +15,9 @@ export const supabase = createClient<Database>(url, anonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // Lock pass-through: evita il deadlock del Web Locks API di default quando molte query
+    // partono insieme (es. pagina Food cost) e un refresh token resta appeso → tutte le richieste
+    // si bloccavano dietro il lock e la pagina restava vuota. Senza lock ogni richiesta procede.
+    lock: async (_name, _acquireTimeout, fn) => fn(),
   },
 })
