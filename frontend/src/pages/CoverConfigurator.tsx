@@ -154,6 +154,12 @@ export default function CoverConfigurator() {
             </div>
 
             <div>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Campioni reali del tessuto <span className="normal-case text-[rgb(var(--fg-muted))]">· foto vere, per non sbagliare</span></p>
+              <img key={cover.fabric} src={`/textures/swatches/${cover.fabric || 'alcantara'}.jpg`} alt={`Campioni reali ${cover.fabric}`}
+                loading="lazy" className="w-full max-h-72 object-contain rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))]" />
+            </div>
+
+            <div>
               <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Box / contenitore</p>
               <div className="flex flex-wrap gap-2">
                 {BOXES.map((b) => (
