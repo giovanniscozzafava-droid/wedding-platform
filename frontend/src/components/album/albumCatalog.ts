@@ -29,18 +29,30 @@ export type PBR = {
   roughness: number; metalness: number; clearcoat?: number; clearcoatRoughness?: number
   reflectivity?: number; bumpScale: number; repeat: number; sheen?: number
 }
-export type ColorDef = { key: string; label: string; hex: string }
-export type Material = { key: string; label: string; swatch: string; texture: string; pbr: PBR; colors: ColorDef[] }
+export type ColorDef = { key: string; label: string; hex: string; tex?: string }
+export type Material = { key: string; label: string; swatch: string; texture: string; pbr: PBR; colors: ColorDef[]; albedo?: boolean }
 export type Category = { key: string; label: string }
 export type Model = { key: string; label: string; category: string; format: Format; decoro: Decoro; blurb: string; materials?: string[] }
 
 // helper per costruire colori con chiave unica per materiale
 const C = (mat: string, label: string, hex: string): ColorDef => ({ key: `${mat}:${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, label, hex })
+// colore-essenza legno (albedo fotografico reale, texture Higgsfield)
+const Cw = (label: string, hex: string, tex: string): ColorDef => ({ key: `wood:${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, label, hex, tex })
 
 // ---------------------------------------------------------------------------
 // MATERIALI (pag. 115-127) — texture reale in /public/textures/materials/<key>.jpg
 // ---------------------------------------------------------------------------
 export const MATERIALS: Material[] = [
+  { key: 'wood', label: 'Legno (Wood)', texture: 'acero', swatch: '#8a5c38', albedo: true,
+    pbr: { roughness: 0.5, metalness: 0, clearcoat: 0.14, clearcoatRoughness: 0.4, bumpScale: 0.05, repeat: 1 },
+    colors: [
+      Cw('Noce', '#8a5c38', '/textures/wood/noce.jpg'),
+      Cw('Rovere', '#c79a63', '/textures/wood/rovere.jpg'),
+      Cw('Ciliegio', '#a0512f', '/textures/wood/ciliegio.jpg'),
+      Cw('Okumè', '#c98a5e', '/textures/wood/okume.jpg'),
+      Cw('Moka', '#4a3526', '/textures/wood/moka.jpg'),
+      Cw('Ulivo', '#8a7a4a', '/textures/wood/ulivo.jpg'),
+    ] },
   { key: 'alcantara', label: 'Alcantara', texture: 'alcantara', swatch: '#e8d8c4',
     pbr: { roughness: 0.86, metalness: 0, clearcoat: 0, bumpScale: 0.04, repeat: 2.2, sheen: 0.4 },
     colors: [

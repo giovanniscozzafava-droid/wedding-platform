@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { AlbumMockup } from './AlbumMockup'
-import { materialByKey, modelByKey, coverDims, type Cover, type Decoro } from './albumCatalog'
+import { materialByKey, modelByKey, coverDims, COLORS, type Cover, type Decoro } from './albumCatalog'
 import { getDecoroNormal, makeTitleTexture } from './albumTextures'
 
 // Mockup album in vero 3D (WebGL). Drop-in di <AlbumMockup>: stesso `cover`.
@@ -52,6 +52,19 @@ function loadMatTexture(loader: THREE.TextureLoader, name: string, repeat: numbe
   tex.repeat.set(repeat, repeat)
   tex.anisotropy = 8
   _texCache.set(name, tex)
+  return tex
+}
+// albedo fotografico reale (legno) da URL arbitrario — sRGB
+const _albCache = new Map<string, THREE.Texture>()
+function loadAlbedo(loader: THREE.TextureLoader, url: string, repeat: number, onReady: () => void): THREE.Texture {
+  const cached = _albCache.get(url)
+  if (cached) return cached
+  const tex = loader.load(url, () => onReady())
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.repeat.set(repeat, repeat)
+  tex.anisotropy = 8
+  _albCache.set(url, tex)
   return tex
 }
 
@@ -164,14 +177,16 @@ class AlbumScene {
     }
   }
 
-  setMaterial(materialKey: string | undefined, colorHex: string | undefined, onReady: () => void) {
+  setMaterial(materialKey: string | undefined, colorHex: string | undefined, albedoUrl: string | undefined, onReady: () => void) {
     const mat = materialByKey(materialKey) ?? materialByKey('alcantara')!
     const p = mat.pbr
     const bump = loadMatTexture(this.texLoader, mat.texture, p.repeat, onReady) // texture procedurale tileable: nessuna fascia
+    const albedo = (mat.albedo && albedoUrl) ? loadAlbedo(this.texLoader, albedoUrl, p.repeat, onReady) : null
     const apply = (mesh: THREE.Mesh | null) => {
       if (!mesh) return
       const cm = mesh.material as THREE.MeshPhysicalMaterial
-      cm.color.set(colorHex || mat.swatch)
+      if (albedo) { cm.map = albedo; cm.color.set(0xffffff) }   // legno: foto reale come colore
+      else { cm.map = null; cm.color.set(colorHex || mat.swatch) }
       cm.roughness = p.roughness
       cm.metalness = p.metalness
       cm.clearcoat = p.clearcoat ?? 0
@@ -180,8 +195,9 @@ class AlbumScene {
       cm.envMapIntensity = p.metalness > 0.2 ? 1.1 : 0.65
       cm.sheen = p.sheen ?? 0
       if (p.sheen) { cm.sheen = p.sheen; cm.sheenRoughness = 0.6; cm.sheenColor.set(0xffffff) }
-      cm.bumpMap = bump; cm.bumpScale = p.bumpScale * 3.4
-      if (p.metalness < 0.2) cm.roughnessMap = bump   // grana modula la ruvidità → riflessi vivi
+      cm.bumpMap = bump; cm.bumpScale = p.bumpScale * (albedo ? 1.4 : 3.4)
+      if (p.metalness < 0.2 && !albedo) cm.roughnessMap = bump   // grana modula la ruvidità → riflessi vivi
+      else cm.roughnessMap = null
       cm.needsUpdate = true
     }
     apply(this.front); apply(this.back); apply(this.spine)
@@ -237,7 +253,7 @@ class AlbumScene {
   apply(cover: Cover, onReady: () => void) {
     const sig = `${cover.model}|${cover.sizeKey || ''}|${cover.format || ''}`
     if (sig !== this.sizeSig) { this.sizeSig = sig; this.modelKey = cover.model || ''; this.build(cover) }
-    this.setMaterial(cover.fabric, cover.color, onReady)
+    this.setMaterial(cover.fabric, cover.color, cover.colorKey ? COLORS[cover.colorKey]?.tex : undefined, onReady)
     this.setTitle(cover.title, cover.color)
     this.setPhoto(cover.photo_url, onReady)
   }
