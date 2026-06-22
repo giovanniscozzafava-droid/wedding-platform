@@ -6,7 +6,14 @@ async function uid(): Promise<string | null> { const { data } = await supabase.a
 
 export type AlbumOrder = {
   id: string; entry_id: string; couple_label: string | null; photographer: string; format_key: string; pages: number; copies: number
-  cover: Cover; status: string; queue_order: number; reject_reason: string | null; created_at: string
+  cover: Cover; status: string; queue_order: number; reject_reason: string | null; created_at: string; selection_count: number
+}
+
+export type LabMedia = { drive_file_id: string; thumbnail_link: string | null; media_type: string }
+export async function fetchAlbumSelection(entryId: string): Promise<LabMedia[]> {
+  const { data, error } = await (supabase as any).rpc('album_lab_selection', { p_entry: entryId })
+  if (error) throw error
+  return (data ?? []) as LabMedia[]
 }
 
 // Esporta lo ZIP del lavoro (selezione album originale) — il server usa il Drive del fotografo.

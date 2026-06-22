@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle, Download, LogOut } from 'lucide-react'
+import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle, Download, LogOut, ArrowLeft, Images, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { AlbumMockup } from '@/components/album/AlbumMockup'
-import { useIsAlbumLab, useAlbumLabList, useAlbumLabMutations, exportAlbumZip, type AlbumOrder } from '@/hooks/useAlbumLab'
+import { coverSummary } from '@/components/album/albumCatalog'
+import { useIsAlbumLab, useAlbumLabList, useAlbumLabMutations, exportAlbumZip, fetchAlbumSelection, type AlbumOrder, type LabMedia } from '@/hooks/useAlbumLab'
 
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
   NEW: { label: 'Nuovo', cls: 'bg-blue-100 text-blue-700', icon: Clock },
@@ -22,6 +23,7 @@ const FMT: Record<string, string> = { SQ_30: '30×30 quadrato', SQ_25: '25×25 q
 export default function AlbumLabPage() {
   const { data: isLab, isLoading } = useIsAlbumLab()
   const { data: orders } = useAlbumLabList()
+  const [detail, setDetail] = useState<AlbumOrder | null>(null)
   if (isLoading) return null
   if (!isLab) return (
     <div className="min-h-full grid place-items-center p-10">
@@ -43,16 +45,18 @@ export default function AlbumLabPage() {
         <div className="flex flex-wrap gap-2 mb-5 text-xs">
           {Object.entries(STATUS).map(([k, s]) => <span key={k} className={`px-2.5 py-1 rounded-full ${s.cls}`}>{s.label}: {counts[k] || 0}</span>)}
         </div>
-        <div className="space-y-3">
-          {(orders ?? []).map((o) => <OrderCard key={o.id} o={o} />)}
-          {(orders ?? []).length === 0 && <Card className="p-10 text-center text-[rgb(var(--fg-subtle))]">Nessun ordine in coda. Quando un fotografo invia un album in stampa comparirà qui.</Card>}
-        </div>
+        {detail ? <OrderDetail o={detail} onBack={() => setDetail(null)} /> : (
+          <div className="space-y-3">
+            {(orders ?? []).map((o) => <OrderCard key={o.id} o={o} onOpen={() => setDetail(o)} />)}
+            {(orders ?? []).length === 0 && <Card className="p-10 text-center text-[rgb(var(--fg-subtle))]">Nessun ordine in coda. Quando un fotografo invia un album in stampa comparirà qui.</Card>}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function OrderCard({ o }: { o: AlbumOrder }) {
+function OrderCard({ o, onOpen }: { o: AlbumOrder; onOpen: () => void }) {
   const mut = useAlbumLabMutations()
   const [reason, setReason] = useState(o.reject_reason || '')
   const [showReject, setShowReject] = useState(false)
@@ -63,14 +67,17 @@ function OrderCard({ o }: { o: AlbumOrder }) {
   async function exportZip() { setExp(true); try { await exportAlbumZip(o.entry_id, o.couple_label || 'ordine'); toast.success('Export pronto (originali in ZIP)') } catch (e) { toast.error((e as Error).message) } finally { setExp(false) } }
   return (
     <Card className="p-4 flex flex-col sm:flex-row gap-4">
-      <div className="shrink-0 grid place-items-center"><AlbumMockup cover={o.cover} width={140} interactive={false} /></div>
+      <button onClick={onOpen} className="shrink-0 grid place-items-center gap-1 group" title="Apri la selezione">
+        <AlbumMockup cover={o.cover} width={140} interactive={false} />
+        <span className="text-[11px] text-[rgb(var(--gold-700))] inline-flex items-center gap-1 group-hover:underline"><Images size={12} /> Vedi selezione{o.selection_count ? ` (${o.selection_count})` : ''}</span>
+      </button>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-1">
           <h3 className="font-display text-lg">{o.couple_label || 'Album'}</h3>
           <span className={`text-[11px] px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${s.cls}`}><s.icon size={12} /> {s.label}</span>
         </div>
         <p className="text-sm text-[rgb(var(--fg-muted))]">Fotografo: <strong>{o.photographer}</strong></p>
-        <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">{FMT[o.format_key] || o.format_key} · {o.pages} pagine · {o.copies} {o.copies === 1 ? 'copia' : 'copie'} · copertina {o.cover?.fabric || '—'}{o.cover?.model ? ` (${o.cover.model})` : ''}</p>
+        <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">{FMT[o.format_key] || o.format_key} · {o.pages} pagine · {o.copies} {o.copies === 1 ? 'copia' : 'copie'} · copertina {coverSummary(o.cover)}</p>
         {o.status === 'REJECTED' && o.reject_reason && <p className="text-xs text-[rgb(var(--rose-600))] mt-1">Motivo rifiuto: {o.reject_reason}</p>}
 
         <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -93,5 +100,52 @@ function OrderCard({ o }: { o: AlbumOrder }) {
         )}
       </div>
     </Card>
+  )
+}
+
+function OrderDetail({ o, onBack }: { o: AlbumOrder; onBack: () => void }) {
+  const [media, setMedia] = useState<LabMedia[] | null>(null)
+  const [box, setBox] = useState<LabMedia | null>(null)
+  const [exp, setExp] = useState(false)
+  useEffect(() => {
+    let alive = true
+    fetchAlbumSelection(o.entry_id).then((m) => alive && setMedia(m)).catch(() => alive && setMedia([]))
+    return () => { alive = false }
+  }, [o.entry_id])
+  const thumb = (m: LabMedia, sz: number) => {
+    const id = m.drive_file_id
+    const real = id && !id.startsWith('demo-') && !id.startsWith('guest:')
+    return real ? `https://drive.google.com/thumbnail?id=${id}&sz=w${sz}` : (m.thumbnail_link ?? '')
+  }
+  async function exportZip() { setExp(true); try { await exportAlbumZip(o.entry_id, o.couple_label || 'ordine'); toast.success('Export pronto (originali in ZIP)') } catch (e) { toast.error((e as Error).message) } finally { setExp(false) } }
+  return (
+    <div>
+      <button onClick={onBack} className="text-sm text-[rgb(var(--fg-muted))] inline-flex items-center gap-1 mb-4 hover:text-[rgb(var(--fg))]"><ArrowLeft size={16} /> Torna agli ordini</button>
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="shrink-0 grid place-items-center"><AlbumMockup cover={o.cover} width={160} interactive={false} /></div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-display text-2xl">{o.couple_label || 'Album'}</h2>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Fotografo: <strong>{o.photographer}</strong></p>
+          <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">{FMT[o.format_key] || o.format_key} · {o.pages} pagine · {o.copies} {o.copies === 1 ? 'copia' : 'copie'} · copertina {coverSummary(o.cover)}</p>
+          <Button size="sm" variant="gold" className="mt-3" disabled={exp} onClick={exportZip}><Download size={14} /> {exp ? 'Esporto…' : 'Esporta originali (ZIP)'}</Button>
+        </div>
+      </div>
+      <h3 className="font-display text-lg mb-2 inline-flex items-center gap-2"><Images size={18} /> Selezione {media ? `(${media.length})` : ''}</h3>
+      {media === null ? <p className="text-sm text-[rgb(var(--fg-subtle))]">Carico la selezione…</p>
+        : media.length === 0 ? <Card className="p-8 text-center text-[rgb(var(--fg-subtle))]">Nessuna foto selezionata, o il fotografo non ha collegato Google Drive.</Card>
+        : <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 gap-2">
+            {media.map((m, i) => (
+              <button key={i} onClick={() => setBox(m)} className="aspect-square overflow-hidden rounded-lg bg-[rgb(var(--bg-sunken))]">
+                <img src={thumb(m, 400)} loading="lazy" alt="" className="w-full h-full object-cover hover:scale-105 transition-transform" />
+              </button>
+            ))}
+          </div>}
+      {box && (
+        <div className="fixed inset-0 z-50 bg-black/85 grid place-items-center p-4" onClick={() => setBox(null)}>
+          <button className="absolute top-4 right-4 text-white/80 hover:text-white" onClick={() => setBox(null)}><X size={28} /></button>
+          <img src={thumb(box, 2000)} alt="" className="max-h-[90vh] max-w-full object-contain rounded" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+    </div>
   )
 }
