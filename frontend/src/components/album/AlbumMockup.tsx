@@ -1,49 +1,44 @@
 import { useRef, useState } from 'react'
-import { FABRICS, MODELS, COLORS, fabricByKey, type Cover, type GrainKey } from './albumCatalog'
+import { materialByKey, type Cover } from './albumCatalog'
 
-// Mockup album (CSS 3D, niente WebGL): copertina con tessuto + foto + titolo, dorso e
-// spessore pagine. Usato nella coda stamperia (FotoLab) come anteprima leggera.
-// La tassonomia (modelli/tessuti/colori) vive in ./albumCatalog (sorgente unica).
-// Per il configuratore della coppia si usa il vero 3D: ./AlbumMockup3D.
+// Mockup album leggero (CSS 3D, niente WebGL): anteprima usata nella coda
+// stamperia (FotoLab). La tassonomia vive in ./albumCatalog. Per il configuratore
+// della coppia si usa il vero 3D: ./AlbumMockup3D.
 export type { Cover }
-export { FABRICS, MODELS, COLORS }
 
 function lum(hex: string): number {
   const m = hex.replace('#', '')
   if (m.length < 6) return 0.8
-  const r = parseInt(m.slice(0, 2), 16) / 255, g = parseInt(m.slice(2, 4), 16) / 255, b = parseInt(m.slice(4, 6), 16) / 255
-  return 0.299 * r + 0.587 * g + 0.114 * b
+  return (parseInt(m.slice(0, 2), 16) * 0.299 + parseInt(m.slice(2, 4), 16) * 0.587 + parseInt(m.slice(4, 6), 16) * 0.114) / 255
 }
 
-// texture del tessuto come gradiente CSS sopra il colore base (per grana di catalogo)
-function fabricBg(grain: GrainKey | undefined, color: string): string {
-  switch (grain) {
-    case 'leatherCoarse':
-      return `repeating-radial-gradient(circle at 20% 30%, rgba(0,0,0,.12) 0 2px, transparent 2px 5px), linear-gradient(135deg, rgba(255,255,255,.10), rgba(0,0,0,.28)), ${color}`
-    case 'leather':
-      return `repeating-radial-gradient(circle at 30% 20%, rgba(0,0,0,.06) 0 2px, transparent 2px 6px), linear-gradient(135deg, rgba(255,255,255,.10), rgba(0,0,0,.18)), ${color}`
-    case 'sparkle':
-      return `radial-gradient(circle at 25% 25%, rgba(255,255,255,.5) 0 1px, transparent 1px 4px), radial-gradient(circle at 70% 60%, rgba(255,255,255,.4) 0 1px, transparent 1px 5px), ${color}`
-    case 'quilt':
-      return `repeating-linear-gradient(45deg, rgba(0,0,0,.10) 0 1px, transparent 1px 12px), repeating-linear-gradient(-45deg, rgba(0,0,0,.10) 0 1px, transparent 1px 12px), ${color}`
-    case 'weave':
-      return `repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 1px, transparent 1px 4px), repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 1px, transparent 1px 4px), ${color}`
-    case 'fine':
-      return `linear-gradient(115deg, rgba(255,255,255,.5), rgba(255,255,255,0) 40%), ${color}`
+// gradiente CSS che richiama la grana del materiale sopra il colore base
+function materialBg(texture: string | undefined, color: string): string {
+  switch (texture) {
+    case 'metal':
+      return `linear-gradient(115deg, rgba(255,255,255,.5), rgba(255,255,255,0) 45%), ${color}`
+    case 'juta':
+      return `repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 1px, transparent 1px 4px), repeating-linear-gradient(90deg, rgba(0,0,0,.07) 0 1px, transparent 1px 4px), ${color}`
+    case 'crazy':
+      return `repeating-radial-gradient(circle at 30% 20%, rgba(0,0,0,.10) 0 2px, transparent 2px 6px), ${color}`
+    case 'alcantara':
+    case 'suade':
+    case 'velu-arte':
+    case 'soft-touch':
+      return `radial-gradient(120% 100% at 30% 0%, rgba(255,255,255,.18), rgba(0,0,0,.22)), ${color}`
     default:
-      return `linear-gradient(135deg, rgba(255,255,255,.06), rgba(0,0,0,.18)), ${color}`
+      return `linear-gradient(135deg, rgba(255,255,255,.08), rgba(0,0,0,.2)), ${color}`
   }
 }
 
 export function AlbumMockup({ cover, width = 280, interactive = true }: { cover: Cover; width?: number; interactive?: boolean }) {
   const [rot, setRot] = useState({ x: -12, y: -28 })
   const drag = useRef<{ x: number; y: number } | null>(null)
-  const fab = fabricByKey(cover.fabric)
-  const color = cover.color || fab?.swatch || '#d9cdb8'
-  const bg = fabricBg(fab?.grain, color)
-  const depth = cover.model === 'box' ? 34 : 22
-  const W = width
-  const H = Math.round(width * 1.0)
+  const mat = materialByKey(cover.fabric)
+  const color = cover.color || mat?.swatch || '#d9cdb8'
+  const bg = materialBg(mat?.texture, color)
+  const depth = 22
+  const W = width, H = Math.round(width * 1.0)
   const light = lum(color) > 0.6
   const ink = light ? 'rgba(60,45,30,.85)' : 'rgba(255,255,255,.92)'
 
