@@ -30,6 +30,8 @@ export default defineConfig({
             // (altrimenti finiscono in modulepreload del critical path).
             if (id.includes('@tanstack')) return 'vendor-query'
             if (id.includes('lucide-react') || id.includes('sonner')) return 'vendor-ui'
+            // three.js: pesante, isolato in un chunk (caricato solo dal configuratore copertina, lazy)
+            if (id.includes('/three/') || id.includes('three/examples')) return 'vendor-three'
             // tiptap/prosemirror: lasciamo a Vite (lazy split via RichTextEditor)
           }
           return undefined

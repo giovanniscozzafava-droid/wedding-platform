@@ -78,6 +78,8 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     // (link in EventGalleryTab → /album/:id e /video/:id, target=_blank). Senza queste eccezioni
     // il confinamento la rimbalzava su /couple → "l'album non si apre".
     && !location.pathname.startsWith('/album/')
+    // configuratore copertina 3D: la coppia compone l'album e lo invia a FotoLab
+    && !location.pathname.startsWith('/album-copertina')
     && !location.pathname.startsWith('/video/')
     && !location.pathname.startsWith('/faq')) {
     return <Navigate to="/couple" replace />
