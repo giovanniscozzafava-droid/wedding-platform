@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
 import { Card } from '@/components/ui/card'
@@ -372,6 +372,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             )}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('web')} title="ZIP leggero ~1600px"><FileArchive size={14} /> ZIP Web</Button>
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione"><FileArchive size={14} /> ZIP Originale</Button>
+            {isOwner && <Link to={`/album-copertina/${entryId}`}><Button variant="outline" size="sm" title="Configura la copertina 3D e invia in stampa"><Printer size={14} /> Copertina & stampa</Button></Link>}
           </div>
         </Card>
       )}
