@@ -352,6 +352,13 @@ export const WOOD_MODELS = new Set<string>([
 ])
 export const isWoodModel = (k?: string): boolean => !!k && WOOD_MODELS.has(k)
 
+// mockup FOTOREALISTICI (Higgsfield) per modello — anteprima reale fedele alle schede
+export const MODEL_MOCKUP: Record<string, boolean> = {
+  claire: true, comete: true, almond: true, brand: true, trilogy: true, vega: true,
+  'diez-sw': true, andromeda: true, rimboccato: true,
+}
+export const mockupFor = (k?: string): string | null => (k && MODEL_MOCKUP[k]) ? `/textures/mockups/${k}.jpg` : null
+
 // ---------------------------------------------------------------------------
 // BOX / CONTENITORI (Packaging, pag. 97-113). Specifiche dimensionali: da definire.
 // ---------------------------------------------------------------------------
@@ -444,55 +451,87 @@ export function coverSummary(cover?: Cover): string {
 }
 
 // ---------------------------------------------------------------------------
-// LISTINO — prezzi che si sommano per ogni scelta (€).
-// ⚠️ VALORI PLACEHOLDER: il catalogo PDF non riporta prezzi. Sostituire con il
-// listino reale (basta cambiare i numeri qui sotto).
+// LISTINO REALE DesignAlbum (in vigore 15/02/2022 — listino 30/03/2022).
+// Prezzo copertina = TIER del modello (BASIC/ROYAL/PRIME/TOP) × GRUPPO materiale
+// × MISURA. + box (packaging) + personalizzazioni + copie. Tutti i numeri reali.
 // ---------------------------------------------------------------------------
-export const PRICING = {
-  // base per misura ~ in funzione dell'area (cm²); formula editabile
-  sizeBase: (w: number, h: number) => Math.round(((w * h) * 0.2 + 70) / 5) * 5,
-  // sovrapprezzo per categoria modello
-  modelByCategory: {
-    base: 0, wood: 40, ottone: 60, sposi: 45, laserati: 50, stampati: 30, swarovski: 130, eventi: 30, famiglia: 20,
-  } as Record<string, number>,
-  // sovrapprezzo materiale
-  material: {
-    alcantara: 0, pelle: 0, crazy: 0, 'soft-touch': 0, sequoia: 10, acero: 10, safir: 10, skill: 20, juta: 20, 'velu-arte': 30, suade: 30, metal: 40,
-  } as Record<string, number>,
-  // box / contenitore
-  box: {
-    nessuno: 0, 'wood-clak': 90, 'wood-duo': 130, 'wood-case': 110, 'twin-box': 120, valigetta: 150,
-  } as Record<string, number>,
-  personalization: 0,   // nome/logo standard incluso
-  extraCopyFactor: 0.45, // copia aggiuntiva = 45% del prezzo base copertina
+export type Tier = 'BASIC' | 'ROYAL' | 'PRIME' | 'TOP'
+// tier per modello (dalla colonna TIP. del listino, pag.1-3)
+export const MODEL_TIER: Record<string, Tier> = {
+  rimboccato: 'BASIC', 'blocco-libro': 'BASIC',
+  brand: 'ROYAL', trilogy: 'ROYAL', almond: 'PRIME', claire: 'TOP', thea: 'TOP', adel: 'PRIME', elsie: 'ROYAL',
+  vega: 'TOP', diez: 'ROYAL', comete: 'ROYAL', plaza: 'ROYAL',
+  andromeda: 'ROYAL', cassiopea: 'ROYAL', chloe: 'ROYAL', 'graphic-touch': 'ROYAL', charme: 'ROYAL',
+  azulejo: 'ROYAL', hera: 'ROYAL', canvas: 'BASIC', 'frame-cristalplex': 'ROYAL', 'frame-plexy': 'ROYAL',
+  betulla: 'ROYAL', dream: 'ROYAL',
+  amelie: 'BASIC', darling: 'BASIC', sirene: 'BASIC', frejus: 'ROYAL', dhyana: 'ROYAL',
+  'diez-sw': 'TOP', 'xante-sw': 'ROYAL', 'bouquet-sw': 'ROYAL', 'ninfea-sw': 'ROYAL',
+  bimbi: 'BASIC', comunione: 'BASIC', diciottesimo: 'ROYAL',
+  'family-classic': 'BASIC', 'family-canvas': 'ROYAL', 'family-frame': 'ROYAL', 'family-wood': 'ROYAL',
 }
+export const modelTier = (k?: string): Tier => (k && MODEL_TIER[k]) || 'BASIC'
+// gruppo materiale (4 listini): A=base, B, C, D=sequoia
+const MATERIAL_GROUP: Record<string, 'A' | 'B' | 'C' | 'D'> = {
+  wood: 'A', juta: 'A', skill: 'A', safir: 'A', alcantara: 'A', acero: 'A',
+  'soft-touch': 'B', suade: 'B', metal: 'B', crazy: 'B',
+  pelle: 'C', 'velu-arte': 'C', sequoia: 'D',
+}
+// prezzo gruppo A per colonna-misura × tier [BASIC,ROYAL,PRIME,TOP] (pag.1-3)
+const GROUP_A: number[][] = [
+  [30, 40, 50, 60],   // 0  15x20 / 15x15
+  [30, 40, 50, 60],   // 1  20x15
+  [35, 45, 55, 65],   // 2  20x20 / 25x25
+  [45, 55, 65, 75],   // 3  20x30
+  [45, 55, 65, 75],   // 4  22x30 / 24x18
+  [55, 65, 75, 85],   // 5  30x20
+  [60, 70, 80, 90],   // 6  30x30
+  [80, 105, 115, 125],// 7  25x35 / 35x25
+  [90, 115, 125, 135],// 8  35x30 / 35x35
+  [125, 150, 160, 170],// 9 30x40
+  [115, 140, 150, 160],// 10 40x30
+  [115, 140, 150, 160],// 11
+  [140, 165, 175, 185],// 12 35x45 / 45x35
+  [140, 165, 175, 185],// 13 38x38
+  [150, 175, 185, 195],// 14 40x40
+]
+const GROUP_SUPP: Record<'A' | 'B' | 'C' | 'D', number> = { A: 0, B: 10, C: 30, D: 40 }
+const SIZE_COL: Record<string, number> = {
+  'portrait:15x20': 0, 'portrait:20x30': 3, 'portrait:22.5x30': 4, 'portrait:25x35': 7, 'portrait:30x40': 9, 'portrait:35x45': 12,
+  'landscape:20x15': 1, 'landscape:24x18': 4, 'landscape:30x20': 5, 'landscape:35x25': 7, 'landscape:35x30': 8, 'landscape:40x30': 10, 'landscape:45x35': 12,
+  'square:15x15': 0, 'square:20x20': 2, 'square:25x25': 2, 'square:30x30': 6, 'square:35x35': 8, 'square:38x38': 13, 'square:40x40': 14,
+}
+// box (packaging) — prezzo ~30x40 ROYAL (pag.5-7), scalato per misura
+const BOX_REF: Record<string, number> = { nessuno: 0, 'wood-clak': 110, 'wood-duo': 90, 'wood-case': 100, 'twin-box': 110, valigetta: 40 }
+const TIDX: Record<Tier, number> = { BASIC: 0, ROYAL: 1, PRIME: 2, TOP: 3 }
+
+export const PRICING = { extraCopyFactor: 0.45, logoFromCatalog: 20, dataSposo: 10 }
 
 export type PriceLine = { label: string; amount: number }
-export type PriceBreakdown = { lines: PriceLine[]; unit: number; copies: number; total: number }
+export type PriceBreakdown = { lines: PriceLine[]; unit: number; copies: number; total: number; tier: Tier }
 
 export function coverPrice(cover?: Cover, copies = 1): PriceBreakdown {
+  const tier = modelTier(cover?.model)
+  const group = (cover?.fabric && MATERIAL_GROUP[cover.fabric]) || 'A'
+  const col = SIZE_COL[cover?.sizeKey || ''] ?? 9
+  const base = (GROUP_A[col]?.[TIDX[tier]] ?? 150) + GROUP_SUPP[group]
   const size = sizeByKey(cover?.sizeKey)
-  let bw = 22.5, bh = 30
-  if (size) { bw = size.w; bh = size.h }
-  const base = PRICING.sizeBase(bw, bh)
-  const cat = modelByKey(cover?.model)?.category
-  const mAdd = (cat && PRICING.modelByCategory[cat]) || 0
-  const matAdd = (cover?.fabric && PRICING.material[cover.fabric]) || 0
-  const boxAdd = (cover?.box && PRICING.box[cover.box]) || 0
   const lines: PriceLine[] = [
-    { label: `Album ${size?.label ?? ''} (${formatLabel(coverFormat(cover))})`, amount: base },
+    { label: `Copertina ${modelLabel(cover?.model)} · ${tier}`, amount: base },
   ]
-  if (mAdd) lines.push({ label: `Modello ${modelLabel(cover?.model)}`, amount: mAdd })
-  if (matAdd) lines.push({ label: `Materiale ${materialLabel(cover?.fabric)}`, amount: matAdd })
-  if (boxAdd) lines.push({ label: `Box ${boxLabel(cover?.box)}`, amount: boxAdd })
-  const unit = base + mAdd + matAdd + boxAdd
+  let boxAmt = 0
+  if (cover?.box && cover.box !== 'nessuno') {
+    const ref = BOX_REF[cover.box] ?? 0
+    boxAmt = Math.round((ref * ((GROUP_A[col]?.[1] ?? 150) / 150)) / 5) * 5
+    lines.push({ label: `Box ${boxLabel(cover.box)} (${size?.label ?? ''})`, amount: boxAmt })
+  }
+  const unit = base + boxAmt
   const n = Math.max(1, copies)
   let total = unit
   if (n > 1) {
     const extra = Math.round(base * PRICING.extraCopyFactor) * (n - 1)
-    lines.push({ label: `${n - 1} copia/e in più`, amount: extra })
+    lines.push({ label: `${n - 1} copia/e aggiuntiva/e`, amount: extra })
     total = unit + extra
   }
-  return { lines, unit, copies: n, total }
+  return { lines, unit, copies: n, total, tier }
 }
 export const euro = (n: number) => `€ ${n.toLocaleString('it-IT')}`
