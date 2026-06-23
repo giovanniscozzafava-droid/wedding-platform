@@ -391,7 +391,7 @@ export default function EmbedLeadPage() {
             <input style={ui.input} type="date" value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} />
           </Field>
         </div>
-        <Field label="Quando preferisci essere ricontattato?">
+        <Field label="Quando preferisci che ti ricontattiamo?">
           <select style={ui.input} value={callbackPref} onChange={(e) => setCallbackPref(e.target.value)}>
             <option value="indifferente">Indifferente</option>
             <option value="mattina">Mattina (9–13)</option>
@@ -555,7 +555,7 @@ export default function EmbedLeadPage() {
           {sending ? 'Invio…' : 'Invia richiesta'}
         </button>
         <p style={ui.legal}>
-          Inviando accetti il trattamento dei dati per essere ricontattato. Powered by Planfully.
+          Inviando accetti il trattamento dei dati per essere ricontattato/a. Powered by Planfully.
         </p>
       </form>
       {footer}
