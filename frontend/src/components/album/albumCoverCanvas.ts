@@ -42,7 +42,7 @@ export class CoverCanvas {
     if (c) return c.complete && c.naturalWidth ? c : null
     const im = new Image()
     im.crossOrigin = 'anonymous'
-    im.onload = () => this.onChange()
+    im.onload = () => this.repaint()
     im.onerror = () => {}
     im.src = url
     this.cache.set(url, im)
@@ -88,9 +88,14 @@ export class CoverCanvas {
     sheen.addColorStop(1, 'rgba(0,0,0,0.06)')
     ctx.fillStyle = sheen; ctx.fillRect(0, 0, W, H)
     // piega del dorso a sinistra
-    const fold = ctx.createLinearGradient(0, 0, W * 0.08, 0)
-    fold.addColorStop(0, 'rgba(0,0,0,0.22)'); fold.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = fold; ctx.fillRect(0, 0, W * 0.08, H)
+    const fold = ctx.createLinearGradient(0, 0, W * 0.12, 0)
+    fold.addColorStop(0, 'rgba(0,0,0,0.26)')
+    fold.addColorStop(0.42, 'rgba(255,255,255,0.08)')
+    fold.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = fold; ctx.fillRect(0, 0, W * 0.12, H)
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(W * 0.035, H * 0.02, Math.max(1, W * 0.003), H * 0.96)
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(W * 0.052, H * 0.02, Math.max(1, W * 0.002), H * 0.96)
+    edgeVignette(ctx, W, H)
 
     // ---- decoro del modello ----
     const layout = modelLayout(cover.model)
@@ -106,6 +111,7 @@ export class CoverCanvas {
     if (fin.includes('swarovski') && layout !== 'oblique' && !layout.startsWith('swarovski')) crystalLine(ctx, W * 0.18, H * 0.8, W * 0.82, H * 0.8)
     if (fin.includes('targhetta')) plaque(ctx, W / 2, H * 0.86, W * 0.3, H * 0.09, false, '')
     if (fin.includes('logo')) logoMark(ctx, W / 2, H * 0.92, H * 0.05, inkSoft)
+    if (fin.includes('data')) smallCaps(ctx, new Date().getFullYear().toString(), W / 2, H * 0.935, H * 0.028, inkSoft)
 
     this.onChange()
   }
@@ -119,7 +125,8 @@ export class CoverCanvas {
     switch (layout) {
       case 'monogram': {
         const sz = Math.min(W, H) * 0.3
-        engraved(ctx, initialsOf(cover.title), W / 2, H * 0.46, sz, o.light)
+        if (decoro === 'ottone' || cover.model === 'vega') metallicInitials(ctx, initialsOf(cover.title), W / 2, H * 0.46, sz * 0.82)
+        else engraved(ctx, initialsOf(cover.title), W / 2, H * 0.46, sz, o.light)
         if (o.names) script(ctx, o.names.toLowerCase(), W / 2, H * 0.46 + sz * 0.62, sz * 0.16, o.inkSoft)
         break
       }
@@ -160,10 +167,10 @@ export class CoverCanvas {
         if (o.names) script(ctx, o.names, W / 2, H * 0.74, H * 0.055, o.ink)
         break
       }
-      case 'photo-vertical': { photoBox(ctx, photo, W * 0.56, H * 0.5, W * 0.4, H * 0.62); script(ctx, o.names, W * 0.27, H * 0.78, H * 0.05, o.ink); break }
-      case 'photo-panoramic': { photoBox(ctx, photo, W * 0.5, H * 0.42, W * 0.78, H * 0.3); script(ctx, o.names, W / 2, H * 0.72, H * 0.06, o.ink); break }
-      case 'photo-small': { photoBox(ctx, photo, W * 0.6, H * 0.42, W * 0.34, H * 0.26); script(ctx, o.names, W * 0.6, H * 0.64, H * 0.045, o.ink); break }
-      case 'photo-full': { photoBox(ctx, photo, W / 2, H / 2, W * 0.9, H * 0.9); script(ctx, o.names, W / 2, H * 0.88, H * 0.055, 'rgba(255,255,255,0.95)'); break }
+      case 'photo-vertical': { photoBox(ctx, photo, W * 0.58, H * 0.48, W * 0.38, H * 0.58); script(ctx, o.names, W * 0.29, H * 0.78, H * 0.05, o.ink); break }
+      case 'photo-panoramic': { photoBox(ctx, photo, W * 0.5, H * 0.42, W * 0.76, H * 0.28); script(ctx, o.names, W / 2, H * 0.72, H * 0.06, o.ink); break }
+      case 'photo-small': { photoBox(ctx, photo, W * 0.6, H * 0.42, W * 0.3, H * 0.24); script(ctx, o.names, W * 0.6, H * 0.64, H * 0.045, o.ink); break }
+      case 'photo-full': { photoBox(ctx, photo, W / 2, H / 2, W * 0.94, H * 0.94, true); script(ctx, o.names, W / 2, H * 0.88, H * 0.055, 'rgba(255,255,255,0.95)'); break }
       case 'trilogy': { // trittico foto
         const pw = W * 0.2, gap = W * 0.04
         for (let i = -1; i <= 1; i++) photoBox(ctx, photo, W / 2 + i * (pw + gap), H * 0.45, pw, pw)
@@ -194,6 +201,16 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.beginPath(); ctx.moveTo(x + r, y)
   ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r)
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath()
+}
+function edgeVignette(ctx: CanvasRenderingContext2D, W: number, H: number) {
+  ctx.save()
+  const g = ctx.createRadialGradient(W * 0.52, H * 0.45, Math.min(W, H) * 0.2, W * 0.52, H * 0.45, Math.max(W, H) * 0.72)
+  g.addColorStop(0, 'rgba(255,255,255,0.06)')
+  g.addColorStop(0.72, 'rgba(0,0,0,0)')
+  g.addColorStop(1, 'rgba(0,0,0,0.18)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, W, H)
+  ctx.restore()
 }
 // banda orizzontale di materiale contrastante, centrata in cy (frazione), alta fh (frazione)
 function band(ctx: CanvasRenderingContext2D, W: number, H: number, cy: number, fh: number, color: string) {
@@ -249,6 +266,23 @@ function brassInitials(ctx: CanvasRenderingContext2D, W: number, H: number, ini:
   ctx.fillStyle = grad; ctx.fillText(ini.split('').join(' '), W / 2, H * 0.2)
   ctx.restore()
 }
+function metallicInitials(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, size: number) {
+  ctx.save()
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.font = `italic 600 ${size}px "Fraunces Variable", Georgia, serif`
+  ctx.lineWidth = Math.max(1.5, size * 0.028)
+  ctx.shadowColor = 'rgba(0,0,0,0.34)'; ctx.shadowBlur = size * 0.035; ctx.shadowOffsetY = size * 0.018
+  const g = ctx.createLinearGradient(cx, cy - size * 0.45, cx, cy + size * 0.45)
+  g.addColorStop(0, '#fff8df')
+  g.addColorStop(0.28, '#c79643')
+  g.addColorStop(0.55, '#fbf1c9')
+  g.addColorStop(1, '#7d5420')
+  ctx.strokeStyle = 'rgba(72,45,18,0.42)'
+  ctx.strokeText(text, cx, cy)
+  ctx.fillStyle = g
+  ctx.fillText(text, cx, cy)
+  ctx.restore()
+}
 function logoMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string) {
   ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.2, r * 0.12)
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke()
@@ -282,14 +316,28 @@ function heart(ctx: CanvasRenderingContext2D, x: number, y: number, s: number) {
   ctx.moveTo(0, s * 0.3); ctx.bezierCurveTo(s, -s * 0.6, s * 1.2, s * 0.5, 0, s)
   ctx.bezierCurveTo(-s * 1.2, s * 0.5, -s, -s * 0.6, 0, s * 0.3); ctx.fill(); ctx.restore()
 }
-function photoBox(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null, cx: number, cy: number, w: number, h: number) {
+function photoBox(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null, cx: number, cy: number, w: number, h: number, full = false) {
   ctx.save()
-  ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = h * 0.06; ctx.shadowOffsetY = h * 0.02
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - w / 2 - 6, cy - h / 2 - 6, w + 12, h + 12)
+  ctx.shadowColor = 'rgba(0,0,0,0.32)'; ctx.shadowBlur = h * 0.07; ctx.shadowOffsetY = h * 0.025
+  ctx.fillStyle = full ? 'rgba(255,255,255,0.08)' : '#f7f3eb'
+  const frame = Math.max(5, Math.min(w, h) * (full ? 0.012 : 0.035))
+  roundRect(ctx, cx - w / 2 - frame, cy - h / 2 - frame, w + frame * 2, h + frame * 2, frame * 0.65)
+  ctx.fill()
   ctx.restore()
-  ctx.save(); ctx.beginPath(); ctx.rect(cx - w / 2, cy - h / 2, w, h); ctx.clip()
+  ctx.save(); roundRect(ctx, cx - w / 2, cy - h / 2, w, h, Math.max(2, frame * 0.4)); ctx.clip()
   if (img) drawCover(ctx, img, cx - w / 2, cy - h / 2, w, h)
   else { ctx.fillStyle = '#cdc6ba'; ctx.fillRect(cx - w / 2, cy - h / 2, w, h) }
+  const gloss = ctx.createLinearGradient(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
+  gloss.addColorStop(0, 'rgba(255,255,255,0.20)')
+  gloss.addColorStop(0.46, 'rgba(255,255,255,0)')
+  gloss.addColorStop(1, 'rgba(0,0,0,0.12)')
+  ctx.fillStyle = gloss; ctx.fillRect(cx - w / 2, cy - h / 2, w, h)
+  ctx.restore()
+  ctx.save()
+  ctx.strokeStyle = full ? 'rgba(255,255,255,0.26)' : 'rgba(65,48,32,0.28)'
+  ctx.lineWidth = Math.max(1, frame * 0.24)
+  roundRect(ctx, cx - w / 2, cy - h / 2, w, h, Math.max(2, frame * 0.4))
+  ctx.stroke()
   ctx.restore()
 }
 function script(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, size: number, color: string) {
@@ -297,4 +345,19 @@ function script(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: num
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
   ctx.font = `italic 600 ${size}px "Fraunces Variable", Georgia, serif`
   ctx.fillStyle = color; ctx.fillText(text, cx, cy); ctx.restore()
+}
+function smallCaps(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, size: number, color: string) {
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.font = `500 ${size}px Georgia, serif`
+  ctx.fillStyle = color
+  const gap = size * 0.18
+  const chars = text.split('')
+  const widths = chars.map((ch) => ctx.measureText(ch).width)
+  const total = widths.reduce((a, b) => a + b, 0) + gap * Math.max(0, chars.length - 1)
+  let x = cx - total / 2
+  chars.forEach((ch, i) => {
+    ctx.fillText(ch, x + widths[i]! / 2, cy)
+    x += widths[i]! + gap
+  })
+  ctx.restore()
 }

@@ -53,6 +53,8 @@ class AlbumScene {
   front: THREE.Mesh | null = null   // piatto anteriore: faccia +z = copertina stampata
   spine: THREE.Mesh | null = null
   back: THREE.Mesh | null = null
+  hingeA: THREE.Mesh | null = null
+  hingeB: THREE.Mesh | null = null
   box: THREE.Group | null = null
   boxKey = ''
   sizeSig = ''
@@ -70,41 +72,58 @@ class AlbumScene {
   }
 
   private build(cover: Cover) {
-    const { w, h, d } = coverDims(cover)
+    const { w, h } = coverDims(cover)
+    const d = Math.max(h * 0.085, Math.min(h * 0.112, h * 0.095 + w * 0.006))
     this.w = w; this.h = h; this.d = d
-    const t = this.tBoard = Math.min(0.12, d * 0.26)
+    const t = this.tBoard = Math.max(0.055, Math.min(0.085, d * 0.26))
     this.group.clear()
-    this.front = this.back = this.spine = null
+    this.front = this.back = this.spine = this.hingeA = this.hingeB = null
 
-    // --- blocco carta (bordi a pagine impilate) ---
-    const pageW = w * 0.985, pageH = h * 0.985, pageD = (d - 2 * t) * 0.99
+    // --- blocco carta inset: resta visibile solo come taglio sottile sui lati ---
+    const gutter = w * 0.055
+    const overhang = Math.min(w, h) * 0.018
+    const pageW = w - gutter - overhang * 2.4
+    const pageH = h - overhang * 3.4
+    const pageD = Math.max(0.055, d - t * 1.65)
     const nLines = Math.max(24, Math.round(pageD * 130))
-    const cream = new THREE.MeshStandardMaterial({ color: 0xf3ecdc, roughness: 0.9 })
+    const cream = new THREE.MeshStandardMaterial({ color: 0xf2ead8, roughness: 0.94 })
     const vEdge = stripesTexture(true).clone(); vEdge.needsUpdate = true; vEdge.wrapS = vEdge.wrapT = THREE.RepeatWrapping; vEdge.repeat.set(nLines, 1)
     const hEdge = stripesTexture(false).clone(); hEdge.needsUpdate = true; hEdge.wrapS = hEdge.wrapT = THREE.RepeatWrapping; hEdge.repeat.set(1, nLines)
     const sideMat = new THREE.MeshStandardMaterial({ map: vEdge, roughness: 0.94 })
     const tbMat = new THREE.MeshStandardMaterial({ map: hEdge, roughness: 0.94 })
     const block = new THREE.Mesh(new THREE.BoxGeometry(pageW, pageH, pageD), [sideMat, cream, tbMat, tbMat, cream, cream])
+    block.position.set(gutter * 0.45, 0, -t * 0.08)
     block.castShadow = block.receiveShadow = true
     this.group.add(block)
 
-    // --- piatto anteriore: BoxGeometry, faccia +z = copertina (canvas) ---
-    const edgeMat = () => new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.55 })
-    const frontMat = new THREE.MeshPhysicalMaterial({ map: this.frontTex, roughness: 0.5 })
+    // --- piatto anteriore: faccia +z = copertina stampata, coste rivestite ---
+    const edgeMat = () => new THREE.MeshPhysicalMaterial({ color: 0xd6c7ad, roughness: 0.62, envMapIntensity: 0.55 })
+    const frontMat = new THREE.MeshPhysicalMaterial({ map: this.frontTex, roughness: 0.5, envMapIntensity: 0.76 })
     // ordine facce BoxGeometry: px, nx, py, ny, pz, nz → pz = copertina
-    const front = new THREE.Mesh(new THREE.BoxGeometry(w, h, t), [edgeMat(), edgeMat(), edgeMat(), edgeMat(), frontMat, edgeMat()])
+    const front = new THREE.Mesh(new RoundedBoxGeometry(w, h, t, 5, Math.min(0.045, t * 0.42)), [edgeMat(), edgeMat(), edgeMat(), edgeMat(), frontMat, edgeMat()])
     front.position.z = d / 2 - t / 2; front.castShadow = front.receiveShadow = true
     this.group.add(front); this.front = front
 
     // --- piatto posteriore (imbottito) ---
-    const back = new THREE.Mesh(new RoundedBoxGeometry(w, h, t, 4, Math.min(0.05, t * 0.45)), edgeMat())
+    const back = new THREE.Mesh(new RoundedBoxGeometry(w, h, t, 5, Math.min(0.045, t * 0.42)), edgeMat())
     back.position.z = -(d / 2 - t / 2); back.castShadow = back.receiveShadow = true
     this.group.add(back); this.back = back
 
-    // --- dorso tondo ---
-    const spine = new THREE.Mesh(new THREE.CylinderGeometry(d * 0.5, d * 0.5, h, 40, 1, false), edgeMat())
-    spine.position.set(-w / 2 + d * 0.04, 0, 0); spine.castShadow = spine.receiveShadow = true
+    // --- dorso: ridge slim a filo, non un tubo separato ---
+    const ridgeR = Math.max(0.032, Math.min(0.052, d * 0.16))
+    const spine = new THREE.Mesh(new THREE.CylinderGeometry(ridgeR, ridgeR, h * 0.985, 32, 1, false), edgeMat())
+    spine.position.set(-w / 2 + ridgeR * 0.52, 0, 0)
+    spine.scale.x = 0.62
+    spine.castShadow = spine.receiveShadow = true
     this.group.add(spine); this.spine = spine
+
+    const grooveMat = new THREE.MeshStandardMaterial({ color: 0x17110c, roughness: 1, transparent: true, opacity: 0.24 })
+    const hingeW = Math.max(0.008, w * 0.004)
+    const hingeA = new THREE.Mesh(new THREE.BoxGeometry(hingeW, h * 0.965, 0.006), grooveMat)
+    hingeA.position.set(-w / 2 + gutter * 0.58, 0, d / 2 + 0.003)
+    const hingeB = new THREE.Mesh(new THREE.BoxGeometry(hingeW * 0.7, h * 0.94, 0.006), grooveMat.clone())
+    hingeB.position.set(-w / 2 + gutter * 0.86, 0, d / 2 + 0.004)
+    this.group.add(hingeA, hingeB); this.hingeA = hingeA; this.hingeB = hingeB
   }
 
   private setSurface(cover: Cover, onReady: () => void) {
@@ -152,7 +171,7 @@ class AlbumScene {
       ? new THREE.MeshPhysicalMaterial({ color: 0x33271f, roughness: 0.5, clearcoat: 0.2 })
       : new THREE.MeshStandardMaterial({ map: loadTex(this.texLoader, '/textures/wood/noce.jpg', true, 1, onReady), roughness: 0.6 })
     const g = new THREE.Group()
-    const bw = this.w * 1.05, bh = this.h * 1.05, bd = this.d * 1.3
+    const bw = this.w * 1.05, bh = this.h * 1.05, bd = Math.max(this.d * 1.55, this.h * 0.14)
     const cof = new THREE.Mesh(new RoundedBoxGeometry(bw, bh, bd, 4, 0.05), mat)
     cof.position.set(this.w * 0.3, this.h * 0.08, -this.d * 0.92); cof.castShadow = cof.receiveShadow = true
     g.add(cof)
@@ -240,8 +259,8 @@ export function AlbumMockup3D({ cover, width = 360, interactive = true }: { cove
     const frame = () => {
       const { w, h } = album
       floor.position.y = -h / 2 - 0.01
-      const dist = Math.max(w, h) * 2.2
-      camera.position.set(dist * 0.52, dist * 0.34, dist * 0.74)
+      const dist = Math.max(w, h) * 2.05
+      camera.position.set(dist * 0.18, dist * 0.22, dist * 0.92)
       camera.lookAt(0, 0, 0)
       controls.target.set(0, 0, 0); controls.update()
     }
