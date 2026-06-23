@@ -58,6 +58,14 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  // Blocco "coatto" uscita pagina durante l'upload: il browser mostra l'avviso nativo "Lasciare il sito?"
+  useEffect(() => {
+    if (!uploading) return
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = 'Upload in corso: se esci ora le foto non ancora caricate andranno perse.' }
+    window.addEventListener('beforeunload', h)
+    return () => window.removeEventListener('beforeunload', h)
+  }, [uploading])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -240,29 +248,51 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   // diretti a Drive (non passano da Planfully), poi salvo id + miniatura pubblica.
   async function uploadPhotos(f: Folder, files: File[]) {
     if (!gallery || files.length === 0) return
-    setBusy(true); setGalleryProg({ done: 0, total: files.length, name: files[0]?.name, frac: 0 })
+    setBusy(true); setUploading(true); setGalleryProg({ done: 0, total: files.length, name: files[0]?.name, frac: 0 })
     try {
-      const token = await getDriveToken()
+      let token = await getDriveToken()
+      let tokenAt = Date.now()
+      const refresh = async () => { token = await getDriveToken(); tokenAt = Date.now() }
       const driveFolder = await ensureDriveFolder(token, `Planfully · ${f.name}`, f.drive_folder_id)
       if (driveFolder !== f.drive_folder_id) await (supabase.from as any)('gallery_folders').update({ drive_folder_id: driveFolder }).eq('id', f.id)
-      const rows: Record<string, unknown>[] = []
+
       const fails: string[] = []
+      let okCount = 0
+      let pending: Record<string, unknown>[] = []
+      const flush = async () => {
+        if (!pending.length) return
+        const { error } = await (supabase.from as any)('gallery_media').insert(pending)
+        if (error) throw error
+        pending = []
+      }
       for (let i = 0; i < files.length; i++) {
         const file = files[i]!
         setGalleryProg({ done: i, total: files.length, name: file.name, frac: 0 })
-        try {
-          const { id, thumbnail } = await uploadAnyToDrive(token, driveFolder, file, (frac) => setGalleryProg((p) => (p ? { ...p, frac } : p)))
-          rows.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: id, thumbnail_link: thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
-        } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
+        // token fresco se vecchio di 45 min (un upload di 1000 foto supera la scadenza Drive)
+        if (Date.now() - tokenAt > 45 * 60 * 1000) await refresh()
+        let res: { id: string; thumbnail: string } | null = null
+        for (let attempt = 1; attempt <= 2 && !res; attempt++) {
+          try {
+            res = await uploadAnyToDrive(token, driveFolder, file, (frac) => setGalleryProg((p) => (p ? { ...p, frac } : p)))
+          } catch (e) {
+            if (attempt === 1) { try { await refresh() } catch { /* riprovo comunque */ } await new Promise((r) => setTimeout(r, 800)) }
+            else fails.push(`${file.name}: ${(e as Error).message}`)
+          }
+        }
+        if (res) {
+          pending.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: res.id, thumbnail_link: res.thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
+          okCount++
+          if (pending.length >= 20) await flush()   // salva i riferimenti a blocchi: se cade a metà, il caricato resta
+        }
       }
-      if (rows.length) { const { error } = await (supabase.from as any)('gallery_media').insert(rows); if (error) throw error }
-      if (fails.length) toast.error(`${rows.length} caricati, ${fails.length} falliti — ${fails[0]}`)
-      else toast.success(`${rows.length} file caricati sul tuo Drive`)
+      await flush()
+      if (fails.length) toast.error(`${okCount} caricati, ${fails.length} non riusciti — riprova solo quelli (es. ${fails[0]})`)
+      else toast.success(`${okCount} file caricati sul tuo Drive`)
       await load()
     } catch (e) {
       if ((e as { driveReason?: string }).driveReason) setDriveModal(true)
       else toast.error((e as Error).message)
-    } finally { setBusy(false); setUploadFolder(null); setGalleryProg(null) }
+    } finally { setBusy(false); setUploading(false); setUploadFolder(null); setGalleryProg(null) }
   }
 
   async function setConsent(on: boolean) {
@@ -299,6 +329,18 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       {/* input file nascosto per l'upload su Drive */}
       <input ref={uploadRef} type="file" multiple accept="image/*,video/*" className="hidden"
         onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length && uploadFolder) void uploadPhotos(uploadFolder, snap) }} />
+
+      {uploading && galleryProg && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,460px)] rounded-xl shadow-2xl border-2 border-[rgb(var(--gold-500))]" style={{ background: 'rgb(var(--bg-elevated))' }}>
+          <div className="p-3">
+            <p className="text-sm font-semibold inline-flex items-center gap-2"><Upload size={15} className="animate-pulse text-[rgb(var(--gold-600))]" /> Upload in corso — non chiudere la pagina</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5 truncate">{galleryProg.done}/{galleryProg.total} · {galleryProg.name}</p>
+            <div className="h-1.5 bg-[rgb(var(--bg-sunken))] rounded-full mt-2 overflow-hidden">
+              <div className="h-full bg-[rgb(var(--gold-500))] transition-all" style={{ width: `${Math.round(((galleryProg.done + (galleryProg.frac || 0)) / Math.max(1, galleryProg.total)) * 100)}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* BARRA DI AVANZAMENTO TOTALE del batch (foto/video sull'intera cartella) */}
       {galleryProg && (() => {
