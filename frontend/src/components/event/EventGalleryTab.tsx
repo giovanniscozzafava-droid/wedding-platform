@@ -95,7 +95,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const isDrive = (m: Media) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:')
   const fullSrc = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w2000` : (m.thumbnail_link ?? ''))
   const origUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/uc?export=download&id=${m.drive_file_id}` : (m.thumbnail_link ?? ''))
-  const webUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
 
   // scarica: prova blob (per forzare il download), fallback ad aprire l'URL (Drive
   // serve l'originale come allegato comunque). I byte NON passano da Planfully.
@@ -558,7 +557,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <div className="flex items-center justify-between gap-2 p-3" onClick={(e) => e.stopPropagation()}>
               <span className="text-xs text-white/70">{box.i + 1} / {box.list.length}</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" onClick={() => downloadUrl(webUrl(m), `${base}-web.${ext}`)} title="Versione leggera per il web"><Download size={14} /> Web</Button>
+                <a href={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/photo-web?m=${m.id}&apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`} download><Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" title="Scarica JPEG web (~2048px), file reale"><Download size={14} /> Web</Button></a>
                 {role === 'sposi' && <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione — riservato agli sposi"><Download size={14} /> Originale</Button>}
                 {m.uploaded_by && (isOwner || role === 'sposi') && (
                   <Button variant="outline" size="sm" className="!bg-rose-500/20 !text-white !border-rose-300/50 hover:!bg-rose-500/40 backdrop-blur" onClick={() => deleteGuestMedia(m)} title="Elimina questo file caricato da un invitato"><Trash2 size={14} /> Elimina</Button>
