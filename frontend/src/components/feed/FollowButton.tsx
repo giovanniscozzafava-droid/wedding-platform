@@ -57,6 +57,8 @@ export function FollowButton({ userId, initialStatus, targetRole, size = 'sm' as
       if (error) throw error
       const next = (data?.status ?? 'APPROVED') as FollowStatus
       setStatus(next)
+      // notifica via email il professionista seguito ("ha iniziato a seguirti")
+      void supabase.functions.invoke('notify-follow', { body: { target_id: userId } }).catch(() => {})
       toast.success(next === 'PENDING' ? 'Candidatura inviata, in attesa di approvazione' : 'Ora segui questo profilo')
     } catch (e) { toast.error((e as Error).message) }
     finally { setBusy(false) }
