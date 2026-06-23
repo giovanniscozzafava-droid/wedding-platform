@@ -1,12 +1,20 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Trash2, Euro, User, Sparkles, Check, Circle, CheckCircle2, X } from 'lucide-react'
+import { Plus, Trash2, Euro, User, Sparkles, Check, Circle, CheckCircle2, X,
+  Gift, Camera, Candy, Cookie, Aperture, DoorOpen, BookHeart, Cake, Cigarette, Martini, SprayCan, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useCorners, useCornerMutations, CORNER_PRESETS, presetByKind, cornerCost, type Corner, type CornerItem } from '@/hooks/useCorners'
+import { useCorners, useCornerMutations, CORNER_PRESETS, cornerCost, presetByKind, type Corner, type CornerItem } from '@/hooks/useCorners'
 
 const eur = (n: number) => (n || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })
+
+// Icone in stile Planfully (tratto lineare) per ogni tipo di angolo — niente emoji.
+const CORNER_ICONS: Record<string, LucideIcon> = {
+  BOMBONIERE: Gift, POLAROID: Camera, CONFETTATA: Candy, CANDY: Cookie, PHOTOBOOTH: Aperture,
+  WELCOME: DoorOpen, GUESTBOOK: BookHeart, SWEET: Cake, CIGAR: Cigarette, DRINK: Martini, PROFUMI: SprayCan, ALTRO: Sparkles,
+}
+const cornerIcon = (kind: string): LucideIcon => CORNER_ICONS[kind] ?? Sparkles
 
 // Strumento "Angoli": il professionista mette insieme accessori per costruire angoli a tema
 // (bomboniere, polaroid, confettata…). Parte da preset modificabili o da un angolo vuoto.
@@ -55,14 +63,17 @@ export function CornersTab({ entryId }: { entryId: string }) {
         <Card className="p-4">
           <p className="text-sm font-medium mb-3">Scegli un tipo di angolo — gli accessori tipici si compilano da soli (poi li modifichi).</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {CORNER_PRESETS.map((p) => (
-              <button key={p.kind} onClick={() => pick(p.kind)}
-                className="text-left rounded-xl border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-500))] hover:bg-[rgb(var(--bg-sunken))] transition p-3">
-                <div className="text-2xl leading-none mb-1">{p.emoji}</div>
-                <div className="text-sm font-medium">{p.label.replace('Angolo ', '')}</div>
-                <div className="text-[11px] text-[rgb(var(--fg-subtle))]">{p.items.length ? `${p.items.length} accessori` : 'vuoto'}</div>
-              </button>
-            ))}
+            {CORNER_PRESETS.map((p) => {
+              const Ic = cornerIcon(p.kind)
+              return (
+                <button key={p.kind} onClick={() => pick(p.kind)}
+                  className="text-left rounded-xl border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-500))] hover:bg-[rgb(var(--bg-sunken))] transition p-3">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] mb-2"><Ic size={18} /></span>
+                  <div className="text-sm font-medium">{p.label.replace('Angolo ', '')}</div>
+                  <div className="text-[11px] text-[rgb(var(--fg-subtle))]">{p.items.length ? `${p.items.length} accessori` : 'vuoto'}</div>
+                </button>
+              )
+            })}
           </div>
         </Card>
       )}
@@ -101,7 +112,7 @@ function CornerCard({ corner: c, mut }: { corner: Corner; mut: ReturnType<typeof
     <Card className="p-4">
       {/* intestazione angolo */}
       <div className="flex items-start gap-2">
-        <span className="text-2xl leading-none mt-0.5">{presetByKind(c.kind).emoji}</span>
+        {(() => { const Ic = cornerIcon(c.kind); return <span className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] mt-0.5"><Ic size={16} /></span> })()}
         <input defaultValue={c.name} onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== c.name) saveCorner({ name: v }) }}
           className="flex-1 bg-transparent font-display text-lg outline-none border-b border-transparent focus:border-[rgb(var(--border))]" />
         <button onClick={() => saveCorner({ status: pronto ? 'DA_PREPARARE' : 'PRONTO' })}

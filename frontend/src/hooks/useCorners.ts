@@ -16,20 +16,21 @@ export type Corner = {
 }
 
 // Preset: tipi di angolo con accessori tipici pre-compilati (modificabili).
-export type CornerPreset = { kind: string; label: string; emoji: string; items: string[] }
+// L'icona (stile Planfully) è mappata da `kind` nel componente, niente emoji.
+export type CornerPreset = { kind: string; label: string; items: string[] }
 export const CORNER_PRESETS: CornerPreset[] = [
-  { kind: 'BOMBONIERE', label: 'Angolo bomboniere', emoji: '🎁', items: ['Bomboniere', 'Consolle/tavolo', 'Tovaglia', 'Cartellini nomi', 'Segnaposto', 'Fiori / centrotavola', 'Cartello "Grazie"'] },
-  { kind: 'POLAROID', label: 'Angolo polaroid', emoji: '📸', items: ['Macchina Polaroid', 'Pellicole', 'Filo + mollette', 'Pennarelli', 'Lavagna / cornice', 'Cestino raccogli-foto', 'Cartello istruzioni'] },
-  { kind: 'CONFETTATA', label: 'Confettata', emoji: '🍬', items: ['Confetti (gusti vari)', 'Vasi / alzatine', 'Sacchetti', 'Palette / cucchiai', 'Cartellini gusti', 'Nastri', 'Cartello'] },
-  { kind: 'CANDY', label: 'Candy bar', emoji: '🍭', items: ['Caramelle assortite', 'Barattoli in vetro', 'Alzatine', 'Sacchetti / scatoline', 'Pinze', 'Etichette'] },
-  { kind: 'PHOTOBOOTH', label: 'Photo booth', emoji: '🎬', items: ['Fondale / backdrop', 'Props (occhiali, cappelli…)', 'Luci', 'Stampante istantanea', 'Cornici', 'Cavalletto'] },
-  { kind: 'WELCOME', label: 'Angolo welcome', emoji: '👋', items: ['Cartello benvenuto', 'Cavalletto / lavagna', 'Tableau', 'Fiori', 'Acqua aromatizzata', 'Ventagli / coperte'] },
-  { kind: 'GUESTBOOK', label: 'Libro firme', emoji: '✍️', items: ['Guestbook', 'Penne', 'Polaroid + colla', 'Supporto / leggio', 'Cartello'] },
-  { kind: 'SWEET', label: 'Sweet table', emoji: '🧁', items: ['Dolcetti / mignon', 'Alzatine', 'Piattini', 'Posate', 'Tovaglioli', 'Cartellini'] },
-  { kind: 'CIGAR', label: 'Angolo sigari', emoji: '🚬', items: ['Sigari', 'Tagliasigari', 'Accendini / fiammiferi', 'Posacenere', 'Poltroncine', 'Cartello'] },
-  { kind: 'DRINK', label: 'Angolo drink / open bar', emoji: '🍸', items: ['Bicchieri', 'Spirits / bottiglie', 'Ghiaccio', 'Guarnizioni', 'Shaker / attrezzi', 'Listino drink', 'Cannucce'] },
-  { kind: 'PROFUMI', label: 'Angolo profumi', emoji: '🌸', items: ['Boccette profumo', 'Etichette', 'Imbuto', 'Cartello'] },
-  { kind: 'ALTRO', label: 'Angolo personalizzato', emoji: '✨', items: [] },
+  { kind: 'BOMBONIERE', label: 'Angolo bomboniere', items: ['Bomboniere', 'Consolle/tavolo', 'Tovaglia', 'Cartellini nomi', 'Segnaposto', 'Fiori / centrotavola', 'Cartello "Grazie"'] },
+  { kind: 'POLAROID', label: 'Angolo polaroid', items: ['Macchina Polaroid', 'Pellicole', 'Filo + mollette', 'Pennarelli', 'Lavagna / cornice', 'Cestino raccogli-foto', 'Cartello istruzioni'] },
+  { kind: 'CONFETTATA', label: 'Confettata', items: ['Confetti (gusti vari)', 'Vasi / alzatine', 'Sacchetti', 'Palette / cucchiai', 'Cartellini gusti', 'Nastri', 'Cartello'] },
+  { kind: 'CANDY', label: 'Candy bar', items: ['Caramelle assortite', 'Barattoli in vetro', 'Alzatine', 'Sacchetti / scatoline', 'Pinze', 'Etichette'] },
+  { kind: 'PHOTOBOOTH', label: 'Photo booth', items: ['Fondale / backdrop', 'Props (occhiali, cappelli…)', 'Luci', 'Stampante istantanea', 'Cornici', 'Cavalletto'] },
+  { kind: 'WELCOME', label: 'Angolo welcome', items: ['Cartello benvenuto', 'Cavalletto / lavagna', 'Tableau', 'Fiori', 'Acqua aromatizzata', 'Ventagli / coperte'] },
+  { kind: 'GUESTBOOK', label: 'Libro firme', items: ['Guestbook', 'Penne', 'Polaroid + colla', 'Supporto / leggio', 'Cartello'] },
+  { kind: 'SWEET', label: 'Sweet table', items: ['Dolcetti / mignon', 'Alzatine', 'Piattini', 'Posate', 'Tovaglioli', 'Cartellini'] },
+  { kind: 'CIGAR', label: 'Angolo sigari', items: ['Sigari', 'Tagliasigari', 'Accendini / fiammiferi', 'Posacenere', 'Poltroncine', 'Cartello'] },
+  { kind: 'DRINK', label: 'Angolo drink / open bar', items: ['Bicchieri', 'Spirits / bottiglie', 'Ghiaccio', 'Guarnizioni', 'Shaker / attrezzi', 'Listino drink', 'Cannucce'] },
+  { kind: 'PROFUMI', label: 'Angolo profumi', items: ['Boccette profumo', 'Etichette', 'Imbuto', 'Cartello'] },
+  { kind: 'ALTRO', label: 'Angolo personalizzato', items: [] },
 ]
 export const presetByKind = (k: string): CornerPreset =>
   CORNER_PRESETS.find((p) => p.kind === k) ?? CORNER_PRESETS[CORNER_PRESETS.length - 1]!
