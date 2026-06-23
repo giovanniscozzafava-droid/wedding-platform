@@ -204,10 +204,23 @@ function styleRivista(imgs: string[]): MoodBoard {
   ] }
 }
 
+function styleTableau(imgs: string[]): MoodBoard {
+  const g = 0.018, top = 0.17
+  const grid = justified(imgs.length, { x: 0.07, y: top, w: 0.86, h: 0.97 - top }, 0.82, g)
+  return { bg: '#f7f1e6', els: [
+    { id: uid(), kind: 'text', text: 'Tableau de mariage', x: 0.1, y: 0.05, w: 0.8, h: 0.06, rot: 0, z: 200, color: '#6b5b3e', font: 'Playfair Display, serif', align: 'center', weight: 600 },
+    { id: uid(), kind: 'text', text: 'i nostri tavoli', x: 0.3, y: 0.115, w: 0.4, h: 0.035, rot: 0, z: 200, color: '#9a875f', font: 'Georgia, serif', align: 'center', weight: 400, italic: true },
+    { id: uid(), kind: 'icon', name: 'Leaf', fill: '#a8b5a2', x: 0.05, y: 0.045, w: 0.07, h: 0.07, rot: -20, z: 200 },
+    { id: uid(), kind: 'icon', name: 'Leaf', fill: '#a8b5a2', x: 0.88, y: 0.045, w: 0.07, h: 0.07, rot: 20, z: 200 },
+    ...imgs.map((src, i) => imgEl(src, grid[i] ?? FB, i + 1, jitter(i, 2))),
+  ] }
+}
+
 export const LAYOUT_STYLES: { key: string; label: string; build: (imgs: string[]) => MoodBoard }[] = [
   { key: 'collage', label: 'Ritagli', build: styleCollage },
   { key: 'polaroid', label: 'Polaroid', build: stylePolaroid },
   { key: 'editoriale', label: 'Moda · editoriale', build: styleEditoriale },
   { key: 'rivista', label: 'Moda · rivista', build: styleRivista },
+  { key: 'tableau', label: 'Tableau mariage', build: styleTableau },
   { key: 'griglia', label: 'Griglia', build: styleGriglia },
 ]

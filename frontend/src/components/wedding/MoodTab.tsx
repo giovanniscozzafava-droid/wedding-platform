@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase'
 import { useMood, useMoodMutations, useWedding } from '@/hooks/useWedding'
 import { useAuth } from '@/lib/auth'
 import { PaletteSection } from '@/components/wedding/PaletteSection'
-import { MoodBoardStudio } from '@/components/wedding/MoodBoardStudio'
 import { MoodBoardEditor } from '@/components/wedding/MoodBoardEditor'
 import { SectionRings } from '@/components/event/SectionRings'
 
@@ -125,25 +124,17 @@ export function MoodTab({ entryId }: { entryId: string }) {
       <header className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl">Mood board</h2>
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Cerca su Pexels o incolla un URL, poi apri l'editor (tipo Canva) e scegli uno stile: ritagli, polaroid o editoriale di moda. Trascina, ridimensiona e scarica.</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Cerca su Pexels o incolla un URL, poi scegli uno stile (ritagli, polaroid, moda, tableau): si impagina da solo e poi ci metti mano. Trascina, ridimensiona e scarica.</p>
         </div>
       </header>
 
       <PaletteSection entryId={entryId} />
 
-      {/* EDITOR Canva: moodboard libero con stili d'impaginazione (ritagli/polaroid/moda) */}
+      {/* Moodboard: scegli uno stile → si impagina da solo → ci metti mano lì stesso (un solo flusso) */}
       <div className="mb-6">
-        <MoodBoardEditor entryId={entryId} pins={(images ?? []).map((m: any) => m.url).filter(Boolean)} />
+        <MoodBoardEditor entryId={entryId} pins={(images ?? []).map((m: any) => m.url).filter(Boolean)}
+          title={moodTitle} dateText={moodDate} location={moodLocation} brandName={moodBrand} brandEmail={moodBrandEmail} />
       </div>
-
-      {/* STUDIO: impaginazione automatica + export PDF editoriale (secondario) */}
-      <details className="mb-6 rounded-xl border border-[rgb(var(--border))] p-3">
-        <summary className="cursor-pointer text-sm font-medium text-[rgb(var(--fg-muted))]">Impaginazione automatica & export PDF editoriale</summary>
-        <div className="mt-3">
-          <MoodBoardStudio entryId={entryId} images={(images ?? []) as any} title={moodTitle} dateText={moodDate}
-            location={moodLocation} brandName={moodBrand} brandEmail={moodBrandEmail} onRemove={(id) => remove.mutate(id)} />
-        </div>
-      </details>
 
       <div className="flex gap-2 mb-3">
         <button onClick={() => setMode('pexels')}
@@ -209,7 +200,7 @@ export function MoodTab({ entryId }: { entryId: string }) {
       </Card>
 
       <h3 className="font-display text-lg mb-1">Tutte le immagini ({images?.length ?? 0})</h3>
-      <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">Lo studio qui sopra le impagina da solo. Qui le gestisci (elimina, apri sorgente).</p>
+      <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">L'editor qui sopra le impagina da solo. Qui le gestisci (elimina, apri sorgente).</p>
       {(images ?? []).length === 0 ? (
         <Card className="p-10 text-center"><p className="text-[rgb(var(--fg-muted))]">Mood board vuoto. Cerca su Pexels o incolla un URL per iniziare.</p></Card>
       ) : (

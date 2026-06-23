@@ -1,11 +1,11 @@
-// Mini "Canva" per la moodboard: tela libera con immagini, testi, forme, icone e
-// ghirigori. Il cliente sceglie un preset carino oppure ci mette mano. Persistenza
-// condivisa su mood_boards (coppia + organizzatore + admin).
+// Editor libero della moodboard: una tela con immagini, testi, forme, icone e
+// ghirigori. Si parte da uno stile automatico e poi ci si mette mano (trascina,
+// ridimensiona, ruota). Persistenza condivisa su mood_boards (coppia + organizzatore + admin).
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Heart, Star, Leaf, Flower2, Sparkles, Sun, Moon, Music, Camera, Gem, Wine,
   Cake, Bird, Cloud, MapPin, Crown, Type, Image as ImageIcon, Shapes, Smile,
-  Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2, Download,
+  Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2, Download, FileDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -46,7 +46,10 @@ function ElView({ el }: { el: MoodEl }) {
   return <ShapeView name={el.name ?? 'rect'} fill={el.fill ?? '#ccc'} />
 }
 
-export function MoodBoardEditor({ entryId, pins, readOnly }: { entryId: string; pins: string[]; readOnly?: boolean }) {
+export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, location, brandName, brandEmail }: {
+  entryId: string; pins: string[]; readOnly?: boolean
+  title?: string | null; dateText?: string | null; location?: string | null; brandName?: string | null; brandEmail?: string | null
+}) {
   const [board, setBoard] = useState<MoodBoard>(emptyBoard())
   const [sel, setSel] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -126,6 +129,18 @@ export function MoodBoardEditor({ entryId, pins, readOnly }: { entryId: string; 
     } catch { toast.error('Export non riuscito (alcune immagini bloccano il salvataggio: CORS).') }
     finally { setExporting(false) }
   }
+  // PDF editoriale dalle foto del board (in ordine di lettura alto→basso, sinistra→destra)
+  async function exportPdf() {
+    const imgs = board.els.filter((e) => e.kind === 'image' && e.src).sort((a, b) => (a.y - b.y) || (a.x - b.x)).map((e) => ({ url: e.src as string }))
+    if (!imgs.length) { toast.error('Aggiungi qualche foto'); return }
+    setExporting(true)
+    try {
+      const { buildMoodboardPdf } = await import('@/lib/moodboardPdf')
+      await buildMoodboardPdf({ images: imgs, coupleNames: title ?? null, dateText: dateText ?? null, location: location ?? null, brandName: brandName ?? null, brandEmail: brandEmail ?? null, palette: [] })
+      toast.success('PDF editoriale pronto')
+    } catch (e) { toast.error('PDF non riuscito: ' + ((e as Error).message || 'errore')) }
+    finally { setExporting(false) }
+  }
   function patchSel(p: Partial<MoodEl>) { if (sel) setEls((arr) => updateEl(arr, sel, p)) }
 
   if (loading) return <div className="rounded-2xl border border-[rgb(var(--border))] p-8 flex items-center justify-center"><Loader2 className="animate-spin" /></div>
@@ -135,13 +150,14 @@ export function MoodBoardEditor({ entryId, pins, readOnly }: { entryId: string; 
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[rgb(var(--border))]">
         <div>
           <p className="font-medium flex items-center gap-2"><Wand2 size={16} className="text-[rgb(var(--gold-600))]" /> Il vostro moodboard</p>
-          <p className="text-xs text-[rgb(var(--fg-muted))]">Scegli un preset carino o mettici mano: foto, scritte, forme, icone e ghirigori.</p>
+          <p className="text-xs text-[rgb(var(--fg-muted))]">Scegli uno stile (ritagli, polaroid, moda, tableau): si impagina da solo e poi ci metti mano.</p>
         </div>
         <div className="flex items-center gap-2">
           {saving && <span className="text-[11px] text-[rgb(var(--fg-muted))] flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> salvo…</span>}
+          {board.els.length > 0 && <Button size="sm" variant="outline" onClick={() => void exportPdf()} disabled={exporting}><FileDown size={14} /> PDF</Button>}
           {board.els.length > 0 && <Button size="sm" variant="outline" onClick={() => void exportPng()} disabled={exporting}><Download size={14} /> PNG</Button>}
           {!readOnly && <Button size="sm" variant="outline" onClick={() => void persist(board, false)}><Save size={14} /> Salva</Button>}
-          <Button size="sm" variant={open ? 'gold' : 'outline'} onClick={() => setOpen((v) => !v)}>{open ? 'Chiudi' : 'Apri come Canva'}</Button>
+          <Button size="sm" variant={open ? 'gold' : 'outline'} onClick={() => setOpen((v) => !v)}>{open ? 'Chiudi' : 'Apri e modifica'}</Button>
         </div>
       </div>
 
@@ -155,7 +171,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly }: { entryId: string; 
               </div>
             ))}
             <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/15 transition">
-              <span className="opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-1 rounded-full bg-white/90 text-[rgb(var(--fg))] text-xs font-medium px-3 py-1.5"><Wand2 size={13} /> Apri come Canva</span>
+              <span className="opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-1 rounded-full bg-white/90 text-[rgb(var(--fg))] text-xs font-medium px-3 py-1.5"><Wand2 size={13} /> Apri e modifica a mano</span>
             </div>
           </div>
         </button>
