@@ -13,8 +13,15 @@ import { toast } from 'sonner'
 import {
   emptyBoard, addImage, addText, addShape, addIcon, moveEl, resizeEl, snapMove, snapAngle,
   updateEl, removeEl, bringFront, sendBack, duplicateEl, FLOURISHES, SHAPES, MOOD_PALETTE,
-  MOOD_FONTS, PRESETS, LAYOUT_STYLES, GRADIENTS, emptyDoc, toDoc, type MoodBoard, type MoodDoc, type MoodEl, type Corner,
+  MOOD_FONTS, PRESETS, LAYOUT_STYLES, GRADIENTS, GOOGLE_FONTS_HREF, emptyDoc, toDoc, type MoodBoard, type MoodDoc, type MoodEl, type Corner,
 } from '@/lib/moodBoard'
+
+// carica i font display (stile Kittl) una sola volta
+function ensureFonts() {
+  if (typeof document === 'undefined' || document.getElementById('mood-google-fonts')) return
+  const l = document.createElement('link'); l.id = 'mood-google-fonts'; l.rel = 'stylesheet'; l.href = GOOGLE_FONTS_HREF
+  document.head.appendChild(l)
+}
 
 // generatori di path per le forme "complesse"
 function burstPath(points = 18, ro = 49, ri = 33, cx = 50, cy = 50): string {
@@ -72,7 +79,7 @@ function ElView({ el }: { el: MoodEl }) {
   }
   if (el.kind === 'text') return (
     <div className="w-full h-full flex items-center px-1 overflow-hidden [container-type:size]" style={{ justifyContent: el.align === 'left' ? 'flex-start' : el.align === 'right' ? 'flex-end' : 'center' }}>
-      <span style={{ color: el.color, fontFamily: el.font, fontWeight: el.weight ?? 600, fontStyle: el.italic ? 'italic' : undefined, textAlign: el.align, fontSize: '70cqh', lineHeight: 1.05, width: '100%', whiteSpace: 'nowrap' }}>{el.text || 'Testo'}</span>
+      <span style={{ color: el.color, fontFamily: el.font, fontWeight: el.weight ?? 600, fontStyle: el.italic ? 'italic' : undefined, textAlign: el.align, fontSize: '70cqh', lineHeight: 1.05, width: '100%', whiteSpace: 'nowrap', letterSpacing: el.tracking ? `${el.tracking}em` : undefined, textTransform: el.upper ? 'uppercase' : undefined }}>{el.text || 'Testo'}</span>
     </div>
   )
   if (el.kind === 'icon') { const I = ICONS[el.name ?? 'Heart'] ?? Heart; return <I className="w-full h-full" style={{ color: el.fill }} strokeWidth={1.6} /> }
@@ -126,6 +133,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
     setLoading(false); loadedRef.current = true
   }, [entryId])
   useEffect(() => { void load() }, [load])
+  useEffect(() => { ensureFonts() }, [])
 
   const persist = useCallback(async (d: MoodDoc, silent = true) => {
     setSaving(true)
@@ -385,6 +393,14 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
                   <textarea value={selEl.text ?? ''} onChange={(e) => patchSel({ text: e.target.value })} rows={2} className="w-full text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5" />
                   <div className="grid grid-cols-2 gap-1">{MOOD_FONTS.map((f) => <button key={f.label} onClick={() => patchSel({ font: f.css })} style={{ fontFamily: f.css }} className={`rounded-lg border py-1 text-xs ${selEl.font === f.css ? 'border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`}>{f.label}</button>)}</div>
                   <div className="flex gap-1">{(['left', 'center', 'right'] as const).map((a) => <button key={a} onClick={() => patchSel({ align: a })} className={`flex-1 rounded border py-1 text-xs ${selEl.align === a ? 'border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`}>{a === 'left' ? '⬅' : a === 'center' ? '⬌' : '➡'}</button>)}</div>
+                  <div className="flex gap-1">
+                    <button onClick={() => patchSel({ upper: !selEl.upper })} title="Maiuscolo" className={`flex-1 rounded border py-1 text-[11px] tracking-wide ${selEl.upper ? 'border-[rgb(var(--gold-500))] font-medium' : 'border-[rgb(var(--border))]'}`}>ABC</button>
+                    <button onClick={() => patchSel({ weight: (selEl.weight ?? 600) >= 700 ? 400 : 800 })} title="Grassetto" className={`flex-1 rounded border py-1 text-xs ${(selEl.weight ?? 600) >= 700 ? 'border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ fontWeight: 800 }}>B</button>
+                    <button onClick={() => patchSel({ italic: !selEl.italic })} title="Corsivo" className={`flex-1 rounded border py-1 text-xs italic ${selEl.italic ? 'border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`}>I</button>
+                  </div>
+                  <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Spaziatura lettere
+                    <input type="range" min={-0.05} max={0.6} step={0.01} value={selEl.tracking ?? 0} onChange={(e) => patchSel({ tracking: parseFloat(e.target.value) })} className="w-full accent-[rgb(var(--gold-600))]" />
+                  </label>
                 </>
               )}
               {(selEl.kind === 'text' || selEl.kind === 'shape' || selEl.kind === 'icon') && (

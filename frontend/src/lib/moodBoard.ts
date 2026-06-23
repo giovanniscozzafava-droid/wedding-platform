@@ -14,6 +14,7 @@ export type MoodEl = {
   opacity?: number                               // 0..1
   text?: string; color?: string; font?: string   // text
   align?: 'left' | 'center' | 'right'; weight?: number; italic?: boolean
+  tracking?: number; upper?: boolean              // spaziatura (em) e MAIUSCOLO (stile Kittl)
   name?: string; fill?: string                    // shape / icon / flourish (name = chiave registro)
 }
 export type MoodBoard = { bg: string; els: MoodEl[] }
@@ -140,11 +141,21 @@ export const GRADIENTS: { label: string; css: string }[] = [
 // Palette curate per testi/forme/sfondo.
 export const MOOD_PALETTE = ['#6b5b3e', '#b8923f', '#d8c6a0', '#a8b5a2', '#c98b7a', '#8a9bb0', '#3f3a34', '#ffffff', '#faf6ef', '#e7ddc9']
 export const MOOD_FONTS: { label: string; css: string }[] = [
-  { label: 'Elegante', css: 'Playfair Display, serif' },
+  { label: 'Elegante', css: '"Playfair Display", serif' },
+  { label: 'Inciso', css: 'Cinzel, serif' },
+  { label: 'Display', css: '"Bebas Neue", sans-serif' },
+  { label: 'Grassetto', css: '"Abril Fatface", serif' },
+  { label: 'Garamond', css: '"Cormorant Garamond", serif' },
+  { label: 'Raffinato', css: 'Marcellus, serif' },
+  { label: 'Corsivo', css: '"Dancing Script", cursive' },
+  { label: 'Calligrafia', css: '"Great Vibes", cursive' },
+  { label: 'Magazine', css: 'Italiana, serif' },
   { label: 'Pulito', css: 'Inter, system-ui, sans-serif' },
-  { label: 'Corsivo', css: '"Brush Script MT", cursive' },
   { label: 'Classico', css: 'Georgia, serif' },
 ]
+
+// Font display (stile Kittl) caricati da Google Fonts on-demand quando si apre l'editor.
+export const GOOGLE_FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Cinzel:wght@400;600;700&family=Bebas+Neue&family=Abril+Fatface&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Marcellus&family=Dancing+Script:wght@400;700&family=Great+Vibes&family=Italiana&display=swap'
 
 // ── preset "carini" pronti all'uso ──────────────────────────────────────────
 export const PRESETS: { label: string; build: (imgs: string[]) => MoodBoard }[] = [
@@ -228,7 +239,24 @@ export const PRESETS: { label: string; build: (imgs: string[]) => MoodBoard }[] 
       { id: uid(), kind: 'image', src: imgs[0] ?? '', x: 0.255, y: 0.1, w: 0.49, h: 0.6, rot: 0, z: 2 },
       { id: uid(), kind: 'icon', name: 'Leaf', fill: '#9bae8a', x: 0.1, y: 0.5, w: 0.12, h: 0.12, rot: -20, z: 3 },
       { id: uid(), kind: 'icon', name: 'Leaf', fill: '#9bae8a', x: 0.78, y: 0.3, w: 0.12, h: 0.12, rot: 20, z: 3 },
-      { id: uid(), kind: 'text', text: 'Sofia & Marco', x: 0.15, y: 0.78, w: 0.7, h: 0.08, rot: 0, z: 4, color: '#6b5b3e', font: 'Playfair Display, serif', align: 'center', weight: 600 },
+      { id: uid(), kind: 'text', text: 'Sofia & Marco', x: 0.15, y: 0.78, w: 0.7, h: 0.08, rot: 0, z: 4, color: '#6b5b3e', font: '"Playfair Display", serif', align: 'center', weight: 600 },
+    ] }),
+  },
+  {
+    label: 'Magazine',
+    build: (imgs) => ({ bg: '#ece6da', els: [
+      { id: uid(), kind: 'image', src: imgs[0] ?? '', x: 0, y: 0, w: 1, h: 1, rot: 0, z: 1 },
+      { id: uid(), kind: 'shape', name: 'rect', fill: 'rgba(0,0,0,.28)', x: 0, y: 0, w: 1, h: 1, rot: 0, z: 2 },
+      { id: uid(), kind: 'text', text: 'ÉDITION', x: 0.08, y: 0.05, w: 0.84, h: 0.16, rot: 0, z: 3, color: '#ffffff', font: '"Abril Fatface", serif', align: 'center', weight: 400, upper: true },
+      { id: uid(), kind: 'text', text: 'the wedding issue', x: 0.2, y: 0.85, w: 0.6, h: 0.045, rot: 0, z: 3, color: '#ffffff', font: 'Marcellus, serif', align: 'center', tracking: 0.3, upper: true },
+    ] }),
+  },
+  {
+    label: 'Retro',
+    build: (imgs) => ({ bg: '#e8d6b8', els: [
+      { id: uid(), kind: 'shape', name: 'starburst', fill: '#c0693a', x: 0.1, y: 0.06, w: 0.8, h: 0.8, rot: 0, z: 1 },
+      { id: uid(), kind: 'image', src: imgs[0] ?? '', x: 0.28, y: 0.24, w: 0.44, h: 0.44, rot: 0, z: 2, radius: 0.5 },
+      { id: uid(), kind: 'text', text: 'GOOD VIBES', x: 0.1, y: 0.8, w: 0.8, h: 0.1, rot: 0, z: 3, color: '#3a2417', font: '"Bebas Neue", sans-serif', align: 'center', tracking: 0.15 },
     ] }),
   },
 ]
