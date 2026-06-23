@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
-import { getDriveToken, ensureDriveFolder, uploadAnyToDrive } from '@/lib/driveUpload'
+import { getDriveToken, ensureDriveFolder, uploadAnyToDrive, listDriveFolderFiles } from '@/lib/driveUpload'
 import { InviteCouplePhotos } from '@/components/event/InviteCouplePhotos'
 import { GalleryShowcase } from '@/components/event/GalleryShowcase'
 import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
@@ -256,6 +256,35 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       const driveFolder = await ensureDriveFolder(token, `Planfully · ${f.name}`, f.drive_folder_id)
       if (driveFolder !== f.drive_folder_id) await (supabase.from as any)('gallery_folders').update({ drive_folder_id: driveFolder }).eq('id', f.id)
 
+      // ── DEDUP + RECUPERO ──────────────────────────────────────────────
+      // Drive conserva il nome di ogni file caricato: elenco la cartella Drive e
+      // (1) salto i file il cui nome è GIÀ presente → niente doppioni; (2) recupero a
+      // video i file presenti su Drive ma non ancora registrati in galleria (orfani).
+      let toUpload = files
+      let skipped = 0, recovered = 0
+      try {
+        const driveFiles = await listDriveFolderFiles(token, driveFolder)
+        if (driveFiles.length) {
+          const present = new Set(driveFiles.map((d) => d.name))
+          const { data: existing } = await (supabase.from as any)('gallery_media').select('drive_file_id').eq('folder_id', f.id)
+          const dbIds = new Set((existing ?? []).map((r: { drive_file_id: string }) => r.drive_file_id))
+          const orphans = driveFiles.filter((d) => d.mimeType !== 'application/vnd.google-apps.folder' && !dbIds.has(d.id))
+          if (orphans.length) {
+            const rows = orphans.map((d) => ({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: d.id, thumbnail_link: `https://drive.google.com/thumbnail?id=${d.id}&sz=w800`, media_type: d.mimeType.startsWith('video/') ? 'VIDEO' : 'PHOTO' }))
+            for (let i = 0; i < rows.length; i += 200) await (supabase.from as any)('gallery_media').insert(rows.slice(i, i + 200))
+            recovered = orphans.length
+          }
+          toUpload = files.filter((file) => !present.has(file.name))
+          skipped = files.length - toUpload.length
+        }
+      } catch { /* listing non riuscito: nessun dedup, carico tutto come prima */ }
+
+      if (toUpload.length === 0) {
+        await load()
+        toast.success(recovered ? `Già tutti su Drive: recuperati ${recovered} file mancanti dalla galleria.` : 'Sono già caricati tutti: nessun doppione.')
+        return
+      }
+
       const fails: string[] = []
       let okCount = 0
       let pending: Record<string, unknown>[] = []
@@ -265,9 +294,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         if (error) throw error
         pending = []
       }
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]!
-        setGalleryProg({ done: i, total: files.length, name: file.name, frac: 0 })
+      for (let i = 0; i < toUpload.length; i++) {
+        const file = toUpload[i]!
+        setGalleryProg({ done: i, total: toUpload.length, name: file.name, frac: 0 })
         // token fresco se vecchio di 45 min (un upload di 1000 foto supera la scadenza Drive)
         if (Date.now() - tokenAt > 45 * 60 * 1000) await refresh()
         let res: { id: string; thumbnail: string } | null = null
@@ -286,8 +315,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         }
       }
       await flush()
-      if (fails.length) toast.error(`${okCount} caricati, ${fails.length} non riusciti — riprova solo quelli (es. ${fails[0]})`)
-      else toast.success(`${okCount} file caricati sul tuo Drive`)
+      const extra = [skipped ? `${skipped} già presenti saltati` : '', recovered ? `${recovered} recuperati` : ''].filter(Boolean).join(' · ')
+      if (fails.length) toast.error(`${okCount} nuovi caricati, ${fails.length} non riusciti${extra ? ' · ' + extra : ''} — riprova solo quelli`)
+      else toast.success(`${okCount} nuovi caricati${extra ? ' · ' + extra : ''}`)
       await load()
     } catch (e) {
       if ((e as { driveReason?: string }).driveReason) setDriveModal(true)

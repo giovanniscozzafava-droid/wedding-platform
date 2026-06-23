@@ -43,6 +43,28 @@ export async function ensureDriveFolder(token: string, name: string, existingId:
   return id
 }
 
+// Elenca i file già presenti in una cartella Drive (paginato). Serve a riconoscere i file
+// GIÀ caricati ed evitare doppioni: Drive conserva il nome originale di ogni file caricato.
+export type DriveFile = { id: string; name: string; size: string | null; mimeType: string }
+export async function listDriveFolderFiles(token: string, folderId: string): Promise<DriveFile[]> {
+  const out: DriveFile[] = []
+  let pageToken: string | undefined
+  do {
+    const params = new URLSearchParams({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'nextPageToken, files(id, name, size, mimeType)',
+      pageSize: '1000', orderBy: 'name',
+    })
+    if (pageToken) params.set('pageToken', pageToken)
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) throw new Error('Lettura cartella Drive fallita: ' + (await res.text()).slice(0, 140))
+    const j = (await res.json()) as { files?: DriveFile[]; nextPageToken?: string }
+    out.push(...(j.files ?? []))
+    pageToken = j.nextPageToken
+  } while (pageToken)
+  return out
+}
+
 export async function uploadFileToDrive(token: string, folderId: string, file: File): Promise<{ id: string; thumbnail: string }> {
   const metadata = { name: file.name, parents: [folderId] }
   const body = new FormData()
