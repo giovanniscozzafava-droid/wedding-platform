@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { AlbumMockup } from './AlbumMockup'
-import { materialByKey, modelByKey, coverDims, COLORS, type Cover, type Decoro } from './albumCatalog'
+import { materialByKey, modelByKey, coverDims, COLORS, modelLayout, type Cover, type Decoro, type Layout } from './albumCatalog'
 import { getDecoroNormal, makeTitleTexture } from './albumTextures'
 
 // Mockup album in vero 3D (WebGL). Drop-in di <AlbumMockup>: stesso `cover`.
@@ -78,12 +78,14 @@ class AlbumScene {
   modelKey = ''; sizeSig = ''
   d = 0.5; w = 2.3; h = 2.85; tBoard = 0.1
   decoro: Decoro = 'plate'
+  layout: Layout = 'plate'
   private texLoader = new THREE.TextureLoader()
   private photoUrl: string | null = null
 
   build(cover: Cover) {
     const m = modelByKey(cover.model)
     this.decoro = m?.decoro ?? 'plate'
+    this.layout = modelLayout(cover.model)
     const { w, h, d } = coverDims(cover)
     this.w = w; this.h = h; this.d = d
     const t = this.tBoard = Math.min(0.12, d * 0.26)
@@ -127,41 +129,98 @@ class AlbumScene {
     spine.castShadow = spine.receiveShadow = true
     this.group.add(spine); this.spine = spine
 
-    if (this.decoro === 'plate' || this.decoro === 'ottone') this.addPlate(this.decoro === 'ottone')
-    if (this.decoro === 'strap') this.addStrap()
-    if (this.decoro === 'swarovski') this.addSwarovski()
+    const L = this.layout
+    if (L === 'plate') this.addPlate(this.decoro === 'ottone', 'center')
+    else if (L === 'monogram') this.addMonogram(cover)
+    else if (L === 'fascia') this.addFascia(false)
+    else if (L === 'fascia-ornament') this.addFascia(true)
+    else if (L === 'oblique') this.addOblique()
+    else if (L === 'swarovski-line') { this.addSwarovskiLine(); this.addPlate(false, 'top-right') }
+    else if (L === 'swarovski-cluster') this.addSwarovski()
+    // photo-* / print / laser → gestiti da setPhoto e dal normalMap in setMaterial
   }
 
-  private addPlate(brass: boolean) {
-    const s = this.w * 0.34
+  private addPlate(brass: boolean, pos: 'center' | 'top-right' = 'center') {
+    const s = this.w * (pos === 'top-right' ? 0.3 : 0.34)
     const col = brass ? 0xb9923a : 0xcfd2d6
+    const x = pos === 'top-right' ? this.w * 0.22 : 0
+    const y = pos === 'top-right' ? this.h * 0.32 : 0
+    const ph = pos === 'top-right' ? s * 0.42 : s
     const frame = new THREE.Mesh(
-      new RoundedBoxGeometry(s, s, 0.02, 3, 0.012),
+      new RoundedBoxGeometry(s, ph, 0.02, 3, 0.012),
       new THREE.MeshPhysicalMaterial({ color: col, metalness: 1, roughness: brass ? 0.35 : 0.28, clearcoat: 0.4 }),
     )
-    frame.position.set(0, 0, this.d / 2 + 0.011); frame.castShadow = true
+    frame.position.set(x, y, this.d / 2 + 0.011); frame.castShadow = true
     this.group.add(frame)
-    const inner = new THREE.Mesh(
-      new THREE.PlaneGeometry(s * 0.7, s * 0.7),
-      new THREE.MeshPhysicalMaterial({ color: brass ? 0x2a2018 : 0x15171c, metalness: 0.6, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.05 }),
-    )
-    inner.position.set(0, 0, this.d / 2 + 0.022)
-    this.group.add(inner)
+    if (pos === 'center') {
+      const inner = new THREE.Mesh(
+        new THREE.PlaneGeometry(s * 0.7, s * 0.7),
+        new THREE.MeshPhysicalMaterial({ color: brass ? 0x2a2018 : 0x15171c, metalness: 0.6, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.05 }),
+      )
+      inner.position.set(0, 0, this.d / 2 + 0.022)
+      this.group.add(inner)
+    }
   }
 
-  private addStrap() {
-    const strap = new THREE.Mesh(
-      new RoundedBoxGeometry(this.w * 0.13, this.h * 1.02, 0.04, 2, 0.02),
-      new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.7 }),
-    )
-    strap.position.set(this.w * 0.3, 0, this.d / 2 + 0.02); strap.castShadow = true
-    this.group.add(strap)
-    const buckle = new THREE.Mesh(
-      new THREE.TorusGeometry(this.w * 0.05, this.w * 0.012, 12, 24),
-      new THREE.MeshPhysicalMaterial({ color: 0xb98b3a, metalness: 1, roughness: 0.3 }),
-    )
-    buckle.position.set(this.w * 0.3, 0, this.d / 2 + 0.05)
-    this.group.add(buckle)
+  // fascia orizzontale di materiale contrastante (Claire/Comete/Plaza)
+  private addFascia(ornament: boolean) {
+    const fh = this.h * 0.24
+    const mat = new THREE.MeshPhysicalMaterial({ color: ornament ? 0xe9ecdc : 0x6f7f93, roughness: 0.7, clearcoat: 0.1 })
+    if (ornament) { mat.normalMap = getDecoroNormal('floral'); if (mat.normalMap) mat.normalScale.set(0.5, 0.5) }
+    const band = new THREE.Mesh(new RoundedBoxGeometry(this.w * 1.005, fh, this.d * 0.62, 3, 0.02), mat)
+    band.position.set(0, 0, 0); band.castShadow = true
+    this.group.add(band)
+    if (!ornament) {
+      this.addSwarovskiLine(0)
+      // targhetta a destra sulla fascia
+      const s = this.w * 0.26
+      const plate = new THREE.Mesh(new RoundedBoxGeometry(s, fh * 0.5, 0.02, 3, 0.01),
+        new THREE.MeshPhysicalMaterial({ color: 0xd2d5d9, metalness: 1, roughness: 0.3, clearcoat: 0.4 }))
+      plate.position.set(this.w * 0.26, 0, this.d / 2 + 0.012)
+      this.group.add(plate)
+    }
+  }
+
+  // separazione obliqua bicolore + linea Swarovski (Almond) — a filo sul piatto
+  private addOblique() {
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(this.w * 1.12, this.h * 0.46),
+      new THREE.MeshPhysicalMaterial({ color: 0xf2efe8, roughness: 0.5, clearcoat: 0.2 }))
+    panel.position.set(0, -this.h * 0.26, this.d / 2 + 0.004)
+    panel.rotation.z = -0.13
+    this.group.add(panel)
+    const grp = new THREE.Group()
+    this.crystalRow(grp, this.w * 1.02, 0.022)
+    grp.position.set(0, -this.h * 0.03, this.d / 2 + 0.02); grp.rotation.z = -0.13
+    this.group.add(grp)
+  }
+
+  private crystalRow(grp: THREE.Group, width: number, size: number) {
+    const mat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0, transmission: 0.7, ior: 2.2, clearcoat: 1, reflectivity: 1 })
+    const n = Math.max(10, Math.round(width / (size * 2.4)))
+    for (let i = 0; i < n; i++) {
+      const c = new THREE.Mesh(new THREE.OctahedronGeometry(size), mat)
+      c.position.set(-width / 2 + (i + 0.5) * (width / n), 0, 0)
+      c.rotation.set(0.6, i, 0)
+      grp.add(c)
+    }
+  }
+  // linea Swarovski orizzontale (Diez / fascia Claire)
+  private addSwarovskiLine(y = this.h * 0.0) {
+    const grp = new THREE.Group()
+    this.crystalRow(grp, this.w * 0.86, 0.028)
+    grp.position.set(0, y, this.d / 2 + 0.03)
+    this.group.add(grp)
+  }
+
+  // monogramma inciso (Brand/Vega) — testo iniziali debossato
+  private addMonogram(cover: Cover) {
+    const initials = (cover.title || 'A B').split(/[^A-Za-zÀ-ÿ]+/).filter(Boolean).map((s) => s[0]?.toUpperCase()).slice(0, 2).join('') || 'AB'
+    const tex = makeTitleTexture(initials, false)
+    const sz = this.w * 0.36
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz * 0.5),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.85 }))
+    plane.position.set(0, this.h * 0.04, this.d / 2 + 0.012)
+    this.group.add(plane)
   }
 
   private addSwarovski() {
@@ -201,10 +260,11 @@ class AlbumScene {
       cm.needsUpdate = true
     }
     apply(this.front); apply(this.back); apply(this.spine)
-    // il decoro inciso/stampato solo sul piatto anteriore
+    // decoro inciso/stampato sul piatto anteriore — solo per laser e stampa
     if (this.front) {
       const cm = this.front.material as THREE.MeshPhysicalMaterial
-      cm.normalMap = getDecoroNormal(this.decoro)
+      const nd: Decoro | null = this.layout === 'laser' ? 'frame' : this.layout === 'print' ? 'print' : null
+      cm.normalMap = nd ? getDecoroNormal(nd) : null
       if (cm.normalMap) cm.normalScale.set(0.7, 0.7)
       cm.needsUpdate = true
     }
@@ -213,41 +273,62 @@ class AlbumScene {
   setTitle(title?: string, colorHex?: string) {
     if (this.title) { this.group.remove(this.title); (this.title.material as THREE.Material).dispose(); this.title.geometry.dispose(); this.title = null }
     const text = (title || '').trim()
-    if (!text) return
-    const onMetal = this.decoro === 'plate' || this.decoro === 'ottone'
+    if (!text || this.layout === 'monogram') return   // monogram usa già le iniziali
+    const L = this.layout
+    const onMetal = L === 'plate' || L === 'fascia' || L === 'swarovski-line'
     const light = onMetal ? false : hexLum(colorHex) > 0.6
     const tex = makeTitleTexture(text, light)
-    const tw = onMetal ? this.w * 0.26 : this.w * (this.decoro === 'photo' ? 0.5 : 0.6)
+    const tw = onMetal ? this.w * 0.24 : this.w * 0.5
     const plane = new THREE.Mesh(
       new THREE.PlaneGeometry(tw, tw * 0.25),
       new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
     )
-    let y = -this.h * 0.34
-    if (onMetal) y = 0
-    else if (this.decoro === 'frame') y = 0
-    else if (this.decoro === 'photo') y = -this.h * 0.3
-    plane.position.set(0, y, this.d / 2 + (onMetal ? 0.03 : 0.015))
+    let x = 0, y = -this.h * 0.34
+    if (L === 'plate') y = 0
+    else if (L === 'fascia') { x = this.w * 0.26; y = 0 }
+    else if (L === 'swarovski-line') { x = this.w * 0.22; y = this.h * 0.32 }
+    else if (L === 'photo-vertical') { x = -this.w * 0.2; y = -this.h * 0.18 }
+    else if (L === 'photo-panoramic') y = -this.h * 0.16
+    else if (L === 'oblique') { x = this.w * 0.18; y = -this.h * 0.2 }
+    plane.position.set(x, y, this.d / 2 + (onMetal ? 0.03 : 0.015))
     this.group.add(plane); this.title = plane
   }
 
-  setPhoto(url: string | null | undefined, onReady: () => void) {
-    const want = this.decoro === 'photo' || !!url
-    if (!want) { if (this.photo) { this.group.remove(this.photo); this.photo = null } this.photoUrl = null; return }
-    if (this.photo && this.photoUrl === (url ?? null)) return
-    if (this.photo) { this.group.remove(this.photo); this.photo = null }
-    this.photoUrl = url ?? null
+  private photoLayout(): null | { pw: number; ph: number; cx: number; cy: number; tri?: boolean } {
+    const w = this.w, h = this.h
+    switch (this.layout) {
+      case 'photo-vertical': return { pw: w * 0.42, ph: h * 0.58, cx: w * 0.2, cy: h * 0.06 }
+      case 'photo-panoramic': return { pw: w * 0.7, ph: h * 0.26, cx: 0, cy: h * 0.05 }
+      case 'photo-small': return { pw: w * 0.3, ph: h * 0.22, cx: w * 0.12, cy: -h * 0.02 }
+      case 'photo-full': return { pw: w * 0.86, ph: h * 0.86, cx: 0, cy: 0 }
+      case 'trilogy': return { pw: w * 0.17, ph: w * 0.17, cx: 0, cy: h * 0.04, tri: true }
+      default: return null
+    }
+  }
 
-    const big = this.decoro === 'photo'
-    const pw = this.w * (big ? 0.62 : 0.5), ph = this.h * (big ? 0.42 : 0.34)
-    const cy = big ? this.h * 0.12 : this.h * 0.06
+  setPhoto(url: string | null | undefined, onReady: () => void) {
+    const cfg = this.photoLayout()
+    const want = !!cfg || !!url
+    if (!want) { if (this.photo) { this.group.remove(this.photo); this.photo = null } this.photoUrl = null; return }
+    const src = url || (cfg ? '/textures/demo/couple.jpg' : null)
+    const sig = `${this.layout}|${src ?? ''}`
+    if (this.photo && this.photoUrl === sig) return
+    if (this.photo) { this.group.remove(this.photo); this.photo = null }
+    this.photoUrl = sig
+
+    const p = cfg || { pw: this.w * 0.5, ph: this.h * 0.34, cx: 0, cy: this.h * 0.06 }
     const grp = new THREE.Group()
-    const border = new THREE.Mesh(new THREE.PlaneGeometry(pw * 1.06, ph * 1.06), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }))
-    border.position.set(0, cy, this.d / 2 + 0.012); grp.add(border)
-    const photoMat = new THREE.MeshBasicMaterial({ color: url ? 0xffffff : 0xcdc6ba })
-    const photo = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), photoMat)
-    photo.position.set(0, cy, this.d / 2 + 0.016); grp.add(photo)
+    const z = this.d / 2 + 0.012
+    const positions = p.tri ? [-this.w * 0.19, 0, this.w * 0.19] : [p.cx]
+    for (const px of positions) {
+      const border = new THREE.Mesh(new THREE.PlaneGeometry(p.pw * 1.07, p.ph * 1.07), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }))
+      border.position.set(px, p.cy, z); grp.add(border)
+      const photoMat = new THREE.MeshBasicMaterial({ color: src ? 0xffffff : 0xcdc6ba })
+      const photo = new THREE.Mesh(new THREE.PlaneGeometry(p.pw, p.ph), photoMat)
+      photo.position.set(px, p.cy, z + 0.004); grp.add(photo)
+      if (src) this.texLoader.load(src, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; photoMat.map = tex; photoMat.color.set(0xffffff); photoMat.needsUpdate = true; onReady() })
+    }
     this.group.add(grp); this.photo = grp
-    if (url) this.texLoader.load(url, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; photoMat.map = tex; photoMat.color.set(0xffffff); photoMat.needsUpdate = true; onReady() })
   }
 
   apply(cover: Cover, onReady: () => void) {

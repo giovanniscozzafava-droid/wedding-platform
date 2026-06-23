@@ -319,6 +319,40 @@ export const MODELS: Model[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// LAYOUT per modello (fedele alle schede 2D) → guida il 3D.
+// ---------------------------------------------------------------------------
+export type Layout =
+  | 'plate' | 'plain' | 'monogram' | 'fascia' | 'fascia-ornament' | 'oblique'
+  | 'swarovski-line' | 'swarovski-cluster' | 'photo-vertical' | 'photo-panoramic'
+  | 'photo-small' | 'photo-full' | 'trilogy' | 'print' | 'laser'
+export const MODEL_LAYOUT: Record<string, Layout> = {
+  rimboccato: 'plate', 'blocco-libro': 'plain',
+  brand: 'monogram', trilogy: 'trilogy', almond: 'oblique', claire: 'fascia', thea: 'laser', adel: 'plate', elsie: 'photo-small',
+  vega: 'monogram', diez: 'swarovski-line', comete: 'fascia-ornament', plaza: 'fascia',
+  andromeda: 'photo-vertical', cassiopea: 'photo-panoramic', chloe: 'photo-vertical', 'graphic-touch': 'photo-small',
+  charme: 'photo-vertical', azulejo: 'print', hera: 'photo-panoramic', canvas: 'photo-full',
+  'frame-cristalplex': 'photo-vertical', 'frame-plexy': 'photo-vertical',
+  betulla: 'laser', dream: 'laser',
+  amelie: 'print', darling: 'print', sirene: 'print', frejus: 'print', dhyana: 'print',
+  'diez-sw': 'swarovski-line', 'xante-sw': 'swarovski-cluster', 'bouquet-sw': 'swarovski-cluster', 'ninfea-sw': 'swarovski-cluster',
+  bimbi: 'photo-full', comunione: 'photo-full', diciottesimo: 'photo-vertical',
+  'family-classic': 'plate', 'family-canvas': 'photo-panoramic', 'family-frame': 'laser', 'family-wood': 'laser',
+}
+const _decoroToLayout: Record<Decoro, Layout> = { plate: 'plate', ottone: 'plate', floral: 'laser', frame: 'laser', print: 'print', photo: 'photo-vertical', swarovski: 'swarovski-cluster', strap: 'plate' }
+export function modelLayout(k?: string): Layout {
+  if (k && MODEL_LAYOUT[k]) return MODEL_LAYOUT[k]!
+  const d = modelByKey(k)?.decoro
+  return d ? _decoroToLayout[d] : 'plate'
+}
+// modelli che di default montano il LEGNO (Wood Collection / Ottone su legno / Swarovski su legno)
+export const WOOD_MODELS = new Set<string>([
+  'brand', 'trilogy', 'almond', 'claire', 'thea', 'adel', 'elsie',
+  'vega', 'diez', 'comete', 'plaza', 'andromeda', 'cassiopea',
+  'diez-sw', 'xante-sw', 'family-canvas', 'family-frame', 'family-wood',
+])
+export const isWoodModel = (k?: string): boolean => !!k && WOOD_MODELS.has(k)
+
+// ---------------------------------------------------------------------------
 // BOX / CONTENITORI (Packaging, pag. 97-113). Specifiche dimensionali: da definire.
 // ---------------------------------------------------------------------------
 export type Box = { key: string; label: string; blurb: string }

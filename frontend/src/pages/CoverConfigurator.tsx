@@ -11,7 +11,7 @@ import {
   CATEGORIES, BOXES, COLORS, FORMATS,
   modelsByCategory, materialsForModel, paletteFor, modelByKey,
   sizesForFormat, defaultSizeKey, sizeByKey,
-  coverPrice, euro,
+  coverPrice, euro, isWoodModel,
   type Cover, type ColorDef, type Format,
 } from '@/components/album/albumCatalog'
 import { sendAlbumToPrint } from '@/hooks/useAlbumLab'
@@ -60,6 +60,7 @@ export default function CoverConfigurator() {
   function pickModel(modelKey: string) {
     const allowed = materialsForModel(modelKey)
     let fabric = cover.fabric || 'alcantara'
+    if (isWoodModel(modelKey)) fabric = 'wood'   // Wood Collection / Ottone → legno di default
     if (!allowed.find((m) => m.key === fabric)) fabric = allowed[0]?.key ?? 'alcantara'
     const c = ensureColor(fabric, cover.colorKey)
     set({ model: modelKey, fabric, color: c.color, colorKey: c.colorKey })
