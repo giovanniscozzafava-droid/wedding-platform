@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Sparkles, Heart, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -23,6 +23,9 @@ type InviteInfo = {
 export default function CoupleInviteAcceptPage() {
   const { token } = useParams<{ token: string }>()
   const nav = useNavigate()
+  const [sp] = useSearchParams()
+  // Dove far atterrare il cliente: link foto → tab "foto"; ogni altro invito → "preventivo".
+  const dest = sp.get('to') === 'foto' ? 'foto' : 'preventivo'
   const [info, setInfo] = useState<InviteInfo | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [mode, setMode] = useState<'signup' | 'login'>('signup')
@@ -58,7 +61,7 @@ export default function CoupleInviteAcceptPage() {
           data: { role: 'COUPLE', full_name: fullName },
           // IMPORTANT: il redirect di conferma deve tornare al flusso COPPIA, non a
           // /couple/accept (che, senza sessione, dirottava su /register PRO → role WP).
-          emailRedirectTo: `${window.location.origin}/invito-coppia/${token}`,
+          emailRedirectTo: `${window.location.origin}/invito-coppia/${token}?to=${dest}`,
         },
       })
       if (signErr) throw signErr
@@ -77,7 +80,7 @@ export default function CoupleInviteAcceptPage() {
       // Il cliente arriva da un lead: ha già dato i suoi dati. NON rifargli
       // compilare il questionario di onboarding → dritto al suo matrimonio,
       // dove trova subito il preventivo.
-      nav('/couple', { replace: true })
+      nav(`/couple?tab=${dest}`, { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore registrazione')
     } finally { setBusy(false) }
@@ -92,7 +95,7 @@ export default function CoupleInviteAcceptPage() {
       if (loginErr) throw loginErr
       await supabase.rpc('couple_accept_invite', { p_token: token }) // best-effort: collega se non già collegato
       toast.success('Bentornata/o nel vostro evento')
-      nav('/couple', { replace: true })
+      nav(`/couple?tab=${dest}`, { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore login')
     } finally { setBusy(false) }

@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
     token = ins.invite_token as string
   }
 
-  const link = `${APP_BASE}/invito-coppia/${token}`
+  // ?to=foto → dopo registrazione/login il cliente atterra sulla tab Foto (regola fissa)
+  const link = `${APP_BASE}/invito-coppia/${token}?to=foto`
   const studio = esc((prof?.business_name || prof?.full_name || 'Il tuo professionista') as string)
   const title = esc((ce.title || 'il vostro evento') as string)
   const html = `
