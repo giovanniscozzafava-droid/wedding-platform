@@ -364,6 +364,9 @@ export const MODEL_MOCKUP: Record<string, boolean> = {
   cassiopea: true, elsie: true, amelie: true, betulla: true, hera: true, canvas: true, 'bouquet-sw': true, adel: true,
 }
 export const mockupFor = (k?: string): string | null => (k && MODEL_MOCKUP[k]) ? `/textures/mockups/${k}.jpg` : null
+// 3D ruotabile derivato dal mockup 2D (Higgsfield image_to_3d → GLB)
+export const MODEL_GLB: Record<string, boolean> = { claire: true, brand: true, vega: true }
+export const glbFor = (k?: string): string | null => (k && MODEL_GLB[k]) ? `/models/${k}.glb` : null
 
 // ---------------------------------------------------------------------------
 // BOX / CONTENITORI (Packaging, pag. 97-113). Specifiche dimensionali: da definire.

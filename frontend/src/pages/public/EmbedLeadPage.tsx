@@ -582,6 +582,11 @@ function makeStyles(primary: string, narrow = false) {
     padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 999,
     border: '1px solid #d6dae1', background: '#fff', color: '#475569', cursor: 'pointer',
   }
+  // Colore testo leggibile sul brand: se il brand è chiaro, testo scuro (altrimenti il bottone
+  // bianco-su-bianco sparisce). + bordo/ombra così resta visibile anche con brand quasi bianco.
+  const L = (() => { const m = primary.replace('#', ''); if (m.length < 6) return 0.5; const r = parseInt(m.slice(0, 2), 16) / 255, g = parseInt(m.slice(2, 4), 16) / 255, b = parseInt(m.slice(4, 6), 16) / 255; return 0.299 * r + 0.587 * g + 0.114 * b })()
+  const onPrimary = L > 0.6 ? '#1a1a1a' : '#fff'
+  const primaryBorder = `1px solid ${L > 0.85 ? 'rgba(0,0,0,.2)' : primary}`
   return {
     page: { background: '#f6f7f9', padding: 14, minHeight: '100%', fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' } as React.CSSProperties,
     card: { maxWidth: 560, margin: '0 auto', background: '#fff', border: '1px solid #e6e8ec', borderRadius: 14, padding: 20, boxShadow: '0 1px 3px rgba(15,23,42,0.06)' } as React.CSSProperties,
@@ -591,8 +596,8 @@ function makeStyles(primary: string, narrow = false) {
     input,
     chips: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 2 } as React.CSSProperties,
     chip: chipBase,
-    chipOn: { ...chipBase, background: primary, borderColor: primary, color: '#fff' } as React.CSSProperties,
-    submit: { width: '100%', marginTop: 6, padding: '11px 16px', fontSize: 15, fontWeight: 600, color: '#fff', background: primary, border: 'none', borderRadius: 9, cursor: 'pointer' } as React.CSSProperties,
+    chipOn: { ...chipBase, background: primary, border: primaryBorder, color: onPrimary } as React.CSSProperties,
+    submit: { width: '100%', marginTop: 6, padding: '11px 16px', fontSize: 15, fontWeight: 700, color: onPrimary, background: primary, border: primaryBorder, borderRadius: 9, cursor: 'pointer', boxShadow: '0 2px 10px rgba(15,23,42,.18)' } as React.CSSProperties,
     legal: { fontSize: 11, color: '#94a3b8', textAlign: 'center', margin: '10px 0 0' } as React.CSSProperties,
     error: { fontSize: 13, color: '#dc2626', margin: '4px 0 0' } as React.CSSProperties,
   }
