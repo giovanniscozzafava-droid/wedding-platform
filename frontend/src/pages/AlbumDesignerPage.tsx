@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect } from '@/lib/albumFormats'
+import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect, isCustomFormat, listCustomFormats, saveCustomFormat, deleteCustomFormat, customFormatKey, type AlbumFormat } from '@/lib/albumFormats'
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
 import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
@@ -252,6 +252,18 @@ function AlbumDesignerInner() {
 
   const [media, setMedia] = useState<M[]>([])
   const [format, setFormat] = useState<string>(DEFAULT_FORMAT)
+  // formati personalizzati (W×H pagina, salvati in locale e riusabili)
+  const [customFmts, setCustomFmts] = useState<AlbumFormat[]>(() => listCustomFormats())
+  const [fmtPanel, setFmtPanel] = useState(false)
+  const [cfW, setCfW] = useState(''); const [cfH, setCfH] = useState(''); const [cfName, setCfName] = useState('')
+  function saveCustom() {
+    const w = Math.round(parseFloat(cfW.replace(',', '.')) * 10)
+    const h = Math.round(parseFloat(cfH.replace(',', '.')) * 10)
+    if (!(w >= 50 && w <= 2000) || !(h >= 50 && h <= 2000)) { toast.error('Largh./alt. pagina in cm, tra 5 e 200.'); return }
+    setCustomFmts(saveCustomFormat(w, h, cfName))
+    setFormat(customFormatKey(w, h)); setFmtPanel(false); setCfName('')
+    toast.success('Formato salvato')
+  }
   const [status, setStatus] = useState<string>('DRAFT')
   const [pages, setPages] = useState<AlbumPage[]>([])
   const [title, setTitle] = useState('')
@@ -1412,9 +1424,53 @@ function AlbumDesignerInner() {
             <p className="text-[11px] text-[rgb(var(--fg-muted))]">{isCouple ? 'Visualizza l’album e richiedi le modifiche che vuoi' : 'Bozza album, rifinibile pagina per pagina'} · {statusLabel(status)}</p>
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            {!lite && <select value={format} onChange={(e) => setFormat(e.target.value)} className="text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5">
-              {ALBUM_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>}
+            {!lite && (
+              <div className="relative flex items-center gap-1">
+                <select value={format} onChange={(e) => setFormat(e.target.value)} className="text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 max-w-[230px]">
+                  <optgroup label="Standard">
+                    {ALBUM_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                  </optgroup>
+                  {(customFmts.length > 0 || isCustomFormat(format)) && (
+                    <optgroup label="Personalizzati">
+                      {customFmts.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                      {isCustomFormat(format) && !customFmts.some((f) => f.key === format) && (
+                        <option value={format}>{getFormat(format).label}</option>
+                      )}
+                    </optgroup>
+                  )}
+                </select>
+                <button title="Formato personalizzato"
+                  onClick={() => { const c = getFormat(format); setCfW(String(c.w / 10)); setCfH(String(c.h / 10)); setFmtPanel((v) => !v) }}
+                  className="px-2 py-1.5 rounded-lg border border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] hover:bg-[rgb(var(--bg-sunken))]"><Plus size={15} /></button>
+                {fmtPanel && (
+                  <div className="absolute right-0 top-full mt-1 z-30 w-64 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-xl p-3 text-sm">
+                    <p className="font-medium mb-2">Formato personalizzato</p>
+                    <div className="flex items-end gap-2 mb-2">
+                      <label className="text-[11px] text-[rgb(var(--fg-muted))]">Largh.<input value={cfW} onChange={(e) => setCfW(e.target.value)} inputMode="decimal" className="mt-0.5 w-16 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1" /></label>
+                      <span className="text-[rgb(var(--fg-subtle))] pb-1.5">×</span>
+                      <label className="text-[11px] text-[rgb(var(--fg-muted))]">Alt.<input value={cfH} onChange={(e) => setCfH(e.target.value)} inputMode="decimal" className="mt-0.5 w-16 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1" /></label>
+                      <span className="text-[11px] text-[rgb(var(--fg-subtle))] pb-1.5">cm</span>
+                    </div>
+                    <input value={cfName} onChange={(e) => setCfName(e.target.value)} placeholder="Nome (facoltativo)" className="w-full rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1 mb-1.5" />
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))] mb-2">Misura della pagina singola — la tavola sarà larga il doppio.</p>
+                    <div className="flex gap-2">
+                      <button onClick={saveCustom} className="flex-1 rounded-lg bg-[rgb(var(--gold-500))] text-white px-3 py-1.5 text-xs font-medium hover:opacity-90"><Save size={12} className="inline mr-1" />Salva e usa</button>
+                      <button onClick={() => setFmtPanel(false)} className="rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-xs">Chiudi</button>
+                    </div>
+                    {customFmts.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-[rgb(var(--border))] space-y-1 max-h-32 overflow-auto">
+                        {customFmts.map((f) => (
+                          <div key={f.key} className="flex items-center gap-2">
+                            <button onClick={() => { setFormat(f.key); setFmtPanel(false) }} className="flex-1 text-left text-xs hover:underline truncate" title={f.label}>{f.label}</button>
+                            <button onClick={() => setCustomFmts(deleteCustomFormat(f.key))} className="text-[rgb(var(--fg-subtle))] hover:text-rose-500" title="Elimina"><Trash2 size={13} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="hidden sm:flex rounded-lg border border-[rgb(var(--border))] overflow-hidden">
               <button onClick={() => setStep('select')} className={`px-3 py-1.5 text-xs ${step === 'select' ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] font-medium' : ''}`}>1 · Selezione</button>
               <button onClick={() => setStep('design')} className={`px-3 py-1.5 text-xs ${step === 'design' ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] font-medium' : ''}`}>2 · Impagina</button>

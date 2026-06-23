@@ -245,6 +245,29 @@ export const MATERIALS: Material[] = [
       C('skill','Nero','#0d0d0c'),
       C('skill','Tortora','#695c54'),
     ] },
+  // Cristalwhite (pag.58) — superficie liscia satinata bianca, base di molti modelli sposi/laserati/swarovski
+  { key: 'cristalwhite', label: 'Cristalwhite', texture: 'cristalwhite', swatch: '#f1ece1',
+    pbr: { roughness: 0.34, metalness: 0, clearcoat: 0.22, clearcoatRoughness: 0.4, reflectivity: 0.5, bumpScale: 0.012, repeat: 1.6 },
+    colors: [
+      C('cristalwhite','Bianco Puro','#f5f3ed'),
+      C('cristalwhite','Perla','#efebe0'),
+      C('cristalwhite','Avorio','#efe7d6'),
+      C('cristalwhite','Latte','#f1ece1'),
+      C('cristalwhite','Ecrù Chiaro','#ece3d2'),
+      C('cristalwhite','Ghiaccio','#e7e8e8'),
+    ] },
+  // Cristalplex (pag.57) — plexi lucido trasparente, lastre/cornici/finestre foto
+  { key: 'cristalplex', label: 'Cristalplex', texture: 'cristalplex', swatch: '#dfe6ea',
+    pbr: { roughness: 0.06, metalness: 0, clearcoat: 0.9, clearcoatRoughness: 0.08, reflectivity: 0.95, bumpScale: 0.004, repeat: 1.4 },
+    colors: [
+      C('cristalplex','Trasparente','#e2e8ec'),
+      C('cristalplex','Latteo','#e9ecec'),
+      C('cristalplex','Ghiaccio','#dbe7ec'),
+      C('cristalplex','Fumé','#73767a'),
+      C('cristalplex','Bronzo Chiaro','#b59f86'),
+      C('cristalplex','Champagne','#d8c6a6'),
+      C('cristalplex','Perla','#e4ddd2'),
+    ] },
 ]
 
 // ---------------------------------------------------------------------------
@@ -275,6 +298,7 @@ export const MODELS: Model[] = [
   { key: 'thea', label: 'Thea', category: 'wood', format: 'portrait', decoro: 'frame', blurb: 'Decoro inciso essenziale.' },
   { key: 'adel', label: 'Adel', category: 'wood', format: 'portrait', decoro: 'plate', blurb: 'Placca centrale, pelle di legno.' },
   { key: 'elsie', label: 'Elsie', category: 'wood', format: 'portrait', decoro: 'plate', blurb: 'Placca, linea essenziale.' },
+  { key: 'elsie-gold', label: 'Elsie Gold', category: 'wood', format: 'square', decoro: 'photo', blurb: 'Dorso oro spazzolato + corpo Cristalwhite, foto incassata e nomi.' },
 
   // Ottone nichelato / Alluminio
   { key: 'vega', label: 'Vega', category: 'ottone', format: 'portrait', decoro: 'ottone', blurb: 'Iniziali in ottone nichelato.' },
@@ -332,7 +356,7 @@ export type Layout =
   | 'photo-small' | 'photo-full' | 'trilogy' | 'print' | 'laser'
 export const MODEL_LAYOUT: Record<string, Layout> = {
   rimboccato: 'plate', 'blocco-libro': 'plain',
-  brand: 'monogram', trilogy: 'trilogy', almond: 'oblique', claire: 'fascia', thea: 'laser', adel: 'plate', elsie: 'photo-small',
+  brand: 'monogram', trilogy: 'trilogy', almond: 'oblique', claire: 'fascia', thea: 'fascia-ornament', adel: 'plate', elsie: 'photo-small', 'elsie-gold': 'photo-small',
   vega: 'monogram', diez: 'swarovski-line', comete: 'fascia-ornament', plaza: 'fascia',
   andromeda: 'photo-vertical', cassiopea: 'photo-panoramic', chloe: 'photo-vertical', 'graphic-touch': 'photo-small',
   charme: 'photo-vertical', azulejo: 'print', hera: 'photo-panoramic', canvas: 'photo-full',
