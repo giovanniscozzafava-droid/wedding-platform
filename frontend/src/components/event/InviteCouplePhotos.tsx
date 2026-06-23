@@ -17,7 +17,7 @@ export function InviteCouplePhotos({ entryId }: { entryId: string }) {
     try {
       const { data, error } = await supabase.functions.invoke('invite-couple-photos', { body: { entry_id: entryId, email: email.trim(), full_name: name.trim() || undefined } })
       if (error || (data as any)?.error) throw new Error((data as any)?.error === 'forbidden' ? 'Solo il proprietario della galleria può invitare gli sposi.' : 'Invio non riuscito.')
-      toast.success('Email inviata agli sposi 📸')
+      toast.success('Email inviata agli sposi')
       setOpen(false); setEmail(''); setName('')
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }

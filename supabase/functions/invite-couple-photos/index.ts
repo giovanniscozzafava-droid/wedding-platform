@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
     <div style="background:#1a2e4f;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0">
       <p style="margin:0;font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.8">${studio}</p>
-      <h1 style="margin:6px 0 0;font-size:22px">Le foto di ${title} sono pronte ✨</h1>
+      <h1 style="margin:6px 0 0;font-size:22px">Le foto di ${title} sono pronte</h1>
     </div>
     <div style="border:1px solid #e6e8ec;border-top:none;border-radius:0 0 14px 14px;padding:24px">
       <p>Le vostre foto sono online. Per vederle, entrate nella vostra area: vi basta <strong>registrarvi</strong> (è gratis) o <strong>accedere</strong> se avete già un account.</p>
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     </div>
   </div>`
 
-  const r = await sendEmail({ to: email, subject: `Le foto di ${title} sono pronte 📸`, html })
+  const r = await sendEmail({ to: email, subject: `Le foto di ${title} sono pronte`, html })
   if (!r.ok) return json({ error: 'email_failed', reason: (r as { reason?: string }).reason }, 502)
   return json({ ok: true })
 })
