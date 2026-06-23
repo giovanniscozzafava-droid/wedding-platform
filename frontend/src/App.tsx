@@ -135,6 +135,7 @@ export default function App() {
           <Route path="/food-cost" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><FoodCostPage /></RequireAuth>} />
           <Route path="/album-lab" element={<RequireAuth><AlbumLabPage /></RequireAuth>} />
           <Route path="/album-copertina/:entryId" element={<RequireAuth><CoverConfigurator /></RequireAuth>} />
+          <Route path="/__album3d" element={<CoverConfigurator />} />
           <Route path="/stili" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SupplierAssetsPage /></RequireAuth>} />
           <Route
             path="/suppliers"

@@ -374,7 +374,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               }}><Check size={14} /> Ok, puoi impaginare la bozza</Button>
             )}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('web')} title="ZIP leggero ~1600px"><FileArchive size={14} /> ZIP Web</Button>
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione"><FileArchive size={14} /> ZIP Originale</Button>
+            {role === 'sposi' && <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione — riservato agli sposi"><FileArchive size={14} /> ZIP Originale</Button>}
             {isOwner && <Link to={`/album-copertina/${entryId}`}><Button variant="outline" size="sm" title="Configura la copertina 3D e invia in stampa"><Printer size={14} /> Copertina & stampa</Button></Link>}
           </div>
         </Card>
@@ -431,7 +431,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
               <div className="flex items-center gap-2">
                 {lvl && <lvl.icon size={16} className="text-[rgb(var(--gold-700))]" />}
-                <h3 className="font-medium">{f.name}</h3>
+                <h3 className="font-medium">{f.name} <span className="text-xs font-normal text-[rgb(var(--fg-subtle))]">({f.gallery_media.length} foto)</span></h3>
                 <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))] text-[10px]">{lvl?.l ?? f.level}</Badge>
                 {f.level === 'LAVORO_INTERO' && (f.shared
                   ? <Badge className="bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] text-[10px]"><Check size={10} /> condivisa</Badge>
@@ -559,7 +559,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               <span className="text-xs text-white/70">{box.i + 1} / {box.list.length}</span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" onClick={() => downloadUrl(webUrl(m), `${base}-web.${ext}`)} title="Versione leggera per il web"><Download size={14} /> Web</Button>
-                <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione"><Download size={14} /> Originale</Button>
+                {role === 'sposi' && <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione — riservato agli sposi"><Download size={14} /> Originale</Button>}
                 {m.uploaded_by && (isOwner || role === 'sposi') && (
                   <Button variant="outline" size="sm" className="!bg-rose-500/20 !text-white !border-rose-300/50 hover:!bg-rose-500/40 backdrop-blur" onClick={() => deleteGuestMedia(m)} title="Elimina questo file caricato da un invitato"><Trash2 size={14} /> Elimina</Button>
                 )}

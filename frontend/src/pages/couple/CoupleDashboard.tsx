@@ -22,6 +22,7 @@ import { eventTerm } from '@/lib/eventKind'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 import { MenuTab } from '@/components/wedding/MenuTab'
 import { GuestsTab } from '@/components/wedding/GuestsTab'
+import { GiftsTab } from '@/components/wedding/GiftsTab'
 import { TablesTab } from '@/components/wedding/TablesTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { TimelineTab } from '@/components/wedding/TimelineTab'
@@ -42,7 +43,7 @@ import { CoupleRequestsCard } from '@/components/wedding/CoupleRequestsCard'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
 
-type Tab = 'overview' | 'chat' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'scaletta' | 'checklist' | 'alloggi' | 'trasporti' | 'invitati' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto' | 'audio' | 'guestbook' | 'video'
+type Tab = 'overview' | 'chat' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'scaletta' | 'checklist' | 'alloggi' | 'trasporti' | 'invitati' | 'regali' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto' | 'audio' | 'guestbook' | 'video'
 
 // La tab "Questionario" (planning) e' stata rimossa dalla coppia:
 // le domande sono gia` raccolte nel questionario di presentazione iniziale
@@ -65,6 +66,7 @@ const TABS: Array<{ key: Tab; label: string; icon: any }> = [
   { key: 'alloggi',   label: 'Alloggi',      icon: BedDouble },
   { key: 'trasporti', label: 'Trasporti',    icon: Bus },
   { key: 'invitati',  label: 'Invitati',     icon: UsersIcon },
+  { key: 'regali',    label: 'Regali',       icon: Gift },
   { key: 'tavoli',    label: 'Tavoli',       icon: PartyPopper },
   { key: 'menu',      label: 'Menu',         icon: Utensils },
   { key: 'mood',      label: 'Mood board',   icon: Palette },
@@ -329,6 +331,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             {tab === 'alloggi' && <AlloggiCouple entryId={entryId} />}
             {tab === 'trasporti' && <TrasportiCouple entryId={entryId} />}
             {tab === 'invitati' && <GuestsTab entryId={entryId} eventKind={eventKind} />}
+            {tab === 'regali' && <GiftsTab entryId={entryId} />}
             {tab === 'tavoli' && <TablesTab entryId={entryId} />}
             {tab === 'menu' && (
               <div className="space-y-4">

@@ -15,6 +15,7 @@ import { OverviewTab } from '@/components/wedding/OverviewTab'
 import { TimelineTab } from '@/components/wedding/TimelineTab'
 import { TablesTab } from '@/components/wedding/TablesTab'
 import { GuestsTab } from '@/components/wedding/GuestsTab'
+import { GiftsTab } from '@/components/wedding/GiftsTab'
 import { BudgetTab } from '@/components/wedding/BudgetTab'
 import { ChecklistTab } from '@/components/wedding/ChecklistTab'
 import { MoodTab } from '@/components/wedding/MoodTab'
@@ -54,7 +55,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchUnreadByEntry, tabsWithDot, typesForTab, markEntryTabRead } from '@/lib/notifGuide'
 import { useQueryClient } from '@tanstack/react-query'
 
-type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
+type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
 
 type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean }
 
@@ -64,6 +65,7 @@ const TABS: Array<TabDef> = [
   { key: 'ceremony',       label: 'Cerimonia',    icon: Church },
   { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock },
   { key: 'guests',         label: 'Invitati',     icon: UsersIcon },
+  { key: 'regali',         label: 'Regali',       icon: Gift },
   { key: 'tables',         label: 'Tavoli',       icon: Table2 },
   { key: 'menu',           label: 'Menu',         icon: Utensils, capostipiteOnly: true },
   { key: 'accommodations', label: 'Alloggi',      icon: BedDouble },
@@ -324,6 +326,7 @@ export default function WeddingDashboard() {
             {tab === 'timeline' && <TimelineTab entryId={wedding.id} eventKind={(wedding as any).event_kind} />}
             {tab === 'tables' && <TablesTab entryId={wedding.id} />}
             {tab === 'guests' && <GuestsTab entryId={wedding.id} eventKind={wedding.event_kind} />}
+            {tab === 'regali' && <GiftsTab entryId={wedding.id} />}
             {tab === 'menu' && <MenuTab entryId={wedding.id} />}
             {tab === 'budget' && <BudgetTab entryId={wedding.id} />}
             {tab === 'payments' && <PagamentiTab entryId={wedding.id} />}

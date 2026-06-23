@@ -75,6 +75,8 @@ class AlbumScene {
   back: THREE.Mesh | null = null
   title: THREE.Mesh | null = null
   photo: THREE.Group | null = null
+  box: THREE.Group | null = null
+  boxKey = ''
   modelKey = ''; sizeSig = ''
   d = 0.5; w = 2.3; h = 2.85; tBoard = 0.1
   decoro: Decoro = 'plate'
@@ -331,12 +333,43 @@ class AlbumScene {
     this.group.add(grp); this.photo = grp
   }
 
+  // box/contenitore coordinato che spunta dietro l'album (abbinamento packaging)
+  setBox(boxKey: string | undefined, onReady: () => void) {
+    const k = boxKey && boxKey !== 'nessuno' ? boxKey : ''
+    if (this.boxKey === k && this.box) return
+    if (this.box) { this.group.remove(this.box); this.box = null }
+    this.boxKey = k
+    if (!k) return
+    const isCase = k === 'valigetta'
+    const mat = isCase
+      ? new THREE.MeshPhysicalMaterial({ color: 0x33271f, roughness: 0.5, clearcoat: 0.2 })
+      : new THREE.MeshStandardMaterial({ map: loadAlbedo(this.texLoader, '/textures/wood/noce.jpg', 1, onReady), roughness: 0.6 })
+    const g = new THREE.Group()
+    const bw = this.w * 1.05, bh = this.h * 1.05, bd = this.d * 1.3
+    const cof = new THREE.Mesh(new RoundedBoxGeometry(bw, bh, bd, 4, 0.05), mat)
+    cof.position.set(this.w * 0.3, this.h * 0.08, -this.d * 0.92)
+    cof.castShadow = cof.receiveShadow = true
+    g.add(cof)
+    // coperchio/solco a metà altezza (linea del cofanetto)
+    const groove = new THREE.Mesh(new THREE.BoxGeometry(bw * 1.002, 0.012, bd * 1.002), new THREE.MeshStandardMaterial({ color: 0x1a120c, roughness: 1 }))
+    groove.position.set(this.w * 0.3, this.h * 0.08, -this.d * 0.92)
+    g.add(groove)
+    if (isCase) { // manico valigetta
+      const handle = new THREE.Mesh(new THREE.TorusGeometry(this.w * 0.12, this.w * 0.018, 10, 24, Math.PI),
+        new THREE.MeshPhysicalMaterial({ color: 0x222, roughness: 0.5 }))
+      handle.position.set(this.w * 0.3, this.h * 0.62, -this.d * 0.92); handle.rotation.z = Math.PI
+      g.add(handle)
+    }
+    this.group.add(g); this.box = g
+  }
+
   apply(cover: Cover, onReady: () => void) {
     const sig = `${cover.model}|${cover.sizeKey || ''}|${cover.format || ''}`
-    if (sig !== this.sizeSig) { this.sizeSig = sig; this.modelKey = cover.model || ''; this.build(cover) }
+    if (sig !== this.sizeSig) { this.sizeSig = sig; this.modelKey = cover.model || ''; this.box = null; this.boxKey = ''; this.build(cover) }
     this.setMaterial(cover.fabric, cover.color, cover.colorKey ? COLORS[cover.colorKey]?.tex : undefined, onReady)
     this.setTitle(cover.title, cover.color)
     this.setPhoto(cover.photo_url, onReady)
+    this.setBox(cover.box, onReady)
   }
 }
 
@@ -444,7 +477,7 @@ export function AlbumMockup3D({ cover, width = 360, interactive = true }: { cove
     frameRef.current()   // riposiziona camera se è cambiato il formato
     renderRef.current()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cover.model, cover.fabric, cover.color, cover.title, cover.photo_url, cover.format, cover.sizeKey])
+  }, [cover.model, cover.fabric, cover.color, cover.title, cover.photo_url, cover.format, cover.sizeKey, cover.box])
 
   if (failed) return <AlbumMockup cover={cover} width={width} interactive={interactive} />
   return <div ref={mountRef} style={{ width, height: H, cursor: interactive ? 'grab' : 'default', touchAction: 'none' }} className="select-none rounded-lg overflow-hidden" />
