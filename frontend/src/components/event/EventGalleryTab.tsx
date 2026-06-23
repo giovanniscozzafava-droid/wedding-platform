@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { getDriveToken, ensureDriveFolder, uploadAnyToDrive } from '@/lib/driveUpload'
 import { InviteCouplePhotos } from '@/components/event/InviteCouplePhotos'
+import { GalleryShowcase } from '@/components/event/GalleryShowcase'
 import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
 import { QRCodeSVG } from 'qrcode.react'
 import { exportTableTents } from '@/lib/tableTents'
@@ -56,6 +57,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [box, setBox] = useState<{ list: Media[]; i: number } | null>(null)
 
   const isOwner = !!gallery && gallery.owner_id === me
+  const [showcase, setShowcase] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -341,6 +343,19 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         </Card>
       )}
 
+      {folders.some((f) => f.gallery_media.length > 0) && (
+        <div className="flex justify-end">
+          <Button variant="gold" size="sm" onClick={() => setShowcase(true)}><Images size={14} /> Presentazione galleria</Button>
+        </div>
+      )}
+      {showcase && (
+        <GalleryShowcase title="Galleria" onClose={() => setShowcase(false)}
+          items={folders.flatMap((f) => f.gallery_media).filter((m) => m.media_type === 'PHOTO').map((m) => ({
+            id: m.id,
+            thumb: isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w600` : (m.thumbnail_link ?? ''),
+            full: fullSrc(m),
+          }))} />
+      )}
       {/* Album: il fotografo impagina/esporta; gli sposi visualizzano e chiedono modifiche.
           Per gli sposi la card è SEMPRE visibile (anche prima che ci siano foto), così possono entrare. */}
       {(isOwner || role === 'sposi') && (role === 'sposi' || folders.some((f) => f.gallery_media.length > 0)) && (
