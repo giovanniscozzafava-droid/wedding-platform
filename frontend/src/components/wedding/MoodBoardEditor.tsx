@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Heart, Star, Leaf, Flower2, Sparkles, Sun, Moon, Music, Camera, Gem, Wine,
   Cake, Bird, Cloud, MapPin, Crown, Type, Image as ImageIcon, Shapes, Smile,
-  Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2, Download, FileDown, Scissors,
+  Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2, Download, FileDown, Scissors, Undo2, Redo2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import {
   emptyBoard, addImage, addText, addShape, addIcon, moveEl, resizeEl, snapMove, snapAngle,
   updateEl, removeEl, bringFront, sendBack, duplicateEl, FLOURISHES, SHAPES, MOOD_PALETTE,
-  MOOD_FONTS, PRESETS, LAYOUT_STYLES, GRADIENTS, type MoodBoard, type MoodEl, type Corner,
+  MOOD_FONTS, PRESETS, LAYOUT_STYLES, GRADIENTS, emptyDoc, toDoc, type MoodBoard, type MoodDoc, type MoodEl, type Corner,
 } from '@/lib/moodBoard'
 
 // generatori di path per le forme "complesse"
@@ -63,7 +63,10 @@ function ShapeView({ name, fill }: { name: string; fill: string }) {
 function ElView({ el }: { el: MoodEl }) {
   if (el.kind === 'image') {
     const r = el.radius ? `${el.radius * 100}%` : undefined
-    const img = <div className="w-full h-full bg-center bg-cover bg-[rgb(var(--bg-sunken))]" style={{ backgroundImage: el.src ? `url(${el.src})` : undefined, borderRadius: r }} />
+    // scontornata: niente placeholder dietro (trasparente) e "contain" per vedere tutto il soggetto
+    const img = el.cut
+      ? <div className="w-full h-full bg-center bg-no-repeat" style={{ backgroundImage: el.src ? `url(${el.src})` : undefined, backgroundSize: 'contain', borderRadius: r }} />
+      : <div className="w-full h-full bg-center bg-cover bg-[rgb(var(--bg-sunken))]" style={{ backgroundImage: el.src ? `url(${el.src})` : undefined, borderRadius: r }} />
     if (el.frame === 'polaroid') return <div className="w-full h-full bg-white shadow-md rounded-[2px] p-[7%] pb-[16%]">{img}</div>
     return img
   }
@@ -80,7 +83,8 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
   entryId: string; pins: string[]; readOnly?: boolean
   title?: string | null; dateText?: string | null; location?: string | null; brandName?: string | null; brandEmail?: string | null
 }) {
-  const [board, setBoard] = useState<MoodBoard>(emptyBoard())
+  const [doc, setDoc] = useState<MoodDoc>(emptyDoc())
+  const [cur, setCur] = useState(0)
   const [sel, setSel] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -95,18 +99,37 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
   const drag = useRef<{ kind: 'move' | 'resize' | 'rotate'; id: string; corner?: Corner; sx: number; sy: number; el: MoodEl } | null>(null)
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
 
+  // cronologia Annulla/Ripeti (Cmd+Z) — tutto su refs così niente staleness nei listener
+  const docRef = useRef(doc); docRef.current = doc
+  const undoStack = useRef<MoodDoc[]>([])
+  const redoStack = useRef<MoodDoc[]>([])
+  const dragging = useRef(false)
+  const pendingSnap = useRef<MoodDoc | null>(null)
+  function pushHist() { undoStack.current.push(docRef.current); if (undoStack.current.length > 80) undoStack.current.shift(); redoStack.current = [] }
+  function undo() { if (!undoStack.current.length) return; redoStack.current.push(docRef.current); setDoc(undoStack.current.pop()!); setSel(null) }
+  function redo() { if (!redoStack.current.length) return; undoStack.current.push(docRef.current); setDoc(redoStack.current.pop()!); setSel(null) }
+
+  const curIdx = Math.min(cur, doc.pages.length - 1)
+  const board = doc.pages[curIdx] ?? emptyBoard()
+  // ogni modifica discreta passa di qui e registra la cronologia; durante un drag no
+  // (lo snapshot pre-drag è preso in down() e confermato in up()).
+  function setBoard(u: MoodBoard | ((b: MoodBoard) => MoodBoard)) {
+    if (!dragging.current) pushHist()
+    setDoc((d) => { const pages = d.pages.slice(); const i = Math.min(curIdx, pages.length - 1); const prev = pages[i] ?? emptyBoard(); pages[i] = typeof u === 'function' ? (u as (b: MoodBoard) => MoodBoard)(prev) : u; return { ...d, pages } })
+  }
+
   const load = useCallback(async () => {
     setLoading(true)
     const { data } = await (supabase.from as any)('mood_boards').select('data').eq('entry_id', entryId).maybeSingle()
-    const d = (data as { data?: MoodBoard } | null)?.data
-    if (d && Array.isArray(d.els)) setBoard({ bg: d.bg ?? '#faf6ef', els: d.els })
+    setDoc(toDoc((data as { data?: unknown } | null)?.data))
+    setCur(0); undoStack.current = []; redoStack.current = []
     setLoading(false); loadedRef.current = true
   }, [entryId])
   useEffect(() => { void load() }, [load])
 
-  const persist = useCallback(async (b: MoodBoard, silent = true) => {
+  const persist = useCallback(async (d: MoodDoc, silent = true) => {
     setSaving(true)
-    const { error } = await (supabase.from as any)('mood_boards').upsert({ entry_id: entryId, data: b }, { onConflict: 'entry_id' })
+    const { error } = await (supabase.from as any)('mood_boards').upsert({ entry_id: entryId, data: d }, { onConflict: 'entry_id' })
     setSaving(false)
     if (error && !silent) toast.error('Salvataggio non riuscito: ' + error.message)
     else if (!silent) toast.success('Moodboard salvato')
@@ -116,9 +139,31 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
   useEffect(() => {
     if (!loadedRef.current || readOnly) return
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => { void persist(board) }, 1200)
+    saveTimer.current = window.setTimeout(() => { void persist(doc) }, 1200)
     return () => { if (saveTimer.current) window.clearTimeout(saveTimer.current) }
-  }, [board, persist, readOnly])
+  }, [doc, persist, readOnly])
+
+  // tastiera: Cmd/Ctrl+Z annulla, +Shift redo (o Ctrl+Y). Non nei campi di testo.
+  useEffect(() => {
+    if (readOnly) return
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      const k = e.key.toLowerCase()
+      if (k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo() }
+      else if (k === 'y') { e.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly])
+
+  // pagine
+  function goPage(i: number) { setSel(null); setCur(i) }
+  function addPage() { pushHist(); setDoc((d) => ({ ...d, pages: [...d.pages, emptyBoard()] })); setSel(null); setCur(doc.pages.length) }
+  function dupPage() { pushHist(); setDoc((d) => { const pages = d.pages.slice(); const clone = JSON.parse(JSON.stringify(pages[curIdx] ?? emptyBoard())) as MoodBoard; pages.splice(curIdx + 1, 0, clone); return { ...d, pages } }); setSel(null); setCur(curIdx + 1) }
+  function delPage() { if (doc.pages.length <= 1) return; pushHist(); setDoc((d) => ({ ...d, pages: d.pages.filter((_, i) => i !== curIdx) })); setSel(null); setCur(Math.max(0, curIdx - 1)) }
 
   const els = [...board.els].sort((a, b) => a.z - b.z)
   const selEl = board.els.find((e) => e.id === sel) ?? null
@@ -128,6 +173,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
   function down(e: React.PointerEvent, kind: 'move' | 'resize' | 'rotate', el: MoodEl, corner?: Corner) {
     if (readOnly) return
     e.stopPropagation(); setSel(el.id); const f = frac(e); drag.current = { kind, id: el.id, corner, sx: f.x, sy: f.y, el }
+    dragging.current = true; pendingSnap.current = docRef.current // snapshot pre-drag per l'undo
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   function move(e: React.PointerEvent) {
@@ -139,7 +185,13 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
     } else if (d.kind === 'resize' && d.corner) { const r = resizeEl(d.el, d.corner, f.x, f.y); setEls((arr) => updateEl(arr, d.id, { x: r.x, y: r.y, w: r.w, h: r.h })) }
     else if (d.kind === 'rotate') { const cx = d.el.x + d.el.w / 2, cy = d.el.y + d.el.h / 2; const deg = (Math.atan2(f.y - cy, f.x - cx) * 180) / Math.PI + 90; setEls((arr) => updateEl(arr, d.id, { rot: snapAngle(deg) })) }
   }
-  function up() { drag.current = null; setGuides({ v: [], h: [] }) }
+  function up() {
+    drag.current = null; setGuides({ v: [], h: [] })
+    if (dragging.current) {
+      if (pendingSnap.current && pendingSnap.current !== docRef.current) { undoStack.current.push(pendingSnap.current); if (undoStack.current.length > 80) undoStack.current.shift(); redoStack.current = [] }
+      pendingSnap.current = null; dragging.current = false
+    }
+  }
 
   function applyPreset(i: number) { setBoard(PRESETS[i]!.build(pins.length ? pins : ['', '', ''])); setSel(null); setTab('img') }
   // stili d'impaginazione dinamici: dispongono TUTTE le foto del mood (ritagli/polaroid/moda)
@@ -162,7 +214,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
   }
   // PDF editoriale dalle foto del board (in ordine di lettura alto→basso, sinistra→destra)
   async function exportPdf() {
-    const imgs = board.els.filter((e) => e.kind === 'image' && e.src).sort((a, b) => (a.y - b.y) || (a.x - b.x)).map((e) => ({ url: e.src as string }))
+    const imgs = doc.pages.flatMap((p) => [...p.els].filter((e) => e.kind === 'image' && e.src).sort((a, b) => (a.y - b.y) || (a.x - b.x))).map((e) => ({ url: e.src as string }))
     if (!imgs.length) { toast.error('Aggiungi qualche foto'); return }
     setExporting(true)
     try {
@@ -180,7 +232,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
     try {
       const { removeBackground } = await import('@imgly/background-removal')
       const blob = await removeBackground(selEl.src)
-      patchSel({ src: await blobToDataUrl(blob) })
+      patchSel({ src: await blobToDataUrl(blob), cut: true, frame: undefined })
       toast.success('Sfondo rimosso')
     } catch { toast.error('Scontorno non riuscito: immagine non accessibile (CORS) o troppo grande.') }
     finally { setProcessing(false) }
@@ -200,7 +252,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
           {saving && <span className="text-[11px] text-[rgb(var(--fg-muted))] flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> salvo…</span>}
           {board.els.length > 0 && <Button size="sm" variant="outline" onClick={() => void exportPdf()} disabled={exporting}><FileDown size={14} /> PDF</Button>}
           {board.els.length > 0 && <Button size="sm" variant="outline" onClick={() => void exportPng()} disabled={exporting}><Download size={14} /> PNG</Button>}
-          {!readOnly && <Button size="sm" variant="outline" onClick={() => void persist(board, false)}><Save size={14} /> Salva</Button>}
+          {!readOnly && <Button size="sm" variant="outline" onClick={() => void persist(doc, false)}><Save size={14} /> Salva</Button>}
           <Button size="sm" variant={open ? 'gold' : 'outline'} onClick={() => setOpen((v) => !v)}>{open ? 'Chiudi' : 'Apri e modifica'}</Button>
         </div>
       </div>
@@ -222,6 +274,22 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
       )}
 
       {open && (
+        <>
+        {/* barra pagine + annulla/ripeti */}
+        <div className="flex items-center gap-1.5 px-4 pt-3 flex-wrap border-b border-[rgb(var(--border))] pb-3">
+          {doc.pages.map((_, i) => (
+            <button key={i} onClick={() => goPage(i)} title={`Pagina ${i + 1}`}
+              className={`h-7 min-w-[28px] px-2 rounded-md text-xs font-medium ${i === curIdx ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg))]' : 'border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{i + 1}</button>
+          ))}
+          {!readOnly && <button onClick={addPage} title="Aggiungi pagina" className="h-7 px-2 rounded-md border border-dashed border-[rgb(var(--border))] text-xs inline-flex items-center gap-1 hover:bg-[rgb(var(--bg-sunken))]"><Plus size={12} /> Pagina</button>}
+          {!readOnly && <span className="mx-0.5 h-4 w-px bg-[rgb(var(--border))]" />}
+          {!readOnly && <button onClick={dupPage} title="Duplica pagina" className="h-7 w-7 rounded-md border border-[rgb(var(--border))] inline-flex items-center justify-center hover:bg-[rgb(var(--bg-sunken))]"><Copy size={12} /></button>}
+          {!readOnly && doc.pages.length > 1 && <button onClick={delPage} title="Elimina pagina" className="h-7 w-7 rounded-md border border-[rgb(var(--border))] text-rose-500 inline-flex items-center justify-center hover:bg-[rgb(var(--bg-sunken))]"><Trash2 size={12} /></button>}
+          {!readOnly && <span className="mx-0.5 h-4 w-px bg-[rgb(var(--border))]" />}
+          {!readOnly && <button onClick={undo} title="Annulla (Cmd+Z)" className="h-7 w-7 rounded-md border border-[rgb(var(--border))] inline-flex items-center justify-center hover:bg-[rgb(var(--bg-sunken))]"><Undo2 size={13} /></button>}
+          {!readOnly && <button onClick={redo} title="Ripeti (Cmd+Shift+Z)" className="h-7 w-7 rounded-md border border-[rgb(var(--border))] inline-flex items-center justify-center hover:bg-[rgb(var(--bg-sunken))]"><Redo2 size={13} /></button>}
+          <span className="ml-auto text-[11px] text-[rgb(var(--fg-subtle))]">Pagina {curIdx + 1} di {doc.pages.length}</span>
+        </div>
         <div className="lg:flex">
           {/* strumenti */}
           {!readOnly && (
@@ -352,6 +420,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   )

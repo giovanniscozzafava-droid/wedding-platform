@@ -7,6 +7,7 @@ export type MoodEl = {
   id: string; kind: MoodKind
   x: number; y: number; w: number; h: number; rot: number; z: number
   src?: string                                   // image
+  cut?: boolean                                  // scontornata (sfondo rimosso) → niente placeholder dietro
   frame?: 'polaroid'                             // cornice immagine (polaroid = bordo bianco + base)
   radius?: number                                // 0..0.5 raggio angoli immagine (0.5 = cerchio)
   blur?: number                                  // sfocatura px
@@ -23,6 +24,18 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 function uid(): string { try { return crypto.randomUUID() } catch { return `m-${Date.now()}-${Math.floor(Math.random() * 1e9)}` } }
 
 export function emptyBoard(): MoodBoard { return { bg: '#faf6ef', els: [] } }
+
+// Documento moodboard multi-pagina. Persistito in mood_boards.data. Retrocompatibile:
+// i board vecchi ({bg,els}) vengono avvolti in una singola pagina.
+export type MoodDoc = { pages: MoodBoard[] }
+export function emptyDoc(): MoodDoc { return { pages: [emptyBoard()] } }
+export function toDoc(data: unknown): MoodDoc {
+  const d = data as { pages?: MoodBoard[]; bg?: string; els?: MoodEl[] } | null | undefined
+  const norm = (p: { bg?: string; els?: MoodEl[] } | null | undefined): MoodBoard => ({ bg: p?.bg ?? '#faf6ef', els: Array.isArray(p?.els) ? p!.els! : [] })
+  if (d && Array.isArray(d.pages) && d.pages.length) return { pages: d.pages.map(norm) }
+  if (d && Array.isArray(d.els)) return { pages: [norm(d)] }       // legacy: board singolo
+  return emptyDoc()
+}
 const topZ = (els: MoodEl[]) => (els.length ? Math.max(...els.map((e) => e.z)) + 1 : 1)
 
 // ── fabbriche elementi ──────────────────────────────────────────────────────
