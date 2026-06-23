@@ -386,6 +386,8 @@ export const MODEL_MOCKUP: Record<string, boolean> = {
   claire: true, comete: true, almond: true, brand: true, trilogy: true, vega: true,
   'diez-sw': true, andromeda: true, rimboccato: true,
   cassiopea: true, elsie: true, amelie: true, betulla: true, hera: true, canvas: true, 'bouquet-sw': true, adel: true,
+  // mockup REALI ritagliati dalle tavole tecniche del catalogo (giu 2026)
+  thea: true, chloe: true, darling: true, 'elsie-gold': true,
 }
 export const mockupFor = (k?: string): string | null => (k && MODEL_MOCKUP[k]) ? `/textures/mockups/${k}.jpg` : null
 // 3D ruotabile derivato dal mockup 2D (Higgsfield image_to_3d → GLB)
@@ -492,7 +494,7 @@ export type Tier = 'BASIC' | 'ROYAL' | 'PRIME' | 'TOP'
 // tier per modello (dalla colonna TIP. del listino, pag.1-3)
 export const MODEL_TIER: Record<string, Tier> = {
   rimboccato: 'BASIC', 'blocco-libro': 'BASIC',
-  brand: 'ROYAL', trilogy: 'ROYAL', almond: 'PRIME', claire: 'TOP', thea: 'TOP', adel: 'PRIME', elsie: 'ROYAL',
+  brand: 'ROYAL', trilogy: 'ROYAL', almond: 'PRIME', claire: 'TOP', thea: 'TOP', adel: 'PRIME', elsie: 'ROYAL', 'elsie-gold': 'TOP',
   vega: 'TOP', diez: 'ROYAL', comete: 'ROYAL', plaza: 'ROYAL',
   andromeda: 'ROYAL', cassiopea: 'ROYAL', chloe: 'ROYAL', 'graphic-touch': 'ROYAL', charme: 'ROYAL',
   azulejo: 'ROYAL', hera: 'ROYAL', canvas: 'BASIC', 'frame-cristalplex': 'ROYAL', 'frame-plexy': 'ROYAL',
