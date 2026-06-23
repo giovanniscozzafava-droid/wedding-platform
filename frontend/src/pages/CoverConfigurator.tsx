@@ -11,7 +11,7 @@ import {
   CATEGORIES, BOXES, COLORS, FORMATS,
   modelsByCategory, materialsForModel, paletteFor, modelByKey,
   sizesForFormat, defaultSizeKey, sizeByKey,
-  coverPrice, euro, isWoodModel, mockupFor, modelLabel,
+  coverPrice, euro, isWoodModel, mockupFor, modelLabel, FINISHES,
   type Cover, type ColorDef, type Format,
 } from '@/components/album/albumCatalog'
 import { sendAlbumToPrint } from '@/hooks/useAlbumLab'
@@ -53,6 +53,10 @@ export default function CoverConfigurator() {
   const allowedMaterials = materialsForModel(cover.model)
   const palette = paletteFor(cover.fabric)
   const price = coverPrice(cover, copies)
+  const toggleFinish = (k: string) => {
+    const cur = cover.finishes ?? []
+    set({ finishes: cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k] })
+  }
 
   function pickCategory(cat: string) {
     setCategory(cat)
@@ -203,8 +207,30 @@ export default function CoverConfigurator() {
             </div>
 
             <label className="text-xs text-[rgb(var(--fg-muted))] block">Copie<Input type="number" min={1} value={copies} onChange={(e) => setCopies(Math.max(1, Number(e.target.value) || 1))} className="mt-1 w-24" /></label>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Pagine & finiture</p>
+              <div className="flex items-center gap-3 flex-wrap mb-2">
+                <label className="text-xs text-[rgb(var(--fg-muted))]">Interni (fogli)
+                  <Input type="number" min={10} max={80} step={5} value={cover.pages ?? 40}
+                    onChange={(e) => set({ pages: Math.max(10, Math.min(80, Number(e.target.value) || 40)) })} className="mt-1 w-20" /></label>
+                <div className="flex gap-1 self-end">
+                  <button onClick={() => set({ blockType: 'photo' })} className={`${chip} ${(cover.blockType ?? 'photo') === 'photo' ? on : off}`}>Stampa foto</button>
+                  <button onClick={() => set({ blockType: 'bookflat' })} className={`${chip} ${cover.blockType === 'bookflat' ? on : off}`}>Book flat</button>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm mb-2">
+                <input type="checkbox" checked={!!cover.parents} onChange={(e) => set({ parents: e.target.checked })} /> Album genitori (2 mini)
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {FINISHES.map((f) => (
+                  <button key={f.key} onClick={() => toggleFinish(f.key)} title={`+ ${euro(f.amount)}`}
+                    className={`${chip} ${(cover.finishes ?? []).includes(f.key) ? on : off}`}>{f.label} <span className="opacity-60">+{f.amount}</span></button>
+                ))}
+              </div>
+            </div>
+
             <Card className="p-3 bg-[rgb(var(--bg-sunken))]">
-              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Prezzo</p>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Prezzo finale</p>
               <div className="space-y-1">
                 {price.lines.map((l, i) => (
                   <div key={i} className="flex justify-between text-sm gap-3">

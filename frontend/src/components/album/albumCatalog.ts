@@ -17,6 +17,11 @@ export type Cover = {
   box?: string             // chiave BOX/contenitore
   format?: Format          // verticale / orizzontale / quadrato (scelta primaria)
   sizeKey?: string         // misura reale scelta (es. portrait:30x40)
+  // --- ordine completo (calcolatore) ---
+  pages?: number           // n. interni (fogli)
+  blockType?: 'photo' | 'bookflat'  // blocco digitale fotografico / book flat cartoncino
+  parents?: boolean        // album genitori (2 mini)
+  finishes?: string[]      // rifiniture: swarovski|targhetta|iniziali|data|logo
   photo_url?: string | null
   title?: string
 }
@@ -504,6 +509,19 @@ const SIZE_COL: Record<string, number> = {
 // box (packaging) — prezzo ~30x40 ROYAL (pag.5-7), scalato per misura
 const BOX_REF: Record<string, number> = { nessuno: 0, 'wood-clak': 110, 'wood-duo': 90, 'wood-case': 100, 'twin-box': 110, valigetta: 40 }
 const TIDX: Record<Tier, number> = { BASIC: 0, ROYAL: 1, PRIME: 2, TOP: 3 }
+// blocco interno: prezzo per facciata (pag.8). photo = stampa+montaggio LUX; book = cartoncino book-flat
+const PHOTO_UNIT = [1.3, 1.4, 1.5, 2.7, 2.7, 3, 3.2, 3.7, 3.9, 4.6, 3.7, 4.2, 6.5, 6, 5.5]
+const BOOK_UNIT = [1, 1, 1, 1.5, 1.5, 1.5, 2, 2, 2, 2.5, 2, 2, 2.5, 2.5, 2.5]
+// album genitori (2 mini, coppia ~ incl. blocco) — stima da listino coordinati per gruppo
+const MINI_SUPP: Record<'A' | 'B' | 'C' | 'D', number> = { A: 60, B: 75, C: 95, D: 110 }
+// rifiniture / personalizzazioni (pag.9)
+export const FINISHES: { key: string; label: string; amount: number }[] = [
+  { key: 'swarovski', label: 'Linea/decoro Swarovski', amount: 30 },
+  { key: 'targhetta', label: 'Targhetta ottone (Diez/Plaza)', amount: 30 },
+  { key: 'iniziali', label: 'Iniziali ottone nichelato (2)', amount: 36 },
+  { key: 'data', label: 'Aggiunta data', amount: 10 },
+  { key: 'logo', label: 'Logo da catalogo', amount: 20 },
+]
 
 export const PRICING = { extraCopyFactor: 0.45, logoFromCatalog: 20, dataSposo: 10 }
 
@@ -515,21 +533,36 @@ export function coverPrice(cover?: Cover, copies = 1): PriceBreakdown {
   const group = (cover?.fabric && MATERIAL_GROUP[cover.fabric]) || 'A'
   const col = SIZE_COL[cover?.sizeKey || ''] ?? 9
   const base = (GROUP_A[col]?.[TIDX[tier]] ?? 150) + GROUP_SUPP[group]
-  const size = sizeByKey(cover?.sizeKey)
   const lines: PriceLine[] = [
     { label: `Copertina ${modelLabel(cover?.model)} · ${tier}`, amount: base },
   ]
+  // pagine interne (blocco)
+  const pages = cover?.pages ?? 40
+  const bt = cover?.blockType ?? 'photo'
+  const unitP = (bt === 'photo' ? PHOTO_UNIT[col] : BOOK_UNIT[col]) ?? 4
+  const pagesAmt = Math.round(unitP * pages)
+  lines.push({ label: `Pagine interne · ${pages} (${bt === 'photo' ? 'stampa foto' : 'book flat'})`, amount: pagesAmt })
+  // box
   let boxAmt = 0
   if (cover?.box && cover.box !== 'nessuno') {
     const ref = BOX_REF[cover.box] ?? 0
     boxAmt = Math.round((ref * ((GROUP_A[col]?.[1] ?? 150) / 150)) / 5) * 5
-    lines.push({ label: `Box ${boxLabel(cover.box)} (${size?.label ?? ''})`, amount: boxAmt })
+    lines.push({ label: `Box ${boxLabel(cover.box)}`, amount: boxAmt })
   }
-  const unit = base + boxAmt
+  // album genitori (2 mini)
+  let parAmt = 0
+  if (cover?.parents) { parAmt = MINI_SUPP[group]; lines.push({ label: 'Album genitori (2 mini)', amount: parAmt }) }
+  // rifiniture
+  let finAmt = 0
+  for (const f of cover?.finishes ?? []) {
+    const def = FINISHES.find((x) => x.key === f)
+    if (def) { finAmt += def.amount; lines.push({ label: def.label, amount: def.amount }) }
+  }
+  const unit = base + pagesAmt + boxAmt + parAmt + finAmt
   const n = Math.max(1, copies)
   let total = unit
   if (n > 1) {
-    const extra = Math.round(base * PRICING.extraCopyFactor) * (n - 1)
+    const extra = Math.round((base + pagesAmt) * PRICING.extraCopyFactor) * (n - 1)
     lines.push({ label: `${n - 1} copia/e aggiuntiva/e`, amount: extra })
     total = unit + extra
   }
