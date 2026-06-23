@@ -124,10 +124,8 @@ class AlbumScene {
       fm.bumpMap = grain; fm.bumpScale = p.bumpScale * 1.2
       fm.needsUpdate = true
     }
-    // dorso + retro: tinta/legno del materiale
-    const skin = (mesh: THREE.Mesh | null) => {
-      if (!mesh) return
-      const cm = mesh.material as THREE.MeshPhysicalMaterial
+    // dorso + retro + bordi del piatto: il materiale avvolge le coste (no cornice bianca)
+    const paintMat = (cm: THREE.MeshPhysicalMaterial) => {
       if (wood) { cm.map = wood; cm.color.set(0xffffff) } else { cm.map = null; cm.color.set(cover.color || mat.swatch) }
       cm.roughness = p.roughness; cm.metalness = Math.min(0.15, p.metalness)
       cm.clearcoat = p.clearcoat ?? 0; cm.clearcoatRoughness = p.clearcoatRoughness ?? 0.5
@@ -135,8 +133,11 @@ class AlbumScene {
       cm.bumpMap = grain; cm.bumpScale = p.bumpScale * (wood ? 1.4 : 3.0)
       cm.needsUpdate = true
     }
+    const skin = (mesh: THREE.Mesh | null) => { if (mesh) paintMat(mesh.material as THREE.MeshPhysicalMaterial) }
     skin(this.spine)
     skin(this.back)
+    // coste del piatto frontale (tutte le facce tranne la +z = copertina)
+    if (this.front) { const fa = this.front.material as THREE.MeshPhysicalMaterial[];[0, 1, 2, 3, 5].forEach((i) => fa[i] && paintMat(fa[i]!)) }
   }
 
   // box/contenitore coordinato dietro l'album
