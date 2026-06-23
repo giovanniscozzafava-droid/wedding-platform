@@ -828,9 +828,9 @@ export default function QuoteEditorPage() {
                             <option key={k} value={k}>{v.label}</option>
                           ))}
                         </Select>
-                        <Input type="number" step="0.5" value={Number(it.quantity)}
+                        <Input type="number" step="0.5" min={0} value={Number(it.quantity)}
                           onChange={(e) => handleChangeItemQty(it.id, Number(e.target.value))}
-                          disabled={basis === 'PER_GUEST' || basis === 'PER_TABLE'}
+                          title={basis === 'PER_GUEST' || basis === 'PER_TABLE' ? 'Quantità modificabile: scrivi un numero diverso dal totale (es. solo 10 invitati)' : undefined}
                           className="h-8 w-24 text-xs" />
                         <span className="text-xs text-[rgb(var(--fg-subtle))]">{it.unit_snapshot.toLowerCase()}</span>
                         <span className="text-xs text-[rgb(var(--fg-subtle))] ml-2">sconto</span>
