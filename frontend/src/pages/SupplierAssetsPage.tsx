@@ -49,9 +49,9 @@ export default function SupplierAssetsPage() {
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader
-          eyebrow="Profilo · Asset"
-          title="Stili & lavori (la tua libreria)"
-          description="Carica le foto dei tuoi lavori e taggale. Da qui nascono il gioco “scegli il tuo stile” nel form lead e, in futuro, pagine e siti generati dai tuoi asset."
+          eyebrow="Profilo · Portfolio"
+          title="Portfolio (i tuoi lavori)"
+          description="Carica le foto dei tuoi lavori e taggale (obbligatorio: descrivi cosa si vede). Da qui partono le foto per i giochi di scelta nel preventivo e, in futuro, pagine e siti generati dal tuo portfolio."
         />
 
         <Card className="p-5 mb-6 border-dashed"
