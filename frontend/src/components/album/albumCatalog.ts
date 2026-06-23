@@ -35,6 +35,7 @@ export type Cover = {
 }
 
 export type Format = 'square' | 'portrait' | 'landscape'
+export type Tier = 'BASIC' | 'ROYAL' | 'PRIME' | 'TOP'
 export type CoverFontKey = 'fraunces' | 'baskerville' | 'bodoni' | 'script' | 'modern' | 'smallcaps'
 export type CoverTextLayout = 'model' | 'center' | 'bottom' | 'plate' | 'split'
 export type CoverDecorationKey = 'none' | 'divider' | 'botanical' | 'laurel' | 'flourish' | 'hearts' | 'sparkles' | 'wreath'
@@ -49,7 +50,19 @@ export type PBR = {
 export type ColorDef = { key: string; label: string; hex: string; tex?: string }
 export type Material = { key: string; label: string; swatch: string; texture: string; pbr: PBR; colors: ColorDef[]; albedo?: boolean }
 export type Category = { key: string; label: string }
-export type Model = { key: string; label: string; category: string; format: Format; decoro: Decoro; blurb: string; materials?: string[] }
+export type Model = {
+  key: string
+  label: string
+  category: string
+  format: Format
+  decoro: Decoro
+  blurb: string
+  tier: Tier
+  priceA: (number | null)[]
+  materials?: string[]
+  variant?: string
+  source: 'LISTINO 30 MARZO 2022-1.pdf'
+}
 
 // helper per costruire colori con chiave unica per materiale
 const C = (mat: string, label: string, hex: string): ColorDef => ({ key: `${mat}:${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, label, hex })
@@ -286,77 +299,152 @@ export const MATERIALS: Material[] = [
 // CATEGORIE + MODELLI
 // ---------------------------------------------------------------------------
 export const CATEGORIES: Category[] = [
-  { key: 'base', label: 'Classici' },
-  { key: 'wood', label: 'Wood Collection' },
-  { key: 'ottone', label: 'Ottone / Alluminio' },
-  { key: 'sposi', label: 'Personalizzato Sposi' },
-  { key: 'laserati', label: 'Laserati' },
-  { key: 'stampati', label: 'Stampati' },
+  { key: 'all', label: 'Tutti listino' },
+  { key: 'personalizzato', label: 'Personalizzato' },
   { key: 'swarovski', label: 'Swarovski' },
-  { key: 'eventi', label: 'Eventi' },
-  { key: 'famiglia', label: 'Famiglia' },
+  { key: 'wood', label: 'Pelle di legno' },
+  { key: 'cristal', label: 'Cristal / Plex' },
+  { key: 'gold', label: 'Gold / Rimboccati' },
+  { key: 'stampati', label: 'Decorati' },
+  { key: 'listino', label: 'Altri modelli' },
 ]
 
+const M = (
+  key: string,
+  label: string,
+  category: string,
+  format: Format,
+  decoro: Decoro,
+  tier: Tier,
+  priceA: (number | null)[],
+  materials?: string[],
+  variant?: string,
+): Model => ({
+  key,
+  label,
+  category,
+  format,
+  decoro,
+  tier,
+  priceA,
+  materials,
+  variant,
+  source: 'LISTINO 30 MARZO 2022-1.pdf',
+  blurb: `Listino 30/03/2022 · ${tier}${variant ? ` · ${variant}` : ''}`,
+})
+
 export const MODELS: Model[] = [
-  // Classici (base, lavorazione rimboccata + piastrina logo) — il workhorse
-  { key: 'rimboccato', label: 'Rimboccato 2', category: 'base', format: 'portrait', decoro: 'plate', blurb: 'Classico rimboccato con piastrina logo. Qualsiasi materiale.' },
-  { key: 'blocco-libro', label: 'Blocco a Libro', category: 'base', format: 'portrait', decoro: 'plate', blurb: 'Rilegatura blocco a libro, copertina pulita.' },
-
-  // Wood Collection (Pelle di Legno)
-  { key: 'brand', label: 'Brand', category: 'wood', format: 'portrait', decoro: 'frame', blurb: 'Pelle di legno, cornice incisa.' },
-  { key: 'trilogy', label: 'Trilogy', category: 'wood', format: 'portrait', decoro: 'photo', blurb: 'Trittico foto incassate.' },
-  { key: 'almond', label: 'Almond', category: 'wood', format: 'portrait', decoro: 'plate', blurb: 'Pelle di legno con placca.' },
-  { key: 'claire', label: 'Claire', category: 'wood', format: 'portrait', decoro: 'frame', blurb: 'Cornice incisa, pelle di legno.' },
-  { key: 'thea', label: 'Thea', category: 'wood', format: 'portrait', decoro: 'frame', blurb: 'Decoro inciso essenziale.' },
-  { key: 'adel', label: 'Adel', category: 'wood', format: 'portrait', decoro: 'plate', blurb: 'Placca centrale, pelle di legno.' },
-  { key: 'elsie', label: 'Elsie', category: 'wood', format: 'portrait', decoro: 'plate', blurb: 'Placca, linea essenziale.' },
-  { key: 'elsie-gold', label: 'Elsie Gold', category: 'wood', format: 'square', decoro: 'photo', blurb: 'Dorso oro spazzolato + corpo Cristalwhite, foto incassata e nomi.' },
-
-  // Ottone nichelato / Alluminio
-  { key: 'vega', label: 'Vega', category: 'ottone', format: 'portrait', decoro: 'ottone', blurb: 'Iniziali in ottone nichelato.' },
-  { key: 'diez', label: 'Diez', category: 'ottone', format: 'portrait', decoro: 'ottone', blurb: 'Placca ottone/alluminio.' },
-  { key: 'comete', label: 'Comete', category: 'ottone', format: 'portrait', decoro: 'ottone', blurb: 'Placca metallo, decoro essenziale.' },
-  { key: 'plaza', label: 'Plaza', category: 'ottone', format: 'portrait', decoro: 'ottone', blurb: 'Fascia/placca alluminio.' },
-
-  // Personalizzato Sposi / Cristalwhite (foto in copertina)
-  { key: 'andromeda', label: 'Andromeda', category: 'sposi', format: 'landscape', decoro: 'photo', blurb: 'Foto incassata, panoramico.' },
-  { key: 'cassiopea', label: 'Cassiopea', category: 'sposi', format: 'landscape', decoro: 'photo', blurb: 'Foto a fascia, panoramico.' },
-  { key: 'chloe', label: 'Chloe', category: 'sposi', format: 'portrait', decoro: 'photo', blurb: 'Foto personalizzata in copertina.' },
-  { key: 'graphic-touch', label: 'Graphic Touch', category: 'sposi', format: 'portrait', decoro: 'photo', blurb: 'Grafica + foto personalizzata.' },
-  { key: 'charme', label: 'Charme', category: 'sposi', format: 'portrait', decoro: 'photo', blurb: 'Cristalwhite, foto in copertina.' },
-  { key: 'azulejo', label: 'Azulejo', category: 'sposi', format: 'portrait', decoro: 'photo', blurb: 'Cristalwhite decorato.' },
-  { key: 'hera', label: 'Hera', category: 'sposi', format: 'portrait', decoro: 'photo', blurb: 'Cristalwhite, foto.' },
-  { key: 'canvas', label: 'Canvas', category: 'sposi', format: 'portrait', decoro: 'photo', blurb: 'Stampa integrale su canvas.' },
-  { key: 'frame-cristalplex', label: 'Frame Cristalplex', category: 'sposi', format: 'portrait', decoro: 'photo', blurb: 'Foto incassata in plexi.' },
-  { key: 'frame-plexy', label: 'Frame Plexy', category: 'sposi', format: 'portrait', decoro: 'photo', blurb: 'Cornice plexi lucida.' },
-
-  // Laserati
-  { key: 'betulla', label: 'Betulla', category: 'laserati', format: 'portrait', decoro: 'frame', blurb: 'Incisione laser.' },
-  { key: 'dream', label: 'Dream', category: 'laserati', format: 'portrait', decoro: 'frame', blurb: 'Decoro laser onirico.' },
-
-  // Stampati
-  { key: 'amelie', label: 'Amelie', category: 'stampati', format: 'portrait', decoro: 'print', blurb: 'Stampa decorativa all-over.' },
-  { key: 'darling', label: 'Darling', category: 'stampati', format: 'portrait', decoro: 'print', blurb: 'Motivo stampato.' },
-  { key: 'sirene', label: 'Sirene', category: 'stampati', format: 'portrait', decoro: 'print', blurb: 'Onde e intrecci stampati.' },
-  { key: 'frejus', label: 'Frejus', category: 'stampati', format: 'portrait', decoro: 'print', blurb: 'Stampa geometrica.' },
-  { key: 'dhyana', label: 'Dhyana', category: 'stampati', format: 'portrait', decoro: 'print', blurb: 'Volute stampate a secco.' },
-
-  // Swarovski
-  { key: 'diez-sw', label: 'Diez Swarovski', category: 'swarovski', format: 'portrait', decoro: 'swarovski', blurb: 'Placca con cristalli Swarovski.' },
-  { key: 'xante-sw', label: 'Xante Swarovski', category: 'swarovski', format: 'portrait', decoro: 'swarovski', blurb: 'Decoro cristalli Swarovski.' },
-  { key: 'bouquet-sw', label: 'Bouquet Swarovski', category: 'swarovski', format: 'portrait', decoro: 'swarovski', blurb: 'Bouquet di cristalli.' },
-  { key: 'ninfea-sw', label: 'Ninfea Swarovski', category: 'swarovski', format: 'portrait', decoro: 'swarovski', blurb: 'Floreale + cristalli.' },
-
-  // Eventi (bimbi, comunioni, 18°, compleanni) — canvas/foto tematica
-  { key: 'bimbi', label: 'Bimbi (Canvas)', category: 'eventi', format: 'portrait', decoro: 'photo', blurb: 'Linea bimbi, stampa integrale tematica.' },
-  { key: 'comunione', label: 'Comunione', category: 'eventi', format: 'portrait', decoro: 'photo', blurb: 'Canvas comunione.' },
-  { key: 'diciottesimo', label: '18° / Evento', category: 'eventi', format: 'portrait', decoro: 'photo', blurb: 'Evento, foto in copertina.' },
-
-  // Famiglia — album da conservare in casa, ritratti di famiglia
-  { key: 'family-classic', label: 'Famiglia Classico', category: 'famiglia', format: 'portrait', decoro: 'plate', blurb: 'Album di famiglia rimboccato con placca. Qualsiasi materiale.' },
-  { key: 'family-canvas', label: 'Famiglia Foto', category: 'famiglia', format: 'landscape', decoro: 'photo', blurb: 'Ritratto di famiglia in copertina.' },
-  { key: 'family-frame', label: 'Famiglia Cornice', category: 'famiglia', format: 'portrait', decoro: 'frame', blurb: 'Cornice incisa, per generazioni.' },
-  { key: 'family-wood', label: 'Famiglia Wood', category: 'famiglia', format: 'square', decoro: 'frame', blurb: 'Pelle di legno, formato quadrato.' },
+  M('adel-swarovski-pelle-di-legno-crystalwhite', 'Adel · Swarovski Pelle di legno Crystalwhite', 'swarovski', 'square', 'swarovski', 'PRIME', [null,null,null,null,65,75,80,115,125,160,150,150,175,175,185], ['wood','cristalwhite'], 'Swarovski Pelle di legno Crystalwhite'),
+  M('almond-swarovski-pelle-di-legno-crystalwhite', 'Almond · Swarovski Pelle di legno Crystalwhite', 'swarovski', 'square', 'swarovski', 'PRIME', [null,null,null,null,65,75,80,115,125,160,150,150,175,175,185], ['wood','cristalwhite'], 'Swarovski Pelle di legno Crystalwhite'),
+  M('almond-swarovski-pelle-di-legno-crystaplex', 'Almond · Swarovski Pelle di legno Crystaplex', 'swarovski', 'square', 'swarovski', 'PRIME', [null,null,null,null,65,75,80,115,125,160,150,150,175,175,185], ['wood','cristalplex'], 'Swarovski Pelle di legno Crystaplex'),
+  M('altea', 'Altea', 'listino', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('amelie-gold', 'Amelie · Gold', 'gold', 'square', 'ottone', 'BASIC', [null,null,null,null,null,null,60,80,90,125,115,115,140,140,150], ['metal'], 'Gold'),
+  M('amelie-rimboccato-1-2', 'Amelie · Rimboccato 1 - 2', 'gold', 'square', 'print', 'BASIC', [null,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, 'Rimboccato 1 - 2'),
+  M('anais-cristalwhite', 'Anais · Cristalwhite', 'cristal', 'square', 'plate', 'ROYAL', [null,null,null,null,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('andromeda-cristalplex', 'Andromeda · Cristalplex', 'cristal', 'square', 'photo', 'ROYAL', [null,null,null,null,55,65,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Cristalplex'),
+  M('andromeda-pelle-di-legno-cristalplex', 'Andromeda · Pelle di legno Cristalplex', 'wood', 'square', 'photo', 'ROYAL', [null,null,null,null,55,65,70,105,115,150,140,140,165,165,175], ['wood','cristalplex'], 'Pelle di legno Cristalplex'),
+  M('ardesia', 'Ardesia', 'listino', 'square', 'plate', 'ROYAL', [null,null,null,null,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('artemis', 'Artemis', 'listino', 'square', 'plate', 'BASIC', [null,null,null,null,45,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('ashley-gold', 'Ashley · Gold', 'gold', 'square', 'ottone', 'BASIC', [null,null,null,null,45,55,60,80,90,125,115,115,140,140,150], ['metal'], 'Gold'),
+  M('azhar-gold', 'Azhar · Gold', 'gold', 'square', 'ottone', 'BASIC', [null,null,null,null,45,55,60,80,90,125,115,115,140,140,150], ['metal'], 'Gold'),
+  M('azulejo', 'Azulejo', 'stampati', 'square', 'print', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('betulla-cristalwhite', 'Betulla · Cristalwhite', 'cristal', 'square', 'frame', 'ROYAL', [null,null,null,null,null,null,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('betulla-plex-bianco', 'Betulla · Plex Bianco', 'cristal', 'square', 'photo', 'ROYAL', [null,null,null,null,null,null,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Plex Bianco'),
+  M('bouquet-swarovski-gold', 'Bouquet · Swarovski Gold', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['metal'], 'Swarovski Gold'),
+  M('bouquet-swarovski-rimboccato-1-2', 'Bouquet · Swarovski Rimboccato 1 - 2', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Swarovski Rimboccato 1 - 2'),
+  M('bouquet-swarovski-unique', 'Bouquet · Swarovski Unique', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Swarovski Unique'),
+  M('brand-cristalwhite', 'Brand · Cristalwhite', 'wood', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('brand-pelle-di-legno', 'Brand · Pelle di legno', 'wood', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['wood'], 'Pelle di legno'),
+  M('brand-plexi-bianco', 'Brand · Plexi Bianco', 'wood', 'square', 'photo', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Plexi Bianco'),
+  M('brigit', 'Brigit', 'listino', 'square', 'plate', 'BASIC', [null,null,null,null,null,null,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('canvas', 'Canvas', 'stampati', 'square', 'photo', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('canvas-completo', 'Canvas Completo', 'stampati', 'square', 'photo', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('cassiopea-alluminio', 'Cassiopea · Alluminio', 'gold', 'square', 'photo', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['metal'], 'Alluminio'),
+  M('cassiopea-cristalplex', 'Cassiopea · Cristalplex', 'cristal', 'square', 'photo', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Cristalplex'),
+  M('cassiopea-cristalwhite', 'Cassiopea · Cristalwhite', 'cristal', 'square', 'photo', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('cassiopea-pelle-di-legno', 'Cassiopea · Pelle di legno', 'wood', 'square', 'photo', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['wood'], 'Pelle di legno'),
+  M('cassiopea-swarovski-alluminio', 'Cassiopea · Swarovski Alluminio', 'swarovski', 'square', 'swarovski', 'PRIME', [null,null,null,null,65,75,90,115,125,160,150,150,175,175,185], ['metal'], 'Swarovski Alluminio'),
+  M('charme-cristalwhite', 'Charme · Cristalwhite', 'cristal', 'square', 'plate', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('chloe-cristalplex', 'Chloe · Cristalplex', 'cristal', 'portrait', 'photo', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Cristalplex'),
+  M('claire-swarovski-diez-pelle-di-legno', 'Claire · Swarovski Diez Pelle di legno', 'swarovski', 'square', 'swarovski', 'TOP', [null,null,null,75,75,85,90,125,135,170,160,160,185,185,195], ['wood'], 'Swarovski Diez Pelle di legno'),
+  M('clouds', 'Clouds', 'stampati', 'square', 'print', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('coloniali', 'Coloniali', 'listino', 'square', 'plate', 'TOP', [60,60,65,75,75,85,90,125,135,170,160,160,185,185,195], undefined, undefined),
+  M('comete', 'Comete', 'listino', 'square', 'plate', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('comete-pelle-di-legno-alluminio', 'Comete · Pelle di legno Alluminio', 'wood', 'square', 'ottone', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['wood','metal'], 'Pelle di legno Alluminio'),
+  M('cordelia', 'Cordelia', 'listino', 'square', 'plate', 'BASIC', [null,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('darling-gold', 'Darling · Gold', 'gold', 'square', 'ottone', 'BASIC', [null,null,35,45,45,55,60,80,90,125,115,115,140,140,150], ['metal'], 'Gold'),
+  M('darling-rimboccato-1-2', 'Darling · Rimboccato 1 - 2', 'gold', 'square', 'print', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, 'Rimboccato 1 - 2'),
+  M('dhyana-cristalwhite', 'Dhyana · Cristalwhite', 'cristal', 'square', 'print', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('dhyana-gold', 'Dhyana · Gold', 'gold', 'square', 'ottone', 'BASIC', [null,null,35,45,45,55,60,80,90,125,115,115,140,140,150], ['metal'], 'Gold'),
+  M('diez-gold', 'Diez · Gold', 'gold', 'square', 'ottone', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['metal'], 'Gold'),
+  M('diez-rimboccato-1-2', 'Diez · Rimboccato 1 - 2', 'gold', 'square', 'ottone', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Rimboccato 1 - 2'),
+  M('diez-swarovski-pelle-di-legno', 'Diez · Swarovski Pelle di legno', 'swarovski', 'square', 'swarovski', 'TOP', [null,null,null,null,null,null,90,125,135,170,160,160,185,185,195], ['wood'], 'Swarovski Pelle di legno'),
+  M('diez-swarovski-rimboccato', 'Diez · Swarovski Rimboccato', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,null,null,null,70,105,115,150,140,140,165,165,175], undefined, 'Swarovski Rimboccato'),
+  M('draft', 'Draft', 'listino', 'square', 'plate', 'BASIC', [null,null,null,null,null,null,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('dream-cristalwhite', 'Dream · Cristalwhite', 'cristal', 'square', 'frame', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('egon-swarovski', 'Egon · Swarovski', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,null,null,65,70,105,115,150,140,140,165,165,175], undefined, 'Swarovski'),
+  M('electra', 'Electra', 'listino', 'square', 'plate', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('elsie-cristalwhite', 'Elsie · Cristalwhite', 'cristal', 'landscape', 'plate', 'ROYAL', [null,null,null,null,null,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('elsie-gold', 'Elsie · Gold', 'gold', 'landscape', 'ottone', 'BASIC', [null,null,null,null,null,55,60,80,90,125,115,115,140,140,150], ['metal'], 'Gold'),
+  M('elsie-pelle-di-legno', 'Elsie · Pelle di legno', 'wood', 'landscape', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['wood'], 'Pelle di legno'),
+  M('elsie-rimboccato-2', 'Elsie · Rimboccato 2', 'gold', 'landscape', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Rimboccato 2'),
+  M('ermes-swarovski', 'Ermes · Swarovski', 'swarovski', 'square', 'swarovski', 'TOP', [null,null,null,null,null,null,90,125,135,170,160,160,185,185,195], undefined, 'Swarovski'),
+  M('flaming', 'Flaming', 'stampati', 'square', 'print', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('frame-cristalplex', 'Frame · Cristalplex', 'cristal', 'portrait', 'photo', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Cristalplex'),
+  M('frame-cristalwhite-satin', 'Frame · Cristalwhite Satin', 'cristal', 'portrait', 'photo', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite Satin'),
+  M('frame-plexi-bianco-plex-nero', 'Frame · Plexi Bianco - Plex Nero', 'cristal', 'portrait', 'photo', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Plexi Bianco - Plex Nero'),
+  M('frejus-cristalwhite', 'Frejus · Cristalwhite', 'cristal', 'square', 'print', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('frejus-gold', 'Frejus · Gold', 'gold', 'square', 'ottone', 'BASIC', [null,null,null,null,null,55,60,80,90,125,115,115,140,140,150], ['metal'], 'Gold'),
+  M('ghost-cristalwhite', 'Ghost · Cristalwhite', 'cristal', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('graphic-soft-touch', 'Graphic · Soft Touch', 'stampati', 'square', 'print', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['soft-touch'], 'Soft Touch'),
+  M('hera', 'Hera', 'listino', 'square', 'photo', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('ikon', 'Ikon', 'listino', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('judy', 'Judy', 'listino', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('julies', 'Julies', 'listino', 'square', 'plate', 'BASIC', [null,null,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('julies-cristalwhite', 'Julies · Cristalwhite', 'cristal', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('kube', 'Kube', 'listino', 'square', 'plate', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('leaves-gold', 'Leaves · Gold', 'gold', 'square', 'ottone', 'BASIC', [null,null,null,null,null,55,60,80,90,125,115,115,140,140,150], ['metal'], 'Gold'),
+  M('lolly', 'Lolly', 'listino', 'square', 'plate', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('mandala', 'Mandala', 'stampati', 'square', 'print', 'BASIC', [null,null,null,null,null,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('ninfea', 'Ninfea', 'listino', 'square', 'plate', 'BASIC', [null,null,null,null,null,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('ninfea-swarovski-gold', 'Ninfea · Swarovski Gold', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,null,null,65,70,105,115,150,140,140,165,165,175], ['metal'], 'Swarovski Gold'),
+  M('ninfea-swarovski-rimboccato-1-2', 'Ninfea · Swarovski Rimboccato 1 - 2', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Swarovski Rimboccato 1 - 2'),
+  M('ninfea-swarovski-unique', 'Ninfea · Swarovski Unique', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,55,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Swarovski Unique'),
+  M('personalizzato-cristalwhite', 'Personalizzato · Cristalwhite', 'personalizzato', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('personalizzato-decoro-colorato', 'Personalizzato · Decoro colorato', 'personalizzato', 'square', 'print', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, 'Decoro colorato'),
+  M('personalizzato-decoro-colorato-cliente', 'Personalizzato · Decoro colorato cliente', 'personalizzato', 'square', 'print', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Decoro colorato cliente'),
+  M('personalizzato-rimboccato-1-loghi', 'Personalizzato · Rimboccato 1 Loghi', 'personalizzato', 'square', 'plate', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, 'Rimboccato 1 Loghi'),
+  M('personalizzato-rimboccato-2-loghi', 'Personalizzato · Rimboccato 2 Loghi', 'personalizzato', 'square', 'plate', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, 'Rimboccato 2 Loghi'),
+  M('personalizzato-rimboccato-unique-loghi', 'Personalizzato · Rimboccato Unique Loghi', 'personalizzato', 'square', 'plate', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, 'Rimboccato Unique Loghi'),
+  M('personalizzato-rimboccato-gold-loghi', 'Personalizzato · Rimboccato Gold Loghi', 'personalizzato', 'square', 'ottone', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], ['metal'], 'Rimboccato Gold Loghi'),
+  M('personalizzato-sposi-pelle-bianconeve', 'Personalizzato · Sposi Pelle Bianconeve', 'personalizzato', 'square', 'plate', 'PRIME', [null,null,null,65,65,75,80,115,125,160,150,150,175,175,185], ['pelle'], 'Sposi Pelle Bianconeve'),
+  M('personalizzato-sposi-eco-bianco', 'Personalizzato · Sposi Eco bianco', 'personalizzato', 'square', 'plate', 'BASIC', [null,null,null,45,45,55,60,80,90,125,115,115,140,140,150], ['pelle'], 'Sposi Eco bianco'),
+  M('plaza-gold', 'Plaza · Gold', 'gold', 'square', 'ottone', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['metal'], 'Gold'),
+  M('quadra', 'Quadra', 'listino', 'square', 'plate', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('quadra-cristalwhite', 'Quadra · Cristalwhite', 'cristal', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('quadra-plex-bianco', 'Quadra · Plex Bianco', 'cristal', 'square', 'photo', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Plex Bianco'),
+  M('quadra-plex-nero-plex-nero', 'Quadra · Plex Nero - Plex Nero', 'cristal', 'square', 'photo', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Plex Nero - Plex Nero'),
+  M('redon-swarovski-gold', 'Redon · Swarovski Gold', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,null,null,65,70,105,115,150,140,140,165,165,175], ['metal'], 'Swarovski Gold'),
+  M('rubik', 'Rubik', 'listino', 'square', 'plate', 'BASIC', [null,null,null,null,null,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('satin', 'Satin', 'listino', 'square', 'plate', 'BASIC', [null,null,null,null,null,55,60,80,90,125,115,115,140,140,150], undefined, undefined),
+  M('selene-swarovski-gold', 'Selene · Swarovski Gold', 'swarovski', 'square', 'swarovski', 'TOP', [null,null,null,null,null,null,90,125,135,170,160,160,185,185,195], ['metal'], 'Swarovski Gold'),
+  M('sirene-cristalwhite', 'Sirene · Cristalwhite', 'cristal', 'square', 'print', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('sirene-rimboccato-1-2', 'Sirene · Rimboccato 1 - 2', 'gold', 'square', 'print', 'BASIC', [30,30,35,45,45,55,60,80,90,125,115,115,140,140,150], undefined, 'Rimboccato 1 - 2'),
+  M('thea-swarovski-pelle-di-legno-material-iniziali-vega', 'Thea · Swarovski Pelle di legno Material iniziali Vega', 'swarovski', 'square', 'swarovski', 'TOP', [null,null,null,null,null,null,90,125,135,170,160,160,185,185,195], ['wood'], 'Swarovski Pelle di legno Material iniziali Vega'),
+  M('thea-swarovski-pelle-di-legno-cristalplex', 'Thea · Swarovski Pelle di legno Cristalplex', 'swarovski', 'square', 'swarovski', 'TOP', [null,null,null,null,null,null,90,125,135,170,160,160,185,185,195], ['wood','cristalplex'], 'Swarovski Pelle di legno Cristalplex'),
+  M('thea-swarovski-pelle-di-legno-crystalwhite', 'Thea · Swarovski Pelle di legno Crystalwhite', 'swarovski', 'square', 'swarovski', 'TOP', [null,null,null,null,null,null,90,125,135,170,160,160,185,185,195], ['wood','cristalwhite'], 'Swarovski Pelle di legno Crystalwhite'),
+  M('trilogy-cristalwhite', 'Trilogy · Cristalwhite', 'wood', 'landscape', 'plate', 'ROYAL', [null,null,null,null,null,null,70,105,115,150,140,140,165,165,175], ['cristalwhite'], 'Cristalwhite'),
+  M('trilogy-pelle-di-legno', 'Trilogy · Pelle di legno', 'wood', 'landscape', 'plate', 'ROYAL', [null,null,null,null,null,null,70,105,115,150,140,140,165,165,175], ['wood'], 'Pelle di legno'),
+  M('trilogy-plex-bianco', 'Trilogy · Plex Bianco', 'wood', 'landscape', 'photo', 'ROYAL', [null,null,null,null,null,null,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Plex Bianco'),
+  M('trilogy-plex-nero', 'Trilogy · Plex Nero', 'wood', 'landscape', 'photo', 'ROYAL', [null,null,null,null,null,null,70,105,115,150,140,140,165,165,175], ['cristalplex'], 'Plex Nero'),
+  M('vega-gold', 'Vega · Gold', 'wood', 'square', 'ottone', 'TOP', [null,null,null,null,null,null,90,125,135,170,160,160,185,185,195], ['metal'], 'Gold'),
+  M('vega-pelle-di-legno', 'Vega · Pelle di legno', 'wood', 'square', 'ottone', 'TOP', [60,60,65,75,75,85,90,125,135,170,160,160,185,185,195], ['wood'], 'Pelle di legno'),
+  M('vega-rimboccato-1-2', 'Vega · Rimboccato 1 - 2', 'wood', 'square', 'ottone', 'TOP', [60,60,65,75,75,85,90,125,135,170,160,160,185,185,195], undefined, 'Rimboccato 1 - 2'),
+  M('vega-unique', 'Vega · Unique', 'wood', 'square', 'ottone', 'TOP', [60,60,65,75,75,85,90,125,135,170,160,160,185,185,195], undefined, 'Unique'),
+  M('viola', 'Viola', 'listino', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
+  M('xante-swarovski-rimboccato', 'Xante · Swarovski Rimboccato', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,null,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Swarovski Rimboccato'),
+  M('xante-swarovski-unique', 'Xante · Swarovski Unique', 'swarovski', 'square', 'swarovski', 'ROYAL', [null,null,null,null,55,65,70,105,115,150,140,140,165,165,175], undefined, 'Swarovski Unique'),
+  M('yasmine', 'Yasmine', 'listino', 'square', 'plate', 'ROYAL', [40,40,45,55,55,65,70,105,115,150,140,140,165,165,175], undefined, undefined),
 ]
 
 // ---------------------------------------------------------------------------
@@ -367,21 +455,40 @@ export type Layout =
   | 'swarovski-line' | 'swarovski-cluster' | 'photo-vertical' | 'photo-panoramic'
   | 'photo-small' | 'photo-full' | 'trilogy' | 'print' | 'laser'
 export const MODEL_LAYOUT: Record<string, Layout> = {
-  rimboccato: 'plate', 'blocco-libro': 'plain',
+  rimboccato: 'plate',
   brand: 'monogram', trilogy: 'trilogy', almond: 'oblique', claire: 'fascia', thea: 'fascia-ornament', adel: 'plate', elsie: 'photo-small', 'elsie-gold': 'photo-small',
   vega: 'monogram', diez: 'swarovski-line', comete: 'fascia-ornament', plaza: 'fascia',
-  andromeda: 'photo-vertical', cassiopea: 'photo-panoramic', chloe: 'photo-vertical', 'graphic-touch': 'photo-small',
+  andromeda: 'photo-vertical', cassiopea: 'photo-panoramic', chloe: 'photo-vertical',
   charme: 'photo-vertical', azulejo: 'print', hera: 'photo-panoramic', canvas: 'photo-full',
-  'frame-cristalplex': 'photo-vertical', 'frame-plexy': 'photo-vertical',
+  'frame-cristalplex': 'photo-vertical',
   betulla: 'laser', dream: 'laser',
   amelie: 'print', darling: 'print', sirene: 'print', frejus: 'print', dhyana: 'print',
   'diez-sw': 'swarovski-line', 'xante-sw': 'swarovski-cluster', 'bouquet-sw': 'swarovski-cluster', 'ninfea-sw': 'swarovski-cluster',
-  bimbi: 'photo-full', comunione: 'photo-full', diciottesimo: 'photo-vertical',
-  'family-classic': 'plate', 'family-canvas': 'photo-panoramic', 'family-frame': 'laser', 'family-wood': 'laser',
 }
 const _decoroToLayout: Record<Decoro, Layout> = { plate: 'plate', ottone: 'plate', floral: 'laser', frame: 'laser', print: 'print', photo: 'photo-vertical', swarovski: 'swarovski-cluster', strap: 'plate' }
+function modelText(k?: string): string {
+  const m = modelByKey(k)
+  return `${m?.key ?? k ?? ''} ${m?.label ?? ''} ${m?.variant ?? ''}`.toUpperCase()
+}
 export function modelLayout(k?: string): Layout {
   if (k && MODEL_LAYOUT[k]) return MODEL_LAYOUT[k]!
+  const t = modelText(k)
+  if (t.includes('BRAND')) return 'monogram'
+  if (t.includes('TRILOGY')) return 'trilogy'
+  if (t.includes('ALMOND')) return 'oblique'
+  if (t.includes('CLAIRE')) return 'fascia'
+  if (t.includes('THEA')) return 'fascia-ornament'
+  if (t.includes('VEGA')) return 'monogram'
+  if (t.includes('DIEZ')) return 'swarovski-line'
+  if (t.includes('COMETE')) return 'fascia-ornament'
+  if (t.includes('PLAZA')) return 'fascia'
+  if (t.includes('ANDROMEDA') || t.includes('CHLOE')) return 'photo-vertical'
+  if (t.includes('CASSIOPEA') || t.includes('HERA')) return 'photo-panoramic'
+  if (t.includes('ELSIE')) return 'photo-small'
+  if (t.includes('CANVAS')) return 'photo-full'
+  if (t.includes('BOUQUET') || t.includes('XANTE') || t.includes('NINFEA') || t.includes('REDON') || t.includes('SELENE') || t.includes('ERMES') || t.includes('EGON')) return 'swarovski-cluster'
+  if (t.includes('BETULLA') || t.includes('DREAM')) return 'laser'
+  if (t.includes('AMELIE') || t.includes('DARLING') || t.includes('SIRENE') || t.includes('FREJUS') || t.includes('DHYANA') || t.includes('AZULEJO') || t.includes('GRAPHIC')) return 'print'
   const d = modelByKey(k)?.decoro
   return d ? _decoroToLayout[d] : 'plate'
 }
@@ -389,9 +496,13 @@ export function modelLayout(k?: string): Layout {
 export const WOOD_MODELS = new Set<string>([
   'brand', 'trilogy', 'almond', 'claire', 'thea', 'adel', 'elsie',
   'vega', 'diez', 'comete', 'plaza', 'andromeda', 'cassiopea',
-  'diez-sw', 'xante-sw', 'family-canvas', 'family-frame', 'family-wood',
+  'diez-sw', 'xante-sw',
 ])
-export const isWoodModel = (k?: string): boolean => !!k && WOOD_MODELS.has(k)
+export const isWoodModel = (k?: string): boolean => {
+  if (!k) return false
+  const m = modelByKey(k)
+  return WOOD_MODELS.has(k) || m?.materials?.includes('wood') || /PELLE DI LEGNO|VEGA|BRAND|TRILOGY|ALMOND|CLAIRE|THEA/.test(modelText(k))
+}
 
 // mockup FOTOREALISTICI (Higgsfield) per modello — anteprima reale fedele alle schede
 export const MODEL_MOCKUP: Record<string, boolean> = {
@@ -401,10 +512,26 @@ export const MODEL_MOCKUP: Record<string, boolean> = {
   // mockup REALI ritagliati dalle tavole tecniche del catalogo (giu 2026)
   thea: true, chloe: true, darling: true, 'elsie-gold': true,
 }
-export const mockupFor = (k?: string): string | null => (k && MODEL_MOCKUP[k]) ? `/textures/mockups/${k}.jpg` : null
+function mockupKeyFor(k?: string): string | null {
+  const t = modelText(k)
+  if (t.includes('ELSIE') && t.includes('GOLD')) return 'elsie-gold'
+  if (t.includes('DIEZ') && t.includes('SWAROVSKI')) return 'diez-sw'
+  if (t.includes('BOUQUET')) return 'bouquet-sw'
+  if (t.includes('PERSONALIZZATO') && t.includes('RIMBOCCATO')) return 'rimboccato'
+  const keys = ['claire','comete','almond','brand','trilogy','vega','andromeda','cassiopea','elsie','amelie','betulla','hera','canvas','adel','thea','chloe','darling']
+  for (const key of keys) if (t.includes(key.toUpperCase())) return key
+  return null
+}
+export const mockupFor = (k?: string): string | null => {
+  const key = mockupKeyFor(k)
+  return (key && MODEL_MOCKUP[key]) ? `/textures/mockups/${key}.jpg` : null
+}
 // 3D ruotabile derivato dal mockup 2D (Higgsfield image_to_3d → GLB)
 export const MODEL_GLB: Record<string, boolean> = { claire: true, brand: true, vega: true }
-export const glbFor = (k?: string): string | null => (k && MODEL_GLB[k]) ? `/models/${k}.glb` : null
+export const glbFor = (k?: string): string | null => {
+  const key = mockupKeyFor(k) || k
+  return (key && MODEL_GLB[key]) ? `/models/${key}.glb` : null
+}
 
 // ---------------------------------------------------------------------------
 // BOX / CONTENITORI (Packaging, pag. 97-113). Specifiche dimensionali: da definire.
@@ -427,25 +554,31 @@ export type FormatDef = { key: Format; label: string; hint: string; sizes: SizeD
 const S = (fmt: string, w: number, h: number): SizeDef => ({ key: `${fmt}:${w}x${h}`, label: `${w}×${h} cm`, w, h })
 export const FORMATS: FormatDef[] = [
   { key: 'portrait', label: 'Verticale', hint: 'Ritratti, sposi in piedi', sizes: [
-    S('portrait',15,20), S('portrait',20,30), S('portrait',22.5,30), S('portrait',25,35), S('portrait',30,40), S('portrait',35,45),
+    S('portrait',12.5,25), S('portrait',15,20), S('portrait',18,24), S('portrait',20,25), S('portrait',20,30), S('portrait',22,30),
+    S('portrait',24,30), S('portrait',24,36), S('portrait',25,30), S('portrait',25,35), S('portrait',30,35), S('portrait',30,40), S('portrait',35,45),
   ] },
   { key: 'landscape', label: 'Orizzontale', hint: 'Paesaggi, doppie pagine', sizes: [
-    S('landscape',20,15), S('landscape',24,18), S('landscape',30,20), S('landscape',35,25), S('landscape',35,30), S('landscape',40,30), S('landscape',45,35),
+    S('landscape',20,15), S('landscape',22,15), S('landscape',25,10), S('landscape',25,20), S('landscape',24,18), S('landscape',30,20),
+    S('landscape',30,24), S('landscape',35,25), S('landscape',35,30), S('landscape',40,30), S('landscape',45,35), S('landscape',50,20), S('landscape',50,25),
   ] },
   { key: 'square', label: 'Quadrato', hint: 'Equilibrato, moderno', sizes: [
-    S('square',15,15), S('square',20,20), S('square',25,25), S('square',30,30), S('square',35,35), S('square',38,38), S('square',40,40),
+    S('square',10,10), S('square',15,15), S('square',20,20), S('square',25,25), S('square',30,30), S('square',35,35), S('square',38,38), S('square',40,40),
   ] },
 ]
 export const sizeByKey = (k?: string): SizeDef | undefined => {
   for (const f of FORMATS) { const s = f.sizes.find((x) => x.key === k); if (s) return s }
   return undefined
 }
-export const sizesForFormat = (f?: Format): SizeDef[] => FORMATS.find((x) => x.key === f)?.sizes ?? []
+export const sizesForFormat = (f?: Format, modelKey?: string): SizeDef[] => {
+  const sizes = FORMATS.find((x) => x.key === f)?.sizes ?? []
+  return modelKey ? sizes.filter((s) => isSizeAvailableForModel(modelKey, s.key)) : sizes
+}
 export const formatLabel = (f?: Format): string => FORMATS.find((x) => x.key === f)?.label || '—'
 export const defaultSizeKey = (f: Format): string => {
   const fav: Record<Format, string> = { portrait: 'portrait:30x40', landscape: 'landscape:40x30', square: 'square:30x30' }
   return fav[f]
 }
+export const firstAvailableSizeKey = (f: Format, modelKey?: string): string => sizesForFormat(f, modelKey)[0]?.key ?? defaultSizeKey(f)
 // dimensioni 3D (unità scena) derivate dalla misura reale scelta → proporzioni vere
 export function coverDims(cover?: Cover): { w: number; h: number; d: number } {
   let rw = 22.5, rh = 30
@@ -481,7 +614,7 @@ export function materialsForModel(modelKey?: string): Material[] {
 export function paletteFor(materialKey?: string): ColorDef[] {
   return materialByKey(materialKey)?.colors ?? []
 }
-export const modelsByCategory = (cat: string): Model[] => MODELS.filter((m) => m.category === cat)
+export const modelsByCategory = (cat: string): Model[] => cat === 'all' ? MODELS : MODELS.filter((m) => m.category === cat)
 
 // etichette leggibili per FotoLab
 export const modelLabel = (k?: string) => modelByKey(k)?.label || k || '—'
@@ -502,50 +635,69 @@ export function coverSummary(cover?: Cover): string {
 // Prezzo copertina = TIER del modello (BASIC/ROYAL/PRIME/TOP) × GRUPPO materiale
 // × MISURA. + box (packaging) + personalizzazioni + copie. Tutti i numeri reali.
 // ---------------------------------------------------------------------------
-export type Tier = 'BASIC' | 'ROYAL' | 'PRIME' | 'TOP'
-// tier per modello (dalla colonna TIP. del listino, pag.1-3)
-export const MODEL_TIER: Record<string, Tier> = {
-  rimboccato: 'BASIC', 'blocco-libro': 'BASIC',
-  brand: 'ROYAL', trilogy: 'ROYAL', almond: 'PRIME', claire: 'TOP', thea: 'TOP', adel: 'PRIME', elsie: 'ROYAL', 'elsie-gold': 'TOP',
-  vega: 'TOP', diez: 'ROYAL', comete: 'ROYAL', plaza: 'ROYAL',
-  andromeda: 'ROYAL', cassiopea: 'ROYAL', chloe: 'ROYAL', 'graphic-touch': 'ROYAL', charme: 'ROYAL',
-  azulejo: 'ROYAL', hera: 'ROYAL', canvas: 'BASIC', 'frame-cristalplex': 'ROYAL', 'frame-plexy': 'ROYAL',
-  betulla: 'ROYAL', dream: 'ROYAL',
-  amelie: 'BASIC', darling: 'BASIC', sirene: 'BASIC', frejus: 'ROYAL', dhyana: 'ROYAL',
-  'diez-sw': 'TOP', 'xante-sw': 'ROYAL', 'bouquet-sw': 'ROYAL', 'ninfea-sw': 'ROYAL',
-  bimbi: 'BASIC', comunione: 'BASIC', diciottesimo: 'ROYAL',
-  'family-classic': 'BASIC', 'family-canvas': 'ROYAL', 'family-frame': 'ROYAL', 'family-wood': 'ROYAL',
-}
-export const modelTier = (k?: string): Tier => (k && MODEL_TIER[k]) || 'BASIC'
+export const MODEL_TIER: Record<string, Tier> = Object.fromEntries(MODELS.map((m) => [m.key, m.tier])) as Record<string, Tier>
+export const modelTier = (k?: string): Tier => modelByKey(k)?.tier || 'BASIC'
 // gruppo materiale (4 listini): A=base, B, C, D=sequoia
 const MATERIAL_GROUP: Record<string, 'A' | 'B' | 'C' | 'D'> = {
   wood: 'A', juta: 'A', skill: 'A', safir: 'A', alcantara: 'A', acero: 'A',
   'soft-touch': 'B', suade: 'B', metal: 'B', crazy: 'B',
   pelle: 'C', 'velu-arte': 'C', sequoia: 'D',
 }
-// prezzo gruppo A per colonna-misura × tier [BASIC,ROYAL,PRIME,TOP] (pag.1-3)
+// prezzo per colonna-misura × tier [BASIC,ROYAL,PRIME,TOP] (pag.1-4)
 const GROUP_A: number[][] = [
-  [30, 40, 50, 60],   // 0  15x20 / 15x15
+  [30, 40, 50, 60],   // 0  10x10 / 15x15 / 15x20
   [30, 40, 50, 60],   // 1  20x15
-  [35, 45, 55, 65],   // 2  20x20 / 25x25
-  [45, 55, 65, 75],   // 3  20x30
-  [45, 55, 65, 75],   // 4  22x30 / 24x18
+  [35, 45, 55, 65],   // 2  22x15 / 20x20 / 25x10 / 12.5x25
+  [45, 55, 65, 75],   // 3  20x25 / 25x20 / 25x25 / 24x18
+  [45, 55, 65, 75],   // 4  20x30 / 22x30 / 18x24
   [55, 65, 75, 85],   // 5  30x20
   [60, 70, 80, 90],   // 6  30x30
   [80, 105, 115, 125],// 7  25x35 / 35x25
   [90, 115, 125, 135],// 8  35x30 / 35x35
-  [125, 150, 160, 170],// 9 30x40
+  [125, 150, 160, 170],// 9 30x40 / 50x20
   [115, 140, 150, 160],// 10 40x30
-  [115, 140, 150, 160],// 11
+  [115, 140, 150, 160],// 11 listino intermedio
   [140, 165, 175, 185],// 12 35x45 / 45x35
-  [140, 165, 175, 185],// 13 38x38
+  [140, 165, 175, 185],// 13 38x38 / 50x25
   [150, 175, 185, 195],// 14 40x40
 ]
-const GROUP_SUPP: Record<'A' | 'B' | 'C' | 'D', number> = { A: 0, B: 10, C: 30, D: 40 }
+const GROUP_B: number[][] = [
+  [35,45,55,65], [35,45,55,65], [40,50,60,70], [50,60,70,80], [50,60,70,80],
+  [60,70,80,90], [65,75,85,95], [90,115,125,135], [100,125,135,145], [135,160,170,180],
+  [125,150,160,170], [125,150,185,170], [150,175,185,195], [150,175,185,195], [160,185,195,205],
+]
+const GROUP_C: number[][] = [
+  [45,55,65,75], [45,55,65,75], [50,60,70,80], [60,75,85,95], [65,75,85,95],
+  [75,85,95,105], [80,90,100,110], [110,135,145,155], [120,145,155,165], [155,180,190,200],
+  [145,170,180,190], [145,170,180,190], [170,195,205,215], [170,195,205,215], [180,205,215,225],
+]
+const GROUP_D: number[][] = [
+  [55,65,75,85], [55,65,75,85], [60,70,80,90], [75,85,95,105], [75,85,95,105],
+  [85,95,105,115], [90,100,110,120], [120,145,155,165], [130,155,165,175], [165,190,200,210],
+  [155,180,190,200], [155,180,190,200], [180,205,215,225], [180,205,215,225], [190,215,225,235],
+]
+const GROUP_PRICE: Record<'A' | 'B' | 'C' | 'D', number[][]> = { A: GROUP_A, B: GROUP_B, C: GROUP_C, D: GROUP_D }
 const SIZE_COL: Record<string, number> = {
-  'portrait:15x20': 0, 'portrait:20x30': 3, 'portrait:22.5x30': 4, 'portrait:25x35': 7, 'portrait:30x40': 9, 'portrait:35x45': 12,
-  'landscape:20x15': 1, 'landscape:24x18': 4, 'landscape:30x20': 5, 'landscape:35x25': 7, 'landscape:35x30': 8, 'landscape:40x30': 10, 'landscape:45x35': 12,
-  'square:15x15': 0, 'square:20x20': 2, 'square:25x25': 2, 'square:30x30': 6, 'square:35x35': 8, 'square:38x38': 13, 'square:40x40': 14,
+  'square:10x10': 0, 'square:15x15': 0, 'portrait:15x20': 0,
+  'landscape:20x15': 1,
+  'landscape:22x15': 2, 'square:20x20': 2, 'landscape:25x10': 2, 'portrait:12.5x25': 2,
+  'portrait:20x25': 3, 'landscape:25x20': 3, 'square:25x25': 3, 'landscape:24x18': 3,
+  'portrait:20x30': 4, 'portrait:22x30': 4, 'portrait:18x24': 4,
+  'portrait:25x30': 5, 'portrait:24x30': 5, 'landscape:30x20': 5,
+  'square:30x30': 6, 'landscape:30x24': 6,
+  'portrait:25x35': 7, 'portrait:24x36': 7, 'landscape:35x25': 7,
+  'landscape:35x30': 8, 'portrait:30x35': 8, 'square:35x35': 8,
+  'portrait:30x40': 9, 'landscape:50x20': 9,
+  'landscape:40x30': 10,
+  'portrait:35x45': 12, 'landscape:45x35': 12,
+  'square:38x38': 13, 'landscape:50x25': 13,
+  'square:40x40': 14,
+}
+export function isSizeAvailableForModel(modelKey?: string, sizeKey?: string): boolean {
+  const model = modelByKey(modelKey)
+  const col = SIZE_COL[sizeKey || '']
+  if (!model || col == null) return true
+  return model.priceA[col] != null
 }
 // box (packaging) — prezzo ~30x40 ROYAL (pag.5-7), scalato per misura
 const BOX_REF: Record<string, number> = { nessuno: 0, 'wood-clak': 110, 'wood-duo': 90, 'wood-case': 100, 'twin-box': 110, valigetta: 40 }
@@ -570,13 +722,19 @@ export type PriceLine = { label: string; amount: number }
 export type PriceBreakdown = { lines: PriceLine[]; unit: number; copies: number; total: number; tier: Tier }
 
 export function coverPrice(cover?: Cover, copies = 1): PriceBreakdown {
-  const tier = modelTier(cover?.model)
+  const model = modelByKey(cover?.model)
+  const tier = model?.tier || modelTier(cover?.model)
   const group = (cover?.fabric && MATERIAL_GROUP[cover.fabric]) || 'A'
   const col = SIZE_COL[cover?.sizeKey || ''] ?? 9
-  const base = (GROUP_A[col]?.[TIDX[tier]] ?? 150) + GROUP_SUPP[group]
+  const fixedMaterialRow = !!model?.materials?.length
+  const rowBase = model?.priceA?.[col]
+  const base = rowBase != null && (group === 'A' || fixedMaterialRow)
+    ? rowBase
+    : (GROUP_PRICE[group]?.[col]?.[TIDX[tier]] ?? GROUP_A[col]?.[TIDX[tier]] ?? 150)
   const lines: PriceLine[] = [
     { label: `Copertina ${modelLabel(cover?.model)} · ${tier}`, amount: base },
   ]
+  if (model && rowBase == null) lines.push({ label: 'Misura fuori listino per questa riga modello', amount: 0 })
   // pagine interne (blocco)
   const pages = cover?.pages ?? 40
   const bt = cover?.blockType ?? 'photo'

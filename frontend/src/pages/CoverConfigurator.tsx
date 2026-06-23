@@ -11,7 +11,7 @@ import { AlbumFlipbook } from '@/components/album/AlbumFlipbook'
 import {
   CATEGORIES, BOXES, COLORS, FORMATS,
   modelsByCategory, materialsForModel, paletteFor, modelByKey,
-  sizesForFormat, defaultSizeKey, sizeByKey,
+  sizesForFormat, firstAvailableSizeKey, sizeByKey, isSizeAvailableForModel,
   coverPrice, euro, isWoodModel, FINISHES,
   type Cover, type ColorDef, type Format,
 } from '@/components/album/albumCatalog'
@@ -34,11 +34,11 @@ function ensureColor(materialKey: string, currentKey?: string): { color: string;
 export default function CoverConfigurator() {
   const { entryId = '' } = useParams()
   const navigate = useNavigate()
-  const [category, setCategory] = useState<string>('base')
+  const [category, setCategory] = useState<string>('all')
   const [cover, setCover] = useState<Cover>(() => {
     const c = ensureColor('alcantara', 'alcantara:crema')
     return {
-      model: 'rimboccato', fabric: 'alcantara', color: c.color, colorKey: c.colorKey,
+      model: 'personalizzato-rimboccato-2-loghi', fabric: 'alcantara', color: c.color, colorKey: c.colorKey,
       box: 'nessuno', format: 'portrait', sizeKey: 'portrait:30x40', photo_url: null,
       title: 'Marco & Anna', subtitle: '23 giugno 2026', monogram: 'MA',
       fontKey: 'fraunces', textLayout: 'model', decorationKey: 'none', borderKey: 'none',
@@ -77,14 +77,16 @@ export default function CoverConfigurator() {
     if (isWoodModel(modelKey)) fabric = 'wood'   // Wood Collection / Ottone → legno di default
     if (!allowed.find((m) => m.key === fabric)) fabric = allowed[0]?.key ?? 'alcantara'
     const c = ensureColor(fabric, cover.colorKey)
-    set({ model: modelKey, fabric, color: c.color, colorKey: c.colorKey })
+    const fmt = cover.format || modelByKey(modelKey)?.format || 'portrait'
+    const sizeKey = isSizeAvailableForModel(modelKey, cover.sizeKey) ? cover.sizeKey : firstAvailableSizeKey(fmt, modelKey)
+    set({ model: modelKey, fabric, color: c.color, colorKey: c.colorKey, sizeKey })
   }
   function pickMaterial(materialKey: string) {
     const c = ensureColor(materialKey, cover.colorKey)
     set({ fabric: materialKey, color: c.color, colorKey: c.colorKey })
   }
   function pickColor(c: ColorDef) { set({ color: c.hex, colorKey: c.key }) }
-  function pickFormat(f: Format) { set({ format: f, sizeKey: defaultSizeKey(f) }) }
+  function pickFormat(f: Format) { set({ format: f, sizeKey: firstAvailableSizeKey(f, cover.model) }) }
   function pickSize(key: string) { set({ sizeKey: key, format: sizeByKey(key)?.key.split(':')[0] as Format }) }
 
   async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -151,7 +153,7 @@ export default function CoverConfigurator() {
                 })}
               </div>
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {sizesForFormat(cover.format).map((s) => (
+                {sizesForFormat(cover.format, cover.model).map((s) => (
                   <button key={s.key} onClick={() => pickSize(s.key)}
                     className={`px-2.5 py-1 rounded-md text-xs border transition ${cover.sizeKey === s.key ? on : off}`}>{s.label}</button>
                 ))}

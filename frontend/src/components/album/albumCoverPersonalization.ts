@@ -12,12 +12,12 @@ export type CoverFontDef = {
 }
 
 export const COVER_FONTS: CoverFontDef[] = [
-  { key: 'fraunces', label: 'Editoriale', hint: 'serif morbido', css: '"Fraunces Variable", Georgia, serif', canvas: '"Fraunces Variable", Georgia, serif', weight: 600 },
-  { key: 'baskerville', label: 'Classico', hint: 'fine art', css: 'Baskerville, Georgia, serif', canvas: 'Baskerville, Georgia, serif', weight: 500 },
+  { key: 'fraunces', label: 'Playfair', hint: 'editoriale', css: '"Playfair Display", Georgia, serif', canvas: '"Playfair Display", Georgia, serif', weight: 600 },
+  { key: 'baskerville', label: 'Cormorant', hint: 'fine art', css: '"Cormorant Garamond", Georgia, serif', canvas: '"Cormorant Garamond", Georgia, serif', weight: 500 },
   { key: 'bodoni', label: 'Bodoni', hint: 'moda', css: '"Bodoni 72", Didot, "Bodoni MT", serif', canvas: '"Bodoni 72", Didot, "Bodoni MT", serif', weight: 500 },
-  { key: 'script', label: 'Calligrafico', hint: 'firma', css: '"Snell Roundhand", "Brush Script MT", cursive', canvas: '"Snell Roundhand", "Brush Script MT", cursive', weight: 500, italic: true },
+  { key: 'script', label: 'Great Vibes', hint: 'firma', css: '"Great Vibes", "Snell Roundhand", cursive', canvas: '"Great Vibes", "Snell Roundhand", cursive', weight: 500, italic: true },
   { key: 'modern', label: 'Moderno', hint: 'pulito', css: '"Inter Variable", Inter, system-ui, sans-serif', canvas: '"Inter Variable", Inter, system-ui, sans-serif', weight: 650 },
-  { key: 'smallcaps', label: 'Maiuscoletto', hint: 'atelier', css: 'Optima, "Trajan Pro", "Times New Roman", serif', canvas: 'Optima, "Trajan Pro", "Times New Roman", serif', weight: 500, letterSpacing: 0.18 },
+  { key: 'smallcaps', label: 'Cinzel', hint: 'maiuscoletto', css: 'Cinzel, "Trajan Pro", "Times New Roman", serif', canvas: 'Cinzel, "Trajan Pro", "Times New Roman", serif', weight: 600, letterSpacing: 0.18 },
 ]
 
 export const COVER_TEXT_LAYOUTS: { key: CoverTextLayout; label: string; hint: string }[] = [
