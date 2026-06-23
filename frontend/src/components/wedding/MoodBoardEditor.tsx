@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Heart, Star, Leaf, Flower2, Sparkles, Sun, Moon, Music, Camera, Gem, Wine,
   Cake, Bird, Cloud, MapPin, Crown, Type, Image as ImageIcon, Shapes, Smile,
-  Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2, Download, FileDown,
+  Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2, Download, FileDown, Scissors,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -13,8 +13,29 @@ import { toast } from 'sonner'
 import {
   emptyBoard, addImage, addText, addShape, addIcon, moveEl, resizeEl, snapMove, snapAngle,
   updateEl, removeEl, bringFront, sendBack, duplicateEl, FLOURISHES, SHAPES, MOOD_PALETTE,
-  MOOD_FONTS, PRESETS, LAYOUT_STYLES, type MoodBoard, type MoodEl, type Corner,
+  MOOD_FONTS, PRESETS, LAYOUT_STYLES, GRADIENTS, type MoodBoard, type MoodEl, type Corner,
 } from '@/lib/moodBoard'
+
+// generatori di path per le forme "complesse"
+function burstPath(points = 18, ro = 49, ri = 33, cx = 50, cy = 50): string {
+  let d = ''
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? ro : ri
+    const a = (Math.PI * i) / points - Math.PI / 2
+    d += (i === 0 ? 'M' : 'L') + (cx + r * Math.cos(a)).toFixed(1) + ' ' + (cy + r * Math.sin(a)).toFixed(1) + ' '
+  }
+  return d + 'Z'
+}
+function scallopPath(bumps = 14, r = 44, br = 7, cx = 50, cy = 50): string {
+  let d = ''
+  for (let i = 0; i <= bumps; i++) {
+    const a = (2 * Math.PI * i) / bumps - Math.PI / 2
+    const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a)
+    d += i === 0 ? `M${x.toFixed(1)} ${y.toFixed(1)} ` : `A ${br} ${br} 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)} `
+  }
+  return d + 'Z'
+}
+const blobToDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = () => rej(new Error('read')); r.readAsDataURL(b) })
 
 const ICONS: Record<string, any> = { Heart, Star, Leaf, Flower2, Sparkles, Sun, Moon, Music, Camera, Gem, Wine, Cake, Bird, Cloud, MapPin, Crown }
 const ICON_NAMES = Object.keys(ICONS)
@@ -28,12 +49,21 @@ function ShapeView({ name, fill }: { name: string; fill: string }) {
   if (name === 'line') return <div className="w-full h-full" style={{ background: fill }} />
   if (name === 'heart') return <svg viewBox="0 0 100 100" className="w-full h-full"><path d="M50 86 C 10 56, 16 20, 50 36 C 84 20, 90 56, 50 86 Z" fill={fill} /></svg>
   if (name === 'arch') return <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none"><path d="M5 100 L5 45 C5 15 30 2 50 2 C70 2 95 15 95 45 L95 100 Z" fill={fill} /></svg>
+  if (name === 'oval') return <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none"><ellipse cx="50" cy="50" rx="48" ry="34" fill={fill} /></svg>
+  if (name === 'triangle') return <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none"><path d="M50 4 L96 96 L4 96 Z" fill={fill} /></svg>
+  if (name === 'diamond') return <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none"><path d="M50 3 L97 50 L50 97 L3 50 Z" fill={fill} /></svg>
+  if (name === 'starburst') return <svg viewBox="0 0 100 100" className="w-full h-full"><path d={burstPath()} fill={fill} /></svg>
+  if (name === 'badge') return <svg viewBox="0 0 100 100" className="w-full h-full"><path d={scallopPath()} fill={fill} /></svg>
+  if (name === 'banner') return <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none"><path d="M14 26 L86 26 L98 50 L86 74 L14 74 L2 50 Z" fill={fill} /></svg>
+  if (name === 'frame') return <div className="w-full h-full" style={{ border: `2px solid ${fill}`, boxShadow: `inset 0 0 0 5px transparent, inset 0 0 0 6px ${fill}` }} />
+  if (name === 'blob') return <svg viewBox="0 0 100 100" className="w-full h-full"><path d="M54 8 C 76 6 96 24 92 46 C 88 68 78 92 54 94 C 30 96 8 80 8 56 C 8 32 32 10 54 8 Z" fill={fill} /></svg>
   return <div className="w-full h-full rounded" style={{ background: fill }} /> // rect
 }
 
 function ElView({ el }: { el: MoodEl }) {
   if (el.kind === 'image') {
-    const img = <div className="w-full h-full bg-center bg-cover bg-[rgb(var(--bg-sunken))]" style={{ backgroundImage: el.src ? `url(${el.src})` : undefined }} />
+    const r = el.radius ? `${el.radius * 100}%` : undefined
+    const img = <div className="w-full h-full bg-center bg-cover bg-[rgb(var(--bg-sunken))]" style={{ backgroundImage: el.src ? `url(${el.src})` : undefined, borderRadius: r }} />
     if (el.frame === 'polaroid') return <div className="w-full h-full bg-white shadow-md rounded-[2px] p-[7%] pb-[16%]">{img}</div>
     return img
   }
@@ -55,6 +85,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [processing, setProcessing] = useState(false)
   const [open, setOpen] = useState(false)         // editor a tutta larghezza
   const [tab, setTab] = useState<'preset' | 'img' | 'text' | 'shape' | 'icon'>('preset')
   const [imgUrl, setImgUrl] = useState('')
@@ -141,6 +172,19 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
     } catch (e) { toast.error('PDF non riuscito: ' + ((e as Error).message || 'errore')) }
     finally { setExporting(false) }
   }
+  // scontorno magico: rimuove lo sfondo dell'immagine selezionata (in-browser) e
+  // sostituisce la sorgente con il PNG trasparente (data URL → resta nel board).
+  async function cutout() {
+    if (!selEl || selEl.kind !== 'image' || !selEl.src) return
+    setProcessing(true)
+    try {
+      const { removeBackground } = await import('@imgly/background-removal')
+      const blob = await removeBackground(selEl.src)
+      patchSel({ src: await blobToDataUrl(blob) })
+      toast.success('Sfondo rimosso')
+    } catch { toast.error('Scontorno non riuscito: immagine non accessibile (CORS) o troppo grande.') }
+    finally { setProcessing(false) }
+  }
   function patchSel(p: Partial<MoodEl>) { if (sel) setEls((arr) => updateEl(arr, sel, p)) }
 
   if (loading) return <div className="rounded-2xl border border-[rgb(var(--border))] p-8 flex items-center justify-center"><Loader2 className="animate-spin" /></div>
@@ -166,7 +210,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
         <button onClick={() => setOpen(true)} className="group block w-full p-4 bg-[rgb(var(--bg-sunken))]">
           <div className="relative mx-auto w-full max-w-[420px] shadow-[var(--shadow-lift)]" style={{ aspectRatio: '4 / 5', background: board.bg }}>
             {els.map((el) => (
-              <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: el.z }}>
+              <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: el.z, opacity: el.opacity ?? 1, filter: el.blur ? `blur(${el.blur}px)` : undefined }}>
                 <ElView el={el} />
               </div>
             ))}
@@ -233,6 +277,8 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
               <div className="border-t border-[rgb(var(--border))] pt-2">
                 <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Sfondo</p>
                 <div className="flex flex-wrap gap-1">{MOOD_PALETTE.map((c) => <button key={c} onClick={() => setBoard((b) => ({ ...b, bg: c }))} className={`h-5 w-5 rounded-full border ${board.bg === c ? 'ring-2 ring-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />)}</div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-2 mb-1">Sfumature</p>
+                <div className="flex flex-wrap gap-1">{GRADIENTS.map((g) => <button key={g.label} title={g.label} onClick={() => setBoard((b) => ({ ...b, bg: g.css }))} className={`h-6 w-9 rounded border ${board.bg === g.css ? 'ring-2 ring-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ background: g.css }} />)}</div>
               </div>
             </div>
           )}
@@ -245,7 +291,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
                 const isSel = sel === el.id
                 return (
                   <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: el.z }}>
-                    <div onPointerDown={(e) => down(e, 'move', el)} className={`w-full h-full ${readOnly ? '' : 'cursor-move'} ${isSel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : ''}`}><ElView el={el} /></div>
+                    <div onPointerDown={(e) => down(e, 'move', el)} style={{ opacity: el.opacity ?? 1, filter: el.blur ? `blur(${el.blur}px)` : undefined }} className={`w-full h-full ${readOnly ? '' : 'cursor-move'} ${isSel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : ''}`}><ElView el={el} /></div>
                     {isSel && !readOnly && (
                       <>
                         {(['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => <div key={c} onPointerDown={(e) => down(e, 'resize', el, c)} className="absolute h-3 w-3 bg-white border border-[rgb(var(--gold-500))] rounded-sm" style={{ left: c.includes('w') ? -6 : undefined, right: c.includes('e') ? -6 : undefined, top: c.includes('n') ? -6 : undefined, bottom: c.includes('s') ? -6 : undefined, cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize' }} />)}
@@ -257,7 +303,8 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
               })}
               {guides.v.map((g, i) => <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-rose-500 pointer-events-none" style={{ left: `${g * 100}%` }} />)}
               {guides.h.map((g, i) => <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-rose-500 pointer-events-none" style={{ top: `${g * 100}%` }} />)}
-              {els.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))] px-6 text-center">Parti da un <strong className="mx-1">preset</strong> o aggiungi foto, scritte e decori.</div>}
+              {els.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))] px-6 text-center">Parti da uno <strong className="mx-1">stile</strong> o aggiungi foto, scritte e decori.</div>}
+              {processing && <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,.3)' }}><span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium shadow"><Loader2 size={14} className="animate-spin" /> Rimuovo lo sfondo…</span></div>}
             </div>
           </div>
 
@@ -278,6 +325,24 @@ export function MoodBoardEditor({ entryId, pins, readOnly, title, dateText, loca
                   <div className="flex flex-wrap gap-1">{MOOD_PALETTE.map((c) => <button key={c} onClick={() => patchSel(selEl.kind === 'text' ? { color: c } : { fill: c })} className="h-5 w-5 rounded-full border border-[rgb(var(--border))]" style={{ background: c }} />)}</div>
                 </div>
               )}
+              {selEl.kind === 'image' && (
+                <div className="space-y-2 border-t border-[rgb(var(--border))] pt-2">
+                  <Button size="sm" variant="gold" className="w-full" disabled={processing} onClick={() => void cutout()}>
+                    {processing ? <Loader2 size={13} className="animate-spin" /> : <Scissors size={13} />} {processing ? 'Scontorno…' : 'Togli sfondo'}
+                  </Button>
+                  <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Angoli (anche cerchio)
+                    <input type="range" min={0} max={0.5} step={0.02} value={selEl.radius ?? 0} onChange={(e) => patchSel({ radius: parseFloat(e.target.value) })} className="w-full accent-[rgb(var(--gold-600))]" />
+                  </label>
+                </div>
+              )}
+              <div className="space-y-1.5 border-t border-[rgb(var(--border))] pt-2">
+                <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Sfocatura
+                  <input type="range" min={0} max={12} step={0.5} value={selEl.blur ?? 0} onChange={(e) => patchSel({ blur: parseFloat(e.target.value) })} className="w-full accent-[rgb(var(--gold-600))]" />
+                </label>
+                <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Opacità
+                  <input type="range" min={0.1} max={1} step={0.05} value={selEl.opacity ?? 1} onChange={(e) => patchSel({ opacity: parseFloat(e.target.value) })} className="w-full accent-[rgb(var(--gold-600))]" />
+                </label>
+              </div>
               <div className="flex flex-wrap gap-1 border-t border-[rgb(var(--border))] pt-2">
                 <Button size="sm" variant="outline" onClick={() => setEls((arr) => bringFront(arr, selEl.id))}><ArrowUp size={13} /> Su</Button>
                 <Button size="sm" variant="outline" onClick={() => setEls((arr) => sendBack(arr, selEl.id))}><ArrowDown size={13} /> Giù</Button>
