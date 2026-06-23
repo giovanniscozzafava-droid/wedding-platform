@@ -9,6 +9,7 @@ import { useMood, useMoodMutations, useWedding } from '@/hooks/useWedding'
 import { useAuth } from '@/lib/auth'
 import { PaletteSection } from '@/components/wedding/PaletteSection'
 import { MoodBoardStudio } from '@/components/wedding/MoodBoardStudio'
+import { MoodBoardEditor } from '@/components/wedding/MoodBoardEditor'
 import { SectionRings } from '@/components/event/SectionRings'
 
 const TAGS = ['vestito', 'fiori', 'location', 'torta', 'allestimento', 'altro']
@@ -124,15 +125,25 @@ export function MoodTab({ entryId }: { entryId: string }) {
       <header className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl">Mood board</h2>
-          <p className="text-sm text-[rgb(var(--fg-muted))]">Cerca su Pexels o incolla un URL, poi lo studio impagina tutto. Esporta PDF o PNG dallo studio qui sotto.</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Cerca su Pexels o incolla un URL, poi apri l'editor (tipo Canva) e scegli uno stile: ritagli, polaroid o editoriale di moda. Trascina, ridimensiona e scarica.</p>
         </div>
       </header>
 
       <PaletteSection entryId={entryId} />
 
-      {/* STUDIO moodboard: auto-impaginazione editoriale stile Canva (derivata dall'album) */}
-      <MoodBoardStudio entryId={entryId} images={(images ?? []) as any} title={moodTitle} dateText={moodDate}
-        location={moodLocation} brandName={moodBrand} brandEmail={moodBrandEmail} onRemove={(id) => remove.mutate(id)} />
+      {/* EDITOR Canva: moodboard libero con stili d'impaginazione (ritagli/polaroid/moda) */}
+      <div className="mb-6">
+        <MoodBoardEditor entryId={entryId} pins={(images ?? []).map((m: any) => m.url).filter(Boolean)} />
+      </div>
+
+      {/* STUDIO: impaginazione automatica + export PDF editoriale (secondario) */}
+      <details className="mb-6 rounded-xl border border-[rgb(var(--border))] p-3">
+        <summary className="cursor-pointer text-sm font-medium text-[rgb(var(--fg-muted))]">Impaginazione automatica & export PDF editoriale</summary>
+        <div className="mt-3">
+          <MoodBoardStudio entryId={entryId} images={(images ?? []) as any} title={moodTitle} dateText={moodDate}
+            location={moodLocation} brandName={moodBrand} brandEmail={moodBrandEmail} onRemove={(id) => remove.mutate(id)} />
+        </div>
+      </details>
 
       <div className="flex gap-2 mb-3">
         <button onClick={() => setMode('pexels')}

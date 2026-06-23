@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Heart, Star, Leaf, Flower2, Sparkles, Sun, Moon, Music, Camera, Gem, Wine,
   Cake, Bird, Cloud, MapPin, Crown, Type, Image as ImageIcon, Shapes, Smile,
-  Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2,
+  Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2, Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import {
   emptyBoard, addImage, addText, addShape, addIcon, moveEl, resizeEl, snapMove, snapAngle,
   updateEl, removeEl, bringFront, sendBack, duplicateEl, FLOURISHES, SHAPES, MOOD_PALETTE,
-  MOOD_FONTS, PRESETS, type MoodBoard, type MoodEl, type Corner,
+  MOOD_FONTS, PRESETS, LAYOUT_STYLES, type MoodBoard, type MoodEl, type Corner,
 } from '@/lib/moodBoard'
 
 const ICONS: Record<string, any> = { Heart, Star, Leaf, Flower2, Sparkles, Sun, Moon, Music, Camera, Gem, Wine, Cake, Bird, Cloud, MapPin, Crown }
@@ -32,7 +32,11 @@ function ShapeView({ name, fill }: { name: string; fill: string }) {
 }
 
 function ElView({ el }: { el: MoodEl }) {
-  if (el.kind === 'image') return <div className="w-full h-full bg-center bg-cover bg-[rgb(var(--bg-sunken))]" style={{ backgroundImage: el.src ? `url(${el.src})` : undefined }} />
+  if (el.kind === 'image') {
+    const img = <div className="w-full h-full bg-center bg-cover bg-[rgb(var(--bg-sunken))]" style={{ backgroundImage: el.src ? `url(${el.src})` : undefined }} />
+    if (el.frame === 'polaroid') return <div className="w-full h-full bg-white shadow-md rounded-[2px] p-[7%] pb-[16%]">{img}</div>
+    return img
+  }
   if (el.kind === 'text') return (
     <div className="w-full h-full flex items-center px-1 overflow-hidden [container-type:size]" style={{ justifyContent: el.align === 'left' ? 'flex-start' : el.align === 'right' ? 'flex-end' : 'center' }}>
       <span style={{ color: el.color, fontFamily: el.font, fontWeight: el.weight ?? 600, fontStyle: el.italic ? 'italic' : undefined, textAlign: el.align, fontSize: '70cqh', lineHeight: 1.05, width: '100%', whiteSpace: 'nowrap' }}>{el.text || 'Testo'}</span>
@@ -47,6 +51,7 @@ export function MoodBoardEditor({ entryId, pins, readOnly }: { entryId: string; 
   const [sel, setSel] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [open, setOpen] = useState(false)         // editor a tutta larghezza
   const [tab, setTab] = useState<'preset' | 'img' | 'text' | 'shape' | 'icon'>('preset')
   const [imgUrl, setImgUrl] = useState('')
@@ -103,6 +108,24 @@ export function MoodBoardEditor({ entryId, pins, readOnly }: { entryId: string; 
   function up() { drag.current = null; setGuides({ v: [], h: [] }) }
 
   function applyPreset(i: number) { setBoard(PRESETS[i]!.build(pins.length ? pins : ['', '', ''])); setSel(null); setTab('img') }
+  // stili d'impaginazione dinamici: dispongono TUTTE le foto del mood (ritagli/polaroid/moda)
+  function applyStyle(key: string) {
+    const st = LAYOUT_STYLES.find((s) => s.key === key); if (!st) return
+    const imgs = pins.filter(Boolean)
+    if (imgs.length === 0) { toast.error('Aggiungi prima qualche foto'); return }
+    setBoard(st.build(imgs)); setSel(null)
+  }
+  async function exportPng() {
+    if (!boxRef.current || board.els.length === 0) { toast.error('Aggiungi qualcosa prima'); return }
+    setExporting(true)
+    try {
+      const html2canvas = (await import('html2canvas-pro')).default
+      const canvas = await html2canvas(boxRef.current, { useCORS: true, backgroundColor: board.bg, scale: 2 })
+      const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'moodboard.png'; a.click()
+      toast.success('Moodboard scaricato')
+    } catch { toast.error('Export non riuscito (alcune immagini bloccano il salvataggio: CORS).') }
+    finally { setExporting(false) }
+  }
   function patchSel(p: Partial<MoodEl>) { if (sel) setEls((arr) => updateEl(arr, sel, p)) }
 
   if (loading) return <div className="rounded-2xl border border-[rgb(var(--border))] p-8 flex items-center justify-center"><Loader2 className="animate-spin" /></div>
@@ -116,10 +139,27 @@ export function MoodBoardEditor({ entryId, pins, readOnly }: { entryId: string; 
         </div>
         <div className="flex items-center gap-2">
           {saving && <span className="text-[11px] text-[rgb(var(--fg-muted))] flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> salvo…</span>}
+          {board.els.length > 0 && <Button size="sm" variant="outline" onClick={() => void exportPng()} disabled={exporting}><Download size={14} /> PNG</Button>}
           {!readOnly && <Button size="sm" variant="outline" onClick={() => void persist(board, false)}><Save size={14} /> Salva</Button>}
-          <Button size="sm" variant={open ? 'gold' : 'outline'} onClick={() => setOpen((v) => !v)}>{open ? 'Chiudi' : 'Apri editor'}</Button>
+          <Button size="sm" variant={open ? 'gold' : 'outline'} onClick={() => setOpen((v) => !v)}>{open ? 'Chiudi' : 'Apri come Canva'}</Button>
         </div>
       </div>
+
+      {/* anteprima cliccabile da chiuso: clicchi sul moodboard e si apre l'editor (tipo Canva) */}
+      {!open && els.length > 0 && (
+        <button onClick={() => setOpen(true)} className="group block w-full p-4 bg-[rgb(var(--bg-sunken))]">
+          <div className="relative mx-auto w-full max-w-[420px] shadow-[var(--shadow-lift)]" style={{ aspectRatio: '4 / 5', background: board.bg }}>
+            {els.map((el) => (
+              <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: el.z }}>
+                <ElView el={el} />
+              </div>
+            ))}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/15 transition">
+              <span className="opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-1 rounded-full bg-white/90 text-[rgb(var(--fg))] text-xs font-medium px-3 py-1.5"><Wand2 size={13} /> Apri come Canva</span>
+            </div>
+          </div>
+        </button>
+      )}
 
       {open && (
         <div className="lg:flex">
@@ -127,12 +167,23 @@ export function MoodBoardEditor({ entryId, pins, readOnly }: { entryId: string; 
           {!readOnly && (
             <div className="lg:w-64 shrink-0 border-b lg:border-b-0 lg:border-r border-[rgb(var(--border))] p-3 space-y-3 max-h-[70vh] overflow-y-auto">
               <div className="flex flex-wrap gap-1">
-                {([['preset', 'Preset', Wand2], ['img', 'Foto', ImageIcon], ['text', 'Testo', Type], ['shape', 'Forme', Shapes], ['icon', 'Icone', Smile]] as const).map(([k, l, I]) => (
+                {([['preset', 'Stili', Wand2], ['img', 'Foto', ImageIcon], ['text', 'Testo', Type], ['shape', 'Forme', Shapes], ['icon', 'Icone', Smile]] as const).map(([k, l, I]) => (
                   <button key={k} onClick={() => setTab(k)} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${tab === k ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg))]' : 'border border-[rgb(var(--border))]'}`}><I size={12} /> {l}</button>
                 ))}
               </div>
 
-              {tab === 'preset' && <div className="grid grid-cols-3 gap-2">{PRESETS.map((p, i) => <button key={p.label} onClick={() => applyPreset(i)} className="rounded-lg border border-[rgb(var(--border))] p-2 text-[11px] hover:bg-[rgb(var(--bg-sunken))]">{p.label}</button>)}</div>}
+              {tab === 'preset' && (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Stili d'impaginazione — dispongono tutte le foto</p>
+                    <div className="grid grid-cols-2 gap-2">{LAYOUT_STYLES.map((s) => <button key={s.key} onClick={() => applyStyle(s.key)} className="rounded-lg border border-[rgb(var(--border))] p-2 text-[11px] hover:bg-[rgb(var(--bg-sunken))] hover:border-[rgb(var(--gold-500))]">{s.label}</button>)}</div>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Temi pronti</p>
+                    <div className="grid grid-cols-3 gap-2">{PRESETS.map((p, i) => <button key={p.label} onClick={() => applyPreset(i)} className="rounded-lg border border-[rgb(var(--border))] p-2 text-[11px] hover:bg-[rgb(var(--bg-sunken))]">{p.label}</button>)}</div>
+                  </div>
+                </div>
+              )}
 
               {tab === 'img' && (
                 <div className="space-y-2">

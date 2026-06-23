@@ -7,6 +7,7 @@ export type MoodEl = {
   id: string; kind: MoodKind
   x: number; y: number; w: number; h: number; rot: number; z: number
   src?: string                                   // image
+  frame?: 'polaroid'                             // cornice immagine (polaroid = bordo bianco + base)
   text?: string; color?: string; font?: string   // text
   align?: 'left' | 'center' | 'right'; weight?: number; italic?: boolean
   name?: string; fill?: string                    // shape / icon / flourish (name = chiave registro)
@@ -145,4 +146,68 @@ export const PRESETS: { label: string; build: (imgs: string[]) => MoodBoard }[] 
       ],
     }),
   },
+]
+
+// ── STILI DI IMPAGINAZIONE (dinamici: usano TUTTE le foto) ───────────────────
+// Veri stili "di moda": ritagli/collage, polaroid, editoriale e rivista. Dispongono
+// tutte le immagini con il "justified" (righe a larghezza piena), poi l'utente rifinisce.
+type Rect = { x: number; y: number; w: number; h: number }
+const rowsFor = (n: number, vr: number) => Math.max(1, Math.min(n, Math.round(Math.sqrt(n / Math.max(0.4, vr)))))
+const distribute = (n: number, R: number) => { const base = Math.floor(n / R), ex = n % R; return Array.from({ length: R }, (_, r) => base + (r < ex ? 1 : 0)) }
+function justified(n: number, rect: Rect, aspect: number, g: number): Rect[] {
+  const out: Rect[] = []; if (n <= 0) return out
+  const vr = aspect * (rect.w / Math.max(0.001, rect.h))
+  const R = rowsFor(n, vr); const counts = distribute(n, R)
+  const rowH = (rect.h - g * (R + 1)) / R
+  for (let r = 0; r < R; r++) {
+    const c = Math.max(1, counts[r] ?? 1); const cellW = (rect.w - g * (c + 1)) / c
+    const y = rect.y + g + r * (rowH + g)
+    for (let i = 0; i < c; i++) out.push({ x: rect.x + g + i * (cellW + g), y, w: cellW, h: rowH })
+  }
+  return out
+}
+const FB: Rect = { x: 0.3, y: 0.3, w: 0.4, h: 0.4 }
+const imgEl = (src: string, s: Rect, z: number, rot = 0, frame?: 'polaroid'): MoodEl => ({ id: uid(), kind: 'image', src, x: s.x, y: s.y, w: s.w, h: s.h, rot, z, frame })
+const jitter = (i: number, amp = 4) => ((i * 41) % (amp * 2 + 1)) - amp // -amp..+amp deterministico
+
+function styleCollage(imgs: string[]): MoodBoard {
+  const s = justified(imgs.length, { x: 0.02, y: 0.02, w: 0.96, h: 0.96 }, 1, 0.012)
+  return { bg: '#f3ede3', els: imgs.map((src, i) => imgEl(src, s[i] ?? FB, i + 1, jitter(i, 4))) }
+}
+function stylePolaroid(imgs: string[]): MoodBoard {
+  const s = justified(imgs.length, { x: 0.03, y: 0.03, w: 0.94, h: 0.94 }, 1, 0.045)
+  return { bg: '#ece7df', els: imgs.map((src, i) => imgEl(src, s[i] ?? FB, i + 1, jitter(i, 5), 'polaroid')) }
+}
+function styleGriglia(imgs: string[]): MoodBoard {
+  const s = justified(imgs.length, { x: 0, y: 0, w: 1, h: 1 }, 1, 0.012)
+  return { bg: '#ffffff', els: imgs.map((src, i) => imgEl(src, s[i] ?? FB, i + 1)) }
+}
+function styleEditoriale(imgs: string[]): MoodBoard {
+  if (imgs.length <= 1) return styleGriglia(imgs)
+  const g = 0.014, heroW = imgs.length >= 4 ? 0.56 : 0.62
+  const hero: Rect = { x: g, y: 0.12, w: heroW, h: 0.86 }
+  const right: Rect = { x: g + heroW + g, y: 0.12, w: 1 - (g + heroW + g) - g, h: 0.86 }
+  const rest = justified(imgs.length - 1, right, 1, g)
+  return { bg: '#ffffff', els: [
+    { id: uid(), kind: 'text', text: 'MOOD', x: g, y: 0.015, w: 0.6, h: 0.085, rot: 0, z: 100, color: '#1f1b16', font: 'Playfair Display, serif', align: 'left', weight: 700 },
+    imgEl(imgs[0]!, hero, 1),
+    ...imgs.slice(1).map((src, i) => imgEl(src, rest[i] ?? FB, i + 2)),
+  ] }
+}
+function styleRivista(imgs: string[]): MoodBoard {
+  const g = 0.014
+  const grid = justified(imgs.length, { x: g, y: 0.16, w: 1 - 2 * g, h: 0.82 }, 1, g)
+  return { bg: '#f5f2ec', els: [
+    { id: uid(), kind: 'text', text: 'EDITORIAL', x: g, y: 0.03, w: 0.7, h: 0.08, rot: 0, z: 100, color: '#1f1b16', font: 'Georgia, serif', align: 'left', weight: 700 },
+    { id: uid(), kind: 'shape', name: 'line', fill: '#1f1b16', x: g, y: 0.125, w: 1 - 2 * g, h: 0.004, rot: 0, z: 99 },
+    ...imgs.map((src, i) => imgEl(src, grid[i] ?? FB, i + 1)),
+  ] }
+}
+
+export const LAYOUT_STYLES: { key: string; label: string; build: (imgs: string[]) => MoodBoard }[] = [
+  { key: 'collage', label: 'Ritagli', build: styleCollage },
+  { key: 'polaroid', label: 'Polaroid', build: stylePolaroid },
+  { key: 'editoriale', label: 'Moda · editoriale', build: styleEditoriale },
+  { key: 'rivista', label: 'Moda · rivista', build: styleRivista },
+  { key: 'griglia', label: 'Griglia', build: styleGriglia },
 ]
