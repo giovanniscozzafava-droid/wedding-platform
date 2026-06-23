@@ -53,11 +53,16 @@ import { Guestbook } from '@/components/event/Guestbook'
 import { Pencil } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { fetchUnreadByEntry, tabsWithDot, typesForTab, markEntryTabRead } from '@/lib/notifGuide'
+import { isPhotoOnlyEvent } from '@/lib/eventMode'
 import { useQueryClient } from '@tanstack/react-query'
 
 type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
 
 type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean }
+
+// Evento "solo ricordi" (passato + senza preventivo): tengo attive Foto/Video e, lato
+// professionista, anche Overview (così l'owner non resta intrappolato e può sempre gestire).
+const PRO_PHOTO_ONLY_KEYS = new Set(['foto', 'video', 'overview'])
 
 const TABS: Array<TabDef> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
@@ -162,6 +167,11 @@ export default function WeddingDashboard() {
     [nuovoModello, effectiveAmbito, isFornitore],
   )
 
+  // Evento "solo ricordi": concluso e mai gestito col dashboard (nessun preventivo).
+  // Tengo attive solo Foto/Video (+ Overview lato pro); il resto si oscura. Atterro su Foto.
+  const photoOnly = isPhotoOnlyEvent(wedding as { date_from?: string | null; date_to?: string | null; quote?: unknown } | null)
+  useEffect(() => { if (photoOnly && !PRO_PHOTO_ONLY_KEYS.has(tab)) setTab('foto') }, [photoOnly, tab])
+
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!wedding) return <div className="p-10 text-[rgb(var(--rose-500))]">Wedding non trovato</div>
 
@@ -257,9 +267,12 @@ export default function WeddingDashboard() {
                 // /services tramite la link_action del ProssimaMossa).
                 const emphasized =
                   effectiveAmbito === 'SOLO_PROPRI_SERVIZI' && t.key === 'menu'
+                const locked = photoOnly && !PRO_PHOTO_ONLY_KEYS.has(t.key)
                 return (
                   <button
                     key={t.key}
+                    disabled={locked}
+                    title={locked ? 'Evento concluso — disponibili solo Foto e Video' : undefined}
                     onClick={(e) => {
                       setTab(t.key)
                       if (dotTabs.has(t.key) && wedding?.id) {
@@ -270,11 +283,13 @@ export default function WeddingDashboard() {
                     }}
                     className={cn(
                       'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[44px]',
-                      active
-                        ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
-                        : emphasized
-                          ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] hover:bg-[rgb(var(--bg-sunken))]'
-                          : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
+                      locked
+                        ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
+                        : active
+                          ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
+                          : emphasized
+                            ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] hover:bg-[rgb(var(--bg-sunken))]'
+                            : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
                     )}
                     aria-label={emphasized ? `${t.label} (in evidenza)` : t.label}
                   >
@@ -303,8 +318,14 @@ export default function WeddingDashboard() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8">
-        <div className="mb-6"><EventRing entryId={wedding.id} view={ringView} /></div>
-        {tab === 'overview' && <div className="mb-6"><CompletionRings entryId={wedding.id} onOpen={(t) => setTab((t === 'rsvp' ? 'guests' : t === 'cerchio' ? 'overview' : t) as TabKey)} /></div>}
+        {photoOnly && (
+          <div className="mb-5 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
+            <Images size={15} className="text-[rgb(var(--gold-600))] shrink-0" />
+            <span className="text-[rgb(var(--fg-muted))]">Evento concluso e non gestito col dashboard: restano attive solo <strong className="text-[rgb(var(--fg))]">Foto e Video</strong>.</span>
+          </div>
+        )}
+        {!photoOnly && <div className="mb-6"><EventRing entryId={wedding.id} view={ringView} /></div>}
+        {!photoOnly && tab === 'overview' && <div className="mb-6"><CompletionRings entryId={wedding.id} onOpen={(t) => setTab((t === 'rsvp' ? 'guests' : t === 'cerchio' ? 'overview' : t) as TabKey)} /></div>}
         <AnimatePresence mode="wait">
           <motion.div key={tab}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}

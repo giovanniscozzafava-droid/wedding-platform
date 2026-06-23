@@ -19,6 +19,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { eventTerm } from '@/lib/eventKind'
+import { isPhotoOnlyEvent, PHOTO_ONLY_KEYS } from '@/lib/eventMode'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 import { MenuTab } from '@/components/wedding/MenuTab'
 import { GuestsTab } from '@/components/wedding/GuestsTab'
@@ -210,6 +211,10 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
   // pertinenti. Es. per un battesimo niente Alloggi/Trasporti/Mood/Playlist/Sito;
   // per un corporate niente Cerimonia/Bomboniere/Mood; ecc.
   const visibleTabs = TABS.filter((t) => isTabVisible(t.key, eventKind, hasRestauration))
+  // Evento "solo ricordi": concluso e mai gestito col dashboard (nessun preventivo).
+  // Restano attive solo Foto e Video; il resto si oscura. Atterro sempre su Foto.
+  const photoOnly = isPhotoOnlyEvent(wedding)
+  useEffect(() => { if (photoOnly && !PHOTO_ONLY_KEYS.has(tab)) setTab('foto') }, [photoOnly, tab, setTab])
 
   return (
     <>
@@ -242,18 +247,23 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             {visibleTabs.map((t) => {
               const Icon = t.icon
               const active = tab === t.key
+              const locked = photoOnly && !PHOTO_ONLY_KEYS.has(t.key)
               return (
                 <button
                   key={t.key}
+                  disabled={locked}
+                  title={locked ? 'Evento concluso — disponibili solo Foto e Video' : undefined}
                   onClick={(e) => {
                     setTab(t.key)
                     ;(e.currentTarget as HTMLElement).scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' })
                   }}
                   className={cn(
                     'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
-                    active
-                      ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
-                      : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]',
+                    locked
+                      ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
+                      : active
+                        ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
+                        : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]',
                   )}>
                   <Icon size={14} /> {t.label}
                 </button>
@@ -278,10 +288,13 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
                 <div className="space-y-0.5">
                   {items.map((t) => {
                     const Icon = t.icon; const active = tab === t.key
+                    const locked = photoOnly && !PHOTO_ONLY_KEYS.has(t.key)
                     return (
-                      <button key={t.key} onClick={() => setTab(t.key)}
+                      <button key={t.key} disabled={locked} onClick={() => setTab(t.key)}
+                        title={locked ? 'Evento concluso — disponibili solo Foto e Video' : undefined}
                         className={cn('w-full inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors text-left',
-                          active ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]')}>
+                          locked ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
+                            : active ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]')}>
                         <Icon size={15} className="shrink-0" /> <span className="truncate">{t.label}</span>
                       </button>
                     )
@@ -293,7 +306,13 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
         </aside>
 
         <div className="flex-1 min-w-0">
-        {tab === 'overview' && <div className="mb-6"><EventRing entryId={entryId} view="sposi" /></div>}
+        {photoOnly && (
+          <div className="mb-5 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+            <Sparkles size={15} className="text-[rgb(var(--gold-600))] shrink-0" />
+            <span className="text-[rgb(var(--fg-muted))]">Evento concluso: qui trovi i tuoi <strong className="text-[rgb(var(--fg))]">ricordi</strong> — Foto e Video.</span>
+          </div>
+        )}
+        {!photoOnly && tab === 'overview' && <div className="mb-6"><EventRing entryId={entryId} view="sposi" /></div>}
         {tab === 'overview' && <div className="mb-6"><CompletionRings entryId={entryId} onOpen={(t) => setTab(((({ guests: 'invitati', rsvp: 'invitati', tables: 'tavoli', ceremony: 'cerimonia', timeline: 'programma', cerchio: 'overview' }) as Record<string, string>)[t] ?? t) as Tab)} /></div>}
         <AnimatePresence mode="wait">
           <motion.div key={tab}
