@@ -11,10 +11,9 @@ import {
   CATEGORIES, BOXES, COLORS, FORMATS,
   modelsByCategory, materialsForModel, paletteFor, modelByKey,
   sizesForFormat, defaultSizeKey, sizeByKey,
-  coverPrice, euro, isWoodModel, mockupFor, glbFor, modelLabel, FINISHES,
+  coverPrice, euro, isWoodModel, FINISHES,
   type Cover, type ColorDef, type Format,
 } from '@/components/album/albumCatalog'
-import { AlbumGlb3D } from '@/components/album/AlbumGlb3D'
 import { sendAlbumToPrint } from '@/hooks/useAlbumLab'
 
 // Configuratore copertina con mockup 3D reale. Catalogo commerciale DesignAlbum:
@@ -39,10 +38,7 @@ export default function CoverConfigurator() {
   const [copies, setCopies] = useState(1)
   const [busy, setBusy] = useState(false)
   const [flipOpen, setFlipOpen] = useState(false)
-  const [view3d, setView3d] = useState(false)
   const set = (patch: Partial<Cover>) => setCover((c) => ({ ...c, ...patch }))
-  const mockup = mockupFor(cover.model)
-  const glb = glbFor(cover.model)
 
   // foto demo per lo sfoglio (in futuro: impaginazione reale). La copertina della coppia apre la sequenza.
   const demoPhotos = [
@@ -105,14 +101,9 @@ export default function CoverConfigurator() {
 
         <div className="grid md:grid-cols-[1fr_380px] gap-8 items-start">
           <Card className="p-4 grid place-items-center bg-gradient-to-br from-[rgb(var(--bg-sunken))] to-transparent md:sticky md:top-6">
-            {mockup && !view3d
-              ? <img key={cover.model} src={mockup} alt={`Mockup ${modelLabel(cover.model)}`} className="w-[400px] max-w-full rounded-lg shadow-xl" />
-              : glb && view3d
-                ? <AlbumGlb3D key={glb} url={glb} width={400} />
-                : <AlbumMockup3D cover={cover} width={400} />}
-            <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2 text-center">{modelByKey(cover.model)?.blurb}{mockup && !view3d ? ' · anteprima reale' : glb && view3d ? ' · 3D reale · trascina per ruotare' : ' · trascina per ruotare'}</p>
+            <AlbumMockup3D cover={cover} width={400} />
+            <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2 text-center">{modelByKey(cover.model)?.blurb} · anteprima 3D live · trascina per ruotare</p>
             <div className="flex flex-wrap gap-2 mt-3 justify-center">
-              {mockup && <Button variant="outline" onClick={() => setView3d((v) => !v)}>{view3d ? '↺ Foto reale' : glb ? '⟳ Ruota in 3D' : '✎ Personalizza in 3D'}</Button>}
               <Button variant="outline" onClick={() => setFlipOpen(true)}><BookOpen size={16} /> Sfoglia l'album</Button>
             </div>
           </Card>

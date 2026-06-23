@@ -16,6 +16,8 @@ import { TimelineTab } from '@/components/wedding/TimelineTab'
 import { TablesTab } from '@/components/wedding/TablesTab'
 import { GuestsTab } from '@/components/wedding/GuestsTab'
 import { GiftsTab } from '@/components/wedding/GiftsTab'
+import { CornersTab } from '@/components/wedding/CornersTab'
+import { Boxes } from 'lucide-react'
 import { BudgetTab } from '@/components/wedding/BudgetTab'
 import { ChecklistTab } from '@/components/wedding/ChecklistTab'
 import { MoodTab } from '@/components/wedding/MoodTab'
@@ -56,7 +58,7 @@ import { fetchUnreadByEntry, tabsWithDot, typesForTab, markEntryTabRead } from '
 import { isPhotoOnlyEvent } from '@/lib/eventMode'
 import { useQueryClient } from '@tanstack/react-query'
 
-type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
+type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'angoli' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
 
 type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean }
 
@@ -77,6 +79,7 @@ const TABS: Array<TabDef> = [
   { key: 'transport',      label: 'Trasporti',    icon: Bus },
   { key: 'subevents',      label: 'Eventi',       icon: PartyPopper },
   { key: 'gadgets',        label: 'Bomboniere',   icon: Gift },
+  { key: 'angoli',         label: 'Angoli',       icon: Boxes },
   { key: 'mood',           label: 'Mood',         icon: Palette },
   { key: 'playlist',       label: 'Playlist',     icon: Music },
   { key: 'budget',         label: 'Budget',       icon: Wallet, capostipiteOnly: true },
@@ -348,6 +351,7 @@ export default function WeddingDashboard() {
             {tab === 'tables' && <TablesTab entryId={wedding.id} />}
             {tab === 'guests' && <GuestsTab entryId={wedding.id} eventKind={wedding.event_kind} />}
             {tab === 'regali' && <GiftsTab entryId={wedding.id} />}
+            {tab === 'angoli' && <CornersTab entryId={wedding.id} />}
             {tab === 'menu' && <MenuTab entryId={wedding.id} />}
             {tab === 'budget' && <BudgetTab entryId={wedding.id} />}
             {tab === 'payments' && <PagamentiTab entryId={wedding.id} />}
