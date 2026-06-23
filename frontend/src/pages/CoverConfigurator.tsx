@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ChevronLeft, Send, ImagePlus, BookOpen } from 'lucide-react'
+import { ChevronLeft, Send, ImagePlus, BookOpen, Type, Sparkles, Palette, Square } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AlbumMockup3D } from '@/components/album/AlbumMockup3D'
+import { AlbumCover2DPreview } from '@/components/album/AlbumCover2DPreview'
 import { AlbumFlipbook } from '@/components/album/AlbumFlipbook'
 import {
   CATEGORIES, BOXES, COLORS, FORMATS,
@@ -14,6 +15,9 @@ import {
   coverPrice, euro, isWoodModel, FINISHES,
   type Cover, type ColorDef, type Format,
 } from '@/components/album/albumCatalog'
+import {
+  COVER_BORDERS, COVER_DECORATIONS, COVER_FONTS, COVER_INK_SWATCHES, COVER_TEXT_LAYOUTS,
+} from '@/components/album/albumCoverPersonalization'
 import { sendAlbumToPrint } from '@/hooks/useAlbumLab'
 
 // Configuratore copertina con mockup 3D reale. Catalogo commerciale DesignAlbum:
@@ -33,7 +37,12 @@ export default function CoverConfigurator() {
   const [category, setCategory] = useState<string>('base')
   const [cover, setCover] = useState<Cover>(() => {
     const c = ensureColor('alcantara', 'alcantara:crema')
-    return { model: 'rimboccato', fabric: 'alcantara', color: c.color, colorKey: c.colorKey, box: 'nessuno', format: 'portrait', sizeKey: 'portrait:30x40', photo_url: null, title: 'Marco & Anna' }
+    return {
+      model: 'rimboccato', fabric: 'alcantara', color: c.color, colorKey: c.colorKey,
+      box: 'nessuno', format: 'portrait', sizeKey: 'portrait:30x40', photo_url: null,
+      title: 'Marco & Anna', subtitle: '23 giugno 2026', monogram: 'MA',
+      fontKey: 'fraunces', textLayout: 'model', decorationKey: 'none', borderKey: 'none',
+    }
   })
   const [copies, setCopies] = useState(1)
   const [busy, setBusy] = useState(false)
@@ -55,6 +64,7 @@ export default function CoverConfigurator() {
     const cur = cover.finishes ?? []
     set({ finishes: cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k] })
   }
+  const pickInk = (text?: string, accent?: string) => set({ textColor: text, accentColor: accent })
 
   function pickCategory(cat: string) {
     setCategory(cat)
@@ -99,10 +109,25 @@ export default function CoverConfigurator() {
         <h1 className="font-display text-3xl mb-1">Copertina & stampa</h1>
         <p className="text-[rgb(var(--fg-muted))] mb-6">Scegli categoria, modello, materiale e colore. Guarda il mockup 3D (trascina per girarlo) e invia in stampa.</p>
 
-        <div className="grid md:grid-cols-[1fr_380px] gap-8 items-start">
-          <Card className="p-4 grid place-items-center bg-gradient-to-br from-[rgb(var(--bg-sunken))] to-transparent md:sticky md:top-6">
-            <AlbumMockup3D cover={cover} width={400} />
-            <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2 text-center">{modelByKey(cover.model)?.blurb} · anteprima 3D live · trascina per ruotare</p>
+        <div className="grid lg:grid-cols-[440px_1fr] gap-8 items-start">
+          <Card className="p-4 bg-gradient-to-br from-[rgb(var(--bg-sunken))] to-transparent lg:sticky lg:top-6">
+            <div className="grid gap-4">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Tavola 2D</p>
+                  <span className="text-[10px] text-[rgb(var(--fg-subtle))]">{sizeByKey(cover.sizeKey)?.label}</span>
+                </div>
+                <AlbumCover2DPreview cover={cover} width={300} />
+              </div>
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Mockup 3D</p>
+                  <span className="text-[10px] text-[rgb(var(--fg-subtle))]">drag</span>
+                </div>
+                <AlbumMockup3D cover={cover} width={360} />
+              </div>
+            </div>
+            <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2 text-center">{modelByKey(cover.model)?.blurb}</p>
             <div className="flex flex-wrap gap-2 mt-3 justify-center">
               <Button variant="outline" onClick={() => setFlipOpen(true)}><BookOpen size={16} /> Sfoglia l'album</Button>
             </div>
@@ -188,9 +213,92 @@ export default function CoverConfigurator() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-[rgb(var(--fg-muted))]">Personalizzato<input type="color" value={cover.color} onChange={(e) => set({ color: e.target.value, colorKey: undefined })} className="block mt-1 h-9 w-16 rounded border border-[rgb(var(--border))]" /></label>
-              <label className="text-xs text-[rgb(var(--fg-muted))] flex-1">Titolo in copertina<Input value={cover.title ?? ''} onChange={(e) => set({ title: e.target.value })} className="mt-1" /></label>
+            <div className="rounded-xl border border-[rgb(var(--border))] p-3 space-y-3 bg-[rgb(var(--bg))]">
+              <div className="flex items-center gap-2">
+                <Type size={15} className="text-[rgb(var(--gold-600))]" />
+                <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Personalizzazione grafica</p>
+              </div>
+              <div className="grid sm:grid-cols-3 gap-2">
+                <label className="text-xs text-[rgb(var(--fg-muted))] sm:col-span-2">Nomi in copertina
+                  <Input value={cover.title ?? ''} onChange={(e) => set({ title: e.target.value })} className="mt-1" />
+                </label>
+                <label className="text-xs text-[rgb(var(--fg-muted))]">Monogramma
+                  <Input value={cover.monogram ?? ''} maxLength={4} onChange={(e) => set({ monogram: e.target.value.toUpperCase() })} className="mt-1" />
+                </label>
+                <label className="text-xs text-[rgb(var(--fg-muted))] sm:col-span-2">Data / frase breve
+                  <Input value={cover.subtitle ?? ''} onChange={(e) => set({ subtitle: e.target.value })} placeholder="23 giugno 2026" className="mt-1" />
+                </label>
+                <label className="text-xs text-[rgb(var(--fg-muted))]">Colore cover libero
+                  <input type="color" value={cover.color} onChange={(e) => set({ color: e.target.value, colorKey: undefined })} className="block mt-1 h-9 w-full rounded border border-[rgb(var(--border))]" />
+                </label>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1 flex items-center gap-1"><Type size={12} /> Font</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {COVER_FONTS.map((f) => (
+                    <button key={f.key} onClick={() => set({ fontKey: f.key })}
+                      className={`rounded-lg border px-2 py-2 text-left transition ${cover.fontKey === f.key ? on : off}`}>
+                      <span className="block text-sm leading-tight" style={{ fontFamily: f.css }}>{f.label}</span>
+                      <span className="text-[10px] text-[rgb(var(--fg-subtle))]">{f.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Posizione testo</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {COVER_TEXT_LAYOUTS.map((l) => (
+                    <button key={l.key} onClick={() => set({ textLayout: l.key })}
+                      className={`${chip} ${cover.textLayout === l.key || (!cover.textLayout && l.key === 'model') ? on : off}`}>
+                      {l.label} <span className="opacity-60">{l.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1 flex items-center gap-1"><Sparkles size={12} /> Ghirigori</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {COVER_DECORATIONS.map((d) => (
+                    <button key={d.key} onClick={() => set({ decorationKey: d.key })}
+                      className={`rounded-lg border px-2 py-2 text-left transition ${cover.decorationKey === d.key || (!cover.decorationKey && d.key === 'none') ? on : off}`}>
+                      <span className="block text-xs font-medium">{d.label}</span>
+                      <span className="text-[10px] text-[rgb(var(--fg-subtle))]">{d.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1 flex items-center gap-1"><Square size={12} /> Greche e cornici</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {COVER_BORDERS.map((b) => (
+                    <button key={b.key} onClick={() => set({ borderKey: b.key })}
+                      className={`rounded-lg border px-2 py-2 text-left transition ${cover.borderKey === b.key || (!cover.borderKey && b.key === 'none') ? on : off}`}>
+                      <span className="block text-xs font-medium">{b.label}</span>
+                      <span className="text-[10px] text-[rgb(var(--fg-subtle))]">{b.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1 flex items-center gap-1"><Palette size={12} /> Colore testo / decoro</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {COVER_INK_SWATCHES.map((s) => {
+                    const active = s.text ? cover.textColor === s.text && cover.accentColor === s.accent : !cover.textColor && !cover.accentColor
+                    return (
+                      <button key={s.key} onClick={() => pickInk(s.text, s.accent)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs border inline-flex items-center gap-1.5 ${active ? on : off}`}>
+                        <span className="h-4 w-4 rounded-full border border-black/10" style={{ background: s.accent ?? 'linear-gradient(135deg,#fff,#222)' }} />
+                        {s.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
 
             <div>

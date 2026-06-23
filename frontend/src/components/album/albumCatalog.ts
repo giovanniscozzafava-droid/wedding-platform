@@ -24,9 +24,21 @@ export type Cover = {
   finishes?: string[]      // rifiniture: swarovski|targhetta|iniziali|data|logo
   photo_url?: string | null
   title?: string
+  subtitle?: string
+  monogram?: string
+  fontKey?: CoverFontKey
+  textLayout?: CoverTextLayout
+  decorationKey?: CoverDecorationKey
+  borderKey?: CoverBorderKey
+  textColor?: string
+  accentColor?: string
 }
 
 export type Format = 'square' | 'portrait' | 'landscape'
+export type CoverFontKey = 'fraunces' | 'baskerville' | 'bodoni' | 'script' | 'modern' | 'smallcaps'
+export type CoverTextLayout = 'model' | 'center' | 'bottom' | 'plate' | 'split'
+export type CoverDecorationKey = 'none' | 'divider' | 'botanical' | 'laurel' | 'flourish' | 'hearts' | 'sparkles' | 'wreath'
+export type CoverBorderKey = 'none' | 'hairline' | 'double' | 'greca' | 'floral-corners' | 'art-deco' | 'pearls'
 // decoro = come si caratterizza la copertina nel 3D
 export type Decoro = 'plate' | 'ottone' | 'floral' | 'frame' | 'print' | 'photo' | 'swarovski' | 'strap'
 

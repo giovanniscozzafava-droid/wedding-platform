@@ -301,7 +301,11 @@ export function AlbumMockup3D({ cover, width = 360, interactive = true }: { cove
     frameRef.current()
     renderRef.current()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cover.model, cover.fabric, cover.color, cover.colorKey, cover.title, cover.photo_url, cover.format, cover.sizeKey, cover.box, (cover.finishes ?? []).join(',')])
+  }, [
+    cover.model, cover.fabric, cover.color, cover.colorKey, cover.title, cover.subtitle, cover.monogram,
+    cover.fontKey, cover.textLayout, cover.decorationKey, cover.borderKey, cover.textColor, cover.accentColor,
+    cover.photo_url, cover.format, cover.sizeKey, cover.box, (cover.finishes ?? []).join(','),
+  ])
 
   if (failed) return <AlbumMockup cover={cover} width={width} interactive={interactive} />
   return <div ref={mountRef} style={{ width, height: H, cursor: interactive ? 'grab' : 'default', touchAction: 'none' }} className="select-none rounded-lg overflow-hidden" />

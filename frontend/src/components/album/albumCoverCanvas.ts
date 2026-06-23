@@ -5,8 +5,10 @@
 // + nomi. Ogni selezione del configuratore ridisegna → il 3D si aggiorna LIVE.
 // ============================================================================
 import { materialByKey, modelLayout, modelByKey, COLORS, type Cover, type Layout } from './albumCatalog'
+import { coverFont } from './albumCoverPersonalization'
 
 const LONG = 1280 // lato lungo del canvas (px) → testo nitido
+type CoverFontRuntime = ReturnType<typeof coverFont>
 
 function hexLum(hex?: string): number {
   if (!hex) return 0.78
@@ -102,8 +104,10 @@ export class CoverCanvas {
     const light = isWood ? false : hexLum(colorHex) > 0.55
     const ink = light ? 'rgba(60,46,32,0.92)' : 'rgba(244,238,228,0.95)'
     const inkSoft = light ? 'rgba(60,46,32,0.55)' : 'rgba(244,238,228,0.6)'
+    const textLayout = cover.textLayout ?? 'model'
     const names = namesOf(cover.title)
-    this.drawDecoro(ctx, W, H, layout, cover, { ink, inkSoft, light, names })
+    this.drawDecoro(ctx, W, H, layout, cover, { ink, inkSoft, light, names: textLayout === 'model' ? names : '' })
+    this.drawPersonalization(ctx, W, H, cover, { ink, inkSoft, light, names })
 
     // ---- accessori (finiture) ----
     const fin = cover.finishes ?? []
@@ -112,6 +116,7 @@ export class CoverCanvas {
     if (fin.includes('targhetta')) plaque(ctx, W / 2, H * 0.86, W * 0.3, H * 0.09, false, '')
     if (fin.includes('logo')) logoMark(ctx, W / 2, H * 0.92, H * 0.05, inkSoft)
     if (fin.includes('data')) smallCaps(ctx, new Date().getFullYear().toString(), W / 2, H * 0.935, H * 0.028, inkSoft)
+    drawBorder(ctx, W, H, cover.borderKey ?? 'none', cover.accentColor || (light ? '#8a6a35' : '#ead8b5'))
 
     this.onChange()
   }
@@ -121,9 +126,11 @@ export class CoverCanvas {
   private drawDecoro(ctx: CanvasRenderingContext2D, W: number, H: number, layout: Layout, cover: Cover,
     o: { ink: string; inkSoft: string; light: boolean; names: string }) {
     const decoro = modelByKey(cover.model)?.decoro
+    const customText = (cover.textLayout ?? 'model') !== 'model'
     const photo = this.img(cover.photo_url) || this.img('/textures/demo/couple.jpg')
     switch (layout) {
       case 'monogram': {
+        if (customText) break
         const sz = Math.min(W, H) * 0.3
         if (decoro === 'ottone' || cover.model === 'vega') metallicInitials(ctx, initialsOf(cover.title), W / 2, H * 0.46, sz * 0.82)
         else engraved(ctx, initialsOf(cover.title), W / 2, H * 0.46, sz, o.light)
@@ -133,7 +140,7 @@ export class CoverCanvas {
       case 'fascia': { // banda + linea cristalli + targhetta nomi (Claire/Plaza)
         band(ctx, W, H, 0.5, 0.2, o.light ? '#6f7f93' : '#e9e3d4')
         crystalLine(ctx, W * 0.08, H * 0.5, W * 0.62, H * 0.5)
-        plaque(ctx, W * 0.74, H * 0.5, W * 0.36, H * 0.12, decoro === 'ottone', o.names)
+        if (!customText) plaque(ctx, W * 0.74, H * 0.5, W * 0.36, H * 0.12, decoro === 'ottone', o.names)
         break
       }
       case 'fascia-ornament': { // banda cremisi + doppia linea cristalli + nomi (Thea/Comete)
@@ -141,7 +148,7 @@ export class CoverCanvas {
         band(ctx, W, H, 0.46, 0.22, cream)
         crystalLine(ctx, W * 0.16, H * 0.36, W * 0.84, H * 0.36)
         crystalLine(ctx, W * 0.16, H * 0.56, W * 0.84, H * 0.56)
-        script(ctx, o.names, W / 2, H * 0.46, H * 0.07, 'rgba(70,52,34,0.9)')
+        if (!customText) script(ctx, o.names, W / 2, H * 0.46, H * 0.07, 'rgba(70,52,34,0.9)')
         break
       }
       case 'oblique': { // taglio diagonale + linea cristalli + nomi (Almond)
@@ -152,16 +159,19 @@ export class CoverCanvas {
         break
       }
       case 'swarovski-line': { // riga verticale cristalli + targhetta (Diez)
+        if (customText) break
         crystalLineV(ctx, W * 0.6, H * 0.12, H * 0.88)
         plaque(ctx, W * 0.34, H * 0.5, W * 0.4, H * 0.12, decoro === 'ottone', o.names)
         break
       }
       case 'swarovski-cluster': { // grappolo cristalli + nomi (Bouquet/Ninfea/Xante)
+        if (customText) break
         cluster(ctx, W / 2, H * 0.4, Math.min(W, H) * 0.18)
         if (o.names) script(ctx, o.names, W / 2, H * 0.72, H * 0.06, o.ink)
         break
       }
       case 'plate': { // placca metallo centrale (Rimboccato/Adel/Almond-base)
+        if (customText) break
         plaque(ctx, W / 2, H * 0.5, W * 0.32, H * 0.18, decoro === 'ottone', '')
         logoMark(ctx, W / 2, H * 0.5, H * 0.045, 'rgba(20,22,26,0.6)')
         if (o.names) script(ctx, o.names, W / 2, H * 0.74, H * 0.055, o.ink)
@@ -180,6 +190,38 @@ export class CoverCanvas {
       case 'print': { sprig(ctx, W / 2, H * 0.62, Math.min(W, H) * 0.16, o.light); script(ctx, o.names, W / 2, H * 0.82, H * 0.055, o.ink); break }
       case 'laser': { engravedFrame(ctx, W, H, o.light); script(ctx, o.names, W / 2, H * 0.5, H * 0.06, o.ink); break }
       case 'plain': default: { if (o.names) script(ctx, o.names, W / 2, H * 0.84, H * 0.05, o.ink); break }
+    }
+  }
+
+  private drawPersonalization(ctx: CanvasRenderingContext2D, W: number, H: number, cover: Cover,
+    o: { ink: string; inkSoft: string; light: boolean; names: string }) {
+    const textLayout = cover.textLayout ?? 'model'
+    const font = coverFont(cover.fontKey)
+    const textColor = cover.textColor || o.ink
+    const accent = cover.accentColor || (o.light ? '#8a6a35' : '#ead8b5')
+    const mono = (cover.monogram || initialsOf(cover.title)).trim().toUpperCase()
+    drawDecoration(ctx, W, H, cover.decorationKey ?? 'none', accent, textLayout === 'center' || textLayout === 'split' ? mono : '')
+    if (textLayout === 'model') {
+      if (cover.subtitle) smallCaps(ctx, cover.subtitle, W / 2, H * 0.9, H * 0.032, cover.textColor || o.inkSoft, font, W * 0.72)
+      return
+    }
+    const names = o.names || 'Marco & Anna'
+    if (textLayout === 'center') {
+      monogram(ctx, mono, W / 2, H * 0.36, Math.min(W, H) * 0.22, font, accent)
+      textLine(ctx, names, W / 2, H * 0.62, H * 0.064, textColor, font, W * 0.78)
+      if (cover.subtitle) smallCaps(ctx, cover.subtitle, W / 2, H * 0.7, H * 0.032, cover.textColor || o.inkSoft, font, W * 0.72)
+    } else if (textLayout === 'bottom') {
+      ornamentalDivider(ctx, W * 0.3, H * 0.76, W * 0.7, H * 0.76, accent)
+      textLine(ctx, names, W / 2, H * 0.83, H * 0.058, textColor, font, W * 0.74)
+      if (cover.subtitle) smallCaps(ctx, cover.subtitle, W / 2, H * 0.9, H * 0.03, cover.textColor || o.inkSoft, font, W * 0.72)
+    } else if (textLayout === 'plate') {
+      plaque(ctx, W / 2, H * 0.55, W * 0.48, H * 0.13, true, '')
+      textLine(ctx, names, W / 2, H * 0.55, H * 0.046, 'rgba(70,48,16,0.94)', font, W * 0.4)
+      if (cover.subtitle) smallCaps(ctx, cover.subtitle, W / 2, H * 0.68, H * 0.03, textColor, font, W * 0.72)
+    } else if (textLayout === 'split') {
+      monogram(ctx, mono, W / 2, H * 0.24, Math.min(W, H) * 0.16, font, accent)
+      textLine(ctx, names, W / 2, H * 0.82, H * 0.054, textColor, font, W * 0.74)
+      if (cover.subtitle) smallCaps(ctx, cover.subtitle, W / 2, H * 0.885, H * 0.028, cover.textColor || o.inkSoft, font, W * 0.72)
     }
   }
 }
@@ -210,6 +252,170 @@ function edgeVignette(ctx: CanvasRenderingContext2D, W: number, H: number) {
   g.addColorStop(1, 'rgba(0,0,0,0.18)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, W, H)
+  ctx.restore()
+}
+function fontSpec(size: number, f: CoverFontRuntime, small = false): string {
+  const style = !small && f.italic ? 'italic ' : ''
+  return `${style}${f.weight} ${size}px ${f.canvas}`
+}
+function textLine(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, size: number, color: string, f: CoverFontRuntime, maxWidth?: number) {
+  if (!text) return
+  ctx.save()
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  const output = f.letterSpacing ? text.toUpperCase() : text
+  let fitted = size
+  if (maxWidth) {
+    fitted = fitTextSize(ctx, output, size, f, maxWidth, f.letterSpacing ? size * f.letterSpacing : 0)
+  }
+  ctx.font = fontSpec(fitted, f)
+  ctx.fillStyle = color
+  ctx.shadowColor = 'rgba(0,0,0,0.18)'; ctx.shadowBlur = fitted * 0.04; ctx.shadowOffsetY = fitted * 0.018
+  if (f.letterSpacing) trackingText(ctx, output, cx, cy, fitted * f.letterSpacing)
+  else ctx.fillText(output, cx, cy)
+  ctx.restore()
+}
+function fitTextSize(ctx: CanvasRenderingContext2D, text: string, size: number, f: CoverFontRuntime, maxWidth: number, gap: number, small = false): number {
+  let fitted = size
+  for (let i = 0; i < 10; i++) {
+    ctx.font = fontSpec(fitted, f, small)
+    const width = textWidth(ctx, text, gap * (fitted / size))
+    if (width <= maxWidth) return fitted
+    fitted *= Math.max(0.72, maxWidth / Math.max(1, width))
+  }
+  return fitted
+}
+function textWidth(ctx: CanvasRenderingContext2D, text: string, gap = 0): number {
+  if (!gap) return ctx.measureText(text).width
+  const chars = text.split('')
+  return chars.reduce((sum, ch) => sum + ctx.measureText(ch).width, 0) + gap * Math.max(0, chars.length - 1)
+}
+function trackingText(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, gap: number) {
+  const chars = text.split('')
+  const widths = chars.map((ch) => ctx.measureText(ch).width)
+  const total = widths.reduce((a, b) => a + b, 0) + gap * Math.max(0, chars.length - 1)
+  let x = cx - total / 2
+  chars.forEach((ch, i) => {
+    ctx.fillText(ch, x + widths[i]! / 2, cy)
+    x += widths[i]! + gap
+  })
+}
+function monogram(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, size: number, f: CoverFontRuntime, color: string) {
+  if (!text) return
+  ctx.save()
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.font = fontSpec(size, f)
+  ctx.lineWidth = Math.max(1, size * 0.014)
+  ctx.shadowColor = 'rgba(0,0,0,0.28)'; ctx.shadowBlur = size * 0.035; ctx.shadowOffsetY = size * 0.018
+  const g = ctx.createLinearGradient(cx, cy - size * 0.48, cx, cy + size * 0.48)
+  g.addColorStop(0, '#fff7d9'); g.addColorStop(0.42, color); g.addColorStop(1, '#6b481f')
+  ctx.strokeStyle = 'rgba(40,24,10,0.28)'
+  ctx.fillStyle = g
+  ctx.strokeText(text, cx, cy)
+  ctx.fillText(text, cx, cy)
+  ctx.restore()
+}
+function ornamentalDivider(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string) {
+  ctx.save()
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Math.max(1.2, Math.abs(x2 - x1) * 0.004)
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+  const cx = (x1 + x2) / 2, s = Math.max(6, Math.abs(x2 - x1) * 0.025)
+  ctx.beginPath(); ctx.moveTo(cx, y1 - s); ctx.lineTo(cx + s, y1); ctx.lineTo(cx, y1 + s); ctx.lineTo(cx - s, y1); ctx.closePath(); ctx.fill()
+  ctx.beginPath(); ctx.arc(x1, y1, s * 0.32, 0, Math.PI * 2); ctx.arc(x2, y2, s * 0.32, 0, Math.PI * 2); ctx.fill()
+  ctx.restore()
+}
+function drawDecoration(ctx: CanvasRenderingContext2D, W: number, H: number, key: string, color: string, mono: string) {
+  if (key === 'none') return
+  ctx.save()
+  ctx.globalAlpha = 0.9
+  ctx.strokeStyle = color
+  ctx.fillStyle = color
+  if (key === 'divider') ornamentalDivider(ctx, W * 0.26, H * 0.72, W * 0.74, H * 0.72, color)
+  else if (key === 'botanical') sprig(ctx, W * 0.5, H * 0.72, Math.min(W, H) * 0.18, true)
+  else if (key === 'laurel') { laurel(ctx, W * 0.5, H * 0.46, Math.min(W, H) * 0.22, color, false) }
+  else if (key === 'wreath') { wreath(ctx, W * 0.5, H * 0.36, Math.min(W, H) * 0.2, color); if (mono) monogram(ctx, mono, W * 0.5, H * 0.36, Math.min(W, H) * 0.12, coverFont('baskerville'), color) }
+  else if (key === 'flourish') { flourishCorner(ctx, W * 0.18, H * 0.18, Math.min(W, H) * 0.12, color, 0); flourishCorner(ctx, W * 0.82, H * 0.82, Math.min(W, H) * 0.12, color, Math.PI) }
+  else if (key === 'hearts') { for (let i = 0; i < 5; i++) heart(ctx, W * (0.32 + i * 0.09), H * (0.72 + Math.sin(i) * 0.015), Math.min(W, H) * 0.025) }
+  else if (key === 'sparkles') { sparkle(ctx, W * 0.28, H * 0.28, color); sparkle(ctx, W * 0.72, H * 0.34, color); sparkle(ctx, W * 0.62, H * 0.72, color) }
+  ctx.restore()
+}
+function drawBorder(ctx: CanvasRenderingContext2D, W: number, H: number, key: string, color: string) {
+  if (key === 'none') return
+  ctx.save()
+  ctx.strokeStyle = color; ctx.fillStyle = color
+  const m = Math.min(W, H) * 0.055
+  if (key === 'hairline') {
+    ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.003); ctx.strokeRect(m, m, W - 2 * m, H - 2 * m)
+  } else if (key === 'double') {
+    ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.0026); ctx.strokeRect(m, m, W - 2 * m, H - 2 * m); ctx.strokeRect(m * 1.45, m * 1.45, W - 2.9 * m, H - 2.9 * m)
+  } else if (key === 'greca') {
+    ctx.lineWidth = Math.max(1.4, Math.min(W, H) * 0.003)
+    greekKey(ctx, m, m, W - 2 * m, H - 2 * m, Math.min(W, H) * 0.035)
+  } else if (key === 'floral-corners') {
+    ctx.lineWidth = Math.max(1.6, Math.min(W, H) * 0.003)
+    flourishCorner(ctx, m * 1.6, m * 1.6, m * 1.2, color, 0)
+    flourishCorner(ctx, W - m * 1.6, m * 1.6, m * 1.2, color, Math.PI / 2)
+    flourishCorner(ctx, W - m * 1.6, H - m * 1.6, m * 1.2, color, Math.PI)
+    flourishCorner(ctx, m * 1.6, H - m * 1.6, m * 1.2, color, -Math.PI / 2)
+  } else if (key === 'art-deco') {
+    ctx.lineWidth = Math.max(1.2, Math.min(W, H) * 0.003)
+    decoCorner(ctx, m, m, W, H, color)
+    ctx.save(); ctx.translate(W, 0); ctx.scale(-1, 1); decoCorner(ctx, m, m, W, H, color); ctx.restore()
+    ctx.save(); ctx.translate(W, H); ctx.scale(-1, -1); decoCorner(ctx, m, m, W, H, color); ctx.restore()
+    ctx.save(); ctx.translate(0, H); ctx.scale(1, -1); decoCorner(ctx, m, m, W, H, color); ctx.restore()
+  } else if (key === 'pearls') {
+    const r = Math.max(2.8, Math.min(W, H) * 0.006)
+    for (let x = m; x <= W - m; x += r * 4.2) { stone(ctx, x, m, r); stone(ctx, x, H - m, r) }
+    for (let y = m; y <= H - m; y += r * 4.2) { stone(ctx, m, y, r); stone(ctx, W - m, y, r) }
+  }
+  ctx.restore()
+}
+function greekKey(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, s: number) {
+  const drawH = (yy: number, flip = 1) => {
+    for (let xx = x; xx < x + w - s; xx += s * 2) {
+      ctx.beginPath()
+      ctx.moveTo(xx, yy); ctx.lineTo(xx + s, yy); ctx.lineTo(xx + s, yy + flip * s * 0.55); ctx.lineTo(xx + s * 0.45, yy + flip * s * 0.55); ctx.lineTo(xx + s * 0.45, yy + flip * s * 0.22); ctx.lineTo(xx + s * 1.55, yy + flip * s * 0.22)
+      ctx.stroke()
+    }
+  }
+  const drawV = (xx: number, flip = 1) => {
+    for (let yy = y; yy < y + h - s; yy += s * 2) {
+      ctx.beginPath()
+      ctx.moveTo(xx, yy); ctx.lineTo(xx, yy + s); ctx.lineTo(xx + flip * s * 0.55, yy + s); ctx.lineTo(xx + flip * s * 0.55, yy + s * 0.45); ctx.lineTo(xx + flip * s * 0.22, yy + s * 0.45); ctx.lineTo(xx + flip * s * 0.22, yy + s * 1.55)
+      ctx.stroke()
+    }
+  }
+  drawH(y, 1); drawH(y + h, -1); drawV(x, 1); drawV(x + w, -1)
+}
+function flourishCorner(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string, rot: number) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.2, r * 0.07); ctx.lineCap = 'round'
+  ctx.beginPath(); ctx.moveTo(-r, 0); ctx.bezierCurveTo(-r * 0.2, -r * 0.42, r * 0.25, -r * 0.35, r * 0.38, -r * 0.85); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(0, -r); ctx.bezierCurveTo(-r * 0.38, -r * 0.18, -r * 0.3, r * 0.28, -r * 0.85, r * 0.38); ctx.stroke()
+  ctx.restore()
+}
+function decoCorner(ctx: CanvasRenderingContext2D, m: number, _y: number, _W: number, _H: number, color: string) {
+  ctx.strokeStyle = color
+  for (let i = 0; i < 3; i++) { const o = m + i * m * 0.32; ctx.strokeRect(o, o, m * (2.15 - i * 0.45), m * (2.15 - i * 0.45)) }
+}
+function laurel(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string, full: boolean) {
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Math.max(1.2, r * 0.035); ctx.lineCap = 'round'
+  for (const side of [-1, 1]) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI * (side < 0 ? 0.68 : 0.32), Math.PI * (side < 0 ? 1.32 : -0.32), side > 0); ctx.stroke()
+    for (let i = 0; i < 8; i++) {
+      const a = Math.PI * (side < 0 ? 0.75 + i * 0.06 : 0.25 - i * 0.06)
+      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a + side * 0.8); ctx.beginPath(); ctx.ellipse(0, 0, r * 0.075, r * 0.028, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore()
+    }
+  }
+  if (full) { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke() }
+  ctx.restore()
+}
+function wreath(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string) {
+  laurel(ctx, cx, cy, r, color, true)
+}
+function sparkle(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
+  const s = 18
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineCap = 'round'
+  ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x, y + s); ctx.moveTo(x - s, y); ctx.lineTo(x + s, y); ctx.moveTo(x - s * 0.55, y - s * 0.55); ctx.lineTo(x + s * 0.55, y + s * 0.55); ctx.moveTo(x + s * 0.55, y - s * 0.55); ctx.lineTo(x - s * 0.55, y + s * 0.55); ctx.stroke()
   ctx.restore()
 }
 // banda orizzontale di materiale contrastante, centrata in cy (frazione), alta fh (frazione)
@@ -346,18 +552,13 @@ function script(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: num
   ctx.font = `italic 600 ${size}px "Fraunces Variable", Georgia, serif`
   ctx.fillStyle = color; ctx.fillText(text, cx, cy); ctx.restore()
 }
-function smallCaps(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, size: number, color: string) {
+function smallCaps(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, size: number, color: string, font?: CoverFontRuntime, maxWidth?: number) {
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-  ctx.font = `500 ${size}px Georgia, serif`
+  const f = font ?? coverFont('baskerville')
+  const output = text.toUpperCase()
+  const fitted = maxWidth ? fitTextSize(ctx, output, size, f, maxWidth, size * 0.18, true) : size
+  ctx.font = fontSpec(fitted, f, true)
   ctx.fillStyle = color
-  const gap = size * 0.18
-  const chars = text.split('')
-  const widths = chars.map((ch) => ctx.measureText(ch).width)
-  const total = widths.reduce((a, b) => a + b, 0) + gap * Math.max(0, chars.length - 1)
-  let x = cx - total / 2
-  chars.forEach((ch, i) => {
-    ctx.fillText(ch, x + widths[i]! / 2, cy)
-    x += widths[i]! + gap
-  })
+  trackingText(ctx, output, cx, cy, fitted * 0.18)
   ctx.restore()
 }
