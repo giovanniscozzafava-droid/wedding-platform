@@ -356,6 +356,7 @@ export const isWoodModel = (k?: string): boolean => !!k && WOOD_MODELS.has(k)
 export const MODEL_MOCKUP: Record<string, boolean> = {
   claire: true, comete: true, almond: true, brand: true, trilogy: true, vega: true,
   'diez-sw': true, andromeda: true, rimboccato: true,
+  cassiopea: true, elsie: true, amelie: true, betulla: true, hera: true, canvas: true, 'bouquet-sw': true, adel: true,
 }
 export const mockupFor = (k?: string): string | null => (k && MODEL_MOCKUP[k]) ? `/textures/mockups/${k}.jpg` : null
 
