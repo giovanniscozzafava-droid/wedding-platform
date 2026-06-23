@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { getDriveToken, ensureDriveFolder, uploadAnyToDrive } from '@/lib/driveUpload'
+import { InviteCouplePhotos } from '@/components/event/InviteCouplePhotos'
 import { AlbumPicker, type AlbumMedia } from './AlbumPicker'
 import { QRCodeSVG } from 'qrcode.react'
 import { exportTableTents } from '@/lib/tableTents'
@@ -386,6 +387,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setNf((s) => ({ ...s, open: true }))}><FolderPlus size={14} /> Nuova cartella</Button>
               <Button variant="ghost" size="sm" onClick={shareGuestLink}><Link2 size={14} /> Link ospiti</Button>
+              <InviteCouplePhotos entryId={entryId} />
               <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}><Settings size={14} /> Impostazioni galleria</Button>
               <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Il link mostra agli invitati SOLO le cartelle «Invitati» (accesso con registrazione).</span>
             </div>
