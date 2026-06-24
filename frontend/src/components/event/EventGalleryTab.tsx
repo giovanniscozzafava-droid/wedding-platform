@@ -59,6 +59,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [dedupBusy, setDedupBusy] = useState(false)
   // Blocco "coatto" uscita pagina durante l'upload: il browser mostra l'avviso nativo "Lasciare il sito?"
   useEffect(() => {
     if (!uploading) return
@@ -343,6 +344,24 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     } finally { setBusy(false); setUploading(false); setUploadFolder(null); setGalleryProg(null) }
   }
 
+  // Pulisci doppioni: stessa foto caricata più volte (file Drive distinti, stesso nome).
+  // Verifica prima (dry-run), poi conferma. Preserva like/commenti/scelte.
+  async function dedupDuplicates() {
+    setDedupBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('gallery-dedup', { body: { entry_id: entryId } })
+      if (error || (data as any)?.error) throw new Error((data as any)?.error === 'no_drive_token' ? 'Google Drive non collegato: ricollegalo dal profilo e riprova.' : ((data as any)?.error ?? 'Verifica non riuscita'))
+      const d = data as { to_delete: number; protected_by_like_or_choice: number; total: number; groups_with_dupes: number }
+      if (!d.to_delete) { toast.success(`Nessun doppione da rimuovere (su ${d.total} foto).`); return }
+      if (!confirm(`Trovati ${d.to_delete} doppioni (stessa foto caricata più volte) in ${d.groups_with_dupes} gruppi.\n${d.protected_by_like_or_choice} copie con like/scelta restano intatte.\n\nElimino i ${d.to_delete} doppioni? I file Drive vanno nel cestino (recuperabili 30 giorni).`)) return
+      const { data: data2, error: e2 } = await supabase.functions.invoke('gallery-dedup', { body: { entry_id: entryId, confirm: true } })
+      if (e2 || (data2 as any)?.error) throw new Error((data2 as any)?.error ?? 'Rimozione non riuscita')
+      const r = data2 as { deleted_rows: number; trashed_drive: number }
+      toast.success(`Rimossi ${r.deleted_rows} doppioni (${r.trashed_drive} file nel cestino Drive).`)
+      await load()
+    } catch (e) { toast.error((e as Error).message) } finally { setDedupBusy(false) }
+  }
+
   async function setConsent(on: boolean) {
     setBusy(true)
     try {
@@ -358,6 +377,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       await load()
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
+
+  const totalMedia = folders.reduce((s, f) => s + f.gallery_media.length, 0)
+  const chosenCount = folders.reduce((s, f) => s + f.gallery_media.filter((m) => m.album_choice === 'KEPT').length, 0)
 
   if (loading) return <div className="text-sm text-[rgb(var(--fg-subtle))] py-8">Carico le foto…</div>
 
@@ -494,7 +516,11 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               <Button variant="ghost" size="sm" onClick={shareGuestLink}><Link2 size={14} /> Link ospiti</Button>
               <InviteCouplePhotos entryId={entryId} />
               <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}><Settings size={14} /> Impostazioni galleria</Button>
-              <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Il link mostra agli invitati SOLO le cartelle «Invitati» (accesso con registrazione).</span>
+              <Button variant="ghost" size="sm" disabled={dedupBusy} onClick={dedupDuplicates} title="Rimuove le foto caricate più volte (preserva like e scelte)"><Trash2 size={14} /> {dedupBusy ? 'Controllo…' : 'Pulisci doppioni'}</Button>
+              <span className="ml-auto inline-flex items-center gap-3 text-[11px] text-[rgb(var(--fg-muted))]">
+                <span>{totalMedia} foto</span>
+                <span className="text-[rgb(var(--gold-700))] font-medium">{chosenCount} scelte</span>
+              </span>
             </div>
           ) : (
             <div className="space-y-3">
