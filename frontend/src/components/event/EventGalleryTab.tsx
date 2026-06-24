@@ -440,8 +440,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         )
       })()}
 
-      {/* Barra proprietario/admin: conteggi + pulizia doppioni (sempre visibile) */}
-      {(isOwner || isAdmin) && totalMedia > 0 && (
+      {/* Barra professionista/admin (MAI il cliente): conteggi + pulizia doppioni */}
+      {role !== 'sposi' && (isOwner || isAdmin) && totalMedia > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-[rgb(var(--fg-muted))]"><strong className="text-[rgb(var(--fg))]">{totalMedia}</strong> foto · <strong className="text-[rgb(var(--gold-700))]">{chosenCount}</strong> scelte</span>
           <Button variant="outline" size="sm" className="ml-auto" disabled={dedupBusy} onClick={dedupDuplicates} title="Rimuove le foto caricate più volte (preserva like e scelte)"><Trash2 size={14} /> {dedupBusy ? 'Controllo doppioni…' : 'Pulisci doppioni'}</Button>
