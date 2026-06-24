@@ -78,9 +78,22 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       if (gs) setGsettings({ ...DEFAULT_GALLERY_SETTINGS, ...gs })
     }
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, uploaded_by, uploader_name, guest_tags, no_minors)')
+      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents')
       .eq('entry_id', entryId).order('sort_order')
-    setFolders((f as Folder[]) ?? [])
+    // Media a PAGINE: PostgREST limita a 1000 righe/richiesta → senza paginare la galleria
+    // si fermava a 1000 foto. Qui le carichiamo TUTTE (capienza illimitata) e le raggruppiamo.
+    const media: any[] = []
+    for (let from = 0; ; from += 1000) {
+      const { data: page, error } = await (supabase.from as any)('gallery_media')
+        .select('id, folder_id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, uploaded_by, uploader_name, guest_tags, no_minors')
+        .eq('entry_id', entryId).order('id').range(from, from + 999)
+      if (error || !page?.length) break
+      media.push(...page)
+      if (page.length < 1000) break
+    }
+    const byFolder = new Map<string, Media[]>()
+    for (const m of media) { const a = byFolder.get(m.folder_id) ?? []; a.push(m as Media); byFolder.set(m.folder_id, a) }
+    setFolders(((f as Folder[]) ?? []).map((fo) => ({ ...fo, gallery_media: byFolder.get(fo.id) ?? [] })))
     const { data: flag } = await (supabase.from as any)('feature_flags').select('enabled').eq('key', 'photo_sales_enabled').maybeSingle()
     setSalesEnabled(!!flag?.enabled)
     const { data: c } = await (supabase.from as any)('gallery_consents').select('granted_at, revoked_at').eq('entry_id', entryId).eq('scope', 'LAVORO_INTERO').maybeSingle()
@@ -266,8 +279,13 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         const driveFiles = await listDriveFolderFiles(token, driveFolder)
         if (driveFiles.length) {
           const present = new Set(driveFiles.map((d) => d.name))
-          const { data: existing } = await (supabase.from as any)('gallery_media').select('drive_file_id').eq('folder_id', f.id)
-          const dbIds = new Set((existing ?? []).map((r: { drive_file_id: string }) => r.drive_file_id))
+          const dbIds = new Set<string>()
+          for (let from = 0; ; from += 1000) {                // tutte le righe, non solo 1000
+            const { data: page, error } = await (supabase.from as any)('gallery_media').select('drive_file_id').eq('folder_id', f.id).order('id').range(from, from + 999)
+            if (error || !page?.length) break
+            for (const r of page as { drive_file_id: string }[]) dbIds.add(r.drive_file_id)
+            if (page.length < 1000) break
+          }
           const orphans = driveFiles.filter((d) => d.mimeType !== 'application/vnd.google-apps.folder' && !dbIds.has(d.id))
           if (orphans.length) {
             const rows = orphans.map((d) => ({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: d.id, thumbnail_link: `https://drive.google.com/thumbnail?id=${d.id}&sz=w800`, media_type: d.mimeType.startsWith('video/') ? 'VIDEO' : 'PHOTO' }))
