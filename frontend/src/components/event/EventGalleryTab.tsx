@@ -61,6 +61,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [uploading, setUploading] = useState(false)
   const [dedupBusy, setDedupBusy] = useState(false)
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
+  const [isAdmin, setIsAdmin] = useState(false)
   // Blocco "coatto" uscita pagina durante l'upload: il browser mostra l'avviso nativo "Lasciare il sito?"
   useEffect(() => {
     if (!uploading) return
@@ -73,6 +74,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     setLoading(true)
     const uid = (await supabase.auth.getUser()).data.user?.id ?? null
     setMe(uid)
+    if (uid) { const { data: prof } = await (supabase.from as any)('profiles').select('role').eq('id', uid).maybeSingle(); setIsAdmin(prof?.role === 'ADMIN') }
     const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
     if (gal) {
@@ -438,6 +440,13 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         )
       })()}
 
+      {/* Barra proprietario/admin: conteggi + pulizia doppioni (sempre visibile) */}
+      {(isOwner || isAdmin) && totalMedia > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-[rgb(var(--fg-muted))]"><strong className="text-[rgb(var(--fg))]">{totalMedia}</strong> foto · <strong className="text-[rgb(var(--gold-700))]">{chosenCount}</strong> scelte</span>
+          <Button variant="outline" size="sm" className="ml-auto" disabled={dedupBusy} onClick={dedupDuplicates} title="Rimuove le foto caricate più volte (preserva like e scelte)"><Trash2 size={14} /> {dedupBusy ? 'Controllo doppioni…' : 'Pulisci doppioni'}</Button>
+        </div>
+      )}
 
       {/* Consenso sposi al lavoro intero */}
       {role === 'sposi' && (
@@ -525,11 +534,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               <Button variant="ghost" size="sm" onClick={shareGuestLink}><Link2 size={14} /> Link ospiti</Button>
               <InviteCouplePhotos entryId={entryId} />
               <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}><Settings size={14} /> Impostazioni galleria</Button>
-              <Button variant="ghost" size="sm" disabled={dedupBusy} onClick={dedupDuplicates} title="Rimuove le foto caricate più volte (preserva like e scelte)"><Trash2 size={14} /> {dedupBusy ? 'Controllo…' : 'Pulisci doppioni'}</Button>
-              <span className="ml-auto inline-flex items-center gap-3 text-[11px] text-[rgb(var(--fg-muted))]">
-                <span>{totalMedia} foto</span>
-                <span className="text-[rgb(var(--gold-700))] font-medium">{chosenCount} scelte</span>
-              </span>
+              <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Il link mostra agli invitati SOLO le cartelle «Invitati» (accesso con registrazione).</span>
             </div>
           ) : (
             <div className="space-y-3">
