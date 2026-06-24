@@ -60,6 +60,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [showcase, setShowcase] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [dedupBusy, setDedupBusy] = useState(false)
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
   // Blocco "coatto" uscita pagina durante l'upload: il browser mostra l'avviso nativo "Lasciare il sito?"
   useEffect(() => {
     if (!uploading) return
@@ -95,6 +96,11 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const byFolder = new Map<string, Media[]>()
     for (const m of media) { const a = byFolder.get(m.folder_id) ?? []; a.push(m as Media); byFolder.set(m.folder_id, a) }
     setFolders(((f as Folder[]) ?? []).map((fo) => ({ ...fo, gallery_media: byFolder.get(fo.id) ?? [] })))
+    // conteggio "mi piace" per foto (i numeri visibili a fotografo/sposi/cerchio)
+    const { data: lc } = await (supabase as any).rpc('gallery_like_counts', { p_entry: entryId })
+    const lcMap: Record<string, number> = {}
+    for (const r of (lc ?? []) as { media_id: string; n: number }[]) lcMap[r.media_id] = r.n
+    setLikeCounts(lcMap)
     const { data: flag } = await (supabase.from as any)('feature_flags').select('enabled').eq('key', 'photo_sales_enabled').maybeSingle()
     setSalesEnabled(!!flag?.enabled)
     const { data: c } = await (supabase.from as any)('gallery_consents').select('granted_at, revoked_at').eq('entry_id', entryId).eq('scope', 'LAVORO_INTERO').maybeSingle()
@@ -279,17 +285,20 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       try {
         const driveFiles = await listDriveFolderFiles(token, driveFolder)
         if (driveFiles.length) {
-          const present = new Set(driveFiles.map((d) => d.name))
           const dbIds = new Set<string>()
+          const dbNames = new Set<string>()
           for (let from = 0; ; from += 1000) {                // tutte le righe, non solo 1000
-            const { data: page, error } = await (supabase.from as any)('gallery_media').select('drive_file_id').eq('folder_id', f.id).order('id').range(from, from + 999)
+            const { data: page, error } = await (supabase.from as any)('gallery_media').select('drive_file_id, source_name').eq('folder_id', f.id).order('id').range(from, from + 999)
             if (error || !page?.length) break
-            for (const r of page as { drive_file_id: string }[]) dbIds.add(r.drive_file_id)
+            for (const r of page as { drive_file_id: string; source_name: string | null }[]) { dbIds.add(r.drive_file_id); if (r.source_name) dbNames.add(r.source_name) }
             if (page.length < 1000) break
           }
-          const orphans = driveFiles.filter((d) => d.mimeType !== 'application/vnd.google-apps.folder' && !dbIds.has(d.id))
+          // "presente" = nome già su Drive OPPURE già registrato a DB → niente doppioni
+          const present = new Set<string>([...driveFiles.map((d) => d.name), ...dbNames])
+          // recupero SOLO i file su Drive davvero mancanti (id non a DB e nome non già coperto)
+          const orphans = driveFiles.filter((d) => d.mimeType !== 'application/vnd.google-apps.folder' && !dbIds.has(d.id) && !dbNames.has(d.name))
           if (orphans.length) {
-            const rows = orphans.map((d) => ({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: d.id, thumbnail_link: `https://drive.google.com/thumbnail?id=${d.id}&sz=w800`, media_type: d.mimeType.startsWith('video/') ? 'VIDEO' : 'PHOTO' }))
+            const rows = orphans.map((d) => ({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: d.id, source_name: d.name, thumbnail_link: `https://drive.google.com/thumbnail?id=${d.id}&sz=w800`, media_type: d.mimeType.startsWith('video/') ? 'VIDEO' : 'PHOTO' }))
             for (let i = 0; i < rows.length; i += 200) await (supabase.from as any)('gallery_media').insert(rows.slice(i, i + 200))
             recovered = orphans.length
           }
@@ -328,7 +337,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           }
         }
         if (res) {
-          pending.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: res.id, thumbnail_link: res.thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
+          pending.push({ folder_id: f.id, gallery_id: gallery.id, entry_id: entryId, drive_file_id: res.id, source_name: file.name, thumbnail_link: res.thumbnail, media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO' })
           okCount++
           if (pending.length >= 20) await flush()   // salva i riferimenti a blocchi: se cade a metà, il caricato resta
         }
@@ -615,6 +624,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                       ? <span className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tags.map(guestTagLabel).join(' · ')}</span>
                       : m.guest_tag_name && <span className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tag_name}</span>}
                     {m.album_choice === 'KEPT' && <span className="absolute top-1 right-5"><Heart size={12} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))] drop-shadow" /></span>}
+                    {(likeCounts[m.id] ?? 0) > 0 && <span className="absolute top-1 left-1 inline-flex items-center gap-0.5 rounded-full bg-black/55 text-white text-[10px] px-1.5 py-0.5"><Heart size={10} className="fill-rose-400 text-rose-400" /> {likeCounts[m.id]}</span>}
                   </button>
                 ))}
               </div>

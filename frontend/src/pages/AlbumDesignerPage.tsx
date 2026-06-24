@@ -251,6 +251,7 @@ function AlbumDesignerInner() {
   const isCouple = profile?.role === 'COUPLE'
 
   const [media, setMedia] = useState<M[]>([])
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
   const [format, setFormat] = useState<string>(DEFAULT_FORMAT)
   // formati personalizzati (W×H pagina, salvati in locale e riusabili)
   const [customFmts, setCustomFmts] = useState<AlbumFormat[]>(() => listCustomFormats())
@@ -355,14 +356,18 @@ function AlbumDesignerInner() {
     if (!entryId) return
     setLoading(true)
     try {
-      const [pr, mr, er] = await Promise.all([
+      const [pr, mr, er, lr] = await Promise.all([
         (supabase.from as any)('album_projects').select('format_key, status, layout').eq('entry_id', entryId).maybeSingle(),
         // ORDINE STABILE (created_at, poi id): così la griglia di Selezione e il cassetto NON
         // si rimescolano ad ogni apertura → i "cuori" restano dove sono, selezione stabile.
         (supabase.from as any)('gallery_media').select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment').eq('entry_id', entryId).order('created_at', { ascending: true }).order('id', { ascending: true }),
         (supabase.from as any)('calendar_entries').select('title').eq('id', entryId).maybeSingle(),
+        (supabase as any).rpc('gallery_like_counts', { p_entry: entryId }),
       ])
       const proj = (pr as any)?.data, med = (mr as any)?.data, ent = (er as any)?.data
+      const lcMap: Record<string, number> = {}
+      for (const r of ((lr as any)?.data ?? []) as { media_id: string; n: number }[]) lcMap[r.media_id] = r.n
+      setLikeCounts(lcMap)
       setMedia((med as M[]) ?? [])
       setTitle((ent as { title?: string } | null)?.title ?? 'Album')
       if (proj) {
@@ -507,6 +512,20 @@ function AlbumDesignerInner() {
       setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, album_choice: before.get(x.id) ?? null } : x)))
       toast.error(`Selezione non salvata: ${error?.message ?? (data as { error?: string }).error}`)
     } else toast.success(choice === 'KEPT' ? `${toChange.length} foto selezionate per l'album` : `${toChange.length} foto deselezionate`)
+  }
+
+  // Seleziona (cuore KEPT) tutte le foto a cui gli sposi hanno messo "mi piace".
+  async function keepLiked() {
+    const liked = photos.filter((m) => (likeCounts[m.id] ?? 0) > 0 && (m.album_choice ?? 'DISCARDED') !== 'KEPT')
+    if (!liked.length) { toast('Nessuna foto con like da aggiungere'); return }
+    const toChange = liked.map((m) => m.id); const ids = new Set(toChange)
+    const before = new Map(liked.map((m) => [m.id, m.album_choice] as const))
+    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, album_choice: 'KEPT' } : x)))
+    const { data, error } = await (supabase.rpc as any)('album_set_choices', { p_ids: toChange, p_choice: 'KEPT' })
+    if (error || (data && (data as { error?: string }).error)) {
+      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, album_choice: before.get(x.id) ?? null } : x)))
+      toast.error('Selezione non salvata')
+    } else toast.success(`${toChange.length} preferite dagli sposi aggiunte all'album`)
   }
   async function setMoment(m: M, moment: string) {
     setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_moment: moment || null } : x)))
@@ -1488,6 +1507,7 @@ function AlbumDesignerInner() {
             isCouple={isCouple} onReadyToLayout={coupleReadyToLayout}
             onKeepAll={() => void setKeepAll('KEPT')} onKeepNone={() => void setKeepAll('DISCARDED')}
             onImport={importPhotos} importing={importing}
+            likeCounts={likeCounts} onKeepLiked={() => void keepLiked()}
           />
         </div>
       ) : (
@@ -1994,9 +2014,13 @@ function SelectStep(props: {
   onKeepAll: () => void; onKeepNone: () => void
   onImport: (files: File[]) => void; importing: { done: number; total: number } | null
   isCouple?: boolean; onReadyToLayout?: () => void
+  likeCounts: Record<string, number>; onKeepLiked: () => void
 }) {
-  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing, isCouple, onReadyToLayout } = props
+  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing, isCouple, onReadyToLayout, likeCounts, onKeepLiked } = props
   const allKept = photos.length > 0 && total >= photos.length
+  const [likedFirst, setLikedFirst] = useState(false)
+  const likedTotal = photos.filter((m) => (likeCounts[m.id] ?? 0) > 0).length
+  const shown = likedFirst ? [...photos].sort((a, b) => (likeCounts[b.id] ?? 0) - (likeCounts[a.id] ?? 0)) : photos
   const fileRef = useRef<HTMLInputElement>(null)
   return (
     <div className="grid lg:grid-cols-[1fr_300px] gap-5">
@@ -2015,17 +2039,21 @@ function SelectStep(props: {
             <Button variant="outline" size="sm" onClick={onKeepNone} disabled={total === 0}>
               <Heart size={14} /> Deseleziona tutti
             </Button>
+            {likedTotal > 0 && <Button variant="outline" size="sm" onClick={onKeepLiked} title="Aggiungi all'album le foto a cui gli sposi hanno messo mi piace"><Heart size={14} className="fill-rose-400 text-rose-400" /> Tieni le preferite ({likedTotal})</Button>}
+            {likedTotal > 0 && <Button variant={likedFirst ? 'gold' : 'outline'} size="sm" onClick={() => setLikedFirst((v) => !v)} title="Mostra prima le foto più piaciute dagli sposi">{likedFirst ? 'Ordine originale' : 'Preferite prima'}</Button>}
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto"><strong>{total}</strong>/{photos.length} selezionate</span>
           </>}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {photos.map((m) => {
+          {shown.map((m) => {
             const keptOn = m.album_choice === 'KEPT'
+            const likes = likeCounts[m.id] ?? 0
             return (
               <Card key={m.id} className={`overflow-hidden ${keptOn ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`}>
                 <button onClick={() => onToggle(m)} className="relative block w-full aspect-square">
                   <img src={thumb(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
                   <span className={`absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center ${keptOn ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/40 text-white'}`}><Heart size={13} className={keptOn ? 'fill-current' : ''} /></span>
+                  {likes > 0 && <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-rose-500/90 text-white text-[10px] px-1.5 py-0.5" title="Mi piace degli sposi"><Heart size={10} className="fill-current" /> {likes}</span>}
                 </button>
                 <select value={m.album_moment ?? ''} onChange={(e) => onMoment(m, e.target.value)} disabled={!keptOn}
                   className="w-full text-xs px-2 py-1.5 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] disabled:opacity-50">
