@@ -1,11 +1,34 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Star, Check, Calendar, MapPin, UtensilsCrossed } from 'lucide-react'
+import { Star, Check, Calendar, MapPin, UtensilsCrossed, LifeBuoy } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 // Pagina pubblica: gli ospiti della prova menu votano i menu (1–5) senza login, via token.
-type PublicMenu = { menu_id: string; nome: string; piatti: string[] }
+type Piatto = { portata: string | null; piatto: string }
+type PublicMenu = { menu_id: string; nome: string; piatti: Array<Piatto | string> }
 type PublicTasting = { ok?: boolean; error?: string; tasting_id: string; titolo: string | null; quando: string | null; sala: string | null; menu: PublicMenu[] }
+
+// Foto hero (Pexels). Degrada al gradiente se non carica (onError).
+const HERO_IMG = 'https://images.pexels.com/photos/1395964/pexels-photo-1395964.jpeg?auto=compress&cs=tinysrgb&w=1600'
+const ASSISTENZA_EMAIL = 'assistenza@fuyue.it'
+
+const COURSE_LABEL: Record<string, string> = {
+  APERITIVO: 'Aperitivo', ANTIPASTO: 'Antipasti', PRIMO: 'Primi', SECONDO: 'Secondi',
+  CONTORNO: 'Contorni', DOLCE: 'Dolci', FRUTTA: 'Frutta', BEVANDE: 'Bevande',
+}
+const COURSE_RANK: Record<string, number> = { APERITIVO: 1, ANTIPASTO: 2, PRIMO: 3, SECONDO: 4, CONTORNO: 5, DOLCE: 6, FRUTTA: 7, BEVANDE: 8 }
+
+// Raggruppa i piatti per portata. Compatibile col vecchio formato (string[]) → tutto in 'ALTRO'.
+function groupByCourse(piatti: Array<Piatto | string>): Array<[string, string[]]> {
+  const map = new Map<string, string[]>()
+  for (const p of piatti) {
+    const portata = typeof p === 'string' ? 'ALTRO' : (p.portata || 'ALTRO')
+    const nome = typeof p === 'string' ? p : p.piatto
+    if (!map.has(portata)) map.set(portata, [])
+    map.get(portata)!.push(nome)
+  }
+  return [...map.entries()].sort((a, b) => (COURSE_RANK[a[0]] ?? 99) - (COURSE_RANK[b[0]] ?? 99))
+}
 
 export default function ProvaMenuVote() {
   const { token = '' } = useParams()
@@ -47,6 +70,7 @@ export default function ProvaMenuVote() {
         <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center mx-auto mb-5"><Check size={30} /></div>
         <h1 className="font-serif text-3xl mb-2">Grazie!</h1>
         <p className="text-stone-500">Il tuo voto è stato registrato. Aiuterà gli sposi a scegliere il menù.</p>
+        <FuyueFooter />
       </div>
     </div>
   )
@@ -57,22 +81,30 @@ export default function ProvaMenuVote() {
 
   return (
     <div className="min-h-screen bg-stone-50 pb-32">
-      {/* Hero */}
-      <header className="relative overflow-hidden bg-gradient-to-b from-stone-900 via-stone-900 to-stone-800 text-white">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08] bg-[radial-gradient(circle_at_50%_-10%,_white,_transparent_55%)]" />
+      {/* Hero con foto (Pexels) + gradiente di fallback */}
+      <header className="relative overflow-hidden text-white">
+        <div className="absolute inset-0 bg-gradient-to-b from-stone-900 via-stone-900 to-stone-800" />
+        <img
+          src={HERO_IMG}
+          alt=""
+          aria-hidden
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+          className="absolute inset-0 h-full w-full object-cover opacity-40"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/75 to-stone-900/35" />
         <div className="relative mx-auto max-w-lg px-6 pt-12 pb-20 text-center">
-          <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-full border border-amber-300/40 text-amber-300">
+          <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-full border border-amber-300/50 bg-stone-900/30 text-amber-300 backdrop-blur-sm">
             <UtensilsCrossed size={24} />
           </div>
           <p className="mb-3 text-[11px] uppercase tracking-[0.3em] text-amber-300/90">Prova menù</p>
-          <h1 className="font-serif text-3xl leading-tight sm:text-4xl">{data.titolo || 'Degustazione'}</h1>
+          <h1 className="font-serif text-3xl leading-tight drop-shadow-sm sm:text-4xl">{data.titolo || 'Degustazione'}</h1>
           {(when || data.sala) && (
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-stone-300">
-              {when && <span className="inline-flex items-center gap-1.5"><Calendar size={14} className="text-amber-300/80" />{when}</span>}
-              {data.sala && <span className="inline-flex items-center gap-1.5"><MapPin size={14} className="text-amber-300/80" />{data.sala}</span>}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-stone-200">
+              {when && <span className="inline-flex items-center gap-1.5"><Calendar size={14} className="text-amber-300/90" />{when}</span>}
+              {data.sala && <span className="inline-flex items-center gap-1.5"><MapPin size={14} className="text-amber-300/90" />{data.sala}</span>}
             </div>
           )}
-          <p className="mx-auto mt-5 max-w-xs text-sm text-stone-400">Assaggia ogni menù e lascia il tuo voto. La scelta finale è degli sposi.</p>
+          <p className="mx-auto mt-5 max-w-xs text-sm text-stone-300">Assaggia ogni menù e lascia il tuo voto. La scelta finale è degli sposi.</p>
         </div>
       </header>
 
@@ -87,21 +119,30 @@ export default function ProvaMenuVote() {
 
         {data.menu.map((m, i) => {
           const score = scores[m.menu_id] ?? 0
+          const groups = groupByCourse(m.piatti || [])
+          const flat = groups.length === 1 && groups[0]![0] === 'ALTRO'
           return (
             <article key={m.menu_id} className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-stone-900 text-xs font-medium text-white">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <h2 className="font-serif text-xl leading-tight text-stone-800">{m.nome}</h2>
-                  {m.piatti?.length > 0 && (
-                    <ul className="mt-2 space-y-1">
-                      {m.piatti.map((p, j) => (
-                        <li key={j} className="flex gap-2 text-sm text-stone-500">
-                          <span className="text-amber-400/80">—</span>
-                          <span>{p}</span>
-                        </li>
+                  {groups.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                      {groups.map(([course, dishes]) => (
+                        <div key={course}>
+                          {!flat && <p className="text-[11px] font-medium uppercase tracking-wider text-amber-500/90">{COURSE_LABEL[course] || 'Altro'}</p>}
+                          <ul className={flat ? 'space-y-1' : 'mt-1 space-y-0.5'}>
+                            {dishes.map((d, j) => (
+                              <li key={j} className="flex gap-2 text-sm text-stone-600">
+                                {flat && <span className="text-amber-400/80">—</span>}
+                                <span>{d}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
               </div>
@@ -126,6 +167,8 @@ export default function ProvaMenuVote() {
             </article>
           )
         })}
+
+        <FuyueFooter titolo={data.titolo} />
       </main>
 
       {/* Barra invio */}
@@ -138,5 +181,19 @@ export default function ProvaMenuVote() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Assistenza + firma. mailto = "ticket" leggero per una pagina pubblica senza login.
+function FuyueFooter({ titolo }: { titolo?: string | null }) {
+  const subject = encodeURIComponent(`Assistenza prova menù${titolo ? ` — ${titolo}` : ''}`)
+  return (
+    <footer className="mx-auto max-w-lg px-2 pt-8 text-center">
+      <a href={`mailto:${ASSISTENZA_EMAIL}?subject=${subject}`} className="inline-flex items-center gap-1.5 text-sm text-stone-400 transition-colors hover:text-stone-600">
+        <LifeBuoy size={15} />
+        Serve aiuto? Apri un ticket di assistenza
+      </a>
+      <p className="mt-4 text-[11px] uppercase tracking-[0.25em] text-stone-300">Made in Fuyue</p>
+    </footer>
   )
 }

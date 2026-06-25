@@ -10,6 +10,8 @@ import {
   Sparkles,
   Eye,
   EyeOff,
+  Clock,
+  CalendarClock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -77,6 +79,27 @@ function useRecentActivity() {
   })
 }
 
+// Agenda overview: prossimi appuntamenti (booking, con orario) + eventi (date), uniti e ordinati.
+type AgendaItem = { id: string; when: string; title: string; kind: 'appt' | 'event'; status?: string; timed: boolean }
+function useAgenda() {
+  return useQuery<AgendaItem[]>({
+    queryKey: ['home-agenda'],
+    queryFn: async () => {
+      const nowIso = new Date().toISOString()
+      const today = nowIso.slice(0, 10)
+      const [bk, ev] = await Promise.all([
+        (supabase.from as any)('bookings').select('id, starts_at, client_name, status').eq('status', 'CONFIRMED').gte('starts_at', nowIso).order('starts_at').limit(8),
+        supabase.from('calendar_entries').select('id, title, status, date_from').gte('date_from', today).order('date_from').limit(8),
+      ])
+      const items: AgendaItem[] = []
+      for (const b of (bk.data ?? []) as any[]) items.push({ id: 'b' + b.id, when: b.starts_at, title: `Appuntamento · ${b.client_name}`, kind: 'appt', status: b.status, timed: true })
+      for (const e of (ev.data ?? []) as any[]) items.push({ id: 'e' + e.id, when: e.date_from, title: e.title, kind: 'event', status: e.status, timed: false })
+      items.sort((a, b) => a.when.localeCompare(b.when))
+      return items.slice(0, 6)
+    },
+  })
+}
+
 const ROLE_GREETING: Record<string, string> = {
   WEDDING_PLANNER: 'Coordina la prossima magia.',
   LOCATION: 'Apri le porte del prossimo evento.',
@@ -88,6 +111,7 @@ export default function HomePage() {
   const { profile, user } = useAuth()
   const { data: stats } = useStats()
   const { data: activity } = useRecentActivity()
+  const { data: agenda } = useAgenda()
   const role = profile?.role ?? 'WEDDING_PLANNER'
   const firstName = (profile?.full_name ?? user?.email ?? '').split(/\s|@/)[0]
 
@@ -141,6 +165,46 @@ export default function HomePage() {
             accent="ink"
           />
         </div>
+
+        {/* Agenda: il calendario in overview — prossimi appuntamenti (orario) ed eventi */}
+        <Card className="overflow-hidden mb-10">
+          <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+            <h2 className="font-display text-lg inline-flex items-center gap-2"><CalendarClock size={18} className="text-[rgb(var(--gold-600))]" /> Agenda</h2>
+            <Link to="/calendar" className="text-sm font-medium inline-flex items-center gap-1 hover:underline">
+              Apri calendario <ArrowUpRight size={14} />
+            </Link>
+          </div>
+          <CardContent className="p-0">
+            {(agenda ?? []).length === 0 ? (
+              <EmptyState text="Nessun impegno in agenda. Pubblica le tue disponibilità per ricevere prenotazioni." />
+            ) : (
+              <ul>
+                {(agenda ?? []).map((it) => {
+                  const d = new Date(it.when)
+                  return (
+                    <li key={it.id} className="flex items-center gap-4 px-6 py-3.5 border-b last:border-0 hover:bg-[rgb(var(--bg-sunken))] transition-colors" style={{ borderColor: 'rgb(var(--border))' }}>
+                      <div className="shrink-0 w-12 text-center">
+                        <p className="font-display text-xl leading-none tabular-nums">{d.toLocaleDateString('it-IT', { day: 'numeric' })}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-[rgb(var(--fg-subtle))]">{d.toLocaleDateString('it-IT', { month: 'short' })}</p>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{it.title}</p>
+                        <p className="text-xs text-[rgb(var(--fg-subtle))] inline-flex items-center gap-1 mt-0.5">
+                          {it.timed
+                            ? <><Clock size={11} /> {d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} · {d.toLocaleDateString('it-IT', { weekday: 'long' })}</>
+                            : <><CalendarDays size={11} /> {d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</>}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full ${it.kind === 'appt' ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]'}`}>
+                        {it.kind === 'appt' ? 'Appuntamento' : 'Evento'}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Funnel lead-generation: percentuali motivazionali */}
         <FunnelMetrics />

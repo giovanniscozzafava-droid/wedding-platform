@@ -184,21 +184,14 @@ export default function CalendarPage() {
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
+        <BookingLinkBar />
+
         <PageHeader
           eyebrow="Calendario"
           title={<span className="capitalize">{monthLabel}</span>}
           description="Vista mese con eventi per data. Clicca un giorno per vedere i dettagli o creare un nuovo evento."
           actions={
             <>
-              <div className="inline-flex rounded-lg border" style={{ borderColor: 'rgb(var(--border-strong))' }}>
-                <Button variant="ghost" size="icon" onClick={() => setCursor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>
-                  <ChevronLeft />
-                </Button>
-                <Button variant="ghost" onClick={() => setCursor(new Date())} className="px-3">Oggi</Button>
-                <Button variant="ghost" size="icon" onClick={() => setCursor((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>
-                  <ChevronRight />
-                </Button>
-              </div>
               <Button variant="outline" onClick={genIcs} data-testid="ics-btn">
                 <Download /> iCal
               </Button>
@@ -211,13 +204,24 @@ export default function CalendarPage() {
           }
         />
 
-        <BookingLinkBar />
-
         {isLoading && <p className="text-[rgb(var(--fg-subtle))]">Caricamento...</p>}
         {error && <p className="text-[rgb(var(--rose-500))]">{(error as Error).message}</p>}
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <Card className="xl:col-span-2 overflow-hidden">
+            {/* La data da sfogliare, subito sopra la griglia */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+              <span className="font-display text-lg capitalize">{monthLabel}</span>
+              <div className="inline-flex rounded-lg border" style={{ borderColor: 'rgb(var(--border-strong))' }}>
+                <Button variant="ghost" size="icon" onClick={() => setCursor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>
+                  <ChevronLeft />
+                </Button>
+                <Button variant="ghost" onClick={() => setCursor(new Date())} className="px-3">Oggi</Button>
+                <Button variant="ghost" size="icon" onClick={() => setCursor((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>
+                  <ChevronRight />
+                </Button>
+              </div>
+            </div>
             <div className="grid grid-cols-7 border-b text-xs font-medium uppercase tracking-wider" style={{ borderColor: 'rgb(var(--border))' }}>
               {WEEKDAYS.map((w, i) => (
                 <div key={i} className="text-center py-3" style={{ color: 'rgb(var(--fg-subtle))' }}>{w}</div>
