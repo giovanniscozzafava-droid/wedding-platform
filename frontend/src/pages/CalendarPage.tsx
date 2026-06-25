@@ -83,17 +83,22 @@ export default function CalendarPage() {
     const ap = await (supabase.from('supplier_appointments' as any) as any)
       .select('id, kind, title, date, end_date, start_time, end_time, notes, location, done')
       .eq('owner_id', user.id).gte('date', start).lte('date', end).order('start_time', { ascending: true, nullsFirst: true })
-    const am = new Map<string, Appt[]>()
-    for (const r of (ap.data ?? []) as Appt[]) {
-      const arr = am.get(r.date) ?? []; arr.push(r); am.set(r.date, arr)
-    }
-    setApptsByDay(am)
     const sl = await (supabase.from('supplier_availability_slots' as any) as any)
       .select('id, date, start_time, end_time, status, label')
       .eq('fornitore_id', user.id).gte('date', start).lte('date', end).order('start_time', { ascending: true, nullsFirst: true })
     const sm = new Map<string, DaySlot[]>()
     for (const r of (sl.data ?? []) as DaySlot[]) { const arr = sm.get(r.date) ?? []; arr.push(r); sm.set(r.date, arr) }
     setSlotsByDay(sm)
+    const am = new Map<string, Appt[]>()
+    for (const r of (ap.data ?? []) as Appt[]) { const arr = am.get(r.date) ?? []; arr.push(r); am.set(r.date, arr) }
+    // Le PRENOTAZIONI online (slot BUSY con label "Appuntamento · Nome") compaiono come appuntamenti in cella.
+    for (const r of (sl.data ?? []) as DaySlot[]) {
+      if (!(r.label ?? '').startsWith('Appuntamento')) continue
+      const arr = am.get(r.date) ?? []
+      arr.push({ id: 'slot-' + r.id, kind: 'BOOKING', title: (r.label ?? '').replace(/^Appuntamento · /, ''), date: r.date, end_date: null, start_time: r.start_time, end_time: r.end_time, notes: null, location: null, done: false })
+      am.set(r.date, arr)
+    }
+    setApptsByDay(am)
   }, [isSupplier, user, range.from, range.to])
 
   useEffect(() => { void reloadAvail() }, [reloadAvail])
@@ -273,7 +278,9 @@ export default function CalendarPage() {
                       ))}
                       {dayAppts.slice(0, 2).map((a) => (
                         <div key={a.id} className="text-[10px] truncate rounded px-1 py-0.5"
-                          style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+                          style={a.kind === 'BOOKING'
+                            ? { background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }
+                            : { background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
                           {a.start_time ? a.start_time.slice(0, 5) + ' ' : ''}{a.title}
                         </div>
                       ))}
