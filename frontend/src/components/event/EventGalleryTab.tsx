@@ -499,6 +499,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             {(isOwner || role === 'sposi') && <Link to={`/album-copertina/${entryId}`}><Button variant={role === 'sposi' ? 'gold' : 'outline'} size="sm" title="Personalizza la copertina 3D (materiale, colore, foto, accessori) e invia in stampa"><Printer size={14} /> {role === 'sposi' ? 'Personalizza copertina 3D' : 'Copertina 3D & stampa'}</Button></Link>}
             {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
             {isOwner && <Link to="/album-catalogo"><Button variant="outline" size="sm" title="Carica il PDF del tuo catalogo e marca i modelli per i clienti"><BookOpen size={14} /> Gestisci catalogo PDF</Button></Link>}
+            <Link to="/stampe"><Button variant="outline" size="sm" title="Ordina le tue foto come stampe d'autore (presto disponibile)"><Images size={14} /> Stampe d’autore <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>Presto</span></Button></Link>
           </div>
         </Card>
       )}
