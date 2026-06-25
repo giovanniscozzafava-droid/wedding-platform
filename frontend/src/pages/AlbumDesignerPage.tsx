@@ -769,7 +769,7 @@ function AlbumDesignerInner() {
   // rotazione del riquadro, cambia solo la foto (ritaglio azzerato così la nuova riempie il riquadro).
   function freeReplace(pageId: string, id: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, elements: (p.elements ?? []).map((e) => (e.id === id ? { ...e, mediaId, cell: { ...DEFAULT_CELL } } : e)) })) }
   // SCAMBIA due foto della tavola: si scambiano contenuto (foto + ritaglio + bordo/ombra) mantenendo
-  // ciascuna il proprio riquadro (posizione/dimensione/rotazione). Usato dal drag senza Shift.
+  // ciascuna il proprio riquadro (posizione/dimensione/rotazione). Usato dal drag con ALT (⌥).
   function freeSwapEls(pageId: string, idA: string, idB: string) {
     updatePage(pageId, (p) => {
       const els = p.elements ?? []
@@ -2242,8 +2242,8 @@ function FreeStage(props: {
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] })
   const [gapMarks, setGapMarks] = useState<GapMark[]>([])
   const [dropId, setDropId] = useState<string | null>(null) // foto sotto il cursore durante un drop (sostituzione)
-  // SCAMBIO: trascinando una foto SENZA Shift, evidenzia quella sotto il cursore e al rilascio le
-  // due si scambiano (la foto presa = swapSrc, il bersaglio = swapTarget). Con Shift: spostamento libero.
+  // SCAMBIO (con ALT ⌥): trascinando una foto con ALT premuto, evidenzia quella sotto il cursore e al
+  // rilascio le due si scambiano (presa = swapSrc, bersaglio = swapTarget). Senza modificatori: SPOSTA.
   const [swapSrc, setSwapSrc] = useState<string | null>(null)
   const [swapTarget, setSwapTarget] = useState<string | null>(null)
   const els = page.elements ?? []
@@ -2257,9 +2257,9 @@ function FreeStage(props: {
     if (kind === 'move' && e.shiftKey) { onSelect(el.id, true) } else if (!multiSel.includes(el.id)) { onSelect(el.id) }
     const inGroup = kind === 'move' && multiSel.length > 1 && multiSel.includes(el.id)
     const group = inGroup ? els.filter((x) => multiSel.includes(x.id)) : [el]
-    // SENZA Shift su una singola foto → modalità SCAMBIO (trascina su un'altra → si scambiano).
-    // CON Shift (o gruppo) → spostamento libero, come prima.
-    const swapMode = kind === 'move' && !e.shiftKey && !inGroup
+    // DEFAULT: trascinare una foto la SPOSTA liberamente. Con ALT (⌥): modalità SCAMBIO
+    // (trascina su un'altra → si scambiano). Shift = selezione multipla / spostamento di gruppo.
+    const swapMode = kind === 'move' && e.altKey && !inGroup
     const f = frac(e); drag.current = { kind, id: el.id, corner, sx: f.x, sy: f.y, el, group, swap: swapMode, swapTo: null }
     if (swapMode) { setSwapSrc(el.id); setSwapTarget(null) }
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
