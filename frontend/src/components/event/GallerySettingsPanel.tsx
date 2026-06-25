@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, Heart, MessageSquare, Share2, FileText, Pin, Shield, Download, Loader2 } from 'lucide-react'
+import { X, Heart, MessageSquare, Share2, FileText, Pin, Shield, Download, Loader2, AlertTriangle, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -42,7 +42,7 @@ function Row({ icon, title, desc, children }: { icon: React.ReactNode; title: st
   )
 }
 
-export function GallerySettingsPanel({ galleryId, onClose, onSaved }: { galleryId: string; onClose: () => void; onSaved?: (s: GallerySettings) => void }) {
+export function GallerySettingsPanel({ galleryId, onClose, onSaved, onDedup, dedupBusy }: { galleryId: string; onClose: () => void; onSaved?: (s: GallerySettings) => void; onDedup?: () => void; dedupBusy?: boolean }) {
   const [s, setS] = useState<GallerySettings>(DEFAULT_GALLERY_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -129,6 +129,20 @@ export function GallerySettingsPanel({ galleryId, onClose, onSaved }: { galleryI
                 <Toggle on={s.download_hd} onChange={(v) => set('download_hd', v)} />
               </div>
             )}
+          </div>
+        )}
+        {onDedup && (
+          <div className="px-4 pb-2">
+            <div className="rounded-lg border border-rose-300 p-3" style={{ background: 'rgb(var(--rose-500) / 0.06)' }}>
+              <p className="text-[13px] font-medium text-rose-600 inline-flex items-center gap-1.5"><AlertTriangle size={14} /> Attenzione — pulizia doppioni</p>
+              <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-1 leading-snug">
+                Rimuove le foto caricate più volte (stesso file caricato due volte). Le copie con <strong>like</strong> o <strong>scelta album</strong> restano intatte; i file duplicati finiscono nel <strong>cestino di Drive</strong> (recuperabili 30 giorni). Operazione che modifica la galleria: usala solo se vedi davvero dei doppioni. Ti verrà chiesta conferma con il numero esatto.
+              </p>
+              <Button variant="outline" size="sm" disabled={dedupBusy} onClick={onDedup}
+                className="mt-2 !text-rose-600 !border-rose-300 hover:!bg-rose-50">
+                <Trash2 size={14} /> {dedupBusy ? 'Controllo…' : 'Pulisci eventuali doppioni'}
+              </Button>
+            </div>
           </div>
         )}
         <div className="p-4 border-t border-[rgb(var(--border))] flex justify-end gap-2">
