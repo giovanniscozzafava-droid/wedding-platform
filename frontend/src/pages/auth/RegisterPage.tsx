@@ -23,6 +23,10 @@ const SUBROLE_BY_ROLE: Record<AppRole, { v: string; l: string }[]> = {
   FORNITORE: SUPPLIER_SUBROLES,
 }
 
+// Beta gratuita fino al 31/12/2026: durante la beta in registrazione NON si parla di
+// soldi (niente "abbonamento", niente canone/commissioni). Rimettere a false a fine beta.
+const BETA_FREE = true
+
 const schema = z.object({
   full_name: z.string().min(2, 'Nome troppo corto'),
   business_name: z.string().optional(),
@@ -211,13 +215,23 @@ export default function RegisterPage() {
               <input type="checkbox" checked={form.platform_terms} className="mt-0.5 shrink-0"
                 onChange={(e) => setForm((f) => ({ ...f, platform_terms: e.target.checked }))} />
               <span className="text-xs text-[rgb(var(--fg-muted))]">
-                <strong className="text-[rgb(var(--fg))]">Accetto il contratto di abbonamento Planfully</strong> (il contratto con noi).{' '}
+                {BETA_FREE ? (
+                  <><strong className="text-[rgb(var(--fg))]">Accetto i termini d’uso e la privacy di Planfully.</strong> In questa fase beta l’uso è <strong>gratuito</strong>.{' '}</>
+                ) : (
+                  <><strong className="text-[rgb(var(--fg))]">Accetto il contratto di abbonamento Planfully</strong> (il contratto con noi).{' '}</>
+                )}
                 <button type="button" onClick={(ev) => { ev.preventDefault(); setShowTerms((v) => !v) }} className="underline text-[rgb(var(--gold-600))]">
-                  {showTerms ? 'nascondi' : 'leggi il contratto'}
+                  {showTerms ? 'nascondi' : 'dettagli'}
                 </button>
               </span>
             </label>
-            {showTerms && (
+            {showTerms && (BETA_FREE ? (
+              <ul className="mt-2 space-y-1.5 text-[11px] text-[rgb(var(--fg-muted))] list-disc pl-5">
+                <li>Durante la <strong>beta</strong> (fino al 31 dicembre 2026) Planfully è <strong>gratuito</strong>: nessun costo, nessun canone.</li>
+                <li>I tuoi dati sono trattati da Fuyue Srl secondo l’<strong>informativa privacy</strong>.</li>
+                <li>In futuro potremo introdurre dei piani: se accadrà, <strong>te lo comunicheremo per tempo</strong> e potrai decidere liberamente.</li>
+              </ul>
+            ) : (
               <ul className="mt-2 space-y-1.5 text-[11px] text-[rgb(var(--fg-muted))] list-disc pl-5">
                 <li><strong>Durata 12 mesi (365 giorni)</strong>, dal 1° gennaio 2027 al 31 dicembre 2027. Fino al 31/12/2026 l’uso è gratuito (beta).</li>
                 {form.role === 'FORNITORE' && (
@@ -227,7 +241,7 @@ export default function RegisterPage() {
                 <li>Commissioni future: Fuyue Srl si riserva il diritto di introdurre e/o modificare commissioni e condizioni. <strong>Tutto può cambiare e ci riserviamo di farlo.</strong></li>
                 <li>Dati trattati da Fuyue Srl (titolare del marchio) secondo l’informativa privacy. Le condizioni potranno essere aggiornate; l’uso continuato vale accettazione.</li>
               </ul>
-            )}
+            ))}
           </div>
 
           {error && <p className="text-sm text-[rgb(var(--rose-500))]" role="alert" data-testid="register-error">{error}</p>}
