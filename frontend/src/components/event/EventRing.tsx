@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 type RingRole = { role_key: string; label: string; covered: boolean; covered_by: string | null }
-type RingState = { roles: RingRole[]; total: number; covered: number; closed: boolean; wp?: { name: string; role: string } | null }
+type RingState = { roles: RingRole[]; total: number; covered: number; closed: boolean; wp?: { name: string; role: string }[] | null }
 const wpRoleLabel = (role?: string) => (role === 'WEDDING_PLANNER' ? 'Wedding planner' : role === 'LOCATION' ? 'Location' : 'Capostipite')
 type Suggestable = { id: string; name: string; subrole: string | null; matches: boolean; in_event: boolean }
 type CircleSuggestion = { id: string; role_key: string | null; status: string; supplier_name: string; suggested_by_name: string }
@@ -28,6 +28,9 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   const [adding, setAdding] = useState<string | null>(null)
   // invito email a un fornitore NON ancora su Planfully (conta per i punti referral)
   const [invite, setInvite] = useState<{ email: string; sending: boolean }>({ email: '', sending: false })
+  // aggiungi wedding planner / location (capostipite) per email
+  const [capEmail, setCapEmail] = useState('')
+  const [capBusy, setCapBusy] = useState(false)
   // il cerchio NON è chiuso: si possono aggiungere altri ruoli/fornitori
   const [addOpen, setAddOpen] = useState(false)
   const [addBusy, setAddBusy] = useState<string | null>(null)
@@ -52,6 +55,23 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
     const r = await rpc<{ suppliers?: Suggestable[]; error?: string }>('list_suggestable_suppliers', { p_entry: entryId, p_role_key: roleKey })
     if (r?.error) { toast.error(r.error === 'forbidden' ? 'Non puoi suggerire su questo evento.' : r.error); setPick(null); return }
     setSuppliers(r?.suppliers ?? [])
+  }
+
+  async function addCapostipite() {
+    const email = capEmail.trim()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast.error('Email non valida'); return }
+    setCapBusy(true)
+    try {
+      const r = await rpc<{ ok?: boolean; error?: string }>('event_add_capostipite', { p_entry: entryId, p_email: email })
+      if (r?.error) {
+        toast.error(r.error === 'not_found' ? 'Nessun account con questa email.'
+          : r.error === 'not_a_planner' ? 'Questo account non è un wedding planner / location.'
+          : r.error === 'forbidden' ? 'Non puoi aggiungere collaboratori a questo evento.' : 'Operazione non riuscita.')
+        return
+      }
+      toast.success('Wedding planner / location aggiunto al cerchio')
+      setCapEmail(''); setAddOpen(false); await load()
+    } catch (e) { toast.error((e as Error).message) } finally { setCapBusy(false) }
   }
 
   async function addSupplier(s: Suggestable) {
@@ -200,13 +220,17 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
             </h3>
           )}
 
-          {ring.wp && (
-            <div className="flex items-center gap-2 text-sm mt-2 mb-1 pb-1.5 border-b border-[rgb(var(--border))]">
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full shrink-0" style={{ background: 'rgb(var(--gold-600))' }}>
-                <Sparkles size={10} className="text-white" />
-              </span>
-              <span className="font-medium truncate">{ring.wp.name}</span>
-              <span className="text-[11px] text-[rgb(var(--fg-subtle))] shrink-0">· {wpRoleLabel(ring.wp.role)}</span>
+          {ring.wp && ring.wp.length > 0 && (
+            <div className="mt-2 mb-1 pb-1.5 border-b border-[rgb(var(--border))] space-y-1">
+              {ring.wp.map((w, i) => (
+                <div key={`${w.name}-${i}`} className="flex items-center gap-2 text-sm">
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full shrink-0" style={{ background: 'rgb(var(--gold-600))' }}>
+                    <Sparkles size={10} className="text-white" />
+                  </span>
+                  <span className="font-medium truncate">{w.name}</span>
+                  <span className="text-[11px] text-[rgb(var(--fg-subtle))] shrink-0">· {wpRoleLabel(w.role)}</span>
+                </div>
+              ))}
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
@@ -274,6 +298,17 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
                       <UserPlus size={14} className="text-[rgb(var(--gold-600))] shrink-0" />
                     </button>
                   ))}
+                </div>
+              </div>
+              <div>
+                <p className="px-1 text-[11px] uppercase tracking-wide text-[rgb(var(--fg-subtle))] mb-1">Aggiungi wedding planner / location</p>
+                <p className="px-1 text-[11px] text-[rgb(var(--fg-muted))] mb-1.5">La WP o la location (con account Planfully) entra subito nel cerchio dell'evento.</p>
+                <div className="flex gap-2 px-1">
+                  <input type="email" value={capEmail} onChange={(e) => setCapEmail(e.target.value)} placeholder="email del wedding planner / location"
+                    className="flex-1 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2.5 py-1.5 text-sm" />
+                  <Button variant="outline" size="sm" disabled={capBusy} onClick={addCapostipite}>
+                    {capBusy ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} Aggiungi
+                  </Button>
                 </div>
               </div>
             </div>
