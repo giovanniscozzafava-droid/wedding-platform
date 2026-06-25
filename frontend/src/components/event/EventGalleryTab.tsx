@@ -497,6 +497,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           <div className="flex items-center gap-2 flex-wrap">
             <Link to={`/album/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><BookOpen size={14} /> {role === 'sposi' ? 'Visualizza album' : 'Apri impaginatore'}</Button></Link>
             {(isOwner || role === 'sposi') && <Link to={`/album-copertina/${entryId}`}><Button variant={role === 'sposi' ? 'gold' : 'outline'} size="sm" title="Personalizza la copertina 3D (materiale, colore, foto, accessori) e invia in stampa"><Printer size={14} /> {role === 'sposi' ? 'Personalizza copertina 3D' : 'Copertina 3D & stampa'}</Button></Link>}
+            {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
+            {isOwner && <Link to="/album-catalogo"><Button variant="outline" size="sm" title="Carica il PDF del tuo catalogo e marca i modelli per i clienti"><BookOpen size={14} /> Gestisci catalogo PDF</Button></Link>}
           </div>
         </Card>
       )}

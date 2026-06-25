@@ -11,6 +11,7 @@ import { EntryForm } from '@/components/calendar/EntryForm'
 import { useCalendarEntries, useEnsureExportToken, type EntryWithParticipants } from '@/hooks/useCalendar'
 import { useSupplierEarnings } from '@/hooks/useSupplierEarnings'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { BookingLinkBar } from '@/components/event/BookingLinkBar'
 import { supabase } from '@/lib/supabase'
 
 const WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
@@ -209,6 +210,8 @@ export default function CalendarPage() {
             </>
           }
         />
+
+        <BookingLinkBar />
 
         {isLoading && <p className="text-[rgb(var(--fg-subtle))]">Caricamento...</p>}
         {error && <p className="text-[rgb(var(--rose-500))]">{(error as Error).message}</p>}
