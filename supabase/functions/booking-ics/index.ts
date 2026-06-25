@@ -26,7 +26,11 @@ Deno.serve(async (req) => {
     .eq('professional_id', s.professional_id).eq('status', 'CONFIRMED').gte('starts_at', since)
     .order('starts_at').limit(2000)
 
-  const lines: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Planfully//Prenotazioni//IT', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:Prenotazioni · ${icsEsc(proName)}`]
+  const tz = (s.timezone || 'Europe/Rome') as string
+  // METHOD:PUBLISH + REFRESH/TTL → i calendari abbonati si risincronizzano da soli (Google/Apple/Outlook).
+  // X-WR-TIMEZONE → il calendario mostra gli orari nel fuso giusto.
+  const lines: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'METHOD:PUBLISH', 'PRODID:-//Planfully//Prenotazioni//IT', 'CALSCALE:GREGORIAN',
+    `X-WR-CALNAME:Prenotazioni · ${icsEsc(proName)}`, `X-WR-TIMEZONE:${tz}`, 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H']
   for (const b of (bks ?? []) as Array<{ id: string; starts_at: string; ends_at: string; client_name: string; client_email: string; client_phone: string | null; note: string | null }>) {
     lines.push('BEGIN:VEVENT', `UID:${b.id}@planfully.it`, `DTSTAMP:${stamp(new Date().toISOString())}`,
       `DTSTART:${stamp(b.starts_at)}`, `DTEND:${stamp(b.ends_at)}`,
