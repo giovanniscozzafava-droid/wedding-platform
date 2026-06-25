@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { useNuovoModello, useSetNuovoModello } from '@/hooks/useNuovoModello'
 import { DriveConnectCard } from '@/components/event/DriveConnectCard'
+import { BookingSettingsCard } from '@/components/event/BookingSettingsCard'
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth()
@@ -422,6 +423,7 @@ export default function ProfilePage() {
 
           {/* Consegna foto: collega Google Drive (tutti i professionisti) */}
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN'].includes(profile?.role ?? '') && <DriveConnectCard />}
+          {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN'].includes(profile?.role ?? '') && <BookingSettingsCard />}
 
           {/* Aiuto contestuale — sostituisce il vecchio tutorial a card */}
           {profile?.role === 'FORNITORE' && (

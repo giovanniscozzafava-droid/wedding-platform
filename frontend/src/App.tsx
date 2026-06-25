@@ -47,6 +47,7 @@ const WeddingDashboard = lazyWithRetry(() => import('@/pages/wedding/WeddingDash
 const CoupleDashboard = lazyWithRetry(() => import('@/pages/couple/CoupleDashboard'))
 const CoupleAcceptPage = lazyWithRetry(() => import('@/pages/couple/CoupleAcceptPage'))
 const SupplierInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/SupplierInviteAcceptPage'))
+const BookingPage = lazyWithRetry(() => import('@/pages/public/BookingPage'))
 const CapostipiteInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/CapostipiteInviteAcceptPage'))
 const CoupleInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/CoupleInviteAcceptPage'))
 const PrivacyPage = lazyWithRetry(() => import('@/pages/public/PrivacyPage'))
@@ -226,6 +227,7 @@ export default function App() {
             <RequireAuth bare><CoupleAcceptPage /></RequireAuth>
           } />
           <Route path="/invito-fornitore/:token" element={<SupplierInviteAcceptPage />} />
+          <Route path="/prenota/:slug" element={<BookingPage />} />
           <Route path="/invito-capostipite/:token" element={<CapostipiteInviteAcceptPage />} />
           <Route path="/invito-coppia/:token" element={<CoupleInviteAcceptPage />} />
           <Route path="/galleria/:galleryId" element={<GuestGalleryPage />} />
