@@ -33,6 +33,9 @@ export default function BookingPage() {
       const c = data as Cfg; setCfg(c); setState('ready')
       const from = new Date().toISOString().slice(0, 10)
       const to = new Date(Date.now() + Math.min(c.advance_days, 30) * 86400000).toISOString().slice(0, 10)
+      // Aggiorna gli impegni Google del professionista (se collegato) prima di calcolare gli slot,
+      // così gli orari in cui è occupato su Google spariscono. Guard 5 min lato server: non martella.
+      try { await supabase.functions.invoke('gcal-sync', { body: { slug } }) } catch { /* non blocca */ }
       const { data: sl } = await (supabase as any).rpc('booking_free_slots', { p_slug: slug, p_from: from, p_to: to })
       const list = (Array.isArray(sl) ? sl : []) as Slot[]
       setSlots(list)

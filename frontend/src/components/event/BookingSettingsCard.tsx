@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { CalendarClock, Check, Copy, Plus, X, Link2, Code, CalendarDays, RefreshCw } from 'lucide-react'
+import { CalendarClock, Check, Copy, Plus, X, Link2, Code, CalendarDays, RefreshCw, CalendarCheck } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +29,8 @@ export function BookingSettingsCard() {
   const [slug, setSlug] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [gcal, setGcal] = useState<{ connected: boolean; last?: string | null }>({ connected: false })
+  const [gcalBusy, setGcalBusy] = useState(false)
 
   useEffect(() => {
     void (async () => {
@@ -39,9 +41,30 @@ export function BookingSettingsCard() {
       setSlug(prof?.slug ?? null)
       const { data } = await (supabase.from as any)('booking_settings').select('*').eq('professional_id', uid).maybeSingle()
       if (data) setS({ ...DEFAULT, ...data, description: data.description ?? '', location_detail: data.location_detail ?? '', whatsapp: data.whatsapp ?? '' })
+      const { data: gc } = await (supabase.from as any)('google_calendar_connections').select('professional_id, last_sync_at').eq('professional_id', uid).maybeSingle()
+      setGcal(gc ? { connected: true, last: gc.last_sync_at } : { connected: false })
       setLoading(false)
     })()
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('gcal') === 'connected') toast.success('Google Calendar collegato — gli orari occupati spariranno dalle prenotazioni')
+    if (p.get('gcal') === 'norefresh') toast.error('Collegamento Google non completato: riprova accettando i permessi')
   }, [])
+
+  async function connectGcal() {
+    setGcalBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('gcal-oauth-start', { body: {} })
+      if (error || !(data as any)?.url) throw new Error('Avvio del collegamento non riuscito')
+      window.location.href = (data as any).url
+    } catch (e) { toast.error((e as Error).message); setGcalBusy(false) }
+  }
+  async function disconnectGcal() {
+    if (!me) return
+    await (supabase.from as any)('google_calendar_connections').delete().eq('professional_id', me)
+    await (supabase.from as any)('google_calendar_busy').delete().eq('professional_id', me)
+    setGcal({ connected: false })
+    toast.success('Google Calendar scollegato')
+  }
 
   async function linkCalendar(webcalUrl: string) {
     if (me) { try { await (supabase.from as any)('booking_settings').update({ feed_linked_at: new Date().toISOString() }).eq('professional_id', me) } catch { /* non blocca */ } }
@@ -163,6 +186,19 @@ export function BookingSettingsCard() {
                   <button onClick={() => copy(feedUrl, 'Link calendario copiato')} className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]" title="Copia il link del calendario"><Copy size={14} /></button>
                 </div>
               )}
+              {/* Blocca slot dagli impegni Google (sola lettura) */}
+              <div className="flex items-center gap-2 text-sm">
+                <CalendarCheck size={14} className="text-[rgb(var(--gold-600))] shrink-0" />
+                <span className="text-[rgb(var(--fg-muted))] truncate flex-1">{gcal.connected ? 'Google Calendar collegato — quando sei occupato lì, lo slot sparisce' : 'Blocca gli slot dai tuoi impegni Google Calendar'}</span>
+                {gcal.connected ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 text-[12px] text-[rgb(var(--emerald-500))] mr-1"><Check size={13} /> Collegato</span>
+                    <button onClick={disconnectGcal} className="text-[11px] text-[rgb(var(--fg-muted))] hover:underline">Scollega</button>
+                  </>
+                ) : (
+                  <button onClick={connectGcal} disabled={gcalBusy} className="text-[rgb(var(--gold-700))] hover:underline">{gcalBusy ? '…' : 'Collega Google'}</button>
+                )}
+              </div>
             </div>
           )}
         </div>
