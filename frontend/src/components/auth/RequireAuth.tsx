@@ -80,6 +80,8 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     && !location.pathname.startsWith('/album/')
     // configuratore copertina 3D: la coppia compone l'album e lo invia a FotoLab
     && !location.pathname.startsWith('/album-copertina')
+    // catalogo PDF sfogliabile: la coppia sceglie il modello dal catalogo del fotografo e firma
+    && !location.pathname.startsWith('/scegli-album')
     && !location.pathname.startsWith('/video/')
     && !location.pathname.startsWith('/faq')) {
     return <Navigate to="/couple" replace />

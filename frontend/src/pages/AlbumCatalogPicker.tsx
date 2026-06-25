@@ -38,7 +38,7 @@ export default function AlbumCatalogPicker() {
   }, [entryId])
 
   const sizes = useMemo(() => sizesForFormat(specs.format as Format), [specs.format])
-  useEffect(() => { if (sizes.length && !sizes.find((s) => s.key === specs.size)) setSpecs((p) => ({ ...p, size: sizes[0].key })) }, [sizes]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (sizes.length && !sizes.find((s) => s.key === specs.size)) setSpecs((p) => ({ ...p, size: sizes[0]!.key })) }, [sizes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function pick(h: Hotspot) {
     setSelected(h)
