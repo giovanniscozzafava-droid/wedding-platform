@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Shapes, Ruler, Layers, Type, Package } from 'lucide-react'
 import { AlbumFlipbook } from '@/components/album/AlbumFlipbook'
 import {
-  CATEGORIES, modelsByCategory, materialsForModel, paletteFor, modelByKey,
+  CATEGORIES, baseModelsByCategory, baseDesignOf, baseDesignKey, materialsForModel, paletteFor, modelByKey,
   firstAvailableSizeKey, sizeByKey, isSizeAvailableForModel,
   coverPrice, euro, isWoodModel,
   type Cover, type ColorDef, type Format,
@@ -67,7 +67,7 @@ export default function CoverConfigurator() {
     '/textures/demo/p5.jpg', '/textures/demo/p6.jpg', '/textures/demo/p7.jpg', '/textures/demo/p8.jpg',
   ]
 
-  const models = modelsByCategory(category)
+  const models = baseModelsByCategory(category)
   const allowedMaterials = materialsForModel(cover.model)
   const palette = paletteFor(cover.fabric)
   const price = coverPrice(cover, copies)
@@ -75,7 +75,7 @@ export default function CoverConfigurator() {
   // --- handlers (logica invariata rispetto alla pagina precedente) ---
   function pickCategory(cat: string) {
     setCategory(cat)
-    const first = modelsByCategory(cat)[0]
+    const first = baseModelsByCategory(cat)[0]
     if (first) pickModel(first.key)
   }
   function pickModel(modelKey: string) {
@@ -151,7 +151,7 @@ export default function CoverConfigurator() {
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] lg:max-h-none overflow-y-auto no-scrollbar pr-0.5">
                         {models.map((m) => (
-                          <ModelCard key={m.key} model={m} active={cover.model === m.key} onClick={() => pickModel(m.key)} />
+                          <ModelCard key={m.key} model={m} active={baseDesignOf(cover.model) === baseDesignKey(m)} onClick={() => pickModel(m.key)} />
                         ))}
                       </div>
                     </div>

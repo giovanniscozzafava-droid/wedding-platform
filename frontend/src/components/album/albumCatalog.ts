@@ -616,6 +616,31 @@ export function paletteFor(materialKey?: string): ColorDef[] {
 }
 export const modelsByCategory = (cat: string): Model[] => cat === 'all' ? MODELS : MODELS.filter((m) => m.category === cat)
 
+// --- DEDUP per il PICKER -----------------------------------------------------
+// Il listino ha ~100 SKU = stesso DESIGN ripetuto per materiale/finitura
+// (Cassiopea ×5, Trilogy ×4, …). Ma materiale e finitura si scelgono GIÀ negli
+// step Materiale + Finiture → nel picker mostra UN solo design base, rappresentante
+// = variante più "bella" di default (Pelle di legno > Cristalwhite > base > prima).
+export const baseDesignKey = (m?: Model): string => ((m?.label.split(' · ')[0] || m?.label || '').trim().toLowerCase())
+export const baseDesignOf = (key?: string): string => baseDesignKey(modelByKey(key))
+function _repScore(m: Model): number {
+  const v = (m.variant || '').toLowerCase()
+  if (m.materials?.includes('wood') || v.includes('pelle di legno')) return 4
+  if (m.materials?.includes('cristalwhite') || v.includes('cristalwhite')) return 3
+  if (!m.variant) return 2
+  return 1
+}
+export const baseModelsByCategory = (cat: string): Model[] => {
+  const pool = cat === 'all' ? MODELS : MODELS.filter((m) => m.category === cat)
+  const byBase = new Map<string, Model>()
+  for (const m of pool) {
+    const k = baseDesignKey(m)
+    const cur = byBase.get(k)
+    if (!cur || _repScore(m) > _repScore(cur)) byBase.set(k, m)
+  }
+  return Array.from(byBase.values()).sort((a, b) => a.label.localeCompare(b.label, 'it'))
+}
+
 // etichette leggibili per FotoLab
 export const modelLabel = (k?: string) => modelByKey(k)?.label || k || '—'
 export const materialLabel = (k?: string) => materialByKey(k)?.label || k || '—'

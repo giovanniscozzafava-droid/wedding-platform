@@ -68,33 +68,39 @@ const PRO_PHOTO_ONLY_KEYS = new Set(['foto', 'video', 'overview'])
 
 const TABS: Array<TabDef> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
-  { key: 'planning',       label: 'Questionario', icon: ClipboardList, capostipiteOnly: true },
-  { key: 'ceremony',       label: 'Cerimonia',    icon: Church },
-  { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock },
+  // Ricordi (consegne) — priorità e coerenza: Foto e Video subito, vicini
+  { key: 'foto',           label: 'Foto',         icon: Images },
+  { key: 'video',          label: 'Video',        icon: Film },
+  { key: 'audio',          label: 'Audio auguri', icon: Mic },
+  { key: 'guestbook',      label: 'Guestbook',    icon: BookHeart },
+  // Ospiti & festa
   { key: 'guests',         label: 'Invitati',     icon: UsersIcon },
-  { key: 'regali',         label: 'Regali',       icon: Gift },
   { key: 'tables',         label: 'Tavoli',       icon: Table2 },
+  { key: 'regali',         label: 'Regali',       icon: Gift },
   { key: 'menu',           label: 'Menu',         icon: Utensils, capostipiteOnly: true },
-  { key: 'accommodations', label: 'Alloggi',      icon: BedDouble },
-  { key: 'transport',      label: 'Trasporti',    icon: Bus },
-  { key: 'subevents',      label: 'Eventi',       icon: PartyPopper },
   { key: 'gadgets',        label: 'Bomboniere',   icon: Gift },
   { key: 'angoli',         label: 'Angoli',       icon: Boxes },
+  { key: 'subevents',      label: 'Eventi',       icon: PartyPopper },
+  // Programma & stile
+  { key: 'ceremony',       label: 'Cerimonia',    icon: Church },
+  { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock },
   { key: 'mood',           label: 'Mood',         icon: Palette },
   { key: 'playlist',       label: 'Playlist',     icon: Music },
+  // Logistica
+  { key: 'accommodations', label: 'Alloggi',      icon: BedDouble },
+  { key: 'transport',      label: 'Trasporti',    icon: Bus },
+  // Organizzazione
+  { key: 'chat',           label: 'Chat',         icon: MessageCircle, nuovoModelloOnly: true },
+  { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
+  { key: 'planning',       label: 'Questionario', icon: ClipboardList, capostipiteOnly: true },
+  // Gestione (capostipite)
+  { key: 'contract',       label: 'Contratto',    icon: FileSignature, capostipiteOnly: true },
+  { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature, capostipiteOnly: true },
   { key: 'budget',         label: 'Budget',       icon: Wallet, capostipiteOnly: true },
   { key: 'payments',       label: 'Pagamenti',    icon: Wallet, capostipiteOnly: true },
   { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale, nuovoModelloOnly: true, capostipiteOnly: true },
-  { key: 'chat',           label: 'Chat',         icon: MessageCircle, nuovoModelloOnly: true },
-  { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
-  { key: 'contract',       label: 'Contratto',    icon: FileSignature, capostipiteOnly: true },
-  { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature, capostipiteOnly: true },
-  { key: 'website',        label: 'Sito evento', icon: Globe, capostipiteOnly: true },
   { key: 'members',        label: 'Clienti',      icon: Heart, capostipiteOnly: true },
-  { key: 'foto',           label: 'Foto',         icon: Images },
-  { key: 'audio',          label: 'Audio auguri', icon: Mic },
-  { key: 'guestbook',      label: 'Guestbook',    icon: BookHeart },
-  { key: 'video',          label: 'Video',        icon: Film },
+  { key: 'website',        label: 'Sito evento', icon: Globe, capostipiteOnly: true },
   { key: 'docs',           label: 'Documenti',    icon: FolderOpen, capostipiteOnly: true },
   { key: 'analytics', label: 'Analytics',  icon: BarChart3, capostipiteOnly: true },
 ]
@@ -174,6 +180,14 @@ export default function WeddingDashboard() {
   // Tengo attive solo Foto/Video (+ Overview lato pro); il resto si oscura. Atterro su Foto.
   const photoOnly = isPhotoOnlyEvent(wedding as { date_from?: string | null; date_to?: string | null; quote?: unknown } | null)
   useEffect(() => { if (photoOnly && !PRO_PHOTO_ONLY_KEYS.has(tab)) setTab('foto') }, [photoOnly, tab])
+  // Fornitore su evento già passato → atterra su Foto (la cosa che gli interessa). Una volta sola.
+  const landedRef = useRef(false)
+  useEffect(() => {
+    if (landedRef.current || !wedding) return
+    landedRef.current = true
+    const end = (wedding as { date_to?: string | null; date_from?: string | null }).date_to || (wedding as { date_from?: string | null }).date_from
+    if (ringView === 'fornitore' && end && new Date(end) < new Date()) setTab('foto')
+  }, [wedding, ringView])
 
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!wedding) return <div className="p-10 text-[rgb(var(--rose-500))]">Wedding non trovato</div>
