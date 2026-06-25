@@ -327,7 +327,8 @@ export default function WeddingDashboard() {
             <span className="text-[rgb(var(--fg-muted))]">Evento concluso e non gestito col dashboard: restano attive solo <strong className="text-[rgb(var(--fg))]">Foto e Video</strong>.</span>
           </div>
         )}
-        {!photoOnly && <div className="mb-6"><EventRing entryId={wedding.id} view={ringView} /></div>}
+        {/* Cerchio SEMPRE visibile (anche su evento solo-ricordi): le collaborazioni restano gestibili — es. aggiungere il fotografo a un evento passato per condividere le foto */}
+        <div className="mb-6"><EventRing entryId={wedding.id} view={ringView} /></div>
         {!photoOnly && tab === 'overview' && <div className="mb-6"><CompletionRings entryId={wedding.id} onOpen={(t) => setTab((t === 'rsvp' ? 'guests' : t === 'cerchio' ? 'overview' : t) as TabKey)} /></div>}
         <AnimatePresence mode="wait">
           <motion.div key={tab}
