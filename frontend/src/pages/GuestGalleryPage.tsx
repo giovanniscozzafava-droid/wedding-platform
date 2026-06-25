@@ -46,6 +46,7 @@ async function imageToJpeg(file: File): Promise<{ blob: Blob; ext: string; type:
     const w = Math.max(1, Math.round((img.naturalWidth || 1) * scale)), h = Math.max(1, Math.round((img.naturalHeight || 1) * scale))
     const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
     const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('ctx')
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h) // evita sfondo nero su PNG/screenshot trasparenti
     ctx.drawImage(img, 0, 0, w, h)
     const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.85))
     if (!blob || blob.size < 100) throw new Error('encode')
