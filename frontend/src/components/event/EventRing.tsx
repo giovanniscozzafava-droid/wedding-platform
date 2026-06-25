@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 type RingRole = { role_key: string; label: string; covered: boolean; covered_by: string | null }
-type RingState = { roles: RingRole[]; total: number; covered: number; closed: boolean }
+type RingState = { roles: RingRole[]; total: number; covered: number; closed: boolean; wp?: { name: string; role: string } | null }
+const wpRoleLabel = (role?: string) => (role === 'WEDDING_PLANNER' ? 'Wedding planner' : role === 'LOCATION' ? 'Location' : 'Capostipite')
 type Suggestable = { id: string; name: string; subrole: string | null; matches: boolean; in_event: boolean }
 type CircleSuggestion = { id: string; role_key: string | null; status: string; supplier_name: string; suggested_by_name: string }
 
@@ -199,6 +200,15 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
             </h3>
           )}
 
+          {ring.wp && (
+            <div className="flex items-center gap-2 text-sm mt-2 mb-1 pb-1.5 border-b border-[rgb(var(--border))]">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full shrink-0" style={{ background: 'rgb(var(--gold-600))' }}>
+                <Sparkles size={10} className="text-white" />
+              </span>
+              <span className="font-medium truncate">{ring.wp.name}</span>
+              <span className="text-[11px] text-[rgb(var(--fg-subtle))] shrink-0">· {wpRoleLabel(ring.wp.role)}</span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
             {ring.roles.map((role) => (
               <div key={role.role_key} className="flex items-center gap-2 text-sm">
