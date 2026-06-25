@@ -10,10 +10,11 @@ import { supabase } from '@/lib/supabase'
 
 type InviteInfo = {
   email: string
-  subrole_hint: string | null
-  message: string | null
-  expires_at: string
+  subrole_hint?: string | null
+  message?: string | null
+  expires_at?: string
   capo_name: string
+  already?: boolean
   error?: string
 }
 
@@ -35,6 +36,7 @@ export default function SupplierInviteAcceptPage() {
       if (error) { setLoadErr(error.message); return }
       const j = data as InviteInfo
       if (j.error) { setLoadErr(j.error); return }
+      if (j.already) setMode('login') // già registrato → mostra l'accesso, non la registrazione
       setInfo(j)
     })()
   }, [token])
@@ -86,13 +88,10 @@ export default function SupplierInviteAcceptPage() {
     try {
       const { error: loginErr } = await supabase.auth.signInWithPassword({ email: info.email, password })
       if (loginErr) throw loginErr
-      const { data: claimed } = await (supabase.rpc as any)('claim_supplier_invite', { p_token: token })
-      if (claimed === true) {
-        toast.success(`Collegato/a a ${info.capo_name}`)
-        nav('/', { replace: true })
-      } else {
-        toast.error('Login OK ma invito non collegato (email diverse?). Contatta il tuo wedding planner.')
-      }
+      // collega l'invito se ancora pendente (best-effort: se già accettato va bene lo stesso)
+      try { await (supabase.rpc as any)('claim_supplier_invite', { p_token: token }) } catch { /* ignore */ }
+      toast.success(`Bentornato/a! Sei dentro.`)
+      nav('/', { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore login')
     } finally { setBusy(false) }
@@ -103,8 +102,10 @@ export default function SupplierInviteAcceptPage() {
       <div className="min-h-screen flex items-center justify-center aurora p-4">
         <div className="surface surface-lift p-8 max-w-md text-center">
           <AlertCircle size={32} className="mx-auto mb-3 text-[rgb(var(--rose-500))]" />
-          <h1 className="font-display text-2xl mb-2">Invito non valido</h1>
+          <h1 className="font-display text-2xl mb-2">Invito non più valido</h1>
           <p className="text-sm text-[rgb(var(--fg-muted))]">{loadErr}</p>
+          <p className="text-sm text-[rgb(var(--fg-muted))] mt-3">Se ti sei <strong>già registrato</strong>, entra direttamente da qui:</p>
+          <Button variant="gold" className="mt-3 w-full" onClick={() => nav('/login')}>Accedi a Planfully</Button>
         </div>
       </div>
     )
@@ -141,26 +142,27 @@ export default function SupplierInviteAcceptPage() {
           </div>
           <h1 className="font-display text-2xl tracking-tight">
             <Heart size={20} className="inline mr-2 text-[rgb(var(--rose-500))]" />
-            {info.capo_name} ti ha invitato come fornitore
+            {info.already ? 'Bentornato/a su Planfully' : `${info.capo_name} ti ha invitato come fornitore`}
           </h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mt-2">
-            {info.message ?? 'Crea un account per gestire i tuoi servizi e coordinarti sui matrimoni.'}
-            {info.subrole_hint && (
-              <> Tipo servizio suggerito: <strong>{info.subrole_hint}</strong>.</>
-            )}
+            {info.already
+              ? <>Hai <strong>già un account</strong>: accedi con la tua password per entrare{info.capo_name ? <> nell'area di <strong>{info.capo_name}</strong></> : null}.</>
+              : <>{info.message ?? 'Crea un account per gestire i tuoi servizi e coordinarti sui matrimoni.'}{info.subrole_hint && (<> Tipo servizio suggerito: <strong>{info.subrole_hint}</strong>.</>)}</>}
           </p>
         </div>
 
-        <div className="px-8 py-4 border-b flex gap-2 text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
-          <button onClick={() => setMode('signup')}
-            className={`flex-1 py-2 rounded-md ${mode === 'signup' ? 'bg-[rgb(var(--bg-sunken))] font-medium' : 'text-[rgb(var(--fg-muted))]'}`}>
-            Nuovo account
-          </button>
-          <button onClick={() => setMode('login')}
-            className={`flex-1 py-2 rounded-md ${mode === 'login' ? 'bg-[rgb(var(--bg-sunken))] font-medium' : 'text-[rgb(var(--fg-muted))]'}`}>
-            Ho già un account
-          </button>
-        </div>
+        {!info.already && (
+          <div className="px-8 py-4 border-b flex gap-2 text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
+            <button onClick={() => setMode('signup')}
+              className={`flex-1 py-2 rounded-md ${mode === 'signup' ? 'bg-[rgb(var(--bg-sunken))] font-medium' : 'text-[rgb(var(--fg-muted))]'}`}>
+              Nuovo account
+            </button>
+            <button onClick={() => setMode('login')}
+              className={`flex-1 py-2 rounded-md ${mode === 'login' ? 'bg-[rgb(var(--bg-sunken))] font-medium' : 'text-[rgb(var(--fg-muted))]'}`}>
+              Ho già un account
+            </button>
+          </div>
+        )}
 
         <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="p-8 space-y-4">
           <div className="space-y-1">
@@ -184,12 +186,14 @@ export default function SupplierInviteAcceptPage() {
           </div>
 
           <Button type="submit" variant="gold" className="w-full" disabled={busy}>
-            {busy ? '…' : mode === 'signup' ? 'Crea account e accetta invito' : 'Accedi e accetta invito'}
+            {busy ? '…' : mode === 'signup' ? 'Crea account e accetta invito' : info.already ? 'Accedi' : 'Accedi e accetta invito'}
           </Button>
 
-          <p className="text-[11px] text-[rgb(var(--fg-subtle))] text-center">
-            Scade il {new Date(info.expires_at).toLocaleDateString('it-IT')}.
-          </p>
+          {info.expires_at && !info.already && (
+            <p className="text-[11px] text-[rgb(var(--fg-subtle))] text-center">
+              Scade il {new Date(info.expires_at).toLocaleDateString('it-IT')}.
+            </p>
+          )}
         </form>
       </motion.div>
     </div>
