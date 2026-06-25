@@ -17,7 +17,7 @@ type GuestView = 'home' | 'upload' | 'audio' | 'guestbook' | 'gallery'
 // L'ospite vede le foto/video INVITATI e può CARICARE le proprie (consenso al riutilizzo
 // promozionale OBBLIGATORIO). I fornitori del cerchio possono usarli. UX semplice e allegra.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; uploader_name: string | null }
+type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; uploader_name: string | null; uploaded_by: string | null }
 type Folder = { id: string; name: string; gallery_media: Media[] }
 
 const isDrive = (m: Media) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:')
@@ -25,6 +25,33 @@ const isVideo = (m: Media) => m.media_type === 'VIDEO'
 const fullSrc = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w2000` : (m.thumbnail_link ?? ''))
 const origUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/uc?export=download&id=${m.drive_file_id}` : (m.thumbnail_link ?? ''))
 const webUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
+
+// UUID robusto: crypto.randomUUID() non esiste su Safari iOS più vecchi → senza fallback
+// l'upload andava in errore silenzioso su quei telefoni.
+function safeUuid(): string {
+  try { if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as Crypto).randomUUID() } catch { /* */ }
+  return 'g-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)
+}
+
+// Immagine → JPEG ridimensionato (lato lungo max 2200px). Risolve in un colpo:
+// HEIC iPhone (Safari lo decodifica → esce JPEG visibile a tutti), foto da 12MP troppo
+// pesanti (upload che falliva) e miniature che non si vedevano. Se la decodifica fallisce,
+// si carica il file originale (non blocchiamo mai l'ospite).
+async function imageToJpeg(file: File): Promise<{ blob: Blob; ext: string; type: string }> {
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('decode')); i.src = url })
+    const max = 2200
+    const scale = Math.min(1, max / Math.max(img.naturalWidth || 1, img.naturalHeight || 1))
+    const w = Math.max(1, Math.round((img.naturalWidth || 1) * scale)), h = Math.max(1, Math.round((img.naturalHeight || 1) * scale))
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('ctx')
+    ctx.drawImage(img, 0, 0, w, h)
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.85))
+    if (!blob || blob.size < 100) throw new Error('encode')
+    return { blob, ext: 'jpg', type: 'image/jpeg' }
+  } finally { URL.revokeObjectURL(url) }
+}
 
 async function downloadUrl(url: string, name: string) {
   if (!url) return
@@ -76,6 +103,7 @@ export default function GuestGalleryPage() {
   const [libOpen, setLibOpen] = useState(false)
   const [showQr, setShowQr] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadProg, setUploadProg] = useState<{ done: number; total: number } | null>(null)
   const [view, setView] = useState<GuestView>('home')
   const [gtags, setGtags] = useState<string[]>([])
   const [noMinors, setNoMinors] = useState(false)
@@ -89,7 +117,7 @@ export default function GuestGalleryPage() {
 
   const loadFolders = useCallback(async (entry: string) => {
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, uploader_name)')
+      .select('id, name, level, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, uploader_name, uploaded_by)')
       .eq('entry_id', entry).eq('level', 'INVITATI').order('sort_order')
     setFolders((f as Folder[]) ?? [])
   }, [])
@@ -129,25 +157,46 @@ export default function GuestGalleryPage() {
     if (!entryId || !user || files.length === 0) return
     if (!promo) { toast.error('Spunta prima il consenso per caricare.'); return }
     if (!noMinors) { toast.error('Conferma che nella foto non ci sono minori.'); return }
-    setUploading(true)
-    let ok = 0; let fail = 0
-    for (const file of files) {
-      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) { fail++; continue }
-      try {
-        const ext = (file.name.split('.').pop() || 'bin').toLowerCase()
-        const path = `${entryId}/${user.id}/${crypto.randomUUID()}.${ext}`
-        const up = await supabase.storage.from('event-guest-uploads').upload(path, file, { upsert: false, contentType: file.type })
-        if (up.error) throw up.error
-        const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
-        const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; error?: string } }> })
-          .rpc('guest_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO', p_promo: true, p_tags: gtags, p_no_minors: noMinors })
-        if (data?.error) throw new Error(data.error)
-        ok++
-      } catch (e) { fail++; if (fail === 1) toast.error((e as Error).message) }
+    setUploading(true); setUploadProg({ done: 0, total: files.length })
+    let ok = 0; let fail = 0; let lastErr = ''
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!
+      const isImg = file.type.startsWith('image/') || /\.(heic|heif|jpe?g|png|webp|gif)$/i.test(file.name)
+      const isVid = file.type.startsWith('video/') || /\.(mp4|mov|m4v|webm|3gp)$/i.test(file.name)
+      if (!isImg && !isVid) { fail++; setUploadProg({ done: i + 1, total: files.length }); continue }
+      // immagini → JPEG ridimensionato (risolve HEIC iPhone + peso + visibilità). Video as-is.
+      let blob: Blob = file
+      let ext = (file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg')).toLowerCase()
+      let ctype = file.type || (isVid ? 'video/mp4' : 'image/jpeg')
+      if (isImg) { try { const j = await imageToJpeg(file); blob = j.blob; ext = j.ext; ctype = j.type } catch { /* uso l'originale */ } }
+      let done = false
+      for (let attempt = 1; attempt <= 3 && !done; attempt++) {
+        try {
+          const path = `${entryId}/${user.id}/${safeUuid()}.${ext}`
+          const up = await supabase.storage.from('event-guest-uploads').upload(path, blob, { upsert: false, contentType: ctype })
+          if (up.error) throw up.error
+          const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
+          const { data } = await (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: { ok?: boolean; error?: string } }> })
+            .rpc('guest_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: isVid ? 'VIDEO' : 'PHOTO', p_promo: true, p_tags: gtags, p_no_minors: noMinors })
+          if (data?.error) throw new Error(data.error)
+          ok++; done = true
+        } catch (e) {
+          lastErr = (e as Error).message || 'errore'
+          if (attempt < 3) await new Promise((r) => setTimeout(r, 700 * attempt))
+          else fail++
+        }
+      }
+      setUploadProg({ done: i + 1, total: files.length })
     }
-    setUploading(false)
-    if (ok) { toast.success(`${ok} file caricati. Grazie! 🎉`); setGtags([]) }
+    setUploading(false); setUploadProg(null)
     await loadFolders(entryId)
+    if (ok) {
+      setGtags([])
+      setView('gallery')   // l'ospite atterra in galleria e VEDE subito le sue foto (in cima)
+      toast.success(fail ? `${ok} caricate, ${fail} non riuscite — riprova quelle.` : `Caricate ${ok}! Le trovi qui sotto nella galleria.`)
+    } else {
+      toast.error(`Caricamento non riuscito${lastErr ? ' (' + lastErr.slice(0, 60) + ')' : ''}. Controlla la rete e riprova.`)
+    }
   }
 
   function toggleTag(key: string) {
@@ -306,9 +355,12 @@ export default function GuestGalleryPage() {
 
           <input ref={fileRef} type="file" multiple accept="image/*,video/*" className="hidden"
             onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length) void uploadGuestMedia(snap) }} />
-          <Button variant="gold" size="sm" disabled={!promo || !noMinors || uploading} onClick={() => fileRef.current?.click()}>
-            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Carica foto / video
+          <Button variant="gold" className="w-full !py-3 !text-base" disabled={!promo || !noMinors || uploading} onClick={() => fileRef.current?.click()}>
+            {uploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />} {uploading ? (uploadProg ? `Carico ${uploadProg.done}/${uploadProg.total}…` : 'Carico…') : 'Carica foto / video'}
           </Button>
+          {!uploading && (!promo || !noMinors) && <p className="text-[11px] text-[rgb(var(--rose-500))] text-center">Spunta i due consensi qui sopra per attivare il caricamento.</p>}
+          {uploading && uploadProg && <div className="h-2 rounded-full bg-[rgb(var(--bg-sunken))] overflow-hidden"><div className="h-full bg-[rgb(var(--gold-500))] transition-all" style={{ width: `${Math.round((uploadProg.done / Math.max(1, uploadProg.total)) * 100)}%` }} /></div>}
+          {uploading && <p className="text-[11px] text-[rgb(var(--fg-subtle))] text-center">Tieni aperta questa pagina fino a fine caricamento.</p>}
         </div>
       )}
 
@@ -319,24 +371,30 @@ export default function GuestGalleryPage() {
         folders.length === 0 || allEmpty ? (
           <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Ancora nessuna foto. Sii il primo a caricare i tuoi scatti! ✨</p>
         ) : (
-          folders.map((f) => (
+          folders.map((f) => {
+            const mine = (m: Media) => !!user && m.uploaded_by === user.id
+            const list = [...f.gallery_media].sort((a, b) => Number(mine(b)) - Number(mine(a))) // le tue prima
+            return (
             <section key={f.id} className="mb-8">
               <h2 className="font-medium mb-3">{f.name}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {f.gallery_media.map((m, idx) => (
-                  <button key={m.id} type="button" onClick={() => setBox({ list: f.gallery_media, i: idx })}
-                    className="group relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] cursor-zoom-in" style={{ aspectRatio: '4/3' }}>
+                {list.map((m, idx) => (
+                  <button key={m.id} type="button" onClick={() => setBox({ list, i: idx })}
+                    className={`group relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] cursor-zoom-in ${mine(m) ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`} style={{ aspectRatio: '4/3' }}>
                     {isVideo(m) && !isDrive(m)
                       ? <video src={m.thumbnail_link ?? ''} muted preload="metadata" className="w-full h-full object-cover" />
                       : m.thumbnail_link && <img src={m.thumbnail_link} alt={m.guest_tag_name ?? ''} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />}
                     {isVideo(m) && <span className="absolute inset-0 flex items-center justify-center"><Play size={20} className="text-white fill-white opacity-90 drop-shadow" /></span>}
-                    {m.uploader_name && <span className="absolute top-1 left-1 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full">da {m.uploader_name}</span>}
+                    {mine(m)
+                      ? <span className="absolute top-1 left-1 bg-[rgb(var(--gold-500))] text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full">Tua</span>
+                      : m.uploader_name && <span className="absolute top-1 left-1 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full">da {m.uploader_name}</span>}
                     {m.guest_tag_name && <span className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tag_name}</span>}
                   </button>
                 ))}
               </div>
             </section>
-          ))
+            )
+          })
         )
       )}
 
