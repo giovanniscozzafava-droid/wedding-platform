@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { CalendarClock, Check, Copy, Plus, X, Link2, Code, CalendarDays } from 'lucide-react'
+import { CalendarClock, Check, Copy, Plus, X, Link2, Code, CalendarDays, RefreshCw } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,7 +12,7 @@ type Settings = {
   enabled: boolean; title: string; description: string | null
   slot_minutes: number; buffer_minutes: number; advance_days: number; min_notice_hours: number
   timezone: string; weekly: Weekly; location_type: 'CALL' | 'VIDEO' | 'INPERSON'; location_detail: string | null
-  whatsapp: string | null; color: string; feed_token?: string
+  whatsapp: string | null; color: string; feed_token?: string; feed_linked_at?: string | null
 }
 const DAYS: { k: string; l: string }[] = [
   { k: '1', l: 'Lun' }, { k: '2', l: 'Mar' }, { k: '3', l: 'Mer' }, { k: '4', l: 'Gio' }, { k: '5', l: 'Ven' }, { k: '6', l: 'Sab' }, { k: '0', l: 'Dom' },
@@ -25,21 +25,29 @@ const DEFAULT: Settings = {
 
 export function BookingSettingsCard() {
   const [s, setS] = useState<Settings>(DEFAULT)
+  const [me, setMe] = useState<string | null>(null)
   const [slug, setSlug] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     void (async () => {
-      const me = (await supabase.auth.getUser()).data.user?.id
-      if (!me) { setLoading(false); return }
-      const { data: prof } = await (supabase.from as any)('profiles').select('slug').eq('id', me).maybeSingle()
+      const uid = (await supabase.auth.getUser()).data.user?.id
+      if (!uid) { setLoading(false); return }
+      setMe(uid)
+      const { data: prof } = await (supabase.from as any)('profiles').select('slug').eq('id', uid).maybeSingle()
       setSlug(prof?.slug ?? null)
-      const { data } = await (supabase.from as any)('booking_settings').select('*').eq('professional_id', me).maybeSingle()
+      const { data } = await (supabase.from as any)('booking_settings').select('*').eq('professional_id', uid).maybeSingle()
       if (data) setS({ ...DEFAULT, ...data, description: data.description ?? '', location_detail: data.location_detail ?? '', whatsapp: data.whatsapp ?? '' })
       setLoading(false)
     })()
   }, [])
+
+  async function linkCalendar(webcalUrl: string) {
+    if (me) { try { await (supabase.from as any)('booking_settings').update({ feed_linked_at: new Date().toISOString() }).eq('professional_id', me) } catch { /* non blocca */ } }
+    setS((p) => ({ ...p, feed_linked_at: new Date().toISOString() }))
+    window.location.href = webcalUrl
+  }
 
   function setDay(k: string, intervals: Interval[]) { setS((p) => ({ ...p, weekly: { ...p.weekly, [k]: intervals } })) }
 
@@ -143,9 +151,16 @@ export function BookingSettingsCard() {
               {feedUrl && (
                 <div className="flex items-center gap-2 text-sm">
                   <CalendarDays size={14} className="text-[rgb(var(--gold-600))] shrink-0" />
-                  <span className="text-[rgb(var(--fg-muted))] truncate flex-1">Feed iCal (abbonati dal tuo calendario)</span>
-                  <a href={feedUrl.replace(/^https?:/, 'webcal:')} className="text-[rgb(var(--gold-700))] hover:underline mr-1">Abbonati</a>
-                  <button onClick={() => copy(feedUrl, 'Link iCal copiato')} className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]" title="Copia feed"><Copy size={14} /></button>
+                  <span className="text-[rgb(var(--fg-muted))] truncate flex-1">{s.feed_linked_at ? 'Calendario collegato — le prenotazioni arrivano qui in automatico' : 'Collega le prenotazioni al tuo calendario (Apple / Google / Outlook)'}</span>
+                  {s.feed_linked_at ? (
+                    <>
+                      <span className="inline-flex items-center gap-1 text-[12px] text-[rgb(var(--emerald-500))] mr-1"><Check size={13} /> Collegato</span>
+                      <button onClick={() => linkCalendar(feedUrl.replace(/^https?:/, 'webcal:'))} className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]" title="Ricollega al calendario"><RefreshCw size={14} /></button>
+                    </>
+                  ) : (
+                    <button onClick={() => linkCalendar(feedUrl.replace(/^https?:/, 'webcal:'))} className="text-[rgb(var(--gold-700))] hover:underline mr-1">Collega al calendario</button>
+                  )}
+                  <button onClick={() => copy(feedUrl, 'Link calendario copiato')} className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]" title="Copia il link del calendario"><Copy size={14} /></button>
                 </div>
               )}
             </div>

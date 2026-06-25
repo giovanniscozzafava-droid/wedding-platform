@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CalendarClock, Copy, Link2, Code, CalendarDays, ExternalLink, Settings } from 'lucide-react'
+import { CalendarClock, Copy, Link2, Code, CalendarDays, ExternalLink, Settings, Check, RefreshCw } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -9,20 +9,29 @@ import { supabase } from '@/lib/supabase'
 // Barra "Calendario pubblico" in cima al Calendario: link da inviare ai clienti, codice HTML
 // da incorporare e feed iCal. La configurazione (disponibilità) resta nel Profilo.
 export function BookingLinkBar() {
+  const [me, setMe] = useState<string | null>(null)
   const [slug, setSlug] = useState<string | null>(null)
   const [enabled, setEnabled] = useState<boolean | null>(null)
   const [feed, setFeed] = useState<string | null>(null)
+  const [linked, setLinked] = useState(false)
 
   useEffect(() => {
     void (async () => {
-      const me = (await supabase.auth.getUser()).data.user?.id
-      if (!me) { setEnabled(false); return }
-      const { data: prof } = await (supabase.from as any)('profiles').select('slug').eq('id', me).maybeSingle()
+      const uid = (await supabase.auth.getUser()).data.user?.id
+      if (!uid) { setEnabled(false); return }
+      setMe(uid)
+      const { data: prof } = await (supabase.from as any)('profiles').select('slug').eq('id', uid).maybeSingle()
       setSlug(prof?.slug ?? null)
-      const { data } = await (supabase.from as any)('booking_settings').select('enabled, feed_token').eq('professional_id', me).maybeSingle()
-      setEnabled(!!data?.enabled); setFeed(data?.feed_token ?? null)
+      const { data } = await (supabase.from as any)('booking_settings').select('enabled, feed_token, feed_linked_at').eq('professional_id', uid).maybeSingle()
+      setEnabled(!!data?.enabled); setFeed(data?.feed_token ?? null); setLinked(!!data?.feed_linked_at)
     })()
   }, [])
+
+  async function linkCalendar(webcalUrl: string) {
+    if (me) { try { await (supabase.from as any)('booking_settings').update({ feed_linked_at: new Date().toISOString() }).eq('professional_id', me) } catch { /* non blocca */ } }
+    setLinked(true)
+    window.location.href = webcalUrl
+  }
 
   if (enabled === null) return null
 
@@ -68,9 +77,16 @@ export function BookingLinkBar() {
         {feedUrl && (
           <div className="flex items-center gap-2 text-sm rounded-lg bg-[rgb(var(--bg-sunken))] px-3 py-2">
             <CalendarDays size={14} className="text-[rgb(var(--gold-600))] shrink-0" />
-            <span className="text-[rgb(var(--fg-muted))] truncate flex-1">Feed iCal (abbonati dal tuo calendario, le prenotazioni arrivano qui)</span>
-            <a href={feedUrl.replace(/^https?:/, 'webcal:')} className="text-[rgb(var(--gold-700))] hover:underline text-[11px] mr-1">Abbonati</a>
-            <button onClick={() => copy(feedUrl, 'Link iCal copiato')} title="Copia il feed iCal" className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"><Copy size={13} /></button>
+            <span className="text-[rgb(var(--fg-muted))] truncate flex-1">{linked ? 'Calendario collegato — le prenotazioni arrivano qui in automatico' : 'Collega le prenotazioni al tuo calendario (Apple / Google / Outlook)'}</span>
+            {linked ? (
+              <>
+                <span className="inline-flex items-center gap-1 text-[11px] text-[rgb(var(--emerald-500))] mr-1"><Check size={13} /> Collegato</span>
+                <button onClick={() => linkCalendar(feedUrl.replace(/^https?:/, 'webcal:'))} title="Ricollega al calendario" className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"><RefreshCw size={13} /></button>
+              </>
+            ) : (
+              <button onClick={() => linkCalendar(feedUrl.replace(/^https?:/, 'webcal:'))} className="text-[rgb(var(--gold-700))] hover:underline text-[11px] mr-1">Collega al calendario</button>
+            )}
+            <button onClick={() => copy(feedUrl, 'Link calendario copiato')} title="Copia il link del calendario" className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"><Copy size={13} /></button>
           </div>
         )}
       </div>
