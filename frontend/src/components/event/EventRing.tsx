@@ -219,10 +219,10 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
               </div>
             ))}
           </div>
-          {canSuggest && addable.length > 0 && (
+          {canSuggest && (
             <button type="button" onClick={() => setAddOpen(true)}
               className="mt-3 text-xs text-[rgb(var(--gold-600))] hover:underline inline-flex items-center gap-1">
-              <Plus size={13} /> Aggiungi un altro ruolo / fornitore
+              <Plus size={13} /> Aggiungi un fornitore / collaboratore
             </button>
           )}
         </div>
@@ -234,19 +234,38 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
           <div className="bg-[rgb(var(--bg))] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))]">
               <div>
-                <h4 className="font-medium">Aggiungi un ruolo al cerchio</h4>
-                <p className="text-[11px] text-[rgb(var(--fg-muted))]">Poi potrai suggerire o invitare il fornitore per quel ruolo.</p>
+                <h4 className="font-medium">Aggiungi un fornitore al cerchio</h4>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))]">Anche a evento concluso: scegli il ruolo, poi inviti o suggerisci. Le collaborazioni restano sempre gestibili.</p>
               </div>
               <button className="p-1 rounded hover:bg-[rgb(var(--bg-sunken))]" onClick={() => setAddOpen(false)} aria-label="Chiudi"><X size={18} /></button>
             </div>
-            <div className="overflow-y-auto p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
-              {addable.map((s) => (
-                <button key={s.v} type="button" disabled={addBusy === s.v} onClick={() => addRole(s)}
-                  className="flex items-center justify-between gap-2 p-2.5 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60 text-left text-sm">
-                  <span className="truncate">{s.l}</span>
-                  {addBusy === s.v ? <Loader2 size={14} className="animate-spin shrink-0" /> : <Plus size={14} className="text-[rgb(var(--gold-600))] shrink-0" />}
-                </button>
-              ))}
+            <div className="overflow-y-auto p-2 space-y-3">
+              {addable.length > 0 && (
+                <div>
+                  <p className="px-1 text-[11px] uppercase tracking-wide text-[rgb(var(--fg-subtle))] mb-1">Aggiungi un ruolo mancante</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {addable.map((s) => (
+                      <button key={s.v} type="button" disabled={addBusy === s.v} onClick={() => addRole(s)}
+                        className="flex items-center justify-between gap-2 p-2.5 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60 text-left text-sm">
+                        <span className="truncate">{s.l}</span>
+                        {addBusy === s.v ? <Loader2 size={14} className="animate-spin shrink-0" /> : <Plus size={14} className="text-[rgb(var(--gold-600))] shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <p className="px-1 text-[11px] uppercase tracking-wide text-[rgb(var(--fg-subtle))] mb-1">Invita un fornitore per un ruolo</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                  {SUPPLIER_SUBROLES.map((s) => (
+                    <button key={`inv-${s.v}`} type="button" onClick={() => { setAddOpen(false); openPicker(s.v, s.l) }}
+                      className="flex items-center justify-between gap-2 p-2.5 rounded-lg hover:bg-[rgb(var(--bg-sunken))] text-left text-sm">
+                      <span className="truncate">{s.l}</span>
+                      <UserPlus size={14} className="text-[rgb(var(--gold-600))] shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
