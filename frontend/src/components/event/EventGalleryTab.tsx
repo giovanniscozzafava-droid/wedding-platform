@@ -18,6 +18,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { exportTableTents } from '@/lib/tableTents'
 import { PhotoSocial } from './PhotoSocial'
 import { GallerySettingsPanel, DEFAULT_GALLERY_SETTINGS, type GallerySettings } from './GallerySettingsPanel'
+import { PrintOrderSheet } from './PrintOrderSheet'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -55,6 +56,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
   // lightbox: lista di foto della cartella aperta + indice corrente
   const [box, setBox] = useState<{ list: Media[]; i: number } | null>(null)
+  const [printPhoto, setPrintPhoto] = useState<Media | null>(null)
+  const [printOn, setPrintOn] = useState(false)
 
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
@@ -111,6 +114,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   }, [entryId])
 
   useEffect(() => { void load() }, [load])
+  // Il negozio stampe è acceso per questo evento? (gata il bottone "Stampa" nel lightbox)
+  useEffect(() => { void (async () => { const { data } = await (supabase as any).rpc('print_shop_for_entry', { p_entry: entryId }); setPrintOn(!!(data as { enabled?: boolean } | null)?.enabled) })() }, [entryId])
 
   // navigazione lightbox da tastiera (Esc chiude, frecce scorrono)
   useEffect(() => {
@@ -499,7 +504,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             {(isOwner || role === 'sposi') && <Link to={`/album-copertina/${entryId}`}><Button variant={role === 'sposi' ? 'gold' : 'outline'} size="sm" title="Personalizza la copertina 3D (materiale, colore, foto, accessori) e invia in stampa"><Printer size={14} /> {role === 'sposi' ? 'Personalizza copertina 3D' : 'Copertina 3D & stampa'}{role === 'sposi' && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,.25)', color: '#fff' }}>Presto</span>}</Button></Link>}
             {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
             {isOwner && <Link to="/album-catalogo"><Button variant="outline" size="sm" title="Carica il PDF del tuo catalogo e marca i modelli per i clienti"><BookOpen size={14} /> Gestisci catalogo PDF</Button></Link>}
-            <Link to="/stampe"><Button variant="outline" size="sm" title="Ordina le tue foto come stampe d'autore (presto disponibile)"><Images size={14} /> Stampe d’autore <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>Presto</span></Button></Link>
+            <Link to="/stampe"><Button variant="outline" size="sm" title="Scopri le stampe d'autore: apri una foto e tocca Stampa"><Images size={14} /> Stampe d’autore</Button></Link>
           </div>
         </Card>
       )}
@@ -710,6 +715,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               <span className="text-xs text-white/70">{box.i + 1} / {box.list.length}</span>
               <div className="flex items-center gap-2">
                 <a href={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/photo-web?m=${m.id}&apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`} download><Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" title="Scarica JPEG web (~2048px), file reale"><Download size={14} /> Web</Button></a>
+                {m.media_type !== 'VIDEO' && printOn && <Button variant="gold" size="sm" onClick={() => setPrintPhoto(m)} title="Ordina una stampa di questa foto"><Printer size={14} /> Stampa</Button>}
                 {role === 'sposi' && <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione — riservato agli sposi"><Download size={14} /> Originale</Button>}
                 {m.uploaded_by && (isOwner || role === 'sposi') && (
                   <Button variant="outline" size="sm" className="!bg-rose-500/20 !text-white !border-rose-300/50 hover:!bg-rose-500/40 backdrop-blur" onClick={() => deleteGuestMedia(m)} title="Elimina questo file caricato da un invitato"><Trash2 size={14} /> Elimina</Button>
@@ -744,6 +750,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           </div>
         )
       })()}
+
+      <PrintOrderSheet open={!!printPhoto} onClose={() => setPrintPhoto(null)} entryId={entryId}
+        photo={printPhoto ? { driveId: printPhoto.drive_file_id, thumb: printPhoto.thumbnail_link } : undefined} />
     </div>
   )
 }

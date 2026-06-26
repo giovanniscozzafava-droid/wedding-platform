@@ -28,12 +28,12 @@ export default function PrintShopComingSoon() {
 
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="text-center max-w-2xl mx-auto">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider px-3 py-1 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-            <Sparkles size={12} /> Prossimamente
+            <Sparkles size={12} /> Novità
           </span>
           <h1 className="font-display text-4xl sm:text-5xl mt-4 leading-tight">Le tue foto, stampe d&rsquo;autore</h1>
           <p className="text-[rgb(var(--fg-muted))] mt-4 text-lg">
-            Presto potrai ordinare le tue foto preferite come stampe fine art, tele, cornici e pannelli —
-            scelte e curate dal tuo fotografo, consegnate a casa.
+            Ordina le tue foto preferite come stampe, tele, cornici e pannelli —
+            curate dal tuo fotografo e consegnate a casa.
           </p>
         </motion.div>
 
@@ -73,8 +73,8 @@ export default function PrintShopComingSoon() {
           <span className="inline-flex items-center gap-2"><Sparkles size={16} className="text-[rgb(var(--gold-600))]" /> Anteprima fedele prima di ordinare</span>
         </div>
 
-        <p className="text-center text-xs text-[rgb(var(--fg-subtle))] mt-10">
-          Stiamo rifinendo gli ultimi dettagli. Parlane con il tuo fotografo: sarà tra i primi ad attivarlo.
+        <p className="text-center text-sm text-[rgb(var(--fg-muted))] mt-10">
+          Apri la tua galleria, scegli la foto che ami di più e tocca <strong>«Stampa»</strong>.
         </p>
       </div>
     </div>
