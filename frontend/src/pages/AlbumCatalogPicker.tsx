@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -131,6 +131,13 @@ export default function AlbumCatalogPicker() {
                 ? <p className="font-display text-xl text-[rgb(var(--fg))]">{selected.label} <span className="text-xs text-[rgb(var(--fg-subtle))] font-sans">· pag. {selected.page}</span></p>
                 : <p className="text-sm text-[rgb(var(--fg-muted))]">Tocca un riquadro sulla pagina per scegliere.</p>}
             </Card>
+
+            {selected && (
+              <div className="flex items-start gap-2 rounded-xl border px-3 py-2.5 text-[12px] text-[rgb(var(--fg-muted))]" style={{ borderColor: 'rgb(var(--amber-500) / 0.4)', background: 'rgb(var(--amber-500) / 0.10)' }}>
+                <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'rgb(var(--amber-600, 217 119 6))' }} />
+                <span>Il prezzo può variare in base al modello, al formato e alle finiture scelte. Prima di confermare, <strong>chiedi al tuo fotografo la differenza di prezzo</strong> per questa scelta.</span>
+              </div>
+            )}
 
             <div className={selected ? '' : 'opacity-50 pointer-events-none'}>
               <div className="space-y-4">
