@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, RotateCw, Loader2, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCw, Loader2, Check, MapPin } from 'lucide-react'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect, type PdfDoc } from '@/lib/pdf'
 import type { Hotspot } from '@/hooks/useAlbumCatalog'
 
-// Sfoglio del PDF catalogo per la coppia: pagine renderizzate con pdf.js, avanti/indietro
-// + swipe, overlay HOTSPOT tappabili (riquadri definiti dal fotografo) → seleziona il modello.
-// Suggerisce di girare il telefono se il catalogo è orizzontale e lo schermo è verticale.
+// Sfoglio del PDF catalogo per la coppia: pagine renderizzate con pdf.js, avanti/indietro + swipe.
+// Due modi per scegliere il modello: i riquadri HOTSPOT definiti dal fotografo (se ci sono) OPPURE
+// — sempre — TOCCANDO la pagina si lascia un PIN sul punto che si vuole. Gira il telefono se serve.
 export function PdfFlipbook({
-  pdfUrl, hotspots, selectedId, onPick,
-}: { pdfUrl: string; hotspots: Hotspot[]; selectedId?: string | null; onPick: (h: Hotspot) => void }) {
+  pdfUrl, hotspots, selected, onPick, onDropPin,
+}: { pdfUrl: string; hotspots: Hotspot[]; selected?: Hotspot | null; onPick: (h: Hotspot) => void; onDropPin?: (page: number, x: number, y: number) => void }) {
   const [doc, setDoc] = useState<PdfDoc | null>(null)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -66,12 +66,20 @@ export function PdfFlipbook({
         }}
       >
         {imgs[page] ? (
-          <div className="relative">
+          <div className="relative cursor-crosshair"
+            onClick={(e) => {
+              if (!onDropPin) return
+              const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+              const x = (e.clientX - rect.left) / rect.width
+              const y = (e.clientY - rect.top) / rect.height
+              if (x < 0 || x > 1 || y < 0 || y > 1) return
+              onDropPin(page, x, y)
+            }}>
             <img src={imgs[page]} alt={`Pagina ${page}`} className="block w-full h-auto" draggable={false} />
             {pageHotspots.map((h) => {
-              const on = selectedId && h.id === selectedId
+              const on = selected?.id && h.id === selected.id
               return (
-                <button key={h.id ?? `${h.x}-${h.y}`} type="button" onClick={() => onPick(h)}
+                <button key={h.id ?? `${h.x}-${h.y}`} type="button" onClick={(e) => { e.stopPropagation(); onPick(h) }}
                   title={h.label}
                   className={`absolute rounded-lg border-2 transition-all ${on
                     ? 'border-[rgb(var(--gold-600))] bg-[rgb(var(--gold-500))]/25 ring-2 ring-[rgb(var(--gold-300))]'
@@ -83,6 +91,12 @@ export function PdfFlipbook({
                 </button>
               )
             })}
+            {/* PIN libero: marker sul punto scelto dal cliente (modello senza riquadro predefinito) */}
+            {selected && selected.page === page && (selected.w ?? 0) === 0 && (
+              <span className="absolute -translate-x-1/2 -translate-y-full pointer-events-none drop-shadow-lg" style={{ left: `${selected.x * 100}%`, top: `${selected.y * 100}%` }}>
+                <MapPin size={30} className="text-[rgb(var(--gold-600))] fill-[rgb(var(--gold-500))]" />
+              </span>
+            )}
           </div>
         ) : (
           <div className="grid place-items-center h-80 text-[rgb(var(--fg-subtle))]"><Loader2 className="animate-spin" /></div>
@@ -100,9 +114,10 @@ export function PdfFlipbook({
           Avanti <ChevronRight size={16} />
         </button>
       </div>
-      {!!pageHotspots.length && (
-        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2 text-center">Tocca un riquadro sulla pagina per scegliere quel modello.</p>
-      )}
+      <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2 text-center inline-flex items-center justify-center gap-1 w-full">
+        <MapPin size={12} className="text-[rgb(var(--gold-600))]" />
+        {pageHotspots.length ? 'Tocca un riquadro, oppure tocca la pagina per lasciare un pin sul modello che vuoi.' : 'Tocca sulla pagina il modello che ti piace: lasci un pin lì.'}
+      </p>
     </div>
   )
 }

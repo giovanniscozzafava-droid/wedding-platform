@@ -51,6 +51,7 @@ const CoupleAcceptPage = lazyWithRetry(() => import('@/pages/couple/CoupleAccept
 const SupplierInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/SupplierInviteAcceptPage'))
 const BookingPage = lazyWithRetry(() => import('@/pages/public/BookingPage'))
 const PrintShopComingSoon = lazyWithRetry(() => import('@/pages/PrintShopComingSoon'))
+const PrintRequestsPage = lazyWithRetry(() => import('@/pages/PrintRequestsPage'))
 const CapostipiteInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/CapostipiteInviteAcceptPage'))
 const CoupleInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/CoupleInviteAcceptPage'))
 const PrivacyPage = lazyWithRetry(() => import('@/pages/public/PrivacyPage'))
@@ -156,6 +157,14 @@ export default function App() {
             element={
               <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
                 <SupplierDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/richieste-stampa"
+            element={
+              <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}>
+                <PrintRequestsPage />
               </RequireAuth>
             }
           />

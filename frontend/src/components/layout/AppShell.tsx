@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   PackageSearch,
   CalendarDays,
+  Printer,
   FileText,
   Palette,
   Images,
@@ -86,6 +87,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Gestione', items: [
     { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+    { to: '/richieste-stampa', label: 'Richieste stampa', icon: Printer },
     { to: '/team',     label: 'Team',       icon: UsersIcon },
     { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
   ]},
@@ -134,6 +136,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Gestione', items: [
     { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+    { to: '/richieste-stampa', label: 'Richieste stampa', icon: Printer },
     { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
   ]},
   { section: 'Impostazioni', items: [

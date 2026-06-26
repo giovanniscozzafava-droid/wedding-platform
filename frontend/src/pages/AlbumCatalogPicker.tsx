@@ -48,6 +48,10 @@ export default function AlbumCatalogPicker() {
       pages: h.default_pages ?? p.pages,
     }))
   }
+  // Pin libero: il cliente tocca la pagina dove vuole → diventa il modello scelto (w/h = 0).
+  function dropPin(page: number, x: number, y: number) {
+    setSelected({ id: `pin-${page}-${Math.round(x * 1000)}-${Math.round(y * 1000)}`, page, x, y, w: 0, h: 0, label: `Modello a pag. ${page}` })
+  }
   const toggleFinish = (k: string) => setSpecs((p) => ({ ...p, finishes: (p.finishes ?? []).includes(k) ? (p.finishes ?? []).filter((x) => x !== k) : [...(p.finishes ?? []), k] }))
 
   const ready = !!selected && !!signature && clientName.trim().length > 1 && !busy
@@ -121,7 +125,7 @@ export default function AlbumCatalogPicker() {
 
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-9 items-start">
           <div className="lg:sticky lg:top-5">
-            <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selectedId={selected?.id} onPick={pick} />
+            <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} />
           </div>
 
           <div className="space-y-5">
