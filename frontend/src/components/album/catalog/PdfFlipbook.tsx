@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, RotateCw, Loader2, Check, MapPin } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { ChevronLeft, ChevronRight, Smartphone, Loader2, Check, MapPin } from 'lucide-react'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect, type PdfDoc } from '@/lib/pdf'
 import type { Hotspot } from '@/hooks/useAlbumCatalog'
 
@@ -47,10 +48,14 @@ export function PdfFlipbook({
   return (
     <div className="select-none">
       {rotateHint && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-3 py-2 text-sm text-[rgb(var(--fg))]">
-          <RotateCw size={16} className="text-[rgb(var(--gold-600))] shrink-0" />
-          Gira il telefono in orizzontale per sfogliare meglio il catalogo.
-          <button onClick={() => setRotateHint(false)} className="ml-auto text-[rgb(var(--fg-subtle))] text-xs">ok</button>
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-3 py-2.5 text-sm text-[rgb(var(--fg))]">
+          <motion.span className="shrink-0 text-[rgb(var(--gold-700))] inline-flex"
+            animate={{ rotate: [0, 0, -90, -90, 0] }}
+            transition={{ duration: 2.6, times: [0, 0.18, 0.5, 0.8, 1], repeat: Infinity, repeatDelay: 0.5, ease: 'easeInOut' }}>
+            <Smartphone size={22} />
+          </motion.span>
+          <span className="flex-1">Gira il telefono in <strong>orizzontale</strong>: sfogli il catalogo molto meglio.</span>
+          <button onClick={() => setRotateHint(false)} className="text-[rgb(var(--fg-subtle))] text-xs shrink-0">ok</button>
         </div>
       )}
 
