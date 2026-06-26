@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Smartphone, Loader2, Check, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Check, MapPin } from 'lucide-react'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect, type PdfDoc } from '@/lib/pdf'
 import type { Hotspot } from '@/hooks/useAlbumCatalog'
+import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 
 // Sfoglio del PDF catalogo per la coppia: pagine renderizzate con pdf.js, avanti/indietro + swipe.
 // Due modi per scegliere il modello: i riquadri HOTSPOT definiti dal fotografo (se ci sono) OPPURE
@@ -15,7 +15,7 @@ export function PdfFlipbook({
   const [page, setPage] = useState(1)
   const [imgs, setImgs] = useState<Record<number, string>>({})
   const [err, setErr] = useState<string | null>(null)
-  const [rotateHint, setRotateHint] = useState(false)
+  const [wide, setWide] = useState(false)
   const touch = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -25,8 +25,7 @@ export function PdfFlipbook({
       if (!alive) return
       setDoc(d); setTotal(d.numPages)
       const a = await pdfPageAspect(d, 1).catch(() => 1)
-      const portrait = window.innerHeight > window.innerWidth
-      setRotateHint(a > 1.1 && portrait)
+      setWide(a > 1.1) // catalogo orizzontale → il gate inviterà a girare lo schermo se in verticale
     }).catch(() => alive && setErr('Catalogo non caricabile'))
     return () => { alive = false }
   }, [pdfUrl])
@@ -47,17 +46,8 @@ export function PdfFlipbook({
 
   return (
     <div className="select-none">
-      {rotateHint && (
-        <div className="mb-3 flex items-center gap-3 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-3 py-2.5 text-sm text-[rgb(var(--fg))]">
-          <motion.span className="shrink-0 text-[rgb(var(--gold-700))] inline-flex"
-            animate={{ rotate: [0, 0, -90, -90, 0] }}
-            transition={{ duration: 2.6, times: [0, 0.18, 0.5, 0.8, 1], repeat: Infinity, repeatDelay: 0.5, ease: 'easeInOut' }}>
-            <Smartphone size={22} />
-          </motion.span>
-          <span className="flex-1">Gira il telefono in <strong>orizzontale</strong>: sfogli il catalogo molto meglio.</span>
-          <button onClick={() => setRotateHint(false)} className="text-[rgb(var(--fg-subtle))] text-xs shrink-0">ok</button>
-        </div>
-      )}
+      <RotateScreenGate when={wide} title="Gira il telefono"
+        subtitle="Il catalogo è in orizzontale: ruota lo schermo (o allarga la finestra) per sfogliarlo al meglio." />
 
       <div
         className="relative w-full rounded-2xl overflow-hidden bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))] shadow-[0_18px_50px_rgba(20,18,14,.16)]"

@@ -1,5 +1,6 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import HTMLFlipBook from 'react-pageflip'
+import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X } from 'lucide-react'
@@ -1292,6 +1293,7 @@ function AlbumDesignerInner() {
     )
     return (
       <div className="min-h-screen flex flex-col bg-[rgb(var(--bg-sunken))]">
+        <RotateScreenGate title="Gira il telefono" subtitle="L’album si sfoglia molto meglio in orizzontale: ruota lo schermo (o allarga la finestra)." />
         <header className="sticky top-0 z-20 bg-[rgb(var(--bg))] border-b border-[rgb(var(--border))] px-3 py-2 flex items-center gap-2">
           <Link to="/couple" className="p-1.5 -ml-1 text-[rgb(var(--fg-muted))]"><ArrowLeft size={20} /></Link>
           <div className="min-w-0 flex-1">
