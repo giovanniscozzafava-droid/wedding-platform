@@ -5,8 +5,9 @@ import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info } from
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FORMATS, BOXES, FINISHES, sizesForFormat, type Format } from '@/components/album/albumCatalog'
+import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, type Format } from '@/components/album/albumCatalog'
 import { PdfFlipbook } from '@/components/album/catalog/PdfFlipbook'
+import { AlbumScaleFigure } from '@/components/album/catalog/AlbumScaleFigure'
 import { SignaturePad } from '@/components/album/catalog/SignaturePad'
 import { buildCommissionPdf, downloadBlob } from '@/components/album/catalog/commissionPdf'
 import { loadPdf, renderPdfPageDataUrl } from '@/lib/pdf'
@@ -26,6 +27,7 @@ export default function AlbumCatalogPicker() {
   const [selected, setSelected] = useState<Hotspot | null>(null)
   const [specs, setSpecs] = useState<CommissionSpecs>({ format: 'square', size: '', pages: 40, box: 'nessuno', finishes: [] })
   const [clientName, setClientName] = useState('')
+  const [pinNote, setPinNote] = useState('')
   const [signature, setSignature] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [doneId, setDoneId] = useState<string | null>(null)
@@ -65,12 +67,13 @@ export default function AlbumCatalogPicker() {
       try { const doc = await loadPdf(catalogPublicUrl(catalog.pdf_path)); pageImg = await renderPdfPageDataUrl(doc, selected.page, 900, 0.8) } catch { /* miniatura opzionale */ }
 
       const sizeLabel = sizes.find((s) => s.key === specs.size)?.label || specs.size
+      const fullSpecs = { ...specs, size: sizeLabel, note: pinNote.trim() || undefined }
       const dateLabel = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
       const blob = buildCommissionPdf({
         studio: catalog.studio || 'Studio',
         couple: clientName.trim(),
         modelLabel: selected.label,
-        specs: { ...specs, size: sizeLabel },
+        specs: fullSpecs,
         signatureDataUrl: signature,
         pageImageDataUrl: pageImg,
         catalogName: catalog.name,
@@ -80,7 +83,7 @@ export default function AlbumCatalogPicker() {
       const path = await uploadCommissionPdf(entryId, blob)
       const orderId = await createCommission(entryId, {
         catalog_id: catalog.id, page: selected.page, model_label: selected.label,
-        specs: { ...specs, size: sizeLabel }, signed_by: clientName.trim(),
+        specs: fullSpecs, signed_by: clientName.trim(),
         signed_at: new Date().toISOString(), commission_pdf_path: path,
       })
       downloadBlob(blob, `commessa-${clientName.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${selected.label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`)
@@ -143,6 +146,15 @@ export default function AlbumCatalogPicker() {
               </div>
             )}
 
+            {selected && (
+              <div>
+                <label className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] flex items-center gap-1"><PenLine size={12} /> La tua nota al fotografo</label>
+                <textarea value={pinNote} onChange={(e) => setPinNote(e.target.value)} rows={2}
+                  placeholder="Scrivi qui cosa vuoi dire su questo modello (come sull'impaginazione dell'album)…"
+                  className="mt-1 w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
+              </div>
+            )}
+
             <div className={selected ? '' : 'opacity-50 pointer-events-none'}>
               <div className="space-y-4">
                 <div>
@@ -161,6 +173,11 @@ export default function AlbumCatalogPicker() {
                       ))}
                     </div>
                   )}
+                  {(() => { const sd = sizeByKey(specs.size); return sd ? (
+                    <div className="mt-4 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] py-4">
+                      <AlbumScaleFigure wCm={sd.w} hCm={sd.h} sizeLabel={sd.label} />
+                    </div>
+                  ) : null })()}
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">

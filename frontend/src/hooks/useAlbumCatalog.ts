@@ -13,7 +13,7 @@ export type Hotspot = {
   label: string; default_format?: string | null; default_pages?: number | null
 }
 export type Catalog = { id: string; name: string; pdf_path: string; page_count: number; owner_id?: string; studio?: string }
-export type CommissionSpecs = { format: string; size?: string; pages: number; box?: string; finishes?: string[] }
+export type CommissionSpecs = { format: string; size?: string; pages: number; box?: string; finishes?: string[]; note?: string }
 export type CommissionPayload = {
   catalog_id?: string | null; page?: number | null; model_label: string
   specs: CommissionSpecs; signed_by: string; signed_at: string; commission_pdf_path?: string | null
@@ -94,5 +94,12 @@ export async function createCommission(entryId: string, payload: CommissionPaylo
   const { data, error } = await (supabase as any).rpc('album_commission_create', { p_entry: entryId, p_payload: payload })
   if (error) throw error
   if (!data?.ok) throw new Error(data?.error === 'forbidden' ? 'Non autorizzato per questo evento' : 'Commessa non creata')
+  // Notifica SEMPRE il fotografo (email): la commessa firmata deve arrivargli.
+  try {
+    await (supabase as any).functions.invoke('commission-notify', { body: {
+      entryId, order_id: data.order_id, model_label: payload.model_label, page: payload.page,
+      specs: payload.specs, signed_by: payload.signed_by, pdf_path: payload.commission_pdf_path,
+    } })
+  } catch { /* notifica best-effort, non blocca la firma */ }
   return data.order_id as string
 }

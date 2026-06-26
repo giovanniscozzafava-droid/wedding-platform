@@ -50,6 +50,7 @@ export function buildCommissionPdf(d: CommissionDoc): Blob {
     sp.finishes && sp.finishes.length ? `Finiture: ${sp.finishes.join(', ')}` : null,
   ].filter(Boolean).join('   ·   ')
   row('Specifiche', specLine || 'Standard')
+  if (sp.note) row('Nota del cliente', sp.note)
 
   // miniatura della pagina del catalogo scelta
   if (d.pageImageDataUrl) {
