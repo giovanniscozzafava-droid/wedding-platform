@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, type Format } from '@/components/album/albumCatalog'
 import { PdfFlipbook } from '@/components/album/catalog/PdfFlipbook'
+import { PinThreadPanel, type AlbumPin } from '@/components/album/catalog/PinThreadPanel'
 import { AlbumScaleFigure } from '@/components/album/catalog/AlbumScaleFigure'
 import { SignaturePad } from '@/components/album/catalog/SignaturePad'
 import { buildCommissionPdf, downloadBlob } from '@/components/album/catalog/commissionPdf'
 import { loadPdf, renderPdfPageDataUrl } from '@/lib/pdf'
+import { supabase } from '@/lib/supabase'
 import {
   getCatalogForEntry, createCommission, uploadCommissionPdf, catalogPublicUrl,
   type Catalog, type Hotspot, type CommissionSpecs,
@@ -31,12 +33,26 @@ export default function AlbumCatalogPicker() {
   const [signature, setSignature] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [doneId, setDoneId] = useState<string | null>(null)
+  const [pins, setPins] = useState<AlbumPin[]>([])
+  const [openPin, setOpenPin] = useState<AlbumPin | null>(null)
+  const [isPro, setIsPro] = useState(false)
+
+  async function reloadPins() {
+    const { data } = await (supabase.from as any)('album_pins').select('id, entry_id, page, x, y, comment, material, color, status').eq('entry_id', entryId)
+    setPins((data ?? []) as AlbumPin[])
+  }
 
   useEffect(() => {
     getCatalogForEntry(entryId)
       .then((r) => { if (r) { setCatalog(r.catalog); setHotspots(r.hotspots) } })
       .catch(() => {})
       .finally(() => setLoading(false))
+    void reloadPins()
+    void (async () => {
+      const me = (await supabase.auth.getUser()).data.user?.id
+      const { data: gal } = await (supabase.from as any)('event_galleries').select('owner_id').eq('entry_id', entryId).maybeSingle()
+      setIsPro(!!me && gal?.owner_id === me)
+    })()
   }, [entryId])
 
   const sizes = useMemo(() => sizesForFormat(specs.format as Format), [specs.format])
@@ -50,9 +66,21 @@ export default function AlbumCatalogPicker() {
       pages: h.default_pages ?? p.pages,
     }))
   }
-  // Pin libero: il cliente tocca la pagina dove vuole → diventa il modello scelto (w/h = 0).
-  function dropPin(page: number, x: number, y: number) {
-    setSelected({ id: `pin-${page}-${Math.round(x * 1000)}-${Math.round(y * 1000)}`, page, x, y, w: 0, h: 0, label: `Modello a pag. ${page}` })
+  // Pin: il cliente tocca la pagina → crea un pin PERSISTENTE e apre la conversazione.
+  async function dropPin(page: number, x: number, y: number) {
+    const { data, error } = await (supabase.from as any)('album_pins')
+      .insert({ entry_id: entryId, catalog_id: catalog?.id ?? null, page, x, y, status: 'OPEN' })
+      .select('id, entry_id, page, x, y, comment, material, color, status').single()
+    if (error || !data) { toast.error('Pin non salvato'); return }
+    setPins((ps) => [...ps, data as AlbumPin])
+    setOpenPin(data as AlbumPin)
+  }
+  // Il cliente conferma un pin → diventa il modello per la commessa, col commento/materiale/colore.
+  function onChoosePin(p: AlbumPin) {
+    setSelected({ id: p.id, page: p.page, x: p.x, y: p.y, w: 0, h: 0, label: p.comment ? `Modello: ${p.comment.slice(0, 50)}` : `Modello a pag. ${p.page}` })
+    setPinNote([p.comment, p.material && `Materiale: ${p.material}`, p.color && `Colore: ${p.color}`].filter(Boolean).join(' · '))
+    setOpenPin(null)
+    void reloadPins()
   }
   const toggleFinish = (k: string) => setSpecs((p) => ({ ...p, finishes: (p.finishes ?? []).includes(k) ? (p.finishes ?? []).filter((x) => x !== k) : [...(p.finishes ?? []), k] }))
 
@@ -128,7 +156,7 @@ export default function AlbumCatalogPicker() {
 
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-9 items-start">
           <div className="lg:sticky lg:top-5">
-            <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} />
+            <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} pins={pins} onOpenPin={setOpenPin} />
           </div>
 
           <div className="space-y-5">
@@ -225,6 +253,13 @@ export default function AlbumCatalogPicker() {
           </div>
         </div>
       </div>
+
+      {openPin && (
+        <PinThreadPanel pin={openPin} entryId={entryId} isPro={isPro}
+          onClose={() => { setOpenPin(null); void reloadPins() }}
+          onUpdated={(p) => { setPins((ps) => ps.map((x) => x.id === p.id ? p : x)); setOpenPin(p) }}
+          onChoose={onChoosePin} />
+      )}
     </div>
   )
 }

@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader2, Check, MapPin } from 'lucide-react'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect, type PdfDoc } from '@/lib/pdf'
 import type { Hotspot } from '@/hooks/useAlbumCatalog'
+import type { AlbumPin } from './PinThreadPanel'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 
 // Sfoglio del PDF catalogo per la coppia: pagine renderizzate con pdf.js, avanti/indietro + swipe.
 // Due modi per scegliere il modello: i riquadri HOTSPOT definiti dal fotografo (se ci sono) OPPURE
 // — sempre — TOCCANDO la pagina si lascia un PIN sul punto che si vuole. Gira il telefono se serve.
 export function PdfFlipbook({
-  pdfUrl, hotspots, selected, onPick, onDropPin,
-}: { pdfUrl: string; hotspots: Hotspot[]; selected?: Hotspot | null; onPick: (h: Hotspot) => void; onDropPin?: (page: number, x: number, y: number) => void }) {
+  pdfUrl, hotspots, selected, onPick, onDropPin, pins, onOpenPin,
+}: { pdfUrl: string; hotspots: Hotspot[]; selected?: Hotspot | null; onPick: (h: Hotspot) => void; onDropPin?: (page: number, x: number, y: number) => void; pins?: AlbumPin[]; onOpenPin?: (p: AlbumPin) => void }) {
   const [doc, setDoc] = useState<PdfDoc | null>(null)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -86,12 +87,17 @@ export function PdfFlipbook({
                 </button>
               )
             })}
-            {/* PIN libero: marker sul punto scelto dal cliente (modello senza riquadro predefinito) */}
-            {selected && selected.page === page && (selected.w ?? 0) === 0 && (
-              <span className="absolute -translate-x-1/2 -translate-y-full pointer-events-none drop-shadow-lg" style={{ left: `${selected.x * 100}%`, top: `${selected.y * 100}%` }}>
-                <MapPin size={30} className="text-[rgb(var(--gold-600))] fill-[rgb(var(--gold-500))]" />
-              </span>
-            )}
+            {/* PIN persistenti del cliente: marker col commento; si tocca per aprire la conversazione */}
+            {(pins ?? []).filter((p) => p.page === page).map((p) => {
+              const chosen = p.status === 'CHOSEN' || p.id === selected?.id
+              return (
+                <button key={p.id} type="button" onClick={(e) => { e.stopPropagation(); onOpenPin?.(p) }}
+                  className="absolute -translate-x-1/2 -translate-y-full drop-shadow-lg" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} title={p.comment ?? 'Apri'}>
+                  <MapPin size={32} className={chosen ? 'text-emerald-600 fill-emerald-400' : 'text-[rgb(var(--gold-700))] fill-[rgb(var(--gold-500))]'} />
+                  {p.comment && <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1.5 px-1.5 py-0.5 rounded-md text-[10px] bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] whitespace-nowrap max-w-[130px] truncate shadow">{p.comment}</span>}
+                </button>
+              )
+            })}
           </div>
         ) : (
           <div className="grid place-items-center h-80 text-[rgb(var(--fg-subtle))]"><Loader2 className="animate-spin" /></div>
