@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Images, BookOpen, Frame, Printer, Check, ArrowRight, Loader2 } from 'lucide-react'
+import { Images, BookOpen, Frame, Printer, Check, ArrowRight, Loader2, RotateCcw } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -39,6 +39,13 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
     } catch (e) { toast.error((e as Error).message) } finally { setApproving(false) }
   }
 
+  // La selezione è REVOCABILE: il cliente può rientrare e modificare finché non va in stampa.
+  async function revokeApproval() {
+    await (supabase.from as any)('album_layout_approval').delete().eq('entry_id', entryId)
+    setLayoutDone(false)
+    toast.message('Selezione riaperta: puoi modificare e ri-approvare quando vuoi.')
+  }
+
   const doneCount = [photosDone, layoutDone, coverDone].filter(Boolean).length
   // prossimo passo = primo dei tre obbligatori non fatto
   const nextStep = !photosDone ? 1 : !layoutDone ? 2 : !coverDone ? 3 : 4
@@ -60,7 +67,7 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
         <div className="mt-3 h-2 rounded-full bg-[rgb(var(--bg-sunken))] overflow-hidden">
           <div className="h-full rounded-full transition-all" style={{ width: `${(doneCount / 3) * 100}%`, background: 'rgb(var(--gold-500))' }} />
         </div>
-        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">{doneCount} di 3 completati</p>
+        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">{doneCount} di 3 completati · Puoi tornare e modificare le tue scelte finché l'album non va in stampa.</p>
       </div>
 
       <div className="space-y-3">
@@ -86,9 +93,11 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
                   {s.n === 1 && <Button variant={isNext ? 'gold' : 'outline'} size="sm" onClick={() => onTab('foto')}><Images size={14} /> Vai alle foto <ArrowRight size={13} /></Button>}
                   {s.n === 2 && (<>
                     <Link to={`/album/${entryId}`}><Button variant={isNext && !layoutDone ? 'gold' : 'outline'} size="sm"><BookOpen size={14} /> Sfoglia l'album</Button></Link>
-                    {!layoutDone && <Button variant="outline" size="sm" disabled={approving} onClick={approveLayout}><Check size={14} /> Approvo l'album</Button>}
+                    {!layoutDone
+                      ? <Button variant="outline" size="sm" disabled={approving} onClick={approveLayout}><Check size={14} /> Approvo l'album</Button>
+                      : <Button variant="ghost" size="sm" onClick={revokeApproval}><RotateCcw size={14} /> Riapri e modifica</Button>}
                   </>)}
-                  {s.n === 3 && <Link to={`/scegli-album/${entryId}`}><Button variant={isNext ? 'gold' : 'outline'} size="sm"><Frame size={14} /> Scegli la copertina <ArrowRight size={13} /></Button></Link>}
+                  {s.n === 3 && <Link to={`/scegli-album/${entryId}`}><Button variant={isNext ? 'gold' : 'outline'} size="sm"><Frame size={14} /> {coverDone ? 'Cambia la copertina' : 'Scegli la copertina'} <ArrowRight size={13} /></Button></Link>}
                   {s.n === 4 && <Button variant="outline" size="sm" onClick={() => onTab('foto')}><Printer size={14} /> Ordina stampe</Button>}
                 </div>
               </div>
