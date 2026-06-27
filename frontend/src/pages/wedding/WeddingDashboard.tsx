@@ -49,6 +49,7 @@ import { useAuth } from '@/lib/auth'
 import { EventRing } from '@/components/event/EventRing'
 import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
+import { AlbumFunnelTab } from '@/components/event/AlbumFunnelTab'
 import { Images, Mic, BookHeart, Film } from 'lucide-react'
 import { AudioWishes } from '@/components/event/AudioWishes'
 import { Guestbook } from '@/components/event/Guestbook'
@@ -58,9 +59,9 @@ import { fetchUnreadByEntry, tabsWithDot, typesForTab, markEntryTabRead } from '
 import { isPhotoOnlyEvent } from '@/lib/eventMode'
 import { useQueryClient } from '@tanstack/react-query'
 
-type TabKey = 'overview' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'angoli' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
+type TabKey = 'overview' | 'album_funnel' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'angoli' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
 
-type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean }
+type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean; coupleOnly?: boolean }
 
 // Evento "solo ricordi" (passato + senza preventivo): tengo attive Foto/Video e, lato
 // professionista, anche Overview (così l'owner non resta intrappolato e può sempre gestire).
@@ -68,6 +69,8 @@ const PRO_PHOTO_ONLY_KEYS = new Set(['foto', 'video', 'overview'])
 
 const TABS: Array<TabDef> = [
   { key: 'overview',       label: 'Overview',     icon: FileText },
+  // Percorso guidato del cliente (solo coppia): foto → impaginazione → copertina → stampe
+  { key: 'album_funnel',   label: 'Il tuo album', icon: BookHeart, coupleOnly: true },
   // Ricordi (consegne) — priorità e coerenza: Foto e Video subito, vicini
   { key: 'foto',           label: 'Foto',         icon: Images },
   { key: 'video',          label: 'Video',        icon: Film },
@@ -163,6 +166,8 @@ export default function WeddingDashboard() {
     () =>
       TABS.filter((t) => {
         if (t.nuovoModelloOnly && !nuovoModello) return false
+        // "Il tuo album" è il percorso guidato del cliente: solo per la coppia.
+        if (t.coupleOnly && ringView !== 'sposi') return false
         // Un fornitore lavora solo sull'operativo del SUO evento: niente tab da
         // capostipite (contratto-quadro, contratti rete, sito, clienti, analytics).
         if (t.capostipiteOnly && isFornitore) return false
@@ -173,7 +178,7 @@ export default function WeddingDashboard() {
         }
         return true
       }),
-    [nuovoModello, effectiveAmbito, isFornitore],
+    [nuovoModello, effectiveAmbito, isFornitore, ringView],
   )
 
   // Evento "solo ricordi": concluso e mai gestito col dashboard (nessun preventivo).
@@ -349,6 +354,7 @@ export default function WeddingDashboard() {
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewTab wedding={wedding} onTab={setTab as any} />}
+            {tab === 'album_funnel' && <AlbumFunnelTab entryId={wedding.id} onTab={(k) => setTab(k as TabKey)} />}
             {tab === 'foto' && <EventGalleryTab entryId={wedding.id} role={ringView} />}
             {tab === 'audio' && <AudioWishes entryId={wedding.id} readOnly />}
             {tab === 'guestbook' && <Guestbook entryId={wedding.id} readOnly />}
