@@ -204,11 +204,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isFornitore = profile?.role === 'FORNITORE'
   const isStaff = (profile as any)?.is_support_staff || profile?.role === 'ADMIN'
-  const baseGroupsRaw = isCapostipite
+  const baseGroupsRaw0 = isCapostipite
     ? NAV_CAPOSTIPITE_GROUPS
     : isFornitore
     ? NAV_FORNITORE_GROUPS
     : NAV_FALLBACK_GROUPS
+  // "Richieste stampa" è una funzione da FOTOGRAFI: via per location e ogni altro fornitore.
+  const isPhotographer = isFornitore && /fotograf|video/.test((profile?.subrole ?? '').toLowerCase())
+  const baseGroupsRaw = baseGroupsRaw0.map((g) => ({ ...g, items: g.items.filter((i) => i.to !== '/richieste-stampa' || isPhotographer) }))
   // Food cost: strumento gestionale SOLO per le Location (PRP-4 Fase A).
   const baseGroups = profile?.role === 'LOCATION'
     ? baseGroupsRaw.map((g) => g.section === 'Gestione'
