@@ -4,7 +4,9 @@ import { Star, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 // Pagina pubblica: gli ospiti della prova menu votano i menu (1–5) senza login, via token.
-type PublicMenu = { menu_id: string; nome: string; piatti: string[] }
+const COURSE_LABEL: Record<string, string> = { APERITIVO: 'Aperitivo & isole', ANTIPASTO: 'Antipasti', PRIMO: 'Primi piatti', SECONDO: 'Secondi piatti', CONTORNO: 'Contorni', FRUTTA: 'Frutta', DOLCE: 'Dolci', BEVANDE: 'Vini & bevande' }
+type Portata = { course: string; voci: string[] }
+type PublicMenu = { menu_id: string; nome: string; portate: Portata[] }
 type PublicTasting = { ok?: boolean; error?: string; tasting_id: string; titolo: string | null; quando: string | null; sala: string | null; menu: PublicMenu[] }
 
 export default function ProvaMenuVote() {
@@ -65,7 +67,16 @@ export default function ProvaMenuVote() {
         {data.menu.map((m) => (
           <div key={m.menu_id} className="bg-white rounded-2xl border border-stone-200 p-4 shadow-sm">
             <h2 className="font-semibold text-lg">{m.nome}</h2>
-            {m.piatti?.length > 0 && <p className="text-stone-500 text-sm mt-1">{m.piatti.join(' · ')}</p>}
+            {(m.portate ?? []).length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                {m.portate.map((p) => (
+                  <div key={p.course}>
+                    <p className="text-[11px] uppercase tracking-wide text-amber-700 font-medium">{COURSE_LABEL[p.course] ?? p.course}</p>
+                    <p className="text-stone-600 text-sm">{p.voci.join(' · ')}</p>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-1.5 mt-3">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button key={n} onClick={() => setScores((s) => ({ ...s, [m.menu_id]: n }))} className="p-1" aria-label={`${n} stelle`}>

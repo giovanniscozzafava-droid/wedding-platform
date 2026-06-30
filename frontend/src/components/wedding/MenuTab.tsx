@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -116,6 +116,15 @@ function LocationMenuProposals({ entryId, readOnly }: { entryId: string; readOnl
     <Card className="p-5">
       <h3 className="font-display text-lg flex items-center gap-2 mb-1"><Sparkles size={18} /> Proposte di menu della location</h3>
       <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">{d.prova ? 'Dopo la prova menu, scegli il menu per il vostro evento.' : 'Scegli il menu per il vostro evento.'}{d.coperti ? ` · ${d.coperti} coperti` : ''}</p>
+      {d.prova && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-3 py-2.5">
+          <CalendarClock size={18} className="text-[rgb(var(--gold-700))] shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium">Prova menu{d.prova.status === 'SVOLTA' ? ' · svolta' : ''}</p>
+            <p className="text-[rgb(var(--fg-muted))]">{d.prova.quando ? new Date(d.prova.quando).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : 'Data da definire'}{d.prova.sala ? ` · ${d.prova.sala}` : ''} — assaggiate i menu qui sotto, poi scegliete il vostro.</p>
+          </div>
+        </div>
+      )}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {d.proposte.map((m: any) => {
           const byCourse: Record<string, string[]> = {}
