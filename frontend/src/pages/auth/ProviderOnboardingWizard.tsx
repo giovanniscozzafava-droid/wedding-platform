@@ -183,6 +183,11 @@ export function ProviderOnboardingWizard() {
         // Tutorial card si attiveranno in dashboard se chiude.
         if (profile?.role === 'FORNITORE') {
           nav('/catalog?firstOffer=1', { replace: true })
+        } else if (profile?.role === 'WEDDING_PLANNER') {
+          // Semina le parcelle di coordinamento come prodotti del pacchetto (matrimonio, compleanno,
+          // evento aziendale, cerimonia, consulenza) e mostra il catalogo per personalizzarle.
+          try { await (supabase as any).rpc('wp_ensure_parcelle') } catch { /* best-effort */ }
+          nav('/catalog', { replace: true })
         } else {
           nav('/', { replace: true })
         }

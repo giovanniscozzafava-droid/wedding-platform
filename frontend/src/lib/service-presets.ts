@@ -104,9 +104,12 @@ export const SERVICE_PRESETS: Record<string, ServicePreset[]> = {
     { name: 'Consulenza scrittura voti', description: 'Sessione 1h per supportare gli sposi nei voti.', base_price: 120, unit: 'EVENTO' },
   ],
   wedding_planner: [
-    { name: 'Full planning (12 mesi)', description: 'Pianificazione completa dall\'inizio alla fine, gestione fornitori, budget, scaletta.', base_price: 4500, unit: 'EVENTO' },
-    { name: 'Day coordinator', description: 'Coordinamento solo del giorno-X, briefing fornitori, scaletta.', base_price: 1200, unit: 'EVENTO' },
-    { name: 'Consulenza orientativa', description: '3 sessioni 1h per impostare il matrimonio in autonomia.', base_price: 350, unit: 'EVENTO' },
+    { name: 'Coordinamento matrimonio — full planning', description: 'Pianificazione completa: fornitori, budget, scaletta, regia del giorno-G.', base_price: 4500, unit: 'EVENTO' },
+    { name: 'Coordinamento matrimonio — day-of', description: 'Coordinamento del solo giorno-G: briefing fornitori, timeline, regia.', base_price: 1200, unit: 'EVENTO' },
+    { name: 'Coordinamento compleanno / festa privata', description: 'Organizzazione e regia di feste private, compleanni, anniversari.', base_price: 900, unit: 'EVENTO' },
+    { name: 'Coordinamento evento aziendale', description: 'Regia di eventi corporate: meeting, gala, inaugurazioni, team building.', base_price: 1800, unit: 'EVENTO' },
+    { name: 'Coordinamento cerimonia (battesimo, comunione, laurea)', description: 'Organizzazione di cerimonie e ricevimenti a tema.', base_price: 700, unit: 'EVENTO' },
+    { name: 'Consulenza orientativa', description: '3 sessioni per impostare l\'evento in autonomia.', base_price: 350, unit: 'EVENTO' },
   ],
 }
 
