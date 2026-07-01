@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { useMenu, useMenuMutations } from '@/hooks/useWedding'
 import { SectionRings } from '@/components/event/SectionRings'
+import { PackagesPanel } from './PackagesPanel'
 
 const SECTIONS: Array<{ key: string; label: string; group: string }> = [
   // Menu seduta tradizionale
@@ -148,6 +149,8 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
     }
   }
   const confermatiN = Object.values(dishesBySection).flat().filter((d) => d.confermato).length
+  const allDishes = (choice?.proposte ?? []).flatMap((m: any) => (m.piatti ?? []).map((p: any) => ({ menu_item_id: p.menu_item_id, piatto: p.piatto, portata: p.portata })))
+  const coperti = (fc?.coperti ?? choice?.coperti ?? 0) as number
 
   async function voteDish(mi: string, n: number) {
     setBusyDish(mi + ':v')
@@ -454,6 +457,10 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
             )
           ))}
         </div>
+      )}
+
+      {(allDishes.length > 0 || !readOnly) && (
+        <PackagesPanel entryId={entryId} dishes={allDishes} coperti={coperti} readOnly={readOnly} />
       )}
 
       {dishEdit && !readOnly && (
