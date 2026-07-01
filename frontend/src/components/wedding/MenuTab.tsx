@@ -92,7 +92,11 @@ const COURSE_TO_SECTION: Record<string, string> = {
   APERITIVO: 'BENVENUTO', ANTIPASTO: 'ANTIPASTO', PRIMO: 'PRIMO', SECONDO: 'SECONDO',
   CONTORNO: 'CONTORNO', DOLCE: 'DOLCE', FRUTTA: 'FRUTTA', BEVANDE: 'BEVANDA',
 }
-type ProposalDish = { menu_item_id: string; portata: string; piatto: string; confermato: boolean; voti: { media: number | null; n: number } | null; menu_nome: string }
+const COURSE_OPTIONS = ['APERITIVO', 'ANTIPASTO', 'PRIMO', 'SECONDO', 'CONTORNO', 'DOLCE', 'FRUTTA', 'BEVANDE']
+const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic']
+const mese = (m: number) => MESI[(m - 1) % 12] ?? ''
+type DishSeason = { from: number; to: number } | null
+type ProposalDish = { menu_item_id: string; portata: string; piatto: string; confermato: boolean; voti: { media: number | null; n: number } | null; menu_nome: string; season?: DishSeason; disponibile?: boolean }
 
 export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOnly?: boolean }) {
   const { data, isLoading } = useMenu(entryId)
@@ -161,6 +165,25 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
       toast.success(on ? 'Piatto confermato — entra nel food cost e nella dispensa' : 'Selezione annullata')
       setChoiceReload((x) => x + 1)
     } catch { toast.error('Operazione non riuscita') } finally { setBusyDish('') }
+  }
+
+  const [dishEdit, setDishEdit] = useState<{ mi: string; name: string; course: string; from: number; to: number } | null>(null)
+  async function saveDishEdit() {
+    if (!dishEdit) return
+    setBusyDish(dishEdit.mi + ':e')
+    try {
+      const { data: r, error } = await (supabase as any).rpc('fb_dish_update', {
+        p_menu_item_id: dishEdit.mi,
+        p_name: dishEdit.name.trim() || null,
+        p_course: dishEdit.course,
+        p_season_from: dishEdit.from === 0 ? 0 : dishEdit.from,
+        p_season_to: dishEdit.from === 0 ? 0 : dishEdit.to,
+      })
+      if (error || r?.error) throw new Error()
+      toast.success('Piatto aggiornato')
+      setDishEdit(null)
+      setChoiceReload((x) => x + 1)
+    } catch { toast.error('Modifica non riuscita') } finally { setBusyDish('') }
   }
 
   async function importPreset(p: Preset) {
@@ -319,9 +342,11 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
                   <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessuna voce inserita</p>
                 ) : (
                   <ul className="space-y-2">
-                    {(dishesBySection[sec.key] ?? []).map((d) => (
+                    {(dishesBySection[sec.key] ?? []).map((d) => {
+                      const fuori = d.disponibile === false
+                      return (
                       <li key={d.menu_item_id}>
-                        <Card className={`p-3.5 ${d.confermato ? 'ring-1 ring-[rgb(var(--sage-500))] bg-[rgb(var(--sage-100))]/40' : ''}`}>
+                        <Card className={`p-3.5 ${d.confermato ? 'ring-1 ring-[rgb(var(--sage-500))] bg-[rgb(var(--sage-100))]/40' : ''} ${fuori ? 'opacity-60' : ''}`}>
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -331,31 +356,51 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
                                     <Check size={10} /> Scelto
                                   </span>
                                 )}
-                              </div>
-                              <div className="flex items-center gap-1 mt-1.5">
-                                {[1, 2, 3, 4, 5].map((n) => (
-                                  <button key={n} disabled={busyDish === d.menu_item_id + ':v'} onClick={() => voteDish(d.menu_item_id, n)} className="p-0.5 disabled:opacity-50" aria-label={`${n} stelle`}>
-                                    <Star size={18} className={Math.round(d.voti?.media ?? 0) >= n ? 'fill-amber-400 text-amber-400' : 'text-stone-300'} />
-                                  </button>
-                                ))}
-                                {d.voti?.n ? (
-                                  <span className="ml-1 text-xs text-[rgb(var(--fg-muted))]">{d.voti.media}/5 · {d.voti.n} {d.voti.n === 1 ? 'voto' : 'voti'}</span>
-                                ) : (
-                                  <span className="ml-1 text-xs text-[rgb(var(--fg-subtle))]">da votare</span>
+                                {d.season && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                                    {mese(d.season.from)}–{mese(d.season.to)}
+                                  </span>
+                                )}
+                                {fuori && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--rose-100))', color: 'rgb(var(--rose-700))' }}>
+                                    fuori stagione
+                                  </span>
                                 )}
                               </div>
+                              {fuori ? (
+                                <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1.5 italic">Non disponibile per la data del matrimonio{d.season ? ` (solo ${mese(d.season.from)}–${mese(d.season.to)})` : ''}.</p>
+                              ) : (
+                                <div className="flex items-center gap-1 mt-1.5">
+                                  {[1, 2, 3, 4, 5].map((n) => (
+                                    <button key={n} disabled={busyDish === d.menu_item_id + ':v'} onClick={() => voteDish(d.menu_item_id, n)} className="p-0.5 disabled:opacity-50" aria-label={`${n} stelle`}>
+                                      <Star size={18} className={Math.round(d.voti?.media ?? 0) >= n ? 'fill-amber-400 text-amber-400' : 'text-stone-300'} />
+                                    </button>
+                                  ))}
+                                  {d.voti?.n ? (
+                                    <span className="ml-1 text-xs text-[rgb(var(--fg-muted))]">{d.voti.media}/5 · {d.voti.n} {d.voti.n === 1 ? 'voto' : 'voti'}</span>
+                                  ) : (
+                                    <span className="ml-1 text-xs text-[rgb(var(--fg-subtle))]">da votare</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            <div className="shrink-0">
-                              {d.confermato ? (
+                            <div className="shrink-0 flex items-center gap-1">
+                              {!readOnly && (
+                                <Button variant="ghost" size="icon" aria-label="Modifica piatto"
+                                  onClick={() => setDishEdit({ mi: d.menu_item_id, name: d.piatto, course: d.portata || 'ANTIPASTO', from: d.season?.from ?? 0, to: d.season?.to ?? d.season?.from ?? 9 })}>
+                                  <Pencil size={14} />
+                                </Button>
+                              )}
+                              {!fuori && (d.confermato ? (
                                 <Button variant="ghost" size="sm" disabled={busyDish === d.menu_item_id + ':c'} onClick={() => confirmDish(d.menu_item_id, false)}>Annulla</Button>
                               ) : (
                                 <Button variant="gold" size="sm" disabled={busyDish === d.menu_item_id + ':c'} onClick={() => confirmDish(d.menu_item_id, true)}><Check size={13} /> Conferma</Button>
-                              )}
+                              ))}
                             </div>
                           </div>
                         </Card>
                       </li>
-                    ))}
+                    )})}
                     {sec.items.map((it: any) => (
                       <li key={it.id}>
                         <Card className="p-4">
@@ -408,6 +453,54 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
               </section>
             )
           ))}
+        </div>
+      )}
+
+      {dishEdit && !readOnly && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setDishEdit(null)}>
+          <div className="surface surface-elev max-w-md w-full p-6 rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-xl">Modifica piatto</h3>
+              <Button variant="ghost" size="icon" onClick={() => setDishEdit(null)} aria-label="Chiudi"><XIcon size={16} /></Button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="de-name">Nome piatto</Label>
+                <Input id="de-name" value={dishEdit.name} onChange={(e) => setDishEdit({ ...dishEdit, name: e.target.value })} placeholder="Es. Risotto nduja e gambero rosso" />
+              </div>
+              <div>
+                <Label htmlFor="de-course">Portata</Label>
+                <select id="de-course" value={dishEdit.course} onChange={(e) => setDishEdit({ ...dishEdit, course: e.target.value })}
+                  className="w-full h-10 px-3 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))]">
+                  {COURSE_OPTIONS.map((c) => <option key={c} value={c}>{SECTIONS.find((s) => s.key === COURSE_TO_SECTION[c])?.label ?? c}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label>Stagionalità (proposto solo per matrimoni in questo periodo)</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <select value={dishEdit.from} onChange={(e) => setDishEdit({ ...dishEdit, from: Number(e.target.value) })}
+                    className="h-10 px-3 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))]">
+                    <option value={0}>Tutto l'anno</option>
+                    {MESI.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                  </select>
+                  {dishEdit.from !== 0 && (
+                    <>
+                      <span className="text-sm text-[rgb(var(--fg-muted))]">→</span>
+                      <select value={dishEdit.to} onChange={(e) => setDishEdit({ ...dishEdit, to: Number(e.target.value) })}
+                        className="h-10 px-3 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))]">
+                        {MESI.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                      </select>
+                    </>
+                  )}
+                </div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-1">Ricorrente ogni anno. Es. giu → set = disponibile solo in estate. Se il periodo scavalca l'anno (es. nov → feb) copre l'inverno.</p>
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                <Button variant="ghost" onClick={() => setDishEdit(null)}>Annulla</Button>
+                <Button variant="gold" onClick={saveDishEdit} disabled={busyDish === dishEdit.mi + ':e'}><Save size={14} /> Salva</Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
