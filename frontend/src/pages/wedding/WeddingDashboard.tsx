@@ -20,6 +20,7 @@ import { CornersTab } from '@/components/wedding/CornersTab'
 import { Boxes } from 'lucide-react'
 import { BudgetTab } from '@/components/wedding/BudgetTab'
 import { ChecklistTab } from '@/components/wedding/ChecklistTab'
+import { eventTerm } from '@/lib/eventKind'
 import { MoodTab } from '@/components/wedding/MoodTab'
 import { PlaylistTab } from '@/components/wedding/PlaylistTab'
 import { ContractTab } from '@/components/wedding/ContractTab'
@@ -162,12 +163,18 @@ export default function WeddingDashboard() {
     return ownerId === user.id
   }, [wedding, ambito, ambitoSkipped, user?.id])
 
+  // Le sezioni COINCIDONO col tipo evento: la "Cerimonia" esiste solo dove c'è un rito
+  // (matrimonio, battesimo, comunione, cresima, anniversario), non su compleanno/laurea/corporate/festa.
+  const eventKind = String((wedding as any)?.event_kind ?? 'matrimonio').toLowerCase()
+  const hasCeremony = ['matrimonio', 'battesimo', 'comunione', 'cresima', 'anniversario'].includes(eventKind)
   const visibleTabs = useMemo(
     () =>
       TABS.filter((t) => {
         if (t.nuovoModelloOnly && !nuovoModello) return false
         // "Il tuo album" è il percorso guidato del cliente: solo per la coppia.
         if (t.coupleOnly && ringView !== 'sposi') return false
+        // La Cerimonia c'è solo negli eventi con un rito.
+        if (t.key === 'ceremony' && !hasCeremony) return false
         // Un fornitore lavora solo sull'operativo del SUO evento: niente tab da
         // capostipite (contratto-quadro, contratti rete, sito, clienti, analytics).
         if (t.capostipiteOnly && isFornitore) return false
@@ -178,7 +185,7 @@ export default function WeddingDashboard() {
         }
         return true
       }),
-    [nuovoModello, effectiveAmbito, isFornitore, ringView],
+    [nuovoModello, effectiveAmbito, isFornitore, ringView, hasCeremony],
   )
 
   // Evento "solo ricordi": concluso e mai gestito col dashboard (nessun preventivo).
@@ -232,7 +239,7 @@ export default function WeddingDashboard() {
                     if (!data?.token) { toast.error(data?.error === 'no_couple' ? 'Nessuna coppia collegata a questo evento.' : 'Link non disponibile'); return }
                     const url = `${window.location.origin}/invito-coppia/${data.token}`
                     try { await navigator.clipboard.writeText(url); toast.success('Link accesso coppia copiato') } catch { toast.success(url) }
-                  }}>Link coppia</button>
+                  }}>{eventTerm(eventKind).hasCoupleConcept ? 'Link coppia' : 'Link cliente'}</button>
               </div>
               <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
                 {wedding.client_name} ·{' '}

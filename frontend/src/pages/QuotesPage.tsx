@@ -35,6 +35,8 @@ export default function QuotesPage() {
   const { data, isLoading } = useQuotes()
   const { profile } = useAuth()
   const isLocation = profile?.role === 'LOCATION'
+  // Il fornitore emette i PROPRI servizi: non c'è ricarico su costi terzi → il margine non ha senso.
+  const isFornitore = profile?.role === 'FORNITORE'
   const [activity, setActivity] = useState<Record<string, Act>>({})
   useEffect(() => {
     const ids = (data ?? []).map((q) => q.id)
@@ -198,23 +200,27 @@ export default function QuotesPage() {
                       })()}
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <div className={`grid ${isFornitore ? 'grid-cols-1' : 'grid-cols-3'} gap-3 pt-3 border-t`} style={{ borderColor: 'rgb(var(--border))' }}>
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Cliente</p>
                       <p className="font-display text-lg tabular-nums">
                         € {Number(q.total_client).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] inline-flex items-center gap-1">Margine {idx === 0 && <HelpDot id="quotes.margine" />}</p>
-                      <p className="font-display text-lg tabular-nums">
-                        € {Number(q.margin_amount).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">%</p>
-                      <p className="font-display text-lg tabular-nums">{Number(q.margin_percent).toFixed(1)}</p>
-                    </div>
+                    {!isFornitore && (
+                      <>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] inline-flex items-center gap-1">Margine {idx === 0 && <HelpDot id="quotes.margine" />}</p>
+                          <p className="font-display text-lg tabular-nums">
+                            € {Number(q.margin_amount).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">%</p>
+                          <p className="font-display text-lg tabular-nums">{Number(q.margin_percent).toFixed(1)}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button asChild variant="outline" size="sm">

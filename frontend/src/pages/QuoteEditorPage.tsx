@@ -22,7 +22,6 @@ import {
 import type { Database } from '@/lib/database.types'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waQuoteToClient } from '@/lib/waMessages'
-import { ClientBriefEditor } from '@/components/quotes/ClientBriefEditor'
 import { SuggestColleaguesCard } from '@/components/quotes/SuggestColleaguesCard'
 import { QuoteActivityCard } from '@/components/quotes/QuoteActivityCard'
 import { HelpDot } from '@/components/help/HelpDot'
@@ -1025,13 +1024,7 @@ export default function QuoteEditorPage() {
           </Card>
         </div>
 
-        {/* Brief di competenza fornitore→cliente: SOTTO il preventivo, così in
-            cima il fornitore ha subito le voci e il catalogo. */}
-        {isFornitoreFlow && id && (
-          <div className="mt-6">
-            <ClientBriefEditor quoteId={id} subrole={profile?.subrole} />
-          </div>
-        )}
+        {/* Sezione "Cosa vede il cliente (area cliente)" rimossa: poco utile. */}
       </div>
     </div>
   )
