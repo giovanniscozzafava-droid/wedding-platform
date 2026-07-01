@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { FileSignature, Send, Plus, Lock, MessageCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,18 @@ import { useContractMutations, useContracts } from '@/hooks/useWedding'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
 import { HelpDot } from '@/components/help/HelpDot'
+
+// Placeholder che il sistema riempie da solo (dati fiscali, date, offerte, prezzi).
+const PLACEHOLDERS: Array<{ k: string; d: string }> = [
+  { k: '{{cliente_nome}}', d: 'Nome cliente' }, { k: '{{cliente_email}}', d: 'Email cliente' },
+  { k: '{{capostipite_nome}}', d: 'Tua ragione sociale' }, { k: '{{capostipite_piva}}', d: 'Tua P.IVA' },
+  { k: '{{capostipite_cf}}', d: 'Tuo cod. fiscale' }, { k: '{{capostipite_indirizzo}}', d: 'Tuo indirizzo' },
+  { k: '{{evento_titolo}}', d: 'Titolo evento' }, { k: '{{evento_data}}', d: 'Data evento' }, { k: '{{evento_luogo}}', d: 'Luogo evento' },
+  { k: '{{voci_preventivo}}', d: 'Offerte scelte (elenco)' }, { k: '{{preventivo_totale}}', d: 'Totale €' },
+]
+const sbt = (): any => (supabase as any).from('supplier_contract_templates')
 
 const STANDARD_SECTIONS = [
   { heading: 'Oggetto del contratto', body: 'Organizzazione e coordinamento dell\'evento matrimoniale come specificato nel preventivo allegato.', type: 'CLAUSULE' },
@@ -21,7 +32,58 @@ const STANDARD_SECTIONS = [
 export function ContractTab({ wedding }: { wedding: any }) {
   const { data: contracts } = useContracts(wedding.quote?.id ?? null)
   const { create, update, send } = useContractMutations()
+  const { profile } = useAuth()
+  const me = profile?.id ?? null
   const [editing, setEditing] = useState<any | null>(null)
+  const [templates, setTemplates] = useState<any[]>([])
+  const [tplReload, setTplReload] = useState(0)
+
+  useEffect(() => {
+    if (!me) return
+    let alive = true
+    ;(async () => {
+      const { data } = await sbt().select('id, title, sections').eq('fornitore_id', me).order('created_at', { ascending: false })
+      if (alive) setTemplates(data ?? [])
+    })()
+    return () => { alive = false }
+  }, [me, tplReload])
+
+  // Un solo passaggio server: unisce heading+body di tutte le sezioni, sostituisce i {{...}}, ridivide.
+  async function mergeSections(sections: any[]): Promise<any[]> {
+    const SEP = '␞', ROW = '␟'
+    const joined = sections.map((s) => `${s.heading ?? ''}${SEP}${s.body ?? ''}`).join(ROW)
+    const { data } = await (supabase as any).rpc('contract_fill_text', { p_text: joined, p_entry_id: wedding.id, p_supplier_id: me })
+    const rows = String(data ?? joined).split(ROW)
+    return sections.map((s, i) => { const [h, b] = (rows[i] ?? `${s.heading ?? ''}${SEP}${s.body ?? ''}`).split(SEP); return { ...s, heading: h ?? s.heading, body: b ?? s.body } })
+  }
+
+  async function createFromTemplate(tpl: any) {
+    try {
+      const merged = await mergeSections(tpl.sections ?? [])
+      const c = await create.mutateAsync({
+        title: `${tpl.title} · ${wedding.title}`, quote_id: wedding.quote?.id, entry_id: wedding.id,
+        client_name: wedding.client_name, client_email: wedding.client_email, event_date: wedding.date_from,
+        total_amount: wedding.quote?.total_client ?? 0, sections: merged as any,
+      })
+      setEditing(c); toast.success('Bozza creata dal modello (dati importati)')
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  async function saveAsTemplate() {
+    if (!editing || !me) return
+    const title = prompt('Nome del modello (es. "Contratto matrimonio location")', editing.title?.replace(/ · .*/, '') || 'Mio modello')
+    if (!title) return
+    // salva le sezioni come sono (con i {{...}} se li hai lasciati → riutilizzabili)
+    const { error } = await sbt().insert({ fornitore_id: me, title, category: 'EVENTO', sections: editing.sections })
+    if (error) return toast.error('Salvataggio modello non riuscito')
+    toast.success('Modello salvato: lo ritrovi in "Nuova da modello"'); setTplReload((x) => x + 1)
+  }
+
+  async function fillData() {
+    if (!editing) return
+    try { setEditing({ ...editing, sections: await mergeSections(editing.sections ?? []) }); toast.success('Dati importati nelle sezioni') }
+    catch { toast.error('Import non riuscito') }
+  }
 
   async function createFromQuote() {
     try {
@@ -59,10 +121,19 @@ export function ContractTab({ wedding }: { wedding: any }) {
           <h2 className="font-display text-2xl">Contratto</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">Genera il contratto dal preventivo e inviane il link per la firma.</p>
         </div>
-        <span className="inline-flex items-center gap-1">
-          <Button variant="gold" onClick={createFromQuote} disabled={create.isPending}><Plus /> Nuova bozza</Button>
-          <HelpDot id="contract.nuovo" />
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          {templates.length > 0 && (
+            <select defaultValue="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) createFromTemplate(t); e.currentTarget.value = '' }}
+              className="h-10 px-3 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))] text-sm">
+              <option value="" disabled>Nuova da modello…</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+            </select>
+          )}
+          <span className="inline-flex items-center gap-1">
+            <Button variant="gold" onClick={createFromQuote} disabled={create.isPending}><Plus /> Nuova bozza</Button>
+            <HelpDot id="contract.nuovo" />
+          </span>
+        </div>
       </header>
 
       <div className="space-y-4">
@@ -134,6 +205,20 @@ export function ContractTab({ wedding }: { wedding: any }) {
                 Per legge non è più modificabile. In caso di modifiche, crea un addendum o un nuovo contratto.
               </div>
             )}
+            {editing.status !== 'FIRMATO' && (
+              <details className="mb-4 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
+                <summary className="cursor-pointer text-sm font-medium">Dati automatici disponibili (clic per copiare il codice)</summary>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {PLACEHOLDERS.map((p) => (
+                    <button key={p.k} onClick={() => { navigator.clipboard?.writeText(p.k); toast.success(`${p.k} copiato`) }}
+                      className="text-[11px] px-2 py-1 rounded-md border hover:bg-[rgb(var(--bg-sunken))]" style={{ borderColor: 'rgb(var(--border))' }} title={p.d}>
+                      <code>{p.k}</code> · {p.d}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-2">Scrivi questi codici nelle sezioni (dati fiscali, date, offerte scelte, prezzi): "Riempi dati" li sostituisce con i valori reali dell'evento.</p>
+              </details>
+            )}
             {editing.status === 'FIRMATO' ? (
               // Vista prosa pulita: titoli + paragrafi formattati
               <div className="space-y-5 mb-4">
@@ -174,12 +259,16 @@ export function ContractTab({ wedding }: { wedding: any }) {
                 </div>
               ))
             )}
-            <div className="flex justify-between">
+            <div className="flex justify-between flex-wrap gap-2">
               {editing.status !== 'FIRMATO' && (
-                <Button variant="ghost" onClick={() => {
-                  const ns = [...(editing.sections ?? []), { heading: 'Nuova clausola', body: '', type: 'CLAUSULE' }]
-                  setEditing({ ...editing, sections: ns })
-                }}><Plus size={14} /> Aggiungi clausola</Button>
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    const ns = [...(editing.sections ?? []), { heading: 'Nuova clausola', body: '', type: 'CLAUSULE' }]
+                    setEditing({ ...editing, sections: ns })
+                  }}><Plus size={14} /> Aggiungi articolo</Button>
+                  <Button variant="ghost" size="sm" onClick={fillData}><Wand2 size={14} /> Riempi dati</Button>
+                  <Button variant="ghost" size="sm" onClick={saveAsTemplate}><BookMarked size={14} /> Salva come modello</Button>
+                </div>
               )}
               <div className="flex gap-2 ml-auto">
                 {editing.status === 'FIRMATO' && editing.pdf_url && (
