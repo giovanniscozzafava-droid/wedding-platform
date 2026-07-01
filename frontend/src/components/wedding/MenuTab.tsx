@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles, CalendarClock } from 'lucide-react'
+import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles, CalendarClock, Star, Check, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -87,67 +87,12 @@ type Preset = {
   region: string | null
 }
 
-const _CL: Record<string, string> = { APERITIVO: 'Aperitivo', ANTIPASTO: 'Antipasti', PRIMO: 'Primi', SECONDO: 'Secondi', CONTORNO: 'Contorni', DOLCE: 'Dolce', FRUTTA: 'Frutta', BEVANDE: 'Bevande' }
-const _CORD = ['APERITIVO', 'ANTIPASTO', 'PRIMO', 'SECONDO', 'CONTORNO', 'DOLCE', 'FRUTTA', 'BEVANDE']
-// Proposte di menu della location + risultati prova → la coppia sceglie (cross-tenant via RPC).
-function LocationMenuProposals({ entryId, readOnly }: { entryId: string; readOnly?: boolean }) {
-  const [d, setD] = useState<any>(null)
-  const [reload, setReload] = useState(0)
-  const [busy, setBusy] = useState('')
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const { data } = await (supabase as any).rpc('fb_event_choice_view', { p_entry: entryId })
-      if (alive) setD(data && data.ok ? data : null)
-    })()
-    return () => { alive = false }
-  }, [entryId, reload])
-  async function choose(menuId: string) {
-    setBusy(menuId)
-    try {
-      const { data, error } = await (supabase as any).rpc('fb_member_choose', { p_entry: entryId, p_menu_id: menuId })
-      if (error || data?.error) throw new Error(data?.error || 'errore')
-      toast.success('Menu scelto! La location preparerà la spesa su questo.')
-      setReload((n) => n + 1)
-    } catch { toast.error('Scelta non riuscita') } finally { setBusy('') }
-  }
-  if (!d || !d.proposte?.length) return null
-  return (
-    <Card className="p-5">
-      <h3 className="font-display text-lg flex items-center gap-2 mb-1"><Sparkles size={18} /> Proposte di menu della location</h3>
-      <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">{d.prova ? 'Dopo la prova menu, scegli il menu per il vostro evento.' : 'Scegli il menu per il vostro evento.'}{d.coperti ? ` · ${d.coperti} coperti` : ''}</p>
-      {d.prova && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-3 py-2.5">
-          <CalendarClock size={18} className="text-[rgb(var(--gold-700))] shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium">Prova menu{d.prova.status === 'SVOLTA' ? ' · svolta' : ''}</p>
-            <p className="text-[rgb(var(--fg-muted))]">{d.prova.quando ? new Date(d.prova.quando).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : 'Data da definire'}{d.prova.sala ? ` · ${d.prova.sala}` : ''} — assaggiate i menu qui sotto, poi scegliete il vostro.</p>
-          </div>
-        </div>
-      )}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {d.proposte.map((m: any) => {
-          const byCourse: Record<string, string[]> = {}
-          for (const p of m.piatti || []) { const k = p.portata || 'ANTIPASTO'; (byCourse[k] = byCourse[k] || []).push(p.piatto) }
-          return (
-            <div key={m.menu_id} className={`rounded-xl border p-3 ${m.scelto ? 'border-emerald-400 bg-emerald-50' : 'border-[rgb(var(--border))]'}`}>
-              <div className="flex items-center justify-between mb-1">
-                <h4 className="font-semibold">{m.nome}</h4>
-                {m.voti?.n > 0 && <span className="text-xs text-amber-600">★ {m.voti.media} ({m.voti.n})</span>}
-              </div>
-              <div className="space-y-1 mb-3">
-                {_CORD.filter((c) => byCourse[c]).map((c) => (
-                  <div key={c} className="text-xs"><span className="uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{_CL[c]}: </span><span className="text-[rgb(var(--fg-muted))]">{(byCourse[c] || []).join(', ')}</span></div>
-                ))}
-              </div>
-              {m.scelto ? <Badge>Menu scelto</Badge> : !readOnly && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => choose(m.menu_id)}>{busy === m.menu_id ? '…' : 'Scegli questo'}</Button>}
-            </div>
-          )
-        })}
-      </div>
-    </Card>
-  )
+// Portata (fb) → sezione "Menù evento": i piatti della proposta scendono nella loro sezione.
+const COURSE_TO_SECTION: Record<string, string> = {
+  APERITIVO: 'BENVENUTO', ANTIPASTO: 'ANTIPASTO', PRIMO: 'PRIMO', SECONDO: 'SECONDO',
+  CONTORNO: 'CONTORNO', DOLCE: 'DOLCE', FRUTTA: 'FRUTTA', BEVANDE: 'BEVANDA',
 }
+type ProposalDish = { menu_item_id: string; portata: string; piatto: string; confermato: boolean; voti: { media: number | null; n: number } | null; menu_nome: string }
 
 export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOnly?: boolean }) {
   const { data, isLoading } = useMenu(entryId)
@@ -174,6 +119,49 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
     ...s,
     items: ((data as any[] | undefined) ?? []).filter((it) => it.section === s.key),
   }))
+
+  // Proposta della location scomposta piatto-per-piatto: voto 1-5 + conferma → food cost/dispensa.
+  const [choice, setChoice] = useState<any>(null)
+  const [choiceReload, setChoiceReload] = useState(0)
+  const [busyDish, setBusyDish] = useState('')
+  const [fc, setFc] = useState<any>(null)
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data: cv } = await (supabase as any).rpc('fb_event_choice_view', { p_entry: entryId })
+      const { data: f } = await (supabase as any).rpc('fb_event_foodcost', { p_entry: entryId })
+      if (alive) { setChoice(cv && cv.ok ? cv : null); setFc(f && f.ok ? f : null) }
+    })()
+    return () => { alive = false }
+  }, [entryId, choiceReload])
+
+  const dishesBySection: Record<string, ProposalDish[]> = {}
+  for (const m of choice?.proposte ?? []) {
+    for (const p of m.piatti ?? []) {
+      const sec = COURSE_TO_SECTION[p.portata] ?? 'ANTIPASTO'
+      ;(dishesBySection[sec] = dishesBySection[sec] || []).push({ ...p, menu_nome: m.nome })
+    }
+  }
+  const confermatiN = Object.values(dishesBySection).flat().filter((d) => d.confermato).length
+
+  async function voteDish(mi: string, n: number) {
+    setBusyDish(mi + ':v')
+    try {
+      const { data: r, error } = await (supabase as any).rpc('fb_dish_vote', { p_entry: entryId, p_menu_item_id: mi, p_score: n })
+      if (error || r?.error) throw new Error()
+      setChoiceReload((x) => x + 1)
+    } catch { toast.error('Voto non riuscito') } finally { setBusyDish('') }
+  }
+  async function confirmDish(mi: string, on: boolean) {
+    setBusyDish(mi + ':c')
+    try {
+      const { data: r, error } = await (supabase as any).rpc('fb_dish_confirm', { p_entry: entryId, p_menu_item_id: mi, p_on: on })
+      if (error || r?.error) throw new Error()
+      toast.success(on ? 'Piatto confermato — entra nel food cost e nella dispensa' : 'Selezione annullata')
+      setChoiceReload((x) => x + 1)
+    } catch { toast.error('Operazione non riuscita') } finally { setBusyDish('') }
+  }
 
   async function importPreset(p: Preset) {
     try {
@@ -270,7 +258,28 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
   return (
     <div className="space-y-6">
       <SectionRings entryId={entryId} keys={['menu']} />
-      <LocationMenuProposals entryId={entryId} readOnly={readOnly} />
+      {choice?.prova && (
+        <div className="flex items-start gap-3 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-4 py-3">
+          <CalendarClock size={18} className="text-[rgb(var(--gold-700))] shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium">Prova menu{choice.prova.status === 'SVOLTA' || choice.prova.status === 'CONCLUSA' ? ' · svolta' : ''}</p>
+            <p className="text-[rgb(var(--fg-muted))]">
+              {choice.prova.quando ? new Date(choice.prova.quando).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : 'Data da definire'}
+              {choice.prova.sala ? ` · ${choice.prova.sala}` : ''} — votate ogni piatto qui sotto (1–5) e confermate quelli scelti.
+            </p>
+          </div>
+        </div>
+      )}
+      {confermatiN > 0 && fc && (
+        <div className="flex items-center gap-3 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--sage-100))] px-4 py-3">
+          <Wallet size={18} className="text-[rgb(var(--sage-700))] shrink-0" />
+          <p className="text-sm">
+            <span className="font-medium">{confermatiN} piatti confermati</span> · food cost stimato{' '}
+            <span className="font-semibold">€ {Number(fc.cost_per_cover).toFixed(2)}/coperto</span> su {fc.coperti} coperti
+            {' '}(€ {Number(fc.total_cost).toFixed(2)} totali). Alimenta fabbisogno e dispensa.
+          </p>
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="font-display text-2xl flex items-center gap-2">
@@ -296,7 +305,7 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
       ) : (
         <div className="space-y-5">
           {grouped.map((sec) => (
-            (sec.items.length > 0 || !readOnly) && (
+            (sec.items.length > 0 || (dishesBySection[sec.key]?.length ?? 0) > 0 || !readOnly) && (
               <section key={sec.key}>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-display text-lg" style={{ color: 'rgb(var(--gold-700))' }}>{sec.label}</h3>
@@ -306,10 +315,47 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
                     </Button>
                   )}
                 </div>
-                {sec.items.length === 0 ? (
+                {sec.items.length === 0 && (dishesBySection[sec.key]?.length ?? 0) === 0 ? (
                   <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessuna voce inserita</p>
                 ) : (
                   <ul className="space-y-2">
+                    {(dishesBySection[sec.key] ?? []).map((d) => (
+                      <li key={d.menu_item_id}>
+                        <Card className={`p-3.5 ${d.confermato ? 'ring-1 ring-[rgb(var(--sage-500))] bg-[rgb(var(--sage-100))]/40' : ''}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium">{d.piatto}</span>
+                                {d.confermato && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--sage-500))', color: 'white' }}>
+                                    <Check size={10} /> Scelto
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 mt-1.5">
+                                {[1, 2, 3, 4, 5].map((n) => (
+                                  <button key={n} disabled={busyDish === d.menu_item_id + ':v'} onClick={() => voteDish(d.menu_item_id, n)} className="p-0.5 disabled:opacity-50" aria-label={`${n} stelle`}>
+                                    <Star size={18} className={Math.round(d.voti?.media ?? 0) >= n ? 'fill-amber-400 text-amber-400' : 'text-stone-300'} />
+                                  </button>
+                                ))}
+                                {d.voti?.n ? (
+                                  <span className="ml-1 text-xs text-[rgb(var(--fg-muted))]">{d.voti.media}/5 · {d.voti.n} {d.voti.n === 1 ? 'voto' : 'voti'}</span>
+                                ) : (
+                                  <span className="ml-1 text-xs text-[rgb(var(--fg-subtle))]">da votare</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              {d.confermato ? (
+                                <Button variant="ghost" size="sm" disabled={busyDish === d.menu_item_id + ':c'} onClick={() => confirmDish(d.menu_item_id, false)}>Annulla</Button>
+                              ) : (
+                                <Button variant="gold" size="sm" disabled={busyDish === d.menu_item_id + ':c'} onClick={() => confirmDish(d.menu_item_id, true)}><Check size={13} /> Conferma</Button>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      </li>
+                    ))}
                     {sec.items.map((it: any) => (
                       <li key={it.id}>
                         <Card className="p-4">
