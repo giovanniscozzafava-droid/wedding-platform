@@ -495,12 +495,32 @@ export default function QuoteEditorPage() {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  // Scarica davvero il file: fetch→blob forza il download (anche cross-origin storage);
+  // fallback su ?download (Supabase) o apertura in nuova scheda se il fetch è bloccato.
+  async function downloadFile(url: string, filename: string) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('fetch')
+      const blob = await res.blob()
+      const obj = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = obj; a.download = filename
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(obj), 5000)
+    } catch {
+      const sep = url.includes('?') ? '&' : '?'
+      window.open(`${url}${sep}download=${encodeURIComponent(filename)}`, '_blank', 'noopener')
+    }
+  }
+
   async function handlePdf(variant: 'NEUTRA' | 'PREMIUM') {
     if (!id) return
     try {
       const r = await genPdf.mutateAsync({ quoteId: id, variant })
       setPdfUrl(r.url)
-      toast.success(`PDF ${variant.toLowerCase()} generato`)
+      const fn = `Preventivo-${(title || clientName || 'evento').replace(/[^\w\-]+/g, '_')}.pdf`
+      if (r.url) await downloadFile(r.url, fn)
+      toast.success(`PDF ${variant.toLowerCase()} generato e scaricato`)
     } catch (e) { toast.error((e as Error).message) }
   }
 
