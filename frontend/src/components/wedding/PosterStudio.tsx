@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { MOOD_PALETTE } from '@/lib/moodBoard'
 import { POSTER_TEMPLATES, POSTER_FORMATS, getTemplate, templateForTheme } from '@/lib/tableauPosters'
 import { exportPosterNode } from '@/lib/tableauExport'
+import { eventTerm } from '@/lib/eventKind'
 import { TableauPoster, type PosterData } from './TableauPoster'
 
 type T = { id: string; table_no: number; label: string | null; seats: number; is_staff?: boolean | null }
@@ -20,12 +21,14 @@ function ensurePosterFonts() {
   document.head.appendChild(l)
 }
 
-export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateText, location, theme, logoUrl, logoName }: {
+export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateText, location, theme, logoUrl, logoName, eventKind }: {
   open: boolean; onClose: () => void
   tables: T[]; guests: G[]
   coupleNames: string; dateText: string; location?: string; theme?: string | null
   logoUrl?: string | null; logoName?: string | null
+  eventKind?: string | null
 }) {
+  const term = eventTerm(eventKind)
   const [templateId, setTemplateId] = useState<string>(() => templateForTheme(theme))
   const [accent, setAccent] = useState<string | null>(null)
   const [fmt, setFmt] = useState<string>('70x100')
@@ -43,12 +46,15 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
     const sorted = [...tables].filter((t) => !t.is_staff).sort((a, b) => a.table_no - b.table_no)
     return {
       coupleNames: names, dateText: date, location,
+      // Stampabile guidato dal tipo evento: matrimonio → "Tableau de mariage" (dallo stile),
+      // altri eventi (compleanno, ecc.) → "Disposizione dei tavoli".
+      eyebrow: term.hasCoupleConcept ? undefined : 'Disposizione dei tavoli',
       tables: sorted.map((t) => ({
         id: t.id, name: t.label ?? `Tavolo ${t.table_no}`,
         guests: guests.filter((g) => g.table_id === t.id).map((g) => g.full_name),
       })),
     }
-  }, [tables, guests, names, date, location])
+  }, [tables, guests, names, date, location, term.hasCoupleConcept])
 
   if (!open) return null
   const fmtMm = POSTER_FORMATS[fmt]!
@@ -59,7 +65,7 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
     if (!exportRef.current) return
     setBusy(true)
     try {
-      await exportPosterNode(exportRef.current, { w: fmtMm.w, h: fmtMm.h }, `tableau-${fmt}-${(names || 'sposi').toLowerCase().replace(/\s+/g, '-')}.pdf`)
+      await exportPosterNode(exportRef.current, { w: fmtMm.w, h: fmtMm.h }, `tableau-${fmt}-${(names || term.label).toLowerCase().replace(/\s+/g, '-')}.pdf`)
       toast.success('Poster esportato')
     } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setBusy(false) }
   }
@@ -112,7 +118,7 @@ export function PosterStudio({ open, onClose, tables, guests, coupleNames, dateT
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div><p className="text-xs text-[rgb(var(--fg-muted))] mb-1">Sposi</p><Input value={names} onChange={(e) => setNames(e.target.value)} placeholder="Giulia & Marco" /></div>
+              <div><p className="text-xs text-[rgb(var(--fg-muted))] mb-1">{term.hasCoupleConcept ? 'Sposi' : 'Festeggiato/a'}</p><Input value={names} onChange={(e) => setNames(e.target.value)} placeholder={term.hasCoupleConcept ? 'Giulia & Marco' : 'Nome del festeggiato'} /></div>
               <div><p className="text-xs text-[rgb(var(--fg-muted))] mb-1">Data / luogo</p><Input value={date} onChange={(e) => setDate(e.target.value)} placeholder="12 settembre 2026" /></div>
             </div>
 

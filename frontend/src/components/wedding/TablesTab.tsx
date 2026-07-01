@@ -526,6 +526,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
         dateText={(wedding as any)?.date_from ? new Date((wedding as any).date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
         location={(wedding as any)?.quote?.event_location ?? undefined}
         theme={currentTheme}
+        eventKind={(wedding as any)?.event_kind ?? null}
         logoUrl={(profile as { brand_logo_url?: string | null } | null)?.brand_logo_url ?? null}
         logoName={(profile as { business_name?: string | null } | null)?.business_name ?? null}
       />
