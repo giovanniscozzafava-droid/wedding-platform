@@ -139,6 +139,36 @@ export const CHECKLIST_PRESETS: ChecklistPreset[] = [
   { phase: 'DAY_OF', title: 'Ricevimento → festa → saluto ospiti' },
 ]
 
+// Checklist per eventi NON matrimonio (compleanni, feste, lauree, eventi): il tipo evento comanda.
+export const CHECKLIST_EVENTO: ChecklistPreset[] = [
+  { phase: '3_MESI', title: 'Definire budget e numero invitati', description: 'Quadro economico + stima ospiti per dimensionare tutto' },
+  { phase: '3_MESI', title: 'Scegliere data e location / sala', description: 'Sopralluogo + date alternative' },
+  { phase: '3_MESI', title: 'Decidere tema e stile della festa' },
+  { phase: '3_MESI', title: 'Lista invitati preliminare' },
+  { phase: '1_MESE', title: 'Inviti / save the date' },
+  { phase: '1_MESE', title: 'Torta e catering / buffet', description: 'Menù, torta, opzioni per allergie e bambini' },
+  { phase: '1_MESE', title: 'Intrattenimento e animazione', description: 'DJ, musica, mago, animatore, giochi' },
+  { phase: '1_MESE', title: 'Allestimenti e decorazioni', description: 'Palloncini, centrotavola, backdrop, luci' },
+  { phase: '1_MESE', title: 'Fotografo / photo booth (se previsto)' },
+  { phase: '1_SETTIMANA', title: 'Raccogliere le conferme (RSVP)' },
+  { phase: '1_SETTIMANA', title: 'Confermare i fornitori (torta, catering, animazione)' },
+  { phase: '1_SETTIMANA', title: 'Comprare candeline, accessori, piatti e bicchieri' },
+  { phase: '1_SETTIMANA', title: 'Preparare la playlist' },
+  { phase: 'DAY_OF', title: 'Ritiro torta e ultimi acquisti' },
+  { phase: 'DAY_OF', title: 'Allestire la sala' },
+  { phase: 'DAY_OF', title: 'Accoglienza ospiti' },
+  { phase: 'DAY_OF', title: 'Taglio torta, brindisi e foto' },
+  { phase: 'GENERICA', title: 'Regalini / bomboniere per gli ospiti' },
+  { phase: 'GENERICA', title: 'Angolo foto / photo booth' },
+  { phase: 'GENERICA', title: 'Lista regali (se prevista)' },
+]
+
+// Checklist adatta al tipo evento: matrimonio → set matrimonio; ogni altro evento
+// (compleanno, festa, laurea, corporate…) → set evento generico.
+export function checklistPresetsFor(kind: string | null | undefined): ChecklistPreset[] {
+  return (kind ?? 'matrimonio').toLowerCase() === 'matrimonio' ? CHECKLIST_PRESETS : CHECKLIST_EVENTO
+}
+
 export const PHASE_LABEL: Record<ChecklistPhase, string> = {
   '12_MESI': '12 mesi prima',
   '6_MESI': '6 mesi prima',

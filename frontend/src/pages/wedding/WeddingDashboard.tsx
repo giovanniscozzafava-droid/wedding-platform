@@ -378,7 +378,7 @@ export default function WeddingDashboard() {
             {tab === 'payments' && <PagamentiTab entryId={wedding.id} />}
             {tab === 'riconciliazione' && nuovoModello && <RiconciliazioneCard entryId={wedding.id} />}
             {tab === 'chat' && nuovoModello && <ChatEvento entryId={wedding.id} />}
-            {tab === 'checklist' && <ChecklistTab entryId={wedding.id} />}
+            {tab === 'checklist' && <ChecklistTab entryId={wedding.id} eventKind={(wedding as any).event_kind} />}
             {tab === 'mood' && <MoodTab entryId={wedding.id} />}
             {tab === 'playlist' && <PlaylistTab entryId={wedding.id} />}
             {tab === 'contracts_net' && <AllContractsMonitor entryId={wedding.id} />}

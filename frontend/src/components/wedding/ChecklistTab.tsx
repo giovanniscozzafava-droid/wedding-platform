@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { useTasks, useTaskMutations } from '@/hooks/useWedding'
-import { CHECKLIST_PRESETS, PHASE_LABEL } from '@/lib/wedding-presets'
+import { checklistPresetsFor, PHASE_LABEL } from '@/lib/wedding-presets'
 
 const PHASES = [
   { key: '12_MESI',    label: '12 mesi prima' },
@@ -18,7 +18,9 @@ const PHASES = [
   { key: 'GENERICA',   label: 'Generica' },
 ]
 
-export function ChecklistTab({ entryId }: { entryId: string }) {
+export function ChecklistTab({ entryId, eventKind }: { entryId: string; eventKind?: string | null }) {
+  // La checklist segue il tipo evento: matrimonio → checklist matrimonio; compleanno/festa → checklist evento.
+  const CHECKLIST_PRESETS = checklistPresetsFor(eventKind)
   const { data: tasks } = useTasks(entryId)
   const { add, update, remove } = useTaskMutations(entryId)
   const [draft, setDraft] = useState({ title: '', phase: '3_MESI', due_at: '' })
