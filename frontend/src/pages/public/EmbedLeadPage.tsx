@@ -259,10 +259,7 @@ export default function EmbedLeadPage() {
       if (error) throw error
       const r = data as { ok?: boolean; error?: string; id?: string; kind?: string }
       if (r.error) throw new Error(r.error)
-      // Notifica email solo per i lead WP (lead_requests); i fornitori la vedono in dashboard.
-      if (r.kind === 'wp' && r.id) {
-        void supabase.functions.invoke('lead-notify', { body: { lead_id: r.id } }).catch(() => {})
-      }
+      // Notifica in-app + email: le fa il trigger DB su lead_requests (lato server, affidabile).
       setSent(true)
       window.parent?.postMessage({ type: 'planfully:embed-submitted' }, '*')
     } catch (e) {

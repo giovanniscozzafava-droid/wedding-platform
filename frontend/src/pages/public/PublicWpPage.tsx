@@ -174,10 +174,8 @@ export default function PublicWpPage() {
       if (r.error) throw new Error(r.error)
       setSent(true)
       toast.success('Richiesta inviata!')
-      // Fire-and-forget notifica email (no await — non blocchiamo UX)
-      if (r.id) {
-        void supabase.functions.invoke('lead-notify', { body: { lead_id: r.id } }).catch(() => {})
-      }
+      // Notifica in-app + email al destinatario: ora le fa il trigger DB su lead_requests
+      // (lato server, affidabile). Niente più invoke dal browser (evita email doppie / silenzi).
     } catch (e) { toast.error((e as Error).message) }
     finally { setSending(false) }
   }
