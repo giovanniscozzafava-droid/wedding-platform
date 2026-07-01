@@ -379,7 +379,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 min-h-full min-w-0 flex flex-col">
+        <main className="flex-1 min-w-0 flex flex-col">
           <BetaBanner />
           <ConflictAlertsBanner />
           <div className="flex-1">
