@@ -36,6 +36,7 @@ import {
   Coins,
   CheckSquare,
   TicketPercent,
+  Boxes,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -215,7 +216,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Food cost: strumento gestionale SOLO per le Location (PRP-4 Fase A).
   const baseGroups = profile?.role === 'LOCATION'
     ? baseGroupsRaw.map((g) => g.section === 'Gestione'
-        ? { ...g, items: [...g.items, { to: '/food-cost', label: 'Food cost', icon: Carrot }, { to: '/prove-menu', label: 'Prove menu', icon: CalendarDays }] }
+        ? { ...g, items: [...g.items, { to: '/food-cost', label: 'Food cost', icon: Carrot }, { to: '/prove-menu', label: 'Prove menu', icon: CalendarDays }, { to: '/magazzino', label: 'Magazzino', icon: Boxes }] }
         : g)
     : baseGroupsRaw
   // Gruppo riservato a staff/admin (gestione piattaforma + ticket).
