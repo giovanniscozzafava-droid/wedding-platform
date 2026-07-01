@@ -373,7 +373,7 @@ export default function WeddingDashboard() {
             {tab === 'guests' && <GuestsTab entryId={wedding.id} eventKind={wedding.event_kind} />}
             {tab === 'regali' && <GiftsTab entryId={wedding.id} />}
             {tab === 'angoli' && <CornersTab entryId={wedding.id} />}
-            {tab === 'menu' && <MenuTab entryId={wedding.id} />}
+            {tab === 'menu' && <MenuTab entryId={wedding.id} readOnly={ringView === 'sposi'} />}
             {tab === 'budget' && <BudgetTab entryId={wedding.id} />}
             {tab === 'payments' && <PagamentiTab entryId={wedding.id} />}
             {tab === 'riconciliazione' && nuovoModello && <RiconciliazioneCard entryId={wedding.id} />}

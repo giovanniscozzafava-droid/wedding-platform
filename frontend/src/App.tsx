@@ -22,6 +22,8 @@ const ProfilePage = lazyWithRetry(() => import('@/pages/auth/ProfilePage'))
 const CatalogPage = lazyWithRetry(() => import('@/pages/CatalogPage'))
 const FoodCostPage = lazyWithRetry(() => import('@/pages/FoodCostPage'))
 const ProvaMenuVote = lazyWithRetry(() => import('@/pages/ProvaMenuVote'))
+const TastingSessionsPage = lazyWithRetry(() => import('@/pages/TastingSessionsPage'))
+const TastingSessionInvite = lazyWithRetry(() => import('@/pages/TastingSessionInvite'))
 const AlbumLabPage = lazyWithRetry(() => import('@/pages/AlbumLabPage'))
 const CoverConfigurator = lazyWithRetry(() => import('@/pages/CoverConfigurator'))
 const AlbumCatalogManager = lazyWithRetry(() => import('@/pages/AlbumCatalogManager'))
@@ -113,6 +115,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/prova-menu/:token" element={<ProvaMenuVote />} />
+          <Route path="/prova-menu-invito/:token" element={<TastingSessionInvite />} />
           <Route
             path="/onboarding"
             element={
@@ -138,6 +141,7 @@ export default function App() {
             }
           />
           <Route path="/food-cost" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><FoodCostPage /></RequireAuth>} />
+          <Route path="/prove-menu" element={<RequireAuth roles={['LOCATION', 'WEDDING_PLANNER', 'ADMIN']}><TastingSessionsPage /></RequireAuth>} />
           <Route path="/album-lab" element={<RequireAuth><AlbumLabPage /></RequireAuth>} />
           <Route path="/album-copertina/:entryId" element={<RequireAuth><CoverConfigurator /></RequireAuth>} />
           {/* Catalogo PDF: il fotografo carica/marca; la coppia sfoglia, sceglie, firma → commessa */}

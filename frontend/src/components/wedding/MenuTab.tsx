@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles, CalendarClock, Star, Check, Wallet } from 'lucide-react'
+import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles, CalendarClock, Star, Check, Wallet, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -130,13 +130,15 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
   const [choiceReload, setChoiceReload] = useState(0)
   const [busyDish, setBusyDish] = useState('')
   const [fc, setFc] = useState<any>(null)
+  const [unlocked, setUnlocked] = useState<boolean | null>(null)
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       const { data: cv } = await (supabase as any).rpc('fb_event_choice_view', { p_entry: entryId })
       const { data: f } = await (supabase as any).rpc('fb_event_foodcost', { p_entry: entryId })
-      if (alive) { setChoice(cv && cv.ok ? cv : null); setFc(f && f.ok ? f : null) }
+      const { data: ul } = await (supabase as any).rpc('fb_menu_unlocked', { p_entry: entryId })
+      if (alive) { setChoice(cv && cv.ok ? cv : null); setFc(f && f.ok ? f : null); setUnlocked(ul === true) }
     })()
     return () => { alive = false }
   }, [entryId, choiceReload])
@@ -279,6 +281,21 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
       ...f,
       [field]: f[field].includes(value) ? f[field].filter((t) => t !== value) : [...f[field], value],
     }))
+  }
+
+  if (readOnly && unlocked === false) {
+    const provaWhen = choice?.prova?.quando ? new Date(choice.prova.quando).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : null
+    return (
+      <div className="space-y-6">
+        <SectionRings entryId={entryId} keys={['menu']} />
+        <Card className="p-8 text-center max-w-xl mx-auto">
+          <div className="w-14 h-14 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] grid place-items-center mx-auto mb-4"><Lock size={26} /></div>
+          <h2 className="font-display text-xl mb-2">La scelta del menu si sblocca dopo la prova menu</h2>
+          <p className="text-sm text-[rgb(var(--fg-muted))]">Avete ricevuto un invito alla degustazione: controllate <span className="font-medium">email</span> e <span className="font-medium">WhatsApp</span> e confermate la data. Appena confermate, qui si attiva la degustazione e la scelta del vostro menu.</p>
+          {provaWhen && <p className="text-sm mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]"><CalendarClock size={15} /> {provaWhen}{choice?.prova?.sala ? ` · ${choice.prova.sala}` : ''}</p>}
+        </Card>
+      </div>
+    )
   }
 
   return (
