@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion, useSpring } from 'framer-motion'
 import { UserPlus, Pencil, Trash2, ZoomIn, ZoomOut, Maximize, RotateCw } from 'lucide-react'
 import { tableFootprint } from '@/lib/seatingStandards'
 
@@ -169,6 +170,43 @@ export function TableauPlan({
     drag.current = null; setDragId(null); setLivePos(null)
   }
 
+  // ── DRAG INVITATO stile "The Sims": prendi un nominativo e lo porti al tavolo; mentre lo
+  //    trascini penzola dal cursore (molla). Pointer-based (mouse + touch), robusto, con hit-test
+  //    via elementFromPoint su [data-seat-target] (tavoli) e [data-unseat-target] (elenco).
+  const gdrag = useRef<{ id: string; name: string; lastX: number } | null>(null)
+  const [gdragUi, setGdragUi] = useState<{ id: string; name: string; x: number; y: number; vx: number } | null>(null)
+  function hitTargets(clientX: number, clientY: number) {
+    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+    return {
+      tableId: el?.closest('[data-seat-target]')?.getAttribute('data-table-id') ?? null,
+      unseat: !!el?.closest('[data-unseat-target]'),
+    }
+  }
+  function onGuestPointerMove(e: PointerEvent) {
+    const st = gdrag.current; if (!st) return
+    const vx = e.clientX - st.lastX; st.lastX = e.clientX
+    const { tableId, unseat } = hitTargets(e.clientX, e.clientY)
+    setOverTable(tableId); setOverUnseat(unseat)
+    setGdragUi({ id: st.id, name: st.name, x: e.clientX, y: e.clientY, vx })
+  }
+  function onGuestPointerUp(e: PointerEvent) {
+    window.removeEventListener('pointermove', onGuestPointerMove)
+    const st = gdrag.current; gdrag.current = null
+    if (st) {
+      const { tableId, unseat } = hitTargets(e.clientX, e.clientY)
+      if (tableId) onAssignGuest(st.id, tableId)
+      else if (unseat) onAssignGuest(st.id, null as any)
+    }
+    setGdragUi(null); setOverTable(null); setOverUnseat(false)
+  }
+  function startGuestDrag(e: React.PointerEvent, g: PlanGuest) {
+    e.preventDefault(); e.stopPropagation() // niente drag nativo, niente drag-tavolo
+    gdrag.current = { id: g.id, name: g.full_name, lastX: e.clientX }
+    setGdragUi({ id: g.id, name: g.full_name, x: e.clientX, y: e.clientY, vx: 0 })
+    window.addEventListener('pointermove', onGuestPointerMove)
+    window.addEventListener('pointerup', onGuestPointerUp, { once: true })
+  }
+
   return (
     <div className="flex gap-3">
       {/* SALA / piantina */}
@@ -228,8 +266,8 @@ export function TableauPlan({
               ? `#ffffff url("${floorPlanUrl}") center / contain no-repeat`
               : 'repeating-linear-gradient(45deg, rgb(var(--bg-sunken)) 0 12px, rgb(var(--bg)) 12px 24px)',
           }}>
-          {/* Decori "sala generica" SOLO quando non c'è una piantina reale proiettata */}
-          {!floorPlanUrl && <NoTableZone label="PISTA · FRONTE SALA — NIENTE TAVOLI" />}
+          {/* Nessuna zona "pista" forzata: le zone (pista/band/bar/buffet/torta) le sceglie e posiziona
+              chi costruisce il tableau dalla barra "Zone" qui sopra. */}
           {/* forma a L: angolo in alto a destra fuori sala, evidenziato */}
           {!floorPlanUrl && room?.shape === 'elle' && (
             <div className="absolute top-0 right-0 w-[38%] h-[42%] z-[6] pointer-events-none flex items-center justify-center"
@@ -295,6 +333,7 @@ export function TableauPlan({
             const showSeatNames = !t.is_staff && wpx >= 44 && seated.length > 0
             return (
               <div key={t.id}
+                data-seat-target data-table-id={t.id}
                 onPointerDown={(e) => onTablePointerDown(e, t.id, x, y)}
                 onDoubleClick={() => onOpenAssign(t)}
                 onDragOver={(e) => { if (e.dataTransfer.types.includes('text/guest')) { e.preventDefault(); setOverTable(t.id) } }}
@@ -304,7 +343,7 @@ export function TableauPlan({
                 style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: wpx, height: realHpx, transform: `translate(-50%,-50%) rotate(${t.rotation ?? 0}deg)` }}
                 title={`${label(t)} — ${seated.length}/${t.seats} posti`}>
                 {/* nomi alle sedie (esterni, in corrispondenza dei posti) */}
-                {showSeatNames && <SeatNames shape={t.shape} seats={t.seats ?? 0} seated={seated} wpx={wpx} hpx={realHpx} />}
+                {showSeatNames && <SeatNames shape={t.shape} seats={t.seats ?? 0} seated={seated} wpx={wpx} hpx={realHpx} onGuestDown={startGuestDrag} />}
                 <TableShape shape={t.shape} wpx={wpx} hpx={realHpx} seats={t.seats ?? 0} filled={seated.length}
                   staff={!!t.is_staff} crown={/spos/i.test(label(t))} over={over < 0} highlight={isOver} />
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-1 overflow-hidden">
@@ -338,48 +377,78 @@ export function TableauPlan({
       </div>
 
       {/* ELENCO non seduti (drag verso i tavoli) + drop-zone per TOGLIERE dal tavolo */}
-      <div
+      <div data-unseat-target
         onDragOver={(e) => { if (e.dataTransfer.types.includes('text/guest')) { e.preventDefault(); setOverUnseat(true) } }}
         onDragLeave={() => setOverUnseat(false)}
         onDrop={(e) => { const gid = e.dataTransfer.getData('text/guest'); setOverUnseat(false); if (gid) { e.preventDefault(); onAssignGuest(gid, null as any) } }}
         className={`w-44 shrink-0 border rounded-xl p-2 flex flex-col max-h-[70vh] transition-colors ${overUnseat ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]/40' : 'border-[rgb(var(--border))]'}`}>
         <p className="text-xs font-medium mb-1.5 flex items-center gap-1"><UserPlus size={12} /> Da sedere ({unseated.length})</p>
-        {overUnseat && <p className="text-[10px] text-[rgb(var(--gold-700))] mb-1">Rilascia qui per togliere dal tavolo</p>}
+        <p className="text-[10px] text-[rgb(var(--fg-subtle))] mb-1.5">{overUnseat ? 'Rilascia qui per togliere dal tavolo' : 'Prendi un nominativo e trascinalo sul tavolo'}</p>
         <div className="flex-1 overflow-y-auto space-y-1">
           {unseated.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-subtle))] italic">Tutti seduti 🎉</p>}
           {unseated.map((g) => (
-            <div key={g.id} draggable
-              onDragStart={(e) => { e.dataTransfer.setData('text/guest', g.id); e.dataTransfer.effectAllowed = 'move' }}
-              className="text-[11px] px-2 py-1 rounded-md bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))] cursor-grab active:cursor-grabbing truncate"
+            <div key={g.id}
+              onPointerDown={(e) => startGuestDrag(e, g)}
+              className={`text-[11px] px-2 py-1 rounded-md bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))] cursor-grab active:cursor-grabbing truncate select-none ${gdragUi?.id === g.id ? 'opacity-30' : ''}`}
+              style={{ touchAction: 'none' }}
               title={`${g.full_name} — trascina su un tavolo`}>
               {g.full_name}{(g.party_size ?? 1) > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{g.party_size}</span>}
             </div>
           ))}
         </div>
       </div>
+      {gdragUi && <GuestDangle x={gdragUi.x} y={gdragUi.y} vx={gdragUi.vx} name={gdragUi.name} />}
     </div>
   )
 }
 
-// Fascia "zona senza tavoli" in fondo alla sala, resa BEN evidente: tratteggio rosso
-// diagonale + etichetta. È lo spazio per pista da ballo / ingresso, dove non vanno tavoli.
-function NoTableZone({ label }: { label: string }) {
+// Omino "The Sims" che penzola dal cursore mentre trascini un invitato: oscilla in base alla
+// velocità orizzontale (molla) e si placa quando ti fermi. Solo visuale (pointerEvents none).
+function GuestDangle({ x, y, vx, name }: { x: number; y: number; vx: number; name: string }) {
+  const angle = useSpring(0, { stiffness: 140, damping: 7, mass: 0.9 })
+  useEffect(() => {
+    angle.set(Math.max(-34, Math.min(34, -vx * 1.5)))
+    const t = setTimeout(() => angle.set(0), 90) // fermo → torna dritto oscillando (penzola)
+    return () => clearTimeout(t)
+  }, [x, vx, angle])
   return (
-    <div className="absolute inset-x-0 bottom-0 z-[5] pointer-events-none flex items-center justify-center"
-      style={{
-        height: '11%',
-        background: 'repeating-linear-gradient(45deg, rgb(225 29 72 / 0.12) 0 9px, rgb(225 29 72 / 0.03) 9px 18px)',
-        borderTop: '2px dashed rgb(225 29 72 / 0.55)',
-      }}>
-      <span className="text-[10px] tracking-[0.18em] font-semibold text-[rgb(225_29_72_/_0.8)] uppercase">{label}</span>
+    <div style={{ position: 'fixed', left: x, top: y, zIndex: 200, pointerEvents: 'none', transform: 'translateX(-50%)' }}>
+      <motion.div style={{ transformOrigin: 'top center', rotate: angle }}>
+        <Omino name={name} />
+      </motion.div>
+    </div>
+  )
+}
+
+function Omino({ name }: { name: string }) {
+  const first = name.trim().split(/\s+/)[0] ?? name
+  return (
+    <div className="flex flex-col items-center" style={{ filter: 'drop-shadow(0 6px 6px rgba(0,0,0,.25))' }}>
+      {/* punto di presa (mano che afferra) */}
+      <div style={{ width: 6, height: 6, borderRadius: 999, background: 'rgb(var(--gold-500))', marginBottom: -1 }} />
+      <svg width="34" height="46" viewBox="0 0 34 46">
+        {/* testa */}
+        <circle cx="17" cy="9" r="7" fill="rgb(var(--gold-500))" stroke="white" strokeWidth="1.5" />
+        {/* corpo */}
+        <rect x="11" y="15" width="12" height="16" rx="5" fill="rgb(var(--gold-500))" />
+        {/* braccia a penzoloni */}
+        <line x1="11" y1="19" x2="6" y2="30" stroke="rgb(var(--gold-500))" strokeWidth="3.2" strokeLinecap="round" />
+        <line x1="23" y1="19" x2="28" y2="30" stroke="rgb(var(--gold-500))" strokeWidth="3.2" strokeLinecap="round" />
+        {/* gambe a penzoloni */}
+        <line x1="14" y1="31" x2="12" y2="43" stroke="rgb(var(--gold-500))" strokeWidth="3.6" strokeLinecap="round" />
+        <line x1="20" y1="31" x2="22" y2="43" stroke="rgb(var(--gold-500))" strokeWidth="3.6" strokeLinecap="round" />
+      </svg>
+      <span className="mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap"
+        style={{ background: 'rgb(var(--fg))', color: 'rgb(var(--bg-elev))' }}>{first}</span>
     </div>
   )
 }
 
 // Nomi degli invitati seduti, scritti FUORI dal tavolo in corrispondenza della sediolina.
 // Testo sempre dritto (leggibile), ancorato verso l'esterno del tavolo.
-function SeatNames({ shape, seats, seated, wpx, hpx }: {
+function SeatNames({ shape, seats, seated, wpx, hpx, onGuestDown }: {
   shape: string; seats: number; seated: PlanGuest[]; wpx: number; hpx: number
+  onGuestDown?: (e: React.PointerEvent, g: PlanGuest) => void
 }) {
   const pts = seatLayout(shape, seats)
   const fs = Math.max(5.5, Math.min(10, wpx * 0.12))
@@ -395,14 +464,13 @@ function SeatNames({ shape, seats, seated, wpx, hpx }: {
         const tx = p.ox <= -0.3 ? '-100%' : p.ox >= 0.3 ? '0' : '-50%'
         const ty = p.oy <= -0.3 ? '-100%' : p.oy >= 0.3 ? '0' : '-50%'
         return (
-          <span key={g.id} draggable
-            onPointerDown={(e) => e.stopPropagation()}
-            onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/guest', g.id); e.dataTransfer.effectAllowed = 'move' }}
+          <span key={g.id}
+            onPointerDown={(e) => onGuestDown?.(e, g)}
             style={{
               position: 'absolute', left: lx, top: ly, transform: `translate(${tx}, ${ty})`,
-              fontSize: fs, lineHeight: 1, whiteSpace: 'nowrap', fontWeight: 500, cursor: 'grab', pointerEvents: 'auto',
+              fontSize: fs, lineHeight: 1, whiteSpace: 'nowrap', fontWeight: 500, cursor: 'grab', pointerEvents: 'auto', touchAction: 'none',
               color: 'rgb(var(--fg))', textShadow: '0 1px 2px rgb(var(--bg)), 0 0 2px rgb(var(--bg))',
-            }} title={`${g.full_name} — trascina fuori per togliere dal tavolo`}>{short(g.full_name)}</span>
+            }} title={`${g.full_name} — trascina su un altro tavolo o nell'elenco per togliere`}>{short(g.full_name)}</span>
         )
       })}
     </div>
