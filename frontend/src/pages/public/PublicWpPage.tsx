@@ -174,8 +174,9 @@ export default function PublicWpPage() {
       if (r.error) throw new Error(r.error)
       setSent(true)
       toast.success('Richiesta inviata!')
-      // Notifica in-app + email al destinatario: ora le fa il trigger DB su lead_requests
-      // (lato server, affidabile). Niente più invoke dal browser (evita email doppie / silenzi).
+      // Notifica in-app: la fa il trigger DB. Email al WP + cliente: invoke dal browser (usa la anon
+      // key del bundle, nessuna GUC richiesta — le GUC non sono impostabili in questo progetto).
+      if (r.id) void supabase.functions.invoke('lead-notify', { body: { lead_id: r.id } }).catch(() => {})
     } catch (e) { toast.error((e as Error).message) }
     finally { setSending(false) }
   }
