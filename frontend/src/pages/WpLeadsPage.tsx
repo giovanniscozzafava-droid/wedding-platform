@@ -261,7 +261,8 @@ function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose:
       toast.success(data?.reused ? 'Evento gia` esistente: apro il preventivo' : 'Evento e preventivo creati dal lead')
       navigate(`/quotes/${data.quote_id}`)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Errore conversione lead')
+      const msg = (e as { message?: string })?.message
+      toast.error(msg ? `Errore conversione: ${msg}` : 'Errore conversione lead')
     } finally {
       setConverting(false)
     }
