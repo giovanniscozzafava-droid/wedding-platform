@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 const ROLES: Array<{ value: AppRole; label: string; description: string; icon: typeof Heart }> = [
-  { value: 'WEDDING_PLANNER', label: 'Wedding Planner', description: 'Coordini matrimoni per clienti tuoi.', icon: Heart },
+  { value: 'WEDDING_PLANNER', label: 'Event & Wedding Planner', description: 'Coordini matrimoni ed eventi per i tuoi clienti.', icon: Heart },
   { value: 'LOCATION',        label: 'Location',        description: 'Sei una struttura che ospita eventi.', icon: Building2 },
   { value: 'FORNITORE',       label: 'Fornitore',       description: 'Offri servizi (fiori, foto, catering…)', icon: Camera },
 ]
