@@ -10,9 +10,23 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input, Select } from '@/components/ui/input'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useMyWeddings } from '@/hooks/useCouple'
 import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTimeline, useTransport, useMoodMutations, usePlaylistMutations, useWedding } from '@/hooks/useWedding'
+
+// Traduci i codici errore tecnici delle RPC preventivo in messaggi chiari per la coppia.
+const CLIENT_ERR: Record<string, string> = {
+  not_accepted: 'Per concludere devi prima accettare e firmare il preventivo: usa "Procedi alla firma del preventivo" qui sotto.',
+  forbidden: 'Non hai i permessi per questa azione su questo preventivo.',
+  no_email: 'Sessione scaduta: esci e rientra, poi riprova.',
+  not_found: 'Preventivo non trovato.',
+  already_contracted: 'Questa voce è già passata a contratto e non è più modificabile.',
+}
+const friendlyErr = (e: unknown) => {
+  const m = (e as { message?: string })?.message ?? String(e)
+  return CLIENT_ERR[m] ?? m
+}
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -967,7 +981,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
       if (error) throw error
       if ((r as any)?.error) throw new Error((r as any).error)
       await load()
-    } catch (e) { window.alert((e as Error).message) }
+    } catch (e) { toast.error(friendlyErr(e)) }
     finally { setBusyItem(null) }
   }
 
@@ -985,8 +999,8 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
         return
       }
       await load()
-      window.alert('Preventivo concluso. Nessuna modifica al contratto da firmare.')
-    } catch (e) { window.alert((e as Error).message) }
+      toast.success('Preventivo concluso. Nessuna modifica al contratto da firmare.')
+    } catch (e) { toast.error(friendlyErr(e)) }
     finally { setConcluding(false) }
   }
 
