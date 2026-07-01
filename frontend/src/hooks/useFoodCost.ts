@@ -166,10 +166,10 @@ export async function fetchBrand(): Promise<{ businessName: string; primary: str
 }
 
 // Prova menu di un evento: proposte + ultima prova (token) + risultati voti
+// Sistema A (voto/risultati via fb_tasting_votes) spento: qui restano solo le PROPOSTE di menu
+// dell'evento (Sistema C: voto/conferma piatti avviene nella scheda Menu della dashboard evento).
 export type EventTasting = {
   proposals: Array<{ menu_id: string; is_chosen: boolean; name: string }>
-  tasting: { id: string; vote_token: string; scheduled_at: string | null; sala: string | null; status: string } | null
-  results: Array<{ menu_id: string; name: string; avg_score: number; votes: number }>
 }
 export function useEventTasting(entryId: string | null, enabled: boolean) {
   return useQuery<EventTasting>({
@@ -177,17 +177,7 @@ export function useEventTasting(entryId: string | null, enabled: boolean) {
     enabled: enabled && !!entryId,
     queryFn: async () => {
       const { data: props } = await sb('fb_menu_proposals').select('menu_id, is_chosen, menu:fb_menus(name)').eq('entry_id', entryId)
-      const { data: ts } = await sb('fb_tastings').select('id, vote_token, scheduled_at, sala, status').eq('entry_id', entryId).order('created_at', { ascending: false }).limit(1)
-      const tasting = (ts && ts[0]) || null
-      let results: EventTasting['results'] = []
-      if (tasting) {
-        const { data: r } = await (supabase as any).rpc('fb_tasting_results', { p_tasting: tasting.id })
-        results = r ?? []
-      }
-      return {
-        proposals: (props ?? []).map((p: any) => ({ menu_id: p.menu_id, is_chosen: p.is_chosen, name: p.menu?.name ?? '—' })),
-        tasting, results,
-      }
+      return { proposals: (props ?? []).map((p: any) => ({ menu_id: p.menu_id, is_chosen: p.is_chosen, name: p.menu?.name ?? '—' })) }
     },
   })
 }
@@ -244,8 +234,7 @@ export function useFoodCostMutations() {
     addMenuItem: m(async (p: { menu_id: string; recipe_id: string; qty_per_cover: number; course?: string | null }) => { const { error } = await sb('fb_menu_items').insert(p); if (error) throw error }),
     loadStructured: m(async () => { const { data, error } = await (supabase as any).rpc('fb_seed_structured_menus'); if (error) throw error; if (data?.error) throw new Error(data.error) }),
     proposeMenus: m(async (p: { entry_id: string; menu_ids: string[] }) => { const { data, error } = await (supabase as any).rpc('fb_propose_menus', { p_entry: p.entry_id, p_menu_ids: p.menu_ids }); if (error) throw error; if (data?.error) throw new Error(data.error) }),
-    createTasting: m(async (p: { entry_id: string; when: string | null; sala: string }) => { const { data, error } = await (supabase as any).rpc('fb_create_tasting', { p_entry: p.entry_id, p_when: p.when, p_sala: p.sala }); if (error) throw error; if (data?.error) throw new Error(data.error); return data }),
-    chooseMenu: m(async (p: { entry_id: string; menu_id: string; covers: number }) => { const { data, error } = await (supabase as any).rpc('fb_choose_menu', { p_entry: p.entry_id, p_menu_id: p.menu_id, p_covers: p.covers }); if (error) throw error; if (data?.error) throw new Error(data.error) }),
+    // createTasting / chooseMenu rimossi: Sistema A spento (voto/scelta ora nella scheda Menu → Sistema C).
     delMenuItem: m(async (id: string) => { const { error } = await sb('fb_menu_items').delete().eq('id', id); if (error) throw error }),
   }
 }
