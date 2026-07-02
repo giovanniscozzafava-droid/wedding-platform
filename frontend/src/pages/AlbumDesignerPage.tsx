@@ -1428,6 +1428,22 @@ function AlbumDesignerInner() {
     const iaOf = (id: string) => aspects[id] ?? photoAspect.get(id) ?? 1
     const cellFor = (mid: string, sa: number): Cell => { const fo = focusMap?.[mid]; return fo ? goldenCell(iaOf(mid), sa, fo.fx, fo.fy, fo.ht, fo.hb, fo.face, fo.sx, fo.sr) : { ...DEFAULT_CELL } }
 
+    // RISPETTA FORMATO = PRIORITÀ ASSOLUTA: ogni foto al suo aspetto ESATTO (niente double/full che
+    // tagliano), con margine di sicurezza dai bordi di taglio → visi mai sul trim, niente teste tagliate.
+    if (respectFormat) {
+      const SAFE = 0.045, ins = 0.985
+      const js = justifiedSlots(clean.map(iaOf), spreadAspect)
+      left.elements = js.map((s, i) => {
+        const mid = clean[i]!
+        const gx0 = s.x + (s.w * (1 - ins)) / 2, gy0 = s.y + (s.h * (1 - ins)) / 2
+        const w0 = s.w * ins, h0 = s.h * ins
+        const x = SAFE + gx0 * (1 - 2 * SAFE), y = SAFE + gy0 * (1 - 2 * SAFE)
+        const rw = w0 * (1 - 2 * SAFE), rh = h0 * (1 - 2 * SAFE)
+        return { ...newFreeEl(mid), x, y, w: rw, h: rh, rot: 0, cell: cellFor(mid, (rw * fmt.w * 2) / Math.max(0.001, rh * fmt.h)) }
+      })
+      return [left, right]
+    }
+
     // DOPPIA PAGINA: 1 foto forte full-bleed su entrambe le pagine, ritaglio aureo sul volto
     if (clean.length === 1 && (heroDouble || layout === 'double')) {
       const mid = clean[0]!
@@ -1451,17 +1467,6 @@ function AlbumDesignerInner() {
     }
 
     // RISPETTA FORMATO: disposizione giustificata, ogni foto tiene le proporzioni reali (V resta V, H resta H)
-    if (respectFormat) {
-      const js = justifiedSlots(clean.map(iaOf), spreadAspect)
-      const ins = 0.985 // margine tra le foto UNIFORME (scala x+y insieme → aspetto invariato = NIENTE taglio)
-      left.elements = js.map((s, i) => {
-        const mid = clean[i]!
-        const g = { x: s.x + (s.w * (1 - ins)) / 2, y: s.y + (s.h * (1 - ins)) / 2, w: s.w * ins, h: s.h * ins }
-        return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: 0, cell: cellFor(mid, (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)) }
-      })
-      return [left, right]
-    }
-
     // NORMALE: preset salvato che combacia → generatore (poche foto) → griglia (tante, fino a 24)
     const orients = clean.map((id) => classifyAspect(iaOf(id)))
     const saved = layouts.filter((l) => (l.els?.length ?? 0) === clean.length && l.els!.length > 0)
