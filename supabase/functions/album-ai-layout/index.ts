@@ -8,12 +8,15 @@
 // chiave mancante / niente foto / json rotto. Legge OPENAI_API_KEY (secret server). verify_jwt=true.
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o'
+// gpt-4o-mini è vision-capable, con rate limit molto più alti e costo minore → adatto ad account nuovi.
+const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini'
 const OPENAI_TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') ?? 'gpt-4o-mini'
-const MAX_VISION = 90
-const BATCH = 10
-const CONCURRENCY = 4
+const MAX_VISION = 130
+const BATCH = 8
+const CONCURRENCY = 3
 const CALL_TIMEOUT_MS = 45000
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +33,7 @@ const M_ORDER = new Map(MOMENTS.map((m, i) => [m, i]))
 type InPhoto = { id: string; url?: string | null; moment?: string | null; aspect?: number | null; likes?: number | null }
 type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean }
 
-async function openai(body: unknown): Promise<any> {
+async function openai(body: unknown, attempt = 0): Promise<any> {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), CALL_TIMEOUT_MS)
   try {
@@ -39,6 +42,13 @@ async function openai(body: unknown): Promise<any> {
       headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
       body: JSON.stringify(body),
     })
+    // Rate limit / errori temporanei → retry con attesa (l'header retry-after o backoff crescente).
+    if ((r.status === 429 || r.status >= 500) && attempt < 3) {
+      const ra = parseFloat(r.headers.get('retry-after') ?? '')
+      const waitMs = Number.isFinite(ra) ? ra * 1000 : 1500 * (attempt + 1)
+      await sleep(Math.min(8000, waitMs))
+      return openai(body, attempt + 1)
+    }
     if (!r.ok) { const t2 = await r.text(); throw new Error(`openai ${r.status}: ${t2.slice(0, 200)}`) }
     return await r.json()
   } finally { clearTimeout(t) }
