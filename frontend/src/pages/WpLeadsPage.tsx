@@ -129,7 +129,7 @@ export default function WpLeadsPage() {
         <PageHeader
           eyebrow="Lead"
           title="I tuoi clienti potenziali"
-          description="Richieste di preventivo arrivate dal portale pubblico. Paghi solo €3,50 (primo anno) o €7 per ogni lead che concludi con successo."
+          description="Richieste di preventivo arrivate dal portale pubblico."
         />
 
         {/* KPI */}
@@ -364,12 +364,7 @@ function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose:
               </p>
               {lead.close_amount && <p className="text-xs text-[rgb(var(--fg-muted))]">Valore contratto: € {Number(lead.close_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>}
               {lead.close_notes && <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">{lead.close_notes}</p>}
-              {lead.is_billable && (
-                <p className="text-xs text-[rgb(var(--emerald-500))] mt-2">
-                  Success fee: € {Number(lead.billed_amount).toFixed(2)}
-                  {lead.billed_at ? ' · Fatturato' : ' · Da fatturare'}
-                </p>
-              )}
+              {/* Success fee rimossa dalla UI (beta no-money fino al 31/12/2026). */}
               <Button variant="ghost" size="sm" className="mt-2" onClick={() => onTransition(lead.id, 'CONTACTED')}>
                 Riapri trattativa
               </Button>
@@ -388,9 +383,6 @@ function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose:
                   <label className="text-xs text-[rgb(var(--fg-muted))]">Note (opzionale)</label>
                   <Textarea rows={2} value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} placeholder="Note interne sul cliente..." />
                 </div>
-                <p className="text-[10px] text-[rgb(var(--fg-subtle))] italic">
-                  Confermando si addebita la success fee di €3,50 (primo anno, poi €7).
-                </p>
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="sm" onClick={() => setShowWonForm(false)}>Annulla</Button>
                   <Button variant="gold" size="sm" onClick={() => {

@@ -1721,7 +1721,7 @@ function AlbumDesignerInner() {
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 justify-end">
                             {isRepl && rep && p.status === 'OPEN' && <button onClick={() => applyReplacePostit(p)} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-[rgb(var(--gold-500))] text-white font-medium"><Shuffle size={11} /> Inserisci la foto</button>}
                             {p.status === 'OPEN'
-                              ? <button onClick={() => void resolveRev(p.id)} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-emerald-500 text-white"><Check size={11} /> Fatto</button>
+                              ? <button onClick={() => { void resolveRev(p.id); setOpenPin(null) }} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-emerald-500 text-white"><Check size={11} /> Fatto</button>
                               : <button onClick={() => void reopenRev(p.id)} className="text-[11px] px-2 py-0.5 rounded border border-amber-300">Riapri</button>}
                             <button onClick={() => void deleteRev(p.id)} className="text-[11px] text-rose-500 hover:underline">Elimina</button>
                           </div>
