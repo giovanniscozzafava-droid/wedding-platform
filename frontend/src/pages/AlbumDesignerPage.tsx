@@ -994,9 +994,22 @@ function AlbumDesignerInner() {
     if (!silent) setBusy(true)
     try {
       const st = nextStatus ?? status
-      const { data, error } = await (supabase.rpc as any)('album_project_save', {
-        p_entry: entryId, p_gallery: null, p_format: format, p_status: st, p_layout: { pages, bleed },
-      })
+      const payload = { p_entry: entryId, p_gallery: null, p_format: format, p_status: st, p_layout: { pages, bleed } }
+      let { data, error } = await (supabase.rpc as any)('album_project_save', payload)
+      // Album CONGELATO dall'approvazione degli sposi: il layout non è sovrascrivibile finché non si
+      // riapre. L'autosave (silent) non disturba; il save esplicito propone la riapertura non distruttiva
+      // (il lavoro locale resta in stato, non si perde).
+      if (!error && (data as any)?.error === 'layout_approvato') {
+        if (silent) return
+        const msg = (data as any)?.message ?? 'L\'album è approvato. Riaprirlo revoca l\'approvazione degli sposi.'
+        if (!window.confirm(msg + '\n\nRiaprire e salvare le modifiche?')) {
+          toast.message('Modifiche non salvate: l\'album resta approvato.')
+          return
+        }
+        const { error: rErr } = await (supabase as any).rpc('album_reopen_layout', { p_entry: entryId })
+        if (rErr) throw new Error((rErr as { message?: string }).message ?? 'riapertura non riuscita')
+        ;({ data, error } = await (supabase.rpc as any)('album_project_save', payload))
+      }
       if (error || (data as any)?.error) throw new Error((data as any)?.error ?? error?.message ?? 'errore')
       if (nextStatus) setStatus(nextStatus)
       setSavedAt(Date.now())

@@ -31,17 +31,21 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
   async function approveLayout() {
     setApproving(true)
     try {
-      const me = (await supabase.auth.getUser()).data.user?.id
-      const { error } = await (supabase.from as any)('album_layout_approval').upsert({ entry_id: entryId, approved_by: me, approved_at: new Date().toISOString() }, { onConflict: 'entry_id' })
+      // RPC che FOTOGRAFA il layout corrente nello snapshot (non più upsert diretto):
+      // ciò che gli sposi approvano viene congelato e non è più sovrascrivibile.
+      const { data, error } = await (supabase as any).rpc('album_approve_layout', { p_entry: entryId })
       if (error) throw error
+      if (data?.error === 'no_layout') { toast.error('Nessuna pagina da approvare'); return }
+      if (data?.error) throw new Error(data.error)
       setLayoutDone(true)
       toast.success('Album approvato — grazie!')
     } catch (e) { toast.error((e as Error).message) } finally { setApproving(false) }
   }
 
-  // La selezione è REVOCABILE: il cliente può rientrare e modificare finché non va in stampa.
+  // La selezione è REVOCABILE: riaprire revoca esplicitamente l'approvazione e sblocca le modifiche.
   async function revokeApproval() {
-    await (supabase.from as any)('album_layout_approval').delete().eq('entry_id', entryId)
+    const { error } = await (supabase as any).rpc('album_reopen_layout', { p_entry: entryId })
+    if (error) { toast.error((error as Error).message); return }
     setLayoutDone(false)
     toast.message('Selezione riaperta: puoi modificare e ri-approvare quando vuoi.')
   }
