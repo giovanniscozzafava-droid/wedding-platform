@@ -3,7 +3,7 @@ import HTMLFlipBook from 'react-pageflip'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X } from 'lucide-react'
+import { ArrowLeft, Wand2, Sparkles, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -871,6 +871,7 @@ function AlbumDesignerInner() {
   const [ctxMenu, setCtxMenu] = useState<{ pageId: string; id: string; x: number; y: number } | null>(null)
   function openCtx(pageId: string, id: string, x: number, y: number) { if (!multiSel.includes(id)) { setSelEl(id); setMultiSel([]) } setCtxMenu({ pageId, id, x, y }) }
   const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
+  const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
   // APRI IN PHOTOSHOP: (1) scarica l'ORIGINALE a piena risoluzione come file su disco, (2) tenta di
   // AVVIARE Photoshop via protocol-handler `photoshop://`. Un'app web non può forzare l'apertura di
   // un'app desktop se non tramite protocollo registrato: se Photoshop non parte da solo, il file è
@@ -1277,6 +1278,75 @@ function AlbumDesignerInner() {
     toast.success('Preset applicato')
   }
 
+  // ── IMPAGINAZIONE AI ────────────────────────────────────────────────────────────────────────
+  // "Il fotografo lascia impaginare all'AI." OpenAI (GPT) fa la parte CURATORIALE (raggruppa le foto
+  // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
+  // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
+  // stesso numero di foto; altrimenti genera la disposizione migliore.
+  function buildAiTavola(ids: string[]): AlbumPage[] {
+    const clean = ids.filter((id) => mediaById.has(id))
+    const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
+    const right: AlbumPage = { ...newPage(), tavolaFree: false }
+    if (!clean.length) return [left, right]
+    const orients = clean.map((id) => classifyAspect(aspects[id] ?? photoAspect.get(id) ?? 1))
+    const saved = layouts.filter((l) => (l.els?.length ?? 0) === clean.length && l.els!.length > 0)
+    let slots: Slot[]; let rots: number[]; const useSaved = saved.length > 0
+    if (useSaved) {
+      const s = saved[0]! // il modello salvato del fotografo (più recente in cima)
+      slots = s.els!.map((e) => ({ x: e.x, y: e.y, w: e.w, h: e.h })); rots = s.els!.map((e) => e.rot ?? 0)
+    } else {
+      const gen = genTavolaLayouts(orients, fmt.w * 2, fmt.h, 48)
+      const best = gen.reduce<GenLayout | null>((a, b) => (!a || b.score > a.score ? b : a), null)
+      slots = best?.slots ?? clean.map((_, i) => ({ x: (i % 2) * 0.5, y: Math.floor(i / Math.max(1, Math.ceil(clean.length / 2))) * 0.5, w: 0.5, h: 0.5 }))
+      rots = slots.map(() => 0)
+    }
+    const assign = assignPhotos(slots, orients, fmt.w * 2, fmt.h)
+    const gx = gutterMm / (fmt.w * 2), gy = gutterMm / fmt.h
+    const els: FreeEl[] = slots.map((s, k) => {
+      const ai = assign[k] ?? -1
+      const mid = clean[ai >= 0 ? ai : k] ?? clean[k]; if (!mid) return null
+      const g = useSaved ? { x: s.x, y: s.y, w: s.w, h: s.h } : gutterSlot(s, gx, gy)
+      return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: rots[k] ?? 0, cell: { ...DEFAULT_CELL } }
+    }).filter(Boolean) as FreeEl[]
+    left.elements = els
+    return [left, right]
+  }
+  // Profilo di STILE del fotografo: quante foto per tavola usa di solito (dai preset salvati + album
+  // attuale). Serve all'AI per rispettare la SUA cadenza di impaginazione.
+  function styleProfile(): { perSpread: number; times: number }[] {
+    const c = new Map<number, number>()
+    for (const l of layouts) { const n = l.els?.length ?? 0; if (n) c.set(n, (c.get(n) ?? 0) + 1) }
+    for (const p of pages) { if (p.tavolaFree) { const n = (p.elements ?? []).length; if (n) c.set(n, (c.get(n) ?? 0) + 1) } }
+    return [...c.entries()].map(([perSpread, times]) => ({ perSpread, times })).sort((a, b) => b.times - a.times).slice(0, 6)
+  }
+  async function aiLayout() {
+    if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
+    if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
+    setAiBusy(true)
+    try {
+      const payload = {
+        photos: kept.map((m) => ({ id: m.id, moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0 })),
+        format, styleProfile: styleProfile(),
+      }
+      const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
+      const err = (data as { error?: string } | null)?.error
+      if (error || err) {
+        toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server (OPENAI_API_KEY)'
+          : err === 'no_photos' ? 'Nessuna foto da impaginare'
+          : `Impaginazione AI non riuscita${err ? `: ${err}` : ''}`)
+        return
+      }
+      const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
+      if (!tavole.length) { toast.error("L'AI non ha restituito tavole"); return }
+      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds))
+      if (!newPages.length) { toast.error('Nessuna tavola generata'); return }
+      setPages(newPages); setCurrentPageId(newPages[0]!.id); setSelEl(null); setMultiSel([])
+      toast.success(`Impaginate ${tavole.length} tavole con l'AI`)
+    } catch (e) {
+      toast.error(`Impaginazione AI non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`)
+    } finally { setAiBusy(false) }
+  }
+
   // ── VISTA CLIENTE (mobile-first, stile Canva mobile): sfoglia le tavole grandi, zoom a tutto
   //    schermo, richiedi modifiche. Sola lettura: il cliente non modifica per sbaglio la struttura. ──
   if (lite) {
@@ -1601,6 +1671,7 @@ function AlbumDesignerInner() {
           <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
             {!lite && <Button variant="gold" size="sm" disabled={busy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)}><Wand2 size={14} /> Auto-impagina</Button>}
+            {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => void aiLayout()} title="L'AI impagina l'album al posto tuo: raggruppa le foto in tavole e segue il tuo stile (il modello che usi più spesso)">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
             <Button variant="outline" size="sm" disabled={!histPast.current.length} onClick={undo} title="Annulla (⌘Z)"><Undo2 size={14} /></Button>
