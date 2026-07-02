@@ -96,6 +96,7 @@ import { genTavolaLayouts, assignPhotos, gutterSlot, classifyAspect, type Orient
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
+import { MyStylePanel } from '@/components/album/MyStylePanel'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -995,6 +996,7 @@ function AlbumDesignerInner() {
   const [swapPick, setSwapPick] = useState<{ mediaId: string } | null>(null) // "Sostituisci con": scegli con quale scambiare
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
   const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
+  const [styleOpen, setStyleOpen] = useState(false) // pannello "Il mio stile" (impara dai PDF del fotografo)
   const [aiStyle, setAiStyle] = useState<string>('fotografo')
   const [aiMaxPer, setAiMaxPer] = useState<number>(0)        // 0 = automatico (dallo stile)
   const [aiGroupBw, setAiGroupBw] = useState<boolean>(true)  // tieni insieme le foto in bianco e nero
@@ -1946,6 +1948,7 @@ function AlbumDesignerInner() {
             {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>}
+            {!lite && <Button variant="outline" size="sm" disabled={busy} onClick={() => setStyleOpen(true)} title="Carica i tuoi album PDF: l'AI impara COME impagini (foto per tavola, respiro, doppia pagina) e 'Impagina con AI' comporrà nel tuo stile"><Frame size={14} /> Il mio stile</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
             <Button variant="outline" size="sm" disabled={!histPast.current.length} onClick={undo} title="Annulla (⌘Z)"><Undo2 size={14} /></Button>
@@ -2413,7 +2416,7 @@ function AlbumDesignerInner() {
               <div className="w-[min(94vw,620px)] max-h-[90vh] overflow-auto rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <p className="font-display text-lg">Impagina con AI</p>
                 <p className="mb-1 mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Poche scelte e l'AI compone l'album di conseguenza (legge le foto, gli orari di scatto e i volti).</p>
-                <p className="mb-3 text-xs"><Link to="/il-mio-stile" target="_blank" className="text-[rgb(var(--gold-700))] hover:underline">✨ Insegna il tuo stile</Link> <span className="text-[rgb(var(--fg-subtle))]">— carica un tuo album PDF e l'AI impaginerà come te.</span></p>
+                <p className="mb-3 text-xs"><button type="button" onClick={() => { setAiPick(false); setStyleOpen(true) }} className="text-[rgb(var(--gold-700))] hover:underline">Insegna il tuo stile</button> <span className="text-[rgb(var(--fg-subtle))]">— carica un tuo album PDF e l'AI impaginerà come te.</span></p>
 
                 <p className="mb-1.5 text-xs font-medium text-[rgb(var(--fg-muted))]">Stile</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -2471,6 +2474,15 @@ function AlbumDesignerInner() {
                   <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
                   <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat, maxPages: aiMaxPages }) }}><Sparkles size={14} /> Impagina</Button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* "IL MIO STILE" — dentro l'impaginatore: il fotografo carica i suoi album PDF e l'AI impara */}
+          {styleOpen && (
+            <div className="fixed inset-0 z-[93] flex items-center justify-center bg-black/50 p-4" onClick={() => setStyleOpen(false)}>
+              <div className="w-[min(94vw,640px)] max-h-[90vh] overflow-auto rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <MyStylePanel onClose={() => setStyleOpen(false)} />
               </div>
             </div>
           )}
