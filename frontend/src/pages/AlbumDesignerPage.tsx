@@ -1299,6 +1299,14 @@ function AlbumDesignerInner() {
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
     if (!clean.length) return [left, right]
+    // FOTO SINGOLA = scatto forte a DOPPIA PAGINA (full-bleed su entrambe le pagine), col ritaglio dell'AI
+    if (clean.length === 1) {
+      const mid = clean[0]!
+      const fo = focusMap?.[mid]
+      const cell: Cell = fo ? { z: 1, fx: fo.fx, fy: fo.fy } : { ...DEFAULT_CELL }
+      const hero: AlbumPage = { ...newPage(), mode: 'template', tavolaFree: false, spreadImage: { mediaId: mid, cell } }
+      return [hero, { ...newPage(), tavolaFree: false }]
+    }
     const orients = clean.map((id) => classifyAspect(aspects[id] ?? photoAspect.get(id) ?? 1))
     const saved = layouts.filter((l) => (l.els?.length ?? 0) === clean.length && l.els!.length > 0)
     let slots: Slot[]; let rots: number[]; const useSaved = saved.length > 0

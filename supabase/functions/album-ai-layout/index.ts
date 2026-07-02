@@ -205,13 +205,15 @@ Deno.serve(async (req) => {
       'Ricevi le foto GIÀ ANALIZZATE a vista: [id, m=momento, c=didascalia di cosa si vede, h=1 se scatto forte].',
       'Ragiona in due passi:',
       '1) ORDINA tutte le foto in un racconto coerente: cronologia del giorno seguendo i momenti (preparativi → cerimonia → ricevimento → festa), e dentro lo stesso momento tieni vicine le foto della STESSA scena/soggetto (leggi la didascalia c).',
-      `2) SPEZZA la sequenza in "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UN momento/scena coerente — NON mischiare mai momenti diversi nella stessa tavola. Uno scatto forte (h=1) va valorizzato: da solo o con 1-2 di supporto.`,
+      `2) SPEZZA la sequenza in "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UN momento/scena coerente — NON mischiare mai momenti diversi nella stessa tavola.`,
+      'VALORIZZA le foto forti: una foto con imp (importanza per la coppia) alto, oppure h=1 (scatto tecnicamente forte), va messa DA SOLA nella sua tavola → così prende la DOPPIA PAGINA intera. Non sprecarne più di una manciata.',
       'Bilancia orizzontali e verticali nella stessa tavola. La "note" di ogni tavola dice il momento (1-4 parole).',
       ...(styleG ? [`Applica inoltre lo ${styleG.hint}`] : []),
       styleHint,
       'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"..."}]}.',
     ].join('\n')
-    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, h: a.hero ? 1 : 0 }))
+    const likeById = new Map(photos.map((p) => [p.id, Math.max(0, Math.round(p.likes ?? 0))]))
+    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
     const data = await openai({ model: OPENAI_TEXT_MODEL, temperature: 0.4, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }] })
     const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
     rawTavole = Array.isArray(parsed?.tavole) ? parsed.tavole : []
