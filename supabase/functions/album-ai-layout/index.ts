@@ -36,7 +36,7 @@ const MOMENTS = ['preparativi','preparativi-sposo','dettagli-sposa','primo-sguar
 const M_ORDER = new Map(MOMENTS.map((m, i) => [m, i]))
 
 type InPhoto = { id: string; url?: string | null; moment?: string | null; aspect?: number | null; likes?: number | null; takenAt?: number | null }
-type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean; subjects?: string; people?: number; bw?: boolean; ht?: number; hb?: number }
+type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean; subjects?: string; people?: number; bw?: boolean; ht?: number; hb?: number; sx?: number; sr?: number }
 
 async function openai(body: unknown, attempt = 0): Promise<any> {
   const ctrl = new AbortController()
@@ -68,9 +68,9 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
   const sys = [
     'Sei un art director di album di matrimonio. Guarda ogni foto (LEGGI I VOLTI e i soggetti) e dai un giudizio per impaginarla.',
     `Per OGNI foto: moment (uno tra: ${MOMENTS.join(', ')}), caption (max 6 parole su cosa si vede), subjects (uno tra: sposi, sposa, sposo, coppia, persona, gruppo, famiglia, dettaglio, ambiente), people (numero approssimativo di persone nel frame, 0 se nessuna), fx e fy = CENTRO DEL VOLTO del soggetto principale in frazioni 0..1 (0,0=alto-sx, 1,1=basso-dx; se più volti, il baricentro), hero=true se scatto forte da valorizzare grande.`,
-    'ht = y del TOP DELLA TESTA più alta nel frame (frazione 0..1, dove inizia il capello sopra la fronte; serve per NON tagliare le teste). hb = y del punto più BASSO del corpo/mento visibile (0..1). Se non ci sono persone, ht=0 e hb=1.',
+    'RIQUADRO DI TUTTI I SOGGETTI (persone) da NON tagliare mai — 4 frazioni 0..1: ht = y del TOP della testa più alta, hb = y del punto più basso del corpo/mento visibile, sx = x del soggetto più a SINISTRA (bordo sinistro della persona più a sinistra), sr = x del soggetto più a DESTRA. Considera TUTTE le persone nel frame, non solo la principale. Se non ci sono persone: ht=0, hb=1, sx=0, sr=1.',
     'Aggiungi bw=true se la foto è in BIANCO E NERO (monocroma), false se a colori.',
-    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","subjects","people","bw","fx","fy","ht","hb","hero"}]}.',
+    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","subjects","people","bw","fx","fy","ht","hb","sx","sr","hero"}]}.',
   ].join('\n')
   const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]
   for (const p of withUrl) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'low' } })
@@ -96,6 +96,8 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
       bw: typeof x?.bw === 'boolean' ? x.bw : undefined,
       ht: Number.isFinite(x?.ht) ? clamp01(x.ht) : undefined,
       hb: Number.isFinite(x?.hb) ? clamp01(x.hb) : undefined,
+      sx: Number.isFinite(x?.sx) ? clamp01(x.sx) : undefined,
+      sr: Number.isFinite(x?.sr) ? clamp01(x.sr) : undefined,
     })).filter((x: Analysis) => x.id)
     const byId = new Map(out.map((a) => [a.id, a]))
     return photos.map((p) => byId.get(p.id) ?? { id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
@@ -223,8 +225,8 @@ Deno.serve(async (req) => {
     analyses = toSee.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
   }
   for (const p of rest) analyses.push({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
-  const focus: Record<string, { fx: number; fy: number; hero: boolean; moment: string; face: boolean; people: number; ht?: number; hb?: number }> = {}
-  for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment, face: (a.people ?? 0) > 0, people: a.people ?? 0, ht: a.ht, hb: a.hb }
+  const focus: Record<string, { fx: number; fy: number; hero: boolean; moment: string; face: boolean; people: number; ht?: number; hb?: number; sx?: number; sr?: number }> = {}
+  for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment, face: (a.people ?? 0) > 0, people: a.people ?? 0, ht: a.ht, hb: a.hb, sx: a.sx, sr: a.sr }
   const facesFound = Object.values(focus).filter((f) => f.face).length
 
   // ── FASE B: composizione (testo), con fallback euristico ──

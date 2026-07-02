@@ -17,22 +17,29 @@ import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, coverWindow, CROP_
 // Ritaglio TESTA-SAFE + aureo: orizzontalmente mette il volto su una linea aurea; verticalmente
 // GARANTISCE che la testa (ht = top testa) resti nell'inquadratura — MAI teste tagliate. z=1 (nessuno
 // zoom che tagli). Se il soggetto è più alto della finestra, priorità alla testa.
-function goldenCell(imgAspect: number, slotAspect: number, fx: number, fy: number, ht?: number, hb?: number, hasFace?: boolean): Cell {
+function goldenCell(imgAspect: number, slotAspect: number, fx: number, fy: number, ht?: number, hb?: number, hasFace?: boolean, sx?: number, sr?: number): Cell {
   const clamp = (v: number) => Math.min(1, Math.max(0, v))
   const w = coverWindow(imgAspect > 0 ? imgAspect : 1, slotAspect > 0 ? slotAspect : 1, { z: 1, fx: 0.5, fy: 0.5 })
-  const hWin = w.sh > 0 ? w.wh / w.sh : 1 // altezza finestra come frazione dell'immagine
-  // ORIZZONTALE: se c'è una PERSONA la CENTRO (non deve uscire dai lati); solo paesaggi/dettagli → aureo
-  const targetX = hasFace ? 0.5 : (fx <= 0.5 ? 0.382 : 0.618)
-  const cx = clamp(fx + w.ww * (0.5 - targetX))
-  // VERTICALE: se testa+corpo entrano nella finestra, li centro; poi ALZO la finestra se il top
-  // della testa cadrebbe comunque fuori → la testa è SEMPRE inclusa (priorità assoluta).
-  const top = typeof ht === 'number' ? ht : Math.max(0, fy - hWin * 0.28)   // top testa (stima se manca)
-  const bot = typeof hb === 'number' ? hb : Math.min(1, fy + hWin * 0.28)   // basso soggetto
-  const margin = 0.02
+  const hWin = w.sh > 0 ? w.wh / w.sh : 1 // altezza finestra (frazione altezza immagine)
+  const wWin = w.ww                        // larghezza finestra (frazione larghezza immagine)
+  // RIQUADRO DI TUTTI I SOGGETTI (se ci sono persone) da tenere dentro
+  const bx0 = hasFace ? (typeof sx === 'number' ? sx : clamp(fx - 0.15)) : fx
+  const bx1 = hasFace ? (typeof sr === 'number' ? sr : clamp(fx + 0.15)) : fx
+  const by0 = typeof ht === 'number' ? ht : (hasFace ? Math.max(0, fy - hWin * 0.28) : fy) // top testa
+  const by1 = typeof hb === 'number' ? hb : (hasFace ? Math.min(1, fy + hWin * 0.28) : fy) // basso corpo
+  const m = 0.02
+  // ORIZZONTALE: paesaggi → aureo; persone → includi TUTTO il riquadro (nessuno escluso ai lati)
+  let cx: number
+  if (!hasFace) { const t = fx <= 0.5 ? 0.382 : 0.618; cx = fx + wWin * (0.5 - t) }
+  else {
+    cx = (bx0 + bx1) / 2                                                    // centra il riquadro soggetti
+    if (bx1 - bx0 <= wWin) { if (cx - wWin / 2 > bx0 - m) cx = bx0 - m + wWin / 2; if (cx + wWin / 2 < bx1 + m) cx = bx1 + m - wWin / 2 }
+  }
+  // VERTICALE: se testa+corpo entrano li centro; poi ALZO per garantire SEMPRE la testa
   let cy = fy
-  if (bot - top <= hWin) cy = (top + bot) / 2                                // ci stanno entrambi → centra
-  if (cy - hWin / 2 > top - margin) cy = top - margin + hWin / 2            // altrimenti garantisci la testa
-  return { z: 1, fx: cx, fy: clamp(cy) }
+  if (by1 - by0 <= hWin) cy = (by0 + by1) / 2
+  if (cy - hWin / 2 > by0 - m) cy = by0 - m + hWin / 2
+  return { z: 1, fx: clamp(cx), fy: clamp(cy) }
 }
 
 // Griglia ordinata per tavole con TANTE foto (fino a 24): righe/colonne bilanciate su un'area.
@@ -1407,7 +1414,7 @@ function AlbumDesignerInner() {
   // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
   // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
   // stesso numero di foto; altrimenti genera la disposizione migliore.
-  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean; ht?: number; hb?: number; face?: boolean }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>, respectFormat = false): AlbumPage[] {
+  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean; ht?: number; hb?: number; face?: boolean; sx?: number; sr?: number }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>, respectFormat = false): AlbumPage[] {
     const clean = ids.filter((id) => mediaById.has(id))
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
@@ -1415,7 +1422,7 @@ function AlbumDesignerInner() {
     const spreadAspect = (fmt.w * 2) / fmt.h
     const gx = gutterMm / (fmt.w * 2), gy = gutterMm / fmt.h
     const iaOf = (id: string) => aspects[id] ?? photoAspect.get(id) ?? 1
-    const cellFor = (mid: string, sa: number): Cell => { const fo = focusMap?.[mid]; return fo ? goldenCell(iaOf(mid), sa, fo.fx, fo.fy, fo.ht, fo.hb, fo.face) : { ...DEFAULT_CELL } }
+    const cellFor = (mid: string, sa: number): Cell => { const fo = focusMap?.[mid]; return fo ? goldenCell(iaOf(mid), sa, fo.fx, fo.fy, fo.ht, fo.hb, fo.face, fo.sx, fo.sr) : { ...DEFAULT_CELL } }
 
     // DOPPIA PAGINA: 1 foto forte full-bleed su entrambe le pagine, ritaglio aureo sul volto
     if (clean.length === 1 && (heroDouble || layout === 'double')) {
@@ -1532,7 +1539,7 @@ function AlbumDesignerInner() {
       }
       const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
       if (!tavole.length) { toast.error("L'AI non ha restituito tavole"); return }
-      const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean; face?: boolean; ht?: number; hb?: number }> }).focus ?? {}
+      const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean; face?: boolean; ht?: number; hb?: number; sx?: number; sr?: number }> }).focus ?? {}
       setFaceMap(focusMap) // mostra sulle miniature dove l'AI ha trovato i volti
       const usedSigs = new Map<string, number>() // per far VARIARE i template tra una tavola e l'altra
       const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false, (t as { layout?: string }).layout, usedSigs, opts?.respectFormat !== false))
@@ -2352,18 +2359,24 @@ function AlbumDesignerInner() {
           {/* SOSTITUISCI CON… : scegli un'altra foto e le due si SCAMBIANO di posto */}
           {swapPick && (
             <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/50 p-4" onClick={() => setSwapPick(null)}>
-              <div className="flex max-h-[85vh] w-[min(94vw,720px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="font-display text-base">Scambia con quale foto?</p>
+              <div className="flex max-h-[90vh] w-[min(96vw,1100px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {(() => { const cur = mediaById.get(swapPick.mediaId); return cur ? <img src={thumbUrl(cur)} alt="" className="h-12 w-12 rounded object-cover ring-2 ring-[rgb(var(--gold-500))]" /> : null })()}
+                    <div>
+                      <p className="font-display text-base">Scambia questa foto con…</p>
+                      <p className="text-xs text-[rgb(var(--fg-muted))]">Le due si scambiano di posto in tutto l'album.</p>
+                    </div>
+                  </div>
                   <Button variant="outline" size="sm" onClick={() => setSwapPick(null)}>Annulla</Button>
                 </div>
-                <p className="mb-2 text-xs text-[rgb(var(--fg-muted))]">Le due foto si scambiano di posto in tutto l'album.</p>
-                <div className="grid grid-cols-4 gap-2 overflow-auto sm:grid-cols-6">
+                <div className="mt-2 grid grid-cols-2 gap-3 overflow-auto sm:grid-cols-3 lg:grid-cols-4">
                   {trayMedia.filter((m) => m.id !== swapPick.mediaId).map((m) => (
                     <button key={m.id} onClick={() => { swapPhotos(swapPick.mediaId, m.id); setSwapPick(null) }}
-                      className="relative aspect-square overflow-hidden rounded border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-500))] hover:ring-2 hover:ring-[rgb(var(--gold-400))]">
-                      <img src={thumbUrl(m)} alt="" loading="lazy" className="h-full w-full object-cover" />
-                      {(usageCount.get(m.id) ?? 0) >= 1 && <span className="absolute top-0.5 right-0.5 h-[14px] min-w-[14px] rounded-full bg-black/55 px-0.5 text-center text-[8px] leading-[14px] text-white">✓</span>}
+                      className="group/sw relative aspect-[4/3] overflow-hidden rounded-lg border border-[rgb(var(--border))] transition-all hover:border-[rgb(var(--gold-500))] hover:ring-2 hover:ring-[rgb(var(--gold-400))]">
+                      <img src={hiUrl(m)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      <div className="absolute inset-0 hidden items-center justify-center bg-black/40 group-hover/sw:flex"><span className="rounded-full bg-[rgb(var(--gold-500))] px-3 py-1 text-xs font-semibold text-white">Scambia</span></div>
+                      {(usageCount.get(m.id) ?? 0) >= 1 && <span className="absolute top-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white">in album</span>}
                     </button>
                   ))}
                 </div>
