@@ -133,6 +133,7 @@ const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m
 
 // Stili di impaginazione che l'AI può seguire (li sceglie il fotografo prima di comporre).
 const AI_STYLES: { key: string; label: string; desc: string }[] = [
+  { key: 'fotografo',     label: 'Il mio stile',  desc: 'Come i tuoi album: poche foto per pagina, tanto respiro, foto intere; doppia pagina solo sugli orizzontali forti; gruppi in mosaico.' },
   { key: 'narrativo',     label: 'Narrativo',     desc: 'Racconto cronologico, tante foto che scorrono. Stile reportage.' },
   { key: 'editoriale',    label: 'Editoriale',    desc: 'Stile magazine: molto respiro, pochi scatti forti per tavola.' },
   { key: 'ritrattistico', label: 'Ritrattistico', desc: 'Ritratti e persone protagonisti, primi piani e coppie in grande.' },
@@ -994,7 +995,7 @@ function AlbumDesignerInner() {
   const [swapPick, setSwapPick] = useState<{ mediaId: string } | null>(null) // "Sostituisci con": scegli con quale scambiare
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
   const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
-  const [aiStyle, setAiStyle] = useState<string>('narrativo')
+  const [aiStyle, setAiStyle] = useState<string>('fotografo')
   const [aiMaxPer, setAiMaxPer] = useState<number>(0)        // 0 = automatico (dallo stile)
   const [aiGroupBw, setAiGroupBw] = useState<boolean>(true)  // tieni insieme le foto in bianco e nero
   const [aiHeroDouble, setAiHeroDouble] = useState<boolean>(true) // foto forti a doppia pagina
@@ -1431,6 +1432,12 @@ function AlbumDesignerInner() {
     // RISPETTA FORMATO = PRIORITÀ ASSOLUTA: ogni foto al suo aspetto ESATTO (niente double/full che
     // tagliano), con margine di sicurezza dai bordi di taglio → visi mai sul trim, niente teste tagliate.
     if (respectFormat) {
+      // STILE GISKO: uno scatto ORIZZONTALE forte da solo → DOPPIA PAGINA full-bleed (auto, navata,
+      // coppia, brindisi). I verticali e i gruppi NON vanno mai full-bleed → riquadri con bianco.
+      if (clean.length === 1 && iaOf(clean[0]!) >= 1.4 && (heroDouble || layout === 'double')) {
+        const mid = clean[0]!
+        return [{ ...newPage(), mode: 'template', tavolaFree: false, spreadImage: { mediaId: mid, cell: cellFor(mid, spreadAspect) } }, { ...newPage(), tavolaFree: false }]
+      }
       const SAFE = 0.045, ins = 0.985
       const js = justifiedSlots(clean.map(iaOf), spreadAspect)
       left.elements = js.map((s, i) => {

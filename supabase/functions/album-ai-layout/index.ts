@@ -190,6 +190,7 @@ Deno.serve(async (req) => {
 
   // STILE di impaginazione scelto dal fotografo: cambia cadenza + criterio di composizione.
   const STYLE_GUIDE: Record<string, { hint: string; maxPer: number; chrono: 'strict' | 'ref' }> = {
+    fotografo:    { maxPer: 8, chrono: 'strict', hint: 'STILE DEL FOTOGRAFO (imita i suoi album): POCHE foto per tavola, tanto RESPIRO — spesso 1-2 foto per pagina (2-4 per tavola), a volte una foto sola. Ogni foto INTERA, mai tagliata. DOPPIA PAGINA (layout "double") SOLO per uno scatto ORIZZONTALE forte (auto, navata, coppia, brindisi) — MAI verticali o gruppi a doppia pagina. Verticali a coppie o in strisce di 3 (dettagli: scarpe, fedi, bouquet). GRUPPI e TAVOLATE in mosaici fitti da 6-9 foto. Bianco e nero in tavole dedicate. Segui la cronologia.' },
     narrativo:    { maxPer: 6, chrono: 'strict', hint: 'STILE NARRATIVO: comanda la CRONOLOGIA di scatto (EXIF). Racconto reportage fitto, molte foto che scorrono nella sequenza esatta degli attimi, ritmo continuo.' },
     editoriale:   { maxPer: 3, chrono: 'ref',    hint: 'STILE EDITORIALE (magazine): comandano gli SCATTI FORTI e il ritmo visivo. Molto respiro, 1-3 foto per tavola, gli hero grandi e isolati; la cronologia è solo uno sfondo.' },
     ritrattistico:{ maxPer: 4, chrono: 'ref',    hint: 'STILE RITRATTISTICO: comandano i RITRATTI e le PERSONE. Raggruppa per soggetto (sposi, coppie, volti), primi piani in grande, volti protagonisti; cronologia secondaria.' },
