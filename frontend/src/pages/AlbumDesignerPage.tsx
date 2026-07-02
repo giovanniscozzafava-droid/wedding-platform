@@ -1676,8 +1676,8 @@ function AlbumDesignerInner() {
           {/* barra strumenti impaginatore */}
           <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
-            {!lite && <Button variant="gold" size="sm" disabled={busy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)}><Wand2 size={14} /> Auto-impagina</Button>}
-            {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => void aiLayout()} title="L'AI impagina l'album al posto tuo: raggruppa le foto in tavole e segue il tuo stile (il modello che usi più spesso)">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
+            {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => void aiLayout()} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
+            {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
             <Button variant="outline" size="sm" disabled={!histPast.current.length} onClick={undo} title="Annulla (⌘Z)"><Undo2 size={14} /></Button>
@@ -1903,7 +1903,7 @@ function AlbumDesignerInner() {
                   </div>
                 ) : (
                   <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">
-                    Nessuna tavola. Premi <strong>Auto-impagina</strong> o aggiungi una tavola.
+                    Nessuna tavola. Premi <strong>Impagina con AI</strong> o aggiungi una tavola.
                     <div className="mt-3"><Button variant="outline" size="sm" onClick={addSpread}><Plus size={14} /> Tavola vuota</Button></div>
                   </Card>
                 )}
