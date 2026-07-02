@@ -1325,6 +1325,7 @@ function AlbumDesignerInner() {
   async function aiLayout() {
     if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
+    setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
     setAiBusy(true)
     try {
       const payload = {
@@ -1661,6 +1662,12 @@ function AlbumDesignerInner() {
 
       {step === 'select' ? (
         <div className="max-w-7xl mx-auto px-4 py-5">
+          {!lite && !isCouple && kept.length >= 2 && (
+            <div className="mb-4 flex items-center justify-between gap-3 flex-wrap rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-4 py-3">
+              <p className="text-sm text-[rgb(var(--fg))]">Hai <strong>{kept.length}</strong> foto selezionate. Lascia impaginare l'album all'AI: guarda le foto, le raggruppa in tavole e sceglie il ritaglio.</p>
+              <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => void aiLayout()}>{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>
+            </div>
+          )}
           <SelectStep
             photos={photos} kept={kept} total={total} okRange={okRange} untagged={untagged}
             missingMin={missingMin} perMoment={perMoment}
