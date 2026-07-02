@@ -10,9 +10,10 @@
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 // VISIONE (tante chiamate) su gpt-4o-mini: vision-capable, rate limit alti, economico (account nuovi).
 const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini'
-// COMPOSIZIONE (1 sola chiamata testo): modello potente per ragionare bene. Default gpt-4.1, con
-// ripiego automatico a gpt-4o se l'account non ci ha accesso. Override via env (es. 'gpt-5').
-const OPENAI_TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') ?? 'gpt-4.1'
+// COMPOSIZIONE (1 sola chiamata testo): CASCATA dal più avanzato al sicuro. Usa il primo modello a
+// cui l'account ha davvero accesso (i non disponibili danno 404 e si saltano). Override env in testa.
+const OPENAI_TEXT_OVERRIDE = Deno.env.get('OPENAI_TEXT_MODEL') ?? ''
+const TEXT_MODELS = [...new Set([OPENAI_TEXT_OVERRIDE, 'gpt-5.5', 'gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o'].filter((x) => x))]
 const MAX_VISION = 130
 const BATCH = 8
 const CONCURRENCY = 3
@@ -202,6 +203,7 @@ Deno.serve(async (req) => {
 
   // ── FASE B: composizione (testo), con fallback euristico ──
   let rawTavole: { photoIds?: string[]; note?: string }[] = []
+  let composeModel = ''
   try {
     const sysB = [
       `Sei un art director esperto di album di ${term}. Impagini al posto del fotografo, con un criterio preciso — MAI a caso.`,
@@ -220,13 +222,15 @@ Deno.serve(async (req) => {
     const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
     const msgsB = [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }]
     let data: any
-    try { data = await openai({ model: OPENAI_TEXT_MODEL, temperature: 0.4, response_format: { type: 'json_object' }, messages: msgsB }) }
-    catch (e) {
-      // modello scelto non accessibile all'account → ripiego su gpt-4o (sempre disponibile)
-      if (OPENAI_TEXT_MODEL !== 'gpt-4o' && /model|404|does not exist|not found|no access|does not have access|invalid model/i.test(String(e))) {
-        reasons.push(`modello ${OPENAI_TEXT_MODEL} non accessibile → gpt-4o`)
-        data = await openai({ model: 'gpt-4o', temperature: 0.4, response_format: { type: 'json_object' }, messages: msgsB })
-      } else throw e
+    // CASCATA modelli: prova dal più avanzato; salta quelli non accessibili (404/modello inesistente).
+    for (let mi = 0; mi < TEXT_MODELS.length; mi++) {
+      const mdl = TEXT_MODELS[mi]!
+      try { data = await openai({ model: mdl, temperature: 0.4, response_format: { type: 'json_object' }, messages: msgsB }); composeModel = mdl; break }
+      catch (e) {
+        const isModelErr = /model|404|does not exist|not found|no access|does not have access|invalid model/i.test(String(e))
+        if (isModelErr && mi < TEXT_MODELS.length - 1) { continue } // prova il prossimo
+        throw e
+      }
     }
     const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
     rawTavole = Array.isArray(parsed?.tavole) ? parsed.tavole : []
@@ -250,5 +254,5 @@ Deno.serve(async (req) => {
   if (!tavole.length) return json({ error: 'ai_empty' }, 502)
 
   const degraded = reasons.length > 0
-  return json({ tavole, focus, seen: visionOk, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: OPENAI_MODEL })
+  return json({ tavole, focus, seen: visionOk, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: OPENAI_MODEL, composeModel: composeModel || 'euristica' })
 })

@@ -1388,8 +1388,9 @@ function AlbumDesignerInner() {
       const degraded = (data as { degraded?: boolean }).degraded
       const reason = (data as { reason?: string }).reason
       const seen = (data as { seen?: number }).seen ?? 0
-      if (degraded) toast.warning(`Impaginate ${tavole.length} tavole · AI ha letto ${seen} foto · parziale: ${reason ?? 'OpenAI limitato'}`, { duration: 12000 })
-      else toast.success(`Impaginate ${tavole.length} tavole · AI ha letto ${seen} foto`, { duration: 6000 })
+      const cModel = (data as { composeModel?: string }).composeModel ?? ''
+      if (degraded) toast.warning(`Impaginate ${tavole.length} tavole · letto ${seen} foto · modello ${cModel} · parziale: ${reason ?? 'OpenAI limitato'}`, { duration: 12000 })
+      else toast.success(`Impaginate ${tavole.length} tavole · letto ${seen} foto · composto con ${cModel}`, { duration: 7000 })
     } catch (e) {
       toast.error(`Impaginazione AI non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`)
     } finally { setAiBusy(false) }
