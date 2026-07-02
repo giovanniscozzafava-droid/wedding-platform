@@ -18,7 +18,8 @@ import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spaci
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
 import { genTavolaLayouts, assignPhotos, gutterSlot, classifyAspect, type Orient, type Slot, type GenLayout } from '@/lib/albumPresetGen'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
-import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
+import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -277,6 +278,7 @@ function AlbumDesignerInner() {
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
   const [bleed, setBleed] = useState(false)            // abbondanza per la stampa
   const [aspects, setAspects] = useState<Record<string, number>>({}) // aspetto naturale per crop
+  const [realDims, setRealDims] = useState<Record<string, RealDim>>({}) // px reali (per avviso bassa risoluzione)
   const [currentPageId, setCurrentPageId] = useState<string | null>(null) // pagina aperta nel canvas grande
   const [gridOn, setGridOn] = useState(false)          // griglia stile Photoshop
   const [marginsOn, setMarginsOn] = useState(true)     // guide margini
@@ -501,6 +503,41 @@ function AlbumDesignerInner() {
       toast.error(`Non riesco a salvare il like: ${error?.message ?? (data as { error?: string }).error}`)
     }
   }
+  // ELIMINA una foto DALLA SELEZIONE (non dal disco): la toglie da TUTTE le tavole, dalla memoria
+  // libreria e la scarta (KEPT→DISCARDED). Così sparisce dal cassetto e TUTTI i numeri si aggiornano
+  // (Usate, ×N, selezione album, minimi per momento, avviso risoluzione). Vale sia per le foto che ho
+  // caricato io sia per quelle scelte dalla coppia. Reversibile dal passo "Selezione" (ri-metti il cuore).
+  async function removeFromSelection(m: M) {
+    const n = usageCount.get(m.id) ?? 0
+    if (n > 0 && !window.confirm(`Questa foto è ${n > 1 ? `usata ${n} volte` : 'usata'} nell'album: toglierla dalla selezione la rimuoverà anche dalle tavole. Procedere?`)) return
+    // 1) via da tutte le tavole (elementi liberi, slot template, foto a doppia pagina)
+    setPages((prev) => prev.map((p) => {
+      let np: AlbumPage = p
+      const els = p.elements ?? []
+      if (els.some((e) => e.mediaId === m.id)) np = { ...np, elements: els.filter((e) => e.mediaId !== m.id) }
+      const mids = p.mediaIds ?? []
+      if (mids.includes(m.id)) {
+        const keep = mids.map((id, i) => (id === m.id ? -1 : i)).filter((i) => i >= 0)
+        np = { ...np, mediaIds: keep.map((i) => mids[i]!), cells: p.cells ? keep.map((i) => p.cells![i] ?? null) : np.cells }
+      }
+      if (p.spreadImage?.mediaId === m.id) np = { ...np, spreadImage: null }
+      return np
+    }))
+    // 2) togli dalla memoria libreria + eventuali selezioni attive
+    setEverPlaced((prev) => { if (!prev.has(m.id)) return prev; const nx = new Set(prev); nx.delete(m.id); return nx })
+    setSelEl((s) => (s === m.id ? null : s))
+    setMultiSel((s) => s.filter((x) => x !== m.id))
+    // 3) scarta dalla selezione album (soft, NON da disco). Se era già DISCARDED, basta il passo 1-2.
+    if (m.album_choice === 'KEPT') {
+      setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: 'DISCARDED' } : x)))
+      const { data, error } = await (supabase.rpc as any)('set_album_choice', { p_media: m.id, p_choice: 'DISCARDED' })
+      if (error || (data && (data as { error?: string }).error)) {
+        setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: 'KEPT' } : x)))
+        toast.error('Non sono riuscito a togliere la foto dalla selezione'); return
+      }
+    }
+    toast.success('Foto tolta dalla selezione')
+  }
   // Seleziona/deseleziona TUTTI i cuori in UN colpo (RPC atomica: niente fallimenti parziali).
   async function setKeepAll(choice: 'KEPT' | 'DISCARDED') {
     const changing = photos.filter((m) => (m.album_choice ?? 'DISCARDED') !== choice)
@@ -620,6 +657,31 @@ function AlbumDesignerInner() {
   }, [pages])
   // tutte le foto già piazzate = chiavi del conteggio (coerente al 100% col badge)
   const placedIds = useMemo(() => new Set(usageCount.keys()), [usageCount])
+
+  // AVVISO BASSA RISOLUZIONE: misura i pixel REALI (via hiUrl w1600) delle SOLE foto piazzate.
+  // Drive non ingrandisce: thumb < 1600px ⇒ originale piccolo certo; cappata a 1600 ⇒ grande/ignoto.
+  // Misuriamo solo le piazzate per non scaricare a vuoto tutta la libreria a piena risoluzione.
+  useEffect(() => {
+    for (const id of placedIds) {
+      if (realDims[id]) continue
+      const m = mediaById.get(id)
+      if (!m || m.media_type !== 'PHOTO') continue
+      const url = hiUrl(m)
+      if (!url) continue
+      const img = new Image()
+      img.onload = () => {
+        const w = img.naturalWidth, h = img.naturalHeight
+        if (!w || !h) return
+        const capped = isDrive(m) && Math.max(w, h) >= HIURL_CAP - 10 // Drive ha cappato → originale ≥1600, ignoto
+        setRealDims((d) => (d[id] ? d : { ...d, [id]: { w, h, capped } }))
+      }
+      img.src = url
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placedIds, mediaById])
+
+  // Foto piazzate a rischio stampa (per il chip globale in toolbar).
+  const lowResFlags = useMemo(() => countLowRes(pages, format, realDims), [pages, format, realDims])
   // MEMORIA della libreria: l'insieme delle foto piazzate cresce in modo monotòno e NON si
   // svuota quando tolgo una foto dalla tavola → così la foto torna disponibile a sinistra
   // (nitida) invece di sparire. I "cuori" (KEPT) sono già persistiti in DB; questo evita il
@@ -702,6 +764,13 @@ function AlbumDesignerInner() {
     const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const b: AlbumPage = { ...newPage(), tavolaFree: false }
     setPages((arr) => [...arr, a, b]); setCurrentPageId(a.id)
+  }
+  // Inserisce una tavola vuota SUBITO DOPO la tavola `si` (in sequenza), non in fondo.
+  function addSpreadAfter(si: number) {
+    const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
+    const b: AlbumPage = { ...newPage(), tavolaFree: false }
+    setPages((arr) => { const at = Math.min(arr.length, (si + 1) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
+    setCurrentPageId(a.id)
   }
   function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
   function moveSpread(si: number, dir: -1 | 1) {
@@ -801,6 +870,7 @@ function AlbumDesignerInner() {
   // MENU CONTESTUALE (tasto destro su una foto)
   const [ctxMenu, setCtxMenu] = useState<{ pageId: string; id: string; x: number; y: number } | null>(null)
   function openCtx(pageId: string, id: string, x: number, y: number) { if (!multiSel.includes(id)) { setSelEl(id); setMultiSel([]) } setCtxMenu({ pageId, id, x, y }) }
+  const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
   // APRI IN PHOTOSHOP: (1) scarica l'ORIGINALE a piena risoluzione come file su disco, (2) tenta di
   // AVVIARE Photoshop via protocol-handler `photoshop://`. Un'app web non può forzare l'apertura di
   // un'app desktop se non tramite protocollo registrato: se Photoshop non parte da solo, il file è
@@ -1541,6 +1611,12 @@ function AlbumDesignerInner() {
             <ToolToggle on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
             <ToolToggle on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
             {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
+            {(lowResFlags.low > 0 || lowResFlags.warn > 0) && (
+              <span title="Alcune foto piazzate sono a risoluzione troppo bassa per la dimensione di stampa: in album risulterebbero sgranate. Cercale (bordo/badge arancione sulla tavola), rimpiccioliscile o sostituiscile con una versione a risoluzione più alta."
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${lowResFlags.low > 0 ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
+                <AlertTriangle size={13} /> {lowResFlags.low + lowResFlags.warn} a bassa risoluzione
+              </span>
+            )}
             {/* "Libera": ON = editi a mano (handle); spegnendola ESCI → la composizione resta
                 CONGELATA IDENTICA (stesse posizioni/ritagli/rotazioni), solo non più editabile a
                 mano. Riaccendendola rientri in modifica. Un preset/griglia la SOVRASCRIVE. */}
@@ -1584,21 +1660,31 @@ function AlbumDesignerInner() {
               </select>
               <div className="grid grid-cols-2 gap-1.5">
                 {trayFiltered.map((m) => (
-                  <button key={m.id}
-                    draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
-                    onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
-                    title={getMoment(m.album_moment)?.label ?? 'senza momento'}
-                    className={`relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'border-[rgb(var(--border))]' : 'border-[rgb(var(--gold-400))] ring-1 ring-[rgb(var(--gold-400))]'}`}>
-                    {/* SEMPRE a colori. INSERITE: sfumate (opacità) → si capisce che sono a posto.
-                        NON inserite: piene e nitide, con bordino dorato → le foto che MANCANO
-                        saltano subito all'occhio. (niente bianco/nero) */}
-                    <img src={thumbUrl(m)} alt="" loading="lazy"
-                      className={`w-full h-full object-cover ${placedIds.has(m.id) ? 'opacity-40' : ''}`} />
-                    {(() => { const n = usageCount.get(m.id) ?? 0; return n >= 1 ? (
-                      <span title={n > 1 ? `Usata ${n} volte` : 'Usata 1 volta'}
-                        className={`absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full text-[9px] font-bold leading-[15px] text-center text-white ${n > 1 ? 'bg-[rgb(var(--rose-500))] ring-1 ring-white' : 'bg-black/55'}`}>{n > 1 ? `×${n}` : '✓'}</span>
-                    ) : null })()}
-                  </button>
+                  <div key={m.id} className="relative group/tray">
+                    <button
+                      draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
+                      onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
+                      title={getMoment(m.album_moment)?.label ?? 'senza momento'}
+                      className={`block w-full relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'border-[rgb(var(--border))]' : 'border-[rgb(var(--gold-400))] ring-1 ring-[rgb(var(--gold-400))]'}`}>
+                      {/* SEMPRE a colori. INSERITE: sfumate (opacità) → si capisce che sono a posto.
+                          NON inserite: piene e nitide, con bordino dorato → le foto che MANCANO
+                          saltano subito all'occhio. (niente bianco/nero) */}
+                      <img src={thumbUrl(m)} alt="" loading="lazy"
+                        className={`w-full h-full object-cover ${placedIds.has(m.id) ? 'opacity-40' : ''}`} />
+                      {(() => { const n = usageCount.get(m.id) ?? 0; return n >= 1 ? (
+                        <span title={n > 1 ? `Usata ${n} volte` : 'Usata 1 volta'}
+                          className={`absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full text-[9px] font-bold leading-[15px] text-center text-white ${n > 1 ? 'bg-[rgb(var(--rose-500))] ring-1 ring-white' : 'bg-black/55'}`}>{n > 1 ? `×${n}` : '✓'}</span>
+                      ) : null })()}
+                    </button>
+                    {/* ELIMINA dalla selezione (non dal disco): compare in hover, aggiorna tutti i numeri */}
+                    {!lite && (
+                      <button title="Togli dalla selezione (non elimina dal disco)"
+                        onClick={(e) => { e.stopPropagation(); void removeFromSelection(m) }}
+                        className="absolute top-0.5 left-0.5 z-10 h-[16px] w-[16px] rounded-full bg-black/55 text-white flex items-center justify-center opacity-0 group-hover/tray:opacity-100 hover:bg-rose-600 transition-opacity">
+                        <X size={11} />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             </aside>
@@ -1622,7 +1708,7 @@ function AlbumDesignerInner() {
                       return (
                         <div key={lp.id} onPointerDownCapture={activate} className="relative h-full" style={{ aspectRatio: String(asp * spreadPages.length) }}>
                           <FreeStage page={lp} formatKey={format} spread bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={null}
-                            aspects={aspects} mediaById={mediaById} thumb={thumbUrl} locked={!!lp.frozen} selEl={!lp.frozen ? selEl : null} multiSel={!lp.frozen ? multiSel : []}
+                            aspects={aspects} realDims={realDims} mediaById={mediaById} thumb={thumbUrl} locked={!!lp.frozen} selEl={!lp.frozen ? selEl : null} multiSel={!lp.frozen ? multiSel : []}
                             onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(lp.id, id, patch)}
                             onUpdateMany={(patches) => freeUpdateMany(lp.id, patches)}
                             onRemove={(id) => freeRemove(lp.id, id)} onDuplicateEl={(id) => freeDuplicate(lp.id, id)}
@@ -1637,7 +1723,7 @@ function AlbumDesignerInner() {
                         <div key={p.id} onPointerDownCapture={activate} className="relative h-full" style={{ aspectRatio: String(asp) }}>
                           {p.mode === 'free' ? (
                             <FreeStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
-                              aspects={aspects} mediaById={mediaById} thumb={thumbUrl} locked={!!p.frozen} selEl={isAct && !p.frozen ? selEl : null} multiSel={isAct && !p.frozen ? multiSel : []}
+                              aspects={aspects} realDims={realDims} mediaById={mediaById} thumb={thumbUrl} locked={!!p.frozen} selEl={isAct && !p.frozen ? selEl : null} multiSel={isAct && !p.frozen ? multiSel : []}
                               onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(p.id, id, patch)}
                               onUpdateMany={(patches) => freeUpdateMany(p.id, patches)}
                               onRemove={(id) => freeRemove(p.id, id)} onDuplicateEl={(id) => freeDuplicate(p.id, id)}
@@ -1659,6 +1745,8 @@ function AlbumDesignerInner() {
                       if (!lp || !sp) return null
                       const m = mediaById.get(sp.mediaId)
                       const fr = spreadFrameOf(sp)
+                      const spQ: Quality = m ? photoQuality(realDims[sp.mediaId], fr.w * fmt.w * 2, fr.h * fmt.h, sp.cell) : { level: 'ok', dpi: 0 }
+                      const spLow = spQ.level === 'low' || spQ.level === 'warn'
                       const startDrag = (e: React.PointerEvent, kind: 'move' | 'nw' | 'ne' | 'sw' | 'se') => {
                         if (lite) return; e.stopPropagation(); const r = spreadRef.current!.getBoundingClientRect()
                         spreadDrag.current = { kind, sx: e.clientX, sy: e.clientY, w: r.width, h: r.height, id: lp.id, f: fr }
@@ -1686,6 +1774,14 @@ function AlbumDesignerInner() {
                             <div className={`absolute inset-0 overflow-hidden bg-white ${lite ? '' : 'outline outline-2 outline-[rgb(var(--gold-500))]'}`}>
                               {m ? <img src={thumbUrl(m)} alt="" draggable={false} onPointerDown={(e) => startDrag(e, 'move')} className={lite ? '' : 'cursor-move touch-none'} style={coverImgStyle(sp.cell)} />
                                  : <div className="absolute inset-0 flex items-center justify-center text-sm text-[rgb(var(--fg-subtle))]">foto non disponibile</div>}
+                              {spLow && !lite && (
+                                <>
+                                  <div className={`absolute inset-0 pointer-events-none ring-2 ring-inset ${spQ.level === 'low' ? 'ring-rose-500/80' : 'ring-amber-400/80'}`} />
+                                  <div title={qualityHint(spQ)} className={`absolute top-1 left-1 z-[46] inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold text-white pointer-events-none shadow ${spQ.level === 'low' ? 'bg-rose-600/90' : 'bg-amber-500/95'}`}>
+                                    <AlertTriangle size={11} /> {spQ.dpi} dpi · bassa risoluzione
+                                  </div>
+                                </>
+                              )}
                             </div>
                             {!lite && (['nw', 'ne', 'sw', 'se'] as const).map((c) => (
                               <div key={c} onPointerDown={(e) => startDrag(e, c)} className="absolute h-3.5 w-3.5 bg-white border border-[rgb(var(--gold-500))] rounded-sm touch-none z-[47]"
@@ -1757,7 +1853,8 @@ function AlbumDesignerInner() {
                     mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                     onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
                     onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
-                    onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => moveSpreadInsert(from, to)} />
+                    onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => moveSpreadInsert(from, to)}
+                    onContext={(x, y) => setNavMenu({ si, x, y })} />
                 ))}
                 {!lite && <button onClick={addSpread} className="shrink-0 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ height: stripH, aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
@@ -1875,6 +1972,26 @@ function AlbumDesignerInner() {
                   <CtxItem label="Porta in fondo" onClick={() => run(() => freeSendBack(cm.pageId, cm.id))} />
                   <CtxSep />
                   <CtxItem label="Elimina" sk="⌫" danger onClick={() => run(deleteSel)} />
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* MENU CONTESTUALE del NAVIGATORE (tasto destro su una tavola nella filmstrip) */}
+          {navMenu && (() => {
+            const nm = navMenu; const close = () => setNavMenu(null); const run = (fn: () => void) => { fn(); close() }
+            const left = Math.min(nm.x, window.innerWidth - 232); const top = Math.min(nm.y, window.innerHeight - 200)
+            const nSpreads = Math.ceil(pages.length / 2)
+            return (
+              <div className="fixed inset-0 z-[90]" onPointerDown={close} onContextMenu={(e) => { e.preventDefault(); close() }}>
+                <div className="absolute min-w-[210px] rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-xl py-1 text-sm" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
+                  <CtxItem label="Aggiungi tavola dopo" onClick={() => run(() => addSpreadAfter(nm.si))} />
+                  <CtxItem label="Aggiungi tavola prima" onClick={() => run(() => addSpreadAfter(nm.si - 1))} />
+                  <CtxSep />
+                  <CtxItem label="Sposta a sinistra" disabled={nm.si <= 0} onClick={() => run(() => moveSpread(nm.si, -1))} />
+                  <CtxItem label="Sposta a destra" disabled={nm.si >= nSpreads - 1} onClick={() => run(() => moveSpread(nm.si, 1))} />
+                  <CtxSep />
+                  <CtxItem label="Elimina tavola" danger onClick={() => run(() => delSpread(nm.si))} />
                 </div>
               </div>
             )
@@ -2238,6 +2355,7 @@ function PageStage(props: {
 function FreeStage(props: {
   page: AlbumPage; formatKey: string; bleed: boolean; gridOn: boolean; marginsOn: boolean; pageNum?: number | null
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string; selEl: string | null; multiSel: string[]
+  realDims?: Record<string, RealDim>   // px reali per l'avviso bassa risoluzione (badge sulle foto)
   onSelect: (id: string | null, additive?: boolean) => void; onUpdateEl: (id: string, patch: Partial<FreeEl>) => void
   onUpdateMany: (patches: { id: string; patch: Partial<FreeEl> }[]) => void
   onRemove: (id: string) => void; onDuplicateEl: (id: string) => void; onDropMedia: (id: string) => void
@@ -2247,7 +2365,7 @@ function FreeStage(props: {
   locked?: boolean   // libera "uscita": mostra la composizione identica ma non editabile a mano
   spread?: boolean   // TAVOLA UNICA: superficie larga 2×W (la riga centrale è solo la piega)
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, onSelect, onUpdateEl, onUpdateMany, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, onContext, locked, spread } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, realDims, onSelect, onUpdateEl, onUpdateMany, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, onContext, locked, spread } = props
   const fmt = getFormat(formatKey)
   const effW = spread ? fmt.w * 2 : fmt.w
   const aspect = effW / fmt.h
@@ -2405,6 +2523,9 @@ function FreeStage(props: {
         const m = mediaById.get(el.mediaId)
         const sel = selEl === el.id
         const inSel = multiSel.includes(el.id)
+        const pm = elPrintMm(el, fmt, !!spread)
+        const q: Quality = m ? photoQuality(realDims?.[el.mediaId], pm.w, pm.h, el.cell) : { level: 'ok', dpi: 0 }
+        const lowRes = q.level === 'low' || q.level === 'warn'
         return (
           <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : inSel ? 10 : 1 }}>
             <div
@@ -2418,6 +2539,14 @@ function FreeStage(props: {
               style={{ backgroundColor: m ? undefined : 'rgba(0,0,0,.06)', boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${Math.max(1, el.border.w)}px solid ${el.border.color}` : undefined }}>
               {m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}
               {dropId === el.id && <div className="absolute inset-0 ring-4 ring-inset ring-[rgb(var(--gold-500))] bg-[rgb(var(--gold-500))]/20 flex items-center justify-center pointer-events-none"><span className="text-[10px] font-semibold text-white bg-black/55 rounded px-1.5 py-0.5">Sostituisci</span></div>}
+              {lowRes && !locked && (
+                <>
+                  <div className={`absolute inset-0 pointer-events-none z-[24] ring-2 ring-inset ${q.level === 'low' ? 'ring-rose-500/80' : 'ring-amber-400/80'}`} />
+                  <div title={qualityHint(q)} className={`absolute top-1 left-1 z-[25] inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold text-white pointer-events-none shadow ${q.level === 'low' ? 'bg-rose-600/90' : 'bg-amber-500/95'}`}>
+                    <AlertTriangle size={10} /> {q.dpi} dpi
+                  </div>
+                </>
+              )}
             </div>
             {sel && multiSel.length <= 1 && (
               <>
@@ -2523,13 +2652,14 @@ function SpreadThumb(props: {
   pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string; thumbH?: number
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
   onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
-  onReorder: (from: number, to: number) => void
+  onReorder: (from: number, to: number) => void; onContext?: (x: number, y: number) => void
 }) {
-  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onReorder } = props
+  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onReorder, onContext } = props
   const w = aspect * pair.length
   const [over, setOver] = useState<false | 'l' | 'r'>(false)
   return (
     <div className="shrink-0 group relative"
+      onContextMenu={lite || !onContext ? undefined : (e) => { e.preventDefault(); e.stopPropagation(); onContext(e.clientX, e.clientY) }}
       draggable={!lite}
       onDragStart={(e) => { e.dataTransfer.setData('text/spread', String(index)); e.dataTransfer.effectAllowed = 'move' }}
       onDragOver={(e) => { if (lite) return; const hasSpread = e.dataTransfer.types.includes('text/spread'); if (!hasSpread) return; e.preventDefault(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setOver(e.clientX < r.left + r.width / 2 ? 'l' : 'r') }}
