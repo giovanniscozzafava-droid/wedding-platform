@@ -2068,6 +2068,9 @@ function AlbumDesignerInner() {
             )
           })()}
 
+          {/* Animazione "AI sta ragionando" durante l'impaginazione automatica */}
+          {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} />}
+
           {/* input nascosto: file modificato in Photoshop → upload + sostituzione nell'elemento */}
           <input ref={psFileRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; const t = psTarget.current; psTarget.current = null; if (f && t) void replaceElWithFile(t.pageId, t.elId, f) }} />
@@ -2760,6 +2763,46 @@ function SpreadThumb(props: {
           <button title="Sposta a destra" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, 1)}><ChevronRight size={10} /></button>
         </div>
       )}
+    </div>
+  )
+}
+
+// Overlay "L'AI sta ragionando come impaginare" — mostrato durante l'impaginazione AI. Animazione
+// leggera (CSS): anello che gira, sparkle che pulsa, miniature che sfarfallano, messaggi a rotazione.
+function AiThinkingOverlay({ thumbs }: { thumbs: string[] }) {
+  const MSGS = [
+    'Analizzo i momenti del racconto…',
+    'Raggruppo le foto per tavola…',
+    'Scelgo la sequenza giusta…',
+    'Rispetto il tuo stile di impaginazione…',
+    'Compongo le tavole…',
+  ]
+  const [mi, setMi] = useState(0)
+  useEffect(() => { const t = setInterval(() => setMi((i) => (i + 1) % MSGS.length), 1600); return () => clearInterval(t) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="w-[min(92vw,420px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-6 text-center shadow-2xl">
+        <div className="relative mx-auto mb-4 h-16 w-16">
+          <div className="absolute inset-0 animate-spin rounded-full border-2 border-[rgb(var(--gold-400))]/30 border-t-[rgb(var(--gold-500))]" />
+          <div className="absolute inset-0 flex items-center justify-center"><Sparkles size={26} className="animate-pulse text-[rgb(var(--gold-600))]" /></div>
+        </div>
+        <p className="font-display text-base font-semibold">L'AI sta ragionando…</p>
+        <p className="mt-1 min-h-[20px] text-sm text-[rgb(var(--fg-muted))]">{MSGS[mi]}</p>
+        {thumbs.length > 0 && (
+          <div className="mt-4 flex items-center justify-center gap-1.5">
+            {thumbs.slice(0, 6).map((t, i) => (
+              <div key={i} className="h-9 w-9 animate-pulse overflow-hidden rounded-md ring-1 ring-[rgb(var(--border))]" style={{ animationDelay: `${i * 140}ms` }}>
+                <img src={t} alt="" className="h-full w-full object-cover" />
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+          <div className="h-full w-1/3 rounded-full bg-[rgb(var(--gold-500))]" style={{ animation: 'aiThinkBar 1.4s ease-in-out infinite' }} />
+        </div>
+        <p className="mt-3 text-[11px] text-[rgb(var(--fg-subtle))]">Può richiedere qualche secondo · non chiudere la pagina</p>
+      </div>
+      <style>{`@keyframes aiThinkBar{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}`}</style>
     </div>
   )
 }
