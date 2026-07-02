@@ -1283,7 +1283,7 @@ function AlbumDesignerInner() {
   // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
   // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
   // stesso numero di foto; altrimenti genera la disposizione migliore.
-  function buildAiTavola(ids: string[]): AlbumPage[] {
+  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>): AlbumPage[] {
     const clean = ids.filter((id) => mediaById.has(id))
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
@@ -1306,7 +1306,10 @@ function AlbumDesignerInner() {
       const ai = assign[k] ?? -1
       const mid = clean[ai >= 0 ? ai : k] ?? clean[k]; if (!mid) return null
       const g = useSaved ? { x: s.x, y: s.y, w: s.w, h: s.h } : gutterSlot(s, gx, gy)
-      return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: rots[k] ?? 0, cell: { ...DEFAULT_CELL } }
+      const fo = focusMap?.[mid]
+      // ritaglio dal punto focale dell'AI (soggetto in frame, niente teste tagliate); senza → centro
+      const cell: Cell = fo ? { z: 1, fx: fo.fx, fy: fo.fy } : { ...DEFAULT_CELL }
+      return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: rots[k] ?? 0, cell }
     }).filter(Boolean) as FreeEl[]
     left.elements = els
     return [left, right]
@@ -1325,7 +1328,8 @@ function AlbumDesignerInner() {
     setAiBusy(true)
     try {
       const payload = {
-        photos: kept.map((m) => ({ id: m.id, moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0 })),
+        // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte)
+        photos: kept.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0 })),
         format, styleProfile: styleProfile(),
       }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
@@ -1333,12 +1337,14 @@ function AlbumDesignerInner() {
       if (error || err) {
         toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server (OPENAI_API_KEY)'
           : err === 'no_photos' ? 'Nessuna foto da impaginare'
-          : `Impaginazione AI non riuscita${err ? `: ${err}` : ''}`)
+          : err === 'openai_error' ? `OpenAI ha rifiutato la richiesta (chiave/credito?). ${(data as { detail?: string })?.detail ?? ''}`.slice(0, 160)
+          : `Impaginazione AI non riuscita${err ? `: ${err}` : ''}${error?.message ? ` — ${error.message}` : ''}`)
         return
       }
       const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
       if (!tavole.length) { toast.error("L'AI non ha restituito tavole"); return }
-      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds))
+      const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean }> }).focus ?? {}
+      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap))
       if (!newPages.length) { toast.error('Nessuna tavola generata'); return }
       setPages(newPages); setCurrentPageId(newPages[0]!.id); setSelEl(null); setMultiSel([])
       toast.success(`Impaginate ${tavole.length} tavole con l'AI`)
