@@ -1334,12 +1334,17 @@ function AlbumDesignerInner() {
         format, styleProfile: styleProfile(),
       }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
-      const err = (data as { error?: string } | null)?.error
+      let err = (data as { error?: string } | null)?.error
+      let detail = (data as { detail?: string } | null)?.detail
+      // Su risposta non-2xx supabase mette l'errore in `error` e il corpo reale in error.context (Response).
+      if (error) {
+        try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err; detail = b?.detail ?? detail } } catch { /* ignora */ }
+      }
       if (error || err) {
         toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server (OPENAI_API_KEY)'
           : err === 'no_photos' ? 'Nessuna foto da impaginare'
-          : err === 'openai_error' ? `OpenAI ha rifiutato la richiesta (chiave/credito?). ${(data as { detail?: string })?.detail ?? ''}`.slice(0, 160)
-          : `Impaginazione AI non riuscita${err ? `: ${err}` : ''}${error?.message ? ` — ${error.message}` : ''}`)
+          : err === 'openai_error' ? `OpenAI ha rifiutato: ${detail ?? 'chiave/credito?'}`.slice(0, 200)
+          : `Impaginazione AI non riuscita${err ? `: ${err}` : ''}${detail ? ` — ${detail}` : (error?.message ? ` — ${error.message}` : '')}`.slice(0, 200))
         return
       }
       const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
@@ -1348,7 +1353,10 @@ function AlbumDesignerInner() {
       const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap))
       if (!newPages.length) { toast.error('Nessuna tavola generata'); return }
       setPages(newPages); setCurrentPageId(newPages[0]!.id); setSelEl(null); setMultiSel([])
-      toast.success(`Impaginate ${tavole.length} tavole con l'AI`)
+      const degraded = (data as { degraded?: boolean }).degraded
+      const reason = (data as { reason?: string }).reason
+      if (degraded) toast.warning(`Impaginate ${tavole.length} tavole (AI parziale: ${reason ?? 'OpenAI limitato'})`, { duration: 8000 })
+      else toast.success(`Impaginate ${tavole.length} tavole con l'AI`)
     } catch (e) {
       toast.error(`Impaginazione AI non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`)
     } finally { setAiBusy(false) }

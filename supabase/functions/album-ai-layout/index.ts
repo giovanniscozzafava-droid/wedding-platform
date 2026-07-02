@@ -1,18 +1,19 @@
-// Edge function: album-ai-layout (VISION)
-// L'impaginatore AI dell'album che GUARDA DAVVERO le foto. Due fasi:
-//   A) ANALISI VISIVA (gpt-4o vision, batch): per ogni foto → momento, didascalia, PUNTO FOCALE del
-//      soggetto (fx,fy 0..1 = dove tagliare per non tagliare teste), scatto forte (hero), orientamento.
-//   B) COMPOSIZIONE (testo): raggruppa in tavole (doppie pagine), sequenza del racconto, accostamenti,
-//      rispettando lo stile del fotografo (foto/tavola più usate).
-// La geometria fisica resta nel motore testato del frontend; qui decidiamo COSA sta con cosa, DOVE e
-// COME ritagliare. Legge OPENAI_API_KEY (secret server). verify_jwt=true (solo autenticati).
+// Edge function: album-ai-layout (VISION, robusta)
+// Impaginatore AI che GUARDA le foto. Due fasi:
+//   A) ANALISI VISIVA (gpt-4o vision, batch): per foto → momento, didascalia, PUNTO FOCALE (fx,fy),
+//      scatto forte (hero).
+//   B) COMPOSIZIONE (testo): raggruppa in tavole + sequenza, rispetta lo stile del fotografo.
+// ROBUSTA: se OpenAI fallisce (credito/accesso/timeout) NON dà errore secco → degrada e impagina
+// comunque con un'euristica per momento, riportando il motivo (`degraded`+`reason`). Non-2xx SOLO per
+// chiave mancante / niente foto / json rotto. Legge OPENAI_API_KEY (secret server). verify_jwt=true.
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o'          // vision-capable
+const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o'
 const OPENAI_TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') ?? 'gpt-4o-mini'
-const MAX_VISION = 120          // tetto foto analizzate a vista (costo/tempo); le altre: centro
-const BATCH = 10                // foto per chiamata vision
-const CONCURRENCY = 4           // chiamate vision in parallelo
+const MAX_VISION = 90
+const BATCH = 10
+const CONCURRENCY = 4
+const CALL_TIMEOUT_MS = 45000
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -24,61 +25,69 @@ function json(b: unknown, s = 200) {
 }
 
 const MOMENTS = ['preparativi','preparativi-sposo','dettagli-sposa','primo-sguardo','arrivo','partecipazione','chiesa','anelli','uscita','famiglia','coppia','aperitivo','tableau','ricevimento','brindisi','torta','primo-ballo','festa','bouquet','chiusura','dettagli']
+const M_ORDER = new Map(MOMENTS.map((m, i) => [m, i]))
 
 type InPhoto = { id: string; url?: string | null; moment?: string | null; aspect?: number | null; likes?: number | null }
 type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean }
 
 async function openai(body: unknown): Promise<any> {
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-    body: JSON.stringify(body),
-  })
-  if (!r.ok) { const t = await r.text(); throw new Error(`openai ${r.status}: ${t.slice(0, 300)}`) }
-  return r.json()
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), CALL_TIMEOUT_MS)
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
+      body: JSON.stringify(body),
+    })
+    if (!r.ok) { const t2 = await r.text(); throw new Error(`openai ${r.status}: ${t2.slice(0, 200)}`) }
+    return await r.json()
+  } finally { clearTimeout(t) }
 }
 
 const clamp01 = (n: unknown) => Math.min(1, Math.max(0, typeof n === 'number' ? n : 0.5))
 
-// FASE A — analisi visiva di un batch di foto. Ritorna un'analisi per id (con fallback al centro).
 async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
+  const fallback = () => photos.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
   const withUrl = photos.filter((p) => p.url)
-  if (!withUrl.length) return photos.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
+  if (!withUrl.length) return fallback()
   const sys = [
-    'Sei un art director di album di matrimonio. Guarda ogni foto e restituisci un giudizio tecnico per impaginarla.',
-    `Per OGNI foto dai: moment (uno tra: ${MOMENTS.join(', ')}), caption (max 6 parole), fx e fy = punto focale del soggetto in frazioni 0..1 (dove NON tagliare: volti/soggetto; 0,0=alto-sx, 1,1=basso-dx), hero=true se è uno scatto forte da valorizzare grande.`,
-    'Le foto arrivano nell\'ordine dei loro id, elencati nel messaggio. Rispondi SOLO JSON: {"a":[{"id","moment","caption","fx","fy","hero"}]}.',
+    'Sei un art director di album di matrimonio. Guarda ogni foto e dai un giudizio tecnico per impaginarla.',
+    `Per OGNI foto: moment (uno tra: ${MOMENTS.join(', ')}), caption (max 6 parole), fx e fy = punto focale del soggetto 0..1 (dove NON tagliare; 0,0=alto-sx, 1,1=basso-dx), hero=true se scatto forte da valorizzare grande.`,
+    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","fx","fy","hero"}]}.',
   ].join('\n')
   const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]
   for (const p of withUrl) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'low' } })
-  const data = await openai({
-    model: OPENAI_MODEL, temperature: 0.2, response_format: { type: 'json_object' },
-    messages: [{ role: 'system', content: sys }, { role: 'user', content }],
-  })
-  let out: Analysis[] = []
   try {
+    const data = await openai({ model: OPENAI_MODEL, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content }] })
     const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
     const arr = Array.isArray(parsed?.a) ? parsed.a : (Array.isArray(parsed) ? parsed : [])
-    out = arr.map((x: any) => ({
-      id: String(x?.id ?? ''),
-      moment: MOMENTS.includes(x?.moment) ? x.moment : 'dettagli',
-      caption: typeof x?.caption === 'string' ? x.caption.slice(0, 60) : '',
-      fx: clamp01(x?.fx), fy: clamp01(x?.fy), hero: !!x?.hero,
+    const out: Analysis[] = arr.map((x: any) => ({
+      id: String(x?.id ?? ''), moment: MOMENTS.includes(x?.moment) ? x.moment : 'dettagli',
+      caption: typeof x?.caption === 'string' ? x.caption.slice(0, 60) : '', fx: clamp01(x?.fx), fy: clamp01(x?.fy), hero: !!x?.hero,
     })).filter((x: Analysis) => x.id)
-  } catch { /* fallback sotto */ }
-  const byId = new Map(out.map((a) => [a.id, a]))
-  return photos.map((p) => byId.get(p.id) ?? { id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
+    const byId = new Map(out.map((a) => [a.id, a]))
+    return photos.map((p) => byId.get(p.id) ?? { id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
+  } catch (e) { throw new Error(`vision: ${String((e as Error)?.message ?? e).slice(0, 160)}`) }
 }
 
-// esegue task in parallelo con un tetto di concorrenza
 async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
-  const res: R[] = new Array(items.length)
-  let i = 0
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (i < items.length) { const k = i++; res[k] = await fn(items[k]) }
-  })
-  await Promise.all(workers)
-  return res
+  const res: R[] = new Array(items.length); let i = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => { while (i < items.length) { const k = i++; res[k] = await fn(items[k]) } })
+  await Promise.all(workers); return res
+}
+
+// Raggruppamento EURISTICO (fallback senza AI): ordina per momento e spezza in tavole da maxPer.
+function heuristicGroup(analyses: Analysis[], maxPer: number): { photoIds: string[]; note?: string }[] {
+  const sorted = [...analyses].sort((a, b) => (M_ORDER.get(a.moment) ?? 99) - (M_ORDER.get(b.moment) ?? 99))
+  const tavole: { photoIds: string[]; note?: string }[] = []
+  let cur: string[] = []; let curM = ''
+  for (const a of sorted) {
+    if (cur.length >= maxPer || (curM && a.moment !== curM && cur.length >= 2)) { tavole.push({ photoIds: cur, note: curM }); cur = []; }
+    if (!cur.length) curM = a.moment
+    cur.push(a.id)
+  }
+  if (cur.length) tavole.push({ photoIds: cur, note: curM })
+  return tavole
 }
 
 Deno.serve(async (req) => {
@@ -94,67 +103,65 @@ Deno.serve(async (req) => {
   const term = (body.eventTerm ?? 'matrimonio').replace(/[^\p{L}\s]/gu, '').slice(0, 40)
   const style = (body.styleProfile ?? []).filter((s) => s && s.perSpread > 0 && s.times > 0).slice(0, 6)
   const styleHint = style.length
-    ? `STILE DEL FOTOGRAFO (rispettalo): foto per tavola più usate, dalla più frequente: ${style.map((s) => `${s.perSpread} (${s.times}x)`).join(', ')}. Preferito: ${style[0]!.perSpread} per tavola.`
+    ? `STILE DEL FOTOGRAFO (rispettalo): foto per tavola più usate: ${style.map((s) => `${s.perSpread} (${s.times}x)`).join(', ')}. Preferito: ${style[0]!.perSpread}.`
     : 'Nessun modello salvato: ritmo elegante e vario (alterna tavole piene e tavole con 1 scatto forte).'
 
-  // ── FASE A: analisi visiva a batch (con tetto) ──
+  const reasons: string[] = []
+
+  // ── FASE A: analisi visiva (con fallback ai tag) ──
   const toSee = photos.slice(0, MAX_VISION)
   const rest = photos.slice(MAX_VISION)
   const batches: InPhoto[][] = []
   for (let k = 0; k < toSee.length; k += BATCH) batches.push(toSee.slice(k, k + BATCH))
   let analyses: Analysis[] = []
+  let visionOk = 0
   try {
-    const results = await pool(batches, CONCURRENCY, (b) => analyzeBatch(b))
+    const results = await pool(batches, CONCURRENCY, async (b) => {
+      try { const r = await analyzeBatch(b); visionOk += b.length; return r }
+      catch (e) { reasons.push(String((e as Error)?.message ?? e).slice(0, 120)); return b.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })) }
+    })
     analyses = results.flat()
   } catch (e) {
-    // vision fallita del tutto → non blocco: uso i tag esistenti + centro (impagino comunque)
+    reasons.push(`vision_pool: ${String((e as Error)?.message ?? e).slice(0, 100)}`)
     analyses = toSee.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
-    // segnalo il motivo ma proseguo
-    console.error('vision_failed', String(e).slice(0, 200))
   }
   for (const p of rest) analyses.push({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
   const focus: Record<string, { fx: number; fy: number; hero: boolean; moment: string }> = {}
   for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment }
 
-  // ── FASE B: composizione (testo) — raggruppa in tavole + sequenza ──
-  const sysB = [
-    `Sei un art director che impagina un album di ${term} al posto del fotografo.`,
-    'Ricevi le foto GIÀ ANALIZZATE: [id, moment, caption, hero]. Raggruppale in "tavole" (doppie pagine).',
-    'Regole:',
-    `- ogni foto UNA sola volta; usa SOLO gli id ricevuti;`,
-    `- da 1 a ${maxPer} foto per tavola; una hero da sola o con poche per farla respirare;`,
-    '- segui il RACCONTO: ordina le tavole per cronologia dei momenti; tieni insieme lo stesso momento;',
-    '- accosta foto che dialogano (stessa scena/soggetto) e bilancia orizzontali/verticali.',
-    styleHint,
-    'Rispondi SOLO JSON: {"tavole":[{"photoIds":["id",...],"note":"1-4 parole"}]}.',
-  ].join('\n')
-  const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, h: a.hero ? 1 : 0 }))
-  let content = ''
+  // ── FASE B: composizione (testo), con fallback euristico ──
+  let rawTavole: { photoIds?: string[]; note?: string }[] = []
   try {
-    const data = await openai({
-      model: OPENAI_TEXT_MODEL, temperature: 0.4, response_format: { type: 'json_object' },
-      messages: [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }],
-    })
-    content = data?.choices?.[0]?.message?.content ?? ''
+    const sysB = [
+      `Sei un art director che impagina un album di ${term} al posto del fotografo.`,
+      'Ricevi foto GIÀ ANALIZZATE [id, moment, caption, hero]. Raggruppale in "tavole" (doppie pagine).',
+      `Regole: ogni foto UNA volta; solo id ricevuti; 1..${maxPer} per tavola; una hero da sola o con poche; segui la cronologia dei momenti; tieni insieme lo stesso momento; accosta foto che dialogano; bilancia orizzontali/verticali.`,
+      styleHint,
+      'Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"1-4 parole"}]}.',
+    ].join('\n')
+    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, h: a.hero ? 1 : 0 }))
+    const data = await openai({ model: OPENAI_TEXT_MODEL, temperature: 0.4, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }] })
+    const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
+    rawTavole = Array.isArray(parsed?.tavole) ? parsed.tavole : []
+    if (!rawTavole.length) throw new Error('nessuna tavola dal modello')
   } catch (e) {
-    return json({ error: 'openai_error', detail: String(e).slice(0, 300) }, 502)
+    reasons.push(`group: ${String((e as Error)?.message ?? e).slice(0, 120)}`)
+    rawTavole = heuristicGroup(analyses, maxPer)
   }
 
-  // SANIFICA: solo id noti, dedup, nessuna foto persa (le mancanti in tavole extra a fine album)
-  let parsed: { tavole?: { photoIds?: string[]; note?: string }[] }
-  try { parsed = JSON.parse(content) } catch { return json({ error: 'ai_bad_output' }, 502) }
+  // SANIFICA: solo id noti, dedup, nessuna foto persa
   const known = new Set(photos.map((p) => p.id))
   const used = new Set<string>()
   const tavole: { photoIds: string[]; note?: string }[] = []
-  for (const t of parsed.tavole ?? []) {
+  for (const t of rawTavole) {
     const ids = (t?.photoIds ?? []).filter((id) => known.has(id) && !used.has(id)).slice(0, maxPer)
     if (!ids.length) continue
-    ids.forEach((id) => used.add(id))
-    tavole.push({ photoIds: ids, note: typeof t?.note === 'string' ? t.note.slice(0, 40) : undefined })
+    ids.forEach((id) => used.add(id)); tavole.push({ photoIds: ids, note: typeof t?.note === 'string' ? t.note.slice(0, 40) : undefined })
   }
   const missing = photos.map((p) => p.id).filter((id) => !used.has(id))
   for (let i = 0; i < missing.length; i += maxPer) tavole.push({ photoIds: missing.slice(i, i + maxPer), note: 'extra' })
   if (!tavole.length) return json({ error: 'ai_empty' }, 502)
 
-  return json({ tavole, focus, seen: toSee.length, model: OPENAI_MODEL })
+  const degraded = reasons.length > 0
+  return json({ tavole, focus, seen: visionOk, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: OPENAI_MODEL })
 })
