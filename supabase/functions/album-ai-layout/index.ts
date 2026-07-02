@@ -79,8 +79,9 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
       const mdl = VISION_MODELS[mi]!
       try { data = await openai({ model: mdl, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content }] }); break }
       catch (e) {
-        const isModelErr = /model|404|does not exist|not found|no access|does not have access|invalid model/i.test(String(e))
-        if (isModelErr && mi < VISION_MODELS.length - 1) continue
+        // QUALUNQUE errore (modello non accessibile, niente supporto immagini, parametro non valido,
+        // rate limit persistente) → prova il modello successivo. Così un modello che VEDE i volti c'è sempre.
+        if (mi < VISION_MODELS.length - 1) continue
         throw e
       }
     }
@@ -216,8 +217,9 @@ Deno.serve(async (req) => {
     analyses = toSee.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
   }
   for (const p of rest) analyses.push({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
-  const focus: Record<string, { fx: number; fy: number; hero: boolean; moment: string }> = {}
-  for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment }
+  const focus: Record<string, { fx: number; fy: number; hero: boolean; moment: string; face: boolean; people: number }> = {}
+  for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment, face: (a.people ?? 0) > 0, people: a.people ?? 0 }
+  const facesFound = Object.values(focus).filter((f) => f.face).length
 
   // ── FASE B: composizione (testo), con fallback euristico ──
   let rawTavole: { photoIds?: string[]; note?: string; layout?: string }[] = []
@@ -282,5 +284,5 @@ Deno.serve(async (req) => {
   if (!tavole.length) return json({ error: 'ai_empty' }, 502)
 
   const degraded = reasons.length > 0
-  return json({ tavole, focus, seen: visionOk, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: VISION_MODELS[0], composeModel: composeModel || 'euristica' })
+  return json({ tavole, focus, seen: visionOk, facesFound, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: VISION_MODELS[0], composeModel: composeModel || 'euristica' })
 })

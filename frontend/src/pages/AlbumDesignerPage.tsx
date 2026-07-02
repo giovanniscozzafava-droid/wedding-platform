@@ -916,6 +916,8 @@ function AlbumDesignerInner() {
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string }>>({}) // ranking qualità stampa
   const [qualityBusy, setQualityBusy] = useState(false)
   const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
+  const [faceMap, setFaceMap] = useState<Record<string, { fx: number; fy: number; face?: boolean }>>({}) // dove l'AI ha mappato i volti
+  const [showFaces, setShowFaces] = useState(true) // mostra i pallini dei volti sulle miniature
   // APRI IN PHOTOSHOP: (1) scarica l'ORIGINALE a piena risoluzione come file su disco, (2) tenta di
   // AVVIARE Photoshop via protocol-handler `photoshop://`. Un'app web non può forzare l'apertura di
   // un'app desktop se non tramite protocollo registrato: se Photoshop non parte da solo, il file è
@@ -1442,7 +1444,8 @@ function AlbumDesignerInner() {
       }
       const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
       if (!tavole.length) { toast.error("L'AI non ha restituito tavole"); return }
-      const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean }> }).focus ?? {}
+      const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean; face?: boolean }> }).focus ?? {}
+      setFaceMap(focusMap) // mostra sulle miniature dove l'AI ha trovato i volti
       const usedSigs = new Map<string, number>() // per far VARIARE i template tra una tavola e l'altra
       const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false, (t as { layout?: string }).layout, usedSigs))
       if (!newPages.length) { toast.error('Nessuna tavola generata'); return }
@@ -1451,8 +1454,9 @@ function AlbumDesignerInner() {
       const reason = (data as { reason?: string }).reason
       const seen = (data as { seen?: number }).seen ?? 0
       const cModel = (data as { composeModel?: string }).composeModel ?? ''
-      if (degraded) toast.warning(`Impaginate ${tavole.length} tavole · letto ${seen} foto · modello ${cModel} · parziale: ${reason ?? 'OpenAI limitato'}`, { duration: 12000 })
-      else toast.success(`Impaginate ${tavole.length} tavole · letto ${seen} foto · composto con ${cModel}`, { duration: 7000 })
+      const facesFound = (data as { facesFound?: number }).facesFound ?? 0
+      if (degraded) toast.warning(`Impaginate ${tavole.length} tavole · letto ${seen} · volti su ${facesFound} · ${cModel} · parziale: ${reason ?? 'OpenAI limitato'}`, { duration: 12000 })
+      else toast.success(`Impaginate ${tavole.length} tavole · letto ${seen} foto · volti su ${facesFound} · ${cModel}`, { duration: 8000 })
     } catch (e) {
       toast.error(`Impaginazione AI non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`)
     } finally { setAiBusy(false) }
@@ -1834,6 +1838,7 @@ function AlbumDesignerInner() {
             <ToolToggle on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
             <ToolToggle on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
             {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
+            {!lite && Object.keys(faceMap).length > 0 && <ToolToggle on={showFaces} onClick={() => setShowFaces((v) => !v)} icon={<Eye size={14} />} label="Volti" />}
             {(lowResFlags.low > 0 || lowResFlags.warn > 0) && (
               <span title="Alcune foto piazzate sono a risoluzione troppo bassa per la dimensione di stampa: in album risulterebbero sgranate. Cercale (bordo/badge arancione sulla tavola), rimpiccioliscile o sostituiscile con una versione a risoluzione più alta."
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${lowResFlags.low > 0 ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
@@ -1894,6 +1899,14 @@ function AlbumDesignerInner() {
                           saltano subito all'occhio. (niente bianco/nero) */}
                       <img src={thumbUrl(m)} alt="" loading="lazy"
                         className={`w-full h-full object-cover ${placedIds.has(m.id) ? 'opacity-40' : ''}`} />
+                      {/* VOLTO mappato dall'AI: pallino sulla posizione del viso (mappato sul crop quadrato) */}
+                      {showFaces && faceMap[m.id]?.face && (() => {
+                        const ia = aspects[m.id] ?? 1
+                        let px = faceMap[m.id]!.fx, py = faceMap[m.id]!.fy
+                        if (ia >= 1) px = (px - 0.5) * ia + 0.5; else py = (py - 0.5) / ia + 0.5
+                        if (px < 0.02 || px > 0.98 || py < 0.02 || py > 0.98) return null
+                        return <span title="Volto rilevato dall'AI" className="pointer-events-none absolute z-20 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[rgb(var(--gold-500))] shadow" style={{ left: `${px * 100}%`, top: `${py * 100}%` }} />
+                      })()}
                       {(() => { const n = usageCount.get(m.id) ?? 0; return n >= 1 ? (
                         <span title={n > 1 ? `Usata ${n} volte` : 'Usata 1 volta'}
                           className={`absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full text-[9px] font-bold leading-[15px] text-center text-white ${n > 1 ? 'bg-[rgb(var(--rose-500))] ring-1 ring-white' : 'bg-black/55'}`}>{n > 1 ? `×${n}` : '✓'}</span>
