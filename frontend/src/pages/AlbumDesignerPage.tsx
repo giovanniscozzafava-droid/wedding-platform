@@ -832,12 +832,21 @@ function AlbumDesignerInner() {
   }
   // Trascini una foto NELLO SPAZIO TRA due tavole (navigatore) → crea una NUOVA tavola in quel punto
   // con quella foto (a piena tavola, entro i margini). si = indice di tavola dove inserire.
-  function insertTavolaWithPhotoAt(si: number, mediaId: string) {
+  function insertTavolaWithPhotoAt(si: number, mediaId: string, mode: 'single' | 'double' | 'full' = 'full') {
     if (!mediaById.has(mediaId)) return
     const f = getFormat(format)
     const mx = MARGIN_MM / (f.w * 2), my = MARGIN_MM / f.h
-    const el: FreeEl = { ...newFreeEl(mediaId), x: mx, y: my, w: 1 - 2 * mx, h: 1 - 2 * my, rot: 0, cell: { ...DEFAULT_CELL } }
-    const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [el], mediaIds: [], cells: [] }
+    let a: AlbumPage
+    if (mode === 'double') {
+      // DOPPIA PAGINA: foto full-bleed su entrambe le pagine
+      a = { ...newPage(), mode: 'template', tavolaFree: false, spreadImage: { mediaId, cell: { ...DEFAULT_CELL } } }
+    } else {
+      // SINGOLA = una pagina (metà sx); PIENA TAVOLA = tutto lo spread. Entro i margini.
+      const el: FreeEl = mode === 'single'
+        ? { ...newFreeEl(mediaId), x: mx, y: my, w: 0.5 - mx * 1.5, h: 1 - 2 * my, rot: 0, cell: { ...DEFAULT_CELL } }
+        : { ...newFreeEl(mediaId), x: mx, y: my, w: 1 - 2 * mx, h: 1 - 2 * my, rot: 0, cell: { ...DEFAULT_CELL } }
+      a = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [el], mediaIds: [], cells: [] }
+    }
     const b: AlbumPage = { ...newPage(), tavolaFree: false }
     setPages((arr) => { const at = Math.min(arr.length, Math.max(0, si) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
     setCurrentPageId(a.id); toast.success('Nuova tavola inserita')
@@ -941,6 +950,7 @@ function AlbumDesignerInner() {
   const [ctxMenu, setCtxMenu] = useState<{ pageId: string; id: string; x: number; y: number } | null>(null)
   function openCtx(pageId: string, id: string, x: number, y: number) { if (!multiSel.includes(id)) { setSelEl(id); setMultiSel([]) } setCtxMenu({ pageId, id, x, y }) }
   const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
+  const [gapInsert, setGapInsert] = useState<{ si: number; mediaId: string; x: number; y: number } | null>(null) // foto trascinata tra due tavole
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
   const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
   const [aiStyle, setAiStyle] = useState<string>('narrativo')
@@ -2140,7 +2150,7 @@ function AlbumDesignerInner() {
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
                 {spreads.map((pair, si) => (
                   <Fragment key={si}>
-                    {!lite && <GapDrop onDropPhoto={(mid) => insertTavolaWithPhotoAt(si, mid)} h={stripH} />}
+                    {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} h={stripH} />}
                     <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
                       mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                       onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
@@ -2149,7 +2159,7 @@ function AlbumDesignerInner() {
                       onContext={(x, y) => setNavMenu({ si, x, y })} />
                   </Fragment>
                 ))}
-                {!lite && <GapDrop onDropPhoto={(mid) => insertTavolaWithPhotoAt(spreads.length, mid)} h={stripH} />}
+                {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si: spreads.length, mediaId: mid, x, y })} h={stripH} />}
                 {!lite && <button onClick={addSpread} className="shrink-0 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ height: stripH, aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
             </main>
@@ -2286,6 +2296,22 @@ function AlbumDesignerInner() {
                   <CtxItem label="Sposta a destra" disabled={nm.si >= nSpreads - 1} onClick={() => run(() => moveSpread(nm.si, 1))} />
                   <CtxSep />
                   <CtxItem label="Elimina tavola" danger onClick={() => run(() => delSpread(nm.si))} />
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* SCELTA inserimento tavola (foto trascinata tra due tavole): singola / doppia / piena */}
+          {gapInsert && (() => {
+            const gi = gapInsert; const close = () => setGapInsert(null); const run = (mode: 'single' | 'double' | 'full') => { insertTavolaWithPhotoAt(gi.si, gi.mediaId, mode); close() }
+            const left = Math.min(gi.x, window.innerWidth - 232); const top = Math.min(gi.y, window.innerHeight - 170)
+            return (
+              <div className="fixed inset-0 z-[90]" onPointerDown={close} onContextMenu={(e) => { e.preventDefault(); close() }}>
+                <div className="absolute min-w-[210px] rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-xl py-1 text-sm" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
+                  <p className="px-3 py-1 text-[11px] text-[rgb(var(--fg-muted))]">Inserisci qui la foto come…</p>
+                  <CtxItem label="Foto su una pagina" onClick={() => run('single')} />
+                  <CtxItem label="Foto a piena tavola" onClick={() => run('full')} />
+                  <CtxItem label="Foto a doppia pagina" onClick={() => run('double')} />
                 </div>
               </div>
             )
@@ -3008,13 +3034,13 @@ function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; form
 
 // Zona di rilascio TRA due tavole nella filmstrip: ci trascini una foto (dalla libreria o dal
 // navigatore) e crea una NUOVA tavola in quel punto, intersecando tra le pagine.
-function GapDrop({ onDropPhoto, h }: { onDropPhoto: (mid: string) => void; h: number }) {
+function GapDrop({ onDropPhoto, h }: { onDropPhoto: (mid: string, x: number, y: number) => void; h: number }) {
   const [over, setOver] = useState(false)
   return (
     <div
       onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) { e.preventDefault(); if (!over) setOver(true) } }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e) => { setOver(false); const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropPhoto(mid) } }}
+      onDrop={(e) => { setOver(false); const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropPhoto(mid, e.clientX, e.clientY) } }}
       title="Trascina qui una foto per inserire una nuova tavola"
       className={`shrink-0 self-center rounded transition-all ${over ? 'w-7 bg-[rgb(var(--gold-400))] ring-2 ring-[rgb(var(--gold-500))]' : 'w-1.5 bg-transparent hover:bg-[rgb(var(--border))]'}`}
       style={{ height: over ? h : Math.round(h * 0.55) }}
