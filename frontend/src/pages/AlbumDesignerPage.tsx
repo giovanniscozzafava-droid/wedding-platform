@@ -883,6 +883,7 @@ function AlbumDesignerInner() {
   const [aiPick, setAiPick] = useState(false) // scelta stile impaginazione AI
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string }>>({}) // ranking qualità stampa
   const [qualityBusy, setQualityBusy] = useState(false)
+  const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
   // APRI IN PHOTOSHOP: (1) scarica l'ORIGINALE a piena risoluzione come file su disco, (2) tenta di
   // AVVIARE Photoshop via protocol-handler `photoshop://`. Un'app web non può forzare l'apertura di
   // un'app desktop se non tramite protocollo registrato: se Photoshop non parte da solo, il file è
@@ -1347,10 +1348,22 @@ function AlbumDesignerInner() {
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
     setAiBusy(true)
     try {
+      // EXIF: orario di scatto → ordino le foto CRONOLOGICAMENTE prima di comporre (sequenza vera del giorno)
+      let meta = exifMeta
+      if (!Object.keys(meta).length) meta = await loadExif()
+      const takenAt = (id: string): number | null => meta[id]?.takenAt ?? null
+      const ordered = [...kept].sort((a, b) => {
+        const ta = takenAt(a.id), tb = takenAt(b.id)
+        if (ta != null && tb != null) return ta - tb   // entrambi con orario → cronologico
+        if (ta != null) return -1                        // chi ha l'orario prima
+        if (tb != null) return 1
+        return 0                                          // nessun orario → ordine originale
+      })
       const payload = {
-        // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte)
-        photos: kept.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0 })),
-        format, style, styleProfile: styleProfile(),
+        // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte).
+        // Le foto sono GIÀ in ordine cronologico di scatto (takenAt) → l'AI mantiene la sequenza.
+        photos: ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) })),
+        format, style, chronological: true, styleProfile: styleProfile(),
       }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
       let err = (data as { error?: string } | null)?.error
@@ -1401,6 +1414,19 @@ function AlbumDesignerInner() {
       else toast.success(`Valutate ${rated} foto per qualità di stampa`)
     } catch (e) { toast.error(`Valutazione non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
     finally { setQualityBusy(false) }
+  }
+
+  // EXIF: chiede a Drive l'orario di scatto (+ dimensioni reali) delle foto dell'evento → serve
+  // all'impaginatore per l'ordine CRONOLOGICO. Silenzioso: se Drive non è collegato, si prosegue senza.
+  async function loadExif(): Promise<Record<string, { takenAt: number | null; w: number | null; h: number | null }>> {
+    if (!entryId) return {}
+    try {
+      const { data, error } = await supabase.functions.invoke('album-exif', { body: { entryId } })
+      if (error || (data as { error?: string } | null)?.error) return {}
+      const meta = (data as { meta?: Record<string, { takenAt: number | null; w: number | null; h: number | null }> }).meta ?? {}
+      setExifMeta((prev) => ({ ...prev, ...meta }))
+      return meta
+    } catch { return {} }
   }
 
   // ── VISTA CLIENTE (mobile-first, stile Canva mobile): sfoglia le tavole grandi, zoom a tutto

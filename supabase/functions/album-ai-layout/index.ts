@@ -31,8 +31,8 @@ function json(b: unknown, s = 200) {
 const MOMENTS = ['preparativi','preparativi-sposo','dettagli-sposa','primo-sguardo','arrivo','partecipazione','chiesa','anelli','uscita','famiglia','coppia','aperitivo','tableau','ricevimento','brindisi','torta','primo-ballo','festa','bouquet','chiusura','dettagli']
 const M_ORDER = new Map(MOMENTS.map((m, i) => [m, i]))
 
-type InPhoto = { id: string; url?: string | null; moment?: string | null; aspect?: number | null; likes?: number | null }
-type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean }
+type InPhoto = { id: string; url?: string | null; moment?: string | null; aspect?: number | null; likes?: number | null; takenAt?: number | null }
+type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean; subjects?: string; people?: number }
 
 async function openai(body: unknown, attempt = 0): Promise<any> {
   const ctrl = new AbortController()
@@ -62,9 +62,9 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
   const withUrl = photos.filter((p) => p.url)
   if (!withUrl.length) return fallback()
   const sys = [
-    'Sei un art director di album di matrimonio. Guarda ogni foto e dai un giudizio tecnico per impaginarla.',
-    `Per OGNI foto: moment (uno tra: ${MOMENTS.join(', ')}), caption (max 6 parole), fx e fy = punto focale del soggetto 0..1 (dove NON tagliare; 0,0=alto-sx, 1,1=basso-dx), hero=true se scatto forte da valorizzare grande.`,
-    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","fx","fy","hero"}]}.',
+    'Sei un art director di album di matrimonio. Guarda ogni foto (LEGGI I VOLTI e i soggetti) e dai un giudizio per impaginarla.',
+    `Per OGNI foto: moment (uno tra: ${MOMENTS.join(', ')}), caption (max 6 parole su cosa si vede), subjects (uno tra: sposi, sposa, sposo, coppia, persona, gruppo, famiglia, dettaglio, ambiente), people (numero approssimativo di persone nel frame, 0 se nessuna), fx e fy = punto focale del soggetto/volti 0..1 (dove NON tagliare; 0,0=alto-sx, 1,1=basso-dx), hero=true se scatto forte da valorizzare grande.`,
+    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","subjects","people","fx","fy","hero"}]}.',
   ].join('\n')
   const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]
   for (const p of withUrl) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'low' } })
@@ -75,6 +75,8 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
     const out: Analysis[] = arr.map((x: any) => ({
       id: String(x?.id ?? ''), moment: MOMENTS.includes(x?.moment) ? x.moment : 'dettagli',
       caption: typeof x?.caption === 'string' ? x.caption.slice(0, 60) : '', fx: clamp01(x?.fx), fy: clamp01(x?.fy), hero: !!x?.hero,
+      subjects: typeof x?.subjects === 'string' ? x.subjects.slice(0, 20) : undefined,
+      people: Number.isFinite(x?.people) ? Math.max(0, Math.round(x.people)) : undefined,
     })).filter((x: Analysis) => x.id)
     const byId = new Map(out.map((a) => [a.id, a]))
     return photos.map((p) => byId.get(p.id) ?? { id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
@@ -202,10 +204,11 @@ Deno.serve(async (req) => {
   try {
     const sysB = [
       `Sei un art director esperto di album di ${term}. Impagini al posto del fotografo, con un criterio preciso — MAI a caso.`,
-      'Ricevi le foto GIÀ ANALIZZATE a vista: [id, m=momento, c=didascalia di cosa si vede, h=1 se scatto forte].',
+      'Ricevi le foto GIÀ ANALIZZATE a vista: [id, m=momento, c=didascalia, s=soggetto (sposi/coppia/gruppo/dettaglio…), ppl=n. persone, h=1 scatto forte, imp=importanza per la coppia].',
+      'IMPORTANTE: le foto ti arrivano GIÀ IN ORDINE CRONOLOGICO DI SCATTO (orario reale della fotocamera). RISPETTA questa sequenza: è il racconto del giorno, non riordinarla a caso.',
       'Ragiona in due passi:',
-      '1) ORDINA tutte le foto in un racconto coerente: cronologia del giorno seguendo i momenti (preparativi → cerimonia → ricevimento → festa), e dentro lo stesso momento tieni vicine le foto della STESSA scena/soggetto (leggi la didascalia c).',
-      `2) SPEZZA la sequenza in "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UN momento/scena coerente — NON mischiare mai momenti diversi nella stessa tavola.`,
+      '1) Scorri la sequenza cronologica e individua dove CAMBIA scena/momento (usa m e s: es. da "cerimonia/coppia" a "ricevimento/gruppo").',
+      `2) SPEZZA la sequenza (mantenendone l'ordine) in "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UNA scena coerente — stesso momento e soggetti che dialogano. NON mischiare mai scene/momenti diversi nella stessa tavola.`,
       'VALORIZZA le foto forti: una foto con imp (importanza per la coppia) alto, oppure h=1 (scatto tecnicamente forte), va messa DA SOLA nella sua tavola → così prende la DOPPIA PAGINA intera. Non sprecarne più di una manciata.',
       'Bilancia orizzontali e verticali nella stessa tavola. La "note" di ogni tavola dice il momento (1-4 parole).',
       ...(styleG ? [`Applica inoltre lo ${styleG.hint}`] : []),
@@ -213,7 +216,7 @@ Deno.serve(async (req) => {
       'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"..."}]}.',
     ].join('\n')
     const likeById = new Map(photos.map((p) => [p.id, Math.max(0, Math.round(p.likes ?? 0))]))
-    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
+    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
     const data = await openai({ model: OPENAI_TEXT_MODEL, temperature: 0.4, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }] })
     const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
     rawTavole = Array.isArray(parsed?.tavole) ? parsed.tavole : []
