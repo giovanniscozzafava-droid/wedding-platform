@@ -17,12 +17,12 @@ import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, coverWindow, CROP_
 // Ritaglio TESTA-SAFE + aureo: orizzontalmente mette il volto su una linea aurea; verticalmente
 // GARANTISCE che la testa (ht = top testa) resti nell'inquadratura — MAI teste tagliate. z=1 (nessuno
 // zoom che tagli). Se il soggetto è più alto della finestra, priorità alla testa.
-function goldenCell(imgAspect: number, slotAspect: number, fx: number, fy: number, ht?: number, hb?: number): Cell {
+function goldenCell(imgAspect: number, slotAspect: number, fx: number, fy: number, ht?: number, hb?: number, hasFace?: boolean): Cell {
   const clamp = (v: number) => Math.min(1, Math.max(0, v))
   const w = coverWindow(imgAspect > 0 ? imgAspect : 1, slotAspect > 0 ? slotAspect : 1, { z: 1, fx: 0.5, fy: 0.5 })
   const hWin = w.sh > 0 ? w.wh / w.sh : 1 // altezza finestra come frazione dell'immagine
-  // ORIZZONTALE: linea aurea del lato del volto (le teste non si tagliano ai lati)
-  const targetX = fx <= 0.5 ? 0.382 : 0.618
+  // ORIZZONTALE: se c'è una PERSONA la CENTRO (non deve uscire dai lati); solo paesaggi/dettagli → aureo
+  const targetX = hasFace ? 0.5 : (fx <= 0.5 ? 0.382 : 0.618)
   const cx = clamp(fx + w.ww * (0.5 - targetX))
   // VERTICALE: se testa+corpo entrano nella finestra, li centro; poi ALZO la finestra se il top
   // della testa cadrebbe comunque fuori → la testa è SEMPRE inclusa (priorità assoluta).
@@ -866,6 +866,20 @@ function AlbumDesignerInner() {
     setPages((arr) => { const at = Math.min(arr.length, Math.max(0, si) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
     setCurrentPageId(a.id); toast.success('Nuova tavola inserita')
   }
+  // SCAMBIA due foto ovunque nell'album (tasto destro → "Sostituisci con"): la foto A prende il
+  // posto di B e viceversa, in tutte le tavole (elementi, slot, foto a doppia pagina).
+  function swapPhotos(a: string, b: string) {
+    if (!a || !b || a === b) return
+    const sw = (id: string) => (id === a ? b : id === b ? a : id)
+    setPages((arr) => arr.map((p) => {
+      let np: AlbumPage = p
+      if ((p.elements?.length ?? 0) > 0) np = { ...np, elements: (np.elements ?? []).map((e) => ({ ...e, mediaId: sw(e.mediaId) })) }
+      if ((p.mediaIds?.length ?? 0) > 0) np = { ...np, mediaIds: (np.mediaIds ?? []).map(sw) }
+      if (p.spreadImage) np = { ...np, spreadImage: { ...p.spreadImage, mediaId: sw(p.spreadImage.mediaId) } }
+      return np
+    }))
+    toast.success('Foto scambiate')
+  }
   function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
   function moveSpread(si: number, dir: -1 | 1) {
     setPages((arr) => { const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2)); const j = si + dir; if (j < 0 || j >= blocks.length) return arr; const t = blocks[si]!; blocks[si] = blocks[j]!; blocks[j] = t; return blocks.flat() })
@@ -966,6 +980,7 @@ function AlbumDesignerInner() {
   function openCtx(pageId: string, id: string, x: number, y: number) { if (!multiSel.includes(id)) { setSelEl(id); setMultiSel([]) } setCtxMenu({ pageId, id, x, y }) }
   const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
   const [gapInsert, setGapInsert] = useState<{ si: number; mediaId: string; x: number; y: number } | null>(null) // foto trascinata tra due tavole
+  const [swapPick, setSwapPick] = useState<{ mediaId: string } | null>(null) // "Sostituisci con": scegli con quale scambiare
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
   const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
   const [aiStyle, setAiStyle] = useState<string>('narrativo')
@@ -1392,7 +1407,7 @@ function AlbumDesignerInner() {
   // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
   // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
   // stesso numero di foto; altrimenti genera la disposizione migliore.
-  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean; ht?: number; hb?: number }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>, respectFormat = false): AlbumPage[] {
+  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean; ht?: number; hb?: number; face?: boolean }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>, respectFormat = false): AlbumPage[] {
     const clean = ids.filter((id) => mediaById.has(id))
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
@@ -1400,7 +1415,7 @@ function AlbumDesignerInner() {
     const spreadAspect = (fmt.w * 2) / fmt.h
     const gx = gutterMm / (fmt.w * 2), gy = gutterMm / fmt.h
     const iaOf = (id: string) => aspects[id] ?? photoAspect.get(id) ?? 1
-    const cellFor = (mid: string, sa: number): Cell => { const fo = focusMap?.[mid]; return fo ? goldenCell(iaOf(mid), sa, fo.fx, fo.fy, fo.ht, fo.hb) : { ...DEFAULT_CELL } }
+    const cellFor = (mid: string, sa: number): Cell => { const fo = focusMap?.[mid]; return fo ? goldenCell(iaOf(mid), sa, fo.fx, fo.fy, fo.ht, fo.hb, fo.face) : { ...DEFAULT_CELL } }
 
     // DOPPIA PAGINA: 1 foto forte full-bleed su entrambe le pagine, ritaglio aureo sul volto
     if (clean.length === 1 && (heroDouble || layout === 'double')) {
@@ -2284,6 +2299,7 @@ function AlbumDesignerInner() {
                   <CtxItem label="Carica versione modificata" onClick={() => run(() => { psTarget.current = { pageId: cm.pageId, elId: cm.id }; psFileRef.current?.click() })} />
                   <CtxItem label="Ritaglia la foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]) })} />
                   <CtxItem label="Sostituisci foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]); toast.message('Trascina una foto dalla libreria sopra questa per sostituirla.') })} />
+                  <CtxItem label="Sostituisci con… (scambia)" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) setSwapPick({ mediaId: el.mediaId }) })} />
                   <CtxSep />
                   <CtxItem label="Riempi la cornice" onClick={() => run(() => freeFillFrame(cm.pageId, cm.id))} />
                   <CtxItem label="Centra il contenuto" onClick={() => run(() => freeCenterContent(cm.pageId, cm.id))} />
@@ -2332,6 +2348,28 @@ function AlbumDesignerInner() {
               </div>
             )
           })()}
+
+          {/* SOSTITUISCI CON… : scegli un'altra foto e le due si SCAMBIANO di posto */}
+          {swapPick && (
+            <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/50 p-4" onClick={() => setSwapPick(null)}>
+              <div className="flex max-h-[85vh] w-[min(94vw,720px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="font-display text-base">Scambia con quale foto?</p>
+                  <Button variant="outline" size="sm" onClick={() => setSwapPick(null)}>Annulla</Button>
+                </div>
+                <p className="mb-2 text-xs text-[rgb(var(--fg-muted))]">Le due foto si scambiano di posto in tutto l'album.</p>
+                <div className="grid grid-cols-4 gap-2 overflow-auto sm:grid-cols-6">
+                  {trayMedia.filter((m) => m.id !== swapPick.mediaId).map((m) => (
+                    <button key={m.id} onClick={() => { swapPhotos(swapPick.mediaId, m.id); setSwapPick(null) }}
+                      className="relative aspect-square overflow-hidden rounded border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-500))] hover:ring-2 hover:ring-[rgb(var(--gold-400))]">
+                      <img src={thumbUrl(m)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      {(usageCount.get(m.id) ?? 0) >= 1 && <span className="absolute top-0.5 right-0.5 h-[14px] min-w-[14px] rounded-full bg-black/55 px-0.5 text-center text-[8px] leading-[14px] text-white">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* BRIEF AI: prima di impaginare l'AI chiede le cose che contano (stile, densità, B/N, hero) */}
           {aiPick && (
