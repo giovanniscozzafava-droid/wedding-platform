@@ -78,8 +78,8 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     // (link in EventGalleryTab → /album/:id e /video/:id, target=_blank). Senza queste eccezioni
     // il confinamento la rimbalzava su /couple → "l'album non si apre".
     && !location.pathname.startsWith('/album/')
-    // configuratore copertina 3D: la coppia compone l'album e lo invia a FotoLab
-    && !location.pathname.startsWith('/album-copertina')
+    // copertina 3D: NASCOSTA ai clienti per ora (feature acerba). Riammettere qui quando è pronta:
+    //   && !location.pathname.startsWith('/album-copertina')
     // catalogo PDF sfogliabile: la coppia sceglie il modello dal catalogo del fotografo e firma
     && !location.pathname.startsWith('/scegli-album')
     && !location.pathname.startsWith('/video/')
