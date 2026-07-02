@@ -994,6 +994,19 @@ function AlbumDesignerInner() {
   const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
   const [gapInsert, setGapInsert] = useState<{ si: number; mediaId: string; x: number; y: number } | null>(null) // foto trascinata tra due tavole
   const [swapPick, setSwapPick] = useState<{ mediaId: string } | null>(null) // "Sostituisci con": scegli con quale scambiare
+  const [swapIdx, setSwapIdx] = useState(0) // indice della card mostrata nello slider "Sostituisci con"
+  const swapTouch = useRef<number | null>(null) // X inizio swipe
+  // tastiera nello slider "Sostituisci con": ← / → scorrono, Esc chiude
+  useEffect(() => {
+    if (!swapPick) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') setSwapIdx((x) => x + 1)
+      else if (e.key === 'ArrowLeft') setSwapIdx((x) => Math.max(0, x - 1))
+      else if (e.key === 'Escape') setSwapPick(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [swapPick])
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
   const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
   const [styleOpen, setStyleOpen] = useState(false) // pannello "Il mio stile" (impara dai PDF del fotografo)
@@ -2332,7 +2345,7 @@ function AlbumDesignerInner() {
                   <CtxItem label="Carica versione modificata" onClick={() => run(() => { psTarget.current = { pageId: cm.pageId, elId: cm.id }; psFileRef.current?.click() })} />
                   <CtxItem label="Ritaglia la foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]) })} />
                   <CtxItem label="Sostituisci foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]); toast.message('Trascina una foto dalla libreria sopra questa per sostituirla.') })} />
-                  <CtxItem label="Sostituisci con… (scambia)" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) setSwapPick({ mediaId: el.mediaId }) })} />
+                  <CtxItem label="Sostituisci con… (scambia)" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) { setSwapIdx(0); setSwapPick({ mediaId: el.mediaId }) } })} />
                   <CtxSep />
                   <CtxItem label="Riempi la cornice" onClick={() => run(() => freeFillFrame(cm.pageId, cm.id))} />
                   <CtxItem label="Centra il contenuto" onClick={() => run(() => freeCenterContent(cm.pageId, cm.id))} />
@@ -2383,32 +2396,67 @@ function AlbumDesignerInner() {
           })()}
 
           {/* SOSTITUISCI CON… : scegli un'altra foto e le due si SCAMBIANO di posto */}
-          {swapPick && (
-            <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/50 p-4" onClick={() => setSwapPick(null)}>
-              <div className="flex max-h-[90vh] w-[min(96vw,1100px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="mb-1 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    {(() => { const cur = mediaById.get(swapPick.mediaId); return cur ? <img src={thumbUrl(cur)} alt="" className="h-12 w-12 rounded object-cover ring-2 ring-[rgb(var(--gold-500))]" /> : null })()}
-                    <div>
-                      <p className="font-display text-base">Scambia questa foto con…</p>
-                      <p className="text-xs text-[rgb(var(--fg-muted))]">Le due si scambiano di posto in tutto l'album.</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => setSwapPick(null)}>Annulla</Button>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-3 overflow-auto sm:grid-cols-3 lg:grid-cols-4">
-                  {trayMedia.filter((m) => m.id !== swapPick.mediaId).map((m) => (
-                    <button key={m.id} onClick={() => { swapPhotos(swapPick.mediaId, m.id); setSwapPick(null) }}
-                      className="group/sw relative aspect-[4/3] overflow-hidden rounded-lg border border-[rgb(var(--border))] transition-all hover:border-[rgb(var(--gold-500))] hover:ring-2 hover:ring-[rgb(var(--gold-400))]">
-                      <img src={hiUrl(m)} alt="" loading="lazy" className="h-full w-full object-cover" />
-                      <div className="absolute inset-0 hidden items-center justify-center bg-black/40 group-hover/sw:flex"><span className="rounded-full bg-[rgb(var(--gold-500))] px-3 py-1 text-xs font-semibold text-white">Scambia</span></div>
-                      {(usageCount.get(m.id) ?? 0) >= 1 && <span className="absolute top-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white">in album</span>}
-                    </button>
-                  ))}
+          {swapPick && (() => {
+            const cands = trayMedia.filter((m) => m.id !== swapPick.mediaId)
+            const src = mediaById.get(swapPick.mediaId)
+            if (!cands.length) return (
+              <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/60 p-4" onClick={() => setSwapPick(null)}>
+                <div className="w-[min(94vw,420px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  <p className="font-display text-base">Nessun'altra foto</p>
+                  <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">Non ci sono altre foto con cui scambiare.</p>
+                  <Button variant="outline" size="sm" className="mt-4" onClick={() => setSwapPick(null)}>Chiudi</Button>
                 </div>
               </div>
-            </div>
-          )}
+            )
+            const i = Math.max(0, Math.min(swapIdx, cands.length - 1))
+            const cur = cands[i]
+            if (!cur) return null
+            const go = (d: number) => setSwapIdx((x) => ((Math.min(x, cands.length - 1) + d) % cands.length + cands.length) % cands.length)
+            return (
+              <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/70 p-4" onClick={() => setSwapPick(null)}
+                onTouchStart={(e) => { swapTouch.current = e.changedTouches[0]?.clientX ?? null }}
+                onTouchEnd={(e) => { const s = swapTouch.current; swapTouch.current = null; if (s == null) return; const dx = (e.changedTouches[0]?.clientX ?? s) - s; if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1) }}>
+                <div className="flex max-h-[92vh] w-[min(96vw,860px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  {/* intestazione: quale foto sto sostituendo + contatore */}
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      {src ? <img src={thumbUrl(src)} alt="" className="h-11 w-11 rounded object-cover ring-2 ring-[rgb(var(--gold-500))]" /> : null}
+                      <div>
+                        <p className="font-display text-base">Sostituisci con…</p>
+                        <p className="text-xs text-[rgb(var(--fg-muted))]">Scorri le foto e scegli con quale scambiare · <span className="tabular-nums">{i + 1} / {cands.length}</span></p>
+                      </div>
+                    </div>
+                    <button onClick={() => setSwapPick(null)} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
+                  </div>
+
+                  {/* card grande: la foto candidata, intera (object-contain), con frecce */}
+                  <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-black">
+                    <img key={cur.id} src={hiUrl(cur)} alt="" className="max-h-[56vh] max-w-full animate-[fadeIn_.18s_ease] object-contain" />
+                    {(usageCount.get(cur.id) ?? 0) >= 1 && <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white">già in album</span>}
+                    <button onClick={() => go(-1)} aria-label="Precedente" className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white backdrop-blur transition-colors hover:bg-black/70"><ChevLeft size={22} /></button>
+                    <button onClick={() => go(1)} aria-label="Successiva" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white backdrop-blur transition-colors hover:bg-black/70"><ChevRight size={22} /></button>
+                  </div>
+
+                  {/* striscia miniature: prima → ultima, la corrente evidenziata, click per saltare */}
+                  <div className="mt-3 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+                    {cands.map((m, k) => (
+                      <button key={m.id} onClick={() => setSwapIdx(k)}
+                        ref={k === i ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'center' }) : undefined}
+                        className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border transition-all ${k === i ? 'border-[rgb(var(--gold-500))] ring-2 ring-[rgb(var(--gold-400))]' : 'border-[rgb(var(--border))] opacity-60 hover:opacity-100'}`}>
+                        <img src={thumbUrl(m)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* azione */}
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setSwapPick(null)}>Annulla</Button>
+                    <Button variant="gold" size="sm" onClick={() => { swapPhotos(swapPick.mediaId, cur.id); setSwapPick(null) }}><Shuffle size={14} /> Scambia con questa</Button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* BRIEF AI: prima di impaginare l'AI chiede le cose che contano (stile, densità, B/N, hero) */}
           {aiPick && (
