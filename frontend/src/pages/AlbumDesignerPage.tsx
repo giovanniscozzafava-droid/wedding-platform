@@ -39,6 +39,30 @@ function gridSlots(n: number, areaAspect: number): { x: number; y: number; w: nu
   }
   return out
 }
+
+// Disposizione GIUSTIFICATA (stile galleria): ogni foto tiene le sue proporzioni reali (verticali
+// restano strette/alte, orizzontali larghe). Righe che riempiono la larghezza; slot[i] è della foto i.
+function justifiedSlots(aspectsArr: number[], spreadAspect: number): { x: number; y: number; w: number; h: number }[] {
+  const n = aspectsArr.length
+  if (!n) return []
+  const a = aspectsArr.map((x) => (x > 0 ? x : 1))
+  const target = Math.max(spreadAspect, 0.5) // somma-aspetti per riga ≈ larghezza tavola
+  const rows: number[][] = []; let cur: number[] = []; let sum = 0
+  for (let i = 0; i < n; i++) { cur.push(i); sum += a[i]!; if (sum >= target) { rows.push(cur); cur = []; sum = 0 } }
+  if (cur.length) rows.push(cur)
+  const heights = rows.map((r) => spreadAspect / r.reduce((s, i) => s + a[i]!, 0)) // altezza naturale della riga
+  const H = heights.reduce((s, h) => s + h, 0) || 1
+  const out: { x: number; y: number; w: number; h: number }[] = new Array(n)
+  let y = 0
+  rows.forEach((r, ri) => {
+    const rs = r.reduce((s, i) => s + a[i]!, 0)
+    const h = heights[ri]! / H
+    let x = 0
+    r.forEach((i) => { const w = a[i]! / rs; out[i] = { x, y, w, h }; x += w })
+    y += h
+  })
+  return out
+}
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, neighborGaps, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
@@ -913,6 +937,7 @@ function AlbumDesignerInner() {
   const [aiHeroDouble, setAiHeroDouble] = useState<boolean>(true) // foto forti a doppia pagina
   const [aiDoublePct, setAiDoublePct] = useState<number>(8)  // % foto a doppia pagina
   const [aiFullPct, setAiFullPct] = useState<number>(10)     // % foto a pagina intera
+  const [aiRespectFormat, setAiRespectFormat] = useState<boolean>(true) // verticali/orizzontali restano tali
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string }>>({}) // ranking qualità stampa
   const [qualityBusy, setQualityBusy] = useState(false)
   const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
@@ -1329,7 +1354,7 @@ function AlbumDesignerInner() {
   // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
   // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
   // stesso numero di foto; altrimenti genera la disposizione migliore.
-  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>): AlbumPage[] {
+  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>, respectFormat = false): AlbumPage[] {
     const clean = ids.filter((id) => mediaById.has(id))
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
@@ -1358,6 +1383,16 @@ function AlbumDesignerInner() {
         els.push({ ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: 0, cell: cellFor(mid, (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)) })
       })
       left.elements = els
+      return [left, right]
+    }
+
+    // RISPETTA FORMATO: disposizione giustificata, ogni foto tiene le proporzioni reali (V resta V, H resta H)
+    if (respectFormat) {
+      const js = justifiedSlots(clean.map(iaOf), spreadAspect)
+      left.elements = js.map((s, i) => {
+        const mid = clean[i]!; const g = gutterSlot(s, gx, gy)
+        return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: 0, cell: cellFor(mid, (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)) }
+      })
       return [left, right]
     }
 
@@ -1405,7 +1440,7 @@ function AlbumDesignerInner() {
     for (const p of pages) { if (p.tavolaFree) { const n = (p.elements ?? []).length; if (n) c.set(n, (c.get(n) ?? 0) + 1) } }
     return [...c.entries()].map(([perSpread, times]) => ({ perSpread, times })).sort((a, b) => b.times - a.times).slice(0, 6)
   }
-  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number }) {
+  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean }) {
     if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
@@ -1447,7 +1482,7 @@ function AlbumDesignerInner() {
       const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean; face?: boolean }> }).focus ?? {}
       setFaceMap(focusMap) // mostra sulle miniature dove l'AI ha trovato i volti
       const usedSigs = new Map<string, number>() // per far VARIARE i template tra una tavola e l'altra
-      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false, (t as { layout?: string }).layout, usedSigs))
+      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false, (t as { layout?: string }).layout, usedSigs, opts?.respectFormat !== false))
       if (!newPages.length) { toast.error('Nessuna tavola generata'); return }
       setPages(newPages); setCurrentPageId(newPages[0]!.id); setSelEl(null); setMultiSel([])
       const degraded = (data as { degraded?: boolean }).degraded
@@ -2288,11 +2323,15 @@ function AlbumDesignerInner() {
                     <input type="checkbox" checked={aiHeroDouble} onChange={(e) => setAiHeroDouble(e.target.checked)} className="accent-[rgb(var(--gold-500))]" />
                     Anche le foto che l'AI giudica forti a <strong>doppia pagina</strong>
                   </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input type="checkbox" checked={aiRespectFormat} onChange={(e) => setAiRespectFormat(e.target.checked)} className="accent-[rgb(var(--gold-500))]" />
+                    Rispetta il <strong>formato reale</strong> delle foto (verticali restano verticali, orizzontali orizzontali)
+                  </label>
                 </div>
 
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
-                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct }) }}><Sparkles size={14} /> Impagina</Button>
+                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat }) }}><Sparkles size={14} /> Impagina</Button>
                 </div>
               </div>
             </div>
