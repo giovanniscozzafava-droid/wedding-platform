@@ -87,6 +87,38 @@ async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): 
   await Promise.all(workers); return res
 }
 
+// ── RANKING QUALITÀ DI STAMPA (tecnico) ──────────────────────────────────────────────────────
+// Valuta a vista (dettaglio alto) i criteri tecnici REALI. Onesto sui limiti: rumore/nitidezza fine
+// da un'anteprima web sono "indicativi" (il ridimensionamento nasconde il rumore).
+const QUALITY_ISSUES = ['neri_chiusi','luci_bruciate','sottoesposta','sovraesposta','poco_contrasto','troppo_contrasto','dominante_colore','mosso','fuori_fuoco','rumore','ok']
+type QScore = { id: string; score: number; issues: string[]; reason: string }
+async function qualityBatch(photos: { id: string; url?: string | null }[], model: string): Promise<QScore[]> {
+  const withUrl = photos.filter((p) => p.url)
+  if (!withUrl.length) return photos.map((p) => ({ id: p.id, score: 0, issues: [], reason: 'anteprima non disponibile' }))
+  const sys = [
+    'Sei un fotografo esperto di STAMPA. Valuta la qualità TECNICA di stampa di ogni foto, seriamente.',
+    `Per OGNI foto dai: score 0-100 (idoneità alla stampa), issues (array tra: ${QUALITY_ISSUES.join(', ')}), reason (1 frase tecnica in italiano).`,
+    'Criteri: esposizione, neri chiusi (ombre senza dettaglio), alte luci bruciate, contrasto, dominante colore, messa a fuoco/mosso, rumore.',
+    "Sii onesto: se rumore o nitidezza fine non sono giudicabili dall'anteprima, dillo nella reason e non penalizzare a caso.",
+    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"q":[{"id","score","issues","reason"}]}.',
+  ].join('\n')
+  const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]
+  for (const p of withUrl) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'high' } })
+  try {
+    const data = await openai({ model, temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content }] })
+    const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
+    const arr = Array.isArray(parsed?.q) ? parsed.q : (Array.isArray(parsed) ? parsed : [])
+    const out: QScore[] = arr.map((x: any) => ({
+      id: String(x?.id ?? ''),
+      score: Math.max(0, Math.min(100, Math.round(typeof x?.score === 'number' ? x.score : 0))),
+      issues: Array.isArray(x?.issues) ? x.issues.filter((i: any) => QUALITY_ISSUES.includes(i)).slice(0, 5) : [],
+      reason: typeof x?.reason === 'string' ? x.reason.slice(0, 140) : '',
+    })).filter((x: QScore) => x.id)
+    const byId = new Map(out.map((a) => [a.id, a]))
+    return photos.map((p) => byId.get(p.id) ?? { id: p.id, score: 0, issues: [], reason: 'non valutata' })
+  } catch (e) { throw new Error(`quality: ${String((e as Error)?.message ?? e).slice(0, 160)}`) }
+}
+
 // Raggruppamento EURISTICO (fallback senza AI): ordina per momento e spezza in tavole da maxPer.
 function heuristicGroup(analyses: Analysis[], maxPer: number): { photoIds: string[]; note?: string }[] {
   const sorted = [...analyses].sort((a, b) => (M_ORDER.get(a.moment) ?? 99) - (M_ORDER.get(b.moment) ?? 99))
@@ -110,6 +142,23 @@ Deno.serve(async (req) => {
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   if (!photos.length) return json({ error: 'no_photos' }, 400)
+
+  // ── MODALITÀ RANKING QUALITÀ (on-demand): valuta a vista i criteri tecnici di stampa ──
+  if ((body as { mode?: string }).mode === 'quality') {
+    const qModel = Deno.env.get('OPENAI_QUALITY_MODEL') ?? 'gpt-4o'   // dettaglio alto: serve il modello grande
+    const qBatches: { id: string; url?: string | null }[][] = []
+    for (let k = 0; k < photos.length; k += 5) qBatches.push(photos.slice(k, k + 5)) // batch piccoli (detail high)
+    const qReasons: string[] = []
+    const results = await pool(qBatches, 2, async (b) => {
+      try { return await qualityBatch(b, qModel) }
+      catch (e) { qReasons.push(String((e as Error)?.message ?? e).slice(0, 120)); return b.map((p) => ({ id: p.id, score: 0, issues: [], reason: 'non valutata (errore)' })) }
+    })
+    const scores: Record<string, { score: number; issues: string[]; reason: string }> = {}
+    for (const q of results.flat()) scores[q.id] = { score: q.score, issues: q.issues, reason: q.reason }
+    const rated = Object.values(scores).filter((s) => s.score > 0).length
+    return json({ scores, rated, degraded: qReasons.length > 0, reason: qReasons.slice(0, 2).join(' · ') || undefined, model: qModel })
+  }
+
   // STILE di impaginazione scelto dal fotografo: cambia cadenza + criterio di composizione.
   const STYLE_GUIDE: Record<string, { hint: string; maxPer: number }> = {
     narrativo:    { maxPer: 6, hint: 'STILE NARRATIVO: racconto cronologico fitto in stile reportage — molte foto che scorrono, sequenza degli attimi, tavole piene e ritmo continuo.' },

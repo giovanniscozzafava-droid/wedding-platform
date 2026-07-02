@@ -881,6 +881,8 @@ function AlbumDesignerInner() {
   const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
   const [aiPick, setAiPick] = useState(false) // scelta stile impaginazione AI
+  const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string }>>({}) // ranking qualità stampa
+  const [qualityBusy, setQualityBusy] = useState(false)
   // APRI IN PHOTOSHOP: (1) scarica l'ORIGINALE a piena risoluzione come file su disco, (2) tenta di
   // AVVIARE Photoshop via protocol-handler `photoshop://`. Un'app web non può forzare l'apertura di
   // un'app desktop se non tramite protocollo registrato: se Photoshop non parte da solo, il file è
@@ -1372,6 +1374,27 @@ function AlbumDesignerInner() {
     } finally { setAiBusy(false) }
   }
 
+  // RANKING QUALITÀ DI STAMPA (on-demand): l'AI valuta a vista i criteri tecnici (esposizione, neri
+  // chiusi, alte luci, fuoco/mosso, rumore) e dà un punteggio 0-100 + i problemi + il perché.
+  async function rankQuality() {
+    if (kept.length < 1) { toast.error('Nessuna foto da valutare'); return }
+    setQualityBusy(true)
+    try {
+      const payload = { mode: 'quality', photos: kept.map((m) => ({ id: m.id, url: hiUrl(m) })) } // hiUrl = più risoluzione per il giudizio tecnico
+      const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
+      let err = (data as { error?: string } | null)?.error; let detail = (data as { detail?: string } | null)?.detail
+      if (error) { try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err; detail = b?.detail ?? detail } } catch { /* */ } }
+      if (error || err) { toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server' : `Valutazione non riuscita${detail ? `: ${detail}` : (err ? `: ${err}` : '')}`.slice(0, 200)); return }
+      const scores = (data as { scores?: Record<string, { score: number; issues: string[]; reason: string }> }).scores ?? {}
+      setQualityScores((prev) => ({ ...prev, ...scores }))
+      const rated = (data as { rated?: number }).rated ?? Object.keys(scores).length
+      const degraded = (data as { degraded?: boolean }).degraded
+      if (degraded) toast.warning(`Valutate ${rated} foto · alcune non valutabili (${(data as { reason?: string }).reason ?? 'errore'})`, { duration: 9000 })
+      else toast.success(`Valutate ${rated} foto per qualità di stampa`)
+    } catch (e) { toast.error(`Valutazione non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
+    finally { setQualityBusy(false) }
+  }
+
   // ── VISTA CLIENTE (mobile-first, stile Canva mobile): sfoglia le tavole grandi, zoom a tutto
   //    schermo, richiedi modifiche. Sola lettura: il cliente non modifica per sbaglio la struttura. ──
   if (lite) {
@@ -1703,6 +1726,7 @@ function AlbumDesignerInner() {
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
             {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>}
+            {!lite && <Button variant="outline" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
             <Button variant="outline" size="sm" disabled={!histPast.current.length} onClick={undo} title="Annulla (⌘Z)"><Undo2 size={14} /></Button>
@@ -1785,6 +1809,13 @@ function AlbumDesignerInner() {
                         className="absolute top-0.5 left-0.5 z-10 h-[16px] w-[16px] rounded-full bg-black/55 text-white flex items-center justify-center opacity-0 group-hover/tray:opacity-100 hover:bg-rose-600 transition-opacity">
                         <X size={11} />
                       </button>
+                    )}
+                    {/* voto qualità stampa (0-100) dell'AI: verde ≥75, ambra 50-74, rosso <50 */}
+                    {(qualityScores[m.id]?.score ?? 0) > 0 && (
+                      <span title={`Qualità stampa ${qualityScores[m.id]!.score}/100 — ${qualityScores[m.id]!.reason}${qualityScores[m.id]!.issues.length ? ' · ' + qualityScores[m.id]!.issues.join(', ') : ''}`}
+                        className={`absolute bottom-0.5 left-0.5 z-10 min-w-[18px] h-[15px] px-1 rounded text-[9px] font-bold leading-[15px] text-center text-white ${qualityScores[m.id]!.score >= 75 ? 'bg-emerald-600/90' : qualityScores[m.id]!.score >= 50 ? 'bg-amber-500/95' : 'bg-rose-600/90'}`}>
+                        {qualityScores[m.id]!.score}
+                      </span>
                     )}
                   </div>
                 ))}
