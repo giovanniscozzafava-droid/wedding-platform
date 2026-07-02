@@ -12,7 +12,18 @@ import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect, isCustomFormat, l
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
 import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
-import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
+import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, coverWindow, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
+
+// Ritaglio in SEZIONE AUREA: mette il volto (fx,fy) su una linea aurea (0.382/0.618) tenendolo
+// SEMPRE dentro (z=1, nessun taglio). Usa la finestra di cover per convertire slot→sorgente.
+function goldenCell(imgAspect: number, slotAspect: number, fx: number, fy: number): Cell {
+  const clamp = (v: number) => Math.min(1, Math.max(0, v))
+  const w = coverWindow(imgAspect > 0 ? imgAspect : 1, slotAspect > 0 ? slotAspect : 1, { z: 1, fx: 0.5, fy: 0.5 })
+  const whFrac = w.sh > 0 ? w.wh / w.sh : 1 // altezza finestra come frazione dell'immagine
+  const targetX = fx <= 0.5 ? 0.382 : 0.618 // volto verso la linea aurea del lato in cui si trova
+  const targetY = fy <= 0.5 ? 0.382 : 0.5   // i volti stanno di solito in alto → linea aurea alta
+  return { z: 1, fx: clamp(fx + w.ww * (0.5 - targetX)), fy: clamp(fy + whFrac * (0.5 - targetY)) }
+}
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, neighborGaps, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
@@ -1304,7 +1315,8 @@ function AlbumDesignerInner() {
     if (clean.length === 1) {
       const mid = clean[0]!
       const fo = focusMap?.[mid]
-      const cell: Cell = fo ? { z: 1, fx: fo.fx, fy: fo.fy } : { ...DEFAULT_CELL }
+      const ia = aspects[mid] ?? photoAspect.get(mid) ?? 1
+      const cell: Cell = fo ? goldenCell(ia, (fmt.w * 2) / fmt.h, fo.fx, fo.fy) : { ...DEFAULT_CELL }
       const hero: AlbumPage = { ...newPage(), mode: 'template', tavolaFree: false, spreadImage: { mediaId: mid, cell } }
       return [hero, { ...newPage(), tavolaFree: false }]
     }
@@ -1327,8 +1339,10 @@ function AlbumDesignerInner() {
       const mid = clean[ai >= 0 ? ai : k] ?? clean[k]; if (!mid) return null
       const g = useSaved ? { x: s.x, y: s.y, w: s.w, h: s.h } : gutterSlot(s, gx, gy)
       const fo = focusMap?.[mid]
-      // ritaglio dal punto focale dell'AI (soggetto in frame, niente teste tagliate); senza → centro
-      const cell: Cell = fo ? { z: 1, fx: fo.fx, fy: fo.fy } : { ...DEFAULT_CELL }
+      const ia = aspects[mid] ?? photoAspect.get(mid) ?? 1
+      const slotAspect = (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)
+      // ritaglio in SEZIONE AUREA sul volto (mai tagliato); senza volto dall'AI → centro
+      const cell: Cell = fo ? goldenCell(ia, slotAspect, fo.fx, fo.fy) : { ...DEFAULT_CELL }
       return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: rots[k] ?? 0, cell }
     }).filter(Boolean) as FreeEl[]
     left.elements = els
