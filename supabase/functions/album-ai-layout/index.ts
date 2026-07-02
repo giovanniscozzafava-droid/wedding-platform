@@ -109,16 +109,17 @@ async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): 
 // Valuta a vista (dettaglio alto) i criteri tecnici REALI. Onesto sui limiti: rumore/nitidezza fine
 // da un'anteprima web sono "indicativi" (il ridimensionamento nasconde il rumore).
 const QUALITY_ISSUES = ['neri_chiusi','luci_bruciate','sottoesposta','sovraesposta','poco_contrasto','troppo_contrasto','dominante_colore','mosso','fuori_fuoco','rumore','ok']
-type QScore = { id: string; score: number; issues: string[]; reason: string }
+type QScore = { id: string; score: number; issues: string[]; reason: string; advice: string }
 async function qualityBatch(photos: { id: string; url?: string | null }[], model: string): Promise<QScore[]> {
   const withUrl = photos.filter((p) => p.url)
-  if (!withUrl.length) return photos.map((p) => ({ id: p.id, score: 0, issues: [], reason: 'anteprima non disponibile' }))
+  if (!withUrl.length) return photos.map((p) => ({ id: p.id, score: 0, issues: [], reason: 'anteprima non disponibile', advice: '' }))
   const sys = [
-    'Sei un fotografo esperto di STAMPA. Valuta la qualità TECNICA di stampa di ogni foto, seriamente.',
-    `Per OGNI foto dai: score 0-100 (idoneità alla stampa), issues (array tra: ${QUALITY_ISSUES.join(', ')}), reason (1 frase tecnica in italiano).`,
-    'Criteri: esposizione, neri chiusi (ombre senza dettaglio), alte luci bruciate, contrasto, dominante colore, messa a fuoco/mosso, rumore.',
-    "Sii onesto: se rumore o nitidezza fine non sono giudicabili dall'anteprima, dillo nella reason e non penalizzare a caso.",
-    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"q":[{"id","score","issues","reason"}]}.',
+    'Sei un RETOUCHER e stampatore fine-art. Giudica la qualità TECNICA di stampa di ogni foto in modo ESTREMAMENTE TECNICO, senza complimenti.',
+    `Per OGNI foto dai: score 0-100 (idoneità alla stampa), issues (array tra: ${QUALITY_ISSUES.join(', ')}), reason (1 frase, diagnosi tecnica).`,
+    'advice = COSA FARE per migliorare la stampa, concreto e tecnico (1-2 azioni): es. "recupera ombre +0.6 stop, chiudi alte luci -0.4", "riduci rumore luminanza, +nitidezza output per stampa", "correggi dominante magenta ~+5, alza il punto di nero", "raddrizza orizzonte 1.5°, ricomponi in aureo", "aumenta micro-contrasto/chiarezza, satura selettivamente gli incarnati".',
+    'Criteri: esposizione (stop), neri chiusi (ombre bloccate), alte luci bruciate (clipping), contrasto e curva, dominante colore/bilanciamento del bianco, messa a fuoco/mosso, rumore luminanza/cromatico, nitidezza per la stampa, orizzonte/prospettiva.',
+    "Sii onesto sui limiti dell'anteprima (rumore e micro-nitidezza sono indicativi): dillo nella reason, non penalizzare a caso.",
+    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"q":[{"id","score","issues","reason","advice"}]}.',
   ].join('\n')
   const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]
   for (const p of withUrl) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'high' } })
@@ -131,9 +132,10 @@ async function qualityBatch(photos: { id: string; url?: string | null }[], model
       score: Math.max(0, Math.min(100, Math.round(typeof x?.score === 'number' ? x.score : 0))),
       issues: Array.isArray(x?.issues) ? x.issues.filter((i: any) => QUALITY_ISSUES.includes(i)).slice(0, 5) : [],
       reason: typeof x?.reason === 'string' ? x.reason.slice(0, 140) : '',
+      advice: typeof x?.advice === 'string' ? x.advice.slice(0, 200) : '',
     })).filter((x: QScore) => x.id)
     const byId = new Map(out.map((a) => [a.id, a]))
-    return photos.map((p) => byId.get(p.id) ?? { id: p.id, score: 0, issues: [], reason: 'non valutata' })
+    return photos.map((p) => byId.get(p.id) ?? { id: p.id, score: 0, issues: [], reason: 'non valutata', advice: '' })
   } catch (e) { throw new Error(`quality: ${String((e as Error)?.message ?? e).slice(0, 160)}`) }
 }
 
@@ -156,7 +158,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; styleProfile?: { perSpread: number; times: number }[] }
+  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[] }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   if (!photos.length) return json({ error: 'no_photos' }, 400)
@@ -173,10 +175,10 @@ Deno.serve(async (req) => {
     const qReasons: string[] = []
     const results = await pool(qBatches, 2, async (b) => {
       try { return await qualityBatch(b, qModel) }
-      catch (e) { qReasons.push(String((e as Error)?.message ?? e).slice(0, 120)); return b.map((p) => ({ id: p.id, score: 0, issues: [], reason: 'non valutata (errore)' })) }
+      catch (e) { qReasons.push(String((e as Error)?.message ?? e).slice(0, 120)); return b.map((p) => ({ id: p.id, score: 0, issues: [], reason: 'non valutata (errore)', advice: '' })) }
     })
-    const scores: Record<string, { score: number; issues: string[]; reason: string }> = {}
-    for (const q of results.flat()) scores[q.id] = { score: q.score, issues: q.issues, reason: q.reason }
+    const scores: Record<string, { score: number; issues: string[]; reason: string; advice: string }> = {}
+    for (const q of results.flat()) scores[q.id] = { score: q.score, issues: q.issues, reason: q.reason, advice: q.advice }
     const rated = Object.values(scores).filter((s) => s.score > 0).length
     return json({ scores, rated, degraded: qReasons.length > 0, reason: qReasons.slice(0, 2).join(' · ') || undefined, model: qModel })
   }
@@ -191,6 +193,7 @@ Deno.serve(async (req) => {
   const styleG = STYLE_GUIDE[typeof body.style === 'string' ? body.style : '']
   const chronoStrict = !styleG || styleG.chrono === 'strict'   // narrativo (o nessuno stile) = cronologia rigida
   const maxPer = Math.min(24, Math.max(1, body.maxPerSpread ?? styleG?.maxPer ?? 5))
+  const maxSpreads = body.maxPages && body.maxPages > 0 ? Math.max(1, Math.floor(body.maxPages / 2)) : 0 // tavola = 2 pagine
   const term = (body.eventTerm ?? 'matrimonio').replace(/[^\p{L}\s]/gu, '').slice(0, 40)
   const style = (body.styleProfile ?? []).filter((s) => s && s.perSpread > 0 && s.times > 0).slice(0, 6)
   const styleHint = style.length
@@ -241,6 +244,8 @@ Deno.serve(async (req) => {
       ...(targetFull > 0 ? [`Metti circa ${targetFull} foto forti come tavole "full".`] : []),
       ...(targetDouble === 0 && targetFull === 0 ? ['Valorizza gli scatti forti: qualcuno da solo a doppia pagina ("double"), con parsimonia.'] : []),
       'Bilancia orizzontali e verticali. La "note" dice il momento (1-4 parole).',
+      'NON tagliare né spremere le foto: se una scena ha bisogno di spazio, usa tavole con POCHE foto (o una sola). Meglio PIÙ tavole che foto sacrificate.',
+      ...(maxSpreads > 0 ? [`Non superare ${maxSpreads} tavole in totale (${maxSpreads * 2} pagine): se le foto sono tante, aumenta le foto per tavola per rientrare nel limite.`] : []),
       ...(body.groupBw ? ['Le foto in BIANCO E NERO (bw=1) vanno tenute INSIEME e NON mischiate col colore: tavole dedicate.'] : []),
       ...(styleG ? [`Stile: ${styleG.hint}`] : []),
       styleHint,
@@ -283,6 +288,16 @@ Deno.serve(async (req) => {
   for (let i = 0; i < missing.length; i += maxPer) tavole.push({ photoIds: missing.slice(i, i + maxPer), note: 'extra' })
   if (!tavole.length) return json({ error: 'ai_empty' }, 502)
 
+  // TETTO PAGINE: se le tavole superano il massimo, riaccorpa TUTTE le foto (in ordine) in
+  // esattamente maxSpreads tavole equilibrate → rientra nel limite senza perdere foto.
+  let outTavole = tavole
+  if (maxSpreads > 0 && tavole.length > maxSpreads) {
+    const allIds = tavole.flatMap((t) => t.photoIds)
+    const per = Math.ceil(allIds.length / maxSpreads)
+    outTavole = []
+    for (let i = 0; i < allIds.length; i += per) outTavole.push({ photoIds: allIds.slice(i, i + per), note: 'auto' })
+  }
+
   const degraded = reasons.length > 0
-  return json({ tavole, focus, seen: visionOk, facesFound, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: VISION_MODELS[0], composeModel: composeModel || 'euristica' })
+  return json({ tavole: outTavole, focus, seen: visionOk, facesFound, tavoleCount: outTavole.length, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: VISION_MODELS[0], composeModel: composeModel || 'euristica' })
 })

@@ -46,9 +46,14 @@ function justifiedSlots(aspectsArr: number[], spreadAspect: number): { x: number
   const n = aspectsArr.length
   if (!n) return []
   const a = aspectsArr.map((x) => (x > 0 ? x : 1))
-  const target = Math.max(spreadAspect, 0.5) // somma-aspetti per riga ≈ larghezza tavola
+  const T = a.reduce((s, x) => s + x, 0)
+  // NUMERO DI RIGHE OTTIMALE per NON distorcere: con R=√(ΣAspetti/aspettoTavola) l'altezza naturale
+  // totale delle righe ≈ 1, quindi la normalizzazione è ≈ identità → gli slot hanno l'aspetto REALE
+  // delle foto → object-cover NON taglia (verticali restano verticali, orizzontali orizzontali).
+  const R = Math.max(1, Math.min(n, Math.round(Math.sqrt(T / Math.max(0.3, spreadAspect)))))
+  const target = T / R // somma-aspetti per riga
   const rows: number[][] = []; let cur: number[] = []; let sum = 0
-  for (let i = 0; i < n; i++) { cur.push(i); sum += a[i]!; if (sum >= target) { rows.push(cur); cur = []; sum = 0 } }
+  for (let i = 0; i < n; i++) { cur.push(i); sum += a[i]!; if (sum >= target && rows.length < R - 1) { rows.push(cur); cur = []; sum = 0 } }
   if (cur.length) rows.push(cur)
   const heights = rows.map((r) => spreadAspect / r.reduce((s, i) => s + a[i]!, 0)) // altezza naturale della riga
   const H = heights.reduce((s, h) => s + h, 0) || 1
@@ -960,7 +965,8 @@ function AlbumDesignerInner() {
   const [aiDoublePct, setAiDoublePct] = useState<number>(8)  // % foto a doppia pagina
   const [aiFullPct, setAiFullPct] = useState<number>(10)     // % foto a pagina intera
   const [aiRespectFormat, setAiRespectFormat] = useState<boolean>(true) // verticali/orizzontali restano tali
-  const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string }>>({}) // ranking qualità stampa
+  const [aiMaxPages, setAiMaxPages] = useState<number>(60) // tetto massimo di pagine dell'album
+  const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string; advice?: string }>>({}) // ranking qualità stampa + consiglio tecnico
   const [qualityBusy, setQualityBusy] = useState(false)
   const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
   const [faceMap, setFaceMap] = useState<Record<string, { fx: number; fy: number; face?: boolean }>>({}) // dove l'AI ha mappato i volti
@@ -1462,7 +1468,7 @@ function AlbumDesignerInner() {
     for (const p of pages) { if (p.tavolaFree) { const n = (p.elements ?? []).length; if (n) c.set(n, (c.get(n) ?? 0) + 1) } }
     return [...c.entries()].map(([perSpread, times]) => ({ perSpread, times })).sort((a, b) => b.times - a.times).slice(0, 6)
   }
-  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean }) {
+  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean; maxPages?: number }) {
     if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
@@ -1483,7 +1489,7 @@ function AlbumDesignerInner() {
         // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte).
         // Le foto sono GIÀ in ordine cronologico di scatto (takenAt) → l'AI mantiene la sequenza.
         photos: ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) })),
-        format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, chronological: true, styleProfile: styleProfile(),
+        format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true, styleProfile: styleProfile(),
       }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
       let err = (data as { error?: string } | null)?.error
@@ -1530,7 +1536,7 @@ function AlbumDesignerInner() {
       let err = (data as { error?: string } | null)?.error; let detail = (data as { detail?: string } | null)?.detail
       if (error) { try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err; detail = b?.detail ?? detail } } catch { /* */ } }
       if (error || err) { toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server' : `Valutazione non riuscita${detail ? `: ${detail}` : (err ? `: ${err}` : '')}`.slice(0, 200)); return }
-      const scores = (data as { scores?: Record<string, { score: number; issues: string[]; reason: string }> }).scores ?? {}
+      const scores = (data as { scores?: Record<string, { score: number; issues: string[]; reason: string; advice?: string }> }).scores ?? {}
       setQualityScores((prev) => ({ ...prev, ...scores }))
       const rated = (data as { rated?: number }).rated ?? Object.keys(scores).length
       const degraded = (data as { degraded?: boolean }).degraded
@@ -1979,7 +1985,7 @@ function AlbumDesignerInner() {
                     )}
                     {/* voto qualità stampa (0-100) dell'AI: verde ≥75, ambra 50-74, rosso <50 */}
                     {(qualityScores[m.id]?.score ?? 0) > 0 && (
-                      <span title={`Qualità stampa ${qualityScores[m.id]!.score}/100 — ${qualityScores[m.id]!.reason}${qualityScores[m.id]!.issues.length ? ' · ' + qualityScores[m.id]!.issues.join(', ') : ''}`}
+                      <span title={`Qualità stampa ${qualityScores[m.id]!.score}/100 — ${qualityScores[m.id]!.reason}${qualityScores[m.id]!.issues.length ? ' · ' + qualityScores[m.id]!.issues.join(', ') : ''}${qualityScores[m.id]!.advice ? '\nDa fare: ' + qualityScores[m.id]!.advice : ''}`}
                         className={`absolute bottom-0.5 left-0.5 z-10 min-w-[18px] h-[15px] px-1 rounded text-[9px] font-bold leading-[15px] text-center text-white ${qualityScores[m.id]!.score >= 75 ? 'bg-emerald-600/90' : qualityScores[m.id]!.score >= 50 ? 'bg-amber-500/95' : 'bg-rose-600/90'}`}>
                         {qualityScores[m.id]!.score}
                       </span>
@@ -2354,6 +2360,11 @@ function AlbumDesignerInner() {
                     <div className="flex items-center justify-between text-xs"><span className="font-medium text-[rgb(var(--fg-muted))]">Foto a pagina intera</span><span>{aiFullPct}%</span></div>
                     <input type="range" min={0} max={40} value={aiFullPct} onChange={(e) => setAiFullPct(Number(e.target.value))} className="w-full accent-[rgb(var(--gold-500))]" />
                   </div>
+                  <div>
+                    <div className="flex items-center justify-between text-xs"><span className="font-medium text-[rgb(var(--fg-muted))]">Numero massimo di pagine</span><span>{aiMaxPages}</span></div>
+                    <input type="range" min={10} max={140} step={2} value={aiMaxPages} onChange={(e) => setAiMaxPages(Number(e.target.value))} className="w-full accent-[rgb(var(--gold-500))]" />
+                    <p className="mt-0.5 text-[10px] text-[rgb(var(--fg-subtle))]">Se serve spazio l'AI usa più tavole per non tagliare, ma senza superare questo limite.</p>
+                  </div>
                 </div>
 
                 <div className="mt-4 space-y-2">
@@ -2373,7 +2384,7 @@ function AlbumDesignerInner() {
 
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
-                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat }) }}><Sparkles size={14} /> Impagina</Button>
+                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat, maxPages: aiMaxPages }) }}><Sparkles size={14} /> Impagina</Button>
                 </div>
               </div>
             </div>
