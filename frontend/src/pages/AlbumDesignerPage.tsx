@@ -891,7 +891,11 @@ function AlbumDesignerInner() {
   function openCtx(pageId: string, id: string, x: number, y: number) { if (!multiSel.includes(id)) { setSelEl(id); setMultiSel([]) } setCtxMenu({ pageId, id, x, y }) }
   const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
-  const [aiPick, setAiPick] = useState(false) // scelta stile impaginazione AI
+  const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
+  const [aiStyle, setAiStyle] = useState<string>('narrativo')
+  const [aiMaxPer, setAiMaxPer] = useState<number>(0)        // 0 = automatico (dallo stile)
+  const [aiGroupBw, setAiGroupBw] = useState<boolean>(true)  // tieni insieme le foto in bianco e nero
+  const [aiHeroDouble, setAiHeroDouble] = useState<boolean>(true) // foto forti a doppia pagina
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string }>>({}) // ranking qualità stampa
   const [qualityBusy, setQualityBusy] = useState(false)
   const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
@@ -1306,13 +1310,13 @@ function AlbumDesignerInner() {
   // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
   // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
   // stesso numero di foto; altrimenti genera la disposizione migliore.
-  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>): AlbumPage[] {
+  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>, heroDouble = true): AlbumPage[] {
     const clean = ids.filter((id) => mediaById.has(id))
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
     if (!clean.length) return [left, right]
     // FOTO SINGOLA = scatto forte a DOPPIA PAGINA (full-bleed su entrambe le pagine), col ritaglio dell'AI
-    if (clean.length === 1) {
+    if (clean.length === 1 && heroDouble) {
       const mid = clean[0]!
       const fo = focusMap?.[mid]
       const ia = aspects[mid] ?? photoAspect.get(mid) ?? 1
@@ -1356,7 +1360,7 @@ function AlbumDesignerInner() {
     for (const p of pages) { if (p.tavolaFree) { const n = (p.elements ?? []).length; if (n) c.set(n, (c.get(n) ?? 0) + 1) } }
     return [...c.entries()].map(([perSpread, times]) => ({ perSpread, times })).sort((a, b) => b.times - a.times).slice(0, 6)
   }
-  async function aiLayout(style?: string) {
+  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean }) {
     if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
@@ -1377,7 +1381,7 @@ function AlbumDesignerInner() {
         // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte).
         // Le foto sono GIÀ in ordine cronologico di scatto (takenAt) → l'AI mantiene la sequenza.
         photos: ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) })),
-        format, style, chronological: true, styleProfile: styleProfile(),
+        format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, chronological: true, styleProfile: styleProfile(),
       }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
       let err = (data as { error?: string } | null)?.error
@@ -1396,7 +1400,7 @@ function AlbumDesignerInner() {
       const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
       if (!tavole.length) { toast.error("L'AI non ha restituito tavole"); return }
       const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean }> }).focus ?? {}
-      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap))
+      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false))
       if (!newPages.length) { toast.error('Nessuna tavola generata'); return }
       setPages(newPages); setCurrentPageId(newPages[0]!.id); setSelEl(null); setMultiSel([])
       const degraded = (data as { degraded?: boolean }).degraded
@@ -2179,24 +2183,48 @@ function AlbumDesignerInner() {
             )
           })()}
 
-          {/* SCELTA STILE: prima di impaginare, l'AI chiede con che criterio comporre */}
+          {/* BRIEF AI: prima di impaginare l'AI chiede le cose che contano (stile, densità, B/N, hero) */}
           {aiPick && (
             <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/50 p-4" onClick={() => setAiPick(false)}>
-              <div className="w-[min(94vw,600px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <p className="font-display text-lg">Come vuoi impaginare?</p>
-                <p className="mb-4 mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Scegli lo stile: l'AI guarda le foto e compone le tavole con quel criterio.</p>
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className="w-[min(94vw,620px)] max-h-[90vh] overflow-auto rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <p className="font-display text-lg">Impagina con AI</p>
+                <p className="mb-3 mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Poche scelte e l'AI compone l'album di conseguenza (legge le foto, gli orari di scatto e i volti).</p>
+
+                <p className="mb-1.5 text-xs font-medium text-[rgb(var(--fg-muted))]">Stile</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {AI_STYLES.map((s) => (
-                    <button key={s.key} onClick={() => { setAiPick(false); void aiLayout(s.key) }}
-                      className="rounded-xl border border-[rgb(var(--border))] p-3 text-left transition-colors hover:border-[rgb(var(--gold-500))] hover:bg-[rgb(var(--gold-100))]">
-                      <div className="flex items-center gap-2 font-medium"><Sparkles size={15} className="text-[rgb(var(--gold-600))]" /> {s.label}</div>
-                      <p className="mt-1 text-xs text-[rgb(var(--fg-muted))]">{s.desc}</p>
+                    <button key={s.key} onClick={() => setAiStyle(s.key)}
+                      className={`rounded-xl border p-2.5 text-left transition-colors ${aiStyle === s.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:border-[rgb(var(--gold-400))]'}`}>
+                      <div className="flex items-center gap-2 text-sm font-medium">{aiStyle === s.key ? <Check size={14} className="text-[rgb(var(--gold-600))]" /> : <Sparkles size={14} className="text-[rgb(var(--gold-600))]" />} {s.label}</div>
+                      <p className="mt-0.5 text-[11px] text-[rgb(var(--fg-muted))]">{s.desc}</p>
                     </button>
                   ))}
                 </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <button onClick={() => { setAiPick(false); void aiLayout() }} className="text-xs text-[rgb(var(--fg-muted))] hover:underline">Impagina senza stile specifico</button>
+
+                <p className="mb-1.5 mt-4 text-xs font-medium text-[rgb(var(--fg-muted))]">Massimo foto per tavola</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[0, 2, 3, 4, 5, 6].map((n) => (
+                    <button key={n} onClick={() => setAiMaxPer(n)}
+                      className={`rounded-lg border px-3 py-1.5 text-sm ${aiMaxPer === n ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] font-medium' : 'border-[rgb(var(--border))]'}`}>
+                      {n === 0 ? 'Auto' : n}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input type="checkbox" checked={aiGroupBw} onChange={(e) => setAiGroupBw(e.target.checked)} className="accent-[rgb(var(--gold-500))]" />
+                    Raggruppa le foto in <strong>bianco e nero</strong> (non mischiarle col colore)
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input type="checkbox" checked={aiHeroDouble} onChange={(e) => setAiHeroDouble(e.target.checked)} className="accent-[rgb(var(--gold-500))]" />
+                    Le foto forti prendono la <strong>doppia pagina</strong>
+                  </label>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
+                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble }) }}><Sparkles size={14} /> Impagina</Button>
                 </div>
               </div>
             </div>

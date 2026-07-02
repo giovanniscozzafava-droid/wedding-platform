@@ -34,7 +34,7 @@ const MOMENTS = ['preparativi','preparativi-sposo','dettagli-sposa','primo-sguar
 const M_ORDER = new Map(MOMENTS.map((m, i) => [m, i]))
 
 type InPhoto = { id: string; url?: string | null; moment?: string | null; aspect?: number | null; likes?: number | null; takenAt?: number | null }
-type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean; subjects?: string; people?: number }
+type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean; subjects?: string; people?: number; bw?: boolean }
 
 async function openai(body: unknown, attempt = 0): Promise<any> {
   const ctrl = new AbortController()
@@ -66,7 +66,8 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
   const sys = [
     'Sei un art director di album di matrimonio. Guarda ogni foto (LEGGI I VOLTI e i soggetti) e dai un giudizio per impaginarla.',
     `Per OGNI foto: moment (uno tra: ${MOMENTS.join(', ')}), caption (max 6 parole su cosa si vede), subjects (uno tra: sposi, sposa, sposo, coppia, persona, gruppo, famiglia, dettaglio, ambiente), people (numero approssimativo di persone nel frame, 0 se nessuna), fx e fy = CENTRO DEL VOLTO del soggetto principale in frazioni 0..1 (0,0=alto-sx, 1,1=basso-dx; se ci sono più volti principali, il baricentro dei volti; se non ci sono volti, il soggetto), hero=true se scatto forte da valorizzare grande.`,
-    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","subjects","people","fx","fy","hero"}]}.',
+    'Aggiungi bw=true se la foto è in BIANCO E NERO (monocroma), false se a colori.',
+    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","subjects","people","bw","fx","fy","hero"}]}.',
   ].join('\n')
   const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]
   for (const p of withUrl) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'low' } })
@@ -79,6 +80,7 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
       caption: typeof x?.caption === 'string' ? x.caption.slice(0, 60) : '', fx: clamp01(x?.fx), fy: clamp01(x?.fy), hero: !!x?.hero,
       subjects: typeof x?.subjects === 'string' ? x.subjects.slice(0, 20) : undefined,
       people: Number.isFinite(x?.people) ? Math.max(0, Math.round(x.people)) : undefined,
+      bw: typeof x?.bw === 'boolean' ? x.bw : undefined,
     })).filter((x: Analysis) => x.id)
     const byId = new Map(out.map((a) => [a.id, a]))
     return photos.map((p) => byId.get(p.id) ?? { id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
@@ -142,7 +144,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; styleProfile?: { perSpread: number; times: number }[] }
+  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; styleProfile?: { perSpread: number; times: number }[] }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   if (!photos.length) return json({ error: 'no_photos' }, 400)
@@ -214,12 +216,13 @@ Deno.serve(async (req) => {
       `2) SPEZZA la sequenza (mantenendone l'ordine) in "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UNA scena coerente — stesso momento e soggetti che dialogano. NON mischiare mai scene/momenti diversi nella stessa tavola.`,
       'VALORIZZA le foto forti: una foto con imp (importanza per la coppia) alto, oppure h=1 (scatto tecnicamente forte), va messa DA SOLA nella sua tavola → così prende la DOPPIA PAGINA intera. Non sprecarne più di una manciata.',
       'Bilancia orizzontali e verticali nella stessa tavola. La "note" di ogni tavola dice il momento (1-4 parole).',
+      ...(body.groupBw ? ['Le foto in BIANCO E NERO (bw=1) vanno tenute INSIEME e NON mischiate con foto a colori nella stessa tavola: raggruppale in tavole dedicate (rispettando comunque momento e cronologia).'] : []),
       ...(styleG ? [`Applica inoltre lo ${styleG.hint}`] : []),
       styleHint,
       'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"..."}]}.',
     ].join('\n')
     const likeById = new Map(photos.map((p) => [p.id, Math.max(0, Math.round(p.likes ?? 0))]))
-    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
+    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, bw: a.bw ? 1 : 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
     const msgsB = [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }]
     let data: any
     // CASCATA modelli: prova dal più avanzato; salta quelli non accessibili (404/modello inesistente).
