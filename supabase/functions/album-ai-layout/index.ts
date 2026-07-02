@@ -36,7 +36,7 @@ const MOMENTS = ['preparativi','preparativi-sposo','dettagli-sposa','primo-sguar
 const M_ORDER = new Map(MOMENTS.map((m, i) => [m, i]))
 
 type InPhoto = { id: string; url?: string | null; moment?: string | null; aspect?: number | null; likes?: number | null; takenAt?: number | null }
-type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean; subjects?: string; people?: number; bw?: boolean }
+type Analysis = { id: string; moment: string; caption: string; fx: number; fy: number; hero: boolean; subjects?: string; people?: number; bw?: boolean; ht?: number; hb?: number }
 
 async function openai(body: unknown, attempt = 0): Promise<any> {
   const ctrl = new AbortController()
@@ -67,9 +67,10 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
   if (!withUrl.length) return fallback()
   const sys = [
     'Sei un art director di album di matrimonio. Guarda ogni foto (LEGGI I VOLTI e i soggetti) e dai un giudizio per impaginarla.',
-    `Per OGNI foto: moment (uno tra: ${MOMENTS.join(', ')}), caption (max 6 parole su cosa si vede), subjects (uno tra: sposi, sposa, sposo, coppia, persona, gruppo, famiglia, dettaglio, ambiente), people (numero approssimativo di persone nel frame, 0 se nessuna), fx e fy = CENTRO DEL VOLTO del soggetto principale in frazioni 0..1 (0,0=alto-sx, 1,1=basso-dx; se ci sono più volti principali, il baricentro dei volti; se non ci sono volti, il soggetto), hero=true se scatto forte da valorizzare grande.`,
+    `Per OGNI foto: moment (uno tra: ${MOMENTS.join(', ')}), caption (max 6 parole su cosa si vede), subjects (uno tra: sposi, sposa, sposo, coppia, persona, gruppo, famiglia, dettaglio, ambiente), people (numero approssimativo di persone nel frame, 0 se nessuna), fx e fy = CENTRO DEL VOLTO del soggetto principale in frazioni 0..1 (0,0=alto-sx, 1,1=basso-dx; se più volti, il baricentro), hero=true se scatto forte da valorizzare grande.`,
+    'ht = y del TOP DELLA TESTA più alta nel frame (frazione 0..1, dove inizia il capello sopra la fronte; serve per NON tagliare le teste). hb = y del punto più BASSO del corpo/mento visibile (0..1). Se non ci sono persone, ht=0 e hb=1.',
     'Aggiungi bw=true se la foto è in BIANCO E NERO (monocroma), false se a colori.',
-    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","subjects","people","bw","fx","fy","hero"}]}.',
+    'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"a":[{"id","moment","caption","subjects","people","bw","fx","fy","ht","hb","hero"}]}.',
   ].join('\n')
   const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]
   for (const p of withUrl) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'low' } })
@@ -93,6 +94,8 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
       subjects: typeof x?.subjects === 'string' ? x.subjects.slice(0, 20) : undefined,
       people: Number.isFinite(x?.people) ? Math.max(0, Math.round(x.people)) : undefined,
       bw: typeof x?.bw === 'boolean' ? x.bw : undefined,
+      ht: Number.isFinite(x?.ht) ? clamp01(x.ht) : undefined,
+      hb: Number.isFinite(x?.hb) ? clamp01(x.hb) : undefined,
     })).filter((x: Analysis) => x.id)
     const byId = new Map(out.map((a) => [a.id, a]))
     return photos.map((p) => byId.get(p.id) ?? { id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
@@ -220,8 +223,8 @@ Deno.serve(async (req) => {
     analyses = toSee.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
   }
   for (const p of rest) analyses.push({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
-  const focus: Record<string, { fx: number; fy: number; hero: boolean; moment: string; face: boolean; people: number }> = {}
-  for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment, face: (a.people ?? 0) > 0, people: a.people ?? 0 }
+  const focus: Record<string, { fx: number; fy: number; hero: boolean; moment: string; face: boolean; people: number; ht?: number; hb?: number }> = {}
+  for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment, face: (a.people ?? 0) > 0, people: a.people ?? 0, ht: a.ht, hb: a.hb }
   const facesFound = Object.values(focus).filter((f) => f.face).length
 
   // ── FASE B: composizione (testo), con fallback euristico ──
@@ -240,6 +243,7 @@ Deno.serve(async (req) => {
         : '1) Raggruppa le foto secondo il criterio dello stile (soggetto/tema/impatto), usando m e s.',
       `2) Forma "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UNA scena/tema coerente — NON mischiare cose diverse nella stessa tavola.`,
       'Per ogni tavola puoi indicare "layout": "double" = 1 sola foto a doppia pagina (full-bleed); "full" = 1 foto dominante a pagina intera + poche piccole; altrimenti ometti (griglia).',
+      'ATTENZIONE TESTE: NON usare "double" (doppia pagina orizzontale) per foto VERTICALI con persone/volti → il taglio taglierebbe le teste. Riserva "double" a foto ORIZZONTALI o a dettagli/paesaggi.',
       ...(targetDouble > 0 ? [`Metti circa ${targetDouble} foto (le più forti/importanti, imp/h alti) come tavole "double".`] : []),
       ...(targetFull > 0 ? [`Metti circa ${targetFull} foto forti come tavole "full".`] : []),
       ...(targetDouble === 0 && targetFull === 0 ? ['Valorizza gli scatti forti: qualcuno da solo a doppia pagina ("double"), con parsimonia.'] : []),

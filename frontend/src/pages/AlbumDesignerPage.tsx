@@ -14,15 +14,25 @@ import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, MAX_PE
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
 import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, coverWindow, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 
-// Ritaglio in SEZIONE AUREA: mette il volto (fx,fy) su una linea aurea (0.382/0.618) tenendolo
-// SEMPRE dentro (z=1, nessun taglio). Usa la finestra di cover per convertire slot→sorgente.
-function goldenCell(imgAspect: number, slotAspect: number, fx: number, fy: number): Cell {
+// Ritaglio TESTA-SAFE + aureo: orizzontalmente mette il volto su una linea aurea; verticalmente
+// GARANTISCE che la testa (ht = top testa) resti nell'inquadratura — MAI teste tagliate. z=1 (nessuno
+// zoom che tagli). Se il soggetto è più alto della finestra, priorità alla testa.
+function goldenCell(imgAspect: number, slotAspect: number, fx: number, fy: number, ht?: number, hb?: number): Cell {
   const clamp = (v: number) => Math.min(1, Math.max(0, v))
   const w = coverWindow(imgAspect > 0 ? imgAspect : 1, slotAspect > 0 ? slotAspect : 1, { z: 1, fx: 0.5, fy: 0.5 })
-  const whFrac = w.sh > 0 ? w.wh / w.sh : 1 // altezza finestra come frazione dell'immagine
-  const targetX = fx <= 0.5 ? 0.382 : 0.618 // volto verso la linea aurea del lato in cui si trova
-  const targetY = fy <= 0.5 ? 0.382 : 0.5   // i volti stanno di solito in alto → linea aurea alta
-  return { z: 1, fx: clamp(fx + w.ww * (0.5 - targetX)), fy: clamp(fy + whFrac * (0.5 - targetY)) }
+  const hWin = w.sh > 0 ? w.wh / w.sh : 1 // altezza finestra come frazione dell'immagine
+  // ORIZZONTALE: linea aurea del lato del volto (le teste non si tagliano ai lati)
+  const targetX = fx <= 0.5 ? 0.382 : 0.618
+  const cx = clamp(fx + w.ww * (0.5 - targetX))
+  // VERTICALE: se testa+corpo entrano nella finestra, li centro; poi ALZO la finestra se il top
+  // della testa cadrebbe comunque fuori → la testa è SEMPRE inclusa (priorità assoluta).
+  const top = typeof ht === 'number' ? ht : Math.max(0, fy - hWin * 0.28)   // top testa (stima se manca)
+  const bot = typeof hb === 'number' ? hb : Math.min(1, fy + hWin * 0.28)   // basso soggetto
+  const margin = 0.02
+  let cy = fy
+  if (bot - top <= hWin) cy = (top + bot) / 2                                // ci stanno entrambi → centra
+  if (cy - hWin / 2 > top - margin) cy = top - margin + hWin / 2            // altrimenti garantisci la testa
+  return { z: 1, fx: cx, fy: clamp(cy) }
 }
 
 // Griglia ordinata per tavole con TANTE foto (fino a 24): righe/colonne bilanciate su un'area.
@@ -1382,7 +1392,7 @@ function AlbumDesignerInner() {
   // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
   // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
   // stesso numero di foto; altrimenti genera la disposizione migliore.
-  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>, respectFormat = false): AlbumPage[] {
+  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean; ht?: number; hb?: number }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>, respectFormat = false): AlbumPage[] {
     const clean = ids.filter((id) => mediaById.has(id))
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
@@ -1390,7 +1400,7 @@ function AlbumDesignerInner() {
     const spreadAspect = (fmt.w * 2) / fmt.h
     const gx = gutterMm / (fmt.w * 2), gy = gutterMm / fmt.h
     const iaOf = (id: string) => aspects[id] ?? photoAspect.get(id) ?? 1
-    const cellFor = (mid: string, sa: number): Cell => { const fo = focusMap?.[mid]; return fo ? goldenCell(iaOf(mid), sa, fo.fx, fo.fy) : { ...DEFAULT_CELL } }
+    const cellFor = (mid: string, sa: number): Cell => { const fo = focusMap?.[mid]; return fo ? goldenCell(iaOf(mid), sa, fo.fx, fo.fy, fo.ht, fo.hb) : { ...DEFAULT_CELL } }
 
     // DOPPIA PAGINA: 1 foto forte full-bleed su entrambe le pagine, ritaglio aureo sul volto
     if (clean.length === 1 && (heroDouble || layout === 'double')) {
@@ -1507,7 +1517,7 @@ function AlbumDesignerInner() {
       }
       const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
       if (!tavole.length) { toast.error("L'AI non ha restituito tavole"); return }
-      const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean; face?: boolean }> }).focus ?? {}
+      const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean; face?: boolean; ht?: number; hb?: number }> }).focus ?? {}
       setFaceMap(focusMap) // mostra sulle miniature dove l'AI ha trovato i volti
       const usedSigs = new Map<string, number>() // per far VARIARE i template tra una tavola e l'altra
       const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false, (t as { layout?: string }).layout, usedSigs, opts?.respectFormat !== false))
