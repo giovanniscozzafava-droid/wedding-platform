@@ -10,8 +10,9 @@
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 // VISIONE (tante chiamate) su gpt-4o-mini: vision-capable, rate limit alti, economico (account nuovi).
 const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini'
-// COMPOSIZIONE (1 sola chiamata testo) su gpt-4o: ragiona meglio → impaginazione con criterio, non a caso.
-const OPENAI_TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') ?? 'gpt-4o'
+// COMPOSIZIONE (1 sola chiamata testo): modello potente per ragionare bene. Default gpt-4.1, con
+// ripiego automatico a gpt-4o se l'account non ci ha accesso. Override via env (es. 'gpt-5').
+const OPENAI_TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') ?? 'gpt-4.1'
 const MAX_VISION = 130
 const BATCH = 8
 const CONCURRENCY = 3
@@ -217,7 +218,16 @@ Deno.serve(async (req) => {
     ].join('\n')
     const likeById = new Map(photos.map((p) => [p.id, Math.max(0, Math.round(p.likes ?? 0))]))
     const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
-    const data = await openai({ model: OPENAI_TEXT_MODEL, temperature: 0.4, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }] })
+    const msgsB = [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }]
+    let data: any
+    try { data = await openai({ model: OPENAI_TEXT_MODEL, temperature: 0.4, response_format: { type: 'json_object' }, messages: msgsB }) }
+    catch (e) {
+      // modello scelto non accessibile all'account → ripiego su gpt-4o (sempre disponibile)
+      if (OPENAI_TEXT_MODEL !== 'gpt-4o' && /model|404|does not exist|not found|no access|does not have access|invalid model/i.test(String(e))) {
+        reasons.push(`modello ${OPENAI_TEXT_MODEL} non accessibile → gpt-4o`)
+        data = await openai({ model: 'gpt-4o', temperature: 0.4, response_format: { type: 'json_object' }, messages: msgsB })
+      } else throw e
+    }
     const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
     rawTavole = Array.isArray(parsed?.tavole) ? parsed.tavole : []
     if (!rawTavole.length) throw new Error('nessuna tavola dal modello')
