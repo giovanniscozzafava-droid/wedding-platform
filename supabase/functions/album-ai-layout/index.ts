@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[] }
+  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number } }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   if (!photos.length) return json({ error: 'no_photos' }, 400)
@@ -186,6 +186,36 @@ Deno.serve(async (req) => {
     for (const q of results.flat()) scores[q.id] = { score: q.score, issues: q.issues, reason: q.reason, advice: q.advice }
     const rated = Object.values(scores).filter((s) => s.score > 0).length
     return json({ scores, rated, degraded: qReasons.length > 0, reason: qReasons.slice(0, 2).join(' · ') || undefined, model: qModel })
+  }
+
+  // ── MODALITÀ "IL MIO STILE" (learn): estrae la geometria delle tavole di un album caricato ──
+  if ((body as { mode?: string }).mode === 'learn') {
+    const imgs = ((body as { images?: string[] }).images ?? []).filter((x) => typeof x === 'string' && x.length > 20).slice(0, 80)
+    if (!imgs.length) return json({ error: 'no_images' }, 400)
+    const lModel = Deno.env.get('OPENAI_QUALITY_MODEL') ?? 'gpt-4o'
+    const sysL = [
+      "Guarda questa TAVOLA di un album fotografico (una doppia pagina). Estrai la GEOMETRIA dell'impaginazione, come la userebbe un impaginatore.",
+      'Per OGNI foto presente dai il riquadro in frazioni 0..1 della tavola: x,y = angolo in alto a sinistra, w,h = larghezza/altezza. n = numero di foto.',
+      'fullbleed = true se UNA foto occupa tutta la tavola bordo a bordo. bw = true se la tavola è in bianco e nero. white = quanto spazio bianco/vuoto attorno alle foto (0 nessuno … 1 moltissimo).',
+      'Rispondi SOLO JSON: {"n","boxes":[{"x","y","w","h"}],"fullbleed","bw","white"}.',
+    ].join('\n')
+    const analyzeOne = async (img: string) => {
+      try {
+        const data = await openai({ model: lModel, temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysL }, { role: 'user', content: [{ type: 'image_url', image_url: { url: img, detail: 'high' } }] }] })
+        const p = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
+        const boxes = Array.isArray(p?.boxes) ? p.boxes.map((b: any) => ({ x: clamp01(b?.x), y: clamp01(b?.y), w: clamp01(b?.w), h: clamp01(b?.h) })).filter((b: any) => b.w > 0.02 && b.h > 0.02).slice(0, 24) : []
+        return { n: Number.isFinite(p?.n) ? Math.max(0, Math.round(p.n)) : boxes.length, boxes, fullbleed: !!p?.fullbleed, bw: !!p?.bw, white: Number.isFinite(p?.white) ? clamp01(p.white) : 0 }
+      } catch { return { n: 0, boxes: [], fullbleed: false, bw: false, white: 0 } }
+    }
+    const spreads = (await pool(imgs, 3, analyzeOne)).filter((s) => s.n > 0)
+    // aggregato: distribuzione foto/tavola + percentuali
+    const counts = new Map<number, number>()
+    let full = 0, bw = 0, whiteSum = 0
+    for (const s of spreads) { counts.set(s.n, (counts.get(s.n) ?? 0) + 1); if (s.fullbleed) full++; if (s.bw) bw++; whiteSum += s.white }
+    const perSpread = [...counts.entries()].map(([perSpread, times]) => ({ perSpread, times })).sort((a, b) => b.times - a.times)
+    const tot = spreads.length || 1
+    const profile = { perSpread, fullbleedPct: Math.round((full / tot) * 100), bwPct: Math.round((bw / tot) * 100), whiteAvg: Math.round((whiteSum / tot) * 100) / 100, avgPhotos: Math.round((spreads.reduce((s, x) => s + x.n, 0) / tot) * 10) / 10, samples: spreads.length }
+    return json({ spreads, profile })
   }
 
   // STILE di impaginazione scelto dal fotografo: cambia cadenza + criterio di composizione.
@@ -255,6 +285,7 @@ Deno.serve(async (req) => {
       ...(maxSpreads > 0 ? [`Non superare ${maxSpreads} tavole in totale (${maxSpreads * 2} pagine): se le foto sono tante, aumenta le foto per tavola per rientrare nel limite.`] : []),
       ...(body.groupBw ? ['Le foto in BIANCO E NERO (bw=1) vanno tenute INSIEME e NON mischiate col colore: tavole dedicate.'] : []),
       ...(styleG ? [`Stile: ${styleG.hint}`] : []),
+      ...(body.learnedStyle ? [`STILE APPRESO DAI SUOI ALBUM VERI (imitalo fedelmente): in media ${body.learnedStyle.avgPhotos ?? '?'} foto per tavola; ${body.learnedStyle.fullbleedPct ?? 0}% delle tavole sono una foto a doppia pagina full-bleed; respiro/bianco ${((body.learnedStyle.whiteAvg ?? 0) >= 0.5) ? 'abbondante' : (body.learnedStyle.whiteAvg ?? 0) >= 0.25 ? 'medio' : 'contenuto'}.`] : []),
       styleHint,
       'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"...","layout":"double|full"}]} (layout opzionale).',
     ].join('\n')

@@ -1535,11 +1535,16 @@ function AlbumDesignerInner() {
         if (tb != null) return 1
         return 0                                          // nessun orario → ordine originale
       })
+      // STILE APPRESO dai PDF del fotografo ("Il mio stile"), se presente → ha priorità sul profilo dedotto
+      type LearnedStyle = { perSpread?: { perSpread: number; times: number }[]; fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number }
+      let learned: LearnedStyle | null = null
+      try { const { data } = await (supabase.from as any)('album_style_profiles').select('profile').maybeSingle(); learned = (data?.profile as LearnedStyle) ?? null } catch { /* nessuno stile appreso */ }
       const payload = {
         // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte).
         // Le foto sono GIÀ in ordine cronologico di scatto (takenAt) → l'AI mantiene la sequenza.
         photos: ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) })),
-        format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true, styleProfile: styleProfile(),
+        format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true,
+        styleProfile: (learned?.perSpread?.length ? learned.perSpread : styleProfile()), learnedStyle: learned,
       }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
       let err = (data as { error?: string } | null)?.error
@@ -2407,7 +2412,8 @@ function AlbumDesignerInner() {
             <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/50 p-4" onClick={() => setAiPick(false)}>
               <div className="w-[min(94vw,620px)] max-h-[90vh] overflow-auto rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <p className="font-display text-lg">Impagina con AI</p>
-                <p className="mb-3 mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Poche scelte e l'AI compone l'album di conseguenza (legge le foto, gli orari di scatto e i volti).</p>
+                <p className="mb-1 mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Poche scelte e l'AI compone l'album di conseguenza (legge le foto, gli orari di scatto e i volti).</p>
+                <p className="mb-3 text-xs"><Link to="/il-mio-stile" target="_blank" className="text-[rgb(var(--gold-700))] hover:underline">✨ Insegna il tuo stile</Link> <span className="text-[rgb(var(--fg-subtle))]">— carica un tuo album PDF e l'AI impaginerà come te.</span></p>
 
                 <p className="mb-1.5 text-xs font-medium text-[rgb(var(--fg-muted))]">Stile</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
