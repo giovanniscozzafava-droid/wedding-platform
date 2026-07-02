@@ -8,8 +8,10 @@
 // chiave mancante / niente foto / json rotto. Legge OPENAI_API_KEY (secret server). verify_jwt=true.
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
-// VISIONE (tante chiamate) su gpt-4o-mini: vision-capable, rate limit alti, economico (account nuovi).
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini'
+// VISIONE (tante chiamate): CASCATA dal più preciso al sicuro (5.1 mappa bene i VOLTI). Override via
+// env OPENAI_MODEL (es. 'gpt-4o-mini' per andare economici/veloci sui grandi album).
+const OPENAI_VISION_OVERRIDE = Deno.env.get('OPENAI_MODEL') ?? ''
+const VISION_MODELS = [...new Set([OPENAI_VISION_OVERRIDE, 'gpt-5.1', 'gpt-4o', 'gpt-4o-mini'].filter((x) => x))]
 // COMPOSIZIONE (1 sola chiamata testo): CASCATA dal più avanzato al sicuro. Usa il primo modello a
 // cui l'account ha davvero accesso (i non disponibili danno 404 e si saltano). Override env in testa.
 const OPENAI_TEXT_OVERRIDE = Deno.env.get('OPENAI_TEXT_MODEL') ?? ''
@@ -72,7 +74,16 @@ async function analyzeBatch(photos: InPhoto[]): Promise<Analysis[]> {
   const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]
   for (const p of withUrl) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'low' } })
   try {
-    const data = await openai({ model: OPENAI_MODEL, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content }] })
+    let data: any
+    for (let mi = 0; mi < VISION_MODELS.length; mi++) {
+      const mdl = VISION_MODELS[mi]!
+      try { data = await openai({ model: mdl, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content }] }); break }
+      catch (e) {
+        const isModelErr = /model|404|does not exist|not found|no access|does not have access|invalid model/i.test(String(e))
+        if (isModelErr && mi < VISION_MODELS.length - 1) continue
+        throw e
+      }
+    }
     const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
     const arr = Array.isArray(parsed?.a) ? parsed.a : (Array.isArray(parsed) ? parsed : [])
     const out: Analysis[] = arr.map((x: any) => ({
@@ -271,5 +282,5 @@ Deno.serve(async (req) => {
   if (!tavole.length) return json({ error: 'ai_empty' }, 502)
 
   const degraded = reasons.length > 0
-  return json({ tavole, focus, seen: visionOk, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: OPENAI_MODEL, composeModel: composeModel || 'euristica' })
+  return json({ tavole, focus, seen: visionOk, degraded, reason: degraded ? reasons.slice(0, 2).join(' · ') : undefined, model: VISION_MODELS[0], composeModel: composeModel || 'euristica' })
 })

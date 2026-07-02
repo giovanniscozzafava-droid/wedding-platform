@@ -1327,7 +1327,7 @@ function AlbumDesignerInner() {
   // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
   // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
   // stesso numero di foto; altrimenti genera la disposizione migliore.
-  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>, heroDouble = true, layout?: string): AlbumPage[] {
+  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>, heroDouble = true, layout?: string, usedSigs?: Map<string, number>): AlbumPage[] {
     const clean = ids.filter((id) => mediaById.has(id))
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
@@ -1364,11 +1364,24 @@ function AlbumDesignerInner() {
     const saved = layouts.filter((l) => (l.els?.length ?? 0) === clean.length && l.els!.length > 0)
     let slots: Slot[]; let rots: number[]; const useSaved = saved.length > 0
     if (useSaved) {
-      const s = saved[0]!; slots = s.els!.map((e) => ({ x: e.x, y: e.y, w: e.w, h: e.h })); rots = s.els!.map((e) => e.rot ?? 0)
+      // se ho più preset salvati con lo stesso numero di foto, RUOTO (il meno usato finora)
+      const s = saved.reduce((best, c, i) => {
+        const k = (x: SavedLayout, j: number) => `saved:${x.id ?? x.name ?? j}`
+        return (usedSigs?.get(k(c, i)) ?? 0) < (usedSigs?.get(k(best.l, best.i)) ?? 0) ? { l: c, i } : best
+      }, { l: saved[0]!, i: 0 }).l
+      usedSigs?.set(`saved:${s.id ?? s.name ?? 0}`, (usedSigs?.get(`saved:${s.id ?? s.name ?? 0}`) ?? 0) + 1)
+      slots = s.els!.map((e) => ({ x: e.x, y: e.y, w: e.w, h: e.h })); rots = s.els!.map((e) => e.rot ?? 0)
     } else if (clean.length <= 8) {
       const gen = genTavolaLayouts(orients, fmt.w * 2, fmt.h, 48)
-      const best = gen.reduce<GenLayout | null>((a, b) => (!a || b.score > a.score ? b : a), null)
-      slots = best?.slots ?? gridSlots(clean.length, spreadAspect); rots = slots.map(() => 0)
+      // VARIA i template: tra i migliori candidati scegli quello MENO usato finora (poi per punteggio)
+      const topK = [...gen].sort((a, b) => b.score - a.score).slice(0, 6)
+      const chosen = topK.reduce<GenLayout | null>((best, c) => {
+        if (!best) return c
+        const bu = usedSigs?.get(best.sig) ?? 0, cu = usedSigs?.get(c.sig) ?? 0
+        return cu < bu ? c : best
+      }, null)
+      if (chosen) usedSigs?.set(chosen.sig, (usedSigs?.get(chosen.sig) ?? 0) + 1)
+      slots = chosen?.slots ?? gridSlots(clean.length, spreadAspect); rots = slots.map(() => 0)
     } else {
       slots = gridSlots(clean.length, spreadAspect); rots = slots.map(() => 0)
     }
@@ -1430,7 +1443,8 @@ function AlbumDesignerInner() {
       const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
       if (!tavole.length) { toast.error("L'AI non ha restituito tavole"); return }
       const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean }> }).focus ?? {}
-      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false, (t as { layout?: string }).layout))
+      const usedSigs = new Map<string, number>() // per far VARIARE i template tra una tavola e l'altra
+      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false, (t as { layout?: string }).layout, usedSigs))
       if (!newPages.length) { toast.error('Nessuna tavola generata'); return }
       setPages(newPages); setCurrentPageId(newPages[0]!.id); setSelEl(null); setMultiSel([])
       const degraded = (data as { degraded?: boolean }).degraded
