@@ -24,6 +24,21 @@ function goldenCell(imgAspect: number, slotAspect: number, fx: number, fy: numbe
   const targetY = fy <= 0.5 ? 0.382 : 0.5   // i volti stanno di solito in alto → linea aurea alta
   return { z: 1, fx: clamp(fx + w.ww * (0.5 - targetX)), fy: clamp(fy + whFrac * (0.5 - targetY)) }
 }
+
+// Griglia ordinata per tavole con TANTE foto (fino a 24): righe/colonne bilanciate su un'area.
+function gridSlots(n: number, areaAspect: number): { x: number; y: number; w: number; h: number }[] {
+  if (n <= 0) return []
+  const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * Math.max(0.2, areaAspect)))))
+  const rows = Math.max(1, Math.ceil(n / cols))
+  const out: { x: number; y: number; w: number; h: number }[] = []
+  for (let i = 0; i < n; i++) {
+    const r = Math.floor(i / cols)
+    const cnt = r === rows - 1 ? n - cols * (rows - 1) : cols // ultima riga: distribuisci ciò che resta
+    const c = i - cols * r
+    out.push({ x: c / cnt, y: r / rows, w: 1 / cnt, h: 1 / rows })
+  }
+  return out
+}
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, neighborGaps, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
@@ -896,6 +911,8 @@ function AlbumDesignerInner() {
   const [aiMaxPer, setAiMaxPer] = useState<number>(0)        // 0 = automatico (dallo stile)
   const [aiGroupBw, setAiGroupBw] = useState<boolean>(true)  // tieni insieme le foto in bianco e nero
   const [aiHeroDouble, setAiHeroDouble] = useState<boolean>(true) // foto forti a doppia pagina
+  const [aiDoublePct, setAiDoublePct] = useState<number>(8)  // % foto a doppia pagina
+  const [aiFullPct, setAiFullPct] = useState<number>(10)     // % foto a pagina intera
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string }>>({}) // ranking qualità stampa
   const [qualityBusy, setQualityBusy] = useState(false)
   const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
@@ -1310,44 +1327,57 @@ function AlbumDesignerInner() {
   // in tavole + sequenza del racconto); la GEOMETRIA resta nel motore testato. Per rispettare "il
   // modello che uso più spesso" la costruzione PREFERISCE un preset SALVATO dal fotografo con lo
   // stesso numero di foto; altrimenti genera la disposizione migliore.
-  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>, heroDouble = true): AlbumPage[] {
+  function buildAiTavola(ids: string[], focusMap?: Record<string, { fx: number; fy: number; hero?: boolean }>, heroDouble = true, layout?: string): AlbumPage[] {
     const clean = ids.filter((id) => mediaById.has(id))
     const left: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
     const right: AlbumPage = { ...newPage(), tavolaFree: false }
     if (!clean.length) return [left, right]
-    // FOTO SINGOLA = scatto forte a DOPPIA PAGINA (full-bleed su entrambe le pagine), col ritaglio dell'AI
-    if (clean.length === 1 && heroDouble) {
+    const spreadAspect = (fmt.w * 2) / fmt.h
+    const gx = gutterMm / (fmt.w * 2), gy = gutterMm / fmt.h
+    const iaOf = (id: string) => aspects[id] ?? photoAspect.get(id) ?? 1
+    const cellFor = (mid: string, sa: number): Cell => { const fo = focusMap?.[mid]; return fo ? goldenCell(iaOf(mid), sa, fo.fx, fo.fy) : { ...DEFAULT_CELL } }
+
+    // DOPPIA PAGINA: 1 foto forte full-bleed su entrambe le pagine, ritaglio aureo sul volto
+    if (clean.length === 1 && (heroDouble || layout === 'double')) {
       const mid = clean[0]!
-      const fo = focusMap?.[mid]
-      const ia = aspects[mid] ?? photoAspect.get(mid) ?? 1
-      const cell: Cell = fo ? goldenCell(ia, (fmt.w * 2) / fmt.h, fo.fx, fo.fy) : { ...DEFAULT_CELL }
-      const hero: AlbumPage = { ...newPage(), mode: 'template', tavolaFree: false, spreadImage: { mediaId: mid, cell } }
+      const hero: AlbumPage = { ...newPage(), mode: 'template', tavolaFree: false, spreadImage: { mediaId: mid, cell: cellFor(mid, spreadAspect) } }
       return [hero, { ...newPage(), tavolaFree: false }]
     }
-    const orients = clean.map((id) => classifyAspect(aspects[id] ?? photoAspect.get(id) ?? 1))
+
+    // PAGINA INTERA: 1 foto dominante a piena pagina (sinistra) + le altre piccole (destra)
+    if (layout === 'full' && clean.length >= 2) {
+      const els: FreeEl[] = []
+      const dom = clean[0]!
+      const gd = gutterSlot({ x: 0, y: 0, w: 0.5, h: 1 }, gx, gy)
+      els.push({ ...newFreeEl(dom), x: gd.x, y: gd.y, w: gd.w, h: gd.h, rot: 0, cell: cellFor(dom, (gd.w * fmt.w * 2) / Math.max(0.001, gd.h * fmt.h)) })
+      const others = clean.slice(1)
+      gridSlots(others.length, (0.5 * fmt.w * 2) / fmt.h).forEach((s, i) => {
+        const mid = others[i]!; const g = gutterSlot({ x: 0.5 + s.x * 0.5, y: s.y, w: s.w * 0.5, h: s.h }, gx, gy)
+        els.push({ ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: 0, cell: cellFor(mid, (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)) })
+      })
+      left.elements = els
+      return [left, right]
+    }
+
+    // NORMALE: preset salvato che combacia → generatore (poche foto) → griglia (tante, fino a 24)
+    const orients = clean.map((id) => classifyAspect(iaOf(id)))
     const saved = layouts.filter((l) => (l.els?.length ?? 0) === clean.length && l.els!.length > 0)
     let slots: Slot[]; let rots: number[]; const useSaved = saved.length > 0
     if (useSaved) {
-      const s = saved[0]! // il modello salvato del fotografo (più recente in cima)
-      slots = s.els!.map((e) => ({ x: e.x, y: e.y, w: e.w, h: e.h })); rots = s.els!.map((e) => e.rot ?? 0)
-    } else {
+      const s = saved[0]!; slots = s.els!.map((e) => ({ x: e.x, y: e.y, w: e.w, h: e.h })); rots = s.els!.map((e) => e.rot ?? 0)
+    } else if (clean.length <= 8) {
       const gen = genTavolaLayouts(orients, fmt.w * 2, fmt.h, 48)
       const best = gen.reduce<GenLayout | null>((a, b) => (!a || b.score > a.score ? b : a), null)
-      slots = best?.slots ?? clean.map((_, i) => ({ x: (i % 2) * 0.5, y: Math.floor(i / Math.max(1, Math.ceil(clean.length / 2))) * 0.5, w: 0.5, h: 0.5 }))
-      rots = slots.map(() => 0)
+      slots = best?.slots ?? gridSlots(clean.length, spreadAspect); rots = slots.map(() => 0)
+    } else {
+      slots = gridSlots(clean.length, spreadAspect); rots = slots.map(() => 0)
     }
     const assign = assignPhotos(slots, orients, fmt.w * 2, fmt.h)
-    const gx = gutterMm / (fmt.w * 2), gy = gutterMm / fmt.h
     const els: FreeEl[] = slots.map((s, k) => {
       const ai = assign[k] ?? -1
       const mid = clean[ai >= 0 ? ai : k] ?? clean[k]; if (!mid) return null
       const g = useSaved ? { x: s.x, y: s.y, w: s.w, h: s.h } : gutterSlot(s, gx, gy)
-      const fo = focusMap?.[mid]
-      const ia = aspects[mid] ?? photoAspect.get(mid) ?? 1
-      const slotAspect = (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)
-      // ritaglio in SEZIONE AUREA sul volto (mai tagliato); senza volto dall'AI → centro
-      const cell: Cell = fo ? goldenCell(ia, slotAspect, fo.fx, fo.fy) : { ...DEFAULT_CELL }
-      return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: rots[k] ?? 0, cell }
+      return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: rots[k] ?? 0, cell: cellFor(mid, (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)) }
     }).filter(Boolean) as FreeEl[]
     left.elements = els
     return [left, right]
@@ -1360,7 +1390,7 @@ function AlbumDesignerInner() {
     for (const p of pages) { if (p.tavolaFree) { const n = (p.elements ?? []).length; if (n) c.set(n, (c.get(n) ?? 0) + 1) } }
     return [...c.entries()].map(([perSpread, times]) => ({ perSpread, times })).sort((a, b) => b.times - a.times).slice(0, 6)
   }
-  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean }) {
+  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number }) {
     if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
@@ -1381,7 +1411,7 @@ function AlbumDesignerInner() {
         // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte).
         // Le foto sono GIÀ in ordine cronologico di scatto (takenAt) → l'AI mantiene la sequenza.
         photos: ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) })),
-        format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, chronological: true, styleProfile: styleProfile(),
+        format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, chronological: true, styleProfile: styleProfile(),
       }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
       let err = (data as { error?: string } | null)?.error
@@ -1400,7 +1430,7 @@ function AlbumDesignerInner() {
       const tavole = (data as { tavole?: { photoIds: string[] }[] }).tavole ?? []
       if (!tavole.length) { toast.error("L'AI non ha restituito tavole"); return }
       const focusMap = (data as { focus?: Record<string, { fx: number; fy: number; hero?: boolean }> }).focus ?? {}
-      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false))
+      const newPages = tavole.flatMap((t) => buildAiTavola(t.photoIds, focusMap, opts?.heroDouble !== false, (t as { layout?: string }).layout))
       if (!newPages.length) { toast.error('Nessuna tavola generata'); return }
       setPages(newPages); setCurrentPageId(newPages[0]!.id); setSelEl(null); setMultiSel([])
       const degraded = (data as { degraded?: boolean }).degraded
@@ -2203,12 +2233,23 @@ function AlbumDesignerInner() {
 
                 <p className="mb-1.5 mt-4 text-xs font-medium text-[rgb(var(--fg-muted))]">Massimo foto per tavola</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {[0, 2, 3, 4, 5, 6].map((n) => (
+                  {[0, 2, 3, 4, 6, 8, 12, 24].map((n) => (
                     <button key={n} onClick={() => setAiMaxPer(n)}
                       className={`rounded-lg border px-3 py-1.5 text-sm ${aiMaxPer === n ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] font-medium' : 'border-[rgb(var(--border))]'}`}>
                       {n === 0 ? 'Auto' : n}
                     </button>
                   ))}
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between text-xs"><span className="font-medium text-[rgb(var(--fg-muted))]">Foto a doppia pagina</span><span>{aiDoublePct}%</span></div>
+                    <input type="range" min={0} max={30} value={aiDoublePct} onChange={(e) => setAiDoublePct(Number(e.target.value))} className="w-full accent-[rgb(var(--gold-500))]" />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between text-xs"><span className="font-medium text-[rgb(var(--fg-muted))]">Foto a pagina intera</span><span>{aiFullPct}%</span></div>
+                    <input type="range" min={0} max={40} value={aiFullPct} onChange={(e) => setAiFullPct(Number(e.target.value))} className="w-full accent-[rgb(var(--gold-500))]" />
+                  </div>
                 </div>
 
                 <div className="mt-4 space-y-2">
@@ -2218,13 +2259,13 @@ function AlbumDesignerInner() {
                   </label>
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
                     <input type="checkbox" checked={aiHeroDouble} onChange={(e) => setAiHeroDouble(e.target.checked)} className="accent-[rgb(var(--gold-500))]" />
-                    Le foto forti prendono la <strong>doppia pagina</strong>
+                    Anche le foto che l'AI giudica forti a <strong>doppia pagina</strong>
                   </label>
                 </div>
 
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
-                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble }) }}><Sparkles size={14} /> Impagina</Button>
+                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct }) }}><Sparkles size={14} /> Impagina</Button>
                 </div>
               </div>
             </div>

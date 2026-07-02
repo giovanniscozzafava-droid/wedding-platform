@@ -144,10 +144,14 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; styleProfile?: { perSpread: number; times: number }[] }
+  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; styleProfile?: { perSpread: number; times: number }[] }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   if (!photos.length) return json({ error: 'no_photos' }, 400)
+  // quante foto a DOPPIA PAGINA / PAGINA INTERA (dalle percentuali del brief, sul totale)
+  const pct = (v: unknown) => Math.max(0, Math.min(40, typeof v === 'number' ? v : 0))
+  const targetDouble = Math.round(photos.length * pct(body.doublePct) / 100)
+  const targetFull = Math.round(photos.length * pct(body.fullPct) / 100)
 
   // ── MODALITÀ RANKING QUALITÀ (on-demand): valuta a vista i criteri tecnici di stampa ──
   if ((body as { mode?: string }).mode === 'quality') {
@@ -166,14 +170,15 @@ Deno.serve(async (req) => {
   }
 
   // STILE di impaginazione scelto dal fotografo: cambia cadenza + criterio di composizione.
-  const STYLE_GUIDE: Record<string, { hint: string; maxPer: number }> = {
-    narrativo:    { maxPer: 6, hint: 'STILE NARRATIVO: racconto cronologico fitto in stile reportage — molte foto che scorrono, sequenza degli attimi, tavole piene e ritmo continuo.' },
-    editoriale:   { maxPer: 3, hint: 'STILE EDITORIALE (magazine): molto respiro e spazio bianco, 1-3 foto forti per tavola, gli scatti hero grandi e isolati, composizioni pulite.' },
-    ritrattistico:{ maxPer: 4, hint: 'STILE RITRATTISTICO: valorizza ritratti e persone — primi piani e coppie in grande, i volti sono protagonisti, poche foto per tavola.' },
-    dettaglio:    { maxPer: 6, hint: 'STILE DETTAGLIO: valorizza dettagli, oggetti e allestimenti (bouquet, fedi, mise en place, close-up) raggruppati per tema, tavole ricche e curate.' },
+  const STYLE_GUIDE: Record<string, { hint: string; maxPer: number; chrono: 'strict' | 'ref' }> = {
+    narrativo:    { maxPer: 6, chrono: 'strict', hint: 'STILE NARRATIVO: comanda la CRONOLOGIA di scatto (EXIF). Racconto reportage fitto, molte foto che scorrono nella sequenza esatta degli attimi, ritmo continuo.' },
+    editoriale:   { maxPer: 3, chrono: 'ref',    hint: 'STILE EDITORIALE (magazine): comandano gli SCATTI FORTI e il ritmo visivo. Molto respiro, 1-3 foto per tavola, gli hero grandi e isolati; la cronologia è solo uno sfondo.' },
+    ritrattistico:{ maxPer: 4, chrono: 'ref',    hint: 'STILE RITRATTISTICO: comandano i RITRATTI e le PERSONE. Raggruppa per soggetto (sposi, coppie, volti), primi piani in grande, volti protagonisti; cronologia secondaria.' },
+    dettaglio:    { maxPer: 6, chrono: 'ref',    hint: 'STILE DETTAGLIO: comandano i DETTAGLI e gli allestimenti. Raggruppa per TEMA (fedi, bouquet, mise en place, close-up), dettagli in evidenza; cronologia secondaria.' },
   }
   const styleG = STYLE_GUIDE[typeof body.style === 'string' ? body.style : '']
-  const maxPer = Math.min(6, Math.max(1, body.maxPerSpread ?? styleG?.maxPer ?? 5))
+  const chronoStrict = !styleG || styleG.chrono === 'strict'   // narrativo (o nessuno stile) = cronologia rigida
+  const maxPer = Math.min(24, Math.max(1, body.maxPerSpread ?? styleG?.maxPer ?? 5))
   const term = (body.eventTerm ?? 'matrimonio').replace(/[^\p{L}\s]/gu, '').slice(0, 40)
   const style = (body.styleProfile ?? []).filter((s) => s && s.perSpread > 0 && s.times > 0).slice(0, 6)
   const styleHint = style.length
@@ -204,22 +209,29 @@ Deno.serve(async (req) => {
   for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment }
 
   // ── FASE B: composizione (testo), con fallback euristico ──
-  let rawTavole: { photoIds?: string[]; note?: string }[] = []
+  let rawTavole: { photoIds?: string[]; note?: string; layout?: string }[] = []
   let composeModel = ''
   try {
     const sysB = [
       `Sei un art director esperto di album di ${term}. Impagini al posto del fotografo, con un criterio preciso — MAI a caso.`,
       'Ricevi le foto GIÀ ANALIZZATE a vista: [id, m=momento, c=didascalia, s=soggetto (sposi/coppia/gruppo/dettaglio…), ppl=n. persone, h=1 scatto forte, imp=importanza per la coppia].',
-      'IMPORTANTE: le foto ti arrivano GIÀ IN ORDINE CRONOLOGICO DI SCATTO (orario reale della fotocamera). RISPETTA questa sequenza: è il racconto del giorno, non riordinarla a caso.',
+      chronoStrict
+        ? 'IMPORTANTE: le foto arrivano GIÀ IN ORDINE CRONOLOGICO DI SCATTO (orario reale). RISPETTA rigorosamente questa sequenza: è il racconto del giorno.'
+        : "Le foto arrivano in ordine cronologico di scatto come RIFERIMENTO, ma per lo stile scelto PRIORITIZZA il criterio dello stile (sotto) sull'ordine temporale: puoi raggruppare per soggetto/tema/impatto anche foto non consecutive.",
       'Ragiona in due passi:',
-      '1) Scorri la sequenza cronologica e individua dove CAMBIA scena/momento (usa m e s: es. da "cerimonia/coppia" a "ricevimento/gruppo").',
-      `2) SPEZZA la sequenza (mantenendone l'ordine) in "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UNA scena coerente — stesso momento e soggetti che dialogano. NON mischiare mai scene/momenti diversi nella stessa tavola.`,
-      'VALORIZZA le foto forti: una foto con imp (importanza per la coppia) alto, oppure h=1 (scatto tecnicamente forte), va messa DA SOLA nella sua tavola → così prende la DOPPIA PAGINA intera. Non sprecarne più di una manciata.',
-      'Bilancia orizzontali e verticali nella stessa tavola. La "note" di ogni tavola dice il momento (1-4 parole).',
-      ...(body.groupBw ? ['Le foto in BIANCO E NERO (bw=1) vanno tenute INSIEME e NON mischiate con foto a colori nella stessa tavola: raggruppale in tavole dedicate (rispettando comunque momento e cronologia).'] : []),
-      ...(styleG ? [`Applica inoltre lo ${styleG.hint}`] : []),
+      chronoStrict
+        ? '1) Scorri la sequenza cronologica e individua dove CAMBIA scena/momento (usa m e s).'
+        : '1) Raggruppa le foto secondo il criterio dello stile (soggetto/tema/impatto), usando m e s.',
+      `2) Forma "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UNA scena/tema coerente — NON mischiare cose diverse nella stessa tavola.`,
+      'Per ogni tavola puoi indicare "layout": "double" = 1 sola foto a doppia pagina (full-bleed); "full" = 1 foto dominante a pagina intera + poche piccole; altrimenti ometti (griglia).',
+      ...(targetDouble > 0 ? [`Metti circa ${targetDouble} foto (le più forti/importanti, imp/h alti) come tavole "double".`] : []),
+      ...(targetFull > 0 ? [`Metti circa ${targetFull} foto forti come tavole "full".`] : []),
+      ...(targetDouble === 0 && targetFull === 0 ? ['Valorizza gli scatti forti: qualcuno da solo a doppia pagina ("double"), con parsimonia.'] : []),
+      'Bilancia orizzontali e verticali. La "note" dice il momento (1-4 parole).',
+      ...(body.groupBw ? ['Le foto in BIANCO E NERO (bw=1) vanno tenute INSIEME e NON mischiate col colore: tavole dedicate.'] : []),
+      ...(styleG ? [`Stile: ${styleG.hint}`] : []),
       styleHint,
-      'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"..."}]}.',
+      'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"...","layout":"double|full"}]} (layout opzionale).',
     ].join('\n')
     const likeById = new Map(photos.map((p) => [p.id, Math.max(0, Math.round(p.likes ?? 0))]))
     const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, bw: a.bw ? 1 : 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
@@ -246,11 +258,13 @@ Deno.serve(async (req) => {
   // SANIFICA: solo id noti, dedup, nessuna foto persa
   const known = new Set(photos.map((p) => p.id))
   const used = new Set<string>()
-  const tavole: { photoIds: string[]; note?: string }[] = []
+  const tavole: { photoIds: string[]; note?: string; layout?: string }[] = []
   for (const t of rawTavole) {
     const ids = (t?.photoIds ?? []).filter((id) => known.has(id) && !used.has(id)).slice(0, maxPer)
     if (!ids.length) continue
-    ids.forEach((id) => used.add(id)); tavole.push({ photoIds: ids, note: typeof t?.note === 'string' ? t.note.slice(0, 40) : undefined })
+    ids.forEach((id) => used.add(id))
+    const lay = ((t as { layout?: string })?.layout === 'double' || (t as { layout?: string })?.layout === 'full') ? (t as { layout?: string }).layout : undefined
+    tavole.push({ photoIds: ids, note: typeof t?.note === 'string' ? t.note.slice(0, 40) : undefined, layout: lay })
   }
   const missing = photos.map((p) => p.id).filter((id) => !used.has(id))
   for (let i = 0; i < missing.length; i += maxPer) tavole.push({ photoIds: missing.slice(i, i + maxPer), note: 'extra' })
