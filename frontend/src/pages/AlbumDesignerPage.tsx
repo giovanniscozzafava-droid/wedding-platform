@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Component, Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import HTMLFlipBook from 'react-pageflip'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { useParams, Link } from 'react-router-dom'
@@ -829,6 +829,18 @@ function AlbumDesignerInner() {
     const b: AlbumPage = { ...newPage(), tavolaFree: false }
     setPages((arr) => { const at = Math.min(arr.length, (si + 1) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
     setCurrentPageId(a.id)
+  }
+  // Trascini una foto NELLO SPAZIO TRA due tavole (navigatore) → crea una NUOVA tavola in quel punto
+  // con quella foto (a piena tavola, entro i margini). si = indice di tavola dove inserire.
+  function insertTavolaWithPhotoAt(si: number, mediaId: string) {
+    if (!mediaById.has(mediaId)) return
+    const f = getFormat(format)
+    const mx = MARGIN_MM / (f.w * 2), my = MARGIN_MM / f.h
+    const el: FreeEl = { ...newFreeEl(mediaId), x: mx, y: my, w: 1 - 2 * mx, h: 1 - 2 * my, rot: 0, cell: { ...DEFAULT_CELL } }
+    const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [el], mediaIds: [], cells: [] }
+    const b: AlbumPage = { ...newPage(), tavolaFree: false }
+    setPages((arr) => { const at = Math.min(arr.length, Math.max(0, si) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
+    setCurrentPageId(a.id); toast.success('Nuova tavola inserita')
   }
   function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
   function moveSpread(si: number, dir: -1 | 1) {
@@ -2127,13 +2139,17 @@ function AlbumDesignerInner() {
               {/* filmstrip TAVOLE (doppia pagina, come in stampa) */}
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
                 {spreads.map((pair, si) => (
-                  <SpreadThumb key={si} pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
-                    mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
-                    onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
-                    onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
-                    onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => moveSpreadInsert(from, to)}
-                    onContext={(x, y) => setNavMenu({ si, x, y })} />
+                  <Fragment key={si}>
+                    {!lite && <GapDrop onDropPhoto={(mid) => insertTavolaWithPhotoAt(si, mid)} h={stripH} />}
+                    <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
+                      mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
+                      onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
+                      onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
+                      onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => moveSpreadInsert(from, to)}
+                      onContext={(x, y) => setNavMenu({ si, x, y })} />
+                  </Fragment>
                 ))}
+                {!lite && <GapDrop onDropPhoto={(mid) => insertTavolaWithPhotoAt(spreads.length, mid)} h={stripH} />}
                 {!lite && <button onClick={addSpread} className="shrink-0 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ height: stripH, aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
             </main>
@@ -2987,6 +3003,22 @@ function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; form
         ? (page.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); return <div key={el.id} className="absolute bg-black/5 overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)` }}>{m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}</div> })
         : frames.map((fr, i) => { const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))] overflow-hidden" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%` }}>{m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(page.cells?.[i] ?? DEFAULT_CELL)} />}</div> })}
     </div>
+  )
+}
+
+// Zona di rilascio TRA due tavole nella filmstrip: ci trascini una foto (dalla libreria o dal
+// navigatore) e crea una NUOVA tavola in quel punto, intersecando tra le pagine.
+function GapDrop({ onDropPhoto, h }: { onDropPhoto: (mid: string) => void; h: number }) {
+  const [over, setOver] = useState(false)
+  return (
+    <div
+      onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) { e.preventDefault(); if (!over) setOver(true) } }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => { setOver(false); const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropPhoto(mid) } }}
+      title="Trascina qui una foto per inserire una nuova tavola"
+      className={`shrink-0 self-center rounded transition-all ${over ? 'w-7 bg-[rgb(var(--gold-400))] ring-2 ring-[rgb(var(--gold-500))]' : 'w-1.5 bg-transparent hover:bg-[rgb(var(--border))]'}`}
+      style={{ height: over ? h : Math.round(h * 0.55) }}
+    />
   )
 }
 
