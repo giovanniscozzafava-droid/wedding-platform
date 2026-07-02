@@ -72,15 +72,19 @@ function justifiedSlots(aspectsArr: number[], spreadAspect: number): { x: number
   const rows: number[][] = []; let cur: number[] = []; let sum = 0
   for (let i = 0; i < n; i++) { cur.push(i); sum += a[i]!; if (sum >= target && rows.length < R - 1) { rows.push(cur); cur = []; sum = 0 } }
   if (cur.length) rows.push(cur)
-  const heights = rows.map((r) => spreadAspect / r.reduce((s, i) => s + a[i]!, 0)) // altezza naturale della riga
+  const rowSums = rows.map((r) => r.reduce((s, i) => s + a[i]!, 0))
+  const heights = rowSums.map((rs) => spreadAspect / rs) // altezza NATURALE riga (aspetto esatto delle foto)
   const H = heights.reduce((s, h) => s + h, 0) || 1
+  // SCALA UNIFORME (w e h insieme → preserva gli aspetti = NESSUN taglio) per stare nella tavola, e centra.
+  const sc = Math.min(1, 1 / H)
+  const totW = sc, totH = sc * H
+  const offX = (1 - totW) / 2, offY = (1 - totH) / 2
   const out: { x: number; y: number; w: number; h: number }[] = new Array(n)
-  let y = 0
+  let y = offY
   rows.forEach((r, ri) => {
-    const rs = r.reduce((s, i) => s + a[i]!, 0)
-    const h = heights[ri]! / H
-    let x = 0
-    r.forEach((i) => { const w = a[i]! / rs; out[i] = { x, y, w, h }; x += w })
+    const rs = rowSums[ri]!; const h = heights[ri]! * sc
+    let x = offX
+    r.forEach((i) => { const w = (a[i]! / rs) * sc; out[i] = { x, y, w, h }; x += w })
     y += h
   })
   return out
@@ -1449,8 +1453,10 @@ function AlbumDesignerInner() {
     // RISPETTA FORMATO: disposizione giustificata, ogni foto tiene le proporzioni reali (V resta V, H resta H)
     if (respectFormat) {
       const js = justifiedSlots(clean.map(iaOf), spreadAspect)
+      const ins = 0.985 // margine tra le foto UNIFORME (scala x+y insieme → aspetto invariato = NIENTE taglio)
       left.elements = js.map((s, i) => {
-        const mid = clean[i]!; const g = gutterSlot(s, gx, gy)
+        const mid = clean[i]!
+        const g = { x: s.x + (s.w * (1 - ins)) / 2, y: s.y + (s.h * (1 - ins)) / 2, w: s.w * ins, h: s.h * ins }
         return { ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: 0, cell: cellFor(mid, (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)) }
       })
       return [left, right]
