@@ -55,6 +55,14 @@ const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
 const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
 
+// Stili di impaginazione che l'AI può seguire (li sceglie il fotografo prima di comporre).
+const AI_STYLES: { key: string; label: string; desc: string }[] = [
+  { key: 'narrativo',     label: 'Narrativo',     desc: 'Racconto cronologico, tante foto che scorrono. Stile reportage.' },
+  { key: 'editoriale',    label: 'Editoriale',    desc: 'Stile magazine: molto respiro, pochi scatti forti per tavola.' },
+  { key: 'ritrattistico', label: 'Ritrattistico', desc: 'Ritratti e persone protagonisti, primi piani e coppie in grande.' },
+  { key: 'dettaglio',     label: 'Dettaglio',     desc: 'Dettagli e allestimenti in evidenza: bouquet, fedi, close-up.' },
+]
+
 // Cornice della foto a piena tavola (frame 0..1 dello spread); assente = piena tavola.
 function spreadFrameOf(sp?: { frame?: { x: number; y: number; w: number; h: number } } | null) {
   return sp?.frame ?? { x: 0, y: 0, w: 1, h: 1 }
@@ -872,6 +880,7 @@ function AlbumDesignerInner() {
   function openCtx(pageId: string, id: string, x: number, y: number) { if (!multiSel.includes(id)) { setSelEl(id); setMultiSel([]) } setCtxMenu({ pageId, id, x, y }) }
   const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
+  const [aiPick, setAiPick] = useState(false) // scelta stile impaginazione AI
   // APRI IN PHOTOSHOP: (1) scarica l'ORIGINALE a piena risoluzione come file su disco, (2) tenta di
   // AVVIARE Photoshop via protocol-handler `photoshop://`. Un'app web non può forzare l'apertura di
   // un'app desktop se non tramite protocollo registrato: se Photoshop non parte da solo, il file è
@@ -1322,7 +1331,7 @@ function AlbumDesignerInner() {
     for (const p of pages) { if (p.tavolaFree) { const n = (p.elements ?? []).length; if (n) c.set(n, (c.get(n) ?? 0) + 1) } }
     return [...c.entries()].map(([perSpread, times]) => ({ perSpread, times })).sort((a, b) => b.times - a.times).slice(0, 6)
   }
-  async function aiLayout() {
+  async function aiLayout(style?: string) {
     if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
@@ -1331,7 +1340,7 @@ function AlbumDesignerInner() {
       const payload = {
         // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte)
         photos: kept.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0 })),
-        format, styleProfile: styleProfile(),
+        format, style, styleProfile: styleProfile(),
       }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
       let err = (data as { error?: string } | null)?.error
@@ -1674,7 +1683,7 @@ function AlbumDesignerInner() {
           {!lite && !isCouple && kept.length >= 2 && (
             <div className="mb-4 flex items-center justify-between gap-3 flex-wrap rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-4 py-3">
               <p className="text-sm text-[rgb(var(--fg))]">Hai <strong>{kept.length}</strong> foto selezionate. Lascia impaginare l'album all'AI: guarda le foto, le raggruppa in tavole e sceglie il ritaglio.</p>
-              <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => void aiLayout()}>{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>
+              <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)}>{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>
             </div>
           )}
           <SelectStep
@@ -1692,7 +1701,7 @@ function AlbumDesignerInner() {
           {/* barra strumenti impaginatore */}
           <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
-            {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => void aiLayout()} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
+            {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
@@ -2089,6 +2098,29 @@ function AlbumDesignerInner() {
               </div>
             )
           })()}
+
+          {/* SCELTA STILE: prima di impaginare, l'AI chiede con che criterio comporre */}
+          {aiPick && (
+            <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/50 p-4" onClick={() => setAiPick(false)}>
+              <div className="w-[min(94vw,600px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <p className="font-display text-lg">Come vuoi impaginare?</p>
+                <p className="mb-4 mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Scegli lo stile: l'AI guarda le foto e compone le tavole con quel criterio.</p>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {AI_STYLES.map((s) => (
+                    <button key={s.key} onClick={() => { setAiPick(false); void aiLayout(s.key) }}
+                      className="rounded-xl border border-[rgb(var(--border))] p-3 text-left transition-colors hover:border-[rgb(var(--gold-500))] hover:bg-[rgb(var(--gold-100))]">
+                      <div className="flex items-center gap-2 font-medium"><Sparkles size={15} className="text-[rgb(var(--gold-600))]" /> {s.label}</div>
+                      <p className="mt-1 text-xs text-[rgb(var(--fg-muted))]">{s.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between">
+                  <button onClick={() => { setAiPick(false); void aiLayout() }} className="text-xs text-[rgb(var(--fg-muted))] hover:underline">Impagina senza stile specifico</button>
+                  <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Animazione "AI sta ragionando" durante l'impaginazione automatica */}
           {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} />}

@@ -8,9 +8,10 @@
 // chiave mancante / niente foto / json rotto. Legge OPENAI_API_KEY (secret server). verify_jwt=true.
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
-// gpt-4o-mini è vision-capable, con rate limit molto più alti e costo minore → adatto ad account nuovi.
+// VISIONE (tante chiamate) su gpt-4o-mini: vision-capable, rate limit alti, economico (account nuovi).
 const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini'
-const OPENAI_TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') ?? 'gpt-4o-mini'
+// COMPOSIZIONE (1 sola chiamata testo) su gpt-4o: ragiona meglio → impaginazione con criterio, non a caso.
+const OPENAI_TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') ?? 'gpt-4o'
 const MAX_VISION = 130
 const BATCH = 8
 const CONCURRENCY = 3
@@ -105,11 +106,19 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; styleProfile?: { perSpread: number; times: number }[] }
+  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; styleProfile?: { perSpread: number; times: number }[] }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   if (!photos.length) return json({ error: 'no_photos' }, 400)
-  const maxPer = Math.min(6, Math.max(1, body.maxPerSpread ?? 5))
+  // STILE di impaginazione scelto dal fotografo: cambia cadenza + criterio di composizione.
+  const STYLE_GUIDE: Record<string, { hint: string; maxPer: number }> = {
+    narrativo:    { maxPer: 6, hint: 'STILE NARRATIVO: racconto cronologico fitto in stile reportage — molte foto che scorrono, sequenza degli attimi, tavole piene e ritmo continuo.' },
+    editoriale:   { maxPer: 3, hint: 'STILE EDITORIALE (magazine): molto respiro e spazio bianco, 1-3 foto forti per tavola, gli scatti hero grandi e isolati, composizioni pulite.' },
+    ritrattistico:{ maxPer: 4, hint: 'STILE RITRATTISTICO: valorizza ritratti e persone — primi piani e coppie in grande, i volti sono protagonisti, poche foto per tavola.' },
+    dettaglio:    { maxPer: 6, hint: 'STILE DETTAGLIO: valorizza dettagli, oggetti e allestimenti (bouquet, fedi, mise en place, close-up) raggruppati per tema, tavole ricche e curate.' },
+  }
+  const styleG = STYLE_GUIDE[typeof body.style === 'string' ? body.style : '']
+  const maxPer = Math.min(6, Math.max(1, body.maxPerSpread ?? styleG?.maxPer ?? 5))
   const term = (body.eventTerm ?? 'matrimonio').replace(/[^\p{L}\s]/gu, '').slice(0, 40)
   const style = (body.styleProfile ?? []).filter((s) => s && s.perSpread > 0 && s.times > 0).slice(0, 6)
   const styleHint = style.length
@@ -143,11 +152,15 @@ Deno.serve(async (req) => {
   let rawTavole: { photoIds?: string[]; note?: string }[] = []
   try {
     const sysB = [
-      `Sei un art director che impagina un album di ${term} al posto del fotografo.`,
-      'Ricevi foto GIÀ ANALIZZATE [id, moment, caption, hero]. Raggruppale in "tavole" (doppie pagine).',
-      `Regole: ogni foto UNA volta; solo id ricevuti; 1..${maxPer} per tavola; una hero da sola o con poche; segui la cronologia dei momenti; tieni insieme lo stesso momento; accosta foto che dialogano; bilancia orizzontali/verticali.`,
+      `Sei un art director esperto di album di ${term}. Impagini al posto del fotografo, con un criterio preciso — MAI a caso.`,
+      'Ricevi le foto GIÀ ANALIZZATE a vista: [id, m=momento, c=didascalia di cosa si vede, h=1 se scatto forte].',
+      'Ragiona in due passi:',
+      '1) ORDINA tutte le foto in un racconto coerente: cronologia del giorno seguendo i momenti (preparativi → cerimonia → ricevimento → festa), e dentro lo stesso momento tieni vicine le foto della STESSA scena/soggetto (leggi la didascalia c).',
+      `2) SPEZZA la sequenza in "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UN momento/scena coerente — NON mischiare mai momenti diversi nella stessa tavola. Uno scatto forte (h=1) va valorizzato: da solo o con 1-2 di supporto.`,
+      'Bilancia orizzontali e verticali nella stessa tavola. La "note" di ogni tavola dice il momento (1-4 parole).',
+      ...(styleG ? [`Applica inoltre lo ${styleG.hint}`] : []),
       styleHint,
-      'Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"1-4 parole"}]}.',
+      'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"..."}]}.',
     ].join('\n')
     const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, h: a.hero ? 1 : 0 }))
     const data = await openai({ model: OPENAI_TEXT_MODEL, temperature: 0.4, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }] })
