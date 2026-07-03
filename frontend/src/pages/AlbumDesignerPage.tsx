@@ -3449,8 +3449,10 @@ function FreeStage(props: {
         return (
           <div key={el.id} className="group absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : inSel ? 10 : 1 }}>
             {/* Maniglia: TRASCINA la foto (o le selezionate) su un'altra tavola nel navigatore, o tra le
-                tavole (a sinistra/destra) per crearne una nuova prima/dopo. */}
-            {!locked && (
+                tavole (a sinistra/destra) per crearne una nuova prima/dopo. SEMPRE (anche a tavola
+                congelata: spostare tra tavole non è una modifica libera). DENTRO la foto per non
+                essere tagliata dall'overflow del canvas. */}
+            {(
               <div draggable
                 onPointerDown={(e) => e.stopPropagation()}
                 onDragStart={(e) => {
@@ -3458,11 +3460,11 @@ function FreeStage(props: {
                   const mediaIds = elIds.map((eid) => els.find((x) => x.id === eid)?.mediaId).filter(Boolean) as string[]
                   e.dataTransfer.effectAllowed = 'move'
                   e.dataTransfer.setData('text/media', el.mediaId)
-                  e.dataTransfer.setData('text/move', JSON.stringify({ fromPageId: page.id, elIds, mediaIds }))
+                  e.dataTransfer.setData('text/move', JSON.stringify({ fromPageId: page.id, elIds, mediaIds: mediaIds.length ? mediaIds : [el.mediaId] }))
                 }}
-                title="Trascina su un'altra tavola per spostarla — oppure tra le tavole (sinistra/destra) per creare una nuova tavola prima/dopo"
-                className={`absolute -top-2 -right-2 z-[30] flex h-6 w-6 cursor-grab items-center justify-center rounded-full border-2 border-white bg-[rgb(var(--gold-500))] text-white shadow-md transition-opacity active:cursor-grabbing ${sel || inSel ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                <Move size={12} />
+                title="Trascina su un'altra tavola (nel navigatore in basso) per spostare la foto — oppure tra due tavole, a sinistra/destra, per crearne una nuova prima/dopo"
+                className={`absolute top-1.5 right-1.5 z-[30] flex h-7 w-7 cursor-grab items-center justify-center rounded-full border-2 border-white bg-[rgb(var(--gold-500))] text-white shadow-md transition-opacity active:cursor-grabbing ${sel || inSel ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}>
+                <Move size={13} />
                 {multiSel.length > 1 && multiSel.includes(el.id) && <span className="absolute -bottom-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[rgb(var(--rose-500))] px-0.5 text-[9px] font-bold ring-1 ring-white">{multiSel.length}</span>}
               </div>
             )}
