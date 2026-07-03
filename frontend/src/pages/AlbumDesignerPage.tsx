@@ -1123,6 +1123,8 @@ function AlbumDesignerInner() {
   const [qualityBusy, setQualityBusy] = useState(false)
   const [qualityProg, setQualityProg] = useState<{ done: number; total: number } | null>(null) // barra avanzamento valutazione qualità
   const [qualityOpen, setQualityOpen] = useState(false) // pannello-report qualità (si apre a fine analisi)
+  const [wbBusy, setWbBusy] = useState(false) // valutazione bilanciamento bianco della tavola
+  const [wbResult, setWbResult] = useState<{ wb: { id: string; temp: number; tint: number; label: string }[]; consistent: boolean; off: string[]; note: string; advice: string } | null>(null)
   const [highlightMedia, setHighlightMedia] = useState<string | null>(null) // foto evidenziata dal report
   const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
   const [faceMap, setFaceMap] = useState<Record<string, { fx: number; fy: number; face?: boolean }>>({}) // dove l'AI ha mappato i volti
@@ -1822,6 +1824,37 @@ function AlbumDesignerInner() {
     const k = curateResult.total - toDrop.length
     setCurateResult(null)
     toast.success(`Selezione curata: tolte ${toDrop.length} foto, ne restano ${k} — più respiro nell'album.`)
+  }
+
+  // Tutte le foto (id) presenti su una tavola (le due pagine dello spread): elementi liberi, slot
+  // template, foto a doppia pagina. Serve per confrontarne il bilanciamento del bianco.
+  function tavolaMediaIds(pageId: string): string[] {
+    const i = pages.findIndex((p) => p.id === pageId); if (i < 0) return []
+    const start = i - (i % 2); const ids: string[] = []
+    for (const p of [pages[start], pages[start + 1]]) {
+      if (!p) continue
+      for (const e of p.elements ?? []) if (e.mediaId) ids.push(e.mediaId)
+      for (const id of p.mediaIds ?? []) if (id) ids.push(id)
+      if (p.spreadImage?.mediaId) ids.push(p.spreadImage.mediaId)
+    }
+    return [...new Set(ids)]
+  }
+  // "Bilanciamento bianco (tavola)": confronta le foto della tavola per capire se il WB coincide.
+  async function evalTavolaWB(pageId: string) {
+    const ids = tavolaMediaIds(pageId)
+    if (ids.length < 2) { toast.message('Servono almeno 2 foto sulla tavola per confrontare il bilanciamento.'); return }
+    setWbBusy(true)
+    try {
+      const photos = ids.map((id) => { const m = mediaById.get(id); return m ? { id, url: hiUrl(m) } : null }).filter(Boolean)
+      const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'wb', photos } })
+      let err = (data as { error?: string } | null)?.error
+      if (error) { try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err } } catch { /* */ } }
+      if (error || err) { toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server' : `Valutazione WB non riuscita${err ? `: ${err}` : ''}`.slice(0, 160)); return }
+      const wb = (data as { wb?: { id: string; temp: number; tint: number; label: string }[] }).wb ?? []
+      if (!wb.length) { toast.error('Non sono riuscito a valutare il bilanciamento'); return }
+      setWbResult({ wb, consistent: (data as { consistent?: boolean }).consistent !== false, off: (data as { off?: string[] }).off ?? [], note: (data as { note?: string }).note ?? '', advice: (data as { advice?: string }).advice ?? '' })
+    } catch (e) { toast.error(`Valutazione WB non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
+    finally { setWbBusy(false) }
   }
 
   type QRes = { score: number; issues: string[]; reason: string; advice?: string }
@@ -2617,6 +2650,8 @@ function AlbumDesignerInner() {
                   <CtxItem label="Sostituisci foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]); toast.message('Trascina una foto dalla libreria sopra questa per sostituirla.') })} />
                   <CtxItem label="Sostituisci con… (scambia)" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) { setSwapIdx(0); setSwapPick({ mediaId: el.mediaId }) } })} />
                   <CtxSep />
+                  <CtxItem label="Bilanciamento bianco (tavola)" onClick={() => run(() => void evalTavolaWB(cm.pageId))} />
+                  <CtxSep />
                   <CtxItem label="Riempi la cornice" onClick={() => run(() => freeFillFrame(cm.pageId, cm.id))} />
                   <CtxItem label="Centra il contenuto" onClick={() => run(() => freeCenterContent(cm.pageId, cm.id))} />
                   <CtxSep />
@@ -2958,6 +2993,58 @@ function AlbumDesignerInner() {
                       <Button variant="gold" size="sm" disabled={removed === 0} onClick={() => void applyCurate()}><Check size={14} /> Applica ({keepCount} restano)</Button>
                     </div>
                   </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Valutazione WB in corso */}
+          {wbBusy && (
+            <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4">
+              <div className="w-[min(92vw,340px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 text-center shadow-2xl">
+                <Loader2 size={22} className="mx-auto mb-2 animate-spin text-[rgb(var(--gold-600))]" />
+                <p className="font-display text-base">Confronto il bilanciamento del bianco…</p>
+                <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">Verifico se le foto della tavola coincidono.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Report BILANCIAMENTO BIANCO della tavola: temp/tinta di ogni foto + coerenza + come uniformare */}
+          {wbResult && (() => {
+            const tempLabel = (t: number) => t === 0 ? 'neutro' : `${t > 0 ? 'caldo' : 'freddo'} ${t > 0 ? '+' : ''}${t}`
+            const tintLabel = (t: number) => t === 0 ? 'neutro' : `${t > 0 ? 'magenta' : 'verde'} ${t > 0 ? '+' : ''}${t}`
+            const tempCls = (t: number) => t > 0 ? 'bg-amber-500' : t < 0 ? 'bg-sky-500' : 'bg-[rgb(var(--fg-subtle))]'
+            const tintCls = (t: number) => t > 0 ? 'bg-fuchsia-500' : t < 0 ? 'bg-emerald-500' : 'bg-[rgb(var(--fg-subtle))]'
+            return (
+              <div className="fixed inset-0 z-[93] flex items-center justify-center bg-black/60 p-4" onClick={() => setWbResult(null)}>
+                <div className="flex max-h-[92vh] w-[min(96vw,560px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-start justify-between gap-3 border-b border-[rgb(var(--border))] p-4">
+                    <div>
+                      <p className="font-display text-lg">Bilanciamento del bianco — tavola</p>
+                      <p className={`mt-0.5 text-sm font-medium ${wbResult.consistent ? 'text-[rgb(var(--emerald-600))]' : 'text-amber-600'}`}>{wbResult.consistent ? '✓ Coerente: le foto si accordano tra loro' : '⚠ Da uniformare: qualcuna stona'}</p>
+                      {wbResult.note && <p className="mt-0.5 text-xs text-[rgb(var(--fg-muted))]">{wbResult.note}</p>}
+                    </div>
+                    <button onClick={() => setWbResult(null)} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-auto p-3">
+                    <div className="space-y-2">
+                      {wbResult.wb.map((w) => { const m = mediaById.get(w.id); if (!m) return null; const isOff = wbResult.off.includes(w.id); return (
+                        <div key={w.id} className={`flex items-center gap-3 rounded-lg border p-2 ${isOff ? 'border-amber-400 bg-amber-50' : 'border-[rgb(var(--border))]'}`}>
+                          <img src={thumbUrl(m)} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded object-cover" />
+                          <div className="min-w-0 flex-1">
+                            {w.label && <p className="mb-1 text-sm font-medium">{w.label}{isOff && <span className="ml-1 text-xs text-amber-600">· stona</span>}</p>}
+                            <div className="flex flex-wrap gap-1.5 text-[11px] text-white">
+                              <span className={`rounded-full px-2 py-0.5 ${tempCls(w.temp)}`}>Temp: {tempLabel(w.temp)}</span>
+                              <span className={`rounded-full px-2 py-0.5 ${tintCls(w.tint)}`}>Tinta: {tintLabel(w.tint)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) })}
+                    </div>
+                    {wbResult.advice && <p className="mt-3 rounded-lg bg-[rgb(var(--bg-sunken))] p-3 text-sm"><strong>Come uniformare:</strong> {wbResult.advice}</p>}
+                    <p className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">Stima da anteprima: indicativa. Il WB si legge sui toni neutri (abito, pelle, muri).</p>
+                  </div>
+                  <div className="flex justify-end border-t border-[rgb(var(--border))] p-3"><Button variant="outline" size="sm" onClick={() => setWbResult(null)}>Chiudi</Button></div>
                 </div>
               </div>
             )

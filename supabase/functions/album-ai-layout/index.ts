@@ -181,6 +181,33 @@ Deno.serve(async (req) => {
   const targetDouble = Math.round(photos.length * pct(body.doublePct) / 100)
   const targetFull = Math.round(photos.length * pct(body.fullPct) / 100)
 
+  // ── MODALITÀ "BILANCIAMENTO BIANCO DELLA TAVOLA": confronta le foto di UNA tavola per capire se
+  //    il WB (temperatura/tinta) è COERENTE tra loro, e come uniformarle. Una sola chiamata (le
+  //    valuta INSIEME, così il giudizio di coerenza è relativo). ──
+  if ((body as { mode?: string }).mode === 'wb') {
+    const set = photos.slice(0, 12).filter((p) => p.url)
+    if (set.length < 1) return json({ wb: [], consistent: true, note: 'nessuna foto' })
+    const model = Deno.env.get('OPENAI_QUALITY_MODEL') ?? 'gpt-4o'
+    const sysW = [
+      "Sei un color-grader. Queste foto stanno sulla STESSA TAVOLA (doppia pagina) di un album: devono avere un BILANCIAMENTO DEL BIANCO COERENTE tra loro, altrimenti stonano affiancate.",
+      'Per OGNI foto valuta il WB: temp = temperatura da -3 (molto FREDDO/blu) a +3 (molto CALDO/ambra), 0 = neutro; tint = tinta da -3 (VERDE) a +3 (MAGENTA), 0 = neutro; label breve (es. "caldo", "neutro", "freddo-verde").',
+      'Poi giudica la COERENZA del gruppo: consistent = true se tutte le foto hanno WB simile (scarto piccolo), false se almeno una stona. off = array degli id che stonano di più. note = 1 frase. advice = come uniformare (es. "raffredda la 2ª di ~+ metà stop verso il blu e togli magenta, per allinearla alle altre due").',
+      "Basati sui toni che dovrebbero essere NEUTRI (abito bianco, pelle, muri/tovaglie): è lì che si vede il WB. Sii onesto: da anteprima web la stima è indicativa, dillo se serve.",
+      'Le foto sono nell\'ordine degli id. Rispondi SOLO JSON: {"wb":[{"id","temp","tint","label"}],"consistent":true|false,"off":["id"],"note":"...","advice":"..."}.',
+    ].join('\n')
+    const content: any[] = [{ type: 'text', text: `Foto della tavola, id in ordine: ${set.map((p) => p.id).join(', ')}` }]
+    for (const p of set) content.push({ type: 'image_url', image_url: { url: p.url as string, detail: 'high' } })
+    try {
+      const data = await openai({ model, temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysW }, { role: 'user', content }] })
+      const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
+      const known = new Set(set.map((p) => p.id))
+      const clamp3 = (n: unknown) => Math.max(-3, Math.min(3, Math.round(typeof n === 'number' ? n : 0)))
+      const wb = (Array.isArray(parsed?.wb) ? parsed.wb : []).filter((x: any) => x && known.has(x.id)).map((x: any) => ({ id: String(x.id), temp: clamp3(x.temp), tint: clamp3(x.tint), label: typeof x.label === 'string' ? x.label.slice(0, 24) : '' }))
+      const off = (Array.isArray(parsed?.off) ? parsed.off : []).filter((id: unknown) => typeof id === 'string' && known.has(id))
+      return json({ wb, consistent: parsed?.consistent !== false && off.length === 0, off, note: typeof parsed?.note === 'string' ? parsed.note.slice(0, 160) : '', advice: typeof parsed?.advice === 'string' ? parsed.advice.slice(0, 220) : '', model })
+    } catch (e) { return json({ error: 'wb_failed', reason: String((e as Error)?.message ?? e).slice(0, 140) }) }
+  }
+
   // ── MODALITÀ RANKING QUALITÀ (on-demand): valuta a vista i criteri tecnici di stampa ──
   if ((body as { mode?: string }).mode === 'quality') {
     const qModel = Deno.env.get('OPENAI_QUALITY_MODEL') ?? 'gpt-4o'   // dettaglio alto: serve il modello grande
