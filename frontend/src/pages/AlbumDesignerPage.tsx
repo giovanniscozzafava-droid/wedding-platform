@@ -1022,6 +1022,7 @@ function AlbumDesignerInner() {
   const [aiMaxPages, setAiMaxPages] = useState<number>(60) // tetto massimo di pagine dell'album
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string; advice?: string }>>({}) // ranking qualità stampa + consiglio tecnico
   const [qualityBusy, setQualityBusy] = useState(false)
+  const [qualityProg, setQualityProg] = useState<{ done: number; total: number } | null>(null) // barra avanzamento valutazione qualità
   const [qualityOpen, setQualityOpen] = useState(false) // pannello-report qualità (si apre a fine analisi)
   const [highlightMedia, setHighlightMedia] = useState<string | null>(null) // foto evidenziata dal report
   const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
@@ -1631,24 +1632,48 @@ function AlbumDesignerInner() {
 
   // RANKING QUALITÀ DI STAMPA (on-demand): l'AI valuta a vista i criteri tecnici (esposizione, neri
   // chiusi, alte luci, fuoco/mosso, rumore) e dà un punteggio 0-100 + i problemi + il perché.
+  type QRes = { score: number; issues: string[]; reason: string; advice?: string }
   async function rankQuality() {
     if (kept.length < 1) { toast.error('Nessuna foto da valutare'); return }
     setQualityBusy(true)
+    const total = kept.length
+    setQualityProg({ done: 0, total })
     try {
-      const payload = { mode: 'quality', photos: kept.map((m) => ({ id: m.id, url: hiUrl(m) })) } // hiUrl = più risoluzione per il giudizio tecnico
-      const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
-      let err = (data as { error?: string } | null)?.error; let detail = (data as { detail?: string } | null)?.detail
-      if (error) { try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err; detail = b?.detail ?? detail } } catch { /* */ } }
-      if (error || err) { toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server' : `Valutazione non riuscita${detail ? `: ${detail}` : (err ? `: ${err}` : '')}`.slice(0, 200)); return }
-      const scores = (data as { scores?: Record<string, { score: number; issues: string[]; reason: string; advice?: string }> }).scores ?? {}
-      setQualityScores((prev) => ({ ...prev, ...scores }))
-      const rated = (data as { rated?: number }).rated ?? Object.keys(scores).length
-      const degraded = (data as { degraded?: boolean }).degraded
-      if (Object.keys(scores).length) setQualityOpen(true) // mostra SUBITO il report (prima non si vedeva nulla)
-      if (degraded) toast.warning(`Valutate ${rated} foto · alcune non valutabili (${(data as { reason?: string }).reason ?? 'errore'})`, { duration: 9000 })
-      else toast.success(`Valutate ${rated} foto — apro il report qualità`)
+      // BATCH guidati dal client → BARRA di avanzamento reale (prima era una chiamata unica cieca).
+      const Q_BATCH = 6, Q_CONC = 2
+      const chunks: M[][] = []
+      for (let k = 0; k < kept.length; k += Q_BATCH) chunks.push(kept.slice(k, k + Q_BATCH))
+      const allScores: Record<string, QRes> = {}
+      let done = 0, fatalErr = '', anyReason = ''
+      for (let c = 0; c < chunks.length && !fatalErr; c += Q_CONC) {
+        const group = chunks.slice(c, c + Q_CONC)
+        const rs = await Promise.all(group.map(async (batch) => {
+          try {
+            const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'quality', photos: batch.map((m) => ({ id: m.id, url: hiUrl(m) })) } })
+            let err = (data as { error?: string } | null)?.error; let detail = (data as { detail?: string } | null)?.detail
+            if (error) { try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err; detail = b?.detail ?? detail } } catch { /* */ } }
+            if (error || err) return { n: batch.length, scores: {} as Record<string, QRes>, err: err ?? 'errore', detail }
+            return { n: batch.length, scores: (data as { scores?: Record<string, QRes> }).scores ?? {}, reason: (data as { reason?: string }).reason }
+          } catch (e) { return { n: batch.length, scores: {} as Record<string, QRes>, err: String((e as Error)?.message ?? e) } }
+        }))
+        for (const x of rs) {
+          Object.assign(allScores, x.scores)
+          done += x.n
+          if (x.err === 'missing_openai_key') fatalErr = 'Manca la chiave OpenAI sul server (OPENAI_API_KEY)'
+          else if (x.err && !anyReason) anyReason = x.detail ? `${x.err}: ${x.detail}` : x.err
+          if (x.reason && !anyReason) anyReason = x.reason
+        }
+        setQualityScores((prev) => ({ ...prev, ...allScores })) // badge live man mano
+        setQualityProg({ done: Math.min(done, total), total })
+      }
+      if (fatalErr) { toast.error(fatalErr); return }
+      const n = Object.keys(allScores).length
+      if (n) setQualityOpen(true)
+      if (!n) toast.error(`Valutazione non riuscita${anyReason ? `: ${anyReason}` : ''}`.slice(0, 160))
+      else if (anyReason) toast.warning(`Valutate ${n} foto · alcune non valutabili (${anyReason})`.slice(0, 160), { duration: 9000 })
+      else toast.success(`Valutate ${n} foto — apro il report qualità`)
     } catch (e) { toast.error(`Valutazione non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
-    finally { setQualityBusy(false) }
+    finally { setQualityBusy(false); setQualityProg(null) }
   }
 
   // EXIF: chiede a Drive l'orario di scatto (+ dimensioni reali) delle foto dell'evento → serve
@@ -2638,6 +2663,20 @@ function AlbumDesignerInner() {
                   <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((exportProg.done / Math.max(1, exportProg.total)) * 100)}%` }} />
                 </div>
                 <p className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">Alla fine parte il download del file. Non chiudere la pagina.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Barra di avanzamento della VALUTAZIONE QUALITÀ (prima girava senza feedback) */}
+          {qualityProg && (
+            <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4">
+              <div className="w-[min(92vw,380px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl">
+                <div className="flex items-center gap-2"><Sliders size={16} className="animate-pulse text-[rgb(var(--gold-600))]" /> <p className="font-display text-base">Controllo qualità di stampa…</p></div>
+                <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">Analizzo ogni foto come in stamperia. <span className="tabular-nums">{qualityProg.done}/{qualityProg.total}</span></p>
+                <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+                  <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((qualityProg.done / Math.max(1, qualityProg.total)) * 100)}%` }} />
+                </div>
+                <p className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">Alla fine si apre il report. Non chiudere la pagina.</p>
               </div>
             </div>
           )}
