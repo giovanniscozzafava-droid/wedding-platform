@@ -101,6 +101,7 @@ import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, Messa
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 import { MyStylePanel } from '@/components/album/MyStylePanel'
 import { FunnelSteps } from '@/components/album/FunnelSteps'
+import { ObjectRemoveModal } from '@/components/album/ObjectRemoveModal'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -1152,6 +1153,7 @@ function AlbumDesignerInner() {
   const [qualityBusy, setQualityBusy] = useState(false)
   const [qualityProg, setQualityProg] = useState<{ done: number; total: number } | null>(null) // barra avanzamento valutazione qualità
   const [qualityOpen, setQualityOpen] = useState(false) // pannello-report qualità (si apre a fine analisi)
+  const [inpaint, setInpaint] = useState<{ pageId: string; elId: string; src: string } | null>(null) // "Cancella oggetto (AI)"
   const [wbBusy, setWbBusy] = useState(false) // valutazione bilanciamento bianco della tavola
   const [wbResult, setWbResult] = useState<{ wb: { id: string; temp: number; tint: number; label: string }[]; consistent: boolean; off: string[]; note: string; advice: string } | null>(null)
   const [highlightMedia, setHighlightMedia] = useState<string | null>(null) // foto evidenziata dal report
@@ -1162,6 +1164,19 @@ function AlbumDesignerInner() {
   // AVVIARE Photoshop via protocol-handler `photoshop://`. Un'app web non può forzare l'apertura di
   // un'app desktop se non tramite protocollo registrato: se Photoshop non parte da solo, il file è
   // comunque scaricato (impostando Photoshop come app predefinita per i .jpg si apre col doppio clic).
+  // Apre "Cancella oggetto (AI)" sulla foto: risolve un URL CORS-safe (grant Drive → proxy) e apre il modale.
+  async function openInpaint(pageId: string, elId: string, mediaId: string) {
+    const m = mediaById.get(mediaId); if (!m) { toast.error('Foto non disponibile'); return }
+    let src = hiUrl(m)
+    try {
+      if (isDrive(m) && entryId) {
+        const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId })
+        const grant = (data as string) ?? null
+        if (grant) src = hiResProxyUrl(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, grant, mediaId)
+      }
+    } catch { /* fallback a hiUrl */ }
+    setInpaint({ pageId, elId, src })
+  }
   async function openInPhotoshop(mediaId: string) {
     const m = mediaById.get(mediaId); if (!m) { toast.error('Foto non disponibile'); return }
     let url = hiUrl(m)
@@ -2677,6 +2692,7 @@ function AlbumDesignerInner() {
                   <CtxSep />
                   <CtxItem label="Apri in Photoshop" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) void openInPhotoshop(el.mediaId) })} />
                   <CtxItem label="Carica versione modificata" onClick={() => run(() => { psTarget.current = { pageId: cm.pageId, elId: cm.id }; psFileRef.current?.click() })} />
+                  <CtxItem label="Cancella oggetto (AI)" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) void openInpaint(cm.pageId, cm.id, el.mediaId) })} />
                   <CtxItem label="Ritaglia la foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]) })} />
                   <CtxItem label="Sostituisci foto" onClick={() => run(() => { setSelEl(cm.id); setMultiSel([]); toast.message('Trascina una foto dalla libreria sopra questa per sostituirla.') })} />
                   <CtxItem label="Sostituisci con… (scambia)" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) { setSwapIdx(0); setSwapPick({ mediaId: el.mediaId }) } })} />
@@ -3028,6 +3044,12 @@ function AlbumDesignerInner() {
               </div>
             )
           })()}
+
+          {/* Cancella oggetto (AI): pennello/testo → gpt-image-1 → sostituisce la foto nella tavola */}
+          {inpaint && (
+            <ObjectRemoveModal src={inpaint.src} onClose={() => setInpaint(null)}
+              onResult={(file) => { const t = inpaint; setInpaint(null); if (t) void replaceElWithFile(t.pageId, t.elId, file) }} />
+          )}
 
           {/* Valutazione WB in corso */}
           {wbBusy && (
