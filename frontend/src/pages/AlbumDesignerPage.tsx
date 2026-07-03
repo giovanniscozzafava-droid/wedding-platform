@@ -859,6 +859,13 @@ function AlbumDesignerInner() {
     const b: AlbumPage = { ...newPage(), tavolaFree: false }
     setPages((arr) => [...arr, a, b]); setCurrentPageId(a.id)
   }
+  // Inserisce una tavola vuota nel GAP `si` (prima della tavola si): clic tra due tavole nel navigatore.
+  function insertEmptyTavola(si: number) {
+    const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
+    const b: AlbumPage = { ...newPage(), tavolaFree: false }
+    setPages((arr) => { const at = Math.min(arr.length, Math.max(0, si) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
+    setCurrentPageId(a.id); toast.success('Nuova tavola inserita')
+  }
   // Inserisce una tavola vuota SUBITO DOPO la tavola `si` (in sequenza), non in fondo.
   function addSpreadAfter(si: number) {
     const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: [], mediaIds: [], cells: [] }
@@ -2529,7 +2536,7 @@ function AlbumDesignerInner() {
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
                 {spreads.map((pair, si) => (
                   <Fragment key={si}>
-                    {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} gapIndex={si} h={stripH} />}
+                    {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} onInsert={() => insertEmptyTavola(si)} gapIndex={si} h={stripH} />}
                     <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
                       mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                       onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
@@ -2539,7 +2546,7 @@ function AlbumDesignerInner() {
                       onContext={(x, y) => setNavMenu({ si, x, y })} />
                   </Fragment>
                 ))}
-                {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si: spreads.length, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(spreads.length, move)} gapIndex={spreads.length} h={stripH} />}
+                {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si: spreads.length, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(spreads.length, move)} onInsert={() => insertEmptyTavola(spreads.length)} gapIndex={spreads.length} h={stripH} />}
                 {!lite && <button onClick={addSpread} className="shrink-0 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ height: stripH, aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
             </main>
@@ -3733,10 +3740,11 @@ function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; form
 
 // Zona di rilascio TRA due tavole nella filmstrip: ci trascini una foto (dalla libreria o dal
 // navigatore) e crea una NUOVA tavola in quel punto, intersecando tra le pagine.
-function GapDrop({ onDropPhoto, onMoveNewTavola, gapIndex, h }: { onDropPhoto: (mid: string, x: number, y: number) => void; onMoveNewTavola?: (move: MovePayload, x: number, y: number) => void; gapIndex?: number; h: number }) {
+function GapDrop({ onDropPhoto, onMoveNewTavola, onInsert, gapIndex, h }: { onDropPhoto: (mid: string, x: number, y: number) => void; onMoveNewTavola?: (move: MovePayload, x: number, y: number) => void; onInsert?: () => void; gapIndex?: number; h: number }) {
   const [over, setOver] = useState(false)
   return (
     <div data-gapdrop={gapIndex}
+      onClick={() => onInsert?.()}
       onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) { e.preventDefault(); if (!over) setOver(true) } }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => {
@@ -3745,10 +3753,11 @@ function GapDrop({ onDropPhoto, onMoveNewTavola, gapIndex, h }: { onDropPhoto: (
         if (mv && onMoveNewTavola) { e.preventDefault(); e.stopPropagation(); try { onMoveNewTavola(JSON.parse(mv) as MovePayload, e.clientX, e.clientY) } catch { /* payload rotto */ } return }
         const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropPhoto(mid, e.clientX, e.clientY) }
       }}
-      title="Trascina qui una foto per inserire una nuova tavola"
-      className={`shrink-0 self-center rounded transition-all ${over ? 'w-7 bg-[rgb(var(--gold-400))] ring-2 ring-[rgb(var(--gold-500))]' : 'w-2 bg-transparent hover:bg-[rgb(var(--border))]'}`}
-      style={{ height: over ? h : Math.round(h * 0.55) }}
-    />
+      title="Clicca per inserire una nuova tavola qui — oppure trascinaci una foto"
+      style={{ minHeight: Math.round(h * 0.7) }}
+      className={`group/gap flex shrink-0 cursor-pointer items-center justify-center self-stretch rounded transition-all ${over ? 'w-7 bg-[rgb(var(--gold-400))] ring-2 ring-[rgb(var(--gold-500))]' : 'w-3 bg-transparent hover:bg-[rgb(var(--gold-100))]'}`}>
+      <Plus size={13} className={`text-[rgb(var(--gold-600))] transition-opacity ${over ? 'opacity-0' : 'opacity-0 group-hover/gap:opacity-100'}`} />
+    </div>
   )
 }
 
