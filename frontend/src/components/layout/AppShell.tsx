@@ -123,10 +123,11 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/weddings',    label: 'Eventi',      icon: Heart },
   ]},
   { section: 'Catalogo & lavoro', items: [
-    { to: '/catalog',      label: 'Catalogo',      icon: PackageSearch },
-    { to: '/stili',        label: 'Portfolio', icon: Images },
-    { to: '/team',         label: 'Team',          icon: UsersIcon },
-    { to: '/calcolatore',  label: 'Calcolatore',   icon: Calculator },
+    { to: '/catalog',        label: 'Catalogo',       icon: PackageSearch },
+    { to: '/album-catalogo', label: 'Catalogo album', icon: FileText },
+    { to: '/stili',          label: 'Portfolio', icon: Images },
+    { to: '/team',           label: 'Team',          icon: UsersIcon },
+    { to: '/calcolatore',    label: 'Calcolatore',   icon: Calculator },
   ]},
   { section: 'Crescita', items: [
     { to: '/feed', label: 'Feed', icon: Newspaper },
