@@ -4,7 +4,9 @@
 // Prerequisito: organizzazione OpenAI VERIFICATA per la generazione immagini (gpt-image-1).
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
-const IMG_MODEL = Deno.env.get('OPENAI_IMAGE_MODEL') ?? 'gpt-image-1'
+// dall-e-2 di default: NON richiede la verifica organizzazione (a differenza di gpt-image-1).
+// Per passare a gpt-image-1 quando l'org è verificata: secret OPENAI_IMAGE_MODEL=gpt-image-1.
+const IMG_MODEL = Deno.env.get('OPENAI_IMAGE_MODEL') ?? 'dall-e-2'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -37,13 +39,16 @@ Deno.serve(async (req) => {
     ? body.prompt.trim().slice(0, 400)
     : 'Rimuovi in modo pulito e naturale gli oggetti nell\'area mascherata e ricostruisci lo sfondo in modo coerente con l\'ambiente circostante (texture, luce, colori). Mantieni IDENTICO tutto il resto della foto: persone, volti, corpi, capi, colori e illuminazione. Risultato fotorealistico, nessun artefatto.'
 
+  const isDalle = IMG_MODEL.startsWith('dall-e')
   const fd = new FormData()
   fd.append('model', IMG_MODEL)
   fd.append('image', dataUrlToBlob(body.image), 'image.png')
   if (body.mask && body.mask.startsWith('data:')) fd.append('mask', dataUrlToBlob(body.mask), 'mask.png')
   fd.append('prompt', prompt)
   fd.append('n', '1')
-  fd.append('size', typeof body.size === 'string' ? body.size : 'auto')
+  // dall-e-2: dimensione quadrata concreta + risposta base64; gpt-image-1: 'auto' e b64 nativo.
+  fd.append('size', typeof body.size === 'string' ? body.size : (isDalle ? '1024x1024' : 'auto'))
+  if (isDalle) fd.append('response_format', 'b64_json')
 
   try {
     const ctrl = new AbortController()
