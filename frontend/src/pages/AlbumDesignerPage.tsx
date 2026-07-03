@@ -1582,6 +1582,33 @@ function AlbumDesignerInner() {
     updatePage(lp.id, (p) => ({ ...p, elements: newEls })); setSelEl(null); setMultiSel([])
     toast.success('Preset applicato')
   }
+  // Organizza le foto SELEZIONATE dentro UNA sola PAGINA (metà tavola, sinistra o destra): le dispone
+  // in modo giustificato entro il rettangolo della pagina singola. Le altre foto restano intatte.
+  // La metà (sx/dx) è quella dove sta il baricentro della selezione.
+  function organizeSelectionIntoPage(pageId: string, ids: string[]) {
+    const i = pages.findIndex((p) => p.id === pageId); if (i < 0) return
+    const lp = pages[i - (i % 2)]
+    if (!lp?.tavolaFree) { toast.message('Disponibile sulle tavole libere (attiva "Libera").'); return }
+    const els = lp.elements ?? []
+    const sel = els.filter((e) => ids.includes(e.id))
+    if (!sel.length) { toast.message('Seleziona prima una o più foto sulla tavola.'); return }
+    const cx = sel.reduce((s, e) => s + (e.x + e.w / 2), 0) / sel.length // baricentro X della selezione
+    const isLeft = cx < 0.5
+    const f = getFormat(format)
+    const pageAsp = f.w / f.h                                   // aspetto della PAGINA SINGOLA
+    const gx = gutterMm / (f.w * 2), gy = gutterMm / f.h
+    const slots = justifiedSlots(sel.map((e) => aspects[e.mediaId] ?? photoAspect.get(e.mediaId) ?? 1), pageAsp)
+    const x0 = isLeft ? 0 : 0.5
+    const newEls = els.map((e) => {
+      const k = sel.indexOf(e); if (k < 0) return e             // non selezionata: invariata
+      const s = slots[k] ?? { x: 0, y: 0, w: 1, h: 1 }
+      const raw = { x: x0 + s.x * 0.5, y: s.y, w: s.w * 0.5, h: s.h } // dal 0..1 della pagina al mezzo tavola
+      const g = gutterSlot(raw, gx, gy)
+      return { ...e, x: g.x, y: g.y, w: g.w, h: g.h, rot: 0 }
+    })
+    updatePage(lp.id, (p) => ({ ...p, frozen: false, elements: newEls })); setSelEl(null); setMultiSel([])
+    toast.success(`${sel.length} foto disposte nella pagina ${isLeft ? 'sinistra' : 'destra'}`)
+  }
 
   // ── IMPAGINAZIONE AI ────────────────────────────────────────────────────────────────────────
   // "Il fotografo lascia impaginare all'AI." OpenAI (GPT) fa la parte CURATORIALE (raggruppa le foto
@@ -2698,6 +2725,8 @@ function AlbumDesignerInner() {
                   <CtxItem label="Sostituisci con… (scambia)" onClick={() => run(() => { const el = (pages.find((p) => p.id === cm.pageId)?.elements ?? []).find((e) => e.id === cm.id); if (el) { setSwapIdx(0); setSwapPick({ mediaId: el.mediaId }) } })} />
                   <CtxSep />
                   <CtxItem label="Bilanciamento bianco (tavola)" onClick={() => run(() => void evalTavolaWB(cm.pageId))} />
+                  <CtxSep />
+                  <CtxItem label={`Organizza nella pagina${multiSel.length > 1 ? ` (${multiSel.length} foto)` : ''}`} onClick={() => run(() => organizeSelectionIntoPage(cm.pageId, multiSel.length ? multiSel : [cm.id]))} />
                   <CtxSep />
                   <CtxItem label="Riempi la cornice" onClick={() => run(() => freeFillFrame(cm.pageId, cm.id))} />
                   <CtxItem label="Centra il contenuto" onClick={() => run(() => freeCenterContent(cm.pageId, cm.id))} />
