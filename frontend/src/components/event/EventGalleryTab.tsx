@@ -19,6 +19,7 @@ import { exportTableTents } from '@/lib/tableTents'
 import { PhotoSocial } from './PhotoSocial'
 import { GallerySettingsPanel, DEFAULT_GALLERY_SETTINGS, type GallerySettings } from './GallerySettingsPanel'
 import { PrintOrderSheet } from './PrintOrderSheet'
+import { FunnelSteps } from '@/components/album/FunnelSteps'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -65,6 +66,15 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [dedupBusy, setDedupBusy] = useState(false)
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
   const [isAdmin, setIsAdmin] = useState(false)
+  // Drive del professionista collegato? (serve per il promemoria "prima attivazione" e per il funnel)
+  const [driveConnected, setDriveConnected] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (role === 'sposi' || !me) { setDriveConnected(null); return }
+    void (async () => {
+      const { data } = await (supabase.from as any)('drive_connections').select('id').eq('professional_id', me).maybeSingle()
+      setDriveConnected(!!data)
+    })()
+  }, [me, role])
   // Blocco "coatto" uscita pagina durante l'upload: il browser mostra l'avviso nativo "Lasciare il sito?"
   useEffect(() => {
     if (!uploading) return
@@ -399,14 +409,30 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
   if (loading) return <div className="text-sm text-[rgb(var(--fg-subtle))] py-8">Carico le foto…</div>
 
+  // PROMEMORIA "prima attivazione": il fotografo DEVE collegare il proprio Google Drive, altrimenti
+  // non può caricare né gestire nulla (le foto vivono sul suo Drive). Sparisce una volta collegato.
+  const driveBanner = role !== 'sposi' && driveConnected === false ? (
+    <Card className="flex items-start gap-3 border-2 border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] p-4">
+      <HardDrive size={20} className="mt-0.5 shrink-0 text-[rgb(var(--gold-600))]" />
+      <div className="flex-1">
+        <p className="text-sm font-semibold">Prima cosa: collega il tuo Google Drive</p>
+        <p className="text-xs text-[rgb(var(--fg-muted))]">Le foto vivono sul <strong>tuo</strong> Drive. Senza collegarlo non puoi caricare né gestire nulla — è il primo passo. Bastano pochi secondi.</p>
+      </div>
+      <Link to="/profile"><Button variant="gold" size="sm"><HardDrive size={14} /> Collega Drive</Button></Link>
+    </Card>
+  ) : null
+
   // Nessuna galleria: il fornitore (fotografo) può crearla; gli altri vedono lo stato vuoto.
   if (!gallery) {
     return (
-      <Card className="p-8 text-center">
-        <Images size={28} className="mx-auto mb-2 text-[rgb(var(--fg-subtle))]" />
-        <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">Ancora nessuna galleria per questo evento.</p>
-        {role !== 'sposi' && <Button variant="gold" disabled={busy} onClick={createGallery}><Plus size={14} /> Crea la mia galleria</Button>}
-      </Card>
+      <div className="space-y-4">
+        {driveBanner}
+        <Card className="p-8 text-center">
+          <Images size={28} className="mx-auto mb-2 text-[rgb(var(--fg-subtle))]" />
+          <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">Ancora nessuna galleria per questo evento.</p>
+          {role !== 'sposi' && <Button variant="gold" disabled={busy} onClick={createGallery}><Plus size={14} /> Crea la mia galleria</Button>}
+        </Card>
+      </div>
     )
   }
 
@@ -415,6 +441,21 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       {/* input file nascosto per l'upload su Drive */}
       <input ref={uploadRef} type="file" multiple accept="image/*,video/*" className="hidden"
         onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length && uploadFolder) void uploadPhotos(uploadFolder, snap) }} />
+
+      {/* Promemoria Drive (finché non collegato) */}
+      {driveBanner}
+
+      {/* FUNNEL FOTOGRAFO: percorso a step (① Drive → ② carica → ③ impagina → ④ consegna) */}
+      {role !== 'sposi' && isOwner && (
+        <Card className="p-2.5">
+          <FunnelSteps steps={[
+            { key: 'drive', label: 'Collega Drive', done: driveConnected === true, onClick: () => { window.location.href = '/profile' }, hint: 'Il tuo Google Drive: le foto vivono lì' },
+            { key: 'carica', label: 'Carica foto', done: totalMedia > 0, hint: 'Carica il servizio nelle cartelle' },
+            { key: 'impagina', label: 'Impagina album', onClick: () => window.open(`/album/${entryId}`, '_blank'), hint: "Apri l'impaginatore e componi con l'AI" },
+            { key: 'consegna', label: 'Consegna agli sposi', hint: 'Condividi la galleria e l’album finito' },
+          ]} />
+        </Card>
+      )}
 
       {uploading && galleryProg && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,460px)] rounded-xl shadow-2xl border-2 border-[rgb(var(--gold-500))]" style={{ background: 'rgb(var(--bg-elevated))' }}>

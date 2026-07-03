@@ -97,6 +97,7 @@ import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 import { MyStylePanel } from '@/components/album/MyStylePanel'
+import { FunnelSteps } from '@/components/album/FunnelSteps'
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -1013,6 +1014,8 @@ function AlbumDesignerInner() {
   const [aiProg, setAiProg] = useState<{ done: number; total: number; phase?: string } | null>(null) // barra avanzamento analisi foto
   const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
   const [styleOpen, setStyleOpen] = useState(false) // pannello "Il mio stile" (impara dai PDF del fotografo)
+  const [hasStyle, setHasStyle] = useState(false) // il fotografo ha già istruito uno stile (per il funnel)
+  useEffect(() => { void (async () => { const { data } = await (supabase.from as any)('album_style_pdfs').select('id').limit(1); setHasStyle(Array.isArray(data) && data.length > 0) })() }, [styleOpen])
   const [aiStyle, setAiStyle] = useState<string>('fotografo')
   const [aiMaxPer, setAiMaxPer] = useState<number>(0)        // 0 = automatico (dallo stile)
   const [aiGroupBw, setAiGroupBw] = useState<boolean>(true)  // tieni insieme le foto in bianco e nero
@@ -2024,6 +2027,17 @@ function AlbumDesignerInner() {
         </div>
       ) : (
         <>
+          {/* FUNNEL: percorso a step per il fotografo (① stile → ② impagina → ③ valuta → ④ esporta) */}
+          {!lite && (
+            <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))]/50 px-3 py-1.5">
+              <FunnelSteps steps={[
+                { key: 'stile', label: 'Il mio stile', done: hasStyle, onClick: () => setStyleOpen(true), hint: "Insegna all'AI come impagini (facoltativo, ma migliora tutto)" },
+                { key: 'impagina', label: 'Impagina con AI', done: pages.length > 0, onClick: () => setAiPick(true), hint: "L'AI legge le foto e compone le tavole" },
+                { key: 'valuta', label: 'Valuta qualità', done: Object.keys(qualityScores).length > 0, onClick: () => void rankQuality(), hint: 'Controllo tecnico di stampa, come in stamperia' },
+                { key: 'esporta', label: 'Esporta', onClick: () => setExportOpen(true), hint: 'PDF o JPG pronti per la stampa' },
+              ]} />
+            </div>
+          )}
           {/* barra strumenti impaginatore */}
           <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}

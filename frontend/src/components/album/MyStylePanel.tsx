@@ -108,6 +108,7 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
         <div>
           <p className="font-display text-lg">Il mio stile</p>
           <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Carica <strong>più album PDF</strong>: l'AI legge le tue tavole (foto per tavola, respiro, doppia pagina, verticali/orizzontali) e <strong>fa la media</strong>. "Impagina con AI" comporrà nel <strong>tuo</strong> stile.</p>
+          <p className="mt-1 text-xs text-[rgb(var(--fg-subtle))]">Gli stili restano salvati per <strong>tutti i tuoi lavori</strong>, non solo questo album. Li cancelli quando vuoi.</p>
         </div>
         {onClose && <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>}
       </div>
