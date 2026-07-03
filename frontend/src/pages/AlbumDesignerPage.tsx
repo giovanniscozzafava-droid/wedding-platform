@@ -385,6 +385,7 @@ function AlbumDesignerInner() {
   const guideDrag = useRef<{ axis: 'v' | 'h'; index: number } | null>(null)
   const [selGuide, setSelGuide] = useState<{ axis: 'v' | 'h'; index: number } | null>(null) // righello selezionato (Canc per eliminarlo)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const filmstripRef = useRef<HTMLDivElement>(null) // navigatore tavole (per auto-scroll durante il drag)
   const [canvasBox, setCanvasBox] = useState({ w: 0, h: 0 }) // area disponibile per la tavola (per il fit)
   const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
   const [previewIdx, setPreviewIdx] = useState(0)
@@ -954,30 +955,36 @@ function AlbumDesignerInner() {
     if (!items.length) return
     photoMoveRef.current = { items, fromPageId }
     setPhotoMoveUI({ x: e.clientX, y: e.clientY, n: items.length, hint: null })
-    const hitAt = (x: number, y: number) => {
-      const el = document.elementFromPoint(x, y) as HTMLElement | null
-      const tav = el?.closest('[data-tavdrop]') as HTMLElement | null
-      if (tav?.dataset.tavdrop) return { kind: 'tavola' as const, key: tav.dataset.tavdrop }
-      const gap = el?.closest('[data-gapdrop]') as HTMLElement | null
-      if (gap?.dataset.gapdrop != null) return { kind: 'gap' as const, key: gap.dataset.gapdrop }
+    // bersaglio dall'elemento sotto il cursore (miniatura tavola o gap)
+    const targetOf = (elm: Element | null): { kind: 'tavola' | 'gap'; key: string } | null => {
+      const tav = elm?.closest('[data-tavdrop]') as HTMLElement | null
+      if (tav?.dataset.tavdrop) return { kind: 'tavola', key: tav.dataset.tavdrop }
+      const gap = elm?.closest('[data-gapdrop]') as HTMLElement | null
+      if (gap && gap.dataset.gapdrop != null) return { kind: 'gap', key: gap.dataset.gapdrop }
       return null
     }
-    let lastHi: Element | null = null
-    const highlight = (x: number, y: number) => {
-      const el = document.elementFromPoint(x, y)
-      const t = el?.closest('[data-tavdrop],[data-gapdrop]') ?? null
-      if (lastHi && lastHi !== t) lastHi.classList.remove('pf-drop-target')
-      if (t) t.classList.add('pf-drop-target')
-      lastHi = t
+    let lastHiEl: Element | null = null // ultima MINIATURA/gap evidenziata (fallback al rilascio)
+    let scrollDir = 0
+    const timer = window.setInterval(() => { const c = filmstripRef.current; if (c && scrollDir) c.scrollLeft += scrollDir * 16 }, 16)
+    const onMove = (ev: PointerEvent) => {
+      const under = document.elementFromPoint(ev.clientX, ev.clientY)
+      const t = under?.closest('[data-tavdrop],[data-gapdrop]') ?? null
+      if (lastHiEl && lastHiEl !== t) lastHiEl.classList.remove('pf-drop-target')
+      if (t) { t.classList.add('pf-drop-target'); lastHiEl = t }
+      const h = targetOf(under)
+      // AUTO-SCROLL del navigatore quando il cursore è vicino ai bordi (per raggiungere le tavole nascoste)
+      const c = filmstripRef.current
+      if (c) { const r = c.getBoundingClientRect(); const EDGE = 72; scrollDir = ev.clientX > r.right - EDGE ? 1 : ev.clientX < r.left + EDGE ? -1 : 0 }
+      setPhotoMoveUI({ x: ev.clientX, y: ev.clientY, n: items.length, hint: h ? h.kind : null })
     }
-    const onMove = (ev: PointerEvent) => { const h = hitAt(ev.clientX, ev.clientY); highlight(ev.clientX, ev.clientY); setPhotoMoveUI({ x: ev.clientX, y: ev.clientY, n: items.length, hint: h ? h.kind : null }) }
     const onUp = (ev: PointerEvent) => {
-      window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp)
-      if (lastHi) lastHi.classList.remove('pf-drop-target')
+      window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.clearInterval(timer)
+      if (lastHiEl) lastHiEl.classList.remove('pf-drop-target')
       const d = photoMoveRef.current; photoMoveRef.current = null; setPhotoMoveUI(null)
       if (!d) return
-      const h = hitAt(ev.clientX, ev.clientY)
-      if (!h) return
+      // bersaglio: sotto il cursore, altrimenti l'ULTIMO evidenziato (più tollerante ai rilasci al limite)
+      const h = targetOf(document.elementFromPoint(ev.clientX, ev.clientY)) ?? targetOf(lastHiEl)
+      if (!h) { toast.message('Rilascia la foto sopra una tavola (o tra due tavole) nel navigatore in basso'); return }
       const move: MovePayload = { fromPageId: d.fromPageId, elIds: d.items.map((i) => i.elId), mediaIds: d.items.map((i) => i.mediaId) }
       if (h.kind === 'tavola') movePhotosToTavola(h.key, move)
       else moveNewTavola(Number(h.key), move)
@@ -2548,7 +2555,9 @@ function AlbumDesignerInner() {
               {/* maniglia: alza/abbassa la striscia delle tavole (le miniature scalano) */}
               {!lite && <DragSize axis="y" onResize={(d) => setStripH((h) => clampPx(h - d, 48, 240))} className="h-1.5 shrink-0 cursor-row-resize bg-transparent hover:bg-[rgb(var(--gold-400))] transition-colors" />}
               {/* filmstrip TAVOLE (doppia pagina, come in stampa) */}
-              <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
+              <div ref={filmstripRef}
+                onDragOver={(e) => { const c = filmstripRef.current; if (!c) return; const r = c.getBoundingClientRect(); const EDGE = 72; if (e.clientX > r.right - EDGE) c.scrollLeft += 22; else if (e.clientX < r.left + EDGE) c.scrollLeft -= 22 }}
+                className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
                 {spreads.map((pair, si) => (
                   <Fragment key={si}>
                     {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} onInsert={() => insertEmptyTavola(si)} gapIndex={si} h={stripH} />}
