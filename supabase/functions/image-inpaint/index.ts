@@ -7,7 +7,12 @@ const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 const IMG_MODEL = Deno.env.get('OPENAI_IMAGE_MODEL') ?? 'dall-e-2'
 const REPLICATE_TOKEN = Deno.env.get('REPLICATE_API_TOKEN') ?? ''
 const REPLICATE_MODEL = Deno.env.get('REPLICATE_MODEL') ?? 'black-forest-labs/flux-fill-dev'
+// FLUX ufficiale (Black Forest Labs): abbonamento diretto su bfl.ai. Prioritario se presente.
+const BFL_API_KEY = Deno.env.get('BFL_API_KEY') ?? ''
+const BFL_BASE = Deno.env.get('BFL_BASE') ?? 'https://api.bfl.ai'
+const BFL_MODEL = Deno.env.get('BFL_MODEL') ?? 'flux-pro-1.0-fill'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const rawB64 = (d: string) => { const i = d.indexOf(','); return i >= 0 ? d.slice(i + 1) : d }
 
 async function urlToDataUrl(url: string): Promise<string> {
   const r = await fetch(url); if (!r.ok) throw new Error(`fetch output ${r.status}`)
@@ -38,7 +43,7 @@ function dataUrlToBlob(d: string): Blob {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
-  if (!REPLICATE_TOKEN && !OPENAI_API_KEY) return json({ error: 'no_engine', hint: 'Imposta REPLICATE_API_TOKEN (o OPENAI_API_KEY)' }, 503)
+  if (!BFL_API_KEY && !REPLICATE_TOKEN && !OPENAI_API_KEY) return json({ error: 'no_engine', hint: 'Imposta BFL_API_KEY (FLUX) / REPLICATE_API_TOKEN / OPENAI_API_KEY' }, 503)
 
   let body: { image?: string; mask?: string; prompt?: string; size?: string }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
@@ -47,6 +52,32 @@ Deno.serve(async (req) => {
   const prompt = (typeof body.prompt === 'string' && body.prompt.trim())
     ? body.prompt.trim().slice(0, 400)
     : 'Rimuovi in modo pulito e naturale gli oggetti nell\'area mascherata e ricostruisci lo sfondo in modo coerente con l\'ambiente circostante (texture, luce, colori). Mantieni IDENTICO tutto il resto della foto: persone, volti, corpi, capi, colori e illuminazione. Risultato fotorealistico, nessun artefatto.'
+
+  // ── MOTORE FLUX UFFICIALE (Black Forest Labs): maschera BIANCO = area da rigenerare ──
+  if (BFL_API_KEY) {
+    try {
+      const input: Record<string, unknown> = { image: rawB64(body.image), prompt, output_format: 'png', safety_tolerance: 6, steps: 50 }
+      if (body.mask && body.mask.startsWith('data:')) input.mask = rawB64(body.mask)
+      const create = await fetch(`${BFL_BASE}/v1/${BFL_MODEL}`, {
+        method: 'POST', headers: { 'x-key': BFL_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify(input),
+      })
+      const started = await create.json()
+      if (!create.ok || !started?.polling_url) return json({ error: 'bfl_error', status: create.status, detail: JSON.stringify(started).slice(0, 300) }, 502)
+      let res = started, tries = 0
+      while (tries < 80) {
+        await sleep(1500)
+        const p = await fetch(started.polling_url, { headers: { 'x-key': BFL_API_KEY, accept: 'application/json' } })
+        res = await p.json()
+        if (res?.status && res.status !== 'Pending') break
+        tries++
+      }
+      if (res?.status !== 'Ready' || !res?.result?.sample) return json({ error: 'bfl_failed', detail: String(res?.status ?? 'timeout').slice(0, 200) }, 502)
+      return json({ image: await urlToDataUrl(res.result.sample) })
+    } catch (e) {
+      return json({ error: 'bfl_exception', detail: String((e as Error)?.message ?? e).slice(0, 200) }, 500)
+    }
+  }
 
   // ── MOTORE REPLICATE (FLUX Fill): maschera BIANCO = area da rigenerare ──
   if (REPLICATE_TOKEN) {
