@@ -800,8 +800,10 @@ function AlbumDesignerInner() {
   }, [tavMediaKey, mediaById])
   const tavOrients = useMemo<Orient[]>(() => tavEls.map((e) => classifyAspect(photoAspect.get(e.mediaId) ?? 1)), [tavMediaKey, photoAspect]) // eslint-disable-line react-hooks/exhaustive-deps
   const tavPresets = useMemo<GenLayout[]>(() => { const f = getFormat(format); return tavMediaKey ? genTavolaLayouts(tavOrients, f.w * 2, f.h, 48) : [] }, [tavOrients, format, tavMediaKey]) // eslint-disable-line react-hooks/exhaustive-deps
-  // I TUOI preset (composizioni libere salvate, in coord. tavola) applicabili alla tavola corrente.
-  const myTavPresets = useMemo(() => layouts.filter((l) => l.els && l.els.length), [layouts])
+  // I TUOI preset applicabili alla tavola corrente: SOLO quelli con lo STESSO numero di foto della
+  // tavola (3 foto → preset da 3, 10 foto → preset da 10). Le disposizioni devono combaciare col
+  // numero di foto sulla tavola, sempre.
+  const myTavPresets = useMemo(() => layouts.filter((l) => (l.els?.length ?? 0) === tavEls.length && tavEls.length > 0), [layouts, tavEls.length])
   useEffect(() => {
     setEverPlaced((prev) => {
       let changed = false; const next = new Set(prev)
