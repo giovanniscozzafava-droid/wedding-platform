@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; analyses?: Analysis[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number } }
+  let body: { photos?: InPhoto[]; analyses?: Analysis[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number; vertPct?: number; horizPct?: number } }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   // NB: la modalità "learn" (Il mio stile) manda `images`, NON `photos` → non applicare qui la guardia
@@ -207,7 +207,8 @@ Deno.serve(async (req) => {
       "Guarda questa TAVOLA di un album fotografico (una doppia pagina). Estrai la GEOMETRIA dell'impaginazione, come la userebbe un impaginatore.",
       'Per OGNI foto presente dai il riquadro in frazioni 0..1 della tavola: x,y = angolo in alto a sinistra, w,h = larghezza/altezza. n = numero di foto.',
       'fullbleed = true se UNA foto occupa tutta la tavola bordo a bordo. bw = true se la tavola è in bianco e nero. white = quanto spazio bianco/vuoto attorno alle foto (0 nessuno … 1 moltissimo).',
-      'Rispondi SOLO JSON: {"n","boxes":[{"x","y","w","h"}],"fullbleed","bw","white"}.',
+      'vert = numero di foto VERTICALI (ritratto, più alte che larghe) nella tavola. horiz = numero di foto ORIZZONTALI (paesaggio, più larghe che alte).',
+      'Rispondi SOLO JSON: {"n","boxes":[{"x","y","w","h"}],"fullbleed","bw","white","vert","horiz"}.',
     ].join('\n')
     const analyzeOne = async (img: string) => {
       let lastErr = ''
@@ -216,11 +217,14 @@ Deno.serve(async (req) => {
           const data = await openai({ model: lModels[mi], temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysL }, { role: 'user', content: [{ type: 'image_url', image_url: { url: img, detail: 'high' } }] }] })
           const p = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
           const boxes = Array.isArray(p?.boxes) ? p.boxes.map((b: any) => ({ x: clamp01(b?.x), y: clamp01(b?.y), w: clamp01(b?.w), h: clamp01(b?.h) })).filter((b: any) => b.w > 0.02 && b.h > 0.02).slice(0, 24) : []
-          return { n: Number.isFinite(p?.n) ? Math.max(0, Math.round(p.n)) : boxes.length, boxes, fullbleed: !!p?.fullbleed, bw: !!p?.bw, white: Number.isFinite(p?.white) ? clamp01(p.white) : 0 }
+          const n = Number.isFinite(p?.n) ? Math.max(0, Math.round(p.n)) : boxes.length
+          const vert = Number.isFinite(p?.vert) ? Math.max(0, Math.round(p.vert)) : 0
+          const horiz = Number.isFinite(p?.horiz) ? Math.max(0, Math.round(p.horiz)) : 0
+          return { n, boxes, fullbleed: !!p?.fullbleed, bw: !!p?.bw, white: Number.isFinite(p?.white) ? clamp01(p.white) : 0, vert, horiz }
         } catch (e) { lastErr = String((e as Error)?.message ?? e).slice(0, 160); /* prova il modello successivo */ }
       }
       if (lastErr) lReasons.push(lastErr)
-      return { n: 0, boxes: [], fullbleed: false, bw: false, white: 0 }
+      return { n: 0, boxes: [], fullbleed: false, bw: false, white: 0, vert: 0, horiz: 0 }
     }
     const spreads = (await pool(imgs, 3, analyzeOne)).filter((s) => s.n > 0)
     // Se NON ha letto niente, di' PERCHÉ (prima falliva in silenzio → "non legge il pdf")
@@ -323,7 +327,7 @@ Deno.serve(async (req) => {
       ...(maxSpreads > 0 ? [`Non superare ${maxSpreads} tavole in totale (${maxSpreads * 2} pagine): se le foto sono tante, aumenta le foto per tavola per rientrare nel limite.`] : []),
       ...(body.groupBw ? ['Le foto in BIANCO E NERO (bw=1) vanno tenute INSIEME e NON mischiate col colore: tavole dedicate.'] : []),
       ...(styleG ? [`Stile: ${styleG.hint}`] : []),
-      ...(body.learnedStyle ? [`STILE APPRESO DAI SUOI ALBUM VERI (imitalo fedelmente): in media ${body.learnedStyle.avgPhotos ?? '?'} foto per tavola; ${body.learnedStyle.fullbleedPct ?? 0}% delle tavole sono una foto a doppia pagina full-bleed; respiro/bianco ${((body.learnedStyle.whiteAvg ?? 0) >= 0.5) ? 'abbondante' : (body.learnedStyle.whiteAvg ?? 0) >= 0.25 ? 'medio' : 'contenuto'}.`] : []),
+      ...(body.learnedStyle ? [`STILE APPRESO DAI SUOI ALBUM VERI (media su più album, imitalo fedelmente): in media ${body.learnedStyle.avgPhotos ?? '?'} foto per tavola; ${body.learnedStyle.fullbleedPct ?? 0}% delle tavole sono una foto a doppia pagina full-bleed; respiro/bianco ${((body.learnedStyle.whiteAvg ?? 0) >= 0.5) ? 'abbondante' : (body.learnedStyle.whiteAvg ?? 0) >= 0.25 ? 'medio' : 'contenuto'}${(body.learnedStyle.vertPct ?? 0) + (body.learnedStyle.horizPct ?? 0) > 0 ? `; usa circa ${body.learnedStyle.vertPct ?? 0}% foto verticali e ${body.learnedStyle.horizPct ?? 0}% orizzontali (rispetta l'orientamento reale delle foto, non forzare verticali in slot orizzontali)` : ''}.`] : []),
       styleHint,
       'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"...","layout":"double|full"}]} (layout opzionale).',
     ].join('\n')
