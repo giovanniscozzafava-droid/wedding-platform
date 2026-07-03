@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number } }
+  let body: { photos?: InPhoto[]; analyses?: Analysis[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number } }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   // NB: la modalità "learn" (Il mio stile) manda `images`, NON `photos` → non applicare qui la guardia
@@ -227,6 +227,19 @@ Deno.serve(async (req) => {
     return json({ spreads, profile })
   }
 
+  // ── MODALITÀ "ANALIZZA" (un batch di foto alla volta): serve al client per la BARRA di
+  //    avanzamento reale. Il client chiama questa per gruppi di foto, poi manda le analisi a comporre.
+  if ((body as { mode?: string }).mode === 'analyze') {
+    const batch = photos.slice(0, 40)
+    try {
+      const a = await analyzeBatch(batch)
+      return json({ analyses: a, visionOk: a.filter((x) => (x.people ?? 0) >= 0 && (x.fx !== 0.5 || x.fy !== 0.5 || x.caption)).length })
+    } catch (e) {
+      // degrada ai tag: non blocca la barra, segnala il motivo
+      return json({ analyses: batch.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })), error: 'vision_failed', reason: String((e as Error)?.message ?? e).slice(0, 140) })
+    }
+  }
+
   // STILE di impaginazione scelto dal fotografo: cambia cadenza + criterio di composizione.
   const STYLE_GUIDE: Record<string, { hint: string; maxPer: number; chrono: 'strict' | 'ref' }> = {
     fotografo:    { maxPer: 8, chrono: 'strict', hint: 'STILE DEL FOTOGRAFO (imita i suoi album): POCHE foto per tavola, tanto RESPIRO — spesso 1-2 foto per pagina (2-4 per tavola), a volte una foto sola. Ogni foto INTERA, mai tagliata. DOPPIA PAGINA (layout "double") SOLO per uno scatto ORIZZONTALE forte (auto, navata, coppia, brindisi) — MAI verticali o gruppi a doppia pagina. Verticali a coppie o in strisce di 3 (dettagli: scarpe, fedi, bouquet). GRUPPI e TAVOLATE in mosaici fitti da 6-9 foto. Bianco e nero in tavole dedicate. Segui la cronologia.' },
@@ -248,23 +261,31 @@ Deno.serve(async (req) => {
   const reasons: string[] = []
 
   // ── FASE A: analisi visiva (con fallback ai tag) ──
-  const toSee = photos.slice(0, MAX_VISION)
-  const rest = photos.slice(MAX_VISION)
-  const batches: InPhoto[][] = []
-  for (let k = 0; k < toSee.length; k += BATCH) batches.push(toSee.slice(k, k + BATCH))
   let analyses: Analysis[] = []
   let visionOk = 0
-  try {
-    const results = await pool(batches, CONCURRENCY, async (b) => {
-      try { const r = await analyzeBatch(b); visionOk += b.length; return r }
-      catch (e) { reasons.push(String((e as Error)?.message ?? e).slice(0, 120)); return b.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })) }
-    })
-    analyses = results.flat()
-  } catch (e) {
-    reasons.push(`vision_pool: ${String((e as Error)?.message ?? e).slice(0, 100)}`)
-    analyses = toSee.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
+  const precomputed = Array.isArray(body.analyses) ? body.analyses.filter((a) => a && typeof a.id === 'string') : null
+  if (precomputed && precomputed.length) {
+    // Il CLIENT ha già fatto la vision a batch (barra di avanzamento reale) → qui componiamo soltanto.
+    const byId = new Map(precomputed.map((a) => [a.id, a]))
+    analyses = photos.map((p) => byId.get(p.id) ?? ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
+    visionOk = analyses.filter((a) => byId.has(a.id) && (a.fx !== 0.5 || a.fy !== 0.5 || !!a.caption || (a.people ?? 0) > 0)).length
+  } else {
+    const toSee = photos.slice(0, MAX_VISION)
+    const rest = photos.slice(MAX_VISION)
+    const batches: InPhoto[][] = []
+    for (let k = 0; k < toSee.length; k += BATCH) batches.push(toSee.slice(k, k + BATCH))
+    try {
+      const results = await pool(batches, CONCURRENCY, async (b) => {
+        try { const r = await analyzeBatch(b); visionOk += b.length; return r }
+        catch (e) { reasons.push(String((e as Error)?.message ?? e).slice(0, 120)); return b.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })) }
+      })
+      analyses = results.flat()
+    } catch (e) {
+      reasons.push(`vision_pool: ${String((e as Error)?.message ?? e).slice(0, 100)}`)
+      analyses = toSee.map((p) => ({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false }))
+    }
+    for (const p of rest) analyses.push({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
   }
-  for (const p of rest) analyses.push({ id: p.id, moment: p.moment ?? 'dettagli', caption: '', fx: 0.5, fy: 0.5, hero: false })
   const focus: Record<string, { fx: number; fy: number; hero: boolean; moment: string; face: boolean; people: number; ht?: number; hb?: number; sx?: number; sr?: number }> = {}
   for (const a of analyses) focus[a.id] = { fx: a.fx, fy: a.fy, hero: a.hero, moment: a.moment, face: (a.people ?? 0) > 0, people: a.people ?? 0, ht: a.ht, hb: a.hb, sx: a.sx, sr: a.sr }
   const facesFound = Object.values(focus).filter((f) => f.face).length

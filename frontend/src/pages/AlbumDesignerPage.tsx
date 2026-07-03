@@ -1009,6 +1009,7 @@ function AlbumDesignerInner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [swapPick])
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
+  const [aiProg, setAiProg] = useState<{ done: number; total: number; phase?: string } | null>(null) // barra avanzamento analisi foto
   const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
   const [styleOpen, setStyleOpen] = useState(false) // pannello "Il mio stile" (impara dai PDF del fotografo)
   const [aiStyle, setAiStyle] = useState<string>('fotografo')
@@ -1559,10 +1560,38 @@ function AlbumDesignerInner() {
       type LearnedStyle = { perSpread?: { perSpread: number; times: number }[]; fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number }
       let learned: LearnedStyle | null = null
       try { const { data } = await (supabase.from as any)('album_style_profiles').select('profile').maybeSingle(); learned = (data?.profile as LearnedStyle) ?? null } catch { /* nessuno stile appreso */ }
+      const photosPayload = ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) }))
+
+      // ── FASE A lato CLIENT: l'AI GUARDA le foto un BATCH alla volta → BARRA di avanzamento reale.
+      //    (prima era una sola chiamata "cieca" senza progresso). Concorrenza limitata per non intasare.
+      const AN_BATCH = 8, AN_CONC = 3
+      const chunks: typeof photosPayload[] = []
+      for (let k = 0; k < photosPayload.length; k += AN_BATCH) chunks.push(photosPayload.slice(k, k + AN_BATCH))
+      setAiProg({ done: 0, total: photosPayload.length, phase: 'Guardo le foto una a una…' })
+      let analyzed = 0
+      const analyses: Record<string, unknown>[] = []
+      let visionReason = ''
+      for (let c = 0; c < chunks.length; c += AN_CONC) {
+        const group = chunks.slice(c, c + AN_CONC)
+        const rs = await Promise.all(group.map(async (batch) => {
+          try {
+            const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'analyze', photos: batch } })
+            if (error) return { a: batch.map((p) => ({ id: p.id })), r: error.message }
+            const a = (data as { analyses?: Record<string, unknown>[] }).analyses ?? []
+            const r = (data as { reason?: string } | null)?.reason
+            return { a: a.length ? a : batch.map((p) => ({ id: p.id })), r: r ?? '' }
+          } catch (e) { return { a: batch.map((p) => ({ id: p.id })), r: String((e as Error)?.message ?? e) } }
+        }))
+        for (const x of rs) { analyses.push(...x.a); if (x.r && !visionReason) visionReason = x.r; analyzed += x.a.length }
+        setAiProg({ done: Math.min(analyzed, photosPayload.length), total: photosPayload.length, phase: 'Guardo le foto una a una…' })
+      }
+      setAiProg({ done: photosPayload.length, total: photosPayload.length, phase: 'Compongo le tavole…' })
+
       const payload = {
-        // url = miniatura pubblica (w800): l'AI GUARDA la foto (momento, punto focale, scatto forte).
-        // Le foto sono GIÀ in ordine cronologico di scatto (takenAt) → l'AI mantiene la sequenza.
-        photos: ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) })),
+        // Foto GIÀ in ordine cronologico di scatto (takenAt). Le ANALISI sono già fatte dal client
+        // (barra), il server ora COMPONE soltanto → risposta più rapida e progresso reale.
+        photos: photosPayload,
+        analyses,
         format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true,
         styleProfile: (learned?.perSpread?.length ? learned.perSpread : styleProfile()), learnedStyle: learned,
       }
@@ -1597,7 +1626,7 @@ function AlbumDesignerInner() {
       else toast.success(`Impaginate ${tavole.length} tavole · letto ${seen} foto · volti su ${facesFound} · ${cModel}`, { duration: 8000 })
     } catch (e) {
       toast.error(`Impaginazione AI non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`)
-    } finally { setAiBusy(false) }
+    } finally { setAiBusy(false); setAiProg(null) }
   }
 
   // RANKING QUALITÀ DI STAMPA (on-demand): l'AI valuta a vista i criteri tecnici (esposizione, neri
@@ -2612,8 +2641,8 @@ function AlbumDesignerInner() {
             </div>
           )}
 
-          {/* Animazione "AI sta ragionando" durante l'impaginazione automatica */}
-          {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} />}
+          {/* Animazione "AI sta ragionando" + BARRA di avanzamento analisi foto */}
+          {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} progress={aiProg} />}
 
           {/* input nascosto: file modificato in Photoshop → upload + sostituzione nell'elemento */}
           <input ref={psFileRef} type="file" accept="image/*" className="hidden"
@@ -3329,7 +3358,7 @@ function SpreadThumb(props: {
 
 // Overlay "L'AI sta ragionando come impaginare" — mostrato durante l'impaginazione AI. Animazione
 // leggera (CSS): anello che gira, sparkle che pulsa, miniature che sfarfallano, messaggi a rotazione.
-function AiThinkingOverlay({ thumbs }: { thumbs: string[] }) {
+function AiThinkingOverlay({ thumbs, progress }: { thumbs: string[]; progress?: { done: number; total: number; phase?: string } | null }) {
   const MSGS = [
     'Analizzo i momenti del racconto…',
     'Raggruppo le foto per tavola…',
@@ -3339,6 +3368,7 @@ function AiThinkingOverlay({ thumbs }: { thumbs: string[] }) {
   ]
   const [mi, setMi] = useState(0)
   useEffect(() => { const t = setInterval(() => setMi((i) => (i + 1) % MSGS.length), 1600); return () => clearInterval(t) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : null
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="w-[min(92vw,420px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-6 text-center shadow-2xl">
@@ -3347,7 +3377,7 @@ function AiThinkingOverlay({ thumbs }: { thumbs: string[] }) {
           <div className="absolute inset-0 flex items-center justify-center"><Sparkles size={26} className="animate-pulse text-[rgb(var(--gold-600))]" /></div>
         </div>
         <p className="font-display text-base font-semibold">L'AI sta ragionando…</p>
-        <p className="mt-1 min-h-[20px] text-sm text-[rgb(var(--fg-muted))]">{MSGS[mi]}</p>
+        <p className="mt-1 min-h-[20px] text-sm text-[rgb(var(--fg-muted))]">{progress?.phase ?? MSGS[mi]}</p>
         {thumbs.length > 0 && (
           <div className="mt-4 flex items-center justify-center gap-1.5">
             {thumbs.slice(0, 6).map((t, i) => (
@@ -3357,10 +3387,21 @@ function AiThinkingOverlay({ thumbs }: { thumbs: string[] }) {
             ))}
           </div>
         )}
-        <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
-          <div className="h-full w-1/3 rounded-full bg-[rgb(var(--gold-500))]" style={{ animation: 'aiThinkBar 1.4s ease-in-out infinite' }} />
-        </div>
-        <p className="mt-3 text-[11px] text-[rgb(var(--fg-subtle))]">Può richiedere qualche secondo · non chiudere la pagina</p>
+        {pct != null ? (
+          <>
+            <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+              <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]"><span className="tabular-nums">{progress!.done}/{progress!.total}</span> foto analizzate · non chiudere la pagina</p>
+          </>
+        ) : (
+          <>
+            <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+              <div className="h-full w-1/3 rounded-full bg-[rgb(var(--gold-500))]" style={{ animation: 'aiThinkBar 1.4s ease-in-out infinite' }} />
+            </div>
+            <p className="mt-3 text-[11px] text-[rgb(var(--fg-subtle))]">Può richiedere qualche secondo · non chiudere la pagina</p>
+          </>
+        )}
       </div>
       <style>{`@keyframes aiThinkBar{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}`}</style>
     </div>
