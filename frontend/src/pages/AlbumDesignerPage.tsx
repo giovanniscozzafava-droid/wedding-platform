@@ -1012,6 +1012,16 @@ function AlbumDesignerInner() {
   }, [swapPick])
   const [aiBusy, setAiBusy] = useState(false) // impaginazione AI in corso
   const [aiProg, setAiProg] = useState<{ done: number; total: number; phase?: string } | null>(null) // barra avanzamento analisi foto
+  // "AI SELEZIONA": cura la selezione (taglia doppioni/momenti ripetuti, tiene il meglio con respiro)
+  const [curateBusy, setCurateBusy] = useState(false)
+  const [curateProg, setCurateProg] = useState<{ done: number; total: number; phase?: string } | null>(null)
+  const curateCancel = useRef(false)
+  const curateAnalysesRef = useRef<Record<string, unknown>[]>([])
+  const curatePhotosRef = useRef<{ id: string; url: string; likes: number }[]>([])
+  const [curateResult, setCurateResult] = useState<{ drop: { id: string; reason: string }[]; total: number } | null>(null)
+  const [curateTarget, setCurateTarget] = useState(0)
+  const [curateRescue, setCurateRescue] = useState<Set<string>>(new Set())
+  const [curateRerun, setCurateRerun] = useState(false)
   const [aiPick, setAiPick] = useState(false) // brief impaginazione AI (stile + opzioni)
   const [styleOpen, setStyleOpen] = useState(false) // pannello "Il mio stile" (impara dai PDF del fotografo)
   const [hasStyle, setHasStyle] = useState(false) // il fotografo ha già istruito uno stile (per il funnel)
@@ -1546,6 +1556,30 @@ function AlbumDesignerInner() {
     for (const p of pages) { if (p.tavolaFree) { const n = (p.elements ?? []).length; if (n) c.set(n, (c.get(n) ?? 0) + 1) } }
     return [...c.entries()].map(([perSpread, times]) => ({ perSpread, times })).sort((a, b) => b.times - a.times).slice(0, 6)
   }
+  // Analisi visiva a BATCH (barra + annullo), riusata da "Impagina con AI" e da "AI seleziona".
+  async function analyzeInBatches(photosPayload: { id: string; url: string; moment?: string | null }[], cancelRef: { current: boolean }, onProg: (done: number, total: number) => void): Promise<{ analyses: Record<string, unknown>[]; reason: string; cancelled: boolean }> {
+    const AN_BATCH = 8, AN_CONC = 3
+    const chunks: (typeof photosPayload)[] = []
+    for (let k = 0; k < photosPayload.length; k += AN_BATCH) chunks.push(photosPayload.slice(k, k + AN_BATCH))
+    let analyzed = 0; const analyses: Record<string, unknown>[] = []; let reason = ''
+    for (let c = 0; c < chunks.length; c += AN_CONC) {
+      if (cancelRef.current) return { analyses, reason, cancelled: true }
+      const group = chunks.slice(c, c + AN_CONC)
+      const rs = await Promise.all(group.map(async (batch) => {
+        try {
+          const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'analyze', photos: batch } })
+          if (error) return { a: batch.map((p) => ({ id: p.id })), r: error.message }
+          const a = (data as { analyses?: Record<string, unknown>[] }).analyses ?? []
+          const r = (data as { reason?: string } | null)?.reason
+          return { a: a.length ? a : batch.map((p) => ({ id: p.id })), r: r ?? '' }
+        } catch (e) { return { a: batch.map((p) => ({ id: p.id })), r: String((e as Error)?.message ?? e) } }
+      }))
+      for (const x of rs) { analyses.push(...x.a); if (x.r && !reason) reason = x.r; analyzed += x.a.length }
+      onProg(Math.min(analyzed, photosPayload.length), photosPayload.length)
+    }
+    return { analyses, reason, cancelled: false }
+  }
+
   async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean; maxPages?: number }) {
     if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
@@ -1570,30 +1604,11 @@ function AlbumDesignerInner() {
       try { const { data } = await (supabase.from as any)('album_style_profiles').select('profile').maybeSingle(); learned = (data?.profile as LearnedStyle) ?? null } catch { /* nessuno stile appreso */ }
       const photosPayload = ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) }))
 
-      // ── FASE A lato CLIENT: l'AI GUARDA le foto un BATCH alla volta → BARRA di avanzamento reale.
-      //    (prima era una sola chiamata "cieca" senza progresso). Concorrenza limitata per non intasare.
-      const AN_BATCH = 8, AN_CONC = 3
-      const chunks: typeof photosPayload[] = []
-      for (let k = 0; k < photosPayload.length; k += AN_BATCH) chunks.push(photosPayload.slice(k, k + AN_BATCH))
+      // ── FASE A lato CLIENT: l'AI GUARDA le foto un BATCH alla volta → BARRA di avanzamento reale. ──
       setAiProg({ done: 0, total: photosPayload.length, phase: 'Guardo le foto una a una…' })
-      let analyzed = 0
-      const analyses: Record<string, unknown>[] = []
-      let visionReason = ''
-      for (let c = 0; c < chunks.length; c += AN_CONC) {
-        if (aiCancel.current) { toast.message('Analisi interrotta'); return }
-        const group = chunks.slice(c, c + AN_CONC)
-        const rs = await Promise.all(group.map(async (batch) => {
-          try {
-            const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'analyze', photos: batch } })
-            if (error) return { a: batch.map((p) => ({ id: p.id })), r: error.message }
-            const a = (data as { analyses?: Record<string, unknown>[] }).analyses ?? []
-            const r = (data as { reason?: string } | null)?.reason
-            return { a: a.length ? a : batch.map((p) => ({ id: p.id })), r: r ?? '' }
-          } catch (e) { return { a: batch.map((p) => ({ id: p.id })), r: String((e as Error)?.message ?? e) } }
-        }))
-        for (const x of rs) { analyses.push(...x.a); if (x.r && !visionReason) visionReason = x.r; analyzed += x.a.length }
-        setAiProg({ done: Math.min(analyzed, photosPayload.length), total: photosPayload.length, phase: 'Guardo le foto una a una…' })
-      }
+      const an = await analyzeInBatches(photosPayload, aiCancel, (done, total) => setAiProg({ done, total, phase: 'Guardo le foto una a una…' }))
+      if (an.cancelled) { toast.message('Analisi interrotta'); return }
+      const analyses = an.analyses
       setAiProg({ done: photosPayload.length, total: photosPayload.length, phase: 'Compongo le tavole…' })
 
       const payload = {
@@ -1641,6 +1656,65 @@ function AlbumDesignerInner() {
 
   // RANKING QUALITÀ DI STAMPA (on-demand): l'AI valuta a vista i criteri tecnici (esposizione, neri
   // chiusi, alte luci, fuoco/mosso, rumore) e dà un punteggio 0-100 + i problemi + il perché.
+  // "AI SELEZIONA": analizza la selezione (a batch, con barra) e chiede all'AI di CURARE un
+  // sottoinsieme che racconti meglio, tagliando doppioni e momenti ripetuti. Apre un modale di revisione.
+  async function aiCurate() {
+    if (kept.length < 8) { toast.message('La cura serve con selezioni ampie: qui le foto sono già poche.'); return }
+    setCurateBusy(true); curateCancel.current = false
+    try {
+      let meta = exifMeta
+      if (!Object.keys(meta).length) meta = await loadExif()
+      const takenAt = (id: string): number | null => meta[id]?.takenAt ?? null
+      const ordered = [...kept].sort((a, b) => { const ta = takenAt(a.id), tb = takenAt(b.id); if (ta != null && tb != null) return ta - tb; if (ta != null) return -1; if (tb != null) return 1; return 0 })
+      const photosPayload = ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) }))
+      curatePhotosRef.current = photosPayload
+      setCurateProg({ done: 0, total: photosPayload.length, phase: 'Guardo le foto una a una…' })
+      const an = await analyzeInBatches(photosPayload, curateCancel, (done, total) => setCurateProg({ done, total, phase: 'Guardo le foto una a una…' }))
+      if (an.cancelled) { toast.message('Selezione AI interrotta'); return }
+      curateAnalysesRef.current = an.analyses
+      setCurateProg({ done: photosPayload.length, total: photosPayload.length, phase: 'Scelgo il meglio del racconto…' })
+      const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses: an.analyses, photos: photosPayload, target: 0 } })
+      if (error || (data as { error?: string } | null)?.error) { toast.error(`Selezione AI non riuscita${(data as { reason?: string } | null)?.reason ? `: ${(data as { reason?: string }).reason}` : ''}`.slice(0, 160)); return }
+      const drop = (data as { drop?: { id: string; reason: string }[] }).drop ?? []
+      if (!drop.length) { toast.success("L'AI non toglierebbe nulla: la selezione è già essenziale."); return }
+      setCurateTarget((data as { target?: number }).target ?? (photosPayload.length - drop.length))
+      setCurateRescue(new Set())
+      setCurateResult({ drop, total: photosPayload.length })
+    } catch (e) { toast.error(`Selezione AI non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
+    finally { setCurateBusy(false); setCurateProg(null) }
+  }
+  // Ri-cura con un OBIETTIVO diverso, riusando le analisi già fatte (nessuna nuova analisi).
+  async function recurate(target: number) {
+    const analyses = curateAnalysesRef.current, cphotos = curatePhotosRef.current
+    if (!analyses.length || !cphotos.length) return
+    setCurateRerun(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses, photos: cphotos, target } })
+      if (error || (data as { error?: string } | null)?.error) { toast.error('Non riuscito a ricalcolare'); return }
+      const drop = (data as { drop?: { id: string; reason: string }[] }).drop ?? []
+      setCurateRescue(new Set())
+      setCurateResult({ drop, total: cphotos.length })
+      setCurateTarget((data as { target?: number }).target ?? (cphotos.length - drop.length))
+    } finally { setCurateRerun(false) }
+  }
+  // Applica: toglie dalla selezione (KEPT→DISCARDED, batch atomico) le foto scartate NON "recuperate".
+  async function applyCurate() {
+    if (!curateResult) return
+    const toDrop = curateResult.drop.map((d) => d.id).filter((id) => !curateRescue.has(id))
+    if (!toDrop.length) { setCurateResult(null); toast.message('Nessuna foto tolta.'); return }
+    const ids = new Set(toDrop)
+    const before = new Map(photos.filter((m) => ids.has(m.id)).map((m) => [m.id, m.album_choice] as const))
+    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, album_choice: 'DISCARDED' } : x)))
+    const { data, error } = await (supabase.rpc as any)('album_set_choices', { p_ids: toDrop, p_choice: 'DISCARDED' })
+    if (error || (data && (data as { error?: string }).error)) {
+      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, album_choice: before.get(x.id) ?? null } : x)))
+      toast.error('Non riuscito a togliere le foto dalla selezione'); return
+    }
+    const k = curateResult.total - toDrop.length
+    setCurateResult(null)
+    toast.success(`Selezione curata: tolte ${toDrop.length} foto, ne restano ${k} — più respiro nell'album.`)
+  }
+
   type QRes = { score: number; issues: string[]; reason: string; advice?: string }
   async function rankQuality() {
     if (kept.length < 1) { toast.error('Nessuna foto da valutare'); return }
@@ -2032,6 +2106,7 @@ function AlbumDesignerInner() {
             <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))]/50 px-3 py-1.5">
               <FunnelSteps steps={[
                 { key: 'stile', label: 'Il mio stile', done: hasStyle, onClick: () => setStyleOpen(true), hint: "Insegna all'AI come impagini (facoltativo, ma migliora tutto)" },
+                { key: 'seleziona', label: 'AI seleziona', done: false, onClick: () => void aiCurate(), hint: 'Troppe foto? L\'AI cura la selezione: taglia doppioni e momenti ripetuti, tiene il meglio con respiro' },
                 { key: 'impagina', label: 'Impagina con AI', done: pages.length > 0, onClick: () => setAiPick(true), hint: "L'AI legge le foto e compone le tavole" },
                 { key: 'valuta', label: 'Valuta qualità', done: Object.keys(qualityScores).length > 0, onClick: () => void rankQuality(), hint: 'Controllo tecnico di stampa, come in stamperia' },
                 { key: 'esporta', label: 'Esporta', onClick: () => setExportOpen(true), hint: 'PDF o JPG pronti per la stampa' },
@@ -2042,6 +2117,7 @@ function AlbumDesignerInner() {
           <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
             {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
+            {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy || curateBusy} onClick={() => void aiCurate()} title="Troppe foto o momenti ripetuti? L'AI cura la selezione: taglia doppioni e ripetizioni, tiene il meglio del racconto con più respiro. Poi rivedi e applichi.">{curateBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} AI seleziona</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché e cosa fare">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>}
             {!lite && Object.keys(qualityScores).length > 0 && <Button variant="outline" size="sm" onClick={() => setQualityOpen(true)} title="Riapri il report qualità di stampa"><FileText size={14} /> Report</Button>}
@@ -2705,6 +2781,73 @@ function AlbumDesignerInner() {
               </div>
             </div>
           )}
+
+          {/* Barra di avanzamento di "AI seleziona" (analisi + cura) */}
+          {curateProg && (
+            <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4">
+              <div className="w-[min(92vw,380px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl">
+                <div className="flex items-center gap-2"><Sparkles size={16} className="animate-pulse text-[rgb(var(--gold-600))]" /> <p className="font-display text-base">AI seleziona…</p></div>
+                <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">{curateProg.phase ?? 'Analizzo la selezione…'} <span className="tabular-nums">{curateProg.done}/{curateProg.total}</span></p>
+                <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+                  <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((curateProg.done / Math.max(1, curateProg.total)) * 100)}%` }} />
+                </div>
+                <div className="mt-3 text-right"><Button variant="outline" size="sm" onClick={() => { curateCancel.current = true }}><X size={14} /> Interrompi</Button></div>
+              </div>
+            </div>
+          )}
+
+          {/* REVISIONE "AI seleziona": mostra le foto che l'AI TOGLIE (con motivo). Puoi salvarne alcune
+              (click = "tieni comunque"), regolare quante tenerne, poi Applica. Reversibile dal passo Selezione. */}
+          {curateResult && (() => {
+            const removed = curateResult.drop.filter((d) => !curateRescue.has(d.id)).length
+            const keepCount = curateResult.total - removed
+            const minKeep = Math.max(1, Math.round(curateResult.total * 0.35))
+            return (
+              <div className="fixed inset-0 z-[93] flex items-center justify-center bg-black/60 p-4" onClick={() => setCurateResult(null)}>
+                <div className="flex max-h-[92vh] w-[min(96vw,860px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="border-b border-[rgb(var(--border))] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-display text-lg">AI seleziona — racconto più asciutto</p>
+                        <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Da <strong>{curateResult.total}</strong> foto l'AI ne terrebbe <strong className="text-[rgb(var(--gold-700))] tabular-nums">{keepCount}</strong> e ne toglierebbe <strong className="tabular-nums">{removed}</strong> (doppioni e momenti ripetuti). Le tolte restano su disco: sparisce solo il cuore.</p>
+                      </div>
+                      <button onClick={() => setCurateResult(null)} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
+                    </div>
+                    {/* obiettivo: quante tenerne (ricalcola riusando le analisi) */}
+                    <div className="mt-3 flex items-center gap-3">
+                      <span className="text-xs font-medium text-[rgb(var(--fg-muted))] shrink-0">Tieni ~</span>
+                      <input type="range" min={minKeep} max={curateResult.total} value={Math.min(curateResult.total, Math.max(minKeep, curateTarget || keepCount))} disabled={curateRerun}
+                        onChange={(e) => setCurateTarget(Number(e.target.value))}
+                        onMouseUp={(e) => void recurate(Number((e.target as HTMLInputElement).value))}
+                        onTouchEnd={(e) => void recurate(Number((e.target as HTMLInputElement).value))}
+                        className="w-full accent-[rgb(var(--gold-500))]" />
+                      <span className="w-10 shrink-0 text-right text-sm font-semibold tabular-nums">{curateTarget || keepCount}</span>
+                      {curateRerun && <Loader2 size={15} className="animate-spin text-[rgb(var(--gold-600))]" />}
+                    </div>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <p className="mb-2 text-xs text-[rgb(var(--fg-muted))]">Foto che l'AI TOGLIE — tocca una foto per <strong>tenerla comunque</strong>:</p>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                      {curateResult.drop.map((d) => { const m = mediaById.get(d.id); if (!m) return null; const rescued = curateRescue.has(d.id); return (
+                        <button key={d.id} onClick={() => setCurateRescue((s) => { const n = new Set(s); if (n.has(d.id)) n.delete(d.id); else n.add(d.id); return n })}
+                          className={`group relative aspect-square overflow-hidden rounded-lg border-2 transition-all ${rescued ? 'border-[rgb(var(--gold-500))] ring-2 ring-[rgb(var(--gold-400))]' : 'border-transparent'}`}>
+                          <img src={thumbUrl(m)} alt="" loading="lazy" className={`h-full w-full object-cover transition-all ${rescued ? '' : 'opacity-60 grayscale'}`} />
+                          <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-[9px] text-white">{rescued ? '✓ tieni' : d.reason}</span>
+                        </button>
+                      ) })}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border))] p-3">
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Reversibile: rimetti il cuore dal passo Selezione.</p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setCurateResult(null)}>Annulla</Button>
+                      <Button variant="gold" size="sm" disabled={removed === 0} onClick={() => void applyCurate()}><Check size={14} /> Applica ({keepCount} restano)</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Animazione "AI sta ragionando" + BARRA di avanzamento analisi foto */}
           {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} progress={aiProg} onCancel={() => { aiCancel.current = true }} />}

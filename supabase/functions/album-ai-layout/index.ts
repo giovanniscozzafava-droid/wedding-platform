@@ -252,6 +252,43 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ── MODALITÀ "AI SELEZIONA" (curate): la coppia dà TROPPE foto e ripete i momenti → l'AI cura
+  //    una selezione più stretta che racconta meglio, con respiro. Ritorna keep + drop(con motivo). ──
+  if ((body as { mode?: string }).mode === 'curate') {
+    const items = Array.isArray(body.analyses) ? body.analyses.filter((a) => a && typeof a.id === 'string') : []
+    if (items.length < 2) return json({ keep: items.map((a) => a.id), drop: [] })
+    const target = Math.max(0, Math.min(600, Math.round((body as { target?: number }).target ?? 0)))
+    const likeById = new Map((body.photos ?? []).map((p) => [p.id, Math.max(0, Math.round(p.likes ?? 0))]))
+    const compact = items.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, bw: a.bw ? 1 : 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
+    const term = (body.eventTerm ?? 'matrimonio').replace(/[^\p{L}\s]/gu, '').slice(0, 40)
+    const sysC = [
+      `Sei un art director di album di ${term}. La coppia ha selezionato TROPPE foto (${items.length}) e ripete gli stessi momenti: troppe foto tolgono RESPIRO e qualità all'album.`,
+      'Cura una SELEZIONE PIÙ STRETTA che racconti BENE la giornata: elimina i QUASI-DUPLICATI (stesso momento+soggetto in scatti consecutivi/vicini), le ripetizioni e gli scatti più deboli; TIENI il meglio di ogni momento, gli scatti forti (h=1), i picchi emotivi, la varietà di soggetti/scene.',
+      "REGOLA: non cancellare interi momenti — tieni almeno 1-2 foto per ogni momento presente. Bilancia il racconto (preparativi→cerimonia→ricevimento→festa).",
+      'Le foto sono in ORDINE CRONOLOGICO: i quasi-duplicati sono spesso vicini nell\'elenco.',
+      target > 0 ? `Obiettivo: circa ${target} foto da TENERE (puoi discostarti di poco).` : 'Scegli TU il numero ideale da tenere: di solito 45-60% del totale, MAI meno del 40%.',
+      'Rispondi SOLO JSON {"keep":["id",...],"drop":[{"id":"id","reason":"..."}]}. reason breve tra: ripetizione, quasi-duplicato, scatto debole, momento sovrarappresentato.',
+    ].join('\n')
+    let cModel = ''
+    try {
+      let data: any
+      for (let mi = 0; mi < TEXT_MODELS.length; mi++) {
+        const mdl = TEXT_MODELS[mi]!
+        try { data = await openai({ model: mdl, temperature: 0.3, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysC }, { role: 'user', content: `Foto (${compact.length}), ordine cronologico:\n${JSON.stringify(compact)}` }] }); cModel = mdl; break }
+        catch (e) { if (/model|404|does not exist|not found|no access|does not have access|invalid model/i.test(String(e)) && mi < TEXT_MODELS.length - 1) continue; throw e }
+      }
+      const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
+      const known = new Set(items.map((a) => a.id))
+      const keepSet = new Set((Array.isArray(parsed?.keep) ? parsed.keep : []).filter((id: unknown) => typeof id === 'string' && known.has(id)))
+      if (!keepSet.size) return json({ keep: items.map((a) => a.id), drop: [], degraded: true, reason: 'il modello non ha selezionato nulla' })
+      const dropReason = new Map((Array.isArray(parsed?.drop) ? parsed.drop : []).filter((d: any) => d && typeof d.id === 'string').map((d: any) => [d.id, typeof d.reason === 'string' ? d.reason.slice(0, 40) : '']))
+      const drop = items.filter((a) => !keepSet.has(a.id)).map((a) => ({ id: a.id, reason: (dropReason.get(a.id) as string) || 'momento sovrarappresentato' }))
+      return json({ keep: [...keepSet], drop, target: keepSet.size, model: cModel })
+    } catch (e) {
+      return json({ keep: items.map((a) => a.id), drop: [], degraded: true, reason: String((e as Error)?.message ?? e).slice(0, 140) })
+    }
+  }
+
   // STILE di impaginazione scelto dal fotografo: cambia cadenza + criterio di composizione.
   const STYLE_GUIDE: Record<string, { hint: string; maxPer: number; chrono: 'strict' | 'ref' }> = {
     fotografo:    { maxPer: 8, chrono: 'strict', hint: 'STILE DEL FOTOGRAFO (imita i suoi album): POCHE foto per tavola, tanto RESPIRO — spesso 1-2 foto per pagina (2-4 per tavola), a volte una foto sola. Ogni foto INTERA, mai tagliata. DOPPIA PAGINA (layout "double") SOLO per uno scatto ORIZZONTALE forte (auto, navata, coppia, brindisi) — MAI verticali o gruppi a doppia pagina. Verticali a coppie o in strisce di 3 (dettagli: scarpe, fedi, bouquet). GRUPPI e TAVOLATE in mosaici fitti da 6-9 foto. Bianco e nero in tavole dedicate. Segui la cronologia.' },

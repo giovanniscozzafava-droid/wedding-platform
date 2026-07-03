@@ -20,6 +20,7 @@ import { PhotoSocial } from './PhotoSocial'
 import { GallerySettingsPanel, DEFAULT_GALLERY_SETTINGS, type GallerySettings } from './GallerySettingsPanel'
 import { PrintOrderSheet } from './PrintOrderSheet'
 import { FunnelSteps } from '@/components/album/FunnelSteps'
+import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -422,10 +423,23 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     </Card>
   ) : null
 
+  // ONBOARDING primo utilizzo del fotografo: spiega il flusso passo-passo (una volta sola).
+  const onboarding = role !== 'sposi' && me ? (
+    <AlbumOnboarding storageKey={`pf_album_onb_v1_${me}`} steps={[
+      { icon: <Sparkles size={18} />, title: 'Benvenuto! Ecco come funziona', body: "In breve: le tue foto vivono sul tuo Google Drive; qui le organizzi, gli sposi scelgono le preferite e l'AI ti aiuta a costruire l'album. Cinque passi." },
+      { icon: <HardDrive size={18} />, title: '1 · Collega Google Drive', body: 'Primo passo, dal tuo profilo. Senza Drive collegato non puoi caricare né gestire nulla: le foto stanno lì.' },
+      { icon: <Upload size={18} />, title: '2 · Carica le foto', body: 'Crea le cartelle e carica il servizio. Gli sposi vedono la galleria e scelgono le loro preferite (i cuori).' },
+      { icon: <Images size={18} />, title: '3 · AI seleziona', body: "Se le foto scelte sono troppe e ripetono gli stessi momenti, l'AI cura la selezione: taglia doppioni e ripetizioni e tiene il meglio, con più respiro. Rivedi e applichi tu." },
+      { icon: <BookOpen size={18} />, title: '4 · Impagina con AI', body: "Nell'impaginatore: «Il mio stile» insegna all'AI come impagini (resta salvato per tutti i lavori); poi l'AI legge volti, momenti e orari e compone le tavole senza tagliare le teste." },
+      { icon: <Printer size={18} />, title: '5 · Valuta ed esporta', body: 'Controllo qualità di stampa come in stamperia, poi esporti PDF o JPG pronti. Ogni operazione ha barra di avanzamento e tasto Interrompi.' },
+    ]} />
+  ) : null
+
   // Nessuna galleria: il fornitore (fotografo) può crearla; gli altri vedono lo stato vuoto.
   if (!gallery) {
     return (
       <div className="space-y-4">
+        {onboarding}
         {driveBanner}
         <Card className="p-8 text-center">
           <Images size={28} className="mx-auto mb-2 text-[rgb(var(--fg-subtle))]" />
@@ -442,7 +456,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       <input ref={uploadRef} type="file" multiple accept="image/*,video/*" className="hidden"
         onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length && uploadFolder) void uploadPhotos(uploadFolder, snap) }} />
 
-      {/* Promemoria Drive (finché non collegato) */}
+      {/* Onboarding primo utilizzo + promemoria Drive (finché non collegato) */}
+      {onboarding}
       {driveBanner}
 
       {/* FUNNEL FOTOGRAFO: percorso a step (① Drive → ② carica → ③ impagina → ④ consegna) */}
