@@ -113,17 +113,25 @@ async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): 
 // ── RANKING QUALITÀ DI STAMPA (tecnico) ──────────────────────────────────────────────────────
 // Valuta a vista (dettaglio alto) i criteri tecnici REALI. Onesto sui limiti: rumore/nitidezza fine
 // da un'anteprima web sono "indicativi" (il ridimensionamento nasconde il rumore).
-const QUALITY_ISSUES = ['neri_chiusi','luci_bruciate','sottoesposta','sovraesposta','poco_contrasto','troppo_contrasto','dominante_colore','mosso','fuori_fuoco','rumore','ok']
+const QUALITY_ISSUES = ['bassa_risoluzione','fuori_fuoco','mosso','luci_bruciate','neri_chiusi','sottoesposta','sovraesposta','poco_contrasto','troppo_contrasto','dominante_colore','incarnati','rumore','banding','aberrazione_cromatica','artefatti_jpeg','fuori_gamut','aloni_nitidezza','ok']
 type QScore = { id: string; score: number; issues: string[]; reason: string; advice: string }
 async function qualityBatch(photos: { id: string; url?: string | null }[], model: string): Promise<QScore[]> {
   const withUrl = photos.filter((p) => p.url)
   if (!withUrl.length) return photos.map((p) => ({ id: p.id, score: 0, issues: [], reason: 'anteprima non disponibile', advice: '' }))
   const sys = [
-    'Sei un RETOUCHER e stampatore fine-art. Giudica la qualità TECNICA di stampa di ogni foto in modo ESTREMAMENTE TECNICO, senza complimenti.',
-    `Per OGNI foto dai: score 0-100 (idoneità alla stampa), issues (array tra: ${QUALITY_ISSUES.join(', ')}), reason (1 frase, diagnosi tecnica).`,
-    'advice = COSA FARE per migliorare la stampa, concreto e tecnico (1-2 azioni): es. "recupera ombre +0.6 stop, chiudi alte luci -0.4", "riduci rumore luminanza, +nitidezza output per stampa", "correggi dominante magenta ~+5, alza il punto di nero", "raddrizza orizzonte 1.5°, ricomponi in aureo", "aumenta micro-contrasto/chiarezza, satura selettivamente gli incarnati".',
-    'Criteri: esposizione (stop), neri chiusi (ombre bloccate), alte luci bruciate (clipping), contrasto e curva, dominante colore/bilanciamento del bianco, messa a fuoco/mosso, rumore luminanza/cromatico, nitidezza per la stampa, orizzonte/prospettiva.',
-    "Sii onesto sui limiti dell'anteprima (rumore e micro-nitidezza sono indicativi): dillo nella reason, non penalizzare a caso.",
+    "Sei l'operatore del LABORATORIO DI STAMPA fine-art che fa il controllo file PRIMA di stampare un album di nozze. Giudica SOLO in ottica STAMPA, come faresti al prepress: cosa reggerà sulla carta e cosa no. Estremamente tecnico, nessun complimento, niente giudizio artistico/estetico.",
+    `Per OGNI foto: score 0-100 = IDONEITÀ ALLA STAMPA in album (300 dpi, carta fine-art), issues (array tra: ${QUALITY_ISSUES.join(', ')}), reason (1 frase, diagnosi da prepress), advice (correzione da fare prima di mandare in stampa).`,
+    'CONTROLLI DEL LABORATORIO (in ordine di gravità):',
+    '• RISOLUZIONE/NITIDEZZA reale: la foto regge l\'ingrandimento in tavola o appare morbida/interpolata/upscalata? (bassa_risoluzione). Micro-mosso o fuori fuoco sul soggetto = scarto (mosso/fuori_fuoco).',
+    '• CLIPPING non recuperabile: alte luci bruciate a 255 senza dettaglio (abito, cielo) = luci_bruciate; ombre bloccate a 0 che in stampa diventano nero pieno impastato = neri_chiusi. In stampa NON si recupera ciò che è clippato.',
+    '• ESPOSIZIONE: sotto/sovraesposta (in stampa la carta scurisce ~mezzo stop, va valutato per il supporto).',
+    '• BILANCIAMENTO DEL BIANCO / dominante colore: le dominanti in stampa si amplificano; gli INCARNATI fuori tono sono il difetto più visibile in un album (incarnati).',
+    '• CONTRASTO/CURVA per la carta (poco_contrasto smorto / troppo_contrasto che chiude i neri).',
+    '• RUMORE luminanza/cromatico (in stampa fine si vede più che a schermo), BANDING nelle sfumature/cieli (posterizzazione), ARTEFATTI JPEG da compressione, ALONI da over-sharpen ai bordi, ABERRAZIONE cromatica ai contorni.',
+    '• GAMUT: colori troppo saturi/elettrici (blu, magenta, verdi al neon) fuori dal gamut CMYK/carta → vireranno in stampa (fuori_gamut).',
+    'PESI: risoluzione/fuoco/mosso e clipping non recuperabile pesano di più (difetti "duri", score basso); dominanti/contrasto/rumore lievi sono correggibili (score medio-alto).',
+    'advice = azioni concrete da prepress prima della stampa, es.: "recupera alte luci -0.5 stop sull\'abito o vira in b/n", "apri le ombre +0.6 e alza il punto di nero a 12/255 per non impastare in stampa", "correggi WB dominante magenta ~+6, ribilancia gli incarnati", "denoise luminanza + leggero sharpen output a 300dpi", "desatura il blu del cielo ~-15 per rientrare in gamut CMYK", "ristampa max a dimensione ridotta: file morbido, non regge la pagina intera".',
+    "Onestà sui limiti dell'anteprima web: rumore fine, banding lieve e micro-nitidezza sono INDICATIVI (il ridimensionamento li maschera) → dillo nella reason e non penalizzare a caso; risoluzione insufficiente ed evidente morbidezza invece si vedono.",
     'Le foto sono nell\'ordine degli id elencati. Rispondi SOLO JSON: {"q":[{"id","score","issues","reason","advice"}]}.',
   ].join('\n')
   const content: any[] = [{ type: 'text', text: `Foto in ordine, id: ${withUrl.map((p) => p.id).join(', ')}` }]

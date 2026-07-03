@@ -2573,7 +2573,7 @@ function AlbumDesignerInner() {
 
           {/* REPORT QUALITÀ STAMPA: foto peggiori in cima, voto + problemi + consiglio tecnico VISIBILI */}
           {qualityOpen && (() => {
-            const ISSUE: Record<string, string> = { neri_chiusi: 'neri chiusi', luci_bruciate: 'alte luci bruciate', sottoesposta: 'sottoesposta', sovraesposta: 'sovraesposta', contrasto: 'contrasto', dominante: 'dominante colore', mosso: 'mosso', fuori_fuoco: 'fuori fuoco', rumore: 'rumore', bassa_risoluzione: 'bassa risoluzione' }
+            const ISSUE: Record<string, string> = { bassa_risoluzione: 'bassa risoluzione', fuori_fuoco: 'fuori fuoco', mosso: 'mosso', luci_bruciate: 'alte luci bruciate', neri_chiusi: 'neri chiusi (impasto)', sottoesposta: 'sottoesposta', sovraesposta: 'sovraesposta', poco_contrasto: 'poco contrasto', troppo_contrasto: 'troppo contrasto', dominante_colore: 'dominante colore', incarnati: 'incarnati fuori tono', rumore: 'rumore', banding: 'banding (posterizzazione)', aberrazione_cromatica: 'aberrazione cromatica', artefatti_jpeg: 'artefatti JPEG', fuori_gamut: 'fuori gamut CMYK', aloni_nitidezza: 'aloni da over-sharpen', ok: 'ok' }
             const entries = Object.entries(qualityScores).filter(([id]) => mediaById.has(id)).sort((a, b) => a[1].score - b[1].score)
             const arr = entries.map(([, v]) => v.score)
             const avg = arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0
@@ -2611,6 +2611,7 @@ function AlbumDesignerInner() {
                               {q.issues.map((it) => <span key={it} className="rounded-full bg-[rgb(var(--bg-sunken))] px-2 py-0.5 text-[11px] text-[rgb(var(--fg-muted))]">{ISSUE[it] ?? it}</span>)}
                             </div>
                           ) : <p className="mb-1 text-[11px] text-emerald-600">Nessun difetto rilevato</p>}
+                          {(() => { const d = realDims[id]; return d && d.w > 0 && !d.capped ? <p className="mb-0.5 text-[11px] text-[rgb(var(--fg-subtle))]">Risoluzione file: <span className="tabular-nums">{d.w}×{d.h} px</span> ({(Math.round(d.w * d.h / 100000) / 10)} MP)</p> : null })()}
                           {q.reason && <p className="text-sm">{q.reason}</p>}
                           {q.advice && <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]"><strong className="text-[rgb(var(--fg))]">Da fare:</strong> {q.advice}</p>}
                           <button onClick={() => jump(id)} className="mt-1.5 inline-flex items-center gap-1 text-xs text-[rgb(var(--gold-700))] hover:underline">Vai alla foto <ChevRight size={12} /></button>
