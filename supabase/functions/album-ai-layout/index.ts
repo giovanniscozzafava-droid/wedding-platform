@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; analyses?: Analysis[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number; vertPct?: number; horizPct?: number } }
+  let body: { photos?: InPhoto[]; analyses?: Analysis[]; format?: string; albumOrient?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number; vertPct?: number; horizPct?: number } }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   // NB: la modalità "learn" (Il mio stile) manda `images`, NON `photos` → non applicare qui la guardia
@@ -345,7 +345,8 @@ Deno.serve(async (req) => {
   try {
     const sysB = [
       `Sei un art director esperto di album di ${term}. Impagini al posto del fotografo, con un criterio preciso — MAI a caso.`,
-      'Ricevi le foto GIÀ ANALIZZATE a vista: [id, m=momento, c=didascalia, s=soggetto (sposi/coppia/gruppo/dettaglio…), ppl=n. persone, h=1 scatto forte, imp=importanza per la coppia].',
+      `Ricevi le foto GIÀ ANALIZZATE a vista: [id, m=momento, c=didascalia, s=soggetto (sposi/coppia/gruppo/dettaglio…), ppl=n. persone, h=1 scatto forte, o=orientamento (H orizzontale, V verticale, Q quadrata), imp=importanza per la coppia].`,
+      `L'ALBUM è ${body.albumOrient === 'orizzontale' ? 'ORIZZONTALE' : body.albumOrient === 'quadrato' ? 'QUADRATO' : 'VERTICALE'} (forma della pagina singola). La DOPPIA PAGINA è sempre un rettangolo LARGO (orizzontale, 2 pagine affiancate).`,
       chronoStrict
         ? 'IMPORTANTE: le foto arrivano GIÀ IN ORDINE CRONOLOGICO DI SCATTO (orario reale). RISPETTA rigorosamente questa sequenza: è il racconto del giorno.'
         : "Le foto arrivano in ordine cronologico di scatto come RIFERIMENTO, ma per lo stile scelto PRIORITIZZA il criterio dello stile (sotto) sull'ordine temporale: puoi raggruppare per soggetto/tema/impatto anche foto non consecutive.",
@@ -355,9 +356,16 @@ Deno.serve(async (req) => {
         : '1) Raggruppa le foto secondo il criterio dello stile (soggetto/tema/impatto), usando m e s.',
       `2) Forma "tavole" (doppie pagine) da 1 a ${maxPer} foto: ogni tavola è UNA scena/tema coerente — NON mischiare cose diverse nella stessa tavola.`,
       'Per ogni tavola puoi indicare "layout": "double" = 1 sola foto a doppia pagina (full-bleed); "full" = 1 foto dominante a pagina intera + poche piccole; altrimenti ometti (griglia).',
-      'ATTENZIONE TESTE: NON usare "double" (doppia pagina orizzontale) per foto VERTICALI con persone/volti → il taglio taglierebbe le teste. Riserva "double" a foto ORIZZONTALI o a dettagli/paesaggi.',
-      ...(targetDouble > 0 ? [`Metti circa ${targetDouble} foto (le più forti/importanti, imp/h alti) come tavole "double".`] : []),
-      ...(targetFull > 0 ? [`Metti circa ${targetFull} foto forti come tavole "full".`] : []),
+      'PROPORZIONI (regola FERREA, sennò l\'album viene sbagliato):',
+      '• "double" (doppia pagina, area LARGA) → SOLO una foto ORIZZONTALE (o=H). MAI verticali (o=V) o quadrate o gruppi a doppia pagina: una verticale su doppia pagina viene tagliata (teste mozzate) o lascia enormi bande vuote.',
+      ...(body.albumOrient !== 'orizzontale' ? [
+        '• "full" (una foto che riempie una PAGINA SINGOLA, che qui è VERTICALE) → SOLO una foto VERTICALE (o=V). Una orizzontale da sola su pagina verticale spreca metà pagina.',
+        '• Nelle tavole normali (griglia): NON mettere UNA SOLA foto orizzontale da sola su una pagina verticale. Le orizzontali (o=H) accoppiale a due (una sopra l\'altra) o in strisce/griglia; le verticali (o=V) stanno bene singole o affiancate a coppie; le quadrate ovunque.',
+      ] : [
+        '• "full" (una foto che riempie una PAGINA SINGOLA, qui ORIZZONTALE) → preferisci una foto ORIZZONTALE (o=H).',
+      ]),
+      ...(targetDouble > 0 ? [`Fai circa ${targetDouble} tavole "double": scegli le foto ORIZZONTALI (o=H) più forti/importanti (imp/h alti). Se non ci sono abbastanza orizzontali forti, fanne MENO — non forzare mai una verticale a doppia pagina.`] : []),
+      ...(targetFull > 0 ? [`Fai circa ${targetFull} tavole "full" con una foto forte ${body.albumOrient !== 'orizzontale' ? 'VERTICALE (o=V)' : 'ORIZZONTALE (o=H)'}.`] : []),
       ...(targetDouble === 0 && targetFull === 0 ? ['Valorizza gli scatti forti: qualcuno da solo a doppia pagina ("double"), con parsimonia.'] : []),
       'Bilancia orizzontali e verticali. La "note" dice il momento (1-4 parole).',
       'NON tagliare né spremere le foto: se una scena ha bisogno di spazio, usa tavole con POCHE foto (o una sola). Meglio PIÙ tavole che foto sacrificate.',
@@ -369,7 +377,10 @@ Deno.serve(async (req) => {
       'Ogni foto UNA sola volta; usa SOLO gli id ricevuti. Rispondi SOLO JSON: {"tavole":[{"photoIds":["id"],"note":"...","layout":"double|full"}]} (layout opzionale).',
     ].join('\n')
     const likeById = new Map(photos.map((p) => [p.id, Math.max(0, Math.round(p.likes ?? 0))]))
-    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, bw: a.bw ? 1 : 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
+    // o = orientamento della foto dal suo aspetto reale: H orizzontale, V verticale, Q quadrata.
+    const orientOf = (asp: number) => (asp >= 1.15 ? 'H' : asp <= 0.87 ? 'V' : 'Q')
+    const aspById = new Map(photos.map((p) => [p.id, typeof p.aspect === 'number' && p.aspect > 0 ? p.aspect : 1]))
+    const compact = analyses.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, bw: a.bw ? 1 : 0, h: a.hero ? 1 : 0, o: orientOf(aspById.get(a.id) ?? 1), imp: likeById.get(a.id) ?? 0 }))
     const msgsB = [{ role: 'system', content: sysB }, { role: 'user', content: `Foto (${compact.length}):\n${JSON.stringify(compact)}` }]
     let data: any
     // CASCATA modelli: prova dal più avanzato; salta quelli non accessibili (404/modello inesistente).

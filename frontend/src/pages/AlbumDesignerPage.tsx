@@ -1532,20 +1532,26 @@ function AlbumDesignerInner() {
       return [left, right]
     }
 
-    // DOPPIA PAGINA: 1 foto forte full-bleed su entrambe le pagine, ritaglio aureo sul volto
-    if (clean.length === 1 && (heroDouble || layout === 'double')) {
+    // DOPPIA PAGINA: 1 foto forte full-bleed su entrambe le pagine, ritaglio aureo sul volto.
+    // SOLO per foto ORIZZONTALI (ia≥1.3): una verticale a doppia pagina taglierebbe le teste.
+    if (clean.length === 1 && (heroDouble || layout === 'double') && iaOf(clean[0]!) >= 1.3) {
       const mid = clean[0]!
       const hero: AlbumPage = { ...newPage(), mode: 'template', tavolaFree: false, spreadImage: { mediaId: mid, cell: cellFor(mid, spreadAspect) } }
       return [hero, { ...newPage(), tavolaFree: false }]
     }
 
-    // PAGINA INTERA: 1 foto dominante a piena pagina (sinistra) + le altre piccole (destra)
+    // PAGINA INTERA: 1 foto dominante a piena pagina (sinistra) + le altre piccole (destra).
+    // La dominante COMBACIA col verso della pagina: album verticale → dominante VERTICALE (riempie
+    // bene la pagina); album orizzontale → dominante orizzontale. Evita metà pagina sprecata.
     if (layout === 'full' && clean.length >= 2) {
       const els: FreeEl[] = []
-      const dom = clean[0]!
+      const pagePortrait = fmt.w < fmt.h
+      const dom = pagePortrait
+        ? clean.reduce((b, id) => (iaOf(id) < iaOf(b) ? id : b), clean[0]!)  // più verticale
+        : clean.reduce((b, id) => (iaOf(id) > iaOf(b) ? id : b), clean[0]!)  // più orizzontale
       const gd = gutterSlot({ x: 0, y: 0, w: 0.5, h: 1 }, gx, gy)
       els.push({ ...newFreeEl(dom), x: gd.x, y: gd.y, w: gd.w, h: gd.h, rot: 0, cell: cellFor(dom, (gd.w * fmt.w * 2) / Math.max(0.001, gd.h * fmt.h)) })
-      const others = clean.slice(1)
+      const others = clean.filter((id) => id !== dom)
       gridSlots(others.length, (0.5 * fmt.w * 2) / fmt.h).forEach((s, i) => {
         const mid = others[i]!; const g = gutterSlot({ x: 0.5 + s.x * 0.5, y: s.y, w: s.w * 0.5, h: s.h }, gx, gy)
         els.push({ ...newFreeEl(mid), x: g.x, y: g.y, w: g.w, h: g.h, rot: 0, cell: cellFor(mid, (g.w * fmt.w * 2) / Math.max(0.001, g.h * fmt.h)) })
@@ -1676,7 +1682,8 @@ function AlbumDesignerInner() {
         // (barra), il server ora COMPONE soltanto → risposta più rapida e progresso reale.
         photos: usePhotos,
         analyses,
-        format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true,
+        format, albumOrient: (fmt.w / fmt.h < 0.92 ? 'verticale' : fmt.w / fmt.h > 1.08 ? 'orizzontale' : 'quadrato'),
+        style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true,
         styleProfile: (learned?.perSpread?.length ? learned.perSpread : styleProfile()), learnedStyle: learned,
       }
       if (aiCancel.current) { toast.message('Analisi interrotta'); return }
