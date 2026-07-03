@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/card'
 import { ALBUM_FORMATS, DEFAULT_FORMAT, getFormat, pageAspect, isCustomFormat, listCustomFormats, saveCustomFormat, deleteCustomFormat, customFormatKey, type AlbumFormat } from '@/lib/albumFormats'
 import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/albumMoments'
 import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
-import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl } from '@/lib/albumExport'
+import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl, ExportCancelled } from '@/lib/albumExport'
 import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, coverWindow, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 
 // Ritaglio TESTA-SAFE + aureo: orizzontalmente mette il volto su una linea aurea; verticalmente
@@ -361,6 +361,7 @@ function AlbumDesignerInner() {
   const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportProg, setExportProg] = useState<{ done: number; total: number } | null>(null) // barra avanzamento export
+  const aiCancel = useRef(false); const qualityCancel = useRef(false); const exportCancel = useRef(false) // flag "Interrompi"
   const [activePage, setActivePage] = useState<string | null>(null)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
   const [bleed, setBleed] = useState(false)            // abbondanza per la stampa
@@ -1319,6 +1320,7 @@ function AlbumDesignerInner() {
   async function doExport(kind: 'pdf' | 'spread' | 'jpg' | 'jpgspread') {
     if (pages.length === 0) { toast.error('Nessuna pagina da esportare'); return }
     setExporting(true)
+    exportCancel.current = false
     setExportProg({ done: 0, total: Math.max(1, kind === 'spread' || kind === 'jpgspread' ? Math.ceil(pages.length / 2) : pages.length) })
     try {
       // Alta risoluzione: chiediamo un "grant" e tiriamo l'ORIGINALE da Drive via proxy
@@ -1338,10 +1340,11 @@ function AlbumDesignerInner() {
       // con l'originale Drive possiamo stampare in alta: 300 dpi per le pagine, 220 per JPG/spread
       const isSpread = kind === 'spread' || kind === 'jpgspread'
       const onProgress = (done: number, total: number) => setExportProg({ done, total })
-      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${isSpread ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: isSpread ? 'spreads' : 'pages', onProgress })
-      else await exportAlbumPdf(pages, format, resolve, { mode: isSpread ? 'spreads' : 'pages', filename: `${base}-${isSpread ? 'tavole' : 'pagine'}.pdf`, bleed, dpi: exportDpi, cutMarks: cutMarks && bleed, pageNumbers: pageNums, onProgress })
+      const shouldCancel = () => exportCancel.current
+      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${isSpread ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: isSpread ? 'spreads' : 'pages', onProgress, shouldCancel })
+      else await exportAlbumPdf(pages, format, resolve, { mode: isSpread ? 'spreads' : 'pages', filename: `${base}-${isSpread ? 'tavole' : 'pagine'}.pdf`, bleed, dpi: exportDpi, cutMarks: cutMarks && bleed, pageNumbers: pageNums, onProgress, shouldCancel })
       toast.success('Export pronto')
-    } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false); setExportProg(null) }
+    } catch (e) { if (e instanceof ExportCancelled || (e as Error)?.message === 'export_cancelled') toast.message('Export annullato'); else toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false); setExportProg(null) }
   }
 
   // ── piena pagina (nasconde la barra menu a sinistra) ────────────────────────
@@ -1545,6 +1548,7 @@ function AlbumDesignerInner() {
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
     setAiBusy(true)
+    aiCancel.current = false
     try {
       // EXIF: orario di scatto → ordino le foto CRONOLOGICAMENTE prima di comporre (sequenza vera del giorno)
       let meta = exifMeta
@@ -1573,6 +1577,7 @@ function AlbumDesignerInner() {
       const analyses: Record<string, unknown>[] = []
       let visionReason = ''
       for (let c = 0; c < chunks.length; c += AN_CONC) {
+        if (aiCancel.current) { toast.message('Analisi interrotta'); return }
         const group = chunks.slice(c, c + AN_CONC)
         const rs = await Promise.all(group.map(async (batch) => {
           try {
@@ -1596,6 +1601,7 @@ function AlbumDesignerInner() {
         format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true,
         styleProfile: (learned?.perSpread?.length ? learned.perSpread : styleProfile()), learnedStyle: learned,
       }
+      if (aiCancel.current) { toast.message('Analisi interrotta'); return }
       const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: payload })
       let err = (data as { error?: string } | null)?.error
       let detail = (data as { detail?: string } | null)?.detail
@@ -1636,6 +1642,7 @@ function AlbumDesignerInner() {
   async function rankQuality() {
     if (kept.length < 1) { toast.error('Nessuna foto da valutare'); return }
     setQualityBusy(true)
+    qualityCancel.current = false
     const total = kept.length
     setQualityProg({ done: 0, total })
     try {
@@ -1644,8 +1651,9 @@ function AlbumDesignerInner() {
       const chunks: M[][] = []
       for (let k = 0; k < kept.length; k += Q_BATCH) chunks.push(kept.slice(k, k + Q_BATCH))
       const allScores: Record<string, QRes> = {}
-      let done = 0, fatalErr = '', anyReason = ''
+      let done = 0, fatalErr = '', anyReason = '', cancelled = false
       for (let c = 0; c < chunks.length && !fatalErr; c += Q_CONC) {
+        if (qualityCancel.current) { cancelled = true; break }
         const group = chunks.slice(c, c + Q_CONC)
         const rs = await Promise.all(group.map(async (batch) => {
           try {
@@ -1669,7 +1677,8 @@ function AlbumDesignerInner() {
       if (fatalErr) { toast.error(fatalErr); return }
       const n = Object.keys(allScores).length
       if (n) setQualityOpen(true)
-      if (!n) toast.error(`Valutazione non riuscita${anyReason ? `: ${anyReason}` : ''}`.slice(0, 160))
+      if (cancelled) toast.message(n ? `Interrotto · valutate ${n} foto (report parziale)` : 'Valutazione interrotta')
+      else if (!n) toast.error(`Valutazione non riuscita${anyReason ? `: ${anyReason}` : ''}`.slice(0, 160))
       else if (anyReason) toast.warning(`Valutate ${n} foto · alcune non valutabili (${anyReason})`.slice(0, 160), { duration: 9000 })
       else toast.success(`Valutate ${n} foto — apro il report qualità`)
     } catch (e) { toast.error(`Valutazione non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
@@ -2663,6 +2672,7 @@ function AlbumDesignerInner() {
                   <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((exportProg.done / Math.max(1, exportProg.total)) * 100)}%` }} />
                 </div>
                 <p className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">Alla fine parte il download del file. Non chiudere la pagina.</p>
+                <div className="mt-3 text-right"><Button variant="outline" size="sm" onClick={() => { exportCancel.current = true }}><X size={14} /> Interrompi</Button></div>
               </div>
             </div>
           )}
@@ -2677,12 +2687,13 @@ function AlbumDesignerInner() {
                   <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((qualityProg.done / Math.max(1, qualityProg.total)) * 100)}%` }} />
                 </div>
                 <p className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">Alla fine si apre il report. Non chiudere la pagina.</p>
+                <div className="mt-3 text-right"><Button variant="outline" size="sm" onClick={() => { qualityCancel.current = true }}><X size={14} /> Interrompi</Button></div>
               </div>
             </div>
           )}
 
           {/* Animazione "AI sta ragionando" + BARRA di avanzamento analisi foto */}
-          {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} progress={aiProg} />}
+          {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} progress={aiProg} onCancel={() => { aiCancel.current = true }} />}
 
           {/* input nascosto: file modificato in Photoshop → upload + sostituzione nell'elemento */}
           <input ref={psFileRef} type="file" accept="image/*" className="hidden"
@@ -3398,7 +3409,7 @@ function SpreadThumb(props: {
 
 // Overlay "L'AI sta ragionando come impaginare" — mostrato durante l'impaginazione AI. Animazione
 // leggera (CSS): anello che gira, sparkle che pulsa, miniature che sfarfallano, messaggi a rotazione.
-function AiThinkingOverlay({ thumbs, progress }: { thumbs: string[]; progress?: { done: number; total: number; phase?: string } | null }) {
+function AiThinkingOverlay({ thumbs, progress, onCancel }: { thumbs: string[]; progress?: { done: number; total: number; phase?: string } | null; onCancel?: () => void }) {
   const MSGS = [
     'Analizzo i momenti del racconto…',
     'Raggruppo le foto per tavola…',
@@ -3442,6 +3453,7 @@ function AiThinkingOverlay({ thumbs, progress }: { thumbs: string[]; progress?: 
             <p className="mt-3 text-[11px] text-[rgb(var(--fg-subtle))]">Può richiedere qualche secondo · non chiudere la pagina</p>
           </>
         )}
+        {onCancel && <div className="mt-4"><Button variant="outline" size="sm" onClick={onCancel}><X size={14} /> Interrompi</Button></div>}
       </div>
       <style>{`@keyframes aiThinkBar{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}`}</style>
     </div>

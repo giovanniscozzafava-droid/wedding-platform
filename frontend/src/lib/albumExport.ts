@@ -132,8 +132,10 @@ function pageNumText(pdf: any, n: number, cx: number, y: number) {
   pdf.setFontSize(8); pdf.setTextColor(120, 120, 120); pdf.text(String(n), cx, y, { align: 'center' })
 }
 
-export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean; pageNumbers?: boolean; onProgress?: (done: number, total: number) => void } = {}) {
-  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false, pageNumbers = false, onProgress } = opts
+export class ExportCancelled extends Error { constructor() { super('export_cancelled'); this.name = 'ExportCancelled' } }
+
+export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean; pageNumbers?: boolean; onProgress?: (done: number, total: number) => void; shouldCancel?: () => boolean } = {}) {
+  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false, pageNumbers = false, onProgress, shouldCancel } = opts
   const f = getFormat(formatKey)
   const { default: jsPDF } = await import('jspdf')
 
@@ -147,6 +149,7 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
     const land = sheetW >= sheetH
     const pdf = new jsPDF({ orientation: land ? 'landscape' : 'portrait', unit: 'mm', format: [sheetW, sheetH] })
     for (let i = 0; i < pages.length; i += 2) {
+      if (shouldCancel?.()) throw new ExportCancelled()
       if (i > 0) pdf.addPage([sheetW, sheetH], land ? 'landscape' : 'portrait')
       pdf.setFillColor(255, 255, 255); pdf.rect(0, 0, sheetW, sheetH, 'F')
       if (pages[i]!.tavolaFree) {
@@ -171,6 +174,7 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
   const box = pageBox(f.w, f.h, b)
   const pdf = new jsPDF({ orientation: box.w >= box.h ? 'landscape' : 'portrait', unit: 'mm', format: [box.w, box.h] })
   for (let i = 0; i < pages.length; i++) {
+    if (shouldCancel?.()) throw new ExportCancelled()
     if (i > 0) pdf.addPage([box.w, box.h], box.w >= box.h ? 'landscape' : 'portrait')
     await renderPageInto(pdf, pages[i]!, f.w, f.h, 0, 0, resolve, dpi, b)
     // foto a piena tavola: questa facciata mostra la metà sx (pagina pari) o dx (pagina dispari)
@@ -214,8 +218,8 @@ async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: 
 }
 
 // JPG: 'pages' = una immagine per pagina (tavola divisa); 'spreads' = tavola intera (2 pagine affiancate).
-export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode; onProgress?: (done: number, total: number) => void } = {}) {
-  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages', onProgress } = opts
+export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode; onProgress?: (done: number, total: number) => void; shouldCancel?: () => boolean } = {}) {
+  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages', onProgress, shouldCancel } = opts
   const f = getFormat(formatKey)
   const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
@@ -223,6 +227,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
   const wpx = Math.round(f.w * pxPerMm), hpx = Math.round(f.h * pxPerMm)
   if (mode === 'spreads') {
     for (let s = 0; s < pages.length; s += 2) {
+      if (shouldCancel?.()) throw new ExportCancelled()
       const lp = pages[s]!, rp = pages[s + 1]
       const c = document.createElement('canvas')
       c.width = wpx * (rp || lp.tavolaFree ? 2 : 1); c.height = hpx
@@ -242,6 +247,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
     }
   } else {
     for (let p = 0; p < pages.length; p++) {
+      if (shouldCancel?.()) throw new ExportCancelled()
       const c = document.createElement('canvas')
       c.width = wpx; c.height = hpx
       const ctx = c.getContext('2d')!

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Upload, Loader2, Sparkles, Trash2, X, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -32,6 +32,7 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
   const [pdfs, setPdfs] = useState<StylePdf[]>([])
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+  const cancelRef = useRef(false)
 
   useEffect(() => {
     if (!user) return
@@ -52,7 +53,7 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
 
   async function onFile(f: File) {
     if (!user) { toast.error('Accedi per salvare il tuo stile'); return }
-    setBusy(true); setProgress(null)
+    setBusy(true); setProgress(null); cancelRef.current = false
     try {
       const buf = await f.arrayBuffer()
       const pdf = await loadPdf(buf)
@@ -60,6 +61,7 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
       const imgs: string[] = []
       let thumb: string | null = null
       for (let p = 1; p <= pages; p++) {
+        if (cancelRef.current) { toast.message('Apprendimento interrotto'); return }
         imgs.push(await renderPdfPageDataUrl(pdf, p, 900, 0.62))
         if (p === 1) { try { thumb = await renderPdfPageDataUrl(pdf, 1, 260, 0.6) } catch { thumb = null } }
         setProgress({ done: p, total: pages * 2 })
@@ -67,6 +69,7 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
       const all: Spread[] = []
       let reason = ''
       for (let i = 0; i < imgs.length; i += BATCH) {
+        if (cancelRef.current) { toast.message('Apprendimento interrotto'); return }
         const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'learn', images: imgs.slice(i, i + BATCH) } })
         const err = (data as { error?: string } | null)?.error
         const r = (data as { reason?: string } | null)?.reason
@@ -130,6 +133,7 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
           {progress && <span className="text-[10px] text-[rgb(var(--fg-muted))]">{progress.done}/{progress.total}</span>}
         </label>
       </div>
+      {busy && <div className="mt-2 flex items-center justify-between gap-2"><span className="text-xs text-[rgb(var(--fg-muted))]">Analizzo l'album… {progress ? `${progress.done}/${progress.total}` : ''}</span><Button variant="outline" size="sm" onClick={() => { cancelRef.current = true }}><X size={14} /> Interrompi</Button></div>}
       {!busy && !pdfs.length && <p className="mt-2 flex items-center gap-1.5 text-xs text-[rgb(var(--fg-subtle))]"><Upload size={12} /> Meglio album completi e rappresentativi. Puoi caricarne quanti vuoi.</p>}
 
       {profile && (
