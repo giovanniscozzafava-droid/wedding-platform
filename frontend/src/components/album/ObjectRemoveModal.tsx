@@ -83,49 +83,36 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
     setBusy(true)
     try {
       const { w, h } = dims.current
-      // dall-e-2 vuole immagine e maschera QUADRATE 1024×1024: metto la foto centrata con bande neutre
-      // (tenute nella maschera → non rigenerate) e alla fine ritaglio via le bande.
-      const S = 1024
-      const ox = Math.floor((S - w) / 2), oy = Math.floor((S - h) / 2)
-      // immagine quadrata (PNG richiesto da dall-e-2)
-      const ic = document.createElement('canvas'); ic.width = S; ic.height = S
-      const ictx = ic.getContext('2d')!
-      ictx.fillStyle = '#808080'; ictx.fillRect(0, 0, S, S)
-      ictx.drawImage(img, ox, oy, w, h)
-      const image = ic.toDataURL('image/png')
-      // maschera quadrata: OPACA ovunque (incl. bande), TRASPARENTE solo dove ho pennellato
+      // FLUX Fill: immagine ad aspetto naturale + maschera BIANCO (dove pennello) su NERO = area da rigenerare.
+      const ic = document.createElement('canvas'); ic.width = w; ic.height = h
+      ic.getContext('2d')!.drawImage(img, 0, 0, w, h)
+      const image = ic.toDataURL('image/jpeg', 0.92)
       let mask: string | undefined
       if (hasPaint) {
-        const mc = document.createElement('canvas'); mc.width = S; mc.height = S
+        const mc = document.createElement('canvas'); mc.width = w; mc.height = h
         const m = mc.getContext('2d')!
-        m.fillStyle = '#fff'; m.fillRect(0, 0, S, S)
-        m.globalCompositeOperation = 'destination-out'; m.drawImage(paint, ox, oy, w, h)
-        m.globalCompositeOperation = 'source-over'
+        m.fillStyle = '#000'; m.fillRect(0, 0, w, h)
+        m.drawImage(paint, 0, 0) // paint = cerchi bianchi opachi dove ho pennellato → bianco su nero
         mask = mc.toDataURL('image/png')
       }
-      const prompt = hasPaint
-        ? `Rimuovi in modo pulito ciò che sta nell'area mascherata e ricostruisci lo sfondo coerente con l'ambiente circostante.${text.trim() ? ` Nell'area, ricostruisci: ${text.trim()}.` : ''} Mantieni identico tutto il resto (persone, volti, colori, luce). Fotorealistico.`
-        : `Rimuovi dalla foto: ${text.trim()}. Ricostruisci lo sfondo in modo naturale e coerente. Mantieni identico tutto il resto (persone, volti, colori, luce). Fotorealistico.`
-      const { data, error } = await supabase.functions.invoke('image-inpaint', { body: { image, mask, prompt, size: `${S}x${S}` } })
+      const prompt = text.trim()
+        ? text.trim()
+        : 'clean natural background that seamlessly continues the surrounding scene, object removed, photorealistic, consistent lighting and colors'
+      const { data, error } = await supabase.functions.invoke('image-inpaint', { body: { image, mask, prompt } })
       let err = (data as { error?: string } | null)?.error; let detail = (data as { detail?: string } | null)?.detail
       if (error) { try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err; detail = b?.detail ?? detail } } catch { /* */ } }
       if (error || err) {
         toast.error(
-          err === 'org_not_verified' ? 'La tua organizzazione OpenAI non è ancora abilitata alla generazione immagini (verificala su platform.openai.com/settings/organization/general).'
-          : err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server'
+          err === 'org_not_verified' ? 'Organizzazione OpenAI non abilitata alla generazione immagini.'
+          : err === 'no_engine' ? 'Manca il token del motore AI immagini sul server (REPLICATE_API_TOKEN).'
+          : err === 'replicate_failed' || err === 'replicate_error' ? `Il motore ha rifiutato${detail ? `: ${detail}` : ''}`.slice(0, 200)
           : `Non riuscito${detail ? `: ${detail}` : (err ? `: ${err}` : '')}`.slice(0, 200),
           { duration: 9000 })
         return
       }
       const outUrl = (data as { image?: string }).image
       if (!outUrl) { toast.error('Nessuna immagine restituita'); return }
-      // il risultato è quadrato SxS con la foto centrata: ritaglio via le bande → torno all'aspetto reale
-      const out = await new Promise<HTMLImageElement>((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = outUrl })
-      const oc = document.createElement('canvas'); oc.width = w; oc.height = h
-      const octx = oc.getContext('2d')!
-      const rs = out.naturalWidth / S // il modello può restituire una risoluzione diversa: riscalo le coord
-      octx.drawImage(out, ox * rs, oy * rs, w * rs, h * rs, 0, 0, w, h)
-      const blob = await new Promise<Blob>((res) => oc.toBlob((b) => res(b!), 'image/png'))
+      const blob = await (await fetch(outUrl)).blob()
       const file = new File([blob], `ai-edit-${Date.now()}.png`, { type: 'image/png' })
       onResult(file)
     } catch (e) {

@@ -1,12 +1,21 @@
-// Edge function: image-inpaint — CANCELLA oggetti dalle foto (inpainting) con OpenAI gpt-image-1.
-// Riceve: image (dataURL), mask opzionale (dataURL PNG: le aree TRASPARENTI = da rigenerare), prompt.
-// Chiama /v1/images/edits e restituisce l'immagine modificata (dataURL PNG). verify_jwt=true.
-// Prerequisito: organizzazione OpenAI VERIFICATA per la generazione immagini (gpt-image-1).
+// Edge function: image-inpaint — CANCELLA oggetti dalle foto (inpainting).
+// MOTORE: se c'è REPLICATE_API_TOKEN → Replicate FLUX Fill (maschera BIANCO = da rigenerare, nessuna
+// verifica richiesta). Altrimenti fallback OpenAI /v1/images/edits (maschera TRASPARENTE = da rigenerare;
+// richiede org verificata). verify_jwt=true.
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
-// dall-e-2 di default: NON richiede la verifica organizzazione (a differenza di gpt-image-1).
-// Per passare a gpt-image-1 quando l'org è verificata: secret OPENAI_IMAGE_MODEL=gpt-image-1.
 const IMG_MODEL = Deno.env.get('OPENAI_IMAGE_MODEL') ?? 'dall-e-2'
+const REPLICATE_TOKEN = Deno.env.get('REPLICATE_API_TOKEN') ?? ''
+const REPLICATE_MODEL = Deno.env.get('REPLICATE_MODEL') ?? 'black-forest-labs/flux-fill-dev'
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+async function urlToDataUrl(url: string): Promise<string> {
+  const r = await fetch(url); if (!r.ok) throw new Error(`fetch output ${r.status}`)
+  const bytes = new Uint8Array(await r.arrayBuffer())
+  let bin = ''; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
+  const type = r.headers.get('content-type') ?? 'image/png'
+  return `data:${type};base64,${btoa(bin)}`
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -29,7 +38,7 @@ function dataUrlToBlob(d: string): Blob {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
-  if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta OPENAI_API_KEY' }, 503)
+  if (!REPLICATE_TOKEN && !OPENAI_API_KEY) return json({ error: 'no_engine', hint: 'Imposta REPLICATE_API_TOKEN (o OPENAI_API_KEY)' }, 503)
 
   let body: { image?: string; mask?: string; prompt?: string; size?: string }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
@@ -39,6 +48,36 @@ Deno.serve(async (req) => {
     ? body.prompt.trim().slice(0, 400)
     : 'Rimuovi in modo pulito e naturale gli oggetti nell\'area mascherata e ricostruisci lo sfondo in modo coerente con l\'ambiente circostante (texture, luce, colori). Mantieni IDENTICO tutto il resto della foto: persone, volti, corpi, capi, colori e illuminazione. Risultato fotorealistico, nessun artefatto.'
 
+  // ── MOTORE REPLICATE (FLUX Fill): maschera BIANCO = area da rigenerare ──
+  if (REPLICATE_TOKEN) {
+    try {
+      const input: Record<string, unknown> = { image: body.image, prompt, output_format: 'png', num_inference_steps: 30 }
+      if (body.mask && body.mask.startsWith('data:')) input.mask = body.mask
+      const create = await fetch(`https://api.replicate.com/v1/models/${REPLICATE_MODEL}/predictions`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${REPLICATE_TOKEN}`, 'content-type': 'application/json', prefer: 'wait' },
+        body: JSON.stringify({ input }),
+      })
+      let pred = await create.json()
+      if (!create.ok) return json({ error: 'replicate_error', status: create.status, detail: JSON.stringify(pred?.detail ?? pred).slice(0, 300) }, 502)
+      // con Prefer:wait spesso è già terminale; altrimenti poll
+      let tries = 0
+      while (pred?.status && !['succeeded', 'failed', 'canceled'].includes(pred.status) && tries < 60) {
+        await sleep(1500)
+        const g = await fetch(pred.urls.get, { headers: { authorization: `Bearer ${REPLICATE_TOKEN}` } })
+        pred = await g.json(); tries++
+      }
+      if (pred?.status !== 'succeeded') return json({ error: 'replicate_failed', detail: String(pred?.error ?? pred?.status ?? 'timeout').slice(0, 200) }, 502)
+      const out = Array.isArray(pred.output) ? pred.output[0] : pred.output
+      if (!out || typeof out !== 'string') return json({ error: 'no_output' }, 502)
+      return json({ image: await urlToDataUrl(out) })
+    } catch (e) {
+      return json({ error: 'replicate_exception', detail: String((e as Error)?.message ?? e).slice(0, 200) }, 500)
+    }
+  }
+
+  // ── MOTORE OPENAI (fallback) ──
+  if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key' }, 503)
   const isDalle = IMG_MODEL.startsWith('dall-e')
   const fd = new FormData()
   fd.append('model', IMG_MODEL)
