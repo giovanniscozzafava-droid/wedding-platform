@@ -166,7 +166,8 @@ Deno.serve(async (req) => {
   let body: { photos?: InPhoto[]; format?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number } }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
-  if (!photos.length) return json({ error: 'no_photos' }, 400)
+  // NB: la modalità "learn" (Il mio stile) manda `images`, NON `photos` → non applicare qui la guardia
+  if (!photos.length && (body as { mode?: string }).mode !== 'learn') return json({ error: 'no_photos' }, 400)
   // quante foto a DOPPIA PAGINA / PAGINA INTERA (dalle percentuali del brief, sul totale)
   const pct = (v: unknown) => Math.max(0, Math.min(40, typeof v === 'number' ? v : 0))
   const targetDouble = Math.round(photos.length * pct(body.doublePct) / 100)
@@ -192,7 +193,8 @@ Deno.serve(async (req) => {
   if ((body as { mode?: string }).mode === 'learn') {
     const imgs = ((body as { images?: string[] }).images ?? []).filter((x) => typeof x === 'string' && x.length > 20).slice(0, 80)
     if (!imgs.length) return json({ error: 'no_images' }, 400)
-    const lModel = Deno.env.get('OPENAI_QUALITY_MODEL') ?? 'gpt-4o'
+    const lModels = [...new Set([Deno.env.get('OPENAI_QUALITY_MODEL') ?? '', 'gpt-4o', 'gpt-4o-mini'].filter((x) => x))]
+    const lReasons: string[] = []
     const sysL = [
       "Guarda questa TAVOLA di un album fotografico (una doppia pagina). Estrai la GEOMETRIA dell'impaginazione, come la userebbe un impaginatore.",
       'Per OGNI foto presente dai il riquadro in frazioni 0..1 della tavola: x,y = angolo in alto a sinistra, w,h = larghezza/altezza. n = numero di foto.',
@@ -200,14 +202,21 @@ Deno.serve(async (req) => {
       'Rispondi SOLO JSON: {"n","boxes":[{"x","y","w","h"}],"fullbleed","bw","white"}.',
     ].join('\n')
     const analyzeOne = async (img: string) => {
-      try {
-        const data = await openai({ model: lModel, temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysL }, { role: 'user', content: [{ type: 'image_url', image_url: { url: img, detail: 'high' } }] }] })
-        const p = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
-        const boxes = Array.isArray(p?.boxes) ? p.boxes.map((b: any) => ({ x: clamp01(b?.x), y: clamp01(b?.y), w: clamp01(b?.w), h: clamp01(b?.h) })).filter((b: any) => b.w > 0.02 && b.h > 0.02).slice(0, 24) : []
-        return { n: Number.isFinite(p?.n) ? Math.max(0, Math.round(p.n)) : boxes.length, boxes, fullbleed: !!p?.fullbleed, bw: !!p?.bw, white: Number.isFinite(p?.white) ? clamp01(p.white) : 0 }
-      } catch { return { n: 0, boxes: [], fullbleed: false, bw: false, white: 0 } }
+      let lastErr = ''
+      for (let mi = 0; mi < lModels.length; mi++) {
+        try {
+          const data = await openai({ model: lModels[mi], temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sysL }, { role: 'user', content: [{ type: 'image_url', image_url: { url: img, detail: 'high' } }] }] })
+          const p = JSON.parse(data?.choices?.[0]?.message?.content ?? '{}')
+          const boxes = Array.isArray(p?.boxes) ? p.boxes.map((b: any) => ({ x: clamp01(b?.x), y: clamp01(b?.y), w: clamp01(b?.w), h: clamp01(b?.h) })).filter((b: any) => b.w > 0.02 && b.h > 0.02).slice(0, 24) : []
+          return { n: Number.isFinite(p?.n) ? Math.max(0, Math.round(p.n)) : boxes.length, boxes, fullbleed: !!p?.fullbleed, bw: !!p?.bw, white: Number.isFinite(p?.white) ? clamp01(p.white) : 0 }
+        } catch (e) { lastErr = String((e as Error)?.message ?? e).slice(0, 160); /* prova il modello successivo */ }
+      }
+      if (lastErr) lReasons.push(lastErr)
+      return { n: 0, boxes: [], fullbleed: false, bw: false, white: 0 }
     }
     const spreads = (await pool(imgs, 3, analyzeOne)).filter((s) => s.n > 0)
+    // Se NON ha letto niente, di' PERCHÉ (prima falliva in silenzio → "non legge il pdf")
+    if (!spreads.length) return json({ spreads: [], profile: { perSpread: [], fullbleedPct: 0, bwPct: 0, whiteAvg: 0, avgPhotos: 0, samples: 0 }, error: 'vision_failed', reason: lReasons.slice(0, 2).join(' · ') || 'nessuna tavola riconosciuta' }, 200)
     // aggregato: distribuzione foto/tavola + percentuali
     const counts = new Map<number, number>()
     let full = 0, bw = 0, whiteSum = 0

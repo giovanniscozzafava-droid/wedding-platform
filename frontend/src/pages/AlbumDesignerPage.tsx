@@ -360,6 +360,7 @@ function AlbumDesignerInner() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportProg, setExportProg] = useState<{ done: number; total: number } | null>(null) // barra avanzamento export
   const [activePage, setActivePage] = useState<string | null>(null)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
   const [bleed, setBleed] = useState(false)            // abbondanza per la stampa
@@ -1316,6 +1317,7 @@ function AlbumDesignerInner() {
   async function doExport(kind: 'pdf' | 'spread' | 'jpg' | 'jpgspread') {
     if (pages.length === 0) { toast.error('Nessuna pagina da esportare'); return }
     setExporting(true)
+    setExportProg({ done: 0, total: Math.max(1, kind === 'spread' || kind === 'jpgspread' ? Math.ceil(pages.length / 2) : pages.length) })
     try {
       // Alta risoluzione: chiediamo un "grant" e tiriamo l'ORIGINALE da Drive via proxy
       // (in app si lavora a bassa qualità; in export si stampa in alta). Fallback ai thumbnail.
@@ -1333,10 +1335,11 @@ function AlbumDesignerInner() {
       const base = (title || 'album').toLowerCase().replace(/\s+/g, '-')
       // con l'originale Drive possiamo stampare in alta: 300 dpi per le pagine, 220 per JPG/spread
       const isSpread = kind === 'spread' || kind === 'jpgspread'
-      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${isSpread ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: isSpread ? 'spreads' : 'pages' })
-      else await exportAlbumPdf(pages, format, resolve, { mode: isSpread ? 'spreads' : 'pages', filename: `${base}-${isSpread ? 'tavole' : 'pagine'}.pdf`, bleed, dpi: exportDpi, cutMarks: cutMarks && bleed, pageNumbers: pageNums })
+      const onProgress = (done: number, total: number) => setExportProg({ done, total })
+      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${isSpread ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: isSpread ? 'spreads' : 'pages', onProgress })
+      else await exportAlbumPdf(pages, format, resolve, { mode: isSpread ? 'spreads' : 'pages', filename: `${base}-${isSpread ? 'tavole' : 'pagine'}.pdf`, bleed, dpi: exportDpi, cutMarks: cutMarks && bleed, pageNumbers: pageNums, onProgress })
       toast.success('Export pronto')
-    } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false) }
+    } catch (e) { toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false); setExportProg(null) }
   }
 
   // ── piena pagina (nasconde la barra menu a sinistra) ────────────────────────
@@ -2594,6 +2597,20 @@ function AlbumDesignerInner() {
               </div>
             )
           })()}
+
+          {/* Barra di avanzamento dell'export (prima girava a vuoto senza feedback) */}
+          {exportProg && (
+            <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4">
+              <div className="w-[min(92vw,380px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl">
+                <div className="flex items-center gap-2"><Loader2 size={16} className="animate-spin text-[rgb(var(--gold-600))]" /> <p className="font-display text-base">Esporto l'album…</p></div>
+                <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">Preparo le pagine in alta risoluzione. <span className="tabular-nums">{exportProg.done}/{exportProg.total}</span></p>
+                <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+                  <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((exportProg.done / Math.max(1, exportProg.total)) * 100)}%` }} />
+                </div>
+                <p className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">Alla fine parte il download del file. Non chiudere la pagina.</p>
+              </div>
+            </div>
+          )}
 
           {/* Animazione "AI sta ragionando" durante l'impaginazione automatica */}
           {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} />}

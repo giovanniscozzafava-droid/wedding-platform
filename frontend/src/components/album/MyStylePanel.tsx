@@ -52,7 +52,9 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
       for (let i = 0; i < imgs.length; i += BATCH) {
         const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'learn', images: imgs.slice(i, i + BATCH) } })
         const err = (data as { error?: string } | null)?.error
-        if (error || err) { toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server' : `Analisi non riuscita${err ? `: ${err}` : ''}`); break }
+        const reason = (data as { reason?: string } | null)?.reason
+        if (error || (err && err !== 'vision_failed')) { toast.error(err === 'missing_openai_key' ? 'Manca la chiave OpenAI sul server' : `Analisi non riuscita${err ? `: ${err}` : ''}`); break }
+        if (err === 'vision_failed' && reason) toast.warning(`Una parte non è stata letta: ${reason}`.slice(0, 160), { duration: 8000 })
         all.push(...(((data as { spreads?: Spread[] }).spreads) ?? []))
         setProgress({ done: pages + Math.min(imgs.length, i + BATCH), total: pages * 2 })
       }

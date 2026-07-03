@@ -132,8 +132,8 @@ function pageNumText(pdf: any, n: number, cx: number, y: number) {
   pdf.setFontSize(8); pdf.setTextColor(120, 120, 120); pdf.text(String(n), cx, y, { align: 'center' })
 }
 
-export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean; pageNumbers?: boolean } = {}) {
-  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false, pageNumbers = false } = opts
+export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean; pageNumbers?: boolean; onProgress?: (done: number, total: number) => void } = {}) {
+  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false, pageNumbers = false, onProgress } = opts
   const f = getFormat(formatKey)
   const { default: jsPDF } = await import('jspdf')
 
@@ -160,6 +160,7 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
       }
       if (cutMarks && b > 0) drawCutMarks(pdf, 0, 0, trimW, trimH, b)
       if (pageNumbers) { pageNumText(pdf, i + 1, b + f.w / 2, b + f.h - 5); if (pages[i + 1]) pageNumText(pdf, i + 2, b + f.w + f.w / 2, b + f.h - 5) }
+      onProgress?.(Math.floor(i / 2) + 1, Math.ceil(pages.length / 2))
     }
     pdf.save(filename)
     return
@@ -177,6 +178,7 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
     if (spLeft) { try { const img = await loadImage(resolve(spLeft.mediaId)); const data = framedSpreadDataUrl(img, f.w * dpi / 25.4, f.h * dpi / 25.4, spLeft.cell, spLeft.frame ?? FULL_FRAME, i % 2 === 0 ? 'L' : 'R'); pdf.addImage(data, 'PNG', b, b, f.w, f.h) } catch { /* ignora */ } }
     if (cutMarks && b > 0) drawCutMarks(pdf, 0, 0, f.w, f.h, b)
     if (pageNumbers) pageNumText(pdf, i + 1, box.w / 2, box.h - 5 - b)
+    onProgress?.(i + 1, pages.length)
   }
   pdf.save(filename)
 }
@@ -212,8 +214,8 @@ async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: 
 }
 
 // JPG: 'pages' = una immagine per pagina (tavola divisa); 'spreads' = tavola intera (2 pagine affiancate).
-export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode } = {}) {
-  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages' } = opts
+export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode; onProgress?: (done: number, total: number) => void } = {}) {
+  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages', onProgress } = opts
   const f = getFormat(formatKey)
   const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
@@ -236,6 +238,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
       }
       const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
       zip.file(`tavola-${String(s / 2 + 1).padStart(3, '0')}.jpg`, blob)
+      onProgress?.(Math.floor(s / 2) + 1, Math.ceil(pages.length / 2))
     }
   } else {
     for (let p = 0; p < pages.length; p++) {
@@ -247,6 +250,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
       if (spLeft) { try { const img = await loadImage(resolve(spLeft.mediaId)); drawFramedSpread(ctx, img, wpx, hpx, spLeft.cell, spLeft.frame ?? FULL_FRAME, p % 2 === 0 ? 'L' : 'R') } catch { /* ignora */ } }
       const blob: Blob = await new Promise((res) => c.toBlob((b2) => res(b2!), 'image/jpeg', 0.92))
       zip.file(`pagina-${String(p + 1).padStart(3, '0')}.jpg`, blob)
+      onProgress?.(p + 1, pages.length)
     }
   }
   const out = await zip.generateAsync({ type: 'blob' })
