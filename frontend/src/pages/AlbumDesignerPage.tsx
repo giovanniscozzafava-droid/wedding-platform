@@ -1033,6 +1033,7 @@ function AlbumDesignerInner() {
   const [aiDoublePct, setAiDoublePct] = useState<number>(8)  // % foto a doppia pagina
   const [aiFullPct, setAiFullPct] = useState<number>(10)     // % foto a pagina intera
   const [aiRespectFormat, setAiRespectFormat] = useState<boolean>(true) // verticali/orizzontali restano tali
+  const [aiAutoSelect, setAiAutoSelect] = useState<boolean>(false) // fai scegliere le foto all'AI (cura + impagina il sottoinsieme)
   const [aiMaxPages, setAiMaxPages] = useState<number>(60) // tetto massimo di pagine dell'album
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string; advice?: string }>>({}) // ranking qualità stampa + consiglio tecnico
   const [qualityBusy, setQualityBusy] = useState(false)
@@ -1580,7 +1581,7 @@ function AlbumDesignerInner() {
     return { analyses, reason, cancelled: false }
   }
 
-  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean; maxPages?: number }) {
+  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean; maxPages?: number; autoSelect?: boolean }) {
     if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
@@ -1608,13 +1609,30 @@ function AlbumDesignerInner() {
       setAiProg({ done: 0, total: photosPayload.length, phase: 'Guardo le foto una a una…' })
       const an = await analyzeInBatches(photosPayload, aiCancel, (done, total) => setAiProg({ done, total, phase: 'Guardo le foto una a una…' }))
       if (an.cancelled) { toast.message('Analisi interrotta'); return }
-      const analyses = an.analyses
+      let analyses = an.analyses
+      let usePhotos = photosPayload
+      let curatedNote = ''
+      // "Fai scegliere le foto all'AI": prima di comporre, l'AI cura il sottoinsieme migliore
+      // (taglia doppioni/momenti ripetuti). Compone SOLO le scelte (le altre restano in selezione).
+      if (opts?.autoSelect && photosPayload.length >= 8) {
+        setAiProg({ done: photosPayload.length, total: photosPayload.length, phase: 'Scelgo le foto migliori…' })
+        try {
+          const { data: cd } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses, photos: photosPayload, target: 0 } })
+          const keep = (cd as { keep?: string[] } | null)?.keep
+          if (Array.isArray(keep) && keep.length >= 2 && keep.length < photosPayload.length) {
+            const keepSet = new Set(keep)
+            usePhotos = photosPayload.filter((p) => keepSet.has(p.id))
+            analyses = analyses.filter((a) => keepSet.has((a as { id?: string }).id ?? ''))
+            curatedNote = ` · AI ha scelto ${usePhotos.length}/${photosPayload.length}`
+          }
+        } catch { /* se la cura fallisce, impagina tutte */ }
+      }
       setAiProg({ done: photosPayload.length, total: photosPayload.length, phase: 'Compongo le tavole…' })
 
       const payload = {
         // Foto GIÀ in ordine cronologico di scatto (takenAt). Le ANALISI sono già fatte dal client
         // (barra), il server ora COMPONE soltanto → risposta più rapida e progresso reale.
-        photos: photosPayload,
+        photos: usePhotos,
         analyses,
         format, style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true,
         styleProfile: (learned?.perSpread?.length ? learned.perSpread : styleProfile()), learnedStyle: learned,
@@ -1647,8 +1665,8 @@ function AlbumDesignerInner() {
       const seen = (data as { seen?: number }).seen ?? 0
       const cModel = (data as { composeModel?: string }).composeModel ?? ''
       const facesFound = (data as { facesFound?: number }).facesFound ?? 0
-      if (degraded) toast.warning(`Impaginate ${tavole.length} tavole · letto ${seen} · volti su ${facesFound} · ${cModel} · parziale: ${reason ?? 'OpenAI limitato'}`, { duration: 12000 })
-      else toast.success(`Impaginate ${tavole.length} tavole · letto ${seen} foto · volti su ${facesFound} · ${cModel}`, { duration: 8000 })
+      if (degraded) toast.warning(`Impaginate ${tavole.length} tavole · letto ${seen} · volti su ${facesFound} · ${cModel}${curatedNote} · parziale: ${reason ?? 'OpenAI limitato'}`, { duration: 12000 })
+      else toast.success(`Impaginate ${tavole.length} tavole · letto ${seen} foto · volti su ${facesFound} · ${cModel}${curatedNote}`, { duration: 8000 })
     } catch (e) {
       toast.error(`Impaginazione AI non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`)
     } finally { setAiBusy(false); setAiProg(null) }
@@ -2664,6 +2682,10 @@ function AlbumDesignerInner() {
                 </div>
 
                 <div className="mt-4 space-y-2">
+                  <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] p-2.5 text-sm">
+                    <input type="checkbox" checked={aiAutoSelect} onChange={(e) => setAiAutoSelect(e.target.checked)} className="mt-0.5 accent-[rgb(var(--gold-500))]" />
+                    <span><strong>Fai scegliere le foto all'AI</strong> — se sono troppe o ripetono i momenti, l'AI usa solo il meglio (taglia doppioni e ripetizioni) per un album con più respiro. <span className="text-[rgb(var(--fg-subtle))]">Le altre restano in selezione, semplicemente non entrano nell'album.</span></span>
+                  </label>
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
                     <input type="checkbox" checked={aiGroupBw} onChange={(e) => setAiGroupBw(e.target.checked)} className="accent-[rgb(var(--gold-500))]" />
                     Raggruppa le foto in <strong>bianco e nero</strong> (non mischiarle col colore)
@@ -2680,7 +2702,7 @@ function AlbumDesignerInner() {
 
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
-                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat, maxPages: aiMaxPages }) }}><Sparkles size={14} /> Impagina</Button>
+                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat, maxPages: aiMaxPages, autoSelect: aiAutoSelect }) }}><Sparkles size={14} /> Impagina</Button>
                 </div>
               </div>
             </div>

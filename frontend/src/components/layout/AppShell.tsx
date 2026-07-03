@@ -385,7 +385,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex-1">
             {children}
           </div>
-          <AppFooter />
+          {/* Niente footer marketing sui TOOL a tutta pagina (impaginatore, copertina 3D): creava
+              un footer enorme con spazio vuoto sotto lo strumento. */}
+          {!/^\/(album|album-copertina)\//.test(location.pathname) && <AppFooter />}
         </main>
       </div>
       <ImpersonationBanner />
