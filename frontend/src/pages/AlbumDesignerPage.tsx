@@ -59,6 +59,9 @@ function gridSlots(n: number, areaAspect: number): { x: number; y: number; w: nu
 
 // Disposizione GIUSTIFICATA (stile galleria): ogni foto tiene le sue proporzioni reali (verticali
 // restano strette/alte, orizzontali larghe). Righe che riempiono la larghezza; slot[i] è della foto i.
+// Trascinamento di foto GIÀ piazzate tra le tavole (sposta / crea nuova tavola prima-dopo).
+type MovePayload = { fromPageId: string; elIds: string[]; mediaIds: string[] }
+
 function justifiedSlots(aspectsArr: number[], spreadAspect: number): { x: number; y: number; w: number; h: number }[] {
   const n = aspectsArr.length
   if (!n) return []
@@ -881,6 +884,45 @@ function AlbumDesignerInner() {
     const b: AlbumPage = { ...newPage(), tavolaFree: false }
     setPages((arr) => { const at = Math.min(arr.length, Math.max(0, si) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
     setCurrentPageId(a.id); toast.success('Nuova tavola inserita')
+  }
+  // Come sopra ma con PIÙ foto: nuova tavola libera con le foto disposte (justified). Usata dal
+  // trascinamento di più foto tra le tavole. Ritorna l'id della pagina creata.
+  function insertTavolaWithPhotosAt(si: number, mediaIds: string[]): string | null {
+    const ids = mediaIds.filter((id) => mediaById.has(id))
+    if (!ids.length) return null
+    const f = getFormat(format)
+    const spreadAspect = (f.w * 2) / f.h
+    const mx = MARGIN_MM / (f.w * 2), my = MARGIN_MM / f.h
+    const slots = justifiedSlots(ids.map((id) => aspects[id] ?? photoAspect.get(id) ?? 1), spreadAspect)
+    const els: FreeEl[] = ids.map((id, i) => { const s = slots[i] ?? { x: mx, y: my, w: 0.4, h: 0.4 }; return { ...newFreeEl(id), x: s.x, y: s.y, w: s.w, h: s.h, rot: 0, cell: { ...DEFAULT_CELL } } })
+    const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: els, mediaIds: [], cells: [] }
+    const b: AlbumPage = { ...newPage(), tavolaFree: false }
+    setPages((arr) => { const at = Math.min(arr.length, Math.max(0, si) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
+    setCurrentPageId(a.id)
+    return a.id
+  }
+  // SPOSTA una o più foto (elementi) da una tavola a una tavola ESISTENTE (drop sulla miniatura).
+  function movePhotosToTavola(targetPageId: string, move: MovePayload) {
+    const ti = pages.findIndex((p) => p.id === targetPageId), si = pages.findIndex((p) => p.id === move.fromPageId)
+    if (ti >= 0 && si >= 0 && (ti - (ti % 2)) === (si - (si % 2))) { toast.message('È già in questa tavola'); return }
+    const mids = move.mediaIds.filter((id) => mediaById.has(id))
+    if (!mids.length) return
+    setPages((arr) => arr.map((p) => {
+      if (p.id === move.fromPageId) return { ...p, elements: (p.elements ?? []).filter((e) => !move.elIds.includes(e.id)) }
+      if (p.id === targetPageId) { let np = p; for (const mid of mids) np = placeInPage(np, null, mid); return np }
+      return p
+    }))
+    setSelEl(null); setMultiSel([])
+    toast.success(mids.length > 1 ? `${mids.length} foto spostate nella tavola` : 'Foto spostata nella tavola')
+  }
+  // SPOSTA le foto in una NUOVA tavola creata al punto si (gap): a sinistra = prima, a destra = dopo.
+  function moveNewTavola(si: number, move: MovePayload) {
+    const mids = move.mediaIds.filter((id) => mediaById.has(id))
+    if (!mids.length) return
+    insertTavolaWithPhotosAt(si, mids)
+    setPages((arr) => arr.map((p) => (p.id === move.fromPageId ? { ...p, elements: (p.elements ?? []).filter((e) => !move.elIds.includes(e.id)) } : p)))
+    setSelEl(null); setMultiSel([])
+    toast.success(mids.length > 1 ? `${mids.length} foto in una nuova tavola` : 'Foto in una nuova tavola')
   }
   // SCAMBIA due foto ovunque nell'album (tasto destro → "Sostituisci con"): la foto A prende il
   // posto di B e viceversa, in tutte le tavole (elementi, slot, foto a doppia pagina).
@@ -2405,16 +2447,17 @@ function AlbumDesignerInner() {
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
                 {spreads.map((pair, si) => (
                   <Fragment key={si}>
-                    {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} h={stripH} />}
+                    {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} h={stripH} />}
                     <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
                       mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                       onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
                       onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
+                      onMovePhotos={(pageId, move) => movePhotosToTavola(pageId, move)}
                       onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => moveSpreadInsert(from, to)}
                       onContext={(x, y) => setNavMenu({ si, x, y })} />
                   </Fragment>
                 ))}
-                {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si: spreads.length, mediaId: mid, x, y })} h={stripH} />}
+                {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si: spreads.length, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(spreads.length, move)} h={stripH} />}
                 {!lite && <button onClick={addSpread} className="shrink-0 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ height: stripH, aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
             </main>
@@ -3404,7 +3447,25 @@ function FreeStage(props: {
         const q: Quality = m ? photoQuality(realDims?.[el.mediaId], pm.w, pm.h, el.cell) : { level: 'ok', dpi: 0 }
         const lowRes = q.level === 'low' || q.level === 'warn'
         return (
-          <div key={el.id} className="absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : inSel ? 10 : 1 }}>
+          <div key={el.id} className="group absolute" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, zIndex: sel ? 20 : inSel ? 10 : 1 }}>
+            {/* Maniglia: TRASCINA la foto (o le selezionate) su un'altra tavola nel navigatore, o tra le
+                tavole (a sinistra/destra) per crearne una nuova prima/dopo. */}
+            {!locked && (
+              <div draggable
+                onPointerDown={(e) => e.stopPropagation()}
+                onDragStart={(e) => {
+                  const elIds = (multiSel.includes(el.id) && multiSel.length > 1) ? multiSel : [el.id]
+                  const mediaIds = elIds.map((eid) => els.find((x) => x.id === eid)?.mediaId).filter(Boolean) as string[]
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('text/media', el.mediaId)
+                  e.dataTransfer.setData('text/move', JSON.stringify({ fromPageId: page.id, elIds, mediaIds }))
+                }}
+                title="Trascina su un'altra tavola per spostarla — oppure tra le tavole (sinistra/destra) per creare una nuova tavola prima/dopo"
+                className={`absolute -top-2 -right-2 z-[30] flex h-6 w-6 cursor-grab items-center justify-center rounded-full border-2 border-white bg-[rgb(var(--gold-500))] text-white shadow-md transition-opacity active:cursor-grabbing ${sel || inSel ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <Move size={12} />
+                {multiSel.length > 1 && multiSel.includes(el.id) && <span className="absolute -bottom-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[rgb(var(--rose-500))] px-0.5 text-[9px] font-bold ring-1 ring-white">{multiSel.length}</span>}
+              </div>
+            )}
             <div
               onPointerDown={locked ? undefined : (e) => down(e, 'move', el)}
               onContextMenu={locked || !onContext ? undefined : (e) => { e.preventDefault(); e.stopPropagation(); onContext(el.id, e.clientX, e.clientY) }}
@@ -3526,13 +3587,18 @@ function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; form
 
 // Zona di rilascio TRA due tavole nella filmstrip: ci trascini una foto (dalla libreria o dal
 // navigatore) e crea una NUOVA tavola in quel punto, intersecando tra le pagine.
-function GapDrop({ onDropPhoto, h }: { onDropPhoto: (mid: string, x: number, y: number) => void; h: number }) {
+function GapDrop({ onDropPhoto, onMoveNewTavola, h }: { onDropPhoto: (mid: string, x: number, y: number) => void; onMoveNewTavola?: (move: MovePayload, x: number, y: number) => void; h: number }) {
   const [over, setOver] = useState(false)
   return (
     <div
       onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) { e.preventDefault(); if (!over) setOver(true) } }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e) => { setOver(false); const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropPhoto(mid, e.clientX, e.clientY) } }}
+      onDrop={(e) => {
+        setOver(false)
+        const mv = e.dataTransfer.getData('text/move')
+        if (mv && onMoveNewTavola) { e.preventDefault(); e.stopPropagation(); try { onMoveNewTavola(JSON.parse(mv) as MovePayload, e.clientX, e.clientY) } catch { /* payload rotto */ } return }
+        const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropPhoto(mid, e.clientX, e.clientY) }
+      }}
       title="Trascina qui una foto per inserire una nuova tavola"
       className={`shrink-0 self-center rounded transition-all ${over ? 'w-7 bg-[rgb(var(--gold-400))] ring-2 ring-[rgb(var(--gold-500))]' : 'w-1.5 bg-transparent hover:bg-[rgb(var(--border))]'}`}
       style={{ height: over ? h : Math.round(h * 0.55) }}
@@ -3545,9 +3611,16 @@ function SpreadThumb(props: {
   pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string; thumbH?: number
   aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
   onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
+  onMovePhotos?: (targetPageId: string, move: MovePayload) => void
   onReorder: (from: number, to: number) => void; onContext?: (x: number, y: number) => void
 }) {
-  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onReorder, onContext } = props
+  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onMovePhotos, onReorder, onContext } = props
+  // drop di una foto trascinata dal navigatore: se ha il marcatore "move" la SPOSTA in questa tavola.
+  const handleMediaDrop = (pageId: string, e: import('react').DragEvent) => {
+    const mv = e.dataTransfer.getData('text/move')
+    if (mv && onMovePhotos) { e.preventDefault(); e.stopPropagation(); try { onMovePhotos(pageId, JSON.parse(mv) as MovePayload) } catch { /* rotto */ } return }
+    const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropMedia(pageId, mid) }
+  }
   const w = aspect * pair.length
   const [over, setOver] = useState<false | 'l' | 'r'>(false)
   return (
@@ -3562,12 +3635,12 @@ function SpreadThumb(props: {
       <button onClick={onSelect} className={`relative flex overflow-hidden border bg-white ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'} ${!lite ? 'cursor-grab active:cursor-grabbing' : ''}`} style={{ height: thumbH, aspectRatio: String(w) }}>
         {pair[0]?.tavolaFree ? (
           <div className="relative h-full w-full"
-            onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => { const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropMedia(pair[0]!.id, mid) } }}>
+            onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => handleMediaDrop(pair[0]!.id, e)}>
             <FreeSurface page={pair[0]} mediaById={mediaById} thumb={thumb} />
           </div>
         ) : pair.map((p) => (
           <div key={p.id} className="h-full" style={{ aspectRatio: String(aspect) }}
-            onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => { const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropMedia(p.id, mid) } }}>
+            onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => handleMediaDrop(p.id, e)}>
             <MiniPage page={p} formatKey={formatKey} aspects={aspects} mediaById={mediaById} thumb={thumb} />
           </div>
         ))}
