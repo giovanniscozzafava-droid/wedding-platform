@@ -1020,6 +1020,8 @@ function AlbumDesignerInner() {
   const [aiMaxPages, setAiMaxPages] = useState<number>(60) // tetto massimo di pagine dell'album
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string; advice?: string }>>({}) // ranking qualità stampa + consiglio tecnico
   const [qualityBusy, setQualityBusy] = useState(false)
+  const [qualityOpen, setQualityOpen] = useState(false) // pannello-report qualità (si apre a fine analisi)
+  const [highlightMedia, setHighlightMedia] = useState<string | null>(null) // foto evidenziata dal report
   const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
   const [faceMap, setFaceMap] = useState<Record<string, { fx: number; fy: number; face?: boolean }>>({}) // dove l'AI ha mappato i volti
   const [showFaces, setShowFaces] = useState(true) // mostra i pallini dei volti sulle miniature
@@ -1610,8 +1612,9 @@ function AlbumDesignerInner() {
       setQualityScores((prev) => ({ ...prev, ...scores }))
       const rated = (data as { rated?: number }).rated ?? Object.keys(scores).length
       const degraded = (data as { degraded?: boolean }).degraded
+      if (Object.keys(scores).length) setQualityOpen(true) // mostra SUBITO il report (prima non si vedeva nulla)
       if (degraded) toast.warning(`Valutate ${rated} foto · alcune non valutabili (${(data as { reason?: string }).reason ?? 'errore'})`, { duration: 9000 })
-      else toast.success(`Valutate ${rated} foto per qualità di stampa`)
+      else toast.success(`Valutate ${rated} foto — apro il report qualità`)
     } catch (e) { toast.error(`Valutazione non riuscita: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
     finally { setQualityBusy(false) }
   }
@@ -1960,7 +1963,8 @@ function AlbumDesignerInner() {
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
             {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>}
-            {!lite && <Button variant="outline" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>}
+            {!lite && <Button variant="outline" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché e cosa fare">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>}
+            {!lite && Object.keys(qualityScores).length > 0 && <Button variant="outline" size="sm" onClick={() => setQualityOpen(true)} title="Riapri il report qualità di stampa"><FileText size={14} /> Report</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy} onClick={() => setStyleOpen(true)} title="Carica i tuoi album PDF: l'AI impara COME impagini (foto per tavola, respiro, doppia pagina) e 'Impagina con AI' comporrà nel tuo stile"><Frame size={14} /> Il mio stile</Button>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
@@ -2022,7 +2026,7 @@ function AlbumDesignerInner() {
               </select>
               <div className="grid grid-cols-2 gap-1.5">
                 {trayFiltered.map((m) => (
-                  <div key={m.id} className="relative group/tray">
+                  <div key={m.id} id={`tray-${m.id}`} className={`relative group/tray rounded ${highlightMedia === m.id ? 'ring-4 ring-[rgb(var(--gold-500))] ring-offset-2 ring-offset-[rgb(var(--bg))]' : ''}`}>
                     <button
                       draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
                       onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
@@ -2534,6 +2538,62 @@ function AlbumDesignerInner() {
               </div>
             </div>
           )}
+
+          {/* REPORT QUALITÀ STAMPA: foto peggiori in cima, voto + problemi + consiglio tecnico VISIBILI */}
+          {qualityOpen && (() => {
+            const ISSUE: Record<string, string> = { neri_chiusi: 'neri chiusi', luci_bruciate: 'alte luci bruciate', sottoesposta: 'sottoesposta', sovraesposta: 'sovraesposta', contrasto: 'contrasto', dominante: 'dominante colore', mosso: 'mosso', fuori_fuoco: 'fuori fuoco', rumore: 'rumore', bassa_risoluzione: 'bassa risoluzione' }
+            const entries = Object.entries(qualityScores).filter(([id]) => mediaById.has(id)).sort((a, b) => a[1].score - b[1].score)
+            const arr = entries.map(([, v]) => v.score)
+            const avg = arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0
+            const bad = arr.filter((s) => s < 50).length, mid = arr.filter((s) => s >= 50 && s < 75).length, good = arr.filter((s) => s >= 75).length
+            const chip = (s: number) => s >= 75 ? 'bg-emerald-600' : s >= 50 ? 'bg-amber-500' : 'bg-rose-600'
+            const jump = (id: string) => { setQualityOpen(false); setHighlightMedia(id); setTimeout(() => document.getElementById(`tray-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); setTimeout(() => setHighlightMedia(null), 2400) }
+            return (
+              <div className="fixed inset-0 z-[93] flex items-center justify-center bg-black/60 p-4" onClick={() => setQualityOpen(false)}>
+                <div className="flex max-h-[92vh] w-[min(96vw,760px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  {/* intestazione + sintesi */}
+                  <div className="flex items-start justify-between gap-3 border-b border-[rgb(var(--border))] p-4">
+                    <div>
+                      <p className="font-display text-lg">Qualità di stampa</p>
+                      <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">{entries.length} foto valutate · media <strong className="tabular-nums">{avg}</strong>/100. In cima le più critiche.</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-medium text-white">
+                        <span className="rounded-full bg-rose-600 px-2 py-0.5">{bad} da rivedere</span>
+                        <span className="rounded-full bg-amber-500 px-2 py-0.5">{mid} accettabili</span>
+                        <span className="rounded-full bg-emerald-600 px-2 py-0.5">{good} ottime</span>
+                      </div>
+                    </div>
+                    <button onClick={() => setQualityOpen(false)} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
+                  </div>
+                  {/* elenco */}
+                  <div className="min-h-0 flex-1 divide-y divide-[rgb(var(--border))] overflow-auto">
+                    {entries.length === 0 && <p className="p-6 text-center text-sm text-[rgb(var(--fg-muted))]">Nessuna foto valutata.</p>}
+                    {entries.map(([id, q]) => { const m = mediaById.get(id); if (!m) return null; return (
+                      <div key={id} className="flex gap-3 p-3">
+                        <button onClick={() => jump(id)} title="Vai alla foto" className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[rgb(var(--border))]">
+                          <img src={thumbUrl(m)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                          <span className={`absolute bottom-0 left-0 right-0 py-0.5 text-center text-[11px] font-bold text-white ${chip(q.score)}`}>{q.score}</span>
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          {q.issues?.length ? (
+                            <div className="mb-1 flex flex-wrap gap-1">
+                              {q.issues.map((it) => <span key={it} className="rounded-full bg-[rgb(var(--bg-sunken))] px-2 py-0.5 text-[11px] text-[rgb(var(--fg-muted))]">{ISSUE[it] ?? it}</span>)}
+                            </div>
+                          ) : <p className="mb-1 text-[11px] text-emerald-600">Nessun difetto rilevato</p>}
+                          {q.reason && <p className="text-sm">{q.reason}</p>}
+                          {q.advice && <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]"><strong className="text-[rgb(var(--fg))]">Da fare:</strong> {q.advice}</p>}
+                          <button onClick={() => jump(id)} className="mt-1.5 inline-flex items-center gap-1 text-xs text-[rgb(var(--gold-700))] hover:underline">Vai alla foto <ChevRight size={12} /></button>
+                        </div>
+                      </div>
+                    ) })}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border))] p-3">
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Nitidezza e rumore dall'anteprima sono indicativi.</p>
+                    <Button variant="outline" size="sm" onClick={() => setQualityOpen(false)}>Chiudi</Button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Animazione "AI sta ragionando" durante l'impaginazione automatica */}
           {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} />}
