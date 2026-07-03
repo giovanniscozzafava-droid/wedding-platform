@@ -46,9 +46,8 @@ Deno.serve(async (req) => {
   if (body.mask && body.mask.startsWith('data:')) fd.append('mask', dataUrlToBlob(body.mask), 'mask.png')
   fd.append('prompt', prompt)
   fd.append('n', '1')
-  // dall-e-2: dimensione quadrata concreta + risposta base64; gpt-image-1: 'auto' e b64 nativo.
+  // dall-e-2: dimensione quadrata concreta; gpt-image-1: 'auto'. NIENTE response_format (rifiutato).
   fd.append('size', typeof body.size === 'string' ? body.size : (isDalle ? '1024x1024' : 'auto'))
-  if (isDalle) fd.append('response_format', 'b64_json')
 
   try {
     const ctrl = new AbortController()
@@ -68,9 +67,18 @@ Deno.serve(async (req) => {
       return json({ error: notVerified ? 'org_not_verified' : 'openai_error', status: r.status, detail: txt.slice(0, 300) }, r.status === 403 ? 403 : 502)
     }
     const data = await r.json()
-    const b64 = data?.data?.[0]?.b64_json
-    if (!b64) return json({ error: 'no_output', detail: JSON.stringify(data).slice(0, 200) }, 502)
-    return json({ image: `data:image/png;base64,${b64}` })
+    const item = data?.data?.[0]
+    if (item?.b64_json) return json({ image: `data:image/png;base64,${item.b64_json}` })
+    // dall-e-2 di default restituisce un URL: lo scarico e lo converto in base64 (l'URL scade in fretta)
+    if (item?.url) {
+      const ir = await fetch(item.url)
+      if (!ir.ok) return json({ error: 'fetch_result_failed', status: ir.status }, 502)
+      const bytes = new Uint8Array(await ir.arrayBuffer())
+      let bin = ''
+      for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
+      return json({ image: `data:image/png;base64,${btoa(bin)}` })
+    }
+    return json({ error: 'no_output', detail: JSON.stringify(data).slice(0, 200) }, 502)
   } catch (e) {
     return json({ error: 'exception', detail: String((e as Error)?.message ?? e).slice(0, 200) }, 500)
   }
