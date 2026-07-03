@@ -894,35 +894,50 @@ function AlbumDesignerInner() {
     setPages((arr) => { const at = Math.min(arr.length, Math.max(0, si) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
     setCurrentPageId(a.id); toast.success('Nuova tavola inserita')
   }
-  // Come sopra ma con PIÙ foto: nuova tavola libera con le foto disposte (justified). Usata dal
-  // trascinamento di più foto tra le tavole. Ritorna l'id della pagina creata.
-  function insertTavolaWithPhotosAt(si: number, mediaIds: string[]): string | null {
+  // Elementi liberi di una tavola per N foto: disposizione GIUSTIFICATA (rispetta gli orientamenti,
+  // niente tagli) con gutter. È la ricomposizione automatica quando cambia il numero di foto.
+  function freeElsForTavola(mediaIds: string[]): FreeEl[] {
     const ids = mediaIds.filter((id) => mediaById.has(id))
-    if (!ids.length) return null
+    if (!ids.length) return []
     const f = getFormat(format)
     const spreadAspect = (f.w * 2) / f.h
     const mx = MARGIN_MM / (f.w * 2), my = MARGIN_MM / f.h
+    const gx = gutterMm / (f.w * 2), gy = gutterMm / f.h
     const slots = justifiedSlots(ids.map((id) => aspects[id] ?? photoAspect.get(id) ?? 1), spreadAspect)
-    const els: FreeEl[] = ids.map((id, i) => { const s = slots[i] ?? { x: mx, y: my, w: 0.4, h: 0.4 }; return { ...newFreeEl(id), x: s.x, y: s.y, w: s.w, h: s.h, rot: 0, cell: { ...DEFAULT_CELL } } })
+    return ids.map((id, i) => { const s = slots[i] ?? { x: mx, y: my, w: 0.4, h: 0.4 }; const g = gutterSlot(s, gx, gy); return { ...newFreeEl(id), x: g.x, y: g.y, w: g.w, h: g.h, rot: 0, cell: { ...DEFAULT_CELL } } })
+  }
+  // Nuova tavola libera con le foto disposte (justified). Ritorna l'id della pagina creata.
+  function insertTavolaWithPhotosAt(si: number, mediaIds: string[]): string | null {
+    const els = freeElsForTavola(mediaIds)
+    if (!els.length) return null
     const a: AlbumPage = { ...newPage(), mode: 'free', tavolaFree: true, bg: '#ffffff', elements: els, mediaIds: [], cells: [] }
     const b: AlbumPage = { ...newPage(), tavolaFree: false }
     setPages((arr) => { const at = Math.min(arr.length, Math.max(0, si) * 2); return [...arr.slice(0, at), a, b, ...arr.slice(at)] })
     setCurrentPageId(a.id)
     return a.id
   }
-  // SPOSTA una o più foto (elementi) da una tavola a una tavola ESISTENTE (drop sulla miniatura).
+  // SPOSTA una o più foto in una tavola ESISTENTE e la RICOMPONE per il nuovo numero di foto:
+  // se da 3 si passa a 4, la tavola si ridispone automaticamente per 4 (ingloba la foto, niente
+  // scarabocchio). Le foto già presenti restano, la/le nuove entrano nella disposizione giustificata.
   function movePhotosToTavola(targetPageId: string, move: MovePayload) {
     const ti = pages.findIndex((p) => p.id === targetPageId), si = pages.findIndex((p) => p.id === move.fromPageId)
-    if (ti >= 0 && si >= 0 && (ti - (ti % 2)) === (si - (si % 2))) { toast.message('È già in questa tavola'); return }
+    if (ti < 0) return
+    if (si >= 0 && (ti - (ti % 2)) === (si - (si % 2))) { toast.message('È già in questa tavola'); return }
     const mids = move.mediaIds.filter((id) => mediaById.has(id))
     if (!mids.length) return
-    setPages((arr) => arr.map((p) => {
+    const tStart = ti - (ti % 2)
+    const targetLeftId = pages[tStart]!.id
+    const existing = tavolaMediaIds(targetLeftId).filter((id) => !mids.includes(id)) // già sulla tavola
+    const allIds = [...existing, ...mids]                                            // le nuove in coda
+    const els = freeElsForTavola(allIds)
+    setPages((arr) => arr.map((p, idx) => {
       if (p.id === move.fromPageId) return { ...p, elements: (p.elements ?? []).filter((e) => !move.elIds.includes(e.id)) }
-      if (p.id === targetPageId) { let np = p; for (const mid of mids) np = placeInPage(np, null, mid); return np }
+      if (idx === tStart) return { ...p, mode: 'free' as const, tavolaFree: true, frozen: false, bg: p.bg ?? '#ffffff', elements: els, mediaIds: [], cells: [], spreadImage: null }
+      if (idx === tStart + 1) return { ...p, mode: 'template' as const, tavolaFree: false, elements: [], mediaIds: [], cells: [], spreadImage: null }
       return p
     }))
-    setSelEl(null); setMultiSel([])
-    toast.success(mids.length > 1 ? `${mids.length} foto spostate nella tavola` : 'Foto spostata nella tavola')
+    setCurrentPageId(targetLeftId); setSelEl(null); setMultiSel([])
+    toast.success(`${mids.length > 1 ? `${mids.length} foto spostate` : 'Foto spostata'} — tavola ricomposta per ${allIds.length}`)
   }
   // SPOSTA le foto in una NUOVA tavola creata al punto si (gap): a sinistra = prima, a destra = dopo.
   function moveNewTavola(si: number, move: MovePayload) {
