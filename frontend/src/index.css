@@ -206,6 +206,8 @@ html, body { max-width: 100%; overflow-x: hidden; }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+/* bersaglio evidenziato mentre sposto una foto tra le tavole (navigatore) */
+.pf-drop-target { outline: 3px solid rgb(var(--gold-500)); outline-offset: 2px; border-radius: 8px; background: rgba(184,146,63,.12); }
 .fade-up { animation: fadeUp .35s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .skeleton {

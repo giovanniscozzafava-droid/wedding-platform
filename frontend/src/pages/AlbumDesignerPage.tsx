@@ -926,6 +926,43 @@ function AlbumDesignerInner() {
     setSelEl(null); setMultiSel([])
     toast.success(mids.length > 1 ? `${mids.length} foto in una nuova tavola` : 'Foto in una nuova tavola')
   }
+  // Avvia lo spostamento POINTER (dalla maniglia sulla foto). Segue il cursore, evidenzia il bersaglio
+  // nel navigatore (miniatura = sposta, gap = nuova tavola) e al rilascio applica lo spostamento.
+  function startPhotoMove(fromPageId: string, items: { elId: string; mediaId: string }[], e: import('react').PointerEvent) {
+    if (!items.length) return
+    photoMoveRef.current = { items, fromPageId }
+    setPhotoMoveUI({ x: e.clientX, y: e.clientY, n: items.length, hint: null })
+    const hitAt = (x: number, y: number) => {
+      const el = document.elementFromPoint(x, y) as HTMLElement | null
+      const tav = el?.closest('[data-tavdrop]') as HTMLElement | null
+      if (tav?.dataset.tavdrop) return { kind: 'tavola' as const, key: tav.dataset.tavdrop }
+      const gap = el?.closest('[data-gapdrop]') as HTMLElement | null
+      if (gap?.dataset.gapdrop != null) return { kind: 'gap' as const, key: gap.dataset.gapdrop }
+      return null
+    }
+    let lastHi: Element | null = null
+    const highlight = (x: number, y: number) => {
+      const el = document.elementFromPoint(x, y)
+      const t = el?.closest('[data-tavdrop],[data-gapdrop]') ?? null
+      if (lastHi && lastHi !== t) lastHi.classList.remove('pf-drop-target')
+      if (t) t.classList.add('pf-drop-target')
+      lastHi = t
+    }
+    const onMove = (ev: PointerEvent) => { const h = hitAt(ev.clientX, ev.clientY); highlight(ev.clientX, ev.clientY); setPhotoMoveUI({ x: ev.clientX, y: ev.clientY, n: items.length, hint: h ? h.kind : null }) }
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp)
+      if (lastHi) lastHi.classList.remove('pf-drop-target')
+      const d = photoMoveRef.current; photoMoveRef.current = null; setPhotoMoveUI(null)
+      if (!d) return
+      const h = hitAt(ev.clientX, ev.clientY)
+      if (!h) return
+      const move: MovePayload = { fromPageId: d.fromPageId, elIds: d.items.map((i) => i.elId), mediaIds: d.items.map((i) => i.mediaId) }
+      if (h.kind === 'tavola') movePhotosToTavola(h.key, move)
+      else moveNewTavola(Number(h.key), move)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
   // SCAMBIA due foto ovunque nell'album (tasto destro → "Sostituisci con"): la foto A prende il
   // posto di B e viceversa, in tutte le tavole (elementi, slot, foto a doppia pagina).
   function swapPhotos(a: string, b: string) {
@@ -1040,6 +1077,9 @@ function AlbumDesignerInner() {
   function openCtx(pageId: string, id: string, x: number, y: number) { if (!multiSel.includes(id)) { setSelEl(id); setMultiSel([]) } setCtxMenu({ pageId, id, x, y }) }
   const [navMenu, setNavMenu] = useState<{ si: number; x: number; y: number } | null>(null) // tasto destro su una tavola nel navigatore
   const [gapInsert, setGapInsert] = useState<{ si: number; mediaId: string; x: number; y: number } | null>(null) // foto trascinata tra due tavole
+  // SPOSTAMENTO foto tra tavole via POINTER (affidabile su mouse/trackpad/touch, non usa HTML5 drag):
+  const photoMoveRef = useRef<{ items: { elId: string; mediaId: string }[]; fromPageId: string } | null>(null)
+  const [photoMoveUI, setPhotoMoveUI] = useState<{ x: number; y: number; n: number; hint: 'tavola' | 'gap' | null } | null>(null)
   const [swapPick, setSwapPick] = useState<{ mediaId: string } | null>(null) // "Sostituisci con": scegli con quale scambiare
   const [swapIdx, setSwapIdx] = useState(0) // indice della card mostrata nello slider "Sostituisci con"
   const swapTouch = useRef<number | null>(null) // X inizio swipe
@@ -2318,7 +2358,7 @@ function AlbumDesignerInner() {
                             onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(lp.id, id, patch)}
                             onUpdateMany={(patches) => freeUpdateMany(lp.id, patches)}
                             onRemove={(id) => freeRemove(lp.id, id)} onDuplicateEl={(id) => freeDuplicate(lp.id, id)}
-                            onDropMedia={(id) => freeAdd(lp.id, id)} onReplaceEl={(id, mid) => freeReplace(lp.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(lp.id, a, b)} onContext={(id, x, y) => openCtx(lp.id, id, x, y)} />
+                            onDropMedia={(id) => freeAdd(lp.id, id)} onReplaceEl={(id, mid) => freeReplace(lp.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(lp.id, a, b)} onContext={(id, x, y) => openCtx(lp.id, id, x, y)} onStartMove={startPhotoMove} />
                         </div>
                       )
                     })() : spreadPages.map((p) => {
@@ -2333,7 +2373,7 @@ function AlbumDesignerInner() {
                               onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(p.id, id, patch)}
                               onUpdateMany={(patches) => freeUpdateMany(p.id, patches)}
                               onRemove={(id) => freeRemove(p.id, id)} onDuplicateEl={(id) => freeDuplicate(p.id, id)}
-                              onDropMedia={(id) => freeAdd(p.id, id)} onReplaceEl={(id, mid) => freeReplace(p.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(p.id, a, b)} onContext={(id, x, y) => openCtx(p.id, id, x, y)} />
+                              onDropMedia={(id) => freeAdd(p.id, id)} onReplaceEl={(id, mid) => freeReplace(p.id, id, mid)} onSwapEls={(a, b) => freeSwapEls(p.id, a, b)} onContext={(id, x, y) => openCtx(p.id, id, x, y)} onStartMove={startPhotoMove} />
                           ) : (
                             <PageStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
                               aspects={aspects} mediaById={mediaById} thumb={thumbUrl} activeSlot={isAct ? activeSlot : null}
@@ -2456,7 +2496,7 @@ function AlbumDesignerInner() {
               <div className="border-t border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2 flex items-center gap-3 overflow-x-auto">
                 {spreads.map((pair, si) => (
                   <Fragment key={si}>
-                    {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} h={stripH} />}
+                    {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} gapIndex={si} h={stripH} />}
                     <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
                       mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
                       onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
@@ -2466,7 +2506,7 @@ function AlbumDesignerInner() {
                       onContext={(x, y) => setNavMenu({ si, x, y })} />
                   </Fragment>
                 ))}
-                {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si: spreads.length, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(spreads.length, move)} h={stripH} />}
+                {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si: spreads.length, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(spreads.length, move)} gapIndex={spreads.length} h={stripH} />}
                 {!lite && <button onClick={addSpread} className="shrink-0 rounded-lg border-2 border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] flex items-center justify-center px-3" style={{ height: stripH, aspectRatio: String(asp * 2) }} title="Aggiungi tavola"><Plus size={16} className="mr-1" /> Tavola</button>}
               </div>
             </main>
@@ -2923,6 +2963,15 @@ function AlbumDesignerInner() {
             )
           })()}
 
+          {/* Etichetta che segue il cursore mentre sposto le foto tra le tavole (drag pointer) */}
+          {photoMoveUI && (
+            <div className="pointer-events-none fixed z-[120]" style={{ left: photoMoveUI.x + 14, top: photoMoveUI.y + 14 }}>
+              <div className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg ${photoMoveUI.hint ? 'bg-[rgb(var(--gold-500))]' : 'bg-black/75'}`}>
+                <Move size={12} /> {photoMoveUI.n > 1 ? `${photoMoveUI.n} foto` : 'Sposto la foto'} {photoMoveUI.hint === 'tavola' ? '→ in questa tavola' : photoMoveUI.hint === 'gap' ? '→ nuova tavola qui' : '· portala su una tavola in basso'}
+              </div>
+            </div>
+          )}
+
           {/* Animazione "AI sta ragionando" + BARRA di avanzamento analisi foto */}
           {aiBusy && <AiThinkingOverlay thumbs={kept.slice(0, 6).map((m) => thumbUrl(m))} progress={aiProg} onCancel={() => { aiCancel.current = true }} />}
 
@@ -3293,8 +3342,9 @@ function FreeStage(props: {
   onContext?: (id: string, x: number, y: number) => void // tasto destro su una foto → menu contestuale
   locked?: boolean   // libera "uscita": mostra la composizione identica ma non editabile a mano
   spread?: boolean   // TAVOLA UNICA: superficie larga 2×W (la riga centrale è solo la piega)
+  onStartMove?: (fromPageId: string, items: { elId: string; mediaId: string }[], e: import('react').PointerEvent) => void // trascina la foto verso il navigatore (sposta tra tavole)
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, realDims, onSelect, onUpdateEl, onUpdateMany, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, onContext, locked, spread } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, realDims, onSelect, onUpdateEl, onUpdateMany, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, onContext, locked, spread, onStartMove } = props
   const fmt = getFormat(formatKey)
   const effW = spread ? fmt.w * 2 : fmt.w
   const aspect = effW / fmt.h
@@ -3461,18 +3511,16 @@ function FreeStage(props: {
                 tavole (a sinistra/destra) per crearne una nuova prima/dopo. SEMPRE (anche a tavola
                 congelata: spostare tra tavole non è una modifica libera). DENTRO la foto per non
                 essere tagliata dall'overflow del canvas. */}
-            {(
-              <div draggable
-                onPointerDown={(e) => e.stopPropagation()}
-                onDragStart={(e) => {
+            {onStartMove && (
+              <div
+                onPointerDown={(e) => {
+                  e.stopPropagation(); e.preventDefault()
                   const elIds = (multiSel.includes(el.id) && multiSel.length > 1) ? multiSel : [el.id]
-                  const mediaIds = elIds.map((eid) => els.find((x) => x.id === eid)?.mediaId).filter(Boolean) as string[]
-                  e.dataTransfer.effectAllowed = 'move'
-                  e.dataTransfer.setData('text/media', el.mediaId)
-                  e.dataTransfer.setData('text/move', JSON.stringify({ fromPageId: page.id, elIds, mediaIds: mediaIds.length ? mediaIds : [el.mediaId] }))
+                  const items = elIds.map((eid) => ({ elId: eid, mediaId: els.find((x) => x.id === eid)?.mediaId ?? el.mediaId })).filter((it) => it.mediaId)
+                  onStartMove(page.id, items.length ? items : [{ elId: el.id, mediaId: el.mediaId }], e)
                 }}
-                title="Trascina su un'altra tavola (nel navigatore in basso) per spostare la foto — oppure tra due tavole, a sinistra/destra, per crearne una nuova prima/dopo"
-                className={`absolute top-1.5 right-1.5 z-[30] flex h-7 w-7 cursor-grab items-center justify-center rounded-full border-2 border-white bg-[rgb(var(--gold-500))] text-white shadow-md transition-opacity active:cursor-grabbing ${sel || inSel ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}>
+                title="Trascina questa foto sul navigatore in basso: su un'altra tavola per spostarla, o tra due tavole (sinistra/destra) per crearne una nuova prima/dopo"
+                className={`absolute top-1.5 right-1.5 z-[30] flex h-7 w-7 cursor-grab touch-none items-center justify-center rounded-full border-2 border-white bg-[rgb(var(--gold-500))] text-white shadow-md transition-opacity active:cursor-grabbing ${sel || inSel ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}>
                 <Move size={13} />
                 {multiSel.length > 1 && multiSel.includes(el.id) && <span className="absolute -bottom-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[rgb(var(--rose-500))] px-0.5 text-[9px] font-bold ring-1 ring-white">{multiSel.length}</span>}
               </div>
@@ -3598,10 +3646,10 @@ function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; form
 
 // Zona di rilascio TRA due tavole nella filmstrip: ci trascini una foto (dalla libreria o dal
 // navigatore) e crea una NUOVA tavola in quel punto, intersecando tra le pagine.
-function GapDrop({ onDropPhoto, onMoveNewTavola, h }: { onDropPhoto: (mid: string, x: number, y: number) => void; onMoveNewTavola?: (move: MovePayload, x: number, y: number) => void; h: number }) {
+function GapDrop({ onDropPhoto, onMoveNewTavola, gapIndex, h }: { onDropPhoto: (mid: string, x: number, y: number) => void; onMoveNewTavola?: (move: MovePayload, x: number, y: number) => void; gapIndex?: number; h: number }) {
   const [over, setOver] = useState(false)
   return (
-    <div
+    <div data-gapdrop={gapIndex}
       onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) { e.preventDefault(); if (!over) setOver(true) } }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => {
@@ -3611,7 +3659,7 @@ function GapDrop({ onDropPhoto, onMoveNewTavola, h }: { onDropPhoto: (mid: strin
         const mid = e.dataTransfer.getData('text/media'); if (mid) { e.preventDefault(); e.stopPropagation(); onDropPhoto(mid, e.clientX, e.clientY) }
       }}
       title="Trascina qui una foto per inserire una nuova tavola"
-      className={`shrink-0 self-center rounded transition-all ${over ? 'w-7 bg-[rgb(var(--gold-400))] ring-2 ring-[rgb(var(--gold-500))]' : 'w-1.5 bg-transparent hover:bg-[rgb(var(--border))]'}`}
+      className={`shrink-0 self-center rounded transition-all ${over ? 'w-7 bg-[rgb(var(--gold-400))] ring-2 ring-[rgb(var(--gold-500))]' : 'w-2 bg-transparent hover:bg-[rgb(var(--border))]'}`}
       style={{ height: over ? h : Math.round(h * 0.55) }}
     />
   )
@@ -3635,7 +3683,7 @@ function SpreadThumb(props: {
   const w = aspect * pair.length
   const [over, setOver] = useState<false | 'l' | 'r'>(false)
   return (
-    <div className="shrink-0 group relative"
+    <div className="shrink-0 group relative" data-tavdrop={pair[0]?.id ?? pair[1]?.id}
       onContextMenu={lite || !onContext ? undefined : (e) => { e.preventDefault(); e.stopPropagation(); onContext(e.clientX, e.clientY) }}
       draggable={!lite}
       onDragStart={(e) => { e.dataTransfer.setData('text/spread', String(index)); e.dataTransfer.effectAllowed = 'move' }}
