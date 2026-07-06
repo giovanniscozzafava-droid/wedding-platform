@@ -453,15 +453,33 @@ function AlbumDesignerInner() {
     if (!entryId) return
     setLoading(true)
     try {
-      const [pr, mr, er, lr] = await Promise.all([
+      // ORDINE STABILE (created_at, poi id): così la griglia di Selezione e il cassetto NON
+      // si rimescolano ad ogni apertura → i "cuori" restano dove sono, selezione stabile.
+      // PAGINAZIONE: gallery_media può superare il cap di 1000 righe di PostgREST. Senza paginare,
+      // su gallerie grandi (>1000) le foto oltre la millesima — inclusi i "cuori" KEPT — sparivano
+      // dall'impaginatore (es. 102 scelte in galleria → solo 84 qui). Prendo TUTTE le righe a blocchi.
+      const fetchAllMedia = async () => {
+        const PAGE = 1000; const out: M[] = []
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await (supabase.from as any)('gallery_media')
+            .select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment')
+            .eq('entry_id', entryId)
+            .order('created_at', { ascending: true }).order('id', { ascending: true })
+            .range(from, from + PAGE - 1)
+          if (error) throw error
+          const batch = (data ?? []) as M[]
+          out.push(...batch)
+          if (batch.length < PAGE) break
+        }
+        return out
+      }
+      const [pr, med, er, lr] = await Promise.all([
         (supabase.from as any)('album_projects').select('format_key, status, layout').eq('entry_id', entryId).maybeSingle(),
-        // ORDINE STABILE (created_at, poi id): così la griglia di Selezione e il cassetto NON
-        // si rimescolano ad ogni apertura → i "cuori" restano dove sono, selezione stabile.
-        (supabase.from as any)('gallery_media').select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment').eq('entry_id', entryId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+        fetchAllMedia(),
         (supabase.from as any)('calendar_entries').select('title').eq('id', entryId).maybeSingle(),
         (supabase as any).rpc('gallery_like_counts', { p_entry: entryId }),
       ])
-      const proj = (pr as any)?.data, med = (mr as any)?.data, ent = (er as any)?.data
+      const proj = (pr as any)?.data, ent = (er as any)?.data
       const lcMap: Record<string, number> = {}
       for (const r of ((lr as any)?.data ?? []) as { media_id: string; n: number }[]) lcMap[r.media_id] = r.n
       setLikeCounts(lcMap)
@@ -660,8 +678,13 @@ function AlbumDesignerInner() {
     } else toast.success(`${toChange.length} preferite dagli sposi aggiunte all'album`)
   }
   async function setMoment(m: M, moment: string) {
-    setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_moment: moment || null } : x)))
+    // Scegliere un momento significa "voglio questa foto nell'album, in questa fase":
+    // se non è ancora selezionata (cuore), la aggiungo automaticamente. Così la select del
+    // momento è sempre usabile e non serve più mettere il cuore PRIMA (prima era bloccata).
+    const alsoKeep = !!moment && m.album_choice !== 'KEPT'
+    setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_moment: moment || null, ...(alsoKeep ? { album_choice: 'KEPT' as const } : {}) } : x)))
     await (supabase.rpc as any)('album_set_moments', { p_items: [{ id: m.id, moment }] })
+    if (alsoKeep) await (supabase.rpc as any)('album_set_choices', { p_ids: [m.id], p_choice: 'KEPT' })
   }
   // IMPORT FOTO: l'utente aggiunge altre foto all'album (upload diretto su storage →
   // RPC album_add_media → entrano KEPT nella selezione). Niente Drive.
@@ -3334,8 +3357,9 @@ function SelectStep(props: {
                   <span className={`absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center ${keptOn ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/40 text-white'}`}><Heart size={13} className={keptOn ? 'fill-current' : ''} /></span>
                   {likes > 0 && <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-rose-500/90 text-white text-[10px] px-1.5 py-0.5" title="Mi piace degli sposi"><Heart size={10} className="fill-current" /> {likes}</span>}
                 </button>
-                <select value={m.album_moment ?? ''} onChange={(e) => onMoment(m, e.target.value)} disabled={!keptOn}
-                  className="w-full text-xs px-2 py-1.5 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] disabled:opacity-50">
+                <select value={m.album_moment ?? ''} onChange={(e) => onMoment(m, e.target.value)}
+                  title={keptOn ? 'Assegna un momento a questa foto' : 'Scegliere un momento aggiunge la foto all’album'}
+                  className="w-full text-xs px-2 py-1.5 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))]">
                   <option value="">— momento —</option>
                   {MOMENTS.map((mm) => <option key={mm.key} value={mm.key}>{mm.label}</option>)}
                 </select>
