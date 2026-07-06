@@ -678,13 +678,11 @@ function AlbumDesignerInner() {
     } else toast.success(`${toChange.length} preferite dagli sposi aggiunte all'album`)
   }
   async function setMoment(m: M, moment: string) {
-    // Scegliere un momento significa "voglio questa foto nell'album, in questa fase":
-    // se non è ancora selezionata (cuore), la aggiungo automaticamente. Così la select del
-    // momento è sempre usabile e non serve più mettere il cuore PRIMA (prima era bloccata).
-    const alsoKeep = !!moment && m.album_choice !== 'KEPT'
-    setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_moment: moment || null, ...(alsoKeep ? { album_choice: 'KEPT' as const } : {}) } : x)))
+    // Il momento si assegna SOLO alle foto già scelte (cuore). NIENTE auto-cuore: aggiungeva per
+    // sbaglio all'album le foto che si taggavano fuori dalla selezione della coppia. La select è
+    // comunque usabile perché di default si vedono solo le foto scelte (vista "Solo selezionate").
+    setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_moment: moment || null } : x)))
     await (supabase.rpc as any)('album_set_moments', { p_items: [{ id: m.id, moment }] })
-    if (alsoKeep) await (supabase.rpc as any)('album_set_choices', { p_ids: [m.id], p_choice: 'KEPT' })
   }
   // IMPORT FOTO: l'utente aggiunge altre foto all'album (upload diretto su storage →
   // RPC album_add_media → entrano KEPT nella selezione). Niente Drive.
@@ -3368,9 +3366,9 @@ function SelectStep(props: {
                   <span className={`absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center ${keptOn ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/40 text-white'}`}><Heart size={13} className={keptOn ? 'fill-current' : ''} /></span>
                   {likes > 0 && <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-rose-500/90 text-white text-[10px] px-1.5 py-0.5" title="Mi piace degli sposi"><Heart size={10} className="fill-current" /> {likes}</span>}
                 </button>
-                <select value={m.album_moment ?? ''} onChange={(e) => onMoment(m, e.target.value)}
-                  title={keptOn ? 'Assegna un momento a questa foto' : 'Scegliere un momento aggiunge la foto all’album'}
-                  className="w-full text-xs px-2 py-1.5 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))]">
+                <select value={m.album_moment ?? ''} onChange={(e) => onMoment(m, e.target.value)} disabled={!keptOn}
+                  title={keptOn ? 'Assegna un momento a questa foto' : 'Metti prima il cuore: i momenti si assegnano solo alle foto scelte'}
+                  className="w-full text-xs px-2 py-1.5 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] disabled:opacity-50">
                   <option value="">— momento —</option>
                   {MOMENTS.map((mm) => <option key={mm.key} value={mm.key}>{mm.label}</option>)}
                 </select>
