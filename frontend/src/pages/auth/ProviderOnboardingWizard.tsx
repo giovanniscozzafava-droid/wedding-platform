@@ -412,12 +412,12 @@ export function ProviderOnboardingWizard() {
                 {STEPS[step] === 'Contatti' && (
                   <>
                     <h2 className="font-display text-xl mb-2">Contatti & social</h2>
-                    <Field label="Telefono"><Input type="tel" value={form.phone} onChange={(e) => patch('phone', e.target.value)} /></Field>
-                    <Field label="Sito web"><Input type="url" value={form.website} onChange={(e) => patch('website', e.target.value)} placeholder="https://..." /></Field>
+                    <Field label="Telefono"><Input type="tel" value={form.phone} onChange={(e) => patch('phone', e.target.value)} maxLength={40} /></Field>
+                    <Field label="Sito web"><Input type="url" value={form.website} onChange={(e) => patch('website', e.target.value)} placeholder="https://..." maxLength={200} /></Field>
                     <div className="grid grid-cols-3 gap-3">
-                      <Field label="Instagram"><Input value={form.instagram} onChange={(e) => patch('instagram', e.target.value)} placeholder="@handle" /></Field>
-                      <Field label="Facebook"><Input value={form.facebook} onChange={(e) => patch('facebook', e.target.value)} /></Field>
-                      <Field label="TikTok"><Input value={form.tiktok} onChange={(e) => patch('tiktok', e.target.value)} placeholder="@handle" /></Field>
+                      <Field label="Instagram"><Input value={form.instagram} onChange={(e) => patch('instagram', e.target.value)} placeholder="@handle o URL" maxLength={200} /></Field>
+                      <Field label="Facebook"><Input value={form.facebook} onChange={(e) => patch('facebook', e.target.value)} placeholder="@pagina o URL" maxLength={200} /></Field>
+                      <Field label="TikTok"><Input value={form.tiktok} onChange={(e) => patch('tiktok', e.target.value)} placeholder="@handle o URL" maxLength={200} /></Field>
                     </div>
                   </>
                 )}
