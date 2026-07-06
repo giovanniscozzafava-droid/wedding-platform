@@ -481,7 +481,14 @@ export default function QuoteEditorPage() {
     const safe = Math.max(-1000, Math.min(100, Number.isFinite(pct) ? pct : 0))
     try {
       await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { item_discount_percent: safe } as any })
-    } catch (e) { toast.error((e as Error).message) }
+    } catch (e) {
+      // Il DB blocca le voci di TERZI sotto-costo (prezzo cliente < costo fornitore).
+      // Traduci l'errore tecnico in un messaggio comprensibile invece del raw 'item_below_cost'.
+      const msg = (e as Error).message || ''
+      toast.error(/item_below_cost|sotto-costo/i.test(msg)
+        ? 'Sconto troppo alto: questa voce andrebbe sotto il costo del fornitore. Riduci lo sconto o alza il markup.'
+        : msg)
+    }
   }
   // Sconto sul TOTALE del preventivo (% e/o € fisso).
   async function handleTotalDiscount(patch: { total_discount_percent?: number; total_discount_amount?: number }) {
@@ -853,9 +860,11 @@ export default function QuoteEditorPage() {
                           className="h-8 w-24 text-xs" />
                         <span className="text-xs text-[rgb(var(--fg-subtle))]">{it.unit_snapshot.toLowerCase()}</span>
                         <span className="text-xs text-[rgb(var(--fg-subtle))] ml-2">sconto</span>
-                        <Input type="number" step="1" value={Number((it as any).item_discount_percent ?? 0)}
-                          onChange={(e) => handleChangeItemDiscount(it.id, Number(e.target.value))}
-                          title="Sconto % su questa voce (negativo = maggiorazione)"
+                        <Input type="number" step="1" key={`disc-${it.id}-${(it as any).item_discount_percent ?? 0}`}
+                          defaultValue={Number((it as any).item_discount_percent ?? 0)}
+                          onBlur={(e) => handleChangeItemDiscount(it.id, Number(e.target.value))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                          title="Sconto % su questa voce (negativo = maggiorazione). Premi Invio o esci dal campo per applicare."
                           className="h-8 w-16 text-xs" />
                         <span className="text-xs text-[rgb(var(--fg-subtle))]">%</span>
                       </div>
@@ -889,13 +898,17 @@ export default function QuoteEditorPage() {
               {/* Sconto sul totale: % e/o € fisso. Negativo = maggiorazione. */}
               <div className="flex items-center gap-2 flex-wrap text-sm">
                 <span className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Sconto sul totale</span>
-                <Input type="number" step="1" defaultValue={Number((quote as any).total_discount_percent ?? 0)}
+                <Input type="number" step="1" key={`tdp-${id}-${(quote as any).total_discount_percent ?? 0}`}
+                  defaultValue={Number((quote as any).total_discount_percent ?? 0)}
                   onBlur={(e) => handleTotalDiscount({ total_discount_percent: Number(e.target.value) })}
-                  title="Sconto % sul totale (negativo = maggiorazione)"
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                  title="Sconto % sul totale (negativo = maggiorazione). Premi Invio o esci dal campo per applicare."
                   className="h-8 w-20 text-xs" />
                 <span className="text-xs text-[rgb(var(--fg-subtle))]">%</span>
-                <Input type="number" step="10" defaultValue={Number((quote as any).total_discount_amount ?? 0)}
+                <Input type="number" step="10" key={`tda-${id}-${(quote as any).total_discount_amount ?? 0}`}
+                  defaultValue={Number((quote as any).total_discount_amount ?? 0)}
                   onBlur={(e) => handleTotalDiscount({ total_discount_amount: Number(e.target.value) })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                   title="Sconto fisso in € sul totale"
                   className="h-8 w-24 text-xs" />
                 <span className="text-xs text-[rgb(var(--fg-subtle))]">€ fissi</span>

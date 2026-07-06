@@ -427,7 +427,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
             tables={(tables ?? []) as any}
             guests={(guests ?? []) as any}
             onMove={(id, pos_x, pos_y) => update.mutate({ id, patch: { pos_x, pos_y } } as any)}
-            onAssignGuest={(guestId, tableId) => updateGuest.mutate({ id: guestId, patch: { table_id: tableId } })}
+            onAssignGuest={(guestId, tableId) => updateGuest.mutateAsync({ id: guestId, patch: { table_id: tableId } }).catch((e) => toast.error(`Non riesco a spostare l'invitato: ${(e as Error).message}`))}
             onOpenAssign={(t) => setAssigningTable(t)}
             onEditTable={(t) => setEditTable(t)}
             onRotate={(t, rotation) => update.mutate({ id: t.id, patch: { rotation } } as any)}

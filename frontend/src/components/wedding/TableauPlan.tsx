@@ -194,10 +194,27 @@ export function TableauPlan({
     const st = gdrag.current; gdrag.current = null
     if (st) {
       const { tableId, unseat } = hitTargets(e.clientX, e.clientY)
-      if (tableId) onAssignGuest(st.id, tableId)
+      // I tavoli sono bersagli piccoli in una sala grande: rilasciare ESATTAMENTE sopra
+      // il cerchio è difficile → l'hit-test falliva e "non me lo fa mettere". Se il puntatore
+      // non è finito sopra un tavolo (né sull'elenco per togliere), aggancia comunque al tavolo
+      // più VICINO al punto di rilascio (entro una soglia), così basta avvicinarsi.
+      let target = tableId
+      if (!target && !unseat) target = nearestTableId(e.clientX, e.clientY)
+      if (target) onAssignGuest(st.id, target)
       else if (unseat) onAssignGuest(st.id, null as any)
     }
     setGdragUi(null); setOverTable(null); setOverUnseat(false)
+  }
+  // Tavolo il cui centro è più vicino al punto (clientX,clientY), entro ~90px. null se troppo lontano.
+  function nearestTableId(clientX: number, clientY: number): string | null {
+    const rect = planRef.current?.getBoundingClientRect(); if (!rect || !rect.width || !rect.height) return null
+    let best: string | null = null, bestD = Infinity
+    for (const { t, x, y } of withPos) {
+      const cx = rect.left + x * rect.width, cy = rect.top + y * rect.height
+      const d = Math.hypot(clientX - cx, clientY - cy)
+      if (d < bestD) { bestD = d; best = t.id }
+    }
+    return bestD <= 90 ? best : null
   }
   function startGuestDrag(e: React.PointerEvent, g: PlanGuest) {
     e.preventDefault(); e.stopPropagation() // niente drag nativo, niente drag-tavolo
