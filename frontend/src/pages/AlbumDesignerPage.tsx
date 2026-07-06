@@ -3321,8 +3321,18 @@ function SelectStep(props: {
   const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing, isCouple, onReadyToLayout, likeCounts, onKeepLiked } = props
   const allKept = photos.length > 0 && total >= photos.length
   const [likedFirst, setLikedFirst] = useState(false)
+  // Vista "Solo selezionate": riaprendo un album che HA già una selezione mostro solo le foto scelte
+  // (rivedo/organizzo le mie 106 senza riscorrere tutta la galleria). Un album ancora da curare parte
+  // mostrando TUTTE le foto; il toggle passa da una vista all'altra (per aggiungerne altre).
+  const [onlyKept, setOnlyKept] = useState(false)
+  const initedView = useRef(false)
+  useEffect(() => {
+    if (!initedView.current && photos.length > 0) { initedView.current = true; setOnlyKept(total > 0) }
+  }, [photos.length, total])
   const likedTotal = photos.filter((m) => (likeCounts[m.id] ?? 0) > 0).length
-  const shown = likedFirst ? [...photos].sort((a, b) => (likeCounts[b.id] ?? 0) - (likeCounts[a.id] ?? 0)) : photos
+  const showingKeptOnly = onlyKept && total > 0
+  const base = showingKeptOnly ? photos.filter((m) => m.album_choice === 'KEPT') : photos
+  const shown = likedFirst ? [...base].sort((a, b) => (likeCounts[b.id] ?? 0) - (likeCounts[a.id] ?? 0)) : base
   const fileRef = useRef<HTMLInputElement>(null)
   return (
     <div className="grid lg:grid-cols-[1fr_300px] gap-5">
@@ -3343,6 +3353,7 @@ function SelectStep(props: {
             </Button>
             {likedTotal > 0 && <Button variant="outline" size="sm" onClick={onKeepLiked} title="Aggiungi all'album le foto a cui gli sposi hanno messo mi piace"><Heart size={14} className="fill-rose-400 text-rose-400" /> Tieni le preferite ({likedTotal})</Button>}
             {likedTotal > 0 && <Button variant={likedFirst ? 'gold' : 'outline'} size="sm" onClick={() => setLikedFirst((v) => !v)} title="Mostra prima le foto più piaciute dagli sposi">{likedFirst ? 'Ordine originale' : 'Preferite prima'}</Button>}
+            {total > 0 && photos.length > total && <Button variant={showingKeptOnly ? 'gold' : 'outline'} size="sm" onClick={() => setOnlyKept((v) => !v)} title={showingKeptOnly ? 'Mostra tutta la galleria per aggiungerne altre' : 'Mostra solo le foto scelte per l’album'}>{showingKeptOnly ? `Tutte le foto (${photos.length})` : `Solo selezionate (${total})`}</Button>}
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto"><strong>{total}</strong>/{photos.length} selezionate</span>
           </>}
         </div>
