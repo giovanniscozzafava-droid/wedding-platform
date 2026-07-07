@@ -365,7 +365,7 @@ function AlbumDesignerInner() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [exportProg, setExportProg] = useState<{ done: number; total: number } | null>(null) // barra avanzamento export
+  const [exportProg, setExportProg] = useState<{ done: number; total: number; zip?: number } | null>(null) // barra avanzamento export (zip = % compressione finale)
   const aiCancel = useRef(false); const qualityCancel = useRef(false); const exportCancel = useRef(false) // flag "Interrompi"
   const [activePage, setActivePage] = useState<string | null>(null)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
@@ -1505,8 +1505,9 @@ function AlbumDesignerInner() {
       // con l'originale Drive possiamo stampare in alta: 300 dpi per le pagine, 220 per JPG/spread
       const isSpread = kind === 'spread' || kind === 'jpgspread'
       const onProgress = (done: number, total: number) => setExportProg({ done, total })
+      const onZip = (zip: number) => setExportProg((p) => (p ? { ...p, zip } : { done: 1, total: 1, zip }))
       const shouldCancel = () => exportCancel.current
-      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${isSpread ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: isSpread ? 'spreads' : 'pages', onProgress, shouldCancel })
+      if (kind === 'jpg' || kind === 'jpgspread') await exportAlbumJpgZip(pages, format, resolve, { filename: `${base}-${isSpread ? 'tavole' : 'pagine'}-jpg.zip`, dpi: Math.min(exportDpi, 240), pageNumbers: pageNums, mode: isSpread ? 'spreads' : 'pages', onProgress, onZip, shouldCancel })
       else await exportAlbumPdf(pages, format, resolve, { mode: isSpread ? 'spreads' : 'pages', filename: `${base}-${isSpread ? 'tavole' : 'pagine'}.pdf`, bleed, dpi: exportDpi, cutMarks: cutMarks && bleed, pageNumbers: pageNums, onProgress, shouldCancel })
       toast.success('Export pronto')
     } catch (e) { if (e instanceof ExportCancelled || (e as Error)?.message === 'export_cancelled') toast.message('Export annullato'); else toast.error('Export non riuscito: ' + (e as Error).message) } finally { setExporting(false); setExportProg(null) }
@@ -3003,10 +3004,21 @@ function AlbumDesignerInner() {
             <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4">
               <div className="w-[min(92vw,380px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl">
                 <div className="flex items-center gap-2"><Loader2 size={16} className="animate-spin text-[rgb(var(--gold-600))]" /> <p className="font-display text-base">Esporto l'album…</p></div>
-                <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">Preparo le pagine in alta risoluzione. <span className="tabular-nums">{exportProg.done}/{exportProg.total}</span></p>
-                <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
-                  <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((exportProg.done / Math.max(1, exportProg.total)) * 100)}%` }} />
-                </div>
+                {exportProg.zip != null ? (
+                  <>
+                    <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">Comprimo lo ZIP delle tavole… <span className="tabular-nums">{exportProg.zip}%</span></p>
+                    <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+                      <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${exportProg.zip}%` }} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">Preparo le tavole in alta risoluzione. <span className="tabular-nums">{exportProg.done}/{exportProg.total}</span></p>
+                    <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+                      <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((exportProg.done / Math.max(1, exportProg.total)) * 100)}%` }} />
+                    </div>
+                  </>
+                )}
                 <p className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">Alla fine parte il download del file. Non chiudere la pagina.</p>
                 <div className="mt-3 text-right"><Button variant="outline" size="sm" onClick={() => { exportCancel.current = true }}><X size={14} /> Interrompi</Button></div>
               </div>

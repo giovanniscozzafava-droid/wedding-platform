@@ -218,8 +218,8 @@ async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: 
 }
 
 // JPG: 'pages' = una immagine per pagina (tavola divisa); 'spreads' = tavola intera (2 pagine affiancate).
-export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode; onProgress?: (done: number, total: number) => void; shouldCancel?: () => boolean } = {}) {
-  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages', onProgress, shouldCancel } = opts
+export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode; onProgress?: (done: number, total: number) => void; onZip?: (percent: number) => void; shouldCancel?: () => boolean } = {}) {
+  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages', onProgress, onZip, shouldCancel } = opts
   const f = getFormat(formatKey)
   const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
@@ -259,7 +259,11 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
       onProgress?.(p + 1, pages.length)
     }
   }
-  const out = await zip.generateAsync({ type: 'blob' })
+  if (shouldCancel?.()) throw new ExportCancelled()
+  // Compressione ZIP finale: su album grandi a 240 DPI può durare parecchi secondi. Riporto la
+  // percentuale così la barra non resta "ferma al 100%" senza feedback.
+  onZip?.(0)
+  const out = await zip.generateAsync({ type: 'blob' }, (meta) => onZip?.(Math.round(meta.percent)))
   const a = document.createElement('a')
   a.href = URL.createObjectURL(out); a.download = filename
   document.body.appendChild(a); a.click(); a.remove()
