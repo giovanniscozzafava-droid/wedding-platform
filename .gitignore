@@ -56,3 +56,7 @@ supabase/.env
 audit-runs/2*/
 audit-runs/ui-*/
 dbg-prefs.mjs
+
+# Backup/junk locali (SEC-04): mai nel repo
+*.bak
+.env*.bak
