@@ -22,6 +22,7 @@ import {
   PiggyBank,
   Carrot,
   NotebookPen,
+  BarChart3,
   ShieldCheck,
   FileSignature,
   Contact,
@@ -226,6 +227,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const NAV_GROUPS: NavGroup[] = isStaff
     ? [...baseGroups, { section: 'Staff', items: [
         { to: '/admin', label: 'Pannello Admin', icon: LifeBuoy },
+        ...(profile?.role === 'ADMIN' ? [{ to: '/admin/osservatorio', label: 'Osservatorio', icon: BarChart3 }] : []),
         { to: '/admin/finance', label: 'Finance', icon: Wallet },
         { to: '/admin/assistenza', label: 'Ticket assistenza', icon: LifeBuoy },
       ] }]
