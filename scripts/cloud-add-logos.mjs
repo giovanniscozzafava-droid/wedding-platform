@@ -2,7 +2,7 @@
 /** Aggiunge brand_logo_url avatar SVG identicon ai fornitori beta. */
 import { createClient } from '@supabase/supabase-js'
 const sb = createClient('https://zfwlkvqxfzvubmfyxofs.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpmd2xrdnF4Znp2dWJtZnl4b2ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ0MDg4OCwiZXhwIjoyMDk1MDE2ODg4fQ.hm4AG2hidna9b61CR-buzWtmV9LmykuYx2_fPx_6T1M',
+  'SERVICE_ROLE_KEY_REMOVED__ROTATE_AND_USE_ENV',
   { auth: { persistSession: false } })
 
 const PALETTES = ['C49A5C', '1A2E4F', '7E6633', 'D4A5A5', '9CAF88', '8B4513', 'B19CD9', '1F3A5F']

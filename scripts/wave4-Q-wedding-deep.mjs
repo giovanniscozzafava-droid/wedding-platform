@@ -14,7 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const SUPABASE_URL = 'https://zfwlkvqxfzvubmfyxofs.supabase.co'
-const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpmd2xrdnF4Znp2dWJtZnl4b2ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ0MDg4OCwiZXhwIjoyMDk1MDE2ODg4fQ.hm4AG2hidna9b61CR-buzWtmV9LmykuYx2_fPx_6T1M'
+const SERVICE_KEY = 'SERVICE_ROLE_KEY_REMOVED__ROTATE_AND_USE_ENV'
 const PROD = 'https://planfully.it'
 const WP_EMAIL = 'wp-mini@planfully-demo.it'
 const WP_PASS = 'Beta2026!'

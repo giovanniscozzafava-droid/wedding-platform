@@ -18,7 +18,7 @@ import { createClient } from '@supabase/supabase-js'
 import { faker } from '@faker-js/faker/locale/it'
 
 const URL = 'https://zfwlkvqxfzvubmfyxofs.supabase.co'
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpmd2xrdnF4Znp2dWJtZnl4b2ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ0MDg4OCwiZXhwIjoyMDk1MDE2ODg4fQ.hm4AG2hidna9b61CR-buzWtmV9LmykuYx2_fPx_6T1M'
+const KEY = 'SERVICE_ROLE_KEY_REMOVED__ROTATE_AND_USE_ENV'
 const sb = createClient(URL, KEY, { auth: { persistSession: false } })
 
 const PEXELS_BY_CAT = {

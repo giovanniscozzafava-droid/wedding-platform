@@ -19,7 +19,7 @@ console.log('By entry:', byEntry)
 console.log('Sample row (PII check):', JSON.stringify(guests.data?.[0], null, 2))
 
 // Check if FORN_A has any quote_item in those entries' quotes
-const sb2 = createClient(URL, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpmd2xrdnF4Znp2dWJtZnl4b2ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ0MDg4OCwiZXhwIjoyMDk1MDE2ODg4fQ.hm4AG2hidna9b61CR-buzWtmV9LmykuYx2_fPx_6T1M', { auth: { persistSession: false } })
+const sb2 = createClient(URL, 'SERVICE_ROLE_KEY_REMOVED__ROTATE_AND_USE_ENV', { auth: { persistSession: false } })
 const items = await sb2.from('quote_items').select('id,quote_id,supplier_id').eq('supplier_id', FORN_A)
 console.log(`FORN_A total quote_items across ALL quotes: ${items.data?.length}`)
 

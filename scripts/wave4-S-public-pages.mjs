@@ -18,7 +18,7 @@ import crypto from 'node:crypto'
 
 const BASE = 'https://planfully.it'
 const SUPA_URL = 'https://zfwlkvqxfzvubmfyxofs.supabase.co'
-const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpmd2xrdnF4Znp2dWJtZnl4b2ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ0MDg4OCwiZXhwIjoyMDk1MDE2ODg4fQ.hm4AG2hidna9b61CR-buzWtmV9LmykuYx2_fPx_6T1M'
+const SERVICE_KEY = 'SERVICE_ROLE_KEY_REMOVED__ROTATE_AND_USE_ENV'
 
 const RUN_DIR = process.env.RUN_DIR || '/Users/giovanniscozzafava/Repository/wedding-platform/audit-runs/wave4-S-public-pages-20260526-002332'
 mkdirSync(RUN_DIR, { recursive: true })

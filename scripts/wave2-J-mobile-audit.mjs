@@ -23,7 +23,7 @@ const FORN_EMAIL = 'forn-mini-foto@planfully-demo.it'
 const SPOSI_EMAIL = 'giovanni.scozzafava+sposo@gmail.com'
 
 const SUPA_URL = 'https://zfwlkvqxfzvubmfyxofs.supabase.co'
-const SUPA_SK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpmd2xrdnF4Znp2dWJtZnl4b2ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ0MDg4OCwiZXhwIjoyMDk1MDE2ODg4fQ.hm4AG2hidna9b61CR-buzWtmV9LmykuYx2_fPx_6T1M'
+const SUPA_SK = 'SERVICE_ROLE_KEY_REMOVED__ROTATE_AND_USE_ENV'
 const sb = createClient(SUPA_URL, SUPA_SK, { auth: { persistSession: false } })
 
 const VIEWPORTS = [

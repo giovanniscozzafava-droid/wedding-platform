@@ -19,7 +19,7 @@ const RUN_DIR = process.env.RUN_DIR
 if (!existsSync(RUN_DIR)) mkdirSync(RUN_DIR, { recursive: true })
 
 const SUPA_URL = 'https://zfwlkvqxfzvubmfyxofs.supabase.co'
-const SUPA_SK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpmd2xrdnF4Znp2dWJtZnl4b2ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ0MDg4OCwiZXhwIjoyMDk1MDE2ODg4fQ.hm4AG2hidna9b61CR-buzWtmV9LmykuYx2_fPx_6T1M'
+const SUPA_SK = 'SERVICE_ROLE_KEY_REMOVED__ROTATE_AND_USE_ENV'
 const PWD = 'Beta2026!'
 const WP_EMAIL = 'wp-mini@planfully-demo.it'
 const FORN_EMAIL = 'forn-mini-foto@planfully-demo.it'

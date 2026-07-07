@@ -6,7 +6,7 @@ import path from 'node:path'
 
 const PROD = 'https://planfully.it'
 const sb = createClient('https://zfwlkvqxfzvubmfyxofs.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpmd2xrdnF4Znp2dWJtZnl4b2ZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ0MDg4OCwiZXhwIjoyMDk1MDE2ODg4fQ.hm4AG2hidna9b61CR-buzWtmV9LmykuYx2_fPx_6T1M',
+  'SERVICE_ROLE_KEY_REMOVED__ROTATE_AND_USE_ENV',
   { auth: { persistSession: false } })
 const WID = '7a19a8a2-75a8-4ffe-8eb5-f155785e9dea'
 const OUT = '/Users/giovanniscozzafava/Repository/wedding-platform/audit-runs/night-C-couple-20260525-222923'
