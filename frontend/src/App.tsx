@@ -35,6 +35,7 @@ const SuppliersPage = lazyWithRetry(() => import('@/pages/SuppliersPage'))
 const SupplierDetailPage = lazyWithRetry(() => import('@/pages/SupplierDetailPage'))
 const QuotesPage = lazyWithRetry(() => import('@/pages/QuotesPage'))
 const QuoteEditorPage = lazyWithRetry(() => import('@/pages/QuoteEditorPage'))
+const SuggerimentiRicevutiPage = lazyWithRetry(() => import('@/pages/SuggerimentiRicevutiPage'))
 const ContractsPage = lazyWithRetry(() => import('@/pages/ContractsPage'))
 const SupplierContractsPage = lazyWithRetry(() => import('@/pages/SupplierContractsPage'))
 const FinancePage = lazyWithRetry(() => import('@/pages/FinancePage'))
@@ -144,6 +145,7 @@ export default function App() {
           <Route path="/prove-menu" element={<RequireAuth roles={['LOCATION', 'WEDDING_PLANNER', 'ADMIN']}><TastingSessionsPage /></RequireAuth>} />
           <Route path="/magazzino" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><MagazzinoPage /></RequireAuth>} />
           <Route path="/ragioniere" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><RagionierePage /></RequireAuth>} />
+          <Route path="/suggerimenti-ricevuti" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SuggerimentiRicevutiPage /></RequireAuth>} />
           <Route path="/album-lab" element={<RequireAuth><AlbumLabPage /></RequireAuth>} />
           <Route path="/album-copertina/:entryId" element={<RequireAuth><CoverConfigurator /></RequireAuth>} />
           {/* Catalogo PDF: il fotografo carica/marca; la coppia sfoglia, sceglie, firma → commessa */}

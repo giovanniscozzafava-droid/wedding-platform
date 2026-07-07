@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AvailabilityBanner } from '@/components/quote/AvailabilityBanner'
+import { SuggestSuppliersModal } from '@/components/quote/SuggestSuppliersModal'
 import { AnswersPanel } from '@/components/AnswersPanel'
 import { LikedStylesGallery } from '@/components/LikedStylesGallery'
 import { supabase } from '@/lib/supabase'
@@ -120,6 +121,8 @@ export default function QuoteEditorPage() {
   const [sendResult, setSendResult] = useState<{ access_token?: string } | null>(null)
   const [pickSupplier, setPickSupplier] = useState<string>('')
   const [forceUnlocked, setForceUnlocked] = useState(false)
+  const [suggestOpen, setSuggestOpen] = useState(false)
+  const [sendingSugg, setSendingSugg] = useState(false)
   const [forceModal, setForceModal] = useState<{ open: boolean; reason: string }>({ open: false, reason: '' })
   // REVISIONE D: ambito dell'incarico del calendar_entry collegato al
   // preventivo. Quando 'SOLO_PROPRI_SERVIZI' restringiamo l'erogatore al
@@ -558,6 +561,19 @@ export default function QuoteEditorPage() {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  // Invio del preventivo "cieco" (quote_origin=SUPPLIER_SUGGESTION): la piattaforma risolve
+  // il contatto reale del cliente (nascosto al fornitore) e gli manda il link. Vedi edge send-suggestion-quote.
+  async function handleSendSuggestion() {
+    if (!id) return
+    setSendingSugg(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('send-suggestion-quote', { body: { quote_id: id } })
+      const err = (data as { error?: string } | null)?.error
+      if (error || err) { toast.error(err === 'client_email_missing' ? 'Manca il contatto del cliente suggerito' : `Invio non riuscito${err ? `: ${err}` : ''}`); return }
+      toast.success('Preventivo inviato al cliente suggerito')
+    } catch (e) { toast.error((e as Error).message) } finally { setSendingSugg(false) }
+  }
+
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
@@ -583,18 +599,33 @@ export default function QuoteEditorPage() {
               </Button>
               <HelpDot id="quote.pdf" />
             </span>
-            <span className="inline-flex items-center gap-1">
-              <Button variant="outline" onClick={handleSend} disabled={sendQ.isPending} data-testid="send-quote-btn">
-                <Send /> {sendQ.isPending ? 'Invio...' : 'Invia via email'}
+            {(quote as any).quote_origin === 'SUPPLIER_SUGGESTION' ? (
+              <Button variant="gold" onClick={handleSendSuggestion} disabled={sendingSugg}
+                title="Il cliente ti è stato suggerito: invii il preventivo tramite la piattaforma (non vedi i suoi contatti finché non accetta)">
+                <Send /> {sendingSugg ? 'Invio…' : 'Invia al cliente suggerito'}
               </Button>
-              <HelpDot id="quote.invia" />
-            </span>
-            <Button variant="gold" onClick={handleSendWhatsApp} disabled={sendQ.isPending}
-              style={{ background: '#25D366', borderColor: '#25D366' }} title="Consigliato: l'email può finire in spam">
-              <MessageCircle /> Invia su WhatsApp
-            </Button>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1">
+                  <Button variant="outline" onClick={handleSend} disabled={sendQ.isPending} data-testid="send-quote-btn">
+                    <Send /> {sendQ.isPending ? 'Invio...' : 'Invia via email'}
+                  </Button>
+                  <HelpDot id="quote.invia" />
+                </span>
+                <Button variant="gold" onClick={handleSendWhatsApp} disabled={sendQ.isPending}
+                  style={{ background: '#25D366', borderColor: '#25D366' }} title="Consigliato: l'email può finire in spam">
+                  <MessageCircle /> Invia su WhatsApp
+                </Button>
+                {quote.client_email && (
+                  <Button variant="outline" onClick={() => setSuggestOpen(true)} title="Consiglia al cliente i fornitori che segui: avvisa loro di preparare un'offerta">
+                    <Users size={16} /> Suggerisci i miei fornitori
+                  </Button>
+                )}
+              </>
+            )}
           </div>
         </div>
+        {suggestOpen && <SuggestSuppliersModal quoteId={id!} clientName={quote.client_name} onClose={() => setSuggestOpen(false)} />}
 
         {/* Risposte del cliente (dal form di categoria/questionario): guidano il preventivo */}
         {clientAnswers && Object.keys(clientAnswers).length > 0 && (
