@@ -3344,6 +3344,34 @@ function SelectStep(props: {
   const base = showingKeptOnly ? photos.filter((m) => m.album_choice === 'KEPT') : photos
   const shown = likedFirst ? [...base].sort((a, b) => (likeCounts[b.id] ?? 0) - (likeCounts[a.id] ?? 0)) : base
   const fileRef = useRef<HTMLInputElement>(null)
+  // ANTEPRIMA "Quick Look" (stile macOS): passa/clicca su una foto e premi BARRA SPAZIATRICE per
+  // ingrandirla a tutto schermo; Spazio/Esc per chiudere, ←/→ per scorrere. focusRef = ultima foto
+  // sotto il cursore, così Spazio apre proprio quella.
+  const [preview, setPreview] = useState<M | null>(null)
+  const focusRef = useRef<M | null>(null)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = document.activeElement as HTMLElement | null
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+      if (e.code === 'Space' || e.key === ' ') {
+        if (typing) return
+        e.preventDefault() // niente scroll pagina né toggle del cuore sul bottone a fuoco
+        setPreview((p) => (p ? null : focusRef.current))
+        return
+      }
+      if (!preview) return
+      if (e.key === 'Escape') { e.preventDefault(); setPreview(null); return }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault()
+        const idx = shown.findIndex((x) => x.id === preview.id)
+        if (idx < 0) return
+        const ni = e.key === 'ArrowRight' ? Math.min(shown.length - 1, idx + 1) : Math.max(0, idx - 1)
+        if (shown[ni]) { setPreview(shown[ni]); focusRef.current = shown[ni] }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [shown, preview])
   return (
     <div className="grid lg:grid-cols-[1fr_300px] gap-5">
       <div>
@@ -3373,7 +3401,8 @@ function SelectStep(props: {
             const likes = likeCounts[m.id] ?? 0
             return (
               <Card key={m.id} className={`overflow-hidden ${keptOn ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`}>
-                <button onClick={() => onToggle(m)} className="relative block w-full aspect-square">
+                <button onClick={() => onToggle(m)} onMouseEnter={() => { focusRef.current = m }} onFocus={() => { focusRef.current = m }}
+                  title="Barra spaziatrice: anteprima grande" className="relative block w-full aspect-square">
                   <img src={thumb(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
                   <span className={`absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center ${keptOn ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/40 text-white'}`}><Heart size={13} className={keptOn ? 'fill-current' : ''} /></span>
                   {likes > 0 && <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-rose-500/90 text-white text-[10px] px-1.5 py-0.5" title="Mi piace degli sposi"><Heart size={10} className="fill-current" /> {likes}</span>}
@@ -3425,6 +3454,20 @@ function SelectStep(props: {
           </>
         )}
       </div>
+
+      {/* ANTEPRIMA a tutto schermo (barra spaziatrice). Click/Esc/Spazio per chiudere, ←/→ per scorrere. */}
+      {preview && (() => {
+        const idx = shown.findIndex((x) => x.id === preview.id)
+        return (
+          <div className="fixed inset-0 z-[100] bg-black/85 flex items-center justify-center p-4 select-none" onClick={() => setPreview(null)}>
+            <img src={hiUrl(preview)} alt="" className="max-w-full max-h-full object-contain rounded shadow-2xl" onClick={(e) => e.stopPropagation()} />
+            <button onClick={() => setPreview(null)} title="Chiudi (Esc)" className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><X size={18} /></button>
+            {idx > 0 && <button onClick={(e) => { e.stopPropagation(); const n = shown[idx - 1]; if (n) { setPreview(n); focusRef.current = n } }} className="absolute left-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><ChevronLeft size={22} /></button>}
+            {idx < shown.length - 1 && <button onClick={(e) => { e.stopPropagation(); const n = shown[idx + 1]; if (n) { setPreview(n); focusRef.current = n } }} className="absolute right-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><ChevronRight size={22} /></button>}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-[11px] bg-black/40 rounded-full px-3 py-1">{idx + 1} / {shown.length} · Spazio o Esc per chiudere · ← → per scorrere</div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
