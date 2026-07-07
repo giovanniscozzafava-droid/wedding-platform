@@ -61,8 +61,10 @@ export function QuoteActivityCard({ quoteId }: { quoteId: string }) {
                 ))}
               </ul>
             </div>
-          ) : (
+          ) : (data.open_count ?? 0) > 0 ? (
             <p className="text-xs text-[rgb(var(--fg-subtle))]">Aperture conteggiate ma senza dettaglio (viste precedenti alla nuova metrica).</p>
+          ) : (
+            <p className="text-xs text-[rgb(var(--fg-subtle))]">Il cliente non ha ancora aperto il preventivo.</p>
           )}
         </>
       )}

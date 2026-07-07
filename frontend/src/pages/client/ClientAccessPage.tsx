@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Sparkles, Mail, ArrowRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
+import { trackQuoteOpen, quoteTokenFromPath } from '@/lib/trackQuoteOpen'
 
 // ============================================================================
 // Accesso area cliente: EMAIL + PASSWORD (come i professionisti). Niente magic
@@ -19,6 +20,9 @@ export default function ClientAccessPage() {
   const nav = useNavigate()
   const nextParam = params.get('next')
   const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/area-cliente'
+  // Se il cliente arriva qui dal link del preventivo (?next=/p/preview|accept/<token>),
+  // l'apertura conta SUBITO — anche se non completa il login. È il punto d'ingresso reale.
+  useEffect(() => { trackQuoteOpen(quoteTokenFromPath(nextParam)) }, [nextParam])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)

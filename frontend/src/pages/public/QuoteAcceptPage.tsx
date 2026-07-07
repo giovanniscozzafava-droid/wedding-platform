@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
 import { QuoteAuthGate } from '@/components/QuoteAuthGate'
+import { trackQuoteOpen } from '@/lib/trackQuoteOpen'
 import { getQuestionsFor, getMoodboardSectionsForCapostipite, extractInspirationsFromAnswers } from '@/lib/eventQuestions'
 import { getQuestionsForSupplierContext, subroleLabel } from '@/lib/supplierQuestions'
 import { eventTerm } from '@/lib/eventKind'
@@ -37,6 +38,9 @@ type QuoteItem = {
 }
 
 export default function QuoteAcceptPage() {
+  const { token } = useParams<{ token: string }>()
+  // Traccia l'apertura FUORI dal gate: conta anche se il cliente si ferma al login.
+  useEffect(() => { trackQuoteOpen(token) }, [token])
   return <QuoteAuthGate><QuoteAcceptPageInner /></QuoteAuthGate>
 }
 
@@ -125,7 +129,6 @@ function QuoteAcceptPageInner() {
       finally { setLoading(false) }
   }
   useEffect(() => { if (token) void load() }, [token])
-  useEffect(() => { if (token) void (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<unknown> }).rpc('track_quote_open', { p_token: token, p_ua: navigator.userAgent }) }, [token])
 
   async function submit() {
     if (!token) return

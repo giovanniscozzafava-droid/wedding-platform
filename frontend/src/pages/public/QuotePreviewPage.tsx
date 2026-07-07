@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { publicQuoteByToken } from '@/hooks/useQuotes'
 import { QuoteAuthGate } from '@/components/QuoteAuthGate'
+import { trackQuoteOpen } from '@/lib/trackQuoteOpen'
 import { eventLabel } from '@/lib/eventKind'
 
 const CONSENT_CLAUSES = [
@@ -19,6 +20,10 @@ const CONSENT_CLAUSES = [
 ]
 
 export default function QuotePreviewPage() {
+  const { token } = useParams<{ token: string }>()
+  // Traccia l'apertura SUBITO, FUORI dal gate: conta anche se il cliente si ferma
+  // al muro di login (prima il track era dentro il gate → non contava mai).
+  useEffect(() => { trackQuoteOpen(token) }, [token])
   return <QuoteAuthGate><QuotePreviewPageInner /></QuoteAuthGate>
 }
 
@@ -36,7 +41,6 @@ function QuotePreviewPageInner() {
     finally { setLoading(false) }
   }
   useEffect(() => { setLoading(true); void load() }, [token])
-  useEffect(() => { if (token) void (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<unknown> }).rpc('track_quote_open', { p_token: token, p_ua: navigator.userAgent }) }, [token])
 
   if (loading) {
     return (
