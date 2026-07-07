@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
+import { MOMENTS, getMoment } from '@/lib/albumMoments'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -27,7 +28,7 @@ import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 // carica; gli sposi vedono tutto + danno il consenso; i fornitori vedono solo
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null }
+type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null }
 type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string }
 
@@ -58,6 +59,17 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
   // lightbox: lista di foto della cartella aperta + indice corrente
   const [box, setBox] = useState<{ list: Media[]; i: number } | null>(null)
+  // Momenti scelti dalla coppia/fotografo (overlay ottimistico su album_moment). Così il fotografo
+  // ritrova le foto GIA' taggate nell'impaginatore. Scrive via RPC album_set_moments (album_can_edit
+  // include la coppia).
+  const [moments, setMoments] = useState<Record<string, string | null>>({})
+  async function tagMoment(mediaId: string, moment: string) {
+    setMoments((s) => ({ ...s, [mediaId]: moment || null }))
+    try {
+      const { data, error } = await (supabase.rpc as any)('album_set_moments', { p_items: [{ id: mediaId, moment }] })
+      if (error || (data as { error?: string } | null)?.error) toast.error('Momento non salvato')
+    } catch { toast.error('Momento non salvato') }
+  }
   const [printPhoto, setPrintPhoto] = useState<Media | null>(null)
   const [printOn, setPrintOn] = useState(false)
 
@@ -103,7 +115,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const media: any[] = []
     for (let from = 0; ; from += 1000) {
       const { data: page, error } = await (supabase.from as any)('gallery_media')
-        .select('id, folder_id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, uploaded_by, uploader_name, guest_tags, no_minors')
+        .select('id, folder_id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, album_moment, uploaded_by, uploader_name, guest_tags, no_minors')
         .eq('entry_id', entryId).order('id').range(from, from + 999)
       if (error || !page?.length) break
       media.push(...page)
@@ -795,6 +807,23 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 <span className="absolute top-2 left-2 text-[11px] text-white/70 bg-black/40 px-2 py-0.5 rounded">{m.guest_tag_name}</span>
               )}
             </div>
+            {(role === 'sposi' || isOwner) && m.media_type !== 'VIDEO' && (() => {
+              const cur = moments[m.id] ?? m.album_moment ?? ''
+              const lab = getMoment(cur)?.label
+              return (
+                <div className="px-4 pb-2 max-w-xl mx-auto w-full" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur px-3 py-2">
+                    <span className="text-[11px] text-white/80 shrink-0">{role === 'sposi' ? 'Che momento è? (ti aiuta a ritrovarla)' : 'Momento'}</span>
+                    <select value={cur} onChange={(e) => void tagMoment(m.id, e.target.value)}
+                      className="flex-1 min-w-0 text-xs rounded-md bg-white/90 text-black px-2 py-1.5">
+                      <option value="">— scegli il momento —</option>
+                      {MOMENTS.map((mm) => <option key={mm.key} value={mm.key}>{mm.label}</option>)}
+                    </select>
+                    {lab && <span className="text-[10px] text-emerald-300 shrink-0 inline-flex items-center gap-0.5"><Check size={11} /> {lab}</span>}
+                  </div>
+                </div>
+              )
+            })()}
             <div className="px-4 pb-4 max-w-xl mx-auto w-full" onClick={(e) => e.stopPropagation()}>
               <PhotoSocial mediaId={m.id} comments={gsettings.allow_comments} social={gsettings.allow_social} />
             </div>
