@@ -418,6 +418,7 @@ function AlbumDesignerInner() {
   const [stripH, setStripH] = useState(() => lsNum('albumStripH', 64, 48))
   useEffect(() => { try { localStorage.setItem('albumLibW', String(libW)); localStorage.setItem('albumPanelW', String(panelW)); localStorage.setItem('albumStripH', String(stripH)) } catch { /* no-op */ } }, [libW, panelW, stripH])
   const [cropSpread, setCropSpread] = useState<string | null>(null) // id pagina-sx in ritaglio foto a piena tavola
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null) // mediaId in anteprima grande (barra spaziatrice sul canvas)
   // move/resize della cornice spread (trasformazione libera su due tavole)
   const spreadDrag = useRef<{ kind: 'move' | 'nw' | 'ne' | 'sw' | 'se'; sx: number; sy: number; w: number; h: number; id: string; f: { x: number; y: number; w: number; h: number } } | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)   // indicatore autosave
@@ -1568,6 +1569,29 @@ function AlbumDesignerInner() {
   // altezza della tavola che FITTA l'area disponibile (sia in larghezza che in altezza), poi scalata dallo zoom
   const spreadCount = spreadPages.length || 1
   const fitH = canvasBox.h && canvasBox.w ? Math.min(canvasBox.h, canvasBox.w / (asp * spreadCount)) * 0.96 : 0
+
+  // ANTEPRIMA grande col la BARRA SPAZIATRICE nel canvas: seleziona (clic) una foto in tavola e
+  // premi Spazio → la vedi ingrandita. Spazio/Esc per chiudere. Usa la foto selezionata (selEl /
+  // slot attivo / foto a piena tavola).
+  const focusedMediaId = (): string | null => {
+    if (selEl) { for (const p of spreadPages) { const el = (p.elements ?? []).find((e) => e.id === selEl); if (el) return el.mediaId } }
+    if (activeSlot != null && currentPage) return currentPage.mediaIds?.[activeSlot] ?? null
+    const sp = spreadPages.find((p) => p.spreadImage)?.spreadImage
+    return sp?.mediaId ?? null
+  }
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      if (e.code === 'Space' || e.key === ' ') {
+        if (step !== 'design') return
+        const mid = photoPreview ? null : focusedMediaId()
+        if (photoPreview || mid) { e.preventDefault(); setPhotoPreview(photoPreview ? null : mid) }
+      } else if (e.key === 'Escape' && photoPreview) { setPhotoPreview(null) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [step, photoPreview, selEl, activeSlot, spreadPages, currentPage])
   const spreadHpx = Math.max(180, (fitH || 560) * zoom)
 
   // Applica una disposizione: ricostruisce gli elementi della tavola assegnando ogni foto allo
@@ -2995,6 +3019,19 @@ function AlbumDesignerInner() {
                     <Button variant="outline" size="sm" onClick={() => setQualityOpen(false)}>Chiudi</Button>
                   </div>
                 </div>
+              </div>
+            )
+          })()}
+
+          {/* Anteprima grande della foto selezionata in tavola (barra spaziatrice). */}
+          {photoPreview && (() => {
+            const m = mediaById.get(photoPreview)
+            if (!m) return null
+            return (
+              <div className="fixed inset-0 z-[100] bg-black/85 flex items-center justify-center p-4 select-none" onClick={() => setPhotoPreview(null)}>
+                <img src={hiUrl(m)} alt="" className="max-w-full max-h-full object-contain rounded shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                <button onClick={() => setPhotoPreview(null)} title="Chiudi (Esc)" className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><X size={18} /></button>
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-[11px] bg-black/40 rounded-full px-3 py-1">Spazio o Esc per chiudere</div>
               </div>
             )
           })()}
