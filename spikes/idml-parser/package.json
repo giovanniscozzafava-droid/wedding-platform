@@ -1,0 +1,14 @@
+{
+  "name": "idml-import-spike",
+  "private": true,
+  "type": "module",
+  "description": "Spike standalone: legge un IDML (export ufficiale) ed estrae la geometria degli album (spread, frame immagine, crop). NON è codice di prodotto. Naming interno: idml_import.",
+  "scripts": {
+    "fixture": "node make-fixture.mjs",
+    "parse": "node parse-idml.mjs"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.0",
+    "fflate": "^0.8.2"
+  }
+}
