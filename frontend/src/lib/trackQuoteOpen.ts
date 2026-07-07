@@ -22,6 +22,11 @@ export function trackQuoteOpen(token?: string | null): void {
     if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key)) return
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1')
   } catch { /* sessionStorage non disponibile: traccia comunque */ }
-  void (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => Promise<unknown> })
-    .rpc('track_quote_open', { p_token: token, p_ua: typeof navigator !== 'undefined' ? navigator.userAgent : null })
+  // IMPORTANTE: il builder di supabase-js è "lazy" — la richiesta parte SOLO con
+  // .then()/await. Un semplice `void supabase.rpc(...)` NON invia nulla (bug storico).
+  try {
+    ;(supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => PromiseLike<unknown> })
+      .rpc('track_quote_open', { p_token: token, p_ua: typeof navigator !== 'undefined' ? navigator.userAgent : null })
+      .then(() => {}, () => {})
+  } catch { /* best-effort */ }
 }
