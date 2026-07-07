@@ -24,6 +24,8 @@ Deno.serve(async (req) => {
 
   // Evento + fotografo (owner della gallery) per personalizzare
   const { data: entry } = await admin.from('calendar_entries').select('title, event_kind, owner_id').eq('id', body.entry_id).maybeSingle()
+  const { data: proj } = await admin.from('album_projects').select('final_note').eq('entry_id', body.entry_id).maybeSingle()
+  const note = (proj?.final_note ?? '').toString().trim()
   const { data: gal } = await admin.from('event_galleries').select('owner_id').eq('entry_id', body.entry_id).maybeSingle()
   const photographerId = gal?.owner_id ?? entry?.owner_id
   let photographerName = 'Il tuo fotografo'
@@ -47,6 +49,7 @@ Deno.serve(async (req) => {
         <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#B08D57">Il tuo album è pronto</div>
         <h1 style="font-family:Georgia,serif;font-size:24px;color:#1A1714;margin:6px 0 6px">${esc(photographerName)} ha completato il tuo album</h1>
         <p style="font-size:14px;color:#6B6358;line-height:1.6;margin:0">Le foto sono impaginate e pronte da sfogliare. Aprilo per vederlo nel dettaglio, tavola per tavola.</p>
+        ${note ? `<div style="margin-top:14px;padding:12px 14px;background:#F7F4EE;border-radius:8px;border-left:3px solid #B08D57"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#B08D57;margin-bottom:4px">Una nota da ${esc(photographerName)}</div><div style="font-size:14px;color:#1A1714;line-height:1.6;white-space:pre-wrap">${esc(note)}</div></div>` : ''}
       </td></tr>
       <tr><td style="padding:16px 32px 26px 32px">
         <a href="${link}" style="display:inline-block;background:#1A1714;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:8px">Guarda il tuo album →</a>

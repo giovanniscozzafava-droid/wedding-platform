@@ -419,6 +419,18 @@ function AlbumDesignerInner() {
   useEffect(() => { try { localStorage.setItem('albumLibW', String(libW)); localStorage.setItem('albumPanelW', String(panelW)); localStorage.setItem('albumStripH', String(stripH)) } catch { /* no-op */ } }, [libW, panelW, stripH])
   const [cropSpread, setCropSpread] = useState<string | null>(null) // id pagina-sx in ritaglio foto a piena tavola
   const [photoPreview, setPhotoPreview] = useState<string | null>(null) // mediaId in anteprima grande (barra spaziatrice sul canvas)
+  const [finalDialog, setFinalDialog] = useState(false)   // dialogo "segna come finale" (con nota alla coppia)
+  const [finalNote, setFinalNote] = useState('')
+  async function markFinalWithNote() {
+    setBusy(true)
+    try {
+      const n = finalNote.trim()
+      if (entryId) { try { await (supabase.rpc as any)('album_set_final_note', { p_entry: entryId, p_note: n }) } catch { /* la nota è opzionale */ } }
+      await save('FINAL')
+      setFinalDialog(false)
+      toast.success('Album segnato come finale · la coppia è stata avvisata')
+    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
   // move/resize della cornice spread (trasformazione libera su due tavole)
   const spreadDrag = useRef<{ kind: 'move' | 'nw' | 'ne' | 'sw' | 'se'; sx: number; sy: number; w: number; h: number; id: string; f: { x: number; y: number; w: number; h: number } } | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)   // indicatore autosave
@@ -2412,7 +2424,7 @@ function AlbumDesignerInner() {
             <ToolToggle on={fullscreen} onClick={toggleFullscreen} icon={fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />} label={fullscreen ? 'Esci pieno' : 'Piena pagina'} />
             <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
             {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(action.next)}>{action.label}</Button>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => { if (action.next === 'FINAL') { setFinalNote(''); setFinalDialog(true) } else void save(action.next) }}>{action.label}</Button>
             <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{statusLabel(status)}</span></span>
           </div>
@@ -3022,6 +3034,24 @@ function AlbumDesignerInner() {
               </div>
             )
           })()}
+
+          {/* "Segna come finale": nota opzionale per la coppia (spiega scelte: pagine aggiunte, formato…) */}
+          {finalDialog && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => !busy && setFinalDialog(false)}>
+              <div className="w-[min(94vw,460px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 mb-1"><Check size={18} className="text-[rgb(var(--gold-600))]" /><h3 className="font-display text-xl">Segna come finale</h3></div>
+                <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">La coppia riceve email e notifica con il link per vedere l'album. Puoi aggiungere una nota per spiegare le tue scelte (facoltativa).</p>
+                <textarea rows={4} value={finalNote} maxLength={800} onChange={(e) => setFinalNote(e.target.value)}
+                  placeholder="Es. Ho aggiunto qualche pagina per far respirare le foto e ho scelto il formato verticale perché si presta meglio ai ritratti."
+                  className="w-full text-sm rounded-lg border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-3 py-2" />
+                <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">{finalNote.length}/800 · la nota compare nell'email di consegna e sopra l'album.</p>
+                <div className="flex items-center justify-end gap-2 mt-4">
+                  <Button variant="outline" size="sm" disabled={busy} onClick={() => setFinalDialog(false)}>Annulla</Button>
+                  <Button variant="gold" size="sm" disabled={busy} onClick={() => void markFinalWithNote()}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Segna come finale e avvisa</Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Anteprima grande della foto selezionata in tavola (barra spaziatrice). */}
           {photoPreview && (() => {
