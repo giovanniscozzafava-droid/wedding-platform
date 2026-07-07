@@ -22,6 +22,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { FunnelMetrics } from '@/components/dashboard/FunnelMetrics'
+import { PrimaNotaNudge } from '@/components/dashboard/PrimaNotaNudge'
 
 type Stats = {
   servicesCount: number
@@ -205,6 +206,9 @@ export default function HomePage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Promemoria prima nota — solo LOCATION, non bloccante */}
+        <PrimaNotaNudge />
 
         {/* Funnel lead-generation: percentuali motivazionali */}
         <FunnelMetrics />

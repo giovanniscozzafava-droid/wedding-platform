@@ -21,6 +21,7 @@ import {
   Wallet,
   PiggyBank,
   Carrot,
+  NotebookPen,
   ShieldCheck,
   FileSignature,
   Contact,
@@ -218,7 +219,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Food cost: strumento gestionale SOLO per le Location (PRP-4 Fase A).
   const baseGroups = profile?.role === 'LOCATION'
     ? baseGroupsRaw.map((g) => g.section === 'Gestione'
-        ? { ...g, items: [...g.items, { to: '/food-cost', label: 'Food cost', icon: Carrot }, { to: '/prove-menu', label: 'Prove menu', icon: CalendarDays }, { to: '/magazzino', label: 'Magazzino', icon: Boxes }, { to: '/ragioniere', label: 'Ragioniere', icon: Calculator }] }
+        ? { ...g, items: [...g.items, { to: '/prima-nota', label: 'Prima nota', icon: NotebookPen }, { to: '/food-cost', label: 'Food cost', icon: Carrot }, { to: '/prove-menu', label: 'Prove menu', icon: CalendarDays }, { to: '/magazzino', label: 'Magazzino', icon: Boxes }, { to: '/ragioniere', label: 'Ragioniere', icon: Calculator }] }
         : g)
     : baseGroupsRaw
   // Gruppo riservato a staff/admin (gestione piattaforma + ticket).
