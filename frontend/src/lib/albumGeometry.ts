@@ -2,8 +2,19 @@
 // così l'anteprima e il PDF coincidono al pixel. Crop/zoom/pan per foto + abbondanza (bleed).
 import type { CSSProperties } from 'react'
 
-export type Cell = { z: number; fx: number; fy: number } // zoom>=1, focale (0..1) nel sorgente
+export type Cell = { z: number; fx: number; fy: number; r?: number; fh?: boolean; fv?: boolean } // zoom>=1, focale (0..1), r = rotazione FOTO (gradi); fh/fv = specchia orizzontale/verticale
 export const DEFAULT_CELL: Cell = { z: 1, fx: 0.5, fy: 0.5 }
+
+// Fattore di ingrandimento minimo perché una foto RUOTATA di `rDeg` continui a COPRIRE una
+// cornice di aspetto `frameAspect` (larghezza/altezza): niente angoli vuoti. A 0° = 1; a 90° =
+// max(a,1/a) (l'aspetto si "gira"); in mezzo la combinazione trigonometrica. Usato SIA in preview
+// (coverImgStyle) SIA in export, così stampa e schermo coincidono.
+export function coverScaleForRotation(rDeg?: number | null, frameAspect = 1): number {
+  const r = ((rDeg ?? 0) * Math.PI) / 180
+  if (!r) return 1
+  const a = frameAspect > 0 ? frameAspect : 1
+  return Math.abs(Math.cos(r)) + Math.max(a, 1 / a) * Math.abs(Math.sin(r))
+}
 export const BLEED_MM = 3   // abbondanza standard di stampa
 export const MARGIN_MM = 8  // margine interno pagina
 export const GUTTER_MM = 4  // distanza tra foto
@@ -31,16 +42,40 @@ export function coverWindow(imgAspect: number, slotAspect: number, cell?: Cell |
 // dipendere dall'aspetto dell'immagine: il browser fa il "cover" nativo, quindi le
 // proporzioni sono SEMPRE preservate (niente foto stirate). Va su un'<img> dentro un
 // contenitore relative+overflow-hidden. Parità con l'export: stesso fuoco e zoom.
-export function coverImgStyle(cell?: Cell | null): CSSProperties {
+export function coverImgStyle(cell?: Cell | null, frameAspect = 1): CSSProperties {
   const c = cell ?? DEFAULT_CELL // robusto: dato persistito può avere cell null/assente
   const z = Math.max(1, c.z || 1)
   const fx = Math.min(1, Math.max(0, c.fx ?? 0.5))
   const fy = Math.min(1, Math.max(0, c.fy ?? 0.5))
+  const r = c.r ?? 0
+  const sh = c.fh ? -1 : 1, sv = c.fv ? -1 : 1 // specchia orizzontale/verticale
+  const flipped = sh < 0 || sv < 0
+  if (!r && !flipped) {
+    // NESSUNA rotazione né specchio → identico a prima (zero regressioni per gli album esistenti).
+    return {
+      position: 'absolute', inset: 0, width: '100%', height: '100%',
+      objectFit: 'cover', objectPosition: `${fx * 100}% ${fy * 100}%`,
+      transform: z > 1 ? `scale(${z})` : undefined,
+      transformOrigin: `${fx * 100}% ${fy * 100}%`,
+    }
+  }
+  if (!r) {
+    // Solo specchio (niente rotazione): scala negativa attorno al fuoco. Nessuna scala-cover extra.
+    return {
+      position: 'absolute', inset: 0, width: '100%', height: '100%',
+      objectFit: 'cover', objectPosition: `${fx * 100}% ${fy * 100}%`,
+      transform: `scale(${z * sh}, ${z * sv})`,
+      transformOrigin: `${fx * 100}% ${fy * 100}%`,
+    }
+  }
+  // FOTO RUOTATA (± specchio) nella cornice ferma: ruoto attorno al CENTRO e ingrandisco di k così
+  // copre sempre (niente angoli vuoti); il fuoco (fx/fy) resta come pan via objectPosition.
+  const k = coverScaleForRotation(r, frameAspect)
   return {
     position: 'absolute', inset: 0, width: '100%', height: '100%',
     objectFit: 'cover', objectPosition: `${fx * 100}% ${fy * 100}%`,
-    transform: z > 1 ? `scale(${z})` : undefined,
-    transformOrigin: `${fx * 100}% ${fy * 100}%`,
+    transform: `rotate(${r}deg) scale(${(z * k * sh).toFixed(4)}, ${(z * k * sv).toFixed(4)})`,
+    transformOrigin: '50% 50%',
   }
 }
 

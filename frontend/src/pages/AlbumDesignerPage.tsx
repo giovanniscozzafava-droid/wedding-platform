@@ -3,7 +3,7 @@ import HTMLFlipBook from 'react-pageflip'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Wand2, Sparkles, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X } from 'lucide-react'
+import { ArrowLeft, Wand2, Sparkles, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X, FlipHorizontal2, FlipVertical2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -3539,7 +3539,7 @@ function PageStage(props: {
               <div className="relative w-full h-full">
                 <div onPointerDown={(e) => startPan(e, i, cell)} onPointerMove={movePan} onPointerUp={endPan} onPointerLeave={endPan}
                   className="w-full h-full touch-none cursor-move relative overflow-hidden">
-                  <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(cell)} />
+                  <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(cell, slotAspectOf(fr, fmt.w, fmt.h))} />
                 </div>
                 {/* maniglia per SCAMBIARE la foto con un altro riquadro (trascina e rilascia
                     su un altro slot). Le foto si scambiano e ognuna eredita il ritaglio del
@@ -3797,7 +3797,7 @@ function FreeStage(props: {
               onDrop={locked ? undefined : (e) => { const mid = e.dataTransfer.getData('text/media'); setDropId(null); if (mid) { e.preventDefault(); e.stopPropagation(); onReplaceEl(el.id, mid) } }}
               className={`w-full h-full relative overflow-hidden transition-[transform,opacity] ${locked ? '' : 'touch-none cursor-move'} ${swapTarget === el.id ? 'outline outline-[3px] outline-[rgb(var(--gold-600))] ring-4 ring-[rgba(184,146,63,.4)]' : sel ? 'outline outline-2 outline-[rgb(var(--gold-500))]' : inSel ? 'outline outline-2 outline-dashed outline-[rgb(var(--gold-400))]' : ''} ${swapSrc === el.id ? 'opacity-50 scale-95' : ''}`}
               style={{ backgroundColor: m ? undefined : 'rgba(0,0,0,.06)', boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${Math.max(1, el.border.w)}px solid ${el.border.color}` : undefined }}>
-              {m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}
+              {m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell, (el.w / Math.max(0.001, el.h)) * (fmt.w / fmt.h))} />}
               {dropId === el.id && <div className="absolute inset-0 ring-4 ring-inset ring-[rgb(var(--gold-500))] bg-[rgb(var(--gold-500))]/20 flex items-center justify-center pointer-events-none"><span className="text-[10px] font-semibold text-white bg-black/55 rounded px-1.5 py-0.5">Sostituisci</span></div>}
               {lowRes && !locked && (
                 <>
@@ -4104,7 +4104,7 @@ function InlineCrop({ src, aspect, cell, onChange, onRotate90 }: {
       <div ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}
         className="relative w-full overflow-hidden rounded border border-[rgb(var(--border))] cursor-move touch-none bg-black/5"
         style={{ aspectRatio: String(aspect > 0 ? aspect : 1) }}>
-        <img src={src} alt="" draggable={false} style={coverImgStyle(cell)} />
+        <img src={src} alt="" draggable={false} style={coverImgStyle(cell, aspect > 0 ? aspect : 1)} />
         <span className="absolute bottom-0.5 left-0.5 text-[8px] bg-black/55 text-white rounded px-1 pointer-events-none">trascina · zoom</span>
       </div>
       <div className="flex items-center gap-1.5">
@@ -4112,8 +4112,26 @@ function InlineCrop({ src, aspect, cell, onChange, onRotate90 }: {
         <input type="range" min={1} max={4} step={0.05} value={z} onChange={(e) => onChange({ ...cell, z: +e.target.value })} className="flex-1 accent-[rgb(var(--gold-600))]" />
         <ZoomIn size={13} className="text-[rgb(var(--fg-subtle))] shrink-0" />
       </div>
+      {/* Ruota la FOTO dentro la cornice ferma: raddrizza (slider fine) + scatti di 90°. */}
+      {(() => {
+        const r = cell.r ?? 0
+        const quarter = Math.round(r / 90) * 90
+        const fine = Math.max(-45, Math.min(45, r - quarter))
+        return (
+          <div className="flex items-center gap-1.5">
+            <RotateCw size={13} className="text-[rgb(var(--fg-subtle))] shrink-0" />
+            <input type="range" min={-45} max={45} step={1} value={fine} title="Raddrizza la foto"
+              onChange={(e) => onChange({ ...cell, r: quarter + (+e.target.value) })} className="flex-1 accent-[rgb(var(--gold-600))]" />
+            <span className="text-[10px] tabular-nums w-8 text-right text-[rgb(var(--fg-subtle))]">{fine > 0 ? '+' : ''}{fine}°</span>
+            <button title="Ruota la foto 90° a sinistra" onClick={() => onChange({ ...cell, r: r - 90 })} className="h-6 w-6 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center justify-center"><RotateCw size={11} className="-scale-x-100" /></button>
+            <button title="Ruota la foto 90° a destra" onClick={() => onChange({ ...cell, r: r + 90 })} className="h-6 w-6 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center justify-center"><RotateCw size={11} /></button>
+          </div>
+        )
+      })()}
       <div className="flex items-center gap-1.5">
-        <button onClick={() => onChange({ z: 1, fx: 0.5, fy: 0.5 })} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">Riempi</button>
+        <button onClick={() => onChange({ z: 1, fx: 0.5, fy: 0.5, r: 0, fh: false, fv: false })} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">Riempi</button>
+        <button title="Specchia in orizzontale" onClick={() => onChange({ ...cell, fh: !cell.fh })} className={`h-6 w-6 rounded border inline-flex items-center justify-center ${cell.fh ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}><FlipHorizontal2 size={12} /></button>
+        <button title="Specchia in verticale" onClick={() => onChange({ ...cell, fv: !cell.fv })} className={`h-6 w-6 rounded border inline-flex items-center justify-center ${cell.fv ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}><FlipVertical2 size={12} /></button>
         {onRotate90 && <>
           <button title="Ruota a sinistra 90°" onClick={() => onRotate90(-1)} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center gap-1"><RotateCw size={11} className="-scale-x-100" /> 90°</button>
           <button title="Ruota a destra 90°" onClick={() => onRotate90(1)} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center gap-1"><RotateCw size={11} /> 90°</button>

@@ -4,7 +4,25 @@
 // JPG per pagina in uno ZIP.
 import { getFormat } from './albumFormats'
 import { framesForPage, type AlbumPage } from './albumEngine'
-import { slotRect, sourceRect, pageBox, DEFAULT_CELL, MARGIN_MM, GUTTER_MM, BLEED_MM, type Cell } from './albumGeometry'
+import { slotRect, sourceRect, pageBox, coverScaleForRotation, DEFAULT_CELL, MARGIN_MM, GUTTER_MM, BLEED_MM, type Cell } from './albumGeometry'
+
+// Disegna l'immagine nel rettangolo (dx,dy,w,h) con crop (sourceRect) + rotazione FOTO cell.r
+// dentro la cornice ferma: clip al rettangolo + rotazione attorno al centro + scala-cover, così
+// non restano angoli vuoti e stampa/anteprima coincidono. r=0 → drawImage identico a prima.
+function drawCellImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement, dx: number, dy: number, w: number, h: number, cell: Cell) {
+  const sr = sourceRect(img.width, img.height, w / h, cell)
+  const r = cell?.r ?? 0
+  const sh = cell?.fh ? -1 : 1, sv = cell?.fv ? -1 : 1 // specchia orizzontale/verticale
+  if (!r && sh === 1 && sv === 1) { ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, dx, dy, w, h); return }
+  const k = coverScaleForRotation(r, w / h)
+  ctx.save()
+  ctx.beginPath(); ctx.rect(dx, dy, w, h); ctx.clip()
+  ctx.translate(dx + w / 2, dy + h / 2)
+  if (r) ctx.rotate((r * Math.PI) / 180)
+  ctx.scale(k * sh, k * sv)
+  ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, -w / 2, -h / 2, w, h)
+  ctx.restore()
+}
 
 export type UrlResolver = (mediaId: string) => string
 
@@ -29,8 +47,7 @@ function cropDataUrl(img: HTMLImageElement, wpx: number, hpx: number, cell: Cell
   c.width = Math.max(1, Math.round(wpx)); c.height = Math.max(1, Math.round(hpx))
   const ctx = c.getContext('2d')!
   ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
-  const sr = sourceRect(img.width, img.height, c.width / c.height, cell)
-  ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, 0, 0, c.width, c.height)
+  drawCellImage(ctx, img, 0, 0, c.width, c.height, cell)
   return c.toDataURL('image/jpeg', q)
 }
 
@@ -70,8 +87,7 @@ async function drawFreeElement(pdf: any, el: import('./albumFree').FreeEl, pageX
   if (el.shadow) { ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 0.03 * Math.min(elWpx, elHpx); ctx.shadowOffsetY = 0.012 * elHpx }
   try {
     const img = await loadImage(resolve(el.mediaId))
-    const sr = sourceRect(img.width, img.height, elWpx / elHpx, el.cell)
-    ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, -elWpx / 2, -elHpx / 2, elWpx, elHpx)
+    drawCellImage(ctx, img, -elWpx / 2, -elHpx / 2, elWpx, elHpx, el.cell)
   } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
   ctx.shadowColor = 'transparent'
   if (el.border) { ctx.lineWidth = Math.max(1, el.border.w * pxPerMm); ctx.strokeStyle = el.border.color; ctx.strokeRect(-elWpx / 2 + ctx.lineWidth / 2, -elHpx / 2 + ctx.lineWidth / 2, elWpx - ctx.lineWidth, elHpx - ctx.lineWidth) }
@@ -197,7 +213,7 @@ async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: 
       const cxp = ox + (el.x + el.w / 2) * wpx, cyp = (el.y + el.h / 2) * hpx
       ctx.save(); ctx.translate(cxp, cyp); ctx.rotate((el.rot * Math.PI) / 180)
       if (el.shadow) { ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 0.03 * Math.min(elWpx, elHpx); ctx.shadowOffsetY = 0.012 * elHpx }
-      try { const img = await loadImage(resolve(el.mediaId)); const sr = sourceRect(img.width, img.height, elWpx / elHpx, el.cell); ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, -elWpx / 2, -elHpx / 2, elWpx, elHpx) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
+      try { const img = await loadImage(resolve(el.mediaId)); drawCellImage(ctx, img, -elWpx / 2, -elHpx / 2, elWpx, elHpx, el.cell) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
       ctx.shadowColor = 'transparent'
       if (el.border) { ctx.lineWidth = Math.max(1, el.border.w * pxPerMm); ctx.strokeStyle = el.border.color; ctx.strokeRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
       ctx.restore()
@@ -211,7 +227,7 @@ async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: 
       const r = slotRect(fr, f.w, f.h, { margin: MARGIN_MM, gutter: GUTTER_MM, bleed: 0 })
       const x = ox + r.x * pxPerMm, y = r.y * pxPerMm, w = r.w * pxPerMm, h = r.h * pxPerMm
       if (!mediaId) { ctx.fillStyle = '#eee'; ctx.fillRect(x, y, w, h); continue }
-      try { const img = await loadImage(resolve(mediaId)); const sr = sourceRect(img.width, img.height, w / h, cell); ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, x, y, w, h) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(x, y, w, h) }
+      try { const img = await loadImage(resolve(mediaId)); drawCellImage(ctx, img, x, y, w, h, cell) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(x, y, w, h) }
     }
   }
   if (pageNumber != null) { ctx.fillStyle = '#888'; ctx.font = `${Math.round(hpx * 0.02)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(String(pageNumber), ox + wpx / 2, hpx - hpx * 0.02) }
