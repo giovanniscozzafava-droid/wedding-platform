@@ -3400,12 +3400,18 @@ function SelectStep(props: {
             const keptOn = m.album_choice === 'KEPT'
             const likes = likeCounts[m.id] ?? 0
             return (
-              <Card key={m.id} className={`overflow-hidden ${keptOn ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`}>
+              <Card key={m.id} className={`group overflow-hidden ${keptOn ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`}>
                 <button onClick={() => onToggle(m)} onMouseEnter={() => { focusRef.current = m }} onFocus={() => { focusRef.current = m }}
-                  title="Barra spaziatrice: anteprima grande" className="relative block w-full aspect-square">
+                  title="Clic = seleziona · Barra spaziatrice o lente = anteprima grande" className="relative block w-full aspect-square">
                   <img src={thumb(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
                   <span className={`absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center ${keptOn ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/40 text-white'}`}><Heart size={13} className={keptOn ? 'fill-current' : ''} /></span>
                   {likes > 0 && <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-rose-500/90 text-white text-[10px] px-1.5 py-0.5" title="Mi piace degli sposi"><Heart size={10} className="fill-current" /> {likes}</span>}
+                  {/* Lente: click sicuro per l'anteprima grande (non tocca il cuore). */}
+                  <span role="button" tabIndex={0} title="Ingrandisci (anteprima)" onMouseEnter={() => { focusRef.current = m }}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPreview(m); focusRef.current = m }}
+                    className="absolute bottom-1.5 right-1.5 h-7 w-7 rounded-full bg-black/45 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70">
+                    <Maximize2 size={13} />
+                  </span>
                 </button>
                 <select value={m.album_moment ?? ''} onChange={(e) => onMoment(m, e.target.value)} disabled={!keptOn}
                   title={keptOn ? 'Assegna un momento a questa foto' : 'Metti prima il cuore: i momenti si assegnano solo alle foto scelte'}
