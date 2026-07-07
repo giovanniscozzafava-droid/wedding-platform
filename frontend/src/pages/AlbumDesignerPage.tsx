@@ -1566,6 +1566,30 @@ function AlbumDesignerInner() {
     if (axis === 'v') setGuidesV((g) => g.filter((_, i) => i !== index)); else setGuidesH((g) => g.filter((_, i) => i !== index))
   }
 
+  // ANTEPRIMA grande con la BARRA SPAZIATRICE nel canvas: seleziona (clic) una foto in tavola e premi
+  // Spazio → ingrandita (Spazio/Esc per chiudere). DEVE stare PRIMA di ogni early-return (hook
+  // incondizionato, altrimenti React error #310). Usa solo lo stato base, non i derivati definiti dopo.
+  useEffect(() => {
+    function focused(): string | null {
+      if (selEl) { for (const p of pages) { const el = (p.elements ?? []).find((e) => e.id === selEl); if (el) return el.mediaId } }
+      const cp = pages.find((p) => p.id === currentPageId)
+      if (activeSlot != null && cp) return cp.mediaIds?.[activeSlot] ?? null
+      if (cp?.spreadImage) return cp.spreadImage.mediaId
+      return null
+    }
+    function onKey(e: KeyboardEvent) {
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      if (e.code === 'Space' || e.key === ' ') {
+        if (step !== 'design') return
+        const mid = photoPreview ? null : focused()
+        if (photoPreview || mid) { e.preventDefault(); setPhotoPreview(photoPreview ? null : mid) }
+      } else if (e.key === 'Escape' && photoPreview) { setPhotoPreview(null) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [step, photoPreview, selEl, activeSlot, pages, currentPageId])
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>
 
   const asp = pageAspect(format)
@@ -1582,28 +1606,6 @@ function AlbumDesignerInner() {
   const spreadCount = spreadPages.length || 1
   const fitH = canvasBox.h && canvasBox.w ? Math.min(canvasBox.h, canvasBox.w / (asp * spreadCount)) * 0.96 : 0
 
-  // ANTEPRIMA grande col la BARRA SPAZIATRICE nel canvas: seleziona (clic) una foto in tavola e
-  // premi Spazio → la vedi ingrandita. Spazio/Esc per chiudere. Usa la foto selezionata (selEl /
-  // slot attivo / foto a piena tavola).
-  const focusedMediaId = (): string | null => {
-    if (selEl) { for (const p of spreadPages) { const el = (p.elements ?? []).find((e) => e.id === selEl); if (el) return el.mediaId } }
-    if (activeSlot != null && currentPage) return currentPage.mediaIds?.[activeSlot] ?? null
-    const sp = spreadPages.find((p) => p.spreadImage)?.spreadImage
-    return sp?.mediaId ?? null
-  }
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const el = document.activeElement as HTMLElement | null
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
-      if (e.code === 'Space' || e.key === ' ') {
-        if (step !== 'design') return
-        const mid = photoPreview ? null : focusedMediaId()
-        if (photoPreview || mid) { e.preventDefault(); setPhotoPreview(photoPreview ? null : mid) }
-      } else if (e.key === 'Escape' && photoPreview) { setPhotoPreview(null) }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [step, photoPreview, selEl, activeSlot, spreadPages, currentPage])
   const spreadHpx = Math.max(180, (fitH || 560) * zoom)
 
   // Applica una disposizione: ricostruisce gli elementi della tavola assegnando ogni foto allo
