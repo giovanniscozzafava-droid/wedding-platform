@@ -1,5 +1,6 @@
 // Edge: suggest-my-suppliers
-// Il professionista (referrer) suggerisce i fornitori che segue (collaborations ACTIVE) al cliente
+// Il professionista (referrer) suggerisce i fornitori che SEGUE (follows APPROVED; basta seguirli)
+// — oltre alle eventuali collaborazioni ACTIVE — al cliente
 // di un preventivo già inviato. Crea i record supplier_suggestions (+ contatti in _private, nascosti
 // al fornitore), manda 1 email al CLIENTE con la lista, 1 email a OGNI fornitore ("sei stato
 // suggerito, crea la tua offerta — vedi solo la data") + notifica in-app. Nessun money-talk (beta).
@@ -53,10 +54,18 @@ Deno.serve(async (req) => {
   if (q.owner_id !== caller.id && me?.role !== 'ADMIN') return json({ error: 'forbidden' }, 403)
   const referrerName = me?.business_name ?? me?.full_name ?? 'Un professionista'
 
-  // Solo fornitori REALMENTE seguiti (collaborazioni ACTIVE del referrer).
-  const { data: collabs } = await admin.from('collaborations')
-    .select('fornitore_id').eq('capostipite_id', q.owner_id).eq('status', 'ACTIVE').in('fornitore_id', supplierIds)
-  const validIds = [...new Set((collabs ?? []).map((c: { fornitore_id: string }) => c.fornitore_id))]
+  // Criterio: fornitori che il referrer SEGUE (follows APPROVED) — seguire è sufficiente.
+  // In più, per non regredire i capostipiti, accettiamo anche le collaborazioni ACTIVE.
+  const [{ data: fol }, { data: collabs }] = await Promise.all([
+    admin.from('follows')
+      .select('followed_id').eq('follower_id', q.owner_id).eq('status', 'APPROVED').in('followed_id', supplierIds),
+    admin.from('collaborations')
+      .select('fornitore_id').eq('capostipite_id', q.owner_id).eq('status', 'ACTIVE').in('fornitore_id', supplierIds),
+  ])
+  const validIds = [...new Set([
+    ...(fol ?? []).map((f: { followed_id: string }) => f.followed_id),
+    ...(collabs ?? []).map((c: { fornitore_id: string }) => c.fornitore_id),
+  ])]
   if (validIds.length === 0) return json({ error: 'no_valid_suppliers' }, 400)
 
   const { data: sup } = await admin.from('profiles')

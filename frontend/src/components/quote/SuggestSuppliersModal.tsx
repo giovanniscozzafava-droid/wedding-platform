@@ -3,16 +3,30 @@ import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { X, Users, Send, Loader2, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useSuppliers } from '@/hooks/useSuppliers'
+import { useSuppliers, useFollowedSuppliers } from '@/hooks/useSuppliers'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 
-// Modale "Suggerisci i miei fornitori a questo cliente": preseleziona TUTTI i fornitori seguiti
-// (collaborazioni ACTIVE), deselezionabili, + messaggio opzionale. Invia via edge suggest-my-suppliers:
-// 1 mail al cliente con la lista, 1 mail per ogni fornitore ("sei stato suggerito, crea la tua offerta").
+type Candidate = { id: string; name: string; subrole: string | null }
+
+// Modale "Suggerisci i miei fornitori a questo cliente": preseleziona TUTTI i fornitori che SEGUI
+// (criterio: basta seguirli) + eventuali collaborazioni ACTIVE, deselezionabili, + messaggio opzionale.
+// Invia via edge suggest-my-suppliers: 1 mail al cliente con la lista, 1 mail per ogni fornitore.
 export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteId: string; clientName?: string | null; onClose: () => void }) {
-  const { data: all, isLoading } = useSuppliers()
-  const suppliers = useMemo(() => (all ?? []).filter((s) => s.collaboration_status === 'ACTIVE'), [all])
+  const { data: collabs, isLoading: loadingCollabs } = useSuppliers()
+  const { data: followed, isLoading: loadingFollowed } = useFollowedSuppliers()
+  const isLoading = loadingCollabs || loadingFollowed
+  // Candidati = fornitori SEGUITI ∪ collaborazioni ACTIVE (dedup per id).
+  const suppliers = useMemo<Candidate[]>(() => {
+    const map = new Map<string, Candidate>()
+    for (const s of (collabs ?? []).filter((c) => c.collaboration_status === 'ACTIVE')) {
+      map.set(s.id, { id: s.id, name: s.business_name ?? s.full_name ?? 'Fornitore', subrole: s.subrole })
+    }
+    for (const s of followed ?? []) {
+      map.set(s.id, { id: s.id, name: s.name ?? 'Fornitore', subrole: s.subrole })
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [collabs, followed])
   const [selected, setSelected] = useState<Set<string> | null>(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -67,7 +81,7 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
               <div className="space-y-1.5">
                 {suppliers.map((s) => {
                   const on = sel.has(s.id)
-                  const name = s.business_name ?? s.full_name ?? 'Fornitore'
+                  const name = s.name
                   return (
                     <button key={s.id} onClick={() => toggle(s.id)}
                       className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]/40' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>

@@ -85,6 +85,20 @@ export function useSuppliers() {
   })
 }
 
+// Fornitori che l'utente SEGUE (follows APPROVED, role FORNITORE) — criterio per
+// suggerirli a un cliente. Seguire è sufficiente: non serve una collaborazione.
+export type FollowedSupplier = { id: string; name: string | null; subrole: string | null; city: string | null }
+export function useFollowedSuppliers() {
+  return useQuery<FollowedSupplier[]>({
+    queryKey: ['followed-suppliers'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as unknown as { rpc: (f: string) => Promise<{ data: unknown; error: Error | null }> }).rpc('followed_suppliers')
+      if (error) throw error
+      return ((data as { suppliers?: FollowedSupplier[] } | null)?.suppliers) ?? []
+    },
+  })
+}
+
 export function useSupplier(id: string | null) {
   return useQuery({
     queryKey: ['supplier', id],
