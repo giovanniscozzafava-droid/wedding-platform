@@ -65,13 +65,14 @@ Deno.serve(async (req) => {
   } catch { access = null }
   if (!access) return json({ error: 'drive_auth_failed' }, 502)
 
-  // EXIF per file: time di scatto + createdTime (fallback) + dimensioni reali
-  const meta: Record<string, { takenAt: number | null; w: number | null; h: number | null }> = {}
+  // EXIF per file: time di scatto + createdTime (fallback) + dimensioni reali + NOME FILE originale
+  // (il nome serve al fotografo per ritrovare le foto in Lightroom filtrando per nome file).
+  const meta: Record<string, { takenAt: number | null; w: number | null; h: number | null; name: string | null }> = {}
   await pool(driveMedia, 8, async (m) => {
     const id = m.drive_file_id as string
     try {
-      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,createdTime,imageMediaMetadata(time,width,height)&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${access}` } })
-      if (!r.ok) { meta[m.id as string] = { takenAt: null, w: null, h: null }; return }
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,createdTime,imageMediaMetadata(time,width,height)&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${access}` } })
+      if (!r.ok) { meta[m.id as string] = { takenAt: null, w: null, h: null, name: null }; return }
       const f = await r.json()
       const imm = f?.imageMediaMetadata ?? {}
       // imageMediaMetadata.time è "YYYY:MM:DD HH:MM:SS" → normalizzo a ISO
@@ -81,8 +82,8 @@ Deno.serve(async (req) => {
         const d = Date.parse(iso); if (!Number.isNaN(d)) ts = d
       }
       if (ts === null && typeof f?.createdTime === 'string') { const d = Date.parse(f.createdTime); if (!Number.isNaN(d)) ts = d }
-      meta[m.id as string] = { takenAt: ts, w: imm.width ?? null, h: imm.height ?? null }
-    } catch { meta[m.id as string] = { takenAt: null, w: null, h: null } }
+      meta[m.id as string] = { takenAt: ts, w: imm.width ?? null, h: imm.height ?? null, name: (typeof f?.name === 'string' ? f.name : null) }
+    } catch { meta[m.id as string] = { takenAt: null, w: null, h: null, name: null } }
   })
 
   const withTime = Object.values(meta).filter((x) => x.takenAt !== null).length

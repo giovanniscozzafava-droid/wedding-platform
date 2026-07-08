@@ -107,6 +107,7 @@ type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
   media_type: 'PHOTO' | 'VIDEO'; guest_tag_name: string | null
   album_choice: 'KEPT' | 'DISCARDED' | null; album_moment: string | null
+  source_name: string | null   // nome file originale (per ritrovarle in Lightroom)
 }
 
 // POST-IT: richiesta di modifica del cliente appuntata in un punto della tavola (anchor 0..1) ed
@@ -475,7 +476,7 @@ function AlbumDesignerInner() {
         const PAGE = 1000; const out: M[] = []
         for (let from = 0; ; from += PAGE) {
           const { data, error } = await (supabase.from as any)('gallery_media')
-            .select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment')
+            .select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment, source_name')
             .eq('entry_id', entryId)
             .order('created_at', { ascending: true }).order('id', { ascending: true })
             .range(from, from + PAGE - 1)
@@ -720,7 +721,7 @@ function AlbumDesignerInner() {
         if (error) throw error
         const newId = (data as { id?: string } | null)?.id
         if (newId) {
-          setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: mt, guest_tag_name: null, album_choice: 'KEPT', album_moment: null }])
+          setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: mt, guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: null }])
           ok++
         }
       } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
@@ -1191,7 +1192,7 @@ function AlbumDesignerInner() {
   const [wbBusy, setWbBusy] = useState(false) // valutazione bilanciamento bianco della tavola
   const [wbResult, setWbResult] = useState<{ wb: { id: string; temp: number; tint: number; label: string }[]; consistent: boolean; off: string[]; note: string; advice: string } | null>(null)
   const [highlightMedia, setHighlightMedia] = useState<string | null>(null) // foto evidenziata dal report
-  const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null }>>({}) // EXIF: orario scatto + dimensioni reali (per sequenza cronologica)
+  const [exifMeta, setExifMeta] = useState<Record<string, { takenAt: number | null; w: number | null; h: number | null; name?: string | null }>>({}) // EXIF: orario scatto + dimensioni reali + nome file (per sequenza cronologica + Lightroom)
   const [faceMap, setFaceMap] = useState<Record<string, { fx: number; fy: number; face?: boolean }>>({}) // dove l'AI ha mappato i volti
   const [showFaces, setShowFaces] = useState(true) // mostra i pallini dei volti sulle miniature
   // APRI IN PHOTOSHOP: (1) scarica l'ORIGINALE a piena risoluzione come file su disco, (2) tenta di
@@ -1252,7 +1253,7 @@ function AlbumDesignerInner() {
       if (error) throw error
       const newId = (data as { id?: string } | null)?.id
       if (!newId) throw new Error('upload non riuscito')
-      setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: null }])
+      setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: null }])
       freeReplace(pageId, elId, newId)
       toast.success('Versione modificata caricata e inserita nella tavola')
     } catch (e) { toast.error('Caricamento non riuscito: ' + (e as Error).message) } finally { setImporting(null) }
@@ -1492,6 +1493,36 @@ function AlbumDesignerInner() {
     freeReplace(lp.id, el.id, p.replace_media_id)
     void resolveRev(p.id); setOpenPin(null)
     toast.success('Foto sostituita. Ricontrolla il ritaglio se serve.')
+  }
+
+  // LISTA PER LIGHTROOM: CSV delle foto SELEZIONATE (nome file originale + data di scatto EXIF +
+  // momento). Il fotografo la usa per ritrovare/isolare le stesse foto in Lightroom (filtro per nome
+  // file) e lavorarle. Ordinata per orario di scatto.
+  async function exportLightroomList() {
+    const rows = kept.filter((m) => m.media_type === 'PHOTO')
+    if (rows.length === 0) { toast.error('Nessuna foto selezionata'); return }
+    // Il nome file originale sta su Drive (imageMediaMetadata), non in DB → lo chiedo a album-exif.
+    // Riuso quanto già in exifMeta; se manca il nome per le foto Drive, faccio una fetch.
+    let meta = exifMeta
+    const needFetch = rows.filter((m) => isDrive(m)).some((m) => meta[m.id]?.name == null)
+    if (needFetch) { const t = toast.loading('Recupero i nomi file da Google Drive…'); meta = { ...meta, ...(await loadExif()) }; toast.dismiss(t) }
+    const nameOf = (m: M) => meta[m.id]?.name ?? m.source_name ?? ''
+    const takenAt = (id: string) => meta[id]?.takenAt ?? null
+    const sorted = [...rows].sort((a, b) => { const ta = takenAt(a.id), tb = takenAt(b.id); if (ta != null && tb != null) return ta - tb; if (ta != null) return -1; if (tb != null) return 1; return 0 })
+    const esc = (s: unknown) => { const v = String(s ?? ''); return /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v }
+    const lines = sorted.map((m) => {
+      const ta = takenAt(m.id)
+      return [esc(nameOf(m)), esc(ta ? new Date(ta).toLocaleString('it-IT') : ''), esc(getMoment(m.album_moment)?.label ?? '')].join(';')
+    })
+    const csv = '﻿' + ['nome_file;scattata_il;momento', ...lines].join('\r\n') // BOM: Excel apre in UTF-8
+    const missing = sorted.filter((m) => !nameOf(m)).length
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
+    a.download = `selezione-lightroom-${(title || 'album').replace(/[^\w-]+/g, '_').slice(0, 40)}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000)
+    if (missing === rows.length) toast.warning(`Esportate ${rows.length} foto, ma senza nome file (collega Google Drive per averli). In Lightroom usa la colonna "scattata_il".`, { duration: 9000 })
+    else toast.success(`Esportate ${rows.length} foto${missing ? ` (${missing} senza nome)` : ''} — in Lightroom filtra per nome file`)
   }
 
   const exportRef = useRef<HTMLDivElement>(null)
@@ -2037,12 +2068,12 @@ function AlbumDesignerInner() {
 
   // EXIF: chiede a Drive l'orario di scatto (+ dimensioni reali) delle foto dell'evento → serve
   // all'impaginatore per l'ordine CRONOLOGICO. Silenzioso: se Drive non è collegato, si prosegue senza.
-  async function loadExif(): Promise<Record<string, { takenAt: number | null; w: number | null; h: number | null }>> {
+  async function loadExif(): Promise<Record<string, { takenAt: number | null; w: number | null; h: number | null; name?: string | null }>> {
     if (!entryId) return {}
     try {
       const { data, error } = await supabase.functions.invoke('album-exif', { body: { entryId } })
       if (error || (data as { error?: string } | null)?.error) return {}
-      const meta = (data as { meta?: Record<string, { takenAt: number | null; w: number | null; h: number | null }> }).meta ?? {}
+      const meta = (data as { meta?: Record<string, { takenAt: number | null; w: number | null; h: number | null; name?: string | null }> }).meta ?? {}
       setExifMeta((prev) => ({ ...prev, ...meta }))
       return meta
     } catch { return {} }
@@ -2370,6 +2401,7 @@ function AlbumDesignerInner() {
             onKeepAll={() => void setKeepAll('KEPT')} onKeepNone={() => void setKeepAll('DISCARDED')}
             onImport={importPhotos} importing={importing}
             likeCounts={likeCounts} onKeepLiked={() => void keepLiked()}
+            onExportLightroom={exportLightroomList}
           />
         </div>
       ) : (
@@ -3396,8 +3428,9 @@ function SelectStep(props: {
   onImport: (files: File[]) => void; importing: { done: number; total: number } | null
   isCouple?: boolean; onReadyToLayout?: () => void
   likeCounts: Record<string, number>; onKeepLiked: () => void
+  onExportLightroom: () => void
 }) {
-  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing, isCouple, onReadyToLayout, likeCounts, onKeepLiked } = props
+  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing, isCouple, onReadyToLayout, likeCounts, onKeepLiked, onExportLightroom } = props
   const allKept = photos.length > 0 && total >= photos.length
   const [likedFirst, setLikedFirst] = useState(false)
   // Vista "Solo selezionate": riaprendo un album che HA già una selezione mostro solo le foto scelte
@@ -3461,6 +3494,7 @@ function SelectStep(props: {
             {likedTotal > 0 && <Button variant="outline" size="sm" onClick={onKeepLiked} title="Aggiungi all'album le foto a cui gli sposi hanno messo mi piace"><Heart size={14} className="fill-rose-400 text-rose-400" /> Tieni le preferite ({likedTotal})</Button>}
             {likedTotal > 0 && <Button variant={likedFirst ? 'gold' : 'outline'} size="sm" onClick={() => setLikedFirst((v) => !v)} title="Mostra prima le foto più piaciute dagli sposi">{likedFirst ? 'Ordine originale' : 'Preferite prima'}</Button>}
             {total > 0 && photos.length > total && <Button variant={showingKeptOnly ? 'gold' : 'outline'} size="sm" onClick={() => setOnlyKept((v) => !v)} title={showingKeptOnly ? 'Mostra tutta la galleria per aggiungerne altre' : 'Mostra solo le foto scelte per l’album'}>{showingKeptOnly ? `Tutte le foto (${photos.length})` : `Solo selezionate (${total})`}</Button>}
+            {total > 0 && <Button variant="outline" size="sm" onClick={onExportLightroom} title="Scarica la lista delle foto scelte (nome file + data scatto) per ritrovarle e lavorarle in Lightroom"><FileText size={14} /> Lista Lightroom</Button>}
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto"><strong>{total}</strong>/{photos.length} selezionate</span>
           </>}
         </div>
