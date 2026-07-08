@@ -4,7 +4,7 @@ import { X, Send, Check, MapPin, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
-export type AlbumPin = { id: string; entry_id: string; page: number; x: number; y: number; comment: string | null; material: string | null; color: string | null; status: string }
+export type AlbumPin = { id: string; entry_id: string; page: number; x: number; y: number; comment: string | null; material: string | null; color: string | null; status: string; logo?: string | null; cover_photo?: boolean | null; pages?: number | null }
 type Msg = { id: string; author_role: string; body: string; created_at: string }
 
 // Pannello conversazione di un pin: il commento resta sul pin, materiale/colore, e il dialogo
@@ -16,6 +16,9 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
   const [comment, setComment] = useState(pin.comment ?? '')
   const [material, setMaterial] = useState(pin.material ?? '')
   const [color, setColor] = useState(pin.color ?? '')
+  const [logo, setLogo] = useState(pin.logo ?? '')
+  const [coverPhoto, setCoverPhoto] = useState(!!pin.cover_photo)
+  const [pages, setPages] = useState(pin.pages != null ? String(pin.pages) : '')
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
@@ -33,7 +36,10 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs.length])
 
   async function saveDetails() {
-    const patch = { comment: comment.trim() || null, material: material.trim() || null, color: color.trim() || null }
+    const patch = {
+      comment: comment.trim() || null, material: material.trim() || null, color: color.trim() || null,
+      logo: logo.trim() || null, cover_photo: coverPhoto, pages: pages ? Math.max(1, Number(pages) || 0) : null,
+    }
     await (supabase.from as any)('album_pins').update(patch).eq('id', pin.id)
     onUpdated({ ...pin, ...patch })
   }
@@ -54,7 +60,7 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
   async function choose() {
     await saveDetails()
     await (supabase.from as any)('album_pins').update({ status: 'CHOSEN' }).eq('id', pin.id)
-    onChoose({ ...pin, comment: comment.trim() || null, material: material.trim() || null, color: color.trim() || null, status: 'CHOSEN' })
+    onChoose({ ...pin, comment: comment.trim() || null, material: material.trim() || null, color: color.trim() || null, logo: logo.trim() || null, cover_photo: coverPhoto, pages: pages ? Math.max(1, Number(pages) || 0) : null, status: 'CHOSEN' })
   }
 
   return (
@@ -72,10 +78,17 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
           <textarea value={comment} onChange={(e) => setComment(e.target.value)} onBlur={saveDetails} rows={2}
             placeholder={isPro ? 'Nota del cliente…' : 'Scrivi cosa ti piace di questo modello, dubbi, domande…'}
             className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
+          {!isPro && <p className="text-[11px] text-[rgb(var(--fg-muted))]">Dai al fotografo le info su questo modello:</p>}
           <div className="grid grid-cols-2 gap-2">
             <input value={material} onChange={(e) => setMaterial(e.target.value)} onBlur={saveDetails} placeholder="Materiale (es. pelle)" className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
             <input value={color} onChange={(e) => setColor(e.target.value)} onBlur={saveDetails} placeholder="Colore" className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
+            <input value={logo} onChange={(e) => setLogo(e.target.value)} onBlur={saveDetails} placeholder="Logo / iniziali / data" className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
+            <input value={pages} onChange={(e) => setPages(e.target.value)} onBlur={saveDetails} type="number" min={1} placeholder="Pagine (facolt.)" className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={coverPhoto} onChange={(e) => { setCoverPhoto(e.target.checked); setTimeout(saveDetails, 0) }} />
+            Foto in copertina
+          </label>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2 min-h-[120px]">

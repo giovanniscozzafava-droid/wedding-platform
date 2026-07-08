@@ -125,7 +125,7 @@ export default function AlbumCatalogPicker() {
   // Il cliente conferma un pin → diventa il modello per la commessa, col commento/materiale/colore.
   function onChoosePin(p: AlbumPin) {
     setSelected({ id: p.id, page: p.page, x: p.x, y: p.y, w: 0, h: 0, label: p.comment ? `Modello: ${p.comment.slice(0, 50)}` : `Modello a pag. ${p.page}` })
-    setPinNote([p.comment, p.material && `Materiale: ${p.material}`, p.color && `Colore: ${p.color}`].filter(Boolean).join(' · '))
+    setPinNote([p.comment, p.material && `Materiale: ${p.material}`, p.color && `Colore: ${p.color}`, p.logo && `Logo: ${p.logo}`, p.cover_photo && 'Foto in copertina', p.pages && `${p.pages} pagine`].filter(Boolean).join(' · '))
     setOpenPin(null)
     void reloadPins()
   }

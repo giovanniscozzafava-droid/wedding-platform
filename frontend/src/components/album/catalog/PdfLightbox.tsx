@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import HTMLFlipBook from 'react-pageflip'
-import { X, ChevronLeft, ChevronRight, Loader2, Check } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Loader2, Check, ZoomIn, ZoomOut } from 'lucide-react'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect } from '@/lib/pdf'
 import type { Hotspot } from '@/hooks/useAlbumCatalog'
 
@@ -13,6 +13,7 @@ export function PdfLightbox({ pdfUrl, hotspots, onPick, onClose }: {
   const [asp, setAsp] = useState(1)
   const [loading, setLoading] = useState(true)
   const [progress, setProgress] = useState(0)
+  const [zoom, setZoom] = useState(1)   // lente: ingrandisce per vedere meglio il modello
   const bookRef = useRef<any>(null)
 
   useEffect(() => {
@@ -67,6 +68,16 @@ export function PdfLightbox({ pdfUrl, hotspots, onPick, onClose }: {
       ) : (
         <>
           <button onClick={() => bookRef.current?.pageFlip?.()?.flipPrev?.()} className="absolute left-3 z-10 h-12 w-12 grid place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"><ChevronLeft size={24} /></button>
+
+          {/* lente: zoom per vedere meglio il modello. Quando è ingrandito, il contenitore scorre. */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-full bg-white/10 backdrop-blur px-1.5 py-1">
+            <button onClick={() => setZoom((z) => Math.max(1, +(z - 0.25).toFixed(2)))} className="h-8 w-8 grid place-items-center rounded-full text-white hover:bg-white/20" title="Riduci"><ZoomOut size={16} /></button>
+            <span className="text-white/80 text-xs w-10 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))} className="h-8 w-8 grid place-items-center rounded-full text-white hover:bg-white/20" title="Ingrandisci"><ZoomIn size={16} /></button>
+          </div>
+
+          <div className="overflow-auto max-w-[96vw] max-h-[86vh] flex" onWheel={(e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom((z) => Math.min(3, Math.max(1, +(z - Math.sign(e.deltaY) * 0.15).toFixed(2)))) } }}>
+          <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform .15s ease', margin: 'auto' }}>
           {/* @ts-expect-error react-pageflip typings are loose */}
           <HTMLFlipBook ref={bookRef} width={leafW} height={leafH} size="fixed" minWidth={200} maxWidth={3000} minHeight={200} maxHeight={3000}
             showCover={false} drawShadow maxShadowOpacity={0.5} flippingTime={700} usePortrait={vw < 900} mobileScrollSupport={false} className="" style={{}}>
@@ -85,8 +96,10 @@ export function PdfLightbox({ pdfUrl, hotspots, onPick, onClose }: {
               </div>
             ))}
           </HTMLFlipBook>
+          </div>
+          </div>
           <button onClick={() => bookRef.current?.pageFlip?.()?.flipNext?.()} className="absolute right-3 z-10 h-12 w-12 grid place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"><ChevronRight size={24} /></button>
-          <p className="absolute bottom-3 text-white/70 text-xs flex items-center gap-1.5"><Check size={13} className="text-[rgb(var(--gold-400,212_175_55))]" /> Sfoglia con le frecce o trascinando · clicca un riquadro per scegliere il modello</p>
+          <p className="absolute bottom-3 text-white/70 text-xs flex items-center gap-1.5"><Check size={13} className="text-[rgb(var(--gold-400,212_175_55))]" /> Sfoglia con le frecce · lente in alto per ingrandire · clicca un riquadro per scegliere</p>
         </>
       )}
     </div>
