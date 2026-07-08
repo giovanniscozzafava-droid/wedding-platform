@@ -22,11 +22,12 @@ export function trackQuoteOpen(token?: string | null): void {
     if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key)) return
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1')
   } catch { /* sessionStorage non disponibile: traccia comunque */ }
-  // IMPORTANTE: il builder di supabase-js è "lazy" — la richiesta parte SOLO con
-  // .then()/await. Un semplice `void supabase.rpc(...)` NON invia nulla (bug storico).
+  // Via EDGE (non RPC diretta): l'hardening blocca le scritture anonime su `quotes`, quindi
+  // il cliente anonimo che chiama track_quote_open non aggiornerebbe nulla. L'edge `track-open`
+  // gira come service_role (permesso dall'hardening) e scrive open_count/quote_views.
   try {
-    ;(supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => PromiseLike<unknown> })
-      .rpc('track_quote_open', { p_token: token, p_ua: typeof navigator !== 'undefined' ? navigator.userAgent : null })
+    ;(supabase as unknown as { functions: { invoke: (n: string, o: { body: unknown }) => PromiseLike<unknown> } })
+      .functions.invoke('track-open', { body: { token, ua: typeof navigator !== 'undefined' ? navigator.userAgent : null } })
       .then(() => {}, () => {})
   } catch { /* best-effort */ }
 }
