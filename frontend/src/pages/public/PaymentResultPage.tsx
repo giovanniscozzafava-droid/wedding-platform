@@ -1,9 +1,19 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, XCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 // Atterraggio pubblico dopo la Stripe Checkout (success_url / cancel_url di payment-create).
-// Nessun dato sensibile: lo stato reale del pagamento lo scrive il webhook sul ledger.
+// In caso di successo allinea subito lo stato leggendolo da Stripe (fallback al webhook).
 export default function PaymentResultPage({ ok = false }: { ok?: boolean }) {
+  const [params] = useSearchParams()
+  useEffect(() => {
+    const p = params.get('p')
+    if (ok && p) {
+      void (supabase as unknown as { functions: { invoke: (f: string, o: { body: unknown }) => Promise<unknown> } })
+        .functions.invoke('payment-verify', { body: { payment_id: p } }).catch(() => {})
+    }
+  }, [ok, params])
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F7F4EE] px-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm">

@@ -434,3 +434,8 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # (STRIPE_WEBHOOK_SECRET, fail-closed nel codice). Quindi verify_jwt = false.
 [functions.stripe-webhook]
 verify_jwt = false
+
+# La pagina pubblica di esito /pagamento/ok può chiamarla anche un pagatore non loggato:
+# è idempotente e autorevole (stato letto da Stripe), input = payment_id (uuid). verify_jwt = false.
+[functions.payment-verify]
+verify_jwt = false
