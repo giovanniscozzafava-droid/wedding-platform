@@ -356,7 +356,7 @@ export default function WeddingDashboard() {
                       gLocked
                         ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
                         : activeG
-                          ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
+                          ? 'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] shadow-sm'
                           : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
                     )}
                     aria-current={activeG ? 'page' : undefined}
@@ -403,9 +403,9 @@ export default function WeddingDashboard() {
                         locked
                           ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
                           : active
-                            ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
+                            ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] ring-1 ring-[rgb(var(--gold-300))]'
                             : emphasized
-                              ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] hover:bg-[rgb(var(--bg-elev))]'
+                              ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] ring-1 ring-[rgb(var(--gold-300))]/50 hover:bg-[rgb(var(--bg-elev))]'
                               : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-elev))] hover:text-[rgb(var(--fg))]',
                       )}
                       aria-label={emphasized ? `${t.label} (in evidenza)` : t.label}
