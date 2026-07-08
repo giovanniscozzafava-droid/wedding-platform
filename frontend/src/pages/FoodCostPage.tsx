@@ -10,10 +10,12 @@ import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
   useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost, useEventTasting, useEventCosting,
   useCantina, CANTINA_CATS, fetchCantinaPlan, consumeCantina, useEventDishes,
+  usePurchaseOrders, generatePurchaseOrders,
   fetchEventSheet, fetchBrand, COURSES,
-  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember, type FbCantina, type CantinaPlanRow,
+  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember, type FbCantina, type CantinaPlanRow, type FbPO,
 } from '@/hooks/useFoodCost'
 import { buildFoglioServizio } from '@/lib/foglioServizio'
+import { buildListaSpesa } from '@/lib/listaSpesa'
 
 const eur = (n: number) => '€ ' + (n ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 // l'ingrediente è in g/ml/pz; in UI mostriamo €/kg, €/L, €/pz (più leggibile)
@@ -599,8 +601,18 @@ function ProvaMenuPanel({ ev, menus, mut }: { ev: any; menus: FbMenu[]; mut: Ret
 }
 
 function FabbisognoTab() {
-  const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [go, setGo] = useState(false); const [net, setNet] = useState(true)
+  const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [go, setGo] = useState(false); const [net, setNet] = useState(true); const [gen, setGen] = useState(false)
   const { data: req, isFetching } = useRequirements(from, to, go, net)
+  const qc = useQueryClient()
+  async function genOrders() {
+    if (!from || !to) { toast.error('Scegli il periodo'); return }
+    setGen(true)
+    try {
+      const r = await generatePurchaseOrders(from, to)
+      qc.invalidateQueries({ queryKey: ['fb-po'] })
+      toast.success(`Lista spesa creata: ${r.ordini} ordini, ${r.righe} righe${r.senza_fornitore ? ` · ${r.senza_fornitore} ingredienti senza listino` : ''}`)
+    } catch (e) { toast.error((e as Error).message) } finally { setGen(false) }
+  }
   const groups = useMemo(() => {
     const m = new Map<string, { name: string; rows: typeof req; total: number }>()
     for (const r of req ?? []) {
@@ -618,6 +630,7 @@ function FabbisognoTab() {
         <label className="text-[11px] text-[rgb(var(--fg-muted))]">Al<Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setGo(false) }} className="mt-0.5" /></label>
         <label className="text-[11px] text-[rgb(var(--fg-muted))] inline-flex items-center gap-1.5 pb-2"><input type="checkbox" checked={net} onChange={(e) => { setNet(e.target.checked); setGo(false) }} /> sottrai giacenza</label>
         <Button size="sm" onClick={() => setGo(true)} disabled={!from || !to}><ShoppingCart size={14} /> Calcola fabbisogno</Button>
+        <Button size="sm" variant="outline" onClick={genOrders} disabled={!from || !to || gen}><FileText size={14} /> {gen ? 'Genero…' : 'Genera lista spesa (ordini)'}</Button>
         {go && req && <span className="text-sm ml-auto">Totale spesa: <strong>{eur(grand)}</strong></span>}
       </Card>
       {go && isFetching && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Calcolo…</Card>}
@@ -639,7 +652,54 @@ function FabbisognoTab() {
           </table>
         </Card>
       ))}
+      <OrdiniList />
     </div>
+  )
+}
+
+const PO_STATUS: Record<string, string> = { BOZZA: 'Bozza', INVIATO: 'Inviato', RICEVUTO_PARZIALE: 'Ricevuto parz.', RICEVUTO: 'Ricevuto', ANNULLATO: 'Annullato' }
+function OrdiniList() {
+  const { data: orders } = usePurchaseOrders()
+  const mut = useFoodCostMutations()
+  const [busy, setBusy] = useState(false)
+  const list = orders ?? []
+  async function stampa() {
+    const toPrint = list.filter((o) => o.status === 'BOZZA' || o.status === 'INVIATO')
+    if (!toPrint.length) { toast.error('Nessun ordine bozza/inviato da stampare'); return }
+    setBusy(true)
+    try { const brand = await fetchBrand(); const doc = await buildListaSpesa(toPrint, brand); doc.save('lista-spesa.pdf') }
+    catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+  if (!list.length) return null
+  return (
+    <Card className="overflow-hidden">
+      <div className="px-4 py-2 border-b border-[rgb(var(--border))] flex items-center justify-between">
+        <span className="font-medium text-sm inline-flex items-center gap-1.5"><FileText size={14} /> Lista spesa · ordini ({list.length})</span>
+        <Button size="sm" variant="outline" onClick={stampa} disabled={busy}><FileText size={13} /> {busy ? '…' : 'Stampa PDF per lo chef'}</Button>
+      </div>
+      <div className="divide-y divide-[rgb(var(--border))]">
+        {list.map((o: FbPO) => (
+          <div key={o.id} className="px-3 py-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-sm">
+                <span className="font-medium">{o.supplier?.name ?? '— senza fornitore —'}</span>
+                <span className="text-[rgb(var(--fg-subtle))] text-xs"> · {o.items?.length ?? 0} righe · {eur(o.total_cost)}{o.expected_date ? ` · entro ${new Date(o.expected_date).toLocaleDateString('it-IT')}` : ''}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${o.status === 'BOZZA' ? 'bg-[rgb(var(--bg-sunken))]' : 'bg-[rgb(var(--gold-100))]'}`}>{PO_STATUS[o.status] ?? o.status}</span>
+                {o.status === 'BOZZA' && <Button size="sm" variant="outline" onClick={() => mut.setPOStatus.mutate({ id: o.id, status: 'INVIATO' })}>Invia allo chef</Button>}
+                {o.status !== 'RICEVUTO' && <button onClick={() => { if (confirm('Eliminare questo ordine?')) mut.delPO.mutate(o.id) }} className="text-[rgb(var(--rose-500))]"><Trash2 size={14} /></button>}
+              </div>
+            </div>
+            {o.items?.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-[rgb(var(--fg-muted))]">
+                {o.items.map((it) => <span key={it.id} className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{it.product?.ingredient?.name ?? '—'} · {it.qty_packs}× {it.product?.pack_label ?? ''}</span>)}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 
