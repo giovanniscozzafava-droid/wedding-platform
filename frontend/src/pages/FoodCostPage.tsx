@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle, FileUp, ChefHat, FileText } from 'lucide-react'
+import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle, FileUp, ChefHat, FileText, Wine } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,8 +9,9 @@ import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
   useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost, useEventTasting, useEventCosting,
+  useCantina, CANTINA_CATS, fetchCantinaPlan, consumeCantina,
   fetchEventSheet, fetchBrand, COURSES,
-  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember,
+  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember, type FbCantina, type CantinaPlanRow,
 } from '@/hooks/useFoodCost'
 import { buildFoglioServizio } from '@/lib/foglioServizio'
 
@@ -21,20 +23,21 @@ const toStock = (v: number, u: string) => v / factor(u)                      // 
 const fromStock = (c: number, u: string) => c * factor(u)                    // €/g → €/kg
 
 export default function FoodCostPage() {
-  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'sup' | 'ev' | 'fab' | 'mag' | 'brig'>('ing')
+  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'cant' | 'sup' | 'ev' | 'fab' | 'mag' | 'brig'>('ing')
   return (
     <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader eyebrow="Gestionale ristorazione" title="Food cost & approvvigionamento"
           description="Ingredienti e costi → ricette → menu (food cost a coperto) → fornitori e listini → fabbisogno dagli eventi → lista spesa. Tutto connesso: dal menu dell'evento esce la spesa da fare." />
         <div className="flex flex-wrap gap-2 mb-5">
-          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart], ['mag', 'Magazzino', Boxes], ['brig', 'Brigata', ChefHat]] as const).map(([k, l, Icon]) => (
+          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['cant', 'Cantina', Wine], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart], ['mag', 'Magazzino', Boxes], ['brig', 'Brigata', ChefHat]] as const).map(([k, l, Icon]) => (
             <Button key={k} variant={tab === k ? 'gold' : 'outline'} size="sm" onClick={() => setTab(k)}><Icon size={14} /> {l}</Button>
           ))}
         </div>
         {tab === 'ing' && <IngredientiTab />}
         {tab === 'rec' && <RicetteTab />}
         {tab === 'menu' && <MenuTab />}
+        {tab === 'cant' && <CantinaTab />}
         {tab === 'sup' && <FornitoriTab />}
         {tab === 'ev' && <EventiTab />}
         {tab === 'fab' && <FabbisognoTab />}
@@ -329,6 +332,58 @@ function SupplierCard({ sup, ings }: { sup: FbSupplier; ings: FbIngredient[] }) 
   )
 }
 
+// ── Cantina: catalogo bevande + regola "1 bottiglia ogni N coperti" ─────────
+function CantinaTab() {
+  const { data: cantina } = useCantina()
+  const mut = useFoodCostMutations()
+  const [name, setName] = useState(''); const [cat, setCat] = useState('ROSSO'); const [ml, setMl] = useState('750')
+  const [cost, setCost] = useState(''); const [cpb, setCpb] = useState('3'); const [stock, setStock] = useState('0')
+  async function add() {
+    if (name.trim().length < 2) { toast.error('Nome bevanda'); return }
+    try {
+      await mut.addCantina.mutateAsync({ name: name.trim(), category: cat, bottle_ml: Number(ml) || 750, cost_per_bottle: parseFloat(cost.replace(',', '.')) || 0, covers_per_bottle: parseFloat(cpb.replace(',', '.')) || 3, stock_bottles: Number(stock) || 0, is_default: true })
+      setName(''); setCost(''); setStock('0'); toast.success('Bevanda aggiunta')
+    } catch (e) { toast.error((e as Error).message) }
+  }
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[rgb(var(--fg-muted))]">La cantina applica la regola <strong>1 bottiglia ogni N coperti</strong>: per ogni evento calcola bottiglie totali, giacenza e quante comprarne. Le bevande “di default” entrano automaticamente in ogni evento.</p>
+      <Card className="p-3 flex flex-wrap items-end gap-2">
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Bevanda<Input value={name} onChange={(e) => setName(e.target.value)} className="w-48 mt-0.5" placeholder="Cirò Rosso DOC" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Tipo<Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-28 mt-0.5">{CANTINA_CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</Select></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">ml<Input type="number" value={ml} onChange={(e) => setMl(e.target.value)} className="w-20 mt-0.5" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">€/bott.<Input value={cost} onChange={(e) => setCost(e.target.value)} className="w-20 mt-0.5" placeholder="9,00" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">1 ogni<Input value={cpb} onChange={(e) => setCpb(e.target.value)} className="w-16 mt-0.5" placeholder="3" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Giacenza<Input type="number" value={stock} onChange={(e) => setStock(e.target.value)} className="w-20 mt-0.5" /></label>
+        <Button size="sm" onClick={add}><Plus size={14} /> Aggiungi</Button>
+      </Card>
+      <Card className="overflow-hidden">
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] border-b border-[rgb(var(--border))]"><th className="p-2">Bevanda</th><th className="p-2">Regola</th><th className="p-2">€/bott.</th><th className="p-2">Giacenza</th><th className="p-2">Default</th><th className="p-2 w-10"></th></tr></thead>
+          <tbody>
+            {(cantina ?? []).map((b) => <CantinaRow key={b.id} b={b} mut={mut} />)}
+            {(cantina ?? []).length === 0 && <tr><td colSpan={6} className="p-6 text-center text-[rgb(var(--fg-subtle))]">Nessuna bevanda. Aggiungi le bottiglie della tua cantina.</td></tr>}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+function CantinaRow({ b, mut }: { b: FbCantina; mut: ReturnType<typeof useFoodCostMutations> }) {
+  const [stock, setStock] = useState(String(b.stock_bottles))
+  const catLabel = CANTINA_CATS.find((c) => c.key === b.category)?.label ?? b.category
+  return (
+    <tr className="border-b border-[rgb(var(--border))] last:border-0">
+      <td className="p-2"><span className="font-medium">{b.name}</span> <span className="text-[rgb(var(--fg-subtle))] text-xs">· {catLabel} · {b.bottle_ml}ml</span></td>
+      <td className="p-2 text-[rgb(var(--fg-muted))]">1 ogni {b.covers_per_bottle} cop.</td>
+      <td className="p-2">{eur(b.cost_per_bottle)}</td>
+      <td className="p-2"><div className="flex items-center gap-1"><Input value={stock} onChange={(e) => setStock(e.target.value)} className="w-16 h-8" /><Button size="sm" variant="outline" onClick={() => mut.updCantina.mutate({ id: b.id, patch: { stock_bottles: Number(stock) || 0 } })}>OK</Button></div></td>
+      <td className="p-2"><input type="checkbox" checked={b.is_default} onChange={(e) => mut.updCantina.mutate({ id: b.id, patch: { is_default: e.target.checked } })} /></td>
+      <td className="p-2"><button onClick={() => { if (confirm(`Eliminare ${b.name}?`)) mut.delCantina.mutate(b.id) }} className="text-[rgb(var(--rose-500))]"><Trash2 size={14} /></button></td>
+    </tr>
+  )
+}
+
 function EventiTab() {
   const { data: events } = useLocationEvents()
   const { data: menus } = useMenus()
@@ -348,7 +403,7 @@ const roleTone: Record<string, string> = { OSPITI: 'bg-[rgb(var(--gold-100))]', 
 
 function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuMap: Map<string, FbMenu>; mut: ReturnType<typeof useFoodCostMutations> }) {
   const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState(''); const [role, setRole] = useState('OSPITI'); const [label, setLabel] = useState('')
-  const [pdfBusy, setPdfBusy] = useState(false); const [showProva, setShowProva] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false); const [showProva, setShowProva] = useState(false); const [showCantina, setShowCantina] = useState(false)
   const hasMenus = (ev.menus ?? []).length > 0
   const { data: costing } = useEventCosting(ev.id, hasMenus)
   const grandTotal = (costing?.gruppi ?? []).reduce((s, g) => s + (g.total_cost ?? 0), 0)
@@ -410,9 +465,61 @@ function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuM
           </table>
         </div>
       )}
-      <button onClick={() => setShowProva((v) => !v)} className="mt-2 text-xs text-[rgb(var(--gold-700))] font-medium">{showProva ? '− Chiudi prova menu' : 'Prova menu & voti ospiti'}</button>
+      <div className="mt-2 flex gap-4">
+        <button onClick={() => setShowProva((v) => !v)} className="text-xs text-[rgb(var(--gold-700))] font-medium">{showProva ? '− Chiudi prova menu' : 'Prova menu & voti ospiti'}</button>
+        <button onClick={() => setShowCantina((v) => !v)} className="text-xs text-[rgb(var(--gold-700))] font-medium inline-flex items-center gap-1"><Wine size={12} /> {showCantina ? '− Chiudi cantina' : 'Cantina & bottiglie'}</button>
+      </div>
       {showProva && <ProvaMenuPanel ev={ev} menus={menus} mut={mut} />}
+      {showCantina && <CantinaEventPanel ev={ev} />}
     </Card>
+  )
+}
+
+function CantinaEventPanel({ ev }: { ev: any }) {
+  const qc = useQueryClient()
+  const [plan, setPlan] = useState<{ coperti: number; righe: CantinaPlanRow[] } | null>(null)
+  const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false)
+  async function load() { setLoading(true); try { setPlan(await fetchCantinaPlan(ev.id)) } catch (e) { toast.error((e as Error).message) } finally { setLoading(false) } }
+  useEffect(() => { void load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [ev.id])
+  async function scarica() {
+    if (!confirm('Scaricare le bottiglie dalla cantina per questo evento? (idempotente)')) return
+    setBusy(true)
+    try { const r = await consumeCantina(ev.id); toast.success(`Cantina scaricata: ${r?.bevande_scaricate ?? 0} bevande`); qc.invalidateQueries({ queryKey: ['fb-cantina'] }); await load() }
+    catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+  const righe = plan?.righe ?? []
+  const totBott = righe.reduce((s, r) => s + (r.bottiglie ?? 0), 0)
+  const totBuy = righe.reduce((s, r) => s + (r.costo_acquisto ?? 0), 0)
+  const totCost = righe.reduce((s, r) => s + (r.costo_totale ?? 0), 0)
+  return (
+    <div className="mt-3 rounded-xl border border-[rgb(var(--border))] p-3 bg-[rgb(var(--bg-sunken))]">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Piano cantina — {plan?.coperti ?? 0} coperti · {totBott} bottiglie</p>
+        {righe.length > 0 && <Button size="sm" variant="outline" onClick={scarica} disabled={busy}><Wine size={13} /> {busy ? '…' : 'Scarica cantina'}</Button>}
+      </div>
+      {loading ? <p className="text-sm text-[rgb(var(--fg-subtle))]">Calcolo…</p>
+        : righe.length === 0 ? <p className="text-sm text-[rgb(var(--fg-subtle))]">Nessuna bevanda “di default” in cantina. Aggiungile nel tab Cantina.</p>
+        : (
+        <div className="overflow-hidden rounded-lg border border-[rgb(var(--border))] text-[11px] bg-[rgb(var(--bg))]">
+          <table className="w-full">
+            <thead><tr className="text-left text-[rgb(var(--fg-subtle))] border-b border-[rgb(var(--border))]"><th className="px-2 py-1">Bevanda</th><th className="px-2 py-1 text-right">Bottiglie</th><th className="px-2 py-1 text-right">Giacenza</th><th className="px-2 py-1 text-right">Da comprare</th><th className="px-2 py-1 text-right">Spesa</th></tr></thead>
+            <tbody>
+              {righe.map((r) => (
+                <tr key={r.cantina_id} className="border-b border-[rgb(var(--border))] last:border-0">
+                  <td className="px-2 py-1">{r.nome} <span className="text-[rgb(var(--fg-subtle))]">· 1 ogni {r.coperti_per_bottiglia}</span></td>
+                  <td className="px-2 py-1 text-right font-medium">{r.bottiglie}</td>
+                  <td className="px-2 py-1 text-right text-[rgb(var(--fg-muted))]">{r.giacenza}</td>
+                  <td className="px-2 py-1 text-right">{r.da_comprare > 0 ? <span className="text-[rgb(var(--rose-600))] font-medium">{r.da_comprare}</span> : '—'}</td>
+                  <td className="px-2 py-1 text-right">{eur(r.costo_acquisto)}</td>
+                </tr>
+              ))}
+              <tr className="bg-[rgb(var(--bg-sunken))]"><td className="px-2 py-1 font-medium">Totale</td><td className="px-2 py-1 text-right font-medium">{totBott}</td><td></td><td className="px-2 py-1 text-right font-medium text-[rgb(var(--rose-600))]">{righe.reduce((s, r) => s + r.da_comprare, 0)}</td><td className="px-2 py-1 text-right font-semibold">{eur(totBuy)}</td></tr>
+            </tbody>
+          </table>
+          <p className="px-2 py-1 text-[10px] text-[rgb(var(--fg-subtle))]">Valore cantina servita: {eur(totCost)} · da acquistare (oltre giacenza): {eur(totBuy)}</p>
+        </div>
+      )}
+    </div>
   )
 }
 

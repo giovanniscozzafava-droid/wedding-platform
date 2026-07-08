@@ -195,9 +195,40 @@ export function useEventTasting(entryId: string | null, enabled: boolean) {
   })
 }
 
+// ── Cantina bottiglie (regola "1 bottiglia ogni N coperti") ────────────────
+export type FbCantina = { id: string; name: string; category: string; bottle_ml: number; cost_per_bottle: number; covers_per_bottle: number; stock_bottles: number; is_default: boolean }
+export const CANTINA_CATS: Array<{ key: string; label: string }> = [
+  { key: 'BOLLICINE', label: 'Bollicine' }, { key: 'BIANCO', label: 'Bianco' }, { key: 'ROSATO', label: 'Rosato' },
+  { key: 'ROSSO', label: 'Rosso' }, { key: 'BIRRA', label: 'Birra' }, { key: 'AMARO', label: 'Amaro' },
+  { key: 'ACQUA', label: 'Acqua' }, { key: 'ANALCOLICO', label: 'Analcolico' },
+]
+export function useCantina() {
+  return useQuery<FbCantina[]>({
+    queryKey: ['fb-cantina'],
+    queryFn: async () => {
+      const { data, error } = await sb('fb_cantina').select('id, name, category, bottle_ml, cost_per_bottle, covers_per_bottle, stock_bottles, is_default').eq('is_active', true).order('category').order('name')
+      if (error) throw error
+      return (data ?? []) as FbCantina[]
+    },
+  })
+}
+export type CantinaPlanRow = { cantina_id: string; nome: string; categoria: string; bottle_ml: number; coperti_per_bottiglia: number; bottiglie: number; giacenza: number; da_comprare: number; costo_bottiglia: number; costo_totale: number; costo_acquisto: number }
+export async function fetchCantinaPlan(entryId: string): Promise<{ coperti: number; righe: CantinaPlanRow[] } | null> {
+  const { data, error } = await (supabase as any).rpc('fb_event_cantina_plan', { p_entry: entryId })
+  if (error) throw error
+  if (!data || data.error) return null
+  return { coperti: data.coperti ?? 0, righe: (data.righe ?? []) as CantinaPlanRow[] }
+}
+export async function consumeCantina(entryId: string) {
+  const { data, error } = await (supabase as any).rpc('fb_cantina_consume_event', { p_entry: entryId })
+  if (error) throw error
+  if (data?.error) throw new Error(data.error)
+  return data
+}
+
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-costing', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade', 'fb-tasting'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-costing', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade', 'fb-tasting', 'fb-cantina'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {
@@ -220,6 +251,9 @@ export function useFoodCostMutations() {
     delEventMenu: m(async (id: string) => { const { error } = await sb('fb_event_menus').delete().eq('id', id); if (error) throw error }),
     addBrigadeMember: m(async (p: { full_name: string; role: string; reparto: string; phone?: string | null; hourly_cost?: number }) => { const id = await uid(); const { error } = await sb('fb_brigade_members').insert({ location_id: id, ...p }); if (error) throw error }),
     delBrigadeMember: m(async (id: string) => { const { error } = await sb('fb_brigade_members').update({ active: false }).eq('id', id); if (error) throw error }),
+    addCantina: m(async (p: { name: string; category: string; bottle_ml: number; cost_per_bottle: number; covers_per_bottle: number; stock_bottles: number; is_default?: boolean }) => { const id = await uid(); const { error } = await sb('fb_cantina').insert({ location_id: id, ...p }); if (error) throw error }),
+    updCantina: m(async (p: { id: string; patch: Record<string, unknown> }) => { const { error } = await sb('fb_cantina').update(p.patch).eq('id', p.id); if (error) throw error }),
+    delCantina: m(async (id: string) => { const { error } = await sb('fb_cantina').update({ is_active: false }).eq('id', id); if (error) throw error }),
     // Bolla fornitore (JPG singola o PDF → pagine in JPEG) → Qwen-VL estrae le righe → lotti in magazzino
     importBolla: m(async (p: { base64: string; media_type: string } | { images: string[] }) => {
       const body = 'images' in p ? { images: p.images } : { base64: p.base64, media_type: p.media_type }
