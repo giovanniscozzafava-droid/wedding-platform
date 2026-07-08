@@ -8,11 +8,25 @@ import { loadPdf } from '@/lib/pdf'
 const CAT_BUCKET = 'album-catalogs'
 const COMM_BUCKET = 'album-commissions'
 
+// Un MODELLO/card: può stare su un PDF (catalog_id + page + bbox) o essere una card manuale
+// (catalog_id null + image_path). Campi comuni: label, cost, price, options.
+export type ModelOption = { key: string; label: string; surcharge: number }
+export type ModelOptions = {
+  materials?: ModelOption[]   // materiali (es. Pelle, Legno) con sovrapprezzo
+  colors?: ModelOption[]      // colori
+  logos?: ModelOption[]       // logo/personalizzazione (iniziali, data, numeri…)
+  coverPhoto?: boolean        // il modello prevede la foto in copertina
+  coverPhotoSurcharge?: number
+}
 export type Hotspot = {
   id?: string; page: number; x: number; y: number; w: number; h: number
   label: string; default_format?: string | null; default_pages?: number | null
   cost?: number | null    // costo di listino (quanto paga il fotografo al lab) — l'AI lo legge dal PDF
   price?: number | null   // prezzo di vendita al cliente (= costo + ricarico)
+  catalog_id?: string | null   // null = card manuale (non su un PDF)
+  image_path?: string | null   // foto della card manuale (bucket album-catalogs)
+  options?: ModelOptions | null
+  sort_order?: number | null
 }
 export type Catalog = { id: string; name: string; pdf_path: string; page_count: number; owner_id?: string; studio?: string; markup_percent?: number }
 export type CommissionSpecs = { format: string; size?: string; pages: number; box?: string; finishes?: string[]; note?: string }
@@ -78,8 +92,7 @@ export async function uploadCatalogPdf(file: File, name?: string): Promise<Catal
   const path = `${id}/${crypto.randomUUID()}.pdf`
   const up = await supabase.storage.from(CAT_BUCKET).upload(path, file, { contentType: 'application/pdf', upsert: true })
   if (up.error) throw up.error
-  // 1 catalogo attivo per fotografo (MVP): disattiva i precedenti
-  await (supabase as any).from('album_catalogs').update({ active: false }).eq('owner_id', id).eq('active', true)
+  // Multi-PDF: i cataloghi restano tutti attivi (il fotografo può avere più listini).
   const { data, error } = await (supabase as any).from('album_catalogs')
     .insert({ owner_id: id, name: name || file.name.replace(/\.pdf$/i, '') || 'Catalogo album', pdf_path: path, page_count: pageCount, active: true })
     .select('id,name,pdf_path,page_count,owner_id').single()
@@ -97,6 +110,45 @@ export async function saveHotspots(catalogId: string, hotspots: Hotspot[]): Prom
   }))
   const { error } = await (supabase as any).from('album_catalog_hotspots').insert(rows)
   if (error) throw error
+}
+
+// TUTTI i modelli del fotografo (card da tutti i PDF + card manuali) + i cataloghi PDF.
+export async function getMyModels(): Promise<{ catalogs: Catalog[]; models: Hotspot[]; markup: number }> {
+  const id = await uid(); if (!id) return { catalogs: [], models: [], markup: 0 }
+  const { data: cats } = await (supabase as any)
+    .from('album_catalogs').select('id,name,pdf_path,page_count,owner_id,markup_percent')
+    .eq('owner_id', id).eq('active', true).order('created_at', { ascending: true })
+  const { data: hs } = await (supabase as any)
+    .from('album_catalog_hotspots').select('id,catalog_id,page,x,y,w,h,label,default_format,default_pages,price,cost,image_path,options,sort_order')
+    .eq('owner_id', id).order('sort_order', { ascending: true })
+  const markup = Number((cats as Catalog[] | null)?.[0]?.markup_percent ?? 0)
+  return { catalogs: (cats ?? []) as Catalog[], models: (hs ?? []) as Hotspot[], markup }
+}
+
+// Salva l'INTERO set di modelli del fotografo (delete per owner + insert). Ogni modello porta owner_id.
+export async function saveAllModels(models: Hotspot[]): Promise<void> {
+  const id = await uid(); if (!id) throw new Error('Non autenticato')
+  await (supabase as any).from('album_catalog_hotspots').delete().eq('owner_id', id)
+  if (!models.length) return
+  const rows = models.map((m, i) => ({
+    owner_id: id, catalog_id: m.catalog_id ?? null,
+    page: m.page ?? 1, x: m.x ?? 0, y: m.y ?? 0, w: m.w ?? 0, h: m.h ?? 0,
+    label: m.label || 'Modello', default_format: m.default_format ?? null, default_pages: m.default_pages ?? null,
+    price: m.price ?? null, cost: m.cost ?? null, image_path: m.image_path ?? null,
+    options: m.options ?? {}, sort_order: m.sort_order ?? i,
+  }))
+  const { error } = await (supabase as any).from('album_catalog_hotspots').insert(rows)
+  if (error) throw error
+}
+
+// Carica una foto per una card manuale nel bucket album-catalogs → path.
+export async function uploadCardImage(file: File): Promise<string> {
+  const id = await uid(); if (!id) throw new Error('Non autenticato')
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+  const path = `${id}/cards/${crypto.randomUUID()}.${ext}`
+  const up = await supabase.storage.from(CAT_BUCKET).upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true })
+  if (up.error) throw up.error
+  return path
 }
 
 // Ricarico predefinito del catalogo (%): prezzo cliente = costo × (1 + ricarico/100).

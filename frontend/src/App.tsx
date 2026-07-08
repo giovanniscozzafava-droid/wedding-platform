@@ -45,6 +45,8 @@ const ObservatoryPage = lazyWithRetry(() => import('@/pages/ObservatoryPage'))
 const InsurancePage = lazyWithRetry(() => import('@/pages/InsurancePage'))
 const BrandSettingsPage = lazyWithRetry(() => import('@/pages/BrandSettingsPage'))
 const AlbumPricingSettingsPage = lazyWithRetry(() => import('@/pages/AlbumPricingSettingsPage'))
+const IncassiSettingsPage = lazyWithRetry(() => import('@/pages/IncassiSettingsPage'))
+const PaymentResultPage = lazyWithRetry(() => import('@/pages/public/PaymentResultPage'))
 const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreviewPage'))
 const QuoteAcceptPage = lazyWithRetry(() => import('@/pages/public/QuoteAcceptPage'))
 const CommissionPage = lazyWithRetry(() => import('@/pages/public/CommissionPage'))
@@ -237,6 +239,14 @@ export default function App() {
             }
           />
           <Route
+            path="/settings/incassi"
+            element={
+              <RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+                <IncassiSettingsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/weddings"
             element={
               <RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}>
@@ -252,6 +262,8 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route path="/pagamento/ok" element={<PaymentResultPage ok />} />
+          <Route path="/pagamento/annullato" element={<PaymentResultPage />} />
           <Route path="/p/preview/:token" element={<QuotePreviewPage />} />
           <Route path="/p/accept/:token" element={<QuoteAcceptPage />} />
           <Route path="/p/commissione/:token" element={<CommissionPage />} />

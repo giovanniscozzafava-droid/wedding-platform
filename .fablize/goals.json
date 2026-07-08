@@ -1,41 +1,41 @@
 {
- "brief": "Prezzo album per-modello dal catalogo PDF: listino modelli (prezzo per modello, AI-assist), pacchetti base con modello incluso, differenza per il modello scelto, modalita' preventivato/da-zero",
- "created": "2026-07-08T14:58:58.845355+00:00",
+ "brief": "Funnel album coppia: modelli come card unificate (multi-PDF + card manuali), opzioni per modello, picker con formato bloccato + differenza prezzo, composizione, copia commissione",
+ "created": "2026-07-08T16:31:03.421871+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "DB",
-   "objective": "album_catalog_hotspots += price; pacchetti (base+modello incluso+pagine) in album_price_settings.config; semantica price_config estesa",
+   "title": "Fondazione dati",
+   "objective": "hotspot->card unificata (owner_id+image_path+options+sort_order, catalog_id nullable) + RLS owner + backfill + multi-catalogo; data layer getMyModels/saveModel",
    "status": "complete",
-   "evidence": "migration 20260708220000 (hotspots.price) applicata. albumPricing.ts: AlbumPackage + packages nel listino, config.mode('package'|'zero')+chosenModelPrice/Label+includedModelPrice, computeAlbumPrice con differenza vs modello incluso / prezzo pieno da-zero. build verde"
+   "evidence": "migration 20260709100000 applicata (hotspots: catalog_id nullable + owner_id + image_path + options + sort_order, RLS owner, backfill). useAlbumCatalog: Hotspot esteso, getMyModels/saveAllModels/uploadCardImage, multi-PDF (no deactivate). build verde"
   },
   {
    "id": "G002",
-   "title": "Manager listino",
-   "objective": "AlbumCatalogManager: prezzo per ogni modello marcato + editor pacchetti (base, modello incluso, pagine)",
-   "status": "complete",
-   "evidence": "build verde. hotspot.price (input prezzo per modello in PdfHotspotEditor + save/load in useAlbumCatalog + getCatalogModels). AlbumPricingSettingsPage: Card 'Pacchetti base' (label/base/pagine/modello incluso da catalogo con snapshot prezzo)"
+   "title": "Manager modelli",
+   "objective": "elenco card da tutti i PDF + card manuali con foto; costo/ricarico gia' fatti; editor opzioni (materiali/colori/logo/foto-copertina + sovrapprezzi)",
+   "status": "pending",
+   "evidence": null
   },
   {
    "id": "G003",
-   "title": "Calcolo+pannello",
-   "objective": "albumPricing computa modalita' pacchetto(differenza vs modello incluso)/da-zero; pannello impaginatore sceglie modalita'+pacchetto+modello, totale live",
-   "status": "complete",
-   "evidence": "build verde. Pannello prezzo impaginatore: toggle modalita' (Base preventivata/Da zero), selettore pacchetto (applyPackage), selettore modello dal catalogo (chosenModelLabel+price), base nascosta in da-zero. computeAlbumPrice mostra differenza vs modello incluso o prezzo pieno"
+   "title": "Picker coppia base",
+   "objective": "album_catalog_for_entry multi-PDF+card; formato bloccato su impaginato; PDF ingrandibile desktop; prezzo live differenza vs preventivo o pieno",
+   "status": "pending",
+   "evidence": null
   },
   {
    "id": "G004",
-   "title": "AI estrazione",
-   "objective": "edge function legge modello+prezzo dal PDF catalogo (Claude vision), il fotografo conferma nel manager",
-   "status": "complete",
-   "evidence": "build verde + deployata. album-catalog-extract (Claude sonnet-4-6, PDF document block); ANTHROPIC_API_KEY presente. Manager 'Leggi prezzi (AI)' → merge per nome + aggiunta mancanti; conferma+salva"
+   "title": "Composizione coppia",
+   "objective": "opzioni sommano nel prezzo; box+album famiglia pre-spuntati da preventivo (couple_get_quote_for_entry)",
+   "status": "pending",
+   "evidence": null
   },
   {
    "id": "G005",
-   "title": "Vista coppia",
-   "objective": "differenza modello nel totale del visore album",
-   "status": "complete",
-   "evidence": "La card 'Il tuo album' nel visore coppia (AlbumDesignerPage:2342-2350) usa computeAlbumPrice condiviso → mostra la riga 'Modello X' (differenza in modalita' package, prezzo pieno in da-zero) senza codice dedicato. Gia' in produzione"
+   "title": "Sbocco commissione",
+   "objective": "la composizione popola price_config + genera la copia commissione, flusso unico",
+   "status": "pending",
+   "evidence": null
   }
  ]
 }

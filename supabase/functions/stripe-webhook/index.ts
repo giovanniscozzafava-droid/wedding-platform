@@ -53,7 +53,34 @@ Deno.serve(async (req) => {
           const sub = await stripe.subscriptions.retrieve(s.subscription as string)
           const pid = (s.client_reference_id as string) || await resolveProfile(s.customer as string)
           if (pid) await applySub(pid, sub)
+        } else if (s.mode === 'payment') {
+          // Connect direct charge: pagamento cliente → pro andato a buon fine.
+          const payId = s.metadata?.payment_id
+          if (payId) {
+            await admin.from('payments').update({
+              status: 'PAID', paid_at: new Date().toISOString(),
+              payment_intent_id: (s.payment_intent as string) ?? null,
+            }).eq('id', payId).neq('status', 'REFUNDED')
+          }
         }
+        break
+      }
+      case 'checkout.session.expired':
+      case 'checkout.session.async_payment_failed': {
+        const s = event.data.object as Stripe.Checkout.Session
+        const payId = s.metadata?.payment_id
+        if (payId) await admin.from('payments').update({ status: 'FAILED' }).eq('id', payId).eq('status', 'PENDING')
+        break
+      }
+      case 'account.updated': {
+        // Stato onboarding del conto Connect del pro (evento sul connected account).
+        const acct = event.data.object as Stripe.Account
+        await admin.from('stripe_connect_accounts').update({
+          charges_enabled: acct.charges_enabled ?? false,
+          payouts_enabled: acct.payouts_enabled ?? false,
+          details_submitted: acct.details_submitted ?? false,
+          updated_at: new Date().toISOString(),
+        }).eq('account_id', acct.id)
         break
       }
       case 'customer.subscription.updated':

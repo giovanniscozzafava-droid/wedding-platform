@@ -40,6 +40,7 @@ import {
   TicketPercent,
   Boxes,
   BookImage,
+  BadgeEuro,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -97,6 +98,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Impostazioni', items: [
     { to: '/settings/brand',   label: 'Brand',            icon: Palette },
+    { to: '/settings/incassi', label: 'Incassi',          icon: BadgeEuro },
     { to: '/integrazione-sito', label: 'Integrazione sito', icon: Code2 },
     { to: '/profile',          label: 'Profilo',          icon: UserRound },
     { to: '/assistenza',       label: 'Assistenza',       icon: LifeBuoy },
@@ -147,6 +149,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Impostazioni', items: [
     { to: '/settings/brand',   label: 'Brand',            icon: Palette },
+    { to: '/settings/incassi', label: 'Incassi',          icon: BadgeEuro },
     { to: '/settings/album-prezzi', label: 'Listino album', icon: BookImage },
     { to: '/integrazione-sito', label: 'Integrazione sito', icon: Code2 },
     { to: '/profile',          label: 'Profilo',          icon: UserRound },
