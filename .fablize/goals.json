@@ -13,8 +13,8 @@
    "id": "G002",
    "title": "Manager modelli",
    "objective": "elenco card da tutti i PDF + card manuali con foto; costo/ricarico gia' fatti; editor opzioni (materiali/colori/logo/foto-copertina + sovrapprezzi)",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "build verde. AlbumCatalogManager riscritto: modelli unificati (getMyModels/saveAllModels), selettore multi-PDF, sezione Card manuali (uploadCardImage+foto+costo/prezzo), ModelOptionsEditor (materiali/colori/logo/foto-copertina+sovrapprezzi), ricarico/AI costi"
   },
   {
    "id": "G003",

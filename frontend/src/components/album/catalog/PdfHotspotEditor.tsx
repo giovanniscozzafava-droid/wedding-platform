@@ -8,8 +8,8 @@ import type { Hotspot } from '@/hooks/useAlbumCatalog'
 // riquadro (drag), lo si etichetta col nome del modello (+ formato/pagine default opz.).
 // Coordinate salvate normalizzate 0..1 → indipendenti dalla risoluzione di render.
 export function PdfHotspotEditor({
-  pdfUrl, hotspots, onChange,
-}: { pdfUrl: string; hotspots: Hotspot[]; onChange: (h: Hotspot[]) => void }) {
+  pdfUrl, hotspots, onChange, onEditOptions,
+}: { pdfUrl: string; hotspots: Hotspot[]; onChange: (h: Hotspot[]) => void; onEditOptions?: (i: number) => void }) {
   const [doc, setDoc] = useState<PdfDoc | null>(null)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -101,6 +101,7 @@ export function PdfHotspotEditor({
               <Input type="number" value={h.cost ?? ''} onChange={(e) => update(i, { cost: e.target.value ? Number(e.target.value) : null })} placeholder="Costo € (listino)" className="h-7 text-xs" title="Quanto ti costa dal lab (l'AI lo legge dal PDF)" />
               <Input type="number" value={h.price ?? ''} onChange={(e) => update(i, { price: e.target.value ? Number(e.target.value) : null })} placeholder="Prezzo cliente €" className="h-7 text-xs" title="Prezzo di vendita = costo + ricarico" />
             </div>
+            {onEditOptions && <button onClick={() => onEditOptions(i)} className="mt-1.5 text-[11px] text-[rgb(var(--gold-700))] hover:underline">Opzioni (materiali, colori, logo, foto)…</button>}
           </div>
         ))}
       </div>
