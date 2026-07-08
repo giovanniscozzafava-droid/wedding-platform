@@ -1,0 +1,138 @@
+// ============================================================================
+// PREZZO ALBUM (vendita fotografo → coppia).
+// Due strutture:
+//  · AlbumPriceList  = LISTINO riutilizzabile del fotografo (impostazioni), per formato.
+//  · AlbumPriceConfig = CONTRATTO del singolo evento (eredita dal listino, ritoccabile).
+// Il totale si calcola LIVE: le pagine extra vengono dal numero REALE di pagine
+// dell'impaginato (non salvato), così il prezzo segue il lavoro.
+// ============================================================================
+import { modelTier, modelLabel, type Tier } from '@/components/album/albumCatalog'
+
+// Voce di listino per un formato.
+export type AlbumFormatPrice = {
+  base: number            // prezzo base contratto (album sposi)
+  includedPages: number   // pagine comprese nella base
+  extraPageRate: number   // € per pagina oltre le incluse (album sposi)
+  boxPrice: number        // sovrapprezzo scatola/custodia
+  familyBase: number      // prezzo di un album famiglia
+  familyExtraPageRate: number // € per pagina extra su ogni album famiglia
+}
+
+// Listino del fotografo: default per formato + delta prezzo per tier del modello.
+export type AlbumPriceList = {
+  formats: Record<string, AlbumFormatPrice>   // key = ALBUM_FORMATS.key
+  modelDelta: Partial<Record<Tier, number>>   // upgrade modello: quanto aggiunge ogni tier
+}
+
+// Contratto di un evento.
+export type AlbumPriceConfig = {
+  formatKey?: string
+  base: number
+  includedPages: number
+  extraPageRate: number
+  box: boolean
+  boxPrice: number
+  modelKey?: string       // modello scelto dal catalogo
+  modelLabel?: string     // etichetta leggibile della scelta (es. fascia)
+  modelDelta: number      // delta risolto dal tier del modello (via listino)
+  family: { qty: number; base: number; extraPageRate: number }
+  showCouple: boolean     // il totale è visibile alla coppia nel visore album
+  note?: string           // provenienza (es. "da preventivo") / annotazione libera
+}
+
+export const DEFAULT_MODEL_DELTA: Partial<Record<Tier, number>> = { BASIC: 0, ROYAL: 30, PRIME: 45, TOP: 60 }
+
+export const DEFAULT_FORMAT_PRICE: AlbumFormatPrice = {
+  base: 390, includedPages: 50, extraPageRate: 12, boxPrice: 40, familyBase: 100, familyExtraPageRate: 8,
+}
+
+export const emptyPriceList = (): AlbumPriceList => ({ formats: {}, modelDelta: { ...DEFAULT_MODEL_DELTA } })
+
+// Crea il contratto di un evento a partire dal listino (o dai default) per un formato.
+export function seedConfigFromList(list: AlbumPriceList | null, formatKey: string): AlbumPriceConfig {
+  const fp = list?.formats?.[formatKey] ?? DEFAULT_FORMAT_PRICE
+  return {
+    formatKey,
+    base: fp.base, includedPages: fp.includedPages, extraPageRate: fp.extraPageRate,
+    box: false, boxPrice: fp.boxPrice,
+    modelKey: undefined, modelDelta: 0,
+    family: { qty: 0, base: fp.familyBase, extraPageRate: fp.familyExtraPageRate },
+    showCouple: true,
+  }
+}
+
+// Delta del modello: dal suo tier via listino (fallback ai default).
+export function modelDeltaFor(modelKey: string | undefined, list: AlbumPriceList | null): number {
+  if (!modelKey) return 0
+  const tier = modelTier(modelKey)
+  const map = list?.modelDelta ?? DEFAULT_MODEL_DELTA
+  return Math.max(0, Number(map[tier] ?? DEFAULT_MODEL_DELTA[tier] ?? 0))
+}
+
+export type AlbumPriceLine = { label: string; amount: number; hint?: string }
+export type AlbumPriceBreakdown = { lines: AlbumPriceLine[]; extraPages: number; total: number }
+
+// CALCOLO LIVE del totale. actualPages = pagine reali dell'impaginato.
+export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actualPages: number): AlbumPriceBreakdown {
+  const lines: AlbumPriceLine[] = []
+  if (!cfg) return { lines, extraPages: 0, total: 0 }
+  const included = Math.max(0, Math.round(cfg.includedPages || 0))
+  const extraPages = Math.max(0, Math.round(actualPages || 0) - included)
+  const n2 = (x: unknown) => { const v = Number(x); return Number.isFinite(v) ? v : 0 }
+
+  lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse` })
+  if (n2(cfg.modelDelta) > 0) lines.push({ label: `Modello${cfg.modelLabel ? ` · ${cfg.modelLabel}` : cfg.modelKey ? ` ${modelLabel(cfg.modelKey)}` : ''}`, amount: n2(cfg.modelDelta) })
+  if (cfg.box && n2(cfg.boxPrice) > 0) lines.push({ label: 'Box / custodia', amount: n2(cfg.boxPrice) })
+  if (extraPages > 0 && n2(cfg.extraPageRate) > 0) {
+    lines.push({ label: `${extraPages} pagine in più`, amount: extraPages * n2(cfg.extraPageRate), hint: `€ ${n2(cfg.extraPageRate)} a pagina` })
+  }
+  const fam = cfg.family
+  if (fam && n2(fam.qty) > 0 && n2(fam.base) >= 0) {
+    const each = n2(fam.base) + extraPages * n2(fam.extraPageRate)
+    lines.push({ label: `Album famiglia ×${n2(fam.qty)}`, amount: each * n2(fam.qty), hint: extraPages > 0 && n2(fam.extraPageRate) > 0 ? `${each} l'uno (con pagine extra)` : `${n2(fam.base)} l'uno` })
+  }
+  const total = lines.reduce((s, l) => s + l.amount, 0)
+  return { lines, extraPages, total }
+}
+
+export const euroA = (n: number) => `€ ${Math.round(Number(n) || 0).toLocaleString('it-IT')}`
+
+// ── IMPORT DAL PREVENTIVO ────────────────────────────────────────────────────
+// Le voci del preventivo sono testo libero (nome + descrizione + importo). Da esse
+// tiriamo l'IMPORTO (base contratto) e proviamo a DEDURRE formato/pagine/box/famiglia
+// dal testo. Tutto poi resta modificabile a mano.
+export type QuoteItemLite = { name?: string | null; description?: string | null; amount?: number | null }
+
+const FORMAT_ALIASES: { re: RegExp; key: string }[] = [
+  { re: /25\s*[x×]\s*35/i, key: 'LAND_25x35' },
+  { re: /30\s*[x×]\s*40/i, key: 'PORT_30x40' },
+  { re: /24\s*[x×]\s*30/i, key: 'PORT_24x30' },
+  { re: /20\s*[x×]\s*30/i, key: 'PORT_20x30' },
+  { re: /30\s*[x×]\s*30/i, key: 'SQ_30' },
+  { re: /25\s*[x×]\s*25/i, key: 'SQ_25' },
+  { re: /20\s*[x×]\s*20/i, key: 'SQ_20' },
+  { re: /40\s*[x×]\s*30/i, key: 'LAND_40x30' },
+  { re: /35\s*[x×]\s*25/i, key: 'LAND_35x25' },
+  { re: /30\s*[x×]\s*20/i, key: 'LAND_30x20' },
+]
+
+// Riconosce se una voce parla di album.
+export const looksLikeAlbum = (it: QuoteItemLite): boolean =>
+  /album|libro|fotolibro|foto\s*libro/i.test(`${it.name ?? ''} ${it.description ?? ''}`)
+
+// Deduce una config parziale da una voce di preventivo.
+export function parseQuoteItem(it: QuoteItemLite): Partial<AlbumPriceConfig> & { detectedFormat?: string } {
+  const txt = `${it.name ?? ''} ${it.description ?? ''}`
+  const out: Partial<AlbumPriceConfig> & { detectedFormat?: string } = {}
+  if (typeof it.amount === 'number' && it.amount > 0) out.base = Math.round(it.amount)
+  for (const f of FORMAT_ALIASES) { if (f.re.test(txt)) { out.formatKey = f.key; out.detectedFormat = f.key; break } }
+  const pg = txt.match(/(\d{2,3})\s*(?:pagine|pag\.?|facciate|ff\.?)/i)
+  if (pg?.[1]) out.includedPages = Math.max(1, parseInt(pg[1], 10))
+  if (/\bbox\b|custodia|scatola|cofanetto|astuccio/i.test(txt)) out.box = true
+  const famQty = txt.match(/(\d)\s*(?:album\s*)?(?:famiglia|genitori|mini)/i)
+  if (/famiglia|genitori|album\s*mini/i.test(txt)) {
+    const q = famQty?.[1] ? Math.max(1, parseInt(famQty[1], 10)) : 2
+    out.family = { qty: q, base: DEFAULT_FORMAT_PRICE.familyBase, extraPageRate: DEFAULT_FORMAT_PRICE.familyExtraPageRate }
+  }
+  return out
+}

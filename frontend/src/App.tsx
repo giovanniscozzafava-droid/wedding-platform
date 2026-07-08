@@ -44,6 +44,7 @@ const PrimaNotaPage = lazyWithRetry(() => import('@/pages/PrimaNotaPage'))
 const ObservatoryPage = lazyWithRetry(() => import('@/pages/ObservatoryPage'))
 const InsurancePage = lazyWithRetry(() => import('@/pages/InsurancePage'))
 const BrandSettingsPage = lazyWithRetry(() => import('@/pages/BrandSettingsPage'))
+const AlbumPricingSettingsPage = lazyWithRetry(() => import('@/pages/AlbumPricingSettingsPage'))
 const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreviewPage'))
 const QuoteAcceptPage = lazyWithRetry(() => import('@/pages/public/QuoteAcceptPage'))
 const QuoteRejectPage = lazyWithRetry(() => import('@/pages/public/QuoteRejectPage'))
@@ -223,6 +224,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <BrandSettingsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings/album-prezzi"
+            element={
+              <RequireAuth roles={['FORNITORE', 'ADMIN']}>
+                <AlbumPricingSettingsPage />
               </RequireAuth>
             }
           />

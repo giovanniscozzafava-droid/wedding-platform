@@ -1,13 +1,34 @@
 {
- "brief": "Fase A: schema fb_* + RLS owner-only + trigger updated_at/cost-versioning + funzioni fb_explode_menu/fb_menu_foodcost (SECURITY INVOKER) + UI /fb/ingredienti /fb/ricette /fb/menu. Aggancio food cost->margine via fb_menus.service_id. Story1 backend(schema+rls+funzioni). Story2 UI. Story3 verifica isolamento+calcolo numerico.",
- "created": "2026-06-21T18:07:11.773508+00:00",
+ "brief": "Prezzo album di vendita fotografo->coppia con listino riutilizzabile + totale live nell'impaginatore",
+ "created": "2026-07-08T12:43:23.151080+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "FB Food Cost Fase A",
-   "objective": "Ricettario + food cost per le Location (PRP-4 Fase A)",
-   "status": "in_progress",
-   "evidence": null
+   "title": "Schema DB",
+   "objective": "album_price_settings (listino owner) + price_config su album_projects (contratto evento) + RPC save/get",
+   "status": "complete",
+   "evidence": "20260708190000_album_pricing.sql applicata su prod. album_price_settings + album_projects.price_config + RPC owner-guarded"
+  },
+  {
+   "id": "G002",
+   "title": "Listino UI",
+   "objective": "listino album nelle impostazioni fornitore (formato->base+pagine incluse, EUR/pagina extra, box, album famiglia, delta modello)",
+   "status": "complete",
+   "evidence": "npm run build verde. AlbumPricingSettingsPage + route /settings/album-prezzi + nav 'Listino album' (FORNITORE). Legge/salva album_price_settings via RPC. Lib albumPricing.ts"
+  },
+  {
+   "id": "G003",
+   "title": "Pannello fotografo",
+   "objective": "Prezzo album nell'impaginatore: eredita listino, ritocca contratto, sceglie modello/box/famiglia, pagine extra AUTO dall'impaginato, totale live",
+   "status": "complete",
+   "evidence": "npm run build verde. Pannello Prezzo nell'header impaginatore (BadgeEuro + totale live): base/pagine incluse/pagina extra/box/modello(fascia)/album famiglia; pagine extra AUTO da pages.length; import da preventivo (calendar_entries.quote_id->quote_items, looksLikeAlbum+parseQuoteItem); salva via album_price_config_save (verificato has_function_privilege=true)"
+  },
+  {
+   "id": "G004",
+   "title": "Vista coppia",
+   "objective": "card 'Il tuo album' con totale + dettaglio nel visore album lite",
+   "status": "complete",
+   "evidence": "Card 'Il tuo album' nel visore coppia (lite): totale live + dettaglio espandibile, gated su priceCfg.showCouple; legge price_config via ap_rw"
   }
  ]
 }
