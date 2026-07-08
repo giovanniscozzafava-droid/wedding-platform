@@ -467,8 +467,19 @@ function MagazzinoTab() {
     const f = e.target.files?.[0]; e.target.value = ''; if (!f) return
     setBusy(true)
     try {
-      const base64 = await new Promise<string>((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.onerror = rej; rd.readAsDataURL(f) })
-      await mut.importBolla.mutateAsync({ base64, media_type: f.type || 'image/jpeg' })
+      const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name)
+      if (isPdf) {
+        // Qwen-VL legge immagini, non PDF: rasterizzo le pagine (max 10) in JPEG lato browser.
+        const { loadPdf, renderPdfPageDataUrl } = await import('../lib/pdf')
+        const pdf = await loadPdf(await f.arrayBuffer())
+        const n = Math.min(pdf.numPages, 10)
+        const images: string[] = []
+        for (let p = 1; p <= n; p++) images.push(await renderPdfPageDataUrl(pdf, p, 1600, 0.85))
+        await mut.importBolla.mutateAsync({ images })
+      } else {
+        const base64 = await new Promise<string>((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.onerror = rej; rd.readAsDataURL(f) })
+        await mut.importBolla.mutateAsync({ base64, media_type: f.type || 'image/jpeg' })
+      }
       toast.success('Documento letto: merce caricata in magazzino')
     } catch (err) { toast.error((err as Error).message) } finally { setBusy(false) }
   }

@@ -207,13 +207,14 @@ export function useFoodCostMutations() {
     delEventMenu: m(async (id: string) => { const { error } = await sb('fb_event_menus').delete().eq('id', id); if (error) throw error }),
     addBrigadeMember: m(async (p: { full_name: string; role: string; reparto: string; phone?: string | null; hourly_cost?: number }) => { const id = await uid(); const { error } = await sb('fb_brigade_members').insert({ location_id: id, ...p }); if (error) throw error }),
     delBrigadeMember: m(async (id: string) => { const { error } = await sb('fb_brigade_members').update({ active: false }).eq('id', id); if (error) throw error }),
-    // Bolla fornitore (PDF/JPG) → Claude estrae le righe → lotti in magazzino
-    importBolla: m(async (p: { base64: string; media_type: string }) => {
-      const { data: ex, error: e1 } = await (supabase as any).functions.invoke('fb-read-bolla', { body: { base64: p.base64, media_type: p.media_type } })
+    // Bolla fornitore (JPG singola o PDF → pagine in JPEG) → Qwen-VL estrae le righe → lotti in magazzino
+    importBolla: m(async (p: { base64: string; media_type: string } | { images: string[] }) => {
+      const body = 'images' in p ? { images: p.images } : { base64: p.base64, media_type: p.media_type }
+      const { data: ex, error: e1 } = await (supabase as any).functions.invoke('fb-read-bolla', { body })
       if (e1) throw new Error(e1.message)
       if (!ex?.ok) {
         const map: Record<string, string> = {
-          no_ai_key: 'Chiave AI non configurata (ANTHROPIC_API_KEY).',
+          no_ai_key: 'Chiave AI non configurata (DASHSCOPE_API_KEY).',
           no_credit: 'Credito AI esaurito: ricarica per leggere altri documenti.',
           forbidden: 'Solo le location possono importare documenti.',
           auth: 'Sessione scaduta, rientra e riprova.',

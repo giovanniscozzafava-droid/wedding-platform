@@ -1,17 +1,20 @@
-// Legge un DOCUMENTO D'ACQUISTO (bolla/DDT, scontrino, fattura, ricevuta — immagine o PDF) con un
-// modello VISION e ne estrae le righe merce in JSON. A monte: controllo CREDITO della location
-// (wallet a token a scalare); a valle: addebito del costo reale (token × tariffa) e log dell'uso.
+// Legge un DOCUMENTO D'ACQUISTO (bolla/DDT, scontrino, fattura, ricevuta) con un modello VISION e ne
+// estrae le righe merce in JSON. A monte: controllo CREDITO della location (wallet a token a scalare);
+// a valle: addebito del costo reale (token × tariffa) e log dell'uso.
 //
-// Provider: OpenRouter (API OpenAI-compatible), modello di default Qwen-VL (ottimo OCR/estrazione,
-// forte in italiano, economico). Provider-agnostic: cambiando OPENROUTER_MODEL usi Qwen/GLM/Kimi/ecc.
-// Esiti di business → 200 con {ok:false,error} così il frontend li legge. Richiede OPENROUTER_API_KEY.
+// Provider: Alibaba Cloud Model Studio / DashScope (API OpenAI-compatible), modello Qwen-VL (ottimo OCR
+// documenti, forte in italiano, economico). Provider-agnostico: QWEN_BASE_URL + QWEN_MODEL sono override.
+// Input: una immagine ({base64, media_type}) oppure più pagine ({images:[dataURL,...]} — es. PDF
+// rasterizzato lato browser, perché il compatible-mode accetta immagini, non PDF).
+// Esiti di business → 200 con {ok:false,error} così il frontend li legge. Richiede DASHSCOPE_API_KEY.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-const OPENROUTER_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? ''
+const QWEN_KEY = Deno.env.get('DASHSCOPE_API_KEY') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-// Modello vision su OpenRouter. Override con OPENROUTER_MODEL senza toccare il codice.
-const MODEL = Deno.env.get('OPENROUTER_MODEL') ?? 'qwen/qwen2.5-vl-72b-instruct'
+// Endpoint OpenAI-compatible di DashScope (default internazionale, Singapore) e modello vision.
+const BASE_URL = Deno.env.get('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+const MODEL = Deno.env.get('QWEN_MODEL') ?? 'qwen-vl-max'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -22,8 +25,8 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 
 const PROMPT = `Sei un estrattore di DOCUMENTI D'ACQUISTO per una location di ristorazione: bolle/DDT,
 scontrini (anche di cassa/supermercato), fatture, ricevute — qualsiasi documento di acquisto merce.
-Dal documento estrai SOLO le righe della merce acquistata (ignora intestazioni, sconti, totali, IVA,
-metodi di pagamento, indirizzi, resto).
+Se ci sono più immagini è lo stesso documento su più pagine. Estrai SOLO le righe della merce
+acquistata (ignora intestazioni, sconti, totali, IVA, metodi di pagamento, indirizzi, resto).
 Rispondi ESCLUSIVAMENTE con un JSON valido, senza testo intorno, in questa forma:
 {"fornitore": "<nome se presente o null>", "righe": [
   {"nome": "<descrizione articolo>", "quantita": <numero>, "unita": "<kg|L|pz>",
@@ -32,10 +35,25 @@ Rispondi ESCLUSIVAMENTE con un JSON valido, senza testo intorno, in questa forma
 ]}
 Normalizza l'unita a kg, L o pz. Se la quantita e' in grammi convertila in kg. Numeri con punto decimale.`
 
+// Normalizza l'input in una lista di data-URL immagine.
+function collectImages(body: any): string[] {
+  const out: string[] = []
+  const push = (b64?: string, mt?: string) => {
+    if (!b64) return
+    out.push(b64.startsWith('data:') ? b64 : `data:${mt || 'image/jpeg'};base64,${b64.replace(/^data:[^,]+,/, '')}`)
+  }
+  if (Array.isArray(body?.images)) {
+    for (const im of body.images) typeof im === 'string' ? push(im) : push(im?.base64, im?.media_type)
+  } else {
+    push(body?.base64, body?.media_type)
+  }
+  return out.slice(0, 10) // cap di sicurezza
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return json({ ok: false, error: 'method' })
-  if (!OPENROUTER_KEY) return json({ ok: false, error: 'no_ai_key' })
+  if (!QWEN_KEY) return json({ ok: false, error: 'no_ai_key' })
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
   const auth = req.headers.get('Authorization') ?? ''
@@ -49,35 +67,23 @@ Deno.serve(async (req) => {
   const { data: balance } = await admin.rpc('fb_ai_precheck', { p_location: loc })
   if ((balance ?? 0) <= 0) return json({ ok: false, error: 'no_credit', balance: balance ?? 0 })
 
-  let body: { base64?: string; media_type?: string }
+  let body: any
   try { body = await req.json() } catch { return json({ ok: false, error: 'bad_json' }) }
-  const base64 = (body.base64 || '').replace(/^data:[^,]+,/, '')
-  if (!base64) return json({ ok: false, error: 'no_file' })
-  const mt = body.media_type || 'image/jpeg'
-  const dataUrl = `data:${mt};base64,${base64}`
+  const images = collectImages(body)
+  if (!images.length) return json({ ok: false, error: 'no_file' })
 
   try {
-    // OpenRouter è OpenAI-compatible: immagine come image_url (data URL). Le foto da telefono (jpeg)
-    // sono il caso principale; i PDF-scan single-page passano come image_url (best-effort).
-    const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const content: any[] = [{ type: 'text', text: PROMPT }]
+    for (const url of images) content.push({ type: 'image_url', image_url: { url } })
+
+    const r = await fetch(`${BASE_URL}/chat/completions`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_KEY}`,
-        'content-type': 'application/json',
-        'HTTP-Referer': 'https://planfully.it',
-        'X-Title': 'Planfully F&B',
-      },
+      headers: { Authorization: `Bearer ${QWEN_KEY}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
         temperature: 0,
         max_tokens: 3000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: PROMPT },
-            { type: 'image_url', image_url: { url: dataUrl } },
-          ],
-        }],
+        messages: [{ role: 'user', content }],
       }),
     })
     if (!r.ok) return json({ ok: false, error: 'ai_error', detail: (await r.text()).slice(0, 300) })
