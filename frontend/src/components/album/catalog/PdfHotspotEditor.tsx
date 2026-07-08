@@ -101,6 +101,7 @@ export function PdfHotspotEditor({
               <Input type="number" value={h.cost ?? ''} onChange={(e) => update(i, { cost: e.target.value ? Number(e.target.value) : null })} placeholder="Costo € (listino)" className="h-7 text-xs" title="Quanto ti costa dal lab (l'AI lo legge dal PDF)" />
               <Input type="number" value={h.price ?? ''} onChange={(e) => update(i, { price: e.target.value ? Number(e.target.value) : null })} placeholder="Prezzo cliente €" className="h-7 text-xs" title="Prezzo di vendita = costo + ricarico" />
             </div>
+            {h.cost != null && h.price != null && <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Margine: € {Math.round(Number(h.price) - Number(h.cost))}</p>}
             {onEditOptions && <button onClick={() => onEditOptions(i)} className="mt-1.5 text-[11px] text-[rgb(var(--gold-700))] hover:underline">Opzioni (materiali, colori, logo, foto)…</button>}
           </div>
         ))}

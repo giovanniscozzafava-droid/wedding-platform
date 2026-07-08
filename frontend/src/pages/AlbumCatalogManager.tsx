@@ -9,7 +9,7 @@ import { PdfHotspotEditor } from '@/components/album/catalog/PdfHotspotEditor'
 import { ModelOptionsEditor } from '@/components/album/catalog/ModelOptionsEditor'
 import {
   getMyModels, uploadCatalogPdf, saveAllModels, saveCatalogMarkup, uploadCardImage, applyMarkup,
-  catalogPublicUrl, extractCatalogPrices, type Catalog, type Hotspot, type ModelOptions,
+  uploadTempPdf, catalogPublicUrl, extractCatalogPrices, type Catalog, type Hotspot, type ModelOptions,
 } from '@/hooks/useAlbumCatalog'
 
 // Lato fotografo: i MODELLI come card unificate. Vengono da uno o più PDF (riquadri marcati) oppure
@@ -79,11 +79,36 @@ export default function AlbumCatalogManager() {
     } catch (err) { toast.error((err as Error).message || 'Salvataggio non riuscito') } finally { setBusy(false) }
   }
 
-  function applyRicarico() {
+  // Ricarico = RIPIEGO: fissa il prezzo SOLO per i modelli che hanno un costo ma NON un prezzo
+  // (il listino di vendita ha priorità; il ricarico riempie i vuoti). Il fotografo può forzare tutto.
+  function applyRicarico(all = false) {
     let n = 0
-    setModels((ms) => ms.map((m) => { if (m.cost == null) return m; n++; return { ...m, price: applyMarkup(m.cost, markup) } }))
+    setModels((ms) => ms.map((m) => { if (m.cost == null || (!all && m.price != null)) return m; n++; return { ...m, price: applyMarkup(m.cost, markup) } }))
     setDirty(true)
-    toast.success(n ? `Ricarico ${markup}% applicato a ${n} modelli` : 'Nessun modello ha un costo: leggi i costi dal PDF o inseriscili')
+    toast.success(n ? `Ricarico ${markup}% applicato a ${n} modelli${all ? '' : ' senza prezzo'}` : 'Nessun modello da ricaricare (hanno già un prezzo o manca il costo)')
+  }
+
+  // AI: legge un secondo documento (LISTINO PREZZI DI VENDITA) → associa i PREZZI ai modelli per nome.
+  // Margine = prezzo − costo (automatico). Priorità sul ricarico%.
+  async function readSellingPrices(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; e.target.value = ''
+    if (!f) return
+    setBusy(true)
+    try {
+      const path = await uploadTempPdf(f)
+      const found = await extractCatalogPrices(path)
+      if (!found.length) { toast.message("L'AI non ha trovato prezzi nel listino"); return }
+      const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+      let applied = 0, noMatch = 0
+      setModels((ms) => ms.map((m) => {
+        const hit = found.find((x) => norm(x.label) === norm(m.label))
+        if (hit && hit.price != null) { applied++; return { ...m, price: hit.price } }
+        return m
+      }))
+      noMatch = found.filter((x) => !models.some((m) => norm(m.label) === norm(x.label))).length
+      setDirty(true)
+      toast.success(`AI: ${applied} prezzi di vendita associati${noMatch ? ` · ${noMatch} nel listino senza modello corrispondente` : ''}. Il margine è calcolato da solo. Controlla e salva.`, { duration: 12000 })
+    } catch (err) { toast.error((err as Error).message) } finally { setBusy(false) }
   }
 
   // AI: legge i COSTI dal PDF selezionato → match per nome su TUTTI i modelli, aggiunge i mancanti a questo PDF.
@@ -129,9 +154,13 @@ export default function AlbumCatalogManager() {
           </div>
           {nModels > 0 && (
             <div className="flex gap-2 flex-wrap">
-              {selCatalog && <Button variant="outline" onClick={readCosts} disabled={busy} title="L'AI legge i COSTI dal PDF selezionato">
+              {selCatalog && <Button variant="outline" onClick={readCosts} disabled={busy} title="L'AI legge i COSTI dal PDF del catalogo selezionato">
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Leggi costi (AI)
               </Button>}
+              <label className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-xl border border-[rgb(var(--border))] cursor-pointer hover:border-[rgb(var(--gold-300))] ${busy ? 'opacity-50 pointer-events-none' : ''}`} title="Carica il tuo listino PREZZI DI VENDITA (PDF): l'AI li associa ai modelli. Margine = prezzo − costo.">
+                <Sparkles size={16} /> Prezzi vendita (AI)
+                <input type="file" accept="application/pdf" className="hidden" onChange={readSellingPrices} disabled={busy} />
+              </label>
               <Button onClick={onSave} disabled={busy || !dirty}>
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salva
               </Button>
@@ -149,8 +178,9 @@ export default function AlbumCatalogManager() {
                 <span className="text-sm text-[rgb(var(--fg-muted))]">Ricarico</span>
                 <Input type="number" min={0} step={5} value={markup} onChange={(e) => { setMarkup(Math.max(0, Number(e.target.value) || 0)); setDirty(true) }} className="h-8 w-20 text-sm" />
                 <span className="text-sm text-[rgb(var(--fg-muted))]">%</span>
-                <Button variant="outline" size="sm" onClick={applyRicarico} disabled={busy}>Applica ai prezzi</Button>
-                <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Prezzo cliente = costo × (1 + ricarico%). Ogni prezzo resta ritoccabile.</span>
+                <Button variant="outline" size="sm" onClick={() => applyRicarico(false)} disabled={busy}>Riempi i vuoti</Button>
+                <button onClick={() => applyRicarico(true)} disabled={busy} className="text-[11px] text-[rgb(var(--gold-700))] hover:underline disabled:opacity-50">o applica a tutti</button>
+                <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Il listino di vendita ha priorità; il ricarico riempie i modelli senza prezzo. Margine = prezzo − costo.</span>
               </div>
             </Card>
 
@@ -207,6 +237,7 @@ export default function AlbumCatalogManager() {
                           <Input type="number" value={m.cost ?? ''} onChange={(e) => setCard(i, { cost: e.target.value ? Number(e.target.value) : null })} placeholder="Costo €" className="h-7 text-xs" />
                           <Input type="number" value={m.price ?? ''} onChange={(e) => setCard(i, { price: e.target.value ? Number(e.target.value) : null })} placeholder="Prezzo €" className="h-7 text-xs" />
                         </div>
+                        {m.cost != null && m.price != null && <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Margine: € {Math.round(Number(m.price) - Number(m.cost))}</p>}
                         <button onClick={() => setOpt({ kind: 'card', i })} className="text-[11px] text-[rgb(var(--gold-700))] hover:underline inline-flex items-center gap-1"><Sliders size={11} /> Opzioni…</button>
                       </div>
                     </div>

@@ -56,6 +56,17 @@ export async function getMyCatalog(): Promise<{ catalog: Catalog; hotspots: Hots
   return { catalog: cat as Catalog, hotspots: (hs ?? []) as Hotspot[] }
 }
 
+// Carica un PDF "usa e getta" (es. il listino prezzi di vendita) nel bucket e ritorna il path,
+// senza creare un catalogo: serve solo a farlo leggere dall'AI (extractCatalogPrices).
+export async function uploadTempPdf(file: File): Promise<string> {
+  const id = await uid(); if (!id) throw new Error('Non autenticato')
+  if (file.type !== 'application/pdf') throw new Error('Carica un file PDF')
+  const path = `${id}/listini/${crypto.randomUUID()}.pdf`
+  const up = await supabase.storage.from(CAT_BUCKET).upload(path, file, { contentType: 'application/pdf', upsert: true })
+  if (up.error) throw up.error
+  return path
+}
+
 // AI: legge il PDF del catalogo ed estrae [{label, price}] (il fotografo poi conferma).
 export async function extractCatalogPrices(pdfPath: string): Promise<{ label: string; price: number | null }[]> {
   const buf = await (await fetch(catalogPublicUrl(pdfPath))).arrayBuffer()
