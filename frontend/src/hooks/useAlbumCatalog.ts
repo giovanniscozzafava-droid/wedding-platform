@@ -11,9 +11,10 @@ const COMM_BUCKET = 'album-commissions'
 export type Hotspot = {
   id?: string; page: number; x: number; y: number; w: number; h: number
   label: string; default_format?: string | null; default_pages?: number | null
-  price?: number | null   // prezzo di vendita del modello (listino fotografo)
+  cost?: number | null    // costo di listino (quanto paga il fotografo al lab) — l'AI lo legge dal PDF
+  price?: number | null   // prezzo di vendita al cliente (= costo + ricarico)
 }
-export type Catalog = { id: string; name: string; pdf_path: string; page_count: number; owner_id?: string; studio?: string }
+export type Catalog = { id: string; name: string; pdf_path: string; page_count: number; owner_id?: string; studio?: string; markup_percent?: number }
 export type CommissionSpecs = { format: string; size?: string; pages: number; box?: string; finishes?: string[]; note?: string }
 export type CommissionPayload = {
   catalog_id?: string | null; page?: number | null; model_label: string
@@ -32,11 +33,11 @@ export function catalogPublicUrl(path: string): string {
 export async function getMyCatalog(): Promise<{ catalog: Catalog; hotspots: Hotspot[] } | null> {
   const id = await uid(); if (!id) return null
   const { data: cat } = await (supabase as any)
-    .from('album_catalogs').select('id,name,pdf_path,page_count,owner_id')
+    .from('album_catalogs').select('id,name,pdf_path,page_count,owner_id,markup_percent')
     .eq('owner_id', id).eq('active', true).order('updated_at', { ascending: false }).limit(1).maybeSingle()
   if (!cat) return null
   const { data: hs } = await (supabase as any)
-    .from('album_catalog_hotspots').select('id,page,x,y,w,h,label,default_format,default_pages,price')
+    .from('album_catalog_hotspots').select('id,page,x,y,w,h,label,default_format,default_pages,price,cost')
     .eq('catalog_id', cat.id).order('page', { ascending: true })
   return { catalog: cat as Catalog, hotspots: (hs ?? []) as Hotspot[] }
 }
