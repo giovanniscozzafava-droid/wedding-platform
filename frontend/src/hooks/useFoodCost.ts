@@ -226,9 +226,22 @@ export async function consumeCantina(entryId: string) {
   return data
 }
 
+// Piatti confermati dell'evento (per la composizione menu lato location)
+export function useEventDishes(entryId: string | null, enabled: boolean) {
+  return useQuery<string[]>({
+    queryKey: ['fb-dishes', entryId],
+    enabled: enabled && !!entryId,
+    queryFn: async () => {
+      const { data, error } = await sb('fb_event_dish').select('menu_item_id').eq('entry_id', entryId)
+      if (error) throw error
+      return (data ?? []).map((r: any) => r.menu_item_id as string)
+    },
+  })
+}
+
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-costing', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade', 'fb-tasting', 'fb-cantina'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-costing', 'fb-dishes', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade', 'fb-tasting', 'fb-cantina'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {
@@ -251,6 +264,7 @@ export function useFoodCostMutations() {
     delEventMenu: m(async (id: string) => { const { error } = await sb('fb_event_menus').delete().eq('id', id); if (error) throw error }),
     addBrigadeMember: m(async (p: { full_name: string; role: string; reparto: string; phone?: string | null; hourly_cost?: number }) => { const id = await uid(); const { error } = await sb('fb_brigade_members').insert({ location_id: id, ...p }); if (error) throw error }),
     delBrigadeMember: m(async (id: string) => { const { error } = await sb('fb_brigade_members').update({ active: false }).eq('id', id); if (error) throw error }),
+    confirmDish: m(async (p: { entry_id: string; menu_item_id: string; on: boolean }) => { const { data, error } = await (supabase as any).rpc('fb_dish_confirm', { p_entry: p.entry_id, p_menu_item_id: p.menu_item_id, p_on: p.on }); if (error) throw error; if (data?.error) throw new Error(data.error) }),
     addCantina: m(async (p: { name: string; category: string; bottle_ml: number; cost_per_bottle: number; covers_per_bottle: number; stock_bottles: number; is_default?: boolean }) => { const id = await uid(); const { error } = await sb('fb_cantina').insert({ location_id: id, ...p }); if (error) throw error }),
     updCantina: m(async (p: { id: string; patch: Record<string, unknown> }) => { const { error } = await sb('fb_cantina').update(p.patch).eq('id', p.id); if (error) throw error }),
     delCantina: m(async (id: string) => { const { error } = await sb('fb_cantina').update({ is_active: false }).eq('id', id); if (error) throw error }),

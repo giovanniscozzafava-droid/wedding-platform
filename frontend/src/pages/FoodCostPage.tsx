@@ -9,7 +9,7 @@ import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
   useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost, useEventTasting, useEventCosting,
-  useCantina, CANTINA_CATS, fetchCantinaPlan, consumeCantina,
+  useCantina, CANTINA_CATS, fetchCantinaPlan, consumeCantina, useEventDishes,
   fetchEventSheet, fetchBrand, COURSES,
   type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember, type FbCantina, type CantinaPlanRow,
 } from '@/hooks/useFoodCost'
@@ -387,12 +387,14 @@ function CantinaRow({ b, mut }: { b: FbCantina; mut: ReturnType<typeof useFoodCo
 function EventiTab() {
   const { data: events } = useLocationEvents()
   const { data: menus } = useMenus()
+  const { data: recipes } = useRecipes()
   const mut = useFoodCostMutations()
   const menuMap = useMemo(() => new Map((menus ?? []).map((m) => [m.id, m])), [menus])
+  const recipeName = useMemo(() => { const m = new Map((recipes ?? []).map((r) => [r.id, r.name])); return (id: string) => m.get(id) ?? '—' }, [recipes])
   return (
     <div className="space-y-3">
       <p className="text-xs text-[rgb(var(--fg-muted))]">Assegna a ogni evento uno o più menu con il <strong>gruppo di coperti</strong> (ospiti · bambini · professionisti/fornitori · brigata): ogni gruppo può avere il suo menu e i suoi coperti. Da qui esce il fabbisogno della spesa e lo scarico dispensa, sommando tutti i gruppi.</p>
-      {(events ?? []).map((ev) => <EventRow key={ev.id} ev={ev} menus={menus ?? []} menuMap={menuMap} mut={mut} />)}
+      {(events ?? []).map((ev) => <EventRow key={ev.id} ev={ev} menus={menus ?? []} menuMap={menuMap} recipeName={recipeName} mut={mut} />)}
       {(events ?? []).length === 0 && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Nessun evento.</Card>}
     </div>
   )
@@ -401,9 +403,9 @@ const EVENT_ROLES: Array<[string, string]> = [['OSPITI', 'Ospiti'], ['BAMBINI', 
 const roleLabel = (r: string) => EVENT_ROLES.find(([v]) => v === r)?.[1] ?? r
 const roleTone: Record<string, string> = { OSPITI: 'bg-[rgb(var(--gold-100))]', BAMBINI: 'bg-[rgb(var(--sky-100,var(--gold-100)))]', PROFESSIONISTI: 'bg-[rgb(var(--sage-100,var(--gold-100)))]', BRIGATA: 'bg-[rgb(var(--bg-sunken))]' }
 
-function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuMap: Map<string, FbMenu>; mut: ReturnType<typeof useFoodCostMutations> }) {
+function EventRow({ ev, menus, menuMap, recipeName, mut }: { ev: any; menus: FbMenu[]; menuMap: Map<string, FbMenu>; recipeName: (id: string) => string; mut: ReturnType<typeof useFoodCostMutations> }) {
   const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState(''); const [role, setRole] = useState('OSPITI'); const [label, setLabel] = useState('')
-  const [pdfBusy, setPdfBusy] = useState(false); const [showProva, setShowProva] = useState(false); const [showCantina, setShowCantina] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false); const [showProva, setShowProva] = useState(false); const [showCantina, setShowCantina] = useState(false); const [showCompose, setShowCompose] = useState(false)
   const hasMenus = (ev.menus ?? []).length > 0
   const { data: costing } = useEventCosting(ev.id, hasMenus)
   const grandTotal = (costing?.gruppi ?? []).reduce((s, g) => s + (g.total_cost ?? 0), 0)
@@ -465,13 +467,57 @@ function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuM
           </table>
         </div>
       )}
-      <div className="mt-2 flex gap-4">
+      <div className="mt-2 flex gap-4 flex-wrap">
+        {hasMenus && <button onClick={() => setShowCompose((v) => !v)} className="text-xs text-[rgb(var(--gold-700))] font-medium inline-flex items-center gap-1"><UtensilsCrossed size={12} /> {showCompose ? '− Chiudi composizione' : 'Componi menu (piatti)'}</button>}
         <button onClick={() => setShowProva((v) => !v)} className="text-xs text-[rgb(var(--gold-700))] font-medium">{showProva ? '− Chiudi prova menu' : 'Prova menu & voti ospiti'}</button>
         <button onClick={() => setShowCantina((v) => !v)} className="text-xs text-[rgb(var(--gold-700))] font-medium inline-flex items-center gap-1"><Wine size={12} /> {showCantina ? '− Chiudi cantina' : 'Cantina & bottiglie'}</button>
       </div>
+      {showCompose && <MenuComposePanel ev={ev} menuMap={menuMap} recipeName={recipeName} mut={mut} />}
       {showProva && <ProvaMenuPanel ev={ev} menus={menus} mut={mut} />}
       {showCantina && <CantinaEventPanel ev={ev} />}
     </Card>
+  )
+}
+
+function MenuComposePanel({ ev, menuMap, recipeName, mut }: { ev: any; menuMap: Map<string, FbMenu>; recipeName: (id: string) => string; mut: ReturnType<typeof useFoodCostMutations> }) {
+  const { data: confirmed } = useEventDishes(ev.id, true)
+  const confSet = new Set(confirmed ?? [])
+  const ospMenus = (ev.menus ?? []).filter((em: any) => (em.role ?? 'OSPITI') === 'OSPITI')
+  if (!ospMenus.length) return <div className="mt-3 rounded-xl border border-[rgb(var(--border))] p-3 bg-[rgb(var(--bg-sunken))] text-sm text-[rgb(var(--fg-subtle))]">Assegna prima un menu al gruppo <strong>Ospiti</strong>, poi qui spunti i piatti che compongono il menu dell'evento.</div>
+  return (
+    <div className="mt-3 rounded-xl border border-[rgb(var(--border))] p-3 bg-[rgb(var(--bg-sunken))] space-y-3">
+      <p className="text-[11px] text-[rgb(var(--fg-muted))]">Spunta i piatti del catalogo che entrano nel menu di questo evento: i confermati guidano food cost, fabbisogno e scarico dispensa. Nessun piatto spuntato = intero menu.</p>
+      {ospMenus.map((em: any) => {
+        const menu = menuMap.get(em.menu_id); if (!menu) return null
+        const items = [...(menu.items ?? [])].sort((a, b) => (a.course ?? '').localeCompare(b.course ?? '') || (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        const confCount = items.filter((it) => confSet.has(it.id)).length
+        return (
+          <div key={em.id} className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-2">
+            <p className="text-xs font-medium mb-1">{menu.name} <span className="text-[rgb(var(--fg-subtle))]">· {confCount > 0 ? `${confCount} piatti scelti` : 'tutto il menu'}</span></p>
+            {COURSES.map(({ key, label }) => {
+              const courseItems = items.filter((it) => (it.course ?? '') === key)
+              if (!courseItems.length) return null
+              return (
+                <div key={key} className="mt-1.5">
+                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{label}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {courseItems.map((it) => {
+                      const on = confSet.has(it.id)
+                      return (
+                        <label key={it.id} className={`text-[11px] px-2 py-1 rounded-full inline-flex items-center gap-1 cursor-pointer border ${on ? 'bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}>
+                          <input type="checkbox" checked={on} onChange={(e) => mut.confirmDish.mutate({ entry_id: ev.id, menu_item_id: it.id, on: e.target.checked })} />
+                          {recipeName(it.recipe_id)}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
