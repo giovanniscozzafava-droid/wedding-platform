@@ -33,11 +33,18 @@ export default function IncassiSettingsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadStatus() }, [user?.id])
+  // Allinea lo stato REALE da Stripe (retrieve live via edge, non dipende dal webhook), poi rilegge.
+  async function refresh() {
+    if (!user) return
+    try { await supabase.functions.invoke('connect-onboard', { body: { sync: true } }) } catch { /* ignora */ }
+    await loadStatus()
+  }
 
-  // Ritorno dall'onboarding Stripe: aggiorna lo stato e pulisci la query.
+  useEffect(() => { refresh() }, [user?.id])
+
+  // Ritorno dall'onboarding Stripe: allinea lo stato e pulisci la query.
   useEffect(() => {
-    if (params.get('stripe')) { loadStatus(); setParams({}, { replace: true }) }
+    if (params.get('stripe')) { refresh(); setParams({}, { replace: true }) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params])
 

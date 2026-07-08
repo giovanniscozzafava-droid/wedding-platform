@@ -36,10 +36,33 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>
 
-  // account esistente o nuovo
-  const { data: existing } = await admin.from('stripe_connect_accounts').select('account_id, charges_enabled, details_submitted').eq('profile_id', user.id).maybeSingle()
+  const { data: existing } = await admin.from('stripe_connect_accounts').select('account_id').eq('profile_id', user.id).maybeSingle()
   let accountId = existing?.account_id as string | undefined
 
+  // Sincronizza lo stato REALE del conto da Stripe nella nostra tabella. Non dipende dal webhook:
+  // così "Incassi attivi" riflette la verità anche in Sandbox / senza eventi Connect.
+  async function syncStatus(id: string) {
+    try {
+      const a = await stripe.accounts.retrieve(id)
+      const patch = {
+        charges_enabled: a.charges_enabled ?? false,
+        payouts_enabled: a.payouts_enabled ?? false,
+        details_submitted: a.details_submitted ?? false,
+        updated_at: new Date().toISOString(),
+      }
+      await admin.from('stripe_connect_accounts').update(patch).eq('account_id', id)
+      return patch
+    } catch { return null }
+  }
+
+  // Modalità SYNC: aggiorna e restituisci solo lo stato (niente creazione, niente link).
+  // Sicura da chiamare a ogni load: se non c'è un account non ne crea uno.
+  if (body.sync === true) {
+    if (!accountId) return json({ ok: true, status: null })
+    return json({ ok: true, status: await syncStatus(accountId) })
+  }
+
+  // Crea l'account Express se non c'è ancora.
   if (!accountId) {
     const acct = await stripe.accounts.create({
       type: 'express',
@@ -55,8 +78,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const live = await syncStatus(accountId)
     // login link alla Express Dashboard (solo se già operativo)
-    if (body.dashboard === true && existing?.charges_enabled) {
+    if (body.dashboard === true && live?.charges_enabled) {
       const link = await stripe.accounts.createLoginLink(accountId)
       return json({ ok: true, url: link.url, mode: 'dashboard' })
     }
