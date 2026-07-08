@@ -40,6 +40,7 @@ export default function AlbumCatalogPicker() {
   const [isPro, setIsPro] = useState(false)
   const [lockedFmt, setLockedFmt] = useState<string | null>(null)  // formato bloccato (se già impaginato)
   const [optioned, setOptioned] = useState(0)                       // importo album già opzionato nel preventivo
+  const [familyFromQuote, setFamilyFromQuote] = useState(false)     // album famiglia già nel preventivo
 
   async function reloadPins() {
     const { data } = await (supabase.from as any)('album_pins').select('id, entry_id, page, x, y, comment, material, color, status').eq('entry_id', entryId)
@@ -78,12 +79,29 @@ export default function AlbumCatalogPicker() {
         const items = (data?.items ?? data?.quote?.items ?? []) as { name?: string; line_client?: number; description_snapshot?: string; description?: string }[]
         const album = items.filter((it) => looksLikeAlbum({ name: it.name, description: it.description_snapshot ?? it.description }))
         setOptioned(album.reduce((s, it) => s + (Number(it.line_client) || 0), 0))
+        // Box / album famiglia GIÀ nel preventivo → li pre-spunto.
+        const allTxt = items.map((it) => `${it.name ?? ''} ${it.description_snapshot ?? it.description ?? ''}`).join(' ')
+        if (/\bbox\b|custodia|scatola|cofanetto|astuccio/i.test(allTxt)) setSpecs((p) => (p.box && p.box !== 'nessuno' ? p : { ...p, box: BOXES.find((b) => b.key !== 'nessuno')?.key ?? p.box }))
+        if (/famiglia|genitori|album\s*mini/i.test(allTxt)) setFamilyFromQuote(true)
       } catch { /* nessun preventivo */ }
     })()
   }, [entryId])
 
   const sizes = useMemo(() => sizesForFormat(specs.format as Format), [specs.format])
   useEffect(() => { if (sizes.length && !sizes.find((s) => s.key === specs.size)) setSpecs((p) => ({ ...p, size: sizes[0]!.key })) }, [sizes]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // COMPOSIZIONE: le opzioni del modello scelte dalla coppia (materiale/colore/logo/foto copertina).
+  const [sel, setSel] = useState<{ material?: string; color?: string; logos: string[]; cover: boolean }>({ logos: [], cover: false })
+  useEffect(() => { setSel({ logos: [], cover: false }) }, [selected?.id]) // reset a ogni nuovo modello
+  const opts = selected?.options ?? {}
+  const surcharge = useMemo(() => {
+    const find = (arr: { key: string; surcharge: number }[] | undefined, k?: string) => (k ? arr?.find((x) => x.key === k)?.surcharge ?? 0 : 0)
+    let s = find(opts.materials, sel.material) + find(opts.colors, sel.color)
+    for (const lk of sel.logos) s += find(opts.logos, lk)
+    if (sel.cover) s += opts.coverPhotoSurcharge ?? 0
+    return s
+  }, [opts, sel])
+  const modelTotal = (selected?.price ?? 0) + surcharge
 
   function pick(h: Hotspot) {
     setSelected(h)
@@ -122,7 +140,21 @@ export default function AlbumCatalogPicker() {
       try { const doc = await loadPdf(catalogPublicUrl(catalog.pdf_path)); pageImg = await renderPdfPageDataUrl(doc, selected.page, 900, 0.8) } catch { /* miniatura opzionale */ }
 
       const sizeLabel = sizes.find((s) => s.key === specs.size)?.label || specs.size
-      const fullSpecs = { ...specs, size: sizeLabel, note: pinNote.trim() || undefined }
+      // COMPOSIZIONE nella commessa: materiale/colore/logo/foto + il prezzo/differenza.
+      const lbl = (arr: { key: string; label: string }[] | undefined, k?: string) => (k ? arr?.find((x) => x.key === k)?.label : undefined)
+      const chosen = [
+        sel.material && `Materiale: ${lbl(opts.materials, sel.material)}`,
+        sel.color && `Colore: ${lbl(opts.colors, sel.color)}`,
+        sel.logos.length ? `Logo: ${sel.logos.map((k) => lbl(opts.logos, k)).filter(Boolean).join(', ')}` : null,
+        sel.cover && 'Foto in copertina',
+      ].filter(Boolean).join(' · ')
+      const priceLine = selected.price != null
+        ? (optioned > 0
+            ? `Modello + opzioni ${euroA(modelTotal)} · già ${euroA(optioned)} nel preventivo · DIFFERENZA ${euroA(Math.max(0, modelTotal - optioned))}`
+            : `Prezzo ${euroA(modelTotal)} (vendita nuova)`)
+        : null
+      const composed = [chosen, priceLine, pinNote.trim() || undefined].filter(Boolean).join('\n')
+      const fullSpecs = { ...specs, size: sizeLabel, note: composed || undefined }
       const dateLabel = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
       const blob = buildCommissionPdf({
         studio: catalog.studio || 'Studio',
@@ -197,16 +229,16 @@ export default function AlbumCatalogPicker() {
             {selected && (selected.price != null ? (
               <div className="rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] px-3 py-2.5">
                 {optioned > 0 ? (() => {
-                  const diff = Math.max(0, (selected.price ?? 0) - optioned)
+                  const diff = Math.max(0, modelTotal - optioned)
                   return (<>
                     <div className="flex items-center justify-between"><span className="text-sm font-medium">Differenza da saldare</span><span className="font-display text-lg">{diff > 0 ? `+ ${euroA(diff)}` : 'Nessuna'}</span></div>
-                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Modello {euroA(selected.price)} · hai già {euroA(optioned)} nel preventivo. Paghi solo la differenza.</p>
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Modello + opzioni {euroA(modelTotal)} · hai già {euroA(optioned)} nel preventivo. Paghi solo la differenza.</p>
                   </>)
                 })() : (<>
-                  <div className="flex items-center justify-between"><span className="text-sm font-medium">Prezzo album</span><span className="font-display text-lg">{euroA(selected.price)}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-sm font-medium">Prezzo album</span><span className="font-display text-lg">{euroA(modelTotal)}</span></div>
                   <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Non hai un album nel preventivo: è una scelta nuova, prezzo pieno.</p>
                 </>)}
-                <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Box, finiture e opzioni possono aggiungersi.</p>
+                {surcharge > 0 && <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Incluso {euroA(surcharge)} di opzioni scelte.</p>}
               </div>
             ) : (
               <div className="flex items-start gap-2 rounded-xl border px-3 py-2.5 text-[12px] text-[rgb(var(--fg-muted))]" style={{ borderColor: 'rgb(var(--amber-500) / 0.4)', background: 'rgb(var(--amber-500) / 0.10)' }}>
@@ -214,6 +246,38 @@ export default function AlbumCatalogPicker() {
                 <span>Prezzo su richiesta: <strong>chiedi al tuo fotografo la differenza di prezzo</strong> per questo modello.</span>
               </div>
             ))}
+
+            {selected && (!!opts.materials?.length || !!opts.colors?.length || !!opts.logos?.length || !!opts.coverPhoto) && (
+              <div className="space-y-3">
+                {!!opts.materials?.length && (
+                  <div><p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1.5">Materiale</p>
+                    <div className="flex flex-wrap gap-1.5">{opts.materials.map((m) => (
+                      <button key={m.key} onClick={() => setSel((s) => ({ ...s, material: s.material === m.key ? undefined : m.key }))}
+                        className={`px-2.5 py-1 rounded-lg text-xs border ${sel.material === m.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{m.label}{m.surcharge > 0 ? ` · +${euroA(m.surcharge)}` : ''}</button>
+                    ))}</div></div>
+                )}
+                {!!opts.colors?.length && (
+                  <div><p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1.5">Colore</p>
+                    <div className="flex flex-wrap gap-1.5">{opts.colors.map((c) => (
+                      <button key={c.key} onClick={() => setSel((s) => ({ ...s, color: s.color === c.key ? undefined : c.key }))}
+                        className={`px-2.5 py-1 rounded-lg text-xs border ${sel.color === c.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{c.label}{c.surcharge > 0 ? ` · +${euroA(c.surcharge)}` : ''}</button>
+                    ))}</div></div>
+                )}
+                {!!opts.logos?.length && (
+                  <div><p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1.5">Logo / personalizzazione</p>
+                    <div className="flex flex-wrap gap-1.5">{opts.logos.map((l) => (
+                      <button key={l.key} onClick={() => setSel((s) => ({ ...s, logos: s.logos.includes(l.key) ? s.logos.filter((x) => x !== l.key) : [...s.logos, l.key] }))}
+                        className={`px-2.5 py-1 rounded-lg text-xs border ${sel.logos.includes(l.key) ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{l.label}{l.surcharge > 0 ? ` · +${euroA(l.surcharge)}` : ''}</button>
+                    ))}</div></div>
+                )}
+                {opts.coverPhoto && (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={sel.cover} onChange={(e) => setSel((s) => ({ ...s, cover: e.target.checked }))} />
+                    Foto in copertina{opts.coverPhotoSurcharge ? ` · +${euroA(opts.coverPhotoSurcharge)}` : ''}
+                  </label>
+                )}
+              </div>
+            )}
 
             {selected && (
               <div>
@@ -262,7 +326,10 @@ export default function AlbumCatalogPicker() {
                 </div>
 
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Box / contenitore</p>
+                  <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Box / contenitore{specs.box && specs.box !== 'nessuno' && familyFromQuote === false ? '' : ''}</p>
+                  {(familyFromQuote || (specs.box && specs.box !== 'nessuno')) && (
+                    <p className="text-[11px] text-emerald-600 mb-2">Già nel tuo preventivo: {[specs.box && specs.box !== 'nessuno' ? 'box' : null, familyFromQuote ? 'album famiglia' : null].filter(Boolean).join(' e ')} — pre-selezionati.</p>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {BOXES.map((b) => (
                       <button key={b.key} onClick={() => setSpecs((p) => ({ ...p, box: b.key }))}
