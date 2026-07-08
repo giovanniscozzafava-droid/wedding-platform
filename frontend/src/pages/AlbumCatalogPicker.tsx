@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, type Format } from '@/components/album/albumCatalog'
+import { getFormat } from '@/lib/albumFormats'
+import { looksLikeAlbum, euroA } from '@/lib/albumPricing'
 import { PdfFlipbook } from '@/components/album/catalog/PdfFlipbook'
 import { PinThreadPanel, type AlbumPin } from '@/components/album/catalog/PinThreadPanel'
 import { AlbumScaleFigure } from '@/components/album/catalog/AlbumScaleFigure'
@@ -36,6 +38,8 @@ export default function AlbumCatalogPicker() {
   const [pins, setPins] = useState<AlbumPin[]>([])
   const [openPin, setOpenPin] = useState<AlbumPin | null>(null)
   const [isPro, setIsPro] = useState(false)
+  const [lockedFmt, setLockedFmt] = useState<string | null>(null)  // formato bloccato (se già impaginato)
+  const [optioned, setOptioned] = useState(0)                       // importo album già opzionato nel preventivo
 
   async function reloadPins() {
     const { data } = await (supabase.from as any)('album_pins').select('id, entry_id, page, x, y, comment, material, color, status').eq('entry_id', entryId)
@@ -52,6 +56,29 @@ export default function AlbumCatalogPicker() {
       const me = (await supabase.auth.getUser()).data.user?.id
       const { data: gal } = await (supabase.from as any)('event_galleries').select('owner_id').eq('entry_id', entryId).maybeSingle()
       setIsPro(!!me && gal?.owner_id === me)
+    })()
+    // FORMATO BLOCCATO: se il fotografo ha già impaginato, la coppia non sceglie il formato.
+    void (async () => {
+      try {
+        const { data: proj } = await (supabase.from as any)('album_projects').select('format_key, layout').eq('entry_id', entryId).maybeSingle()
+        const pages = (proj?.layout as { pages?: unknown[] } | null)?.pages?.length ?? 0
+        if (proj?.format_key && pages > 0) {
+          const f = getFormat(proj.format_key as string)
+          const fmt: Format = f.w > f.h ? 'landscape' : f.w < f.h ? 'portrait' : 'square'
+          const sizeKey = `${fmt}:${Math.round(f.w / 10)}x${Math.round(f.h / 10)}`
+          setLockedFmt(f.label.replace(/ ·.*/, ''))
+          setSpecs((p) => ({ ...p, format: fmt, size: sizeKey }))
+        }
+      } catch { /* nessun impaginato */ }
+    })()
+    // DIFFERENZA: quanto ha già opzionato per l'album nel preventivo.
+    void (async () => {
+      try {
+        const { data } = await (supabase as any).rpc('couple_get_quote_for_entry', { p_entry_id: entryId })
+        const items = (data?.items ?? data?.quote?.items ?? []) as { name?: string; line_client?: number; description_snapshot?: string; description?: string }[]
+        const album = items.filter((it) => looksLikeAlbum({ name: it.name, description: it.description_snapshot ?? it.description }))
+        setOptioned(album.reduce((s, it) => s + (Number(it.line_client) || 0), 0))
+      } catch { /* nessun preventivo */ }
     })()
   }, [entryId])
 
@@ -167,12 +194,26 @@ export default function AlbumCatalogPicker() {
                 : <p className="text-sm text-[rgb(var(--fg-muted))]">Tocca un riquadro sulla pagina per scegliere.</p>}
             </Card>
 
-            {selected && (
+            {selected && (selected.price != null ? (
+              <div className="rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] px-3 py-2.5">
+                {optioned > 0 ? (() => {
+                  const diff = Math.max(0, (selected.price ?? 0) - optioned)
+                  return (<>
+                    <div className="flex items-center justify-between"><span className="text-sm font-medium">Differenza da saldare</span><span className="font-display text-lg">{diff > 0 ? `+ ${euroA(diff)}` : 'Nessuna'}</span></div>
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Modello {euroA(selected.price)} · hai già {euroA(optioned)} nel preventivo. Paghi solo la differenza.</p>
+                  </>)
+                })() : (<>
+                  <div className="flex items-center justify-between"><span className="text-sm font-medium">Prezzo album</span><span className="font-display text-lg">{euroA(selected.price)}</span></div>
+                  <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Non hai un album nel preventivo: è una scelta nuova, prezzo pieno.</p>
+                </>)}
+                <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Box, finiture e opzioni possono aggiungersi.</p>
+              </div>
+            ) : (
               <div className="flex items-start gap-2 rounded-xl border px-3 py-2.5 text-[12px] text-[rgb(var(--fg-muted))]" style={{ borderColor: 'rgb(var(--amber-500) / 0.4)', background: 'rgb(var(--amber-500) / 0.10)' }}>
                 <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'rgb(var(--amber-600, 217 119 6))' }} />
-                <span>Il prezzo può variare in base al modello, al formato e alle finiture scelte. Prima di confermare, <strong>chiedi al tuo fotografo la differenza di prezzo</strong> per questa scelta.</span>
+                <span>Prezzo su richiesta: <strong>chiedi al tuo fotografo la differenza di prezzo</strong> per questo modello.</span>
               </div>
-            )}
+            ))}
 
             {selected && (
               <div>
@@ -187,20 +228,26 @@ export default function AlbumCatalogPicker() {
               <div className="space-y-4">
                 <div>
                   <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Formato</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {FORMATS.map((f) => (
-                      <button key={f.key} onClick={() => setSpecs((p) => ({ ...p, format: f.key }))}
-                        className={`rounded-xl border px-2 py-2 text-sm transition ${specs.format === f.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:border-[rgb(var(--gold-300))]'}`}>{f.label}</button>
-                    ))}
-                  </div>
-                  {!!sizes.length && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {sizes.map((s) => (
-                        <button key={s.key} onClick={() => setSpecs((p) => ({ ...p, size: s.key }))}
-                          className={`px-2.5 py-1 rounded-md text-xs border transition ${specs.size === s.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{s.label}</button>
+                  {lockedFmt ? (
+                    <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] px-3 py-2 text-sm">
+                      <strong>{lockedFmt}</strong> <span className="text-[rgb(var(--fg-muted))]">· già impaginato dal fotografo (non modificabile)</span>
+                    </div>
+                  ) : (<>
+                    <div className="grid grid-cols-3 gap-2">
+                      {FORMATS.map((f) => (
+                        <button key={f.key} onClick={() => setSpecs((p) => ({ ...p, format: f.key }))}
+                          className={`rounded-xl border px-2 py-2 text-sm transition ${specs.format === f.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:border-[rgb(var(--gold-300))]'}`}>{f.label}</button>
                       ))}
                     </div>
-                  )}
+                    {!!sizes.length && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {sizes.map((s) => (
+                          <button key={s.key} onClick={() => setSpecs((p) => ({ ...p, size: s.key }))}
+                            className={`px-2.5 py-1 rounded-md text-xs border transition ${specs.size === s.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{s.label}</button>
+                        ))}
+                      </div>
+                    )}
+                  </>)}
                   {(() => { const sd = sizeByKey(specs.size); return sd ? (
                     <div className="mt-4 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] py-4">
                       <AlbumScaleFigure wCm={sd.w} hCm={sd.h} sizeLabel={sd.label} />

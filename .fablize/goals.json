@@ -20,8 +20,8 @@
    "id": "G003",
    "title": "Picker coppia base",
    "objective": "album_catalog_for_entry multi-PDF+card; formato bloccato su impaginato; PDF ingrandibile desktop; prezzo live differenza vs preventivo o pieno",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "build verde + migration 20260709110000 (album_catalog_for_entry ritorna catalogs+models con price/options/image). Picker: formato BLOCCATO su impaginato (album_projects, chip non modificabile), card prezzo con DIFFERENZA vs opzionato nel preventivo (couple_get_quote_for_entry+looksLikeAlbum) o prezzo pieno ex-novo. PENDENTE: zoom PDF desktop + browsing multi-PDF/card nel picker (rifinitura)"
   },
   {
    "id": "G004",
