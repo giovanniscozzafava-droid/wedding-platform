@@ -21,6 +21,7 @@ const OnboardingPage = lazyWithRetry(() => import('@/pages/auth/OnboardingPage')
 const ProfilePage = lazyWithRetry(() => import('@/pages/auth/ProfilePage'))
 const CatalogPage = lazyWithRetry(() => import('@/pages/CatalogPage'))
 const FoodCostPage = lazyWithRetry(() => import('@/pages/FoodCostPage'))
+const DesignStudioPage = lazyWithRetry(() => import('@/pages/DesignStudioPage'))
 const TastingSessionsPage = lazyWithRetry(() => import('@/pages/TastingSessionsPage'))
 const TastingSessionInvite = lazyWithRetry(() => import('@/pages/TastingSessionInvite'))
 const MagazzinoPage = lazyWithRetry(() => import('@/pages/MagazzinoPage'))
@@ -158,6 +159,7 @@ export default function App() {
           <Route path="/album-catalogo" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><AlbumCatalogManager /></RequireAuth>} />
           <Route path="/scegli-album/:entryId" element={<RequireAuth><AlbumCatalogPicker /></RequireAuth>} />
           <Route path="/stili" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SupplierAssetsPage /></RequireAuth>} />
+          <Route path="/studio" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><DesignStudioPage /></RequireAuth>} />
           <Route
             path="/suppliers"
             element={

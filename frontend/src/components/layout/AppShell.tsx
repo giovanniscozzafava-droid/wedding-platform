@@ -228,15 +228,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         ? { ...g, items: [...g.items, { to: '/prima-nota', label: 'Prima nota', icon: NotebookPen }, { to: '/food-cost', label: 'Food cost', icon: Carrot }, { to: '/prove-menu', label: 'Prove menu', icon: CalendarDays }, { to: '/magazzino', label: 'Magazzino', icon: Boxes }, { to: '/ragioniere', label: 'Ragioniere', icon: Calculator }] }
         : g)
     : baseGroupsRaw
+  // Studio disegno: strumento per chi fa grafica/progettazione (tutti i professionisti).
+  const baseGroupsStudio = (isCapostipite || isFornitore)
+    ? baseGroups.map((g, i) => (i === 0 ? { ...g, items: [...g.items, { to: '/studio', label: 'Studio disegno', icon: Palette }] } : g))
+    : baseGroups
   // Gruppo riservato a staff/admin (gestione piattaforma + ticket).
   const NAV_GROUPS: NavGroup[] = isStaff
-    ? [...baseGroups, { section: 'Staff', items: [
+    ? [...baseGroupsStudio, { section: 'Staff', items: [
         { to: '/admin', label: 'Pannello Admin', icon: LifeBuoy },
         ...(profile?.role === 'ADMIN' ? [{ to: '/admin/osservatorio', label: 'Osservatorio', icon: BarChart3 }] : []),
         { to: '/admin/finance', label: 'Finance', icon: Wallet },
         { to: '/admin/assistenza', label: 'Ticket assistenza', icon: LifeBuoy },
       ] }]
-    : baseGroups
+    : baseGroupsStudio
 
   const initials =
     (profile?.business_name ?? profile?.full_name ?? user?.email ?? '?')
