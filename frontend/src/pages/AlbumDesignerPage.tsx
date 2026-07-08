@@ -1586,34 +1586,34 @@ function AlbumDesignerInner() {
     toast.success('Foto sostituita. Ricontrolla il ritaglio se serve.')
   }
 
-  // LISTA PER LIGHTROOM: CSV delle foto SELEZIONATE (nome file originale + data di scatto EXIF +
-  // momento). Il fotografo la usa per ritrovare/isolare le stesse foto in Lightroom (filtro per nome
-  // file) e lavorarle. Ordinata per orario di scatto.
+  // LISTA PER LIGHTROOM: file .txt pronto da TRASPORTARE — i nomi file delle foto scelte, uno per
+  // riga, SENZA estensione (così matcha anche i RAW quando la coppia ha scelto sui JPG). Funziona sia
+  // col plugin "Photo List Importer" (crea una collection) sia col filtro Libreria › Testo › Nome file
+  // › Contiene (incollando, gli a-capo collassano in spazi). Ordinato per orario di scatto EXIF.
   async function exportLightroomList() {
     const rows = kept.filter((m) => m.media_type === 'PHOTO')
     if (rows.length === 0) { toast.error('Nessuna foto selezionata'); return }
     // Il nome file originale sta su Drive (imageMediaMetadata), non in DB → lo chiedo a album-exif.
-    // Riuso quanto già in exifMeta; se manca il nome per le foto Drive, faccio una fetch.
     let meta = exifMeta
     const needFetch = rows.filter((m) => isDrive(m)).some((m) => meta[m.id]?.name == null)
     if (needFetch) { const t = toast.loading('Recupero i nomi file da Google Drive…'); meta = { ...meta, ...(await loadExif()) }; toast.dismiss(t) }
     const nameOf = (m: M) => meta[m.id]?.name ?? m.source_name ?? ''
     const takenAt = (id: string) => meta[id]?.takenAt ?? null
     const sorted = [...rows].sort((a, b) => { const ta = takenAt(a.id), tb = takenAt(b.id); if (ta != null && tb != null) return ta - tb; if (ta != null) return -1; if (tb != null) return 1; return 0 })
-    const esc = (s: unknown) => { const v = String(s ?? ''); return /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v }
-    const lines = sorted.map((m) => {
-      const ta = takenAt(m.id)
-      return [esc(nameOf(m)), esc(ta ? new Date(ta).toLocaleString('it-IT') : ''), esc(getMoment(m.album_moment)?.label ?? '')].join(';')
-    })
-    const csv = '﻿' + ['nome_file;scattata_il;momento', ...lines].join('\r\n') // BOM: Excel apre in UTF-8
+    const stripExt = (n: string) => n.replace(/\.[A-Za-z0-9]{1,5}$/, '') // toglie .jpg/.ARW/.CR3/.RAF…
+    const names = Array.from(new Set(sorted.map(nameOf).filter(Boolean).map(stripExt)))
     const missing = sorted.filter((m) => !nameOf(m)).length
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    if (names.length === 0) {
+      toast.warning('Nessun nome file disponibile: collega Google Drive per generare la lista da portare in Lightroom.', { duration: 9000 })
+      return
+    }
+    const txt = names.join('\r\n') + '\r\n' // una foto per riga, senza estensione
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' })
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
-    a.download = `selezione-lightroom-${(title || 'album').replace(/[^\w-]+/g, '_').slice(0, 40)}.csv`
+    a.download = `selezione-lightroom-${(title || 'album').replace(/[^\w-]+/g, '_').slice(0, 40)}.txt`
     document.body.appendChild(a); a.click(); a.remove()
     setTimeout(() => URL.revokeObjectURL(a.href), 3000)
-    if (missing === rows.length) toast.warning(`Esportate ${rows.length} foto, ma senza nome file (collega Google Drive per averli). In Lightroom usa la colonna "scattata_il".`, { duration: 9000 })
-    else toast.success(`Esportate ${rows.length} foto${missing ? ` (${missing} senza nome)` : ''} — in Lightroom filtra per nome file`)
+    toast.success(`Lista pronta: ${names.length} nomi file (senza estensione)${missing ? ` · ${missing} senza nome` : ''}. In Lightroom Classic: plugin Photo List Importer, oppure Libreria › filtro Testo › Nome file › Contiene.`, { duration: 12000 })
   }
 
   const exportRef = useRef<HTMLDivElement>(null)
@@ -3708,7 +3708,7 @@ function SelectStep(props: {
             {likedTotal > 0 && <Button variant="outline" size="sm" onClick={onKeepLiked} title="Aggiungi all'album le foto a cui gli sposi hanno messo mi piace"><Heart size={14} className="fill-rose-400 text-rose-400" /> Tieni le preferite ({likedTotal})</Button>}
             {likedTotal > 0 && <Button variant={likedFirst ? 'gold' : 'outline'} size="sm" onClick={() => setLikedFirst((v) => !v)} title="Mostra prima le foto più piaciute dagli sposi">{likedFirst ? 'Ordine originale' : 'Preferite prima'}</Button>}
             {total > 0 && photos.length > total && <Button variant={showingKeptOnly ? 'gold' : 'outline'} size="sm" onClick={() => setOnlyKept((v) => !v)} title={showingKeptOnly ? 'Mostra tutta la galleria per aggiungerne altre' : 'Mostra solo le foto scelte per l’album'}>{showingKeptOnly ? `Tutte le foto (${photos.length})` : `Solo selezionate (${total})`}</Button>}
-            {total > 0 && <Button variant="outline" size="sm" onClick={onExportLightroom} title="Scarica la lista delle foto scelte (nome file + data scatto) per ritrovarle e lavorarle in Lightroom"><FileText size={14} /> Lista Lightroom</Button>}
+            {total > 0 && <Button variant="outline" size="sm" onClick={onExportLightroom} title="Scarica la lista dei nomi file (uno per riga, senza estensione) da portare in Lightroom: plugin Photo List Importer o filtro Testo › Nome file › Contiene"><FileText size={14} /> Lista Lightroom</Button>}
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto"><strong>{total}</strong>/{photos.length} selezionate</span>
           </>}
         </div>
