@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ChevronLeft, Upload, Save, FileText, Loader2, RefreshCw } from 'lucide-react'
+import { ChevronLeft, Upload, Save, FileText, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PdfHotspotEditor } from '@/components/album/catalog/PdfHotspotEditor'
-import { getMyCatalog, uploadCatalogPdf, saveHotspots, catalogPublicUrl, type Catalog, type Hotspot } from '@/hooks/useAlbumCatalog'
+import { getMyCatalog, uploadCatalogPdf, saveHotspots, catalogPublicUrl, extractCatalogPrices, type Catalog, type Hotspot } from '@/hooks/useAlbumCatalog'
 
 // Lato fotografo: carica il PDF del proprio catalogo aziendale e marca gli hotspot (modelli
 // cliccabili) per pagina. La coppia poi lo sfoglia in /scegli-album/:entryId.
@@ -41,6 +41,26 @@ export default function AlbumCatalogManager() {
 
   const setHs = (h: Hotspot[]) => { setHotspots(h); setDirty(true) }
 
+  // AI: legge i prezzi dal PDF e li applica ai modelli (match per nome) + aggiunge i mancanti.
+  async function readPrices() {
+    if (!catalog) return
+    setBusy(true)
+    try {
+      const models = await extractCatalogPrices(catalog.pdf_path)
+      if (!models.length) { toast.message("L'AI non ha trovato modelli con prezzo nel PDF"); return }
+      const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+      const next = hotspots.map((h) => ({ ...h }))
+      let applied = 0, added = 0
+      for (const m of models) {
+        const i = next.findIndex((h) => norm(h.label) === norm(m.label))
+        if (i >= 0) { if (m.price != null) { next[i]!.price = m.price; applied++ } }
+        else { next.push({ page: 1, x: 0.03, y: Math.min(0.92, 0.03 + (next.length % 14) * 0.065), w: 0.22, h: 0.05, label: m.label, price: m.price ?? null, default_format: null, default_pages: null }); added++ }
+      }
+      setHotspots(next); setDirty(true)
+      toast.success(`AI: ${applied} prezzi applicati${added ? `, ${added} nuovi modelli aggiunti` : ''}. Controlla e salva.`, { duration: 10000 })
+    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+
   return (
     <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8">
@@ -58,6 +78,9 @@ export default function AlbumCatalogManager() {
                 <RefreshCw size={15} /> Sostituisci PDF
                 <input type="file" accept="application/pdf" className="hidden" onChange={onUpload} disabled={busy} />
               </label>
+              <Button variant="outline" onClick={readPrices} disabled={busy} title="L'AI legge i prezzi dal PDF e li applica ai modelli. Controlli e salvi.">
+                {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Leggi prezzi (AI)
+              </Button>
               <Button onClick={onSave} disabled={busy || !dirty}>
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salva modelli
               </Button>
