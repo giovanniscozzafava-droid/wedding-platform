@@ -106,17 +106,17 @@ export default function CommissionPage() {
         <div className="flex items-center justify-between gap-3 mb-4 print:hidden">
           <span className="text-xs text-neutral-500">Copia commissione · sola lettura</span>
           <div className="flex items-center gap-2">
-            {selection_count > 0 && (
-              <button onClick={() => void downloadFiles('original')} disabled={dl}
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg text-white disabled:opacity-60" style={{ backgroundColor: accent }}>
-                {dl ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {dl ? 'Preparo lo ZIP…' : 'Scarica i file'}
-              </button>
-            )}
             {order.file_link && (
               <a href={order.file_link} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50">
-                <Download size={15} /> Link esterno
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg text-white" style={{ backgroundColor: accent }}>
+                <Download size={15} /> Scarica le tavole
               </a>
+            )}
+            {selection_count > 0 && (
+              <button onClick={() => void downloadFiles('original')} disabled={dl}
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50 disabled:opacity-60">
+                {dl ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {dl ? 'ZIP…' : 'Foto selezionate'}
+              </button>
             )}
             <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50">
               <Printer size={15} /> Stampa
@@ -182,7 +182,7 @@ export default function CommissionPage() {
             <a href={order.file_link} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-2xl border border-dashed border-black/20 bg-white p-4 hover:bg-neutral-50 print:hidden">
               <FileText size={18} style={{ color: accent }} />
-              <span className="text-sm text-neutral-700">File dell'album (impaginato / foto): <span className="underline">apri il link</span></span>
+              <span className="text-sm text-neutral-700">Tavole dell'album da stampare: <span className="underline">scarica dal Drive</span></span>
             </a>
           )}
 

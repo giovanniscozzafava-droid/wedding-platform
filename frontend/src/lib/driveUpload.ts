@@ -26,6 +26,23 @@ export async function getDriveToken(): Promise<string> {
   return r.access_token
 }
 
+// Spazio del Drive del professionista (about.get → storageQuota). Per avvisarlo quando si riempie.
+export type DriveQuota = { limit: number | null; usage: number; usedPct: number | null; freeGb: number | null }
+export async function driveQuota(token?: string): Promise<DriveQuota | null> {
+  try {
+    const t = token ?? (await getDriveToken())
+    const r = await fetch('https://www.googleapis.com/drive/v3/about?fields=storageQuota', { headers: { Authorization: `Bearer ${t}` } })
+    if (!r.ok) return null
+    const q = (await r.json())?.storageQuota ?? {}
+    const limit = q.limit != null ? Number(q.limit) : null   // null = illimitato (Workspace)
+    const usage = Number(q.usage ?? 0)
+    return { limit, usage, usedPct: limit ? Math.round((usage / limit) * 100) : null, freeGb: limit ? Math.max(0, (limit - usage) / 1e9) : null }
+  } catch { return null }
+}
+
+// Link di download diretto per un file Drive condiviso (per lo stampatore).
+export const driveDownloadUrl = (id: string) => `https://drive.google.com/uc?export=download&id=${id}`
+
 // Crea (o riusa) una cartella su Drive condivisa "chiunque con il link" → le
 // miniature sono pubbliche e visibili anche a sposi/fornitori (modo leggero beta).
 export async function ensureDriveFolder(token: string, name: string, existingId: string | null): Promise<string> {

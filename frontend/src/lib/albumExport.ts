@@ -150,8 +150,8 @@ function pageNumText(pdf: any, n: number, cx: number, y: number) {
 
 export class ExportCancelled extends Error { constructor() { super('export_cancelled'); this.name = 'ExportCancelled' } }
 
-export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean; pageNumbers?: boolean; onProgress?: (done: number, total: number) => void; shouldCancel?: () => boolean } = {}) {
-  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false, pageNumbers = false, onProgress, shouldCancel } = opts
+export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { mode?: PdfMode; dpi?: number; filename?: string; bleed?: boolean; cutMarks?: boolean; pageNumbers?: boolean; returnBlob?: boolean; onProgress?: (done: number, total: number) => void; shouldCancel?: () => boolean } = {}): Promise<Blob | void> {
+  const { mode = 'pages', dpi = 150, filename = 'album.pdf', bleed = false, cutMarks = false, pageNumbers = false, returnBlob = false, onProgress, shouldCancel } = opts
   const f = getFormat(formatKey)
   const { default: jsPDF } = await import('jspdf')
 
@@ -181,6 +181,7 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
       if (pageNumbers) { pageNumText(pdf, i + 1, b + f.w / 2, b + f.h - 5); if (pages[i + 1]) pageNumText(pdf, i + 2, b + f.w + f.w / 2, b + f.h - 5) }
       onProgress?.(Math.floor(i / 2) + 1, Math.ceil(pages.length / 2))
     }
+    if (returnBlob) return pdf.output('blob')
     pdf.save(filename)
     return
   }
@@ -200,6 +201,7 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
     if (pageNumbers) pageNumText(pdf, i + 1, box.w / 2, box.h - 5 - b)
     onProgress?.(i + 1, pages.length)
   }
+  if (returnBlob) return pdf.output('blob')
   pdf.save(filename)
 }
 
@@ -234,8 +236,8 @@ async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: 
 }
 
 // JPG: 'pages' = una immagine per pagina (tavola divisa); 'spreads' = tavola intera (2 pagine affiancate).
-export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode; onProgress?: (done: number, total: number) => void; onZip?: (percent: number) => void; shouldCancel?: () => boolean } = {}) {
-  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages', onProgress, onZip, shouldCancel } = opts
+export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, resolve: UrlResolver, opts: { dpi?: number; filename?: string; pageNumbers?: boolean; mode?: PdfMode; returnBlob?: boolean; onProgress?: (done: number, total: number) => void; onZip?: (percent: number) => void; shouldCancel?: () => boolean } = {}): Promise<Blob | void> {
+  const { dpi = 150, filename = 'album-jpg.zip', pageNumbers = false, mode = 'pages', returnBlob = false, onProgress, onZip, shouldCancel } = opts
   const f = getFormat(formatKey)
   const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
@@ -280,6 +282,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
   // percentuale così la barra non resta "ferma al 100%" senza feedback.
   onZip?.(0)
   const out = await zip.generateAsync({ type: 'blob' }, (meta) => onZip?.(Math.round(meta.percent)))
+  if (returnBlob) return out
   const a = document.createElement('a')
   a.href = URL.createObjectURL(out); a.download = filename
   document.body.appendChild(a); a.click(); a.remove()

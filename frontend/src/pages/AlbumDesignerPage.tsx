@@ -100,6 +100,7 @@ import { genTavolaLayouts, assignPhotos, gutterSlot, classifyAspect, type Orient
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { shareAlbumCommission } from '@/hooks/useAlbumLab'
 import { getCatalogModels } from '@/hooks/useAlbumCatalog'
+import { getDriveToken, ensureDriveFolder, uploadAnyToDrive, driveQuota, driveDownloadUrl } from '@/lib/driveUpload'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 import { MyStylePanel } from '@/components/album/MyStylePanel'
@@ -377,6 +378,8 @@ function AlbumDesignerInner() {
   const [commFileLink, setCommFileLink] = useState('')
   const [commLink, setCommLink] = useState<string | null>(null)
   const [commBusy, setCommBusy] = useState(false)
+  const [commFmt, setCommFmt] = useState<'pdf' | 'jpg'>('pdf')   // formato tavole per lo stampatore
+  const [commStep, setCommStep] = useState('')                    // stato avanzamento (export/upload)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -1661,18 +1664,50 @@ function AlbumDesignerInner() {
     toast.success(`Ponte pronto: ${withTime.length} orari di scatto${missing ? ` · ${missing} senza orario` : ''}. In Lightroom ordina la cartella RAW per "Ora di scatto" e ritrovi le stesse foto anche se rinominate.`, { duration: 12000 })
   }
 
-  // COPIA COMMISSIONE per la stampa: link pubblico con le specifiche dell'album (formato, pagine,
-  // copie, selezione) + note + link ai file. Cover/copie preservate (passo null) se già impostate.
+  // COPIA COMMISSIONE per la stampa: ESPORTA le TAVOLE (PDF o JPG-ZIP), le carica sul Google Drive
+  // del fotografo (browser→Drive diretto), condivide il file e genera il link pubblico: lo stampatore
+  // scarica le tavole + vede le specifiche. Avvisa se lo spazio Drive è quasi esaurito.
   async function genCommission() {
     if (!entryId) return
-    setCommBusy(true)
+    if (pages.length === 0) { toast.error('Nessuna tavola da esportare'); return }
+    setCommBusy(true); setCommStep('Esporto le tavole…')
     try {
-      const url = await shareAlbumCommission(entryId, null, null, commNotes.trim() || null, commFileLink.trim() || null)
+      // grant + resolve alta risoluzione (come doExport)
+      let grant: string | null = null
+      try { const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId }); grant = (data as string) ?? null } catch { grant = null }
+      const SB = import.meta.env.VITE_SUPABASE_URL, AK = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const resolve = (id: string) => { const m = mediaById.get(id); if (!m) return ''; return grant && isDrive(m) ? hiResProxyUrl(SB, AK, grant, id) : hiUrl(m) }
+      const base = (title || 'album').toLowerCase().replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '') || 'album'
+      // TAVOLE (spreads) — è quello che stampa il lab
+      const blob = commFmt === 'jpg'
+        ? await exportAlbumJpgZip(pages, format, resolve, { returnBlob: true, dpi: Math.min(exportDpi, 240), mode: 'spreads', pageNumbers: pageNums })
+        : await exportAlbumPdf(pages, format, resolve, { returnBlob: true, mode: 'spreads', dpi: exportDpi, bleed, cutMarks: cutMarks && bleed, pageNumbers: pageNums })
+      if (!(blob instanceof Blob)) throw new Error('Export non riuscito')
+      const fname = `${base}-tavole.${commFmt === 'jpg' ? 'zip' : 'pdf'}`
+      const mime = commFmt === 'jpg' ? 'application/zip' : 'application/pdf'
+
+      // upload sul Drive del fotografo
+      setCommStep('Carico sul tuo Google Drive…')
+      const token = await getDriveToken()
+      const q = await driveQuota(token)
+      const folder = await ensureDriveFolder(token, 'Planfully - Commissioni', null)
+      const file = new File([blob], fname, { type: mime })
+      const { id } = await uploadAnyToDrive(token, folder, file, (frac) => setCommStep(`Carico sul Drive… ${Math.round(frac * 100)}%`))
+      const driveLink = driveDownloadUrl(id)
+
+      // commissione col link alle tavole (+ eventuale link extra nelle note)
+      setCommStep('Genero il link…')
+      const notes = [commNotes.trim() || null, commFileLink.trim() ? `Altro: ${commFileLink.trim()}` : null].filter(Boolean).join('\n') || null
+      const url = await shareAlbumCommission(entryId, null, null, notes, driveLink)
       setCommLink(url)
-      try { await navigator.clipboard.writeText(url); toast.success('Link commissione copiato negli appunti') }
+      try { await navigator.clipboard.writeText(url); toast.success('Link commissione (con le tavole) copiato negli appunti') }
       catch { toast.success('Link commissione generato') }
-    } catch (e) { toast.error(`Link non generato: ${(e as Error).message}`) }
-    finally { setCommBusy(false) }
+      // avviso spazio Drive
+      if (q?.usedPct != null && q.usedPct >= 90) {
+        toast.warning(`Spazio Google Drive quasi esaurito (${q.usedPct}% usato${q.freeGb != null ? `, ~${q.freeGb.toFixed(1)} GB liberi` : ''}). Libera spazio cancellando i lavori già consegnati, oppure aumenta lo spazio Google.`, { duration: 14000 })
+      }
+    } catch (e) { toast.error(`Commissione non generata: ${(e as Error).message}`.slice(0, 180)) }
+    finally { setCommBusy(false); setCommStep('') }
   }
 
   const exportRef = useRef<HTMLDivElement>(null)
@@ -3670,8 +3705,14 @@ function AlbumDesignerInner() {
                   {/* COPIA COMMISSIONE: link pubblico da dare alla stampa (evita WeTransfer + email) */}
                   <div className="pt-3 border-t border-[rgb(var(--border))] space-y-2">
                     <div className="flex items-center gap-2"><BadgeEuro size={15} className="text-[rgb(var(--gold-600))]" /><p className="text-sm font-medium">Copia commissione per la stampa</p></div>
-                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Un link con le specifiche (formato, pagine, copie, foto selezionate) da dare alla stampa: la apre senza account. Dalla pagina la stampa può anche <strong>scaricare i file selezionati</strong> in ZIP, direttamente dal tuo Google Drive — come un WeTransfer, senza email. Il campo qui sotto è per un link extra facoltativo (es. il PDF impaginato).</p>
-                    <input value={commFileLink} onChange={(e) => setCommFileLink(e.target.value)} placeholder="Link extra ai file (PDF impaginato…) — facoltativo" className="w-full h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm" />
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Esporta le <strong>tavole</strong> dell'album e le carica sul <strong>tuo Google Drive</strong>: lo stampatore apre il link (senza account), <strong>scarica le tavole</strong> e vede le specifiche della commissione. Come un WeTransfer, ma sul tuo Drive.</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-[rgb(var(--fg-muted))]">Tavole in</span>
+                      {(['pdf', 'jpg'] as const).map((k) => (
+                        <button key={k} onClick={() => setCommFmt(k)} className={`px-2.5 py-1 rounded-md text-xs border ${commFmt === k ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))]'}`}>{k === 'pdf' ? 'PDF' : 'JPG (ZIP)'}</button>
+                      ))}
+                    </div>
+                    <input value={commFileLink} onChange={(e) => setCommFileLink(e.target.value)} placeholder="Link extra ai file — facoltativo" className="w-full h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm" />
                     <textarea value={commNotes} onChange={(e) => setCommNotes(e.target.value)} rows={2} placeholder="Note per la stampa (copertina, materiale, box, finiture, consegna…) — facoltativo" className="w-full rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 text-sm" />
                     {commLink ? (
                       <div className="rounded-lg border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] p-2.5 space-y-1.5">
@@ -3681,10 +3722,10 @@ function AlbumDesignerInner() {
                           <button onClick={() => { void navigator.clipboard.writeText(commLink); toast.success('Copiato') }} className="h-8 px-2 rounded-md border border-[rgb(var(--border))] text-xs hover:bg-[rgb(var(--bg))]">Copia</button>
                           <a href={commLink} target="_blank" rel="noopener noreferrer" className="h-8 px-2 grid place-items-center rounded-md border border-[rgb(var(--border))] text-xs hover:bg-[rgb(var(--bg))]">Apri</a>
                         </div>
-                        <button onClick={() => void genCommission()} disabled={commBusy} className="text-[11px] text-[rgb(var(--gold-700))] hover:underline disabled:opacity-50">Rigenera (aggiorna le specifiche dall'album)</button>
+                        <button onClick={() => void genCommission()} disabled={commBusy} className="text-[11px] text-[rgb(var(--gold-700))] hover:underline disabled:opacity-50">Rigenera (riesporta le tavole aggiornate)</button>
                       </div>
                     ) : (
-                      <Button variant="outline" size="sm" disabled={commBusy} onClick={() => void genCommission()}><FileText size={14} /> {commBusy ? 'Genero…' : 'Genera link commissione'}</Button>
+                      <Button variant="outline" size="sm" disabled={commBusy} onClick={() => void genCommission()}><FileText size={14} /> {commBusy ? (commStep || 'Genero…') : 'Genera link con le tavole'}</Button>
                     )}
                   </div>
                 </div>

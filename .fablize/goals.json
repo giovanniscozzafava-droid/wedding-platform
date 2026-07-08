@@ -27,15 +27,15 @@
    "id": "G004",
    "title": "Composizione coppia",
    "objective": "opzioni sommano nel prezzo; box+album famiglia pre-spuntati da preventivo (couple_get_quote_for_entry)",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "build+deploy. Picker: selettori materiale/colore/logo/foto-copertina, surcharge somma nel prezzo live; box+famiglia pre-spuntati dal preventivo"
   },
   {
    "id": "G005",
    "title": "Sbocco commissione",
    "objective": "la composizione popola price_config + genera la copia commissione, flusso unico",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "Composizione+prezzo/differenza nella nota della commessa firmata (arriva al fotografo). Fix bucket album-catalogs immagini per card manuali"
   }
  ]
 }
