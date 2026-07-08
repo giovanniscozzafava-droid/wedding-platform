@@ -2,15 +2,15 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Shapes, Ruler, Layers, Type, Package } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Shapes, Ruler, Layers, Type, Package, Link2 as LinkIcon, Copy, X } from 'lucide-react'
 import { AlbumFlipbook } from '@/components/album/AlbumFlipbook'
 import {
-  CATEGORIES, baseModelsByCategory, baseDesignOf, baseDesignKey, materialsForModel, paletteFor, modelByKey,
+  CATEGORIES, baseModelsByCategory, baseDesignOf, baseDesignKey, materialsForModel, paletteFor, modelByKey, modelLabel,
   firstAvailableSizeKey, sizeByKey, isSizeAvailableForModel,
   coverPrice, euro, isWoodModel,
   type Cover, type ColorDef, type Format,
 } from '@/components/album/albumCatalog'
-import { sendAlbumToPrint } from '@/hooks/useAlbumLab'
+import { sendAlbumToPrint, shareAlbumCommission } from '@/hooks/useAlbumLab'
 import { AlbumStage } from '@/components/album/configurator/AlbumStage'
 import { ModelCard } from '@/components/album/configurator/ModelCard'
 import { StepNav, type StepDef } from '@/components/album/configurator/StepNav'
@@ -106,17 +106,85 @@ export default function CoverConfigurator() {
     catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 
+  // COPIA COMMISSIONE: link pubblico da dare a una stampa esterna (no login, no wetransfer/email).
+  const [commOpen, setCommOpen] = useState(false)
+  const [commNotes, setCommNotes] = useState('')
+  const [commFileLink, setCommFileLink] = useState('')
+  const [commLink, setCommLink] = useState<string | null>(null)
+  const [commBusy, setCommBusy] = useState(false)
+  async function genCommission() {
+    setCommBusy(true)
+    try {
+      const url = await shareAlbumCommission(entryId, cover, copies, commNotes.trim() || null, commFileLink.trim() || null)
+      setCommLink(url)
+      try { await navigator.clipboard.writeText(url); toast.success('Link commissione copiato negli appunti') }
+      catch { toast.success('Link commissione generato') }
+    } catch (e) { toast.error(`Link non generato: ${(e as Error).message}`) }
+    finally { setCommBusy(false) }
+  }
+
   return (
     <div className="min-h-full flex flex-col">
       {flipOpen && <AlbumFlipbook cover={cover} photos={demoPhotos} onClose={() => setFlipOpen(false)} />}
+
+      {/* COPIA COMMISSIONE: genera il link pubblico da dare alla stampa */}
+      {commOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCommOpen(false)}>
+          <div className="bg-[rgb(var(--bg))] w-full max-w-md rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[rgb(var(--border))]">
+              <h3 className="font-display text-lg">Link per la stampa</h3>
+              <button onClick={() => setCommOpen(false)} className="text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"><X size={18} /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-[rgb(var(--fg-muted))]">Genera un link con la <strong>copia commissione</strong> (formato, pagine, copertina, box, copie — presi dall'album). La stampa lo apre senza account: niente WeTransfer né email.</p>
+              <div className="rounded-lg bg-[rgb(var(--bg-sunken))] p-3 text-sm space-y-1">
+                <div className="flex justify-between"><span className="text-[rgb(var(--fg-muted))]">Copie</span><span className="font-medium">{copies}</span></div>
+                <div className="flex justify-between"><span className="text-[rgb(var(--fg-muted))]">Copertina</span><span className="font-medium truncate max-w-[60%] text-right">{cover.model ? modelLabel(cover.model) : '—'}</span></div>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] pt-1">Formato, pagine e selezione clienti sono importati dall'impaginato. Controllali nella pagina generata.</p>
+              </div>
+              <label className="block text-sm">
+                <span className="text-[rgb(var(--fg-muted))]">Link ai file (facoltativo)</span>
+                <input value={commFileLink} onChange={(e) => setCommFileLink(e.target.value)} placeholder="Drive / WeTransfer / galleria…" className="mt-1 w-full h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm" />
+              </label>
+              <label className="block text-sm">
+                <span className="text-[rgb(var(--fg-muted))]">Note per la stampa (facoltativo)</span>
+                <textarea value={commNotes} onChange={(e) => setCommNotes(e.target.value)} rows={2} placeholder="Es. finitura opaca, consegna entro…" className="mt-1 w-full rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 text-sm" />
+              </label>
+
+              {commLink ? (
+                <div className="rounded-lg border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] p-3 space-y-2">
+                  <p className="text-xs text-[rgb(var(--fg-muted))]">Link pronto (copiato negli appunti):</p>
+                  <div className="flex items-center gap-2">
+                    <input readOnly value={commLink} className="flex-1 h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-xs" onFocus={(e) => e.currentTarget.select()} />
+                    <button onClick={() => { void navigator.clipboard.writeText(commLink); toast.success('Copiato') }} className="h-9 px-2.5 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg))]" title="Copia"><Copy size={14} /></button>
+                    <a href={commLink} target="_blank" rel="noopener noreferrer" className="h-9 grid place-items-center px-2.5 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg))]" title="Apri"><LinkIcon size={14} /></a>
+                  </div>
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Se aggiorni l'album, rigenera per allineare le specifiche (il link resta lo stesso).</p>
+                </div>
+              ) : (
+                <button onClick={() => void genCommission()} disabled={commBusy}
+                  className="w-full inline-flex items-center justify-center gap-1.5 text-sm px-4 py-2.5 rounded-xl bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] hover:opacity-90 disabled:opacity-50">
+                  <LinkIcon size={15} /> {commBusy ? 'Genero…' : 'Genera link commissione'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-8 pt-6 pb-4">
         <button onClick={() => navigate(-1)} className="text-sm text-[rgb(var(--fg-muted))] inline-flex items-center gap-1 mb-4 hover:text-[rgb(var(--fg))] transition-colors">
           <ChevronLeft size={16} /> Indietro
         </button>
-        <div className="mb-6">
-          <h1 className="font-display text-3xl sm:text-4xl text-[rgb(var(--fg))]">Componi la tua copertina</h1>
-          <p className="text-[rgb(var(--fg-muted))] mt-1">Scegli stile, materiale e dettagli. L'album 3D si aggiorna in tempo reale.</p>
+        <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="font-display text-3xl sm:text-4xl text-[rgb(var(--fg))]">Componi la tua copertina</h1>
+            <p className="text-[rgb(var(--fg-muted))] mt-1">Scegli stile, materiale e dettagli. L'album 3D si aggiorna in tempo reale.</p>
+          </div>
+          <button onClick={() => { setCommLink(null); setCommOpen(true) }}
+            className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-xl border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] transition-colors">
+            <LinkIcon size={15} /> Link per la stampa
+          </button>
         </div>
 
         <div className="grid lg:grid-cols-[1.15fr_1fr] gap-6 lg:gap-10 items-start">

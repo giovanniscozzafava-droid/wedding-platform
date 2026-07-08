@@ -47,6 +47,7 @@ const BrandSettingsPage = lazyWithRetry(() => import('@/pages/BrandSettingsPage'
 const AlbumPricingSettingsPage = lazyWithRetry(() => import('@/pages/AlbumPricingSettingsPage'))
 const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreviewPage'))
 const QuoteAcceptPage = lazyWithRetry(() => import('@/pages/public/QuoteAcceptPage'))
+const CommissionPage = lazyWithRetry(() => import('@/pages/public/CommissionPage'))
 const QuoteRejectPage = lazyWithRetry(() => import('@/pages/public/QuoteRejectPage'))
 const ContractSignPage = lazyWithRetry(() => import('@/pages/public/ContractSignPage'))
 const AddendumSignPage = lazyWithRetry(() => import('@/pages/public/AddendumSignPage'))
@@ -253,6 +254,7 @@ export default function App() {
           />
           <Route path="/p/preview/:token" element={<QuotePreviewPage />} />
           <Route path="/p/accept/:token" element={<QuoteAcceptPage />} />
+          <Route path="/p/commissione/:token" element={<CommissionPage />} />
           <Route path="/p/reject/:token" element={<QuoteRejectPage />} />
           <Route path="/p/contract/:token" element={<ContractSignPage />} />
           <Route path="/p/addendum/:token" element={<AddendumSignPage />} />

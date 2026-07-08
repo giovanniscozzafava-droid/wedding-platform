@@ -1,34 +1,27 @@
 {
- "brief": "Prezzo album di vendita fotografo->coppia con listino riutilizzabile + totale live nell'impaginatore",
- "created": "2026-07-08T12:43:23.151080+00:00",
+ "brief": "Link pubblico 'copia commissione' album per la stampa, auto-importato da impaginato+selezione, senza wetransfer/mail",
+ "created": "2026-07-08T14:15:09.373417+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "Schema DB",
-   "objective": "album_price_settings (listino owner) + price_config su album_projects (contratto evento) + RPC save/get",
+   "title": "DB",
+   "objective": "album_orders += share_token + file_link; RPC album_commission_share (owner) + album_commission_by_token (pubblica anon)",
    "status": "complete",
-   "evidence": "20260708190000_album_pricing.sql applicata su prod. album_price_settings + album_projects.price_config + RPC owner-guarded"
+   "evidence": "supabase db push OK: 20260708200000_album_commission_link.sql. album_orders += share_token/file_link; RPC album_commission_share(authenticated) + album_commission_by_token(anon)"
   },
   {
    "id": "G002",
-   "title": "Listino UI",
-   "objective": "listino album nelle impostazioni fornitore (formato->base+pagine incluse, EUR/pagina extra, box, album famiglia, delta modello)",
+   "title": "Pagina pubblica",
+   "objective": "/p/commissione/:token — scheda commissione stampabile (specifiche + copertina + selezione + contatti fotografo + link file)",
    "status": "complete",
-   "evidence": "npm run build verde. AlbumPricingSettingsPage + route /settings/album-prezzi + nav 'Listino album' (FORNITORE). Legge/salva album_price_settings via RPC. Lib albumPricing.ts"
+   "evidence": "npm run build verde. CommissionPage pubblica /p/commissione/:token: scheda stampabile (evento+selezione, album formato/pagine/copie, copertina modello/materiale/colore/box/rifiniture, note, link file, contatti fotografo). Legge album_commission_by_token"
   },
   {
    "id": "G003",
-   "title": "Pannello fotografo",
-   "objective": "Prezzo album nell'impaginatore: eredita listino, ritocca contratto, sceglie modello/box/famiglia, pagine extra AUTO dall'impaginato, totale live",
+   "title": "UI fotografo",
+   "objective": "in CoverConfigurator bottone 'Genera link commissione' (rivedi note+link file, auto-import) → copia link",
    "status": "complete",
-   "evidence": "npm run build verde. Pannello Prezzo nell'header impaginatore (BadgeEuro + totale live): base/pagine incluse/pagina extra/box/modello(fascia)/album famiglia; pagine extra AUTO da pages.length; import da preventivo (calendar_entries.quote_id->quote_items, looksLikeAlbum+parseQuoteItem); salva via album_price_config_save (verificato has_function_privilege=true)"
-  },
-  {
-   "id": "G004",
-   "title": "Vista coppia",
-   "objective": "card 'Il tuo album' con totale + dettaglio nel visore album lite",
-   "status": "complete",
-   "evidence": "Card 'Il tuo album' nel visore coppia (lite): totale live + dettaglio espandibile, gated su priceCfg.showCouple; legge price_config via ap_rw"
+   "evidence": "CoverConfigurator: bottone 'Link per la stampa' + dialog (note/link file, riepilogo copie+copertina) → shareAlbumCommission → copia URL /p/commissione/:token"
   }
  ]
 }
