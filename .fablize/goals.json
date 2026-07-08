@@ -27,15 +27,15 @@
    "id": "G004",
    "title": "AI estrazione",
    "objective": "edge function legge modello+prezzo dal PDF catalogo (Claude vision), il fotografo conferma nel manager",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "build verde + deployata. album-catalog-extract (Claude sonnet-4-6, PDF document block); ANTHROPIC_API_KEY presente. Manager 'Leggi prezzi (AI)' → merge per nome + aggiunta mancanti; conferma+salva"
   },
   {
    "id": "G005",
    "title": "Vista coppia",
    "objective": "differenza modello nel totale del visore album",
-   "status": "pending",
-   "evidence": null
+   "status": "complete",
+   "evidence": "La card 'Il tuo album' nel visore coppia (AlbumDesignerPage:2342-2350) usa computeAlbumPrice condiviso → mostra la riga 'Modello X' (differenza in modalita' package, prezzo pieno in da-zero) senza codice dedicato. Gia' in produzione"
   }
  ]
 }

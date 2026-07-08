@@ -3670,8 +3670,8 @@ function AlbumDesignerInner() {
                   {/* COPIA COMMISSIONE: link pubblico da dare alla stampa (evita WeTransfer + email) */}
                   <div className="pt-3 border-t border-[rgb(var(--border))] space-y-2">
                     <div className="flex items-center gap-2"><BadgeEuro size={15} className="text-[rgb(var(--gold-600))]" /><p className="text-sm font-medium">Copia commissione per la stampa</p></div>
-                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Un link con le specifiche (formato, pagine, copie, foto selezionate) da dare alla stampa: la apre senza account, niente WeTransfer né email. Incolla qui il link ai file (il PDF che esporti) così ha tutto in un colpo.</p>
-                    <input value={commFileLink} onChange={(e) => setCommFileLink(e.target.value)} placeholder="Link ai file (Drive/WeTransfer/galleria) — facoltativo" className="w-full h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm" />
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Un link con le specifiche (formato, pagine, copie, foto selezionate) da dare alla stampa: la apre senza account. Dalla pagina la stampa può anche <strong>scaricare i file selezionati</strong> in ZIP, direttamente dal tuo Google Drive — come un WeTransfer, senza email. Il campo qui sotto è per un link extra facoltativo (es. il PDF impaginato).</p>
+                    <input value={commFileLink} onChange={(e) => setCommFileLink(e.target.value)} placeholder="Link extra ai file (PDF impaginato…) — facoltativo" className="w-full h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm" />
                     <textarea value={commNotes} onChange={(e) => setCommNotes(e.target.value)} rows={2} placeholder="Note per la stampa (copertina, materiale, box, finiture, consegna…) — facoltativo" className="w-full rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 text-sm" />
                     {commLink ? (
                       <div className="rounded-lg border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] p-2.5 space-y-1.5">
