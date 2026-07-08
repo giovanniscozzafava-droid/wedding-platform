@@ -1616,6 +1616,40 @@ function AlbumDesignerInner() {
     toast.success(`Lista pronta: ${names.length} nomi file (senza estensione)${missing ? ` · ${missing} senza nome` : ''}. In Lightroom Classic: plugin Photo List Importer, oppure Libreria › filtro Testo › Nome file › Contiene.`, { duration: 12000 })
   }
 
+  // ORARIO DI SCATTO: ponte per chi RINOMINA i JPG in export (il nome file non matcha più il RAW,
+  // ma l'ora di scatto EXIF sì). CSV `scattata_il;momento;nome_caricato` ordinato cronologicamente.
+  // In Lightroom: ordina la cartella RAW per "Ora di scatto" e ritrovi le stesse foto.
+  // L'ora EXIF è senza fuso → la formatto in UTC per rendere le CIFRE ESATTE dell'orologio macchina.
+  async function exportCaptureTimeList() {
+    const rows = kept.filter((m) => m.media_type === 'PHOTO')
+    if (rows.length === 0) { toast.error('Nessuna foto selezionata'); return }
+    let meta = exifMeta
+    const needFetch = rows.filter((m) => isDrive(m)).some((m) => meta[m.id]?.takenAt == null)
+    if (needFetch) { const t = toast.loading('Recupero gli orari di scatto da Google Drive…'); meta = { ...meta, ...(await loadExif()) }; toast.dismiss(t) }
+    const takenAt = (id: string) => meta[id]?.takenAt ?? null
+    const nameOf = (m: M) => meta[m.id]?.name ?? m.source_name ?? ''
+    const fmtTime = (ms: number) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ') // YYYY-MM-DD HH:MM:SS (cifre EXIF esatte)
+    const sorted = [...rows].sort((a, b) => { const ta = takenAt(a.id), tb = takenAt(b.id); if (ta != null && tb != null) return ta - tb; if (ta != null) return -1; if (tb != null) return 1; return 0 })
+    const withTime = sorted.filter((m) => takenAt(m.id) != null)
+    if (withTime.length === 0) {
+      toast.warning('Nessun orario di scatto disponibile: collega Google Drive per generare il ponte per Lightroom.', { duration: 9000 })
+      return
+    }
+    const esc = (s: unknown) => { const v = String(s ?? ''); return /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v }
+    const lines = sorted.map((m) => {
+      const ta = takenAt(m.id)
+      return [esc(ta != null ? fmtTime(ta) : ''), esc(getMoment(m.album_moment)?.label ?? ''), esc(nameOf(m))].join(';')
+    })
+    const csv = '﻿' + ['scattata_il;momento;nome_caricato', ...lines].join('\r\n') // BOM: Excel/Numbers UTF-8
+    const missing = sorted.length - withTime.length
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
+    a.download = `selezione-orario-scatto-${(title || 'album').replace(/[^\w-]+/g, '_').slice(0, 40)}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000)
+    toast.success(`Ponte pronto: ${withTime.length} orari di scatto${missing ? ` · ${missing} senza orario` : ''}. In Lightroom ordina la cartella RAW per "Ora di scatto" e ritrovi le stesse foto anche se rinominate.`, { duration: 12000 })
+  }
+
   const exportRef = useRef<HTMLDivElement>(null)
   async function doExport(kind: 'pdf' | 'spread' | 'jpg' | 'jpgspread') {
     if (pages.length === 0) { toast.error('Nessuna pagina da esportare'); return }
@@ -2616,6 +2650,7 @@ function AlbumDesignerInner() {
             onImport={importPhotos} importing={importing}
             likeCounts={likeCounts} onKeepLiked={() => void keepLiked()}
             onExportLightroom={exportLightroomList}
+            onExportCaptureTimes={exportCaptureTimeList}
           />
         </div>
       ) : (
@@ -3643,8 +3678,9 @@ function SelectStep(props: {
   isCouple?: boolean; onReadyToLayout?: () => void
   likeCounts: Record<string, number>; onKeepLiked: () => void
   onExportLightroom: () => void
+  onExportCaptureTimes: () => void
 }) {
-  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing, isCouple, onReadyToLayout, likeCounts, onKeepLiked, onExportLightroom } = props
+  const { photos, total, okRange, untagged, missingMin, perMoment, onToggle, onMoment, onGenerate, thumb, onKeepAll, onKeepNone, onImport, importing, isCouple, onReadyToLayout, likeCounts, onKeepLiked, onExportLightroom, onExportCaptureTimes } = props
   const allKept = photos.length > 0 && total >= photos.length
   const [likedFirst, setLikedFirst] = useState(false)
   // Vista "Solo selezionate": riaprendo un album che HA già una selezione mostro solo le foto scelte
@@ -3708,7 +3744,8 @@ function SelectStep(props: {
             {likedTotal > 0 && <Button variant="outline" size="sm" onClick={onKeepLiked} title="Aggiungi all'album le foto a cui gli sposi hanno messo mi piace"><Heart size={14} className="fill-rose-400 text-rose-400" /> Tieni le preferite ({likedTotal})</Button>}
             {likedTotal > 0 && <Button variant={likedFirst ? 'gold' : 'outline'} size="sm" onClick={() => setLikedFirst((v) => !v)} title="Mostra prima le foto più piaciute dagli sposi">{likedFirst ? 'Ordine originale' : 'Preferite prima'}</Button>}
             {total > 0 && photos.length > total && <Button variant={showingKeptOnly ? 'gold' : 'outline'} size="sm" onClick={() => setOnlyKept((v) => !v)} title={showingKeptOnly ? 'Mostra tutta la galleria per aggiungerne altre' : 'Mostra solo le foto scelte per l’album'}>{showingKeptOnly ? `Tutte le foto (${photos.length})` : `Solo selezionate (${total})`}</Button>}
-            {total > 0 && <Button variant="outline" size="sm" onClick={onExportLightroom} title="Scarica la lista dei nomi file (uno per riga, senza estensione) da portare in Lightroom: plugin Photo List Importer o filtro Testo › Nome file › Contiene"><FileText size={14} /> Lista Lightroom</Button>}
+            {total > 0 && <Button variant="outline" size="sm" onClick={onExportLightroom} title="Lista dei nomi file (uno per riga, senza estensione) — per Lightroom: plugin Photo List Importer o filtro Testo › Nome file › Contiene. Usa questa se NON rinomini i file in export."><FileText size={14} /> Lista Lightroom</Button>}
+            {total > 0 && <Button variant="outline" size="sm" onClick={onExportCaptureTimes} title="Orari di scatto EXIF (al secondo) — il ponte se RINOMINI i JPG in export: in Lightroom ordina il RAW per Ora di scatto e ritrovi le stesse foto"><FileText size={14} /> Orario scatto</Button>}
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto"><strong>{total}</strong>/{photos.length} selezionate</span>
           </>}
         </div>
