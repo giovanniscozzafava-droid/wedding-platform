@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info } from 'lucide-react'
+import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maximize2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, type Format } from
 import { getFormat } from '@/lib/albumFormats'
 import { looksLikeAlbum, euroA } from '@/lib/albumPricing'
 import { PdfFlipbook } from '@/components/album/catalog/PdfFlipbook'
+import { PdfLightbox } from '@/components/album/catalog/PdfLightbox'
 import { PinThreadPanel, type AlbumPin } from '@/components/album/catalog/PinThreadPanel'
 import { AlbumScaleFigure } from '@/components/album/catalog/AlbumScaleFigure'
 import { SignaturePad } from '@/components/album/catalog/SignaturePad'
@@ -41,6 +42,7 @@ export default function AlbumCatalogPicker() {
   const [lockedFmt, setLockedFmt] = useState<string | null>(null)  // formato bloccato (se già impaginato)
   const [optioned, setOptioned] = useState(0)                       // importo album già opzionato nel preventivo
   const [familyFromQuote, setFamilyFromQuote] = useState(false)     // album famiglia già nel preventivo
+  const [bigOpen, setBigOpen] = useState(false)                     // visore PDF 3D a schermo intero
 
   async function reloadPins() {
     const { data } = await (supabase.from as any)('album_pins').select('id, entry_id, page, x, y, comment, material, color, status').eq('entry_id', entryId)
@@ -215,6 +217,11 @@ export default function AlbumCatalogPicker() {
 
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-9 items-start">
           <div className="lg:sticky lg:top-5">
+            <div className="flex justify-end mb-2">
+              <button onClick={() => setBigOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-300))]">
+                <Maximize2 size={15} /> Ingrandisci e sfoglia in 3D
+              </button>
+            </div>
             <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} pins={pins} onOpenPin={setOpenPin} />
           </div>
 
@@ -367,6 +374,10 @@ export default function AlbumCatalogPicker() {
           </div>
         </div>
       </div>
+
+      {bigOpen && catalog && (
+        <PdfLightbox pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selectedId={selected?.id ?? null} onPick={pick} onClose={() => setBigOpen(false)} />
+      )}
 
       {openPin && (
         <PinThreadPanel pin={openPin} entryId={entryId} isPro={isPro}
