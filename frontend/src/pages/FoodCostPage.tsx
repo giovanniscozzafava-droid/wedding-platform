@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle, FileUp, ChefHat, FileText, Wine } from 'lucide-react'
+import { Carrot, BookOpen, UtensilsCrossed, Plus, Trash2, Link2, Truck, CalendarDays, ShoppingCart, Boxes, AlertTriangle, FileUp, ChefHat, FileText, Wine, ClipboardList } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,9 @@ import {
   useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost, useEventTasting, useEventCosting,
   useCantina, CANTINA_CATS, fetchCantinaPlan, consumeCantina, useEventDishes,
   usePurchaseOrders, generatePurchaseOrders,
+  useOpenStocktake, useStocktakeLines, openStocktake, saveStocktakeCount, closeStocktake,
   fetchEventSheet, fetchBrand, COURSES,
-  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember, type FbCantina, type CantinaPlanRow, type FbPO,
+  type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember, type FbCantina, type CantinaPlanRow, type FbPO, type FbStocktake, type FbStocktakeLine,
 } from '@/hooks/useFoodCost'
 import { buildFoglioServizio } from '@/lib/foglioServizio'
 import { buildListaSpesa } from '@/lib/listaSpesa'
@@ -25,14 +26,14 @@ const toStock = (v: number, u: string) => v / factor(u)                      // 
 const fromStock = (c: number, u: string) => c * factor(u)                    // €/g → €/kg
 
 export default function FoodCostPage() {
-  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'cant' | 'sup' | 'ev' | 'fab' | 'mag' | 'brig'>('ing')
+  const [tab, setTab] = useState<'ing' | 'rec' | 'menu' | 'cant' | 'sup' | 'ev' | 'fab' | 'mag' | 'inv' | 'brig'>('ing')
   return (
     <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader eyebrow="Gestionale ristorazione" title="Food cost & approvvigionamento"
           description="Ingredienti e costi → ricette → menu (food cost a coperto) → fornitori e listini → fabbisogno dagli eventi → lista spesa. Tutto connesso: dal menu dell'evento esce la spesa da fare." />
         <div className="flex flex-wrap gap-2 mb-5">
-          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['cant', 'Cantina', Wine], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart], ['mag', 'Magazzino', Boxes], ['brig', 'Brigata', ChefHat]] as const).map(([k, l, Icon]) => (
+          {([['ing', 'Ingredienti', Carrot], ['rec', 'Ricette', BookOpen], ['menu', 'Menu', UtensilsCrossed], ['cant', 'Cantina', Wine], ['sup', 'Fornitori', Truck], ['ev', 'Eventi', CalendarDays], ['fab', 'Fabbisogno', ShoppingCart], ['mag', 'Magazzino', Boxes], ['inv', 'Inventario', ClipboardList], ['brig', 'Brigata', ChefHat]] as const).map(([k, l, Icon]) => (
             <Button key={k} variant={tab === k ? 'gold' : 'outline'} size="sm" onClick={() => setTab(k)}><Icon size={14} /> {l}</Button>
           ))}
         </div>
@@ -44,6 +45,7 @@ export default function FoodCostPage() {
         {tab === 'ev' && <EventiTab />}
         {tab === 'fab' && <FabbisognoTab />}
         {tab === 'mag' && <MagazzinoTab />}
+        {tab === 'inv' && <InventarioTab />}
         {tab === 'brig' && <BrigataTab />}
       </div>
     </div>
@@ -700,6 +702,103 @@ function OrdiniList() {
         ))}
       </div>
     </Card>
+  )
+}
+
+// ── Inventario fisico: la direzione conta col tablet, scarto vs teorico ─────
+function InventarioTab() {
+  const { data: open, isLoading } = useOpenStocktake()
+  const qc = useQueryClient()
+  const [busy, setBusy] = useState(false)
+  async function start() {
+    setBusy(true)
+    try { await openStocktake(); qc.invalidateQueries({ queryKey: ['fb-stocktake'] }) }
+    catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+  if (isLoading) return <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Carico…</Card>
+  if (!open) return (
+    <Card className="p-8 text-center space-y-3">
+      <ClipboardList size={28} className="mx-auto text-[rgb(var(--gold-500))]" />
+      <p className="text-sm text-[rgb(var(--fg-muted))] max-w-md mx-auto">Nessun inventario in corso. Avvia una sessione: la direzione va in magazzino col tablet e conta le quantità <strong>reali</strong>. Il sistema le confronta col teorico (le “carte”), calcola lo <strong>scarto</strong> e alla chiusura rettifica i lotti al reale.</p>
+      <Button onClick={start} disabled={busy}><ClipboardList size={15} /> {busy ? 'Preparo…' : 'Avvia inventario'}</Button>
+    </Card>
+  )
+  return <StocktakeCounter st={open} />
+}
+
+function StocktakeCounter({ st }: { st: FbStocktake }) {
+  const { data: lines } = useStocktakeLines(st.id, true)
+  const qc = useQueryClient()
+  const [local, setLocal] = useState<Record<string, string>>({})
+  const [q, setQ] = useState(''); const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (!lines) return
+    setLocal((prev) => { const n = { ...prev }; for (const l of lines) if (!(l.id in n)) n[l.id] = l.counted_qty != null ? String(l.counted_qty / factor(l.ingredient?.stock_unit ?? 'PZ')) : ''; return n })
+  }, [lines])
+  async function save(l: FbStocktakeLine, raw: string) {
+    const f = factor(l.ingredient?.stock_unit ?? 'PZ')
+    const t = raw.trim(); const num = t === '' ? null : parseFloat(t.replace(',', '.'))
+    if (t !== '' && (num == null || isNaN(num) || num < 0)) return
+    try { await saveStocktakeCount(l.id, num == null ? null : num * f) } catch (e) { toast.error((e as Error).message) }
+  }
+  async function close() {
+    if (!confirm('Chiudere l’inventario e rettificare il magazzino ai valori contati? I lotti verranno allineati al reale.')) return
+    setBusy(true)
+    try {
+      const r = await closeStocktake(st.id)
+      toast.success(`Inventario chiuso: ${r.righe_rettificate} rettifiche · scarto ${eur(r.scarto_valore)}`)
+      qc.invalidateQueries({ queryKey: ['fb-stocktake'] }); qc.invalidateQueries({ queryKey: ['fb-stock'] }); qc.invalidateQueries({ queryKey: ['fb-stocktake-lines'] })
+    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+  const all = lines ?? []
+  const filtered = all.filter((l) => (l.ingredient?.name ?? '').toLowerCase().includes(q.toLowerCase()))
+  const cats = [...new Set(filtered.map((l) => l.ingredient?.category ?? 'Altro'))].sort((a, b) => a.localeCompare(b, 'it'))
+  const countedN = all.filter((l) => { const v = local[l.id]; return v !== undefined && v.trim() !== '' }).length
+  const scarto = all.reduce((s, l) => {
+    const v = local[l.id]; if (v === undefined || v.trim() === '') return s
+    const c = parseFloat(v.replace(',', '.')); if (isNaN(c)) return s
+    return s + (c * factor(l.ingredient?.stock_unit ?? 'PZ') - l.theoretical_qty) * (l.unit_cost ?? 0)
+  }, 0)
+  return (
+    <div className="space-y-3">
+      <Card className="p-3 flex flex-wrap items-center gap-3 sticky top-2 z-10">
+        <span className="text-sm font-medium inline-flex items-center gap-1.5"><ClipboardList size={15} /> Inventario · {st.warehouse?.name ?? 'Magazzino'}</span>
+        <span className="text-xs text-[rgb(var(--fg-subtle))]">{countedN}/{all.length} contati</span>
+        <span className={`text-sm ${scarto < 0 ? 'text-[rgb(var(--rose-600))]' : scarto > 0 ? 'text-[rgb(var(--gold-700))]' : ''}`}>Scarto: <strong>{eur(scarto)}</strong></span>
+        <div className="ml-auto flex items-center gap-2">
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca…" className="h-8 w-36" />
+          <Button size="sm" onClick={close} disabled={busy || countedN === 0}>{busy ? 'Chiudo…' : 'Chiudi e rettifica'}</Button>
+        </div>
+      </Card>
+      {cats.map((cat) => (
+        <Card key={cat} className="overflow-hidden">
+          <div className="px-3 py-1.5 border-b border-[rgb(var(--border))] text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] bg-[rgb(var(--bg-sunken))]">{cat}</div>
+          <div className="divide-y divide-[rgb(var(--border))]">
+            {filtered.filter((l) => (l.ingredient?.category ?? 'Altro') === cat).map((l) => {
+              const u = l.ingredient?.stock_unit ?? 'PZ'; const f = factor(u)
+              const teoBig = l.theoretical_qty / f
+              const v = local[l.id] ?? ''
+              const c = v.trim() === '' ? null : parseFloat(v.replace(',', '.'))
+              const dBig = c != null && !isNaN(c) ? c - teoBig : null
+              return (
+                <div key={l.id} className="px-3 py-2 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{l.ingredient?.name ?? '—'}</p>
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))]">teorico {teoBig.toLocaleString('it-IT', { maximumFractionDigits: 2 })} {bigUnit(u)}</p>
+                  </div>
+                  {dBig != null && Math.abs(dBig) > 1e-9 && <span className={`text-[11px] px-2 py-0.5 rounded-full ${dBig < 0 ? 'bg-[rgb(var(--rose-100))] text-[rgb(var(--rose-700))]' : 'bg-[rgb(var(--gold-100))]'}`}>{dBig > 0 ? '+' : ''}{dBig.toLocaleString('it-IT', { maximumFractionDigits: 2 })} {bigUnit(u)}</span>}
+                  <div className="flex items-center gap-1">
+                    <Input value={v} onChange={(e) => setLocal((p) => ({ ...p, [l.id]: e.target.value }))} onBlur={(e) => save(l, e.target.value)} inputMode="decimal" className="h-9 w-24 text-right" placeholder="reale" />
+                    <span className="text-xs text-[rgb(var(--fg-muted))] w-6">{bigUnit(u)}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      ))}
+      {all.length === 0 && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Nessun ingrediente attivo da contare.</Card>}
+    </div>
   )
 }
 

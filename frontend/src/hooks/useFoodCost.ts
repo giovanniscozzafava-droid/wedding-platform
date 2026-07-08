@@ -246,6 +246,45 @@ export async function generatePurchaseOrders(from: string, to: string): Promise<
   return data as { ordini: number; righe: number; senza_fornitore: number }
 }
 
+// ── Inventario fisico (stocktake): la direzione conta col tablet, scarto vs teorico ──
+export type FbStocktake = { id: string; status: string; warehouse_id: string; created_at: string; closed_at: string | null; warehouse: { name: string } | null }
+export function useOpenStocktake() {
+  return useQuery<FbStocktake | null>({
+    queryKey: ['fb-stocktake'],
+    queryFn: async () => {
+      const { data, error } = await sb('fb_stocktake').select('id, status, warehouse_id, created_at, closed_at, warehouse:fb_warehouses(name)').eq('status', 'APERTO').order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (error) throw error
+      return (data ?? null) as FbStocktake | null
+    },
+  })
+}
+export type FbStocktakeLine = { id: string; ingredient_id: string; theoretical_qty: number; counted_qty: number | null; unit_cost: number; ingredient: { name: string; category: string | null; stock_unit: string } | null }
+export function useStocktakeLines(stocktakeId: string | null, enabled: boolean) {
+  return useQuery<FbStocktakeLine[]>({
+    queryKey: ['fb-stocktake-lines', stocktakeId],
+    enabled: enabled && !!stocktakeId,
+    queryFn: async () => {
+      const { data, error } = await sb('fb_stocktake_lines').select('id, ingredient_id, theoretical_qty, counted_qty, unit_cost, ingredient:fb_ingredients(name, category, stock_unit)').eq('stocktake_id', stocktakeId)
+      if (error) throw error
+      return (data ?? []) as FbStocktakeLine[]
+    },
+  })
+}
+export async function openStocktake(): Promise<{ stocktake_id: string; righe?: number; reused?: boolean }> {
+  const { data, error } = await (supabase as any).rpc('fb_stocktake_open', {})
+  if (error) throw error; if (data?.error) throw new Error(data.error)
+  return data
+}
+export async function saveStocktakeCount(lineId: string, counted: number | null): Promise<void> {
+  const { error } = await sb('fb_stocktake_lines').update({ counted_qty: counted, counted_at: new Date().toISOString() }).eq('id', lineId)
+  if (error) throw error
+}
+export async function closeStocktake(id: string): Promise<{ righe_rettificate: number; scarto_valore: number }> {
+  const { data, error } = await (supabase as any).rpc('fb_stocktake_close', { p_stocktake: id })
+  if (error) throw error; if (data?.error) throw new Error(data.error)
+  return data
+}
+
 // Piatti confermati dell'evento (per la composizione menu lato location)
 export function useEventDishes(entryId: string | null, enabled: boolean) {
   return useQuery<string[]>({
@@ -261,7 +300,7 @@ export function useEventDishes(entryId: string | null, enabled: boolean) {
 
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-costing', 'fb-dishes', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade', 'fb-tasting', 'fb-cantina', 'fb-po'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-costing', 'fb-dishes', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade', 'fb-tasting', 'fb-cantina', 'fb-po', 'fb-stocktake'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {
