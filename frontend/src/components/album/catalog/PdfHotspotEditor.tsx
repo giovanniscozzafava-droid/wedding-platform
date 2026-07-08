@@ -95,10 +95,11 @@ export function PdfHotspotEditor({
               <Input value={h.label} onChange={(e) => update(i, { label: e.target.value })} placeholder="Nome modello" className="h-8 text-sm" />
               <button onClick={() => remove(i)} className="text-[rgb(var(--rose-700))] shrink-0" title="Elimina"><Trash2 size={15} /></button>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               <Input value={h.default_format ?? ''} onChange={(e) => update(i, { default_format: e.target.value || null })} placeholder="Formato (opz.)" className="h-7 text-xs" />
               <Input type="number" value={h.default_pages ?? ''} onChange={(e) => update(i, { default_pages: e.target.value ? Number(e.target.value) : null })} placeholder="Pagine (opz.)" className="h-7 text-xs" />
-              <Input type="number" value={h.price ?? ''} onChange={(e) => update(i, { price: e.target.value ? Number(e.target.value) : null })} placeholder="Prezzo €" className="h-7 text-xs" title="Prezzo di vendita di questo modello" />
+              <Input type="number" value={h.cost ?? ''} onChange={(e) => update(i, { cost: e.target.value ? Number(e.target.value) : null })} placeholder="Costo € (listino)" className="h-7 text-xs" title="Quanto ti costa dal lab (l'AI lo legge dal PDF)" />
+              <Input type="number" value={h.price ?? ''} onChange={(e) => update(i, { price: e.target.value ? Number(e.target.value) : null })} placeholder="Prezzo cliente €" className="h-7 text-xs" title="Prezzo di vendita = costo + ricarico" />
             </div>
           </div>
         ))}

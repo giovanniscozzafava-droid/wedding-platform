@@ -93,11 +93,19 @@ export async function saveHotspots(catalogId: string, hotspots: Hotspot[]): Prom
   const rows = hotspots.map((h) => ({
     catalog_id: catalogId, page: h.page, x: h.x, y: h.y, w: h.w, h: h.h,
     label: h.label || 'Modello', default_format: h.default_format ?? null, default_pages: h.default_pages ?? null,
-    price: h.price ?? null,
+    price: h.price ?? null, cost: h.cost ?? null,
   }))
   const { error } = await (supabase as any).from('album_catalog_hotspots').insert(rows)
   if (error) throw error
 }
+
+// Ricarico predefinito del catalogo (%): prezzo cliente = costo × (1 + ricarico/100).
+export async function saveCatalogMarkup(catalogId: string, pct: number): Promise<void> {
+  const { error } = await (supabase as any).from('album_catalogs').update({ markup_percent: Math.max(0, pct) }).eq('id', catalogId)
+  if (error) throw error
+}
+export const applyMarkup = (cost: number | null | undefined, pct: number): number | null =>
+  cost == null ? null : Math.round(Number(cost) * (1 + Math.max(0, pct) / 100))
 
 export async function getStudioProfile(): Promise<{ business_name?: string; full_name?: string } | null> {
   const id = await uid(); if (!id) return null

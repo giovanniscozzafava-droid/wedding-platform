@@ -5,7 +5,8 @@ import { ChevronLeft, Upload, Save, FileText, Loader2, RefreshCw, Sparkles } fro
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PdfHotspotEditor } from '@/components/album/catalog/PdfHotspotEditor'
-import { getMyCatalog, uploadCatalogPdf, saveHotspots, catalogPublicUrl, extractCatalogPrices, type Catalog, type Hotspot } from '@/hooks/useAlbumCatalog'
+import { getMyCatalog, uploadCatalogPdf, saveHotspots, saveCatalogMarkup, applyMarkup, catalogPublicUrl, extractCatalogPrices, type Catalog, type Hotspot } from '@/hooks/useAlbumCatalog'
+import { Input } from '@/components/ui/input'
 
 // Lato fotografo: carica il PDF del proprio catalogo aziendale e marca gli hotspot (modelli
 // cliccabili) per pagina. La coppia poi lo sfoglia in /scegli-album/:entryId.
@@ -16,9 +17,10 @@ export default function AlbumCatalogManager() {
   const [hotspots, setHotspots] = useState<Hotspot[]>([])
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [markup, setMarkup] = useState(0)   // ricarico % (prezzo = costo × (1+markup/100))
 
   useEffect(() => {
-    getMyCatalog().then((r) => { if (r) { setCatalog(r.catalog); setHotspots(r.hotspots) } }).finally(() => setLoading(false))
+    getMyCatalog().then((r) => { if (r) { setCatalog(r.catalog); setHotspots(r.hotspots); setMarkup(Number(r.catalog.markup_percent ?? 0)) } }).finally(() => setLoading(false))
   }, [])
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -35,29 +37,41 @@ export default function AlbumCatalogManager() {
   async function onSave() {
     if (!catalog) return
     setBusy(true)
-    try { await saveHotspots(catalog.id, hotspots); setDirty(false); toast.success('Modelli salvati. Il catalogo è pronto per i clienti.') }
-    catch (err) { toast.error((err as Error).message || 'Salvataggio non riuscito') } finally { setBusy(false) }
+    try {
+      await saveHotspots(catalog.id, hotspots)
+      await saveCatalogMarkup(catalog.id, markup)
+      setDirty(false); toast.success('Modelli salvati. Il catalogo è pronto per i clienti.')
+    } catch (err) { toast.error((err as Error).message || 'Salvataggio non riuscito') } finally { setBusy(false) }
+  }
+
+  // Applica il ricarico ai prezzi: prezzo cliente = costo × (1 + ricarico/100), per i modelli che hanno un costo.
+  function applyRicarico() {
+    let n = 0
+    setHotspots((hs) => hs.map((h) => { if (h.cost == null) return h; n++; return { ...h, price: applyMarkup(h.cost, markup) } }))
+    setDirty(true)
+    toast.success(n ? `Ricarico ${markup}% applicato a ${n} modelli` : 'Nessun modello ha un costo: leggi i costi dal PDF o inseriscili')
   }
 
   const setHs = (h: Hotspot[]) => { setHotspots(h); setDirty(true) }
 
-  // AI: legge i prezzi dal PDF e li applica ai modelli (match per nome) + aggiunge i mancanti.
-  async function readPrices() {
+  // AI: legge i COSTI di listino dal PDF e li applica ai modelli (match per nome) + aggiunge i mancanti.
+  // Poi il fotografo applica il ricarico per ottenere i prezzi cliente.
+  async function readCosts() {
     if (!catalog) return
     setBusy(true)
     try {
       const models = await extractCatalogPrices(catalog.pdf_path)
-      if (!models.length) { toast.message("L'AI non ha trovato modelli con prezzo nel PDF"); return }
+      if (!models.length) { toast.message("L'AI non ha trovato modelli con costo nel PDF"); return }
       const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
       const next = hotspots.map((h) => ({ ...h }))
       let applied = 0, added = 0
       for (const m of models) {
         const i = next.findIndex((h) => norm(h.label) === norm(m.label))
-        if (i >= 0) { if (m.price != null) { next[i]!.price = m.price; applied++ } }
-        else { next.push({ page: 1, x: 0.03, y: Math.min(0.92, 0.03 + (next.length % 14) * 0.065), w: 0.22, h: 0.05, label: m.label, price: m.price ?? null, default_format: null, default_pages: null }); added++ }
+        if (i >= 0) { if (m.price != null) { next[i]!.cost = m.price; if (markup > 0) next[i]!.price = applyMarkup(m.price, markup); applied++ } }
+        else { const cost = m.price ?? null; next.push({ page: 1, x: 0.03, y: Math.min(0.92, 0.03 + (next.length % 14) * 0.065), w: 0.22, h: 0.05, label: m.label, cost, price: markup > 0 ? applyMarkup(cost, markup) : null, default_format: null, default_pages: null }); added++ }
       }
       setHotspots(next); setDirty(true)
-      toast.success(`AI: ${applied} prezzi applicati${added ? `, ${added} nuovi modelli aggiunti` : ''}. Controlla e salva.`, { duration: 10000 })
+      toast.success(`AI: ${applied} costi letti${added ? `, ${added} nuovi modelli` : ''}${markup > 0 ? ` · ricarico ${markup}% applicato` : ' · ora imposta il ricarico'}. Controlla e salva.`, { duration: 11000 })
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 
@@ -78,8 +92,8 @@ export default function AlbumCatalogManager() {
                 <RefreshCw size={15} /> Sostituisci PDF
                 <input type="file" accept="application/pdf" className="hidden" onChange={onUpload} disabled={busy} />
               </label>
-              <Button variant="outline" onClick={readPrices} disabled={busy} title="L'AI legge i prezzi dal PDF e li applica ai modelli. Controlli e salvi.">
-                {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Leggi prezzi (AI)
+              <Button variant="outline" onClick={readCosts} disabled={busy} title="L'AI legge i COSTI di listino dal PDF e li applica ai modelli. Controlli e salvi.">
+                {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Leggi costi (AI)
               </Button>
               <Button onClick={onSave} disabled={busy || !dirty}>
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salva modelli
@@ -102,6 +116,13 @@ export default function AlbumCatalogManager() {
           </Card>
         ) : (
           <Card className="p-4 sm:p-5">
+            <div className="flex items-center gap-2 flex-wrap mb-4 pb-4 border-b border-[rgb(var(--border))]">
+              <span className="text-sm text-[rgb(var(--fg-muted))]">Ricarico</span>
+              <Input type="number" min={0} step={5} value={markup} onChange={(e) => { setMarkup(Math.max(0, Number(e.target.value) || 0)); setDirty(true) }} className="h-8 w-20 text-sm" />
+              <span className="text-sm text-[rgb(var(--fg-muted))]">%</span>
+              <Button variant="outline" size="sm" onClick={applyRicarico} disabled={busy}>Applica ai prezzi</Button>
+              <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Prezzo cliente = costo × (1 + ricarico%). Puoi comunque ritoccare ogni prezzo a mano.</span>
+            </div>
             <PdfHotspotEditor pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} onChange={setHs} />
           </Card>
         )}
