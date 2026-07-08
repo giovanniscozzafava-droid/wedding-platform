@@ -14,6 +14,11 @@ type Commission = {
   photographer: { business_name: string | null; full_name: string | null; phone: string | null; email: string | null; logo: string | null; color: string | null }
   selection_count: number
   event_date: string | null
+  client_choice: {
+    model_label?: string
+    specs?: { format?: string; size?: string; pages?: number; box?: string; finishes?: string[]; note?: string }
+    signed_by?: string; signed_at?: string
+  } | null
 }
 
 const fmtDate = (s: string | null) => { if (!s) return null; const d = new Date(s); return Number.isNaN(+d) ? null : d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) }
@@ -91,7 +96,8 @@ export default function CommissionPage() {
     </div>
   )
 
-  const { order, photographer, selection_count, event_date } = data
+  const { order, photographer, selection_count, event_date, client_choice } = data
+  const cc = client_choice
   const c = order.cover ?? {}
   const fmt = getFormat(order.format_key)
   const coverSize = sizeByKey(c.sizeKey)?.label
@@ -150,6 +156,23 @@ export default function CommissionPage() {
             <Row label="Copie" value={`${order.copies}`} />
             <Row label="Blocco interno" value={c.blockType === 'bookflat' ? 'Book flat (cartoncino)' : c.blockType === 'photo' ? 'Stampa foto (LUX)' : null} />
           </Section>
+
+          {cc && (cc.model_label || cc.specs) && (
+            <Section title="Scelta del cliente">
+              <Row label="Modello scelto" value={cc.model_label} />
+              <Row label="Misura" value={cc.specs?.size} />
+              <Row label="Pagine" value={cc.specs?.pages ? `${cc.specs.pages}` : null} />
+              <Row label="Box / contenitore" value={cc.specs?.box && cc.specs.box !== 'nessuno' ? cc.specs.box : null} />
+              <Row label="Finiture" value={cc.specs?.finishes?.length ? cc.specs.finishes.join(', ') : null} />
+              {cc.specs?.note && (
+                <div className="pt-2">
+                  <p className="text-[13px] uppercase tracking-wide text-neutral-500 mb-1">Composizione e note</p>
+                  <p className="text-[15px] text-neutral-800 whitespace-pre-wrap">{cc.specs.note}</p>
+                </div>
+              )}
+              {(cc.signed_by || cc.signed_at) && <p className="text-[12px] text-neutral-400 pt-2">Firmato da {cc.signed_by ?? 'cliente'}{cc.signed_at ? ` · ${fmtDate(cc.signed_at)}` : ''}</p>}
+            </Section>
+          )}
 
           {(c.model || c.fabric || (c.box && c.box !== 'nessuno') || c.parents || finishes.length || c.title || c.subtitle || c.monogram || c.photo_url || coverSize) && (
           <Section title="Copertina">
