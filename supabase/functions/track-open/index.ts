@@ -1,10 +1,12 @@
 // Edge function track-open: registra l'apertura di un preventivo da parte del CLIENTE.
 // Perché un edge e non la RPC diretta: l'hardening blocca le scritture ANONIME su `quotes`
-// (consente solo service_role e l'owner). Il cliente è anonimo → la sua chiamata diretta a
-// track_quote_open non aggiornerebbe nulla. Qui giriamo come SERVICE_ROLE (che l'hardening
-// permette) e invochiamo la stessa RPC → open_count/quote_views vengono scritti.
+// (permette service_role e l'owner). Il cliente è anonimo → la sua chiamata diretta a
+// track_quote_open non aggiornerebbe nulla. Qui giriamo come service_role → open_count/quote_views.
 //
-// POST { token: uuid, ua?: string } → 204 (best-effort, sempre ok lato client).
+// NB: forziamo esplicitamente apikey + Authorization al SERVICE key, altrimenti il client
+// eredita l'auth del chiamante (anon dal browser) e agirebbe come anon → RLS blocca lo write.
+//
+// POST { token: uuid, ua?: string } → 204 (best-effort).
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -26,8 +28,10 @@ Deno.serve(async (req) => {
   const token = (body.token ?? '').trim()
   if (!UUID.test(token)) return new Response(null, { status: 204, headers: cors })
 
-  const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
-  // service_role → bypassa il blocco scritture anonime; RPC token-scoped (aggiorna solo la riga col token).
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
+  })
   await admin.rpc('track_quote_open', { p_token: token, p_ua: (body.ua ?? '').toString().slice(0, 300) || null })
 
   return new Response(null, { status: 204, headers: cors })
