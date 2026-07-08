@@ -118,6 +118,7 @@ export default function CommissionPage() {
             <Row label="Blocco interno" value={c.blockType === 'bookflat' ? 'Book flat (cartoncino)' : c.blockType === 'photo' ? 'Stampa foto (LUX)' : null} />
           </Section>
 
+          {(c.model || c.fabric || (c.box && c.box !== 'nessuno') || c.parents || finishes.length || c.title || c.subtitle || c.monogram || c.photo_url || coverSize) && (
           <Section title="Copertina">
             <Row label="Modello" value={c.model ? modelLabel(c.model) : null} />
             <Row label="Misura copertina" value={coverSize} />
@@ -136,6 +137,7 @@ export default function CommissionPage() {
               </div>
             )}
           </Section>
+          )}
 
           {order.notes && (
             <Section title="Note per la stampa">

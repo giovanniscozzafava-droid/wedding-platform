@@ -569,8 +569,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Link to={`/album/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><BookOpen size={14} /> {role === 'sposi' ? 'Visualizza album' : 'Apri impaginatore'}</Button></Link>
-            {/* Copertina 3D: per ora SOLO fotografo (nascosta ai clienti finché non è pronta). */}
-            {isOwner && <Link to={`/album-copertina/${entryId}`}><Button variant="outline" size="sm" title="Configura la copertina 3D (materiale, colore, foto, accessori) e invia in stampa"><Printer size={14} /> Copertina 3D & stampa</Button></Link>}
+            {/* Copertina 3D: OSCURATA (soon) finché non c'è il partner di stampa di riferimento. */}
+            {isOwner && <Button variant="outline" size="sm" disabled title="Configuratore copertina 3D — in arrivo (in attesa del partner di stampa)"><Printer size={14} /> Copertina 3D · presto</Button>}
             {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
             {isOwner && <Link to="/album-catalogo"><Button variant="outline" size="sm" title="Carica il PDF del tuo catalogo e marca i modelli per i clienti"><BookOpen size={14} /> Gestisci catalogo PDF</Button></Link>}
             <Link to="/stampe"><Button variant="outline" size="sm" title="Scopri le stampe d'autore: apri una foto e tocca Stampa"><Images size={14} /> Stampe d’autore</Button></Link>
@@ -597,7 +597,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             )}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('web')} title="ZIP leggero ~1600px"><FileArchive size={14} /> ZIP Web</Button>
             {role === 'sposi' && <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione — riservato agli sposi"><FileArchive size={14} /> ZIP Originale</Button>}
-            {isOwner && <Link to={`/album-copertina/${entryId}`}><Button variant="outline" size="sm" title="Configura la copertina 3D e invia in stampa"><Printer size={14} /> Copertina & stampa</Button></Link>}
+            {isOwner && <Button variant="outline" size="sm" disabled title="Configuratore copertina 3D — in arrivo (in attesa del partner di stampa)"><Printer size={14} /> Copertina · presto</Button>}
           </div>
         </Card>
       )}

@@ -74,7 +74,7 @@ export async function sendAlbumToPrint(entryId: string, cover: Cover, copies: nu
 }
 
 // Genera (o aggiorna) il link "copia commissione" da dare alla stampa e ritorna l'URL pubblico.
-export async function shareAlbumCommission(entryId: string, cover: Cover, copies: number, notes: string | null, fileLink: string | null): Promise<string> {
+export async function shareAlbumCommission(entryId: string, cover: Cover | null, copies: number | null, notes: string | null, fileLink: string | null): Promise<string> {
   const { data, error } = await (supabase as any).rpc('album_commission_share', { p_entry: entryId, p_cover: cover, p_copies: copies, p_notes: notes, p_file_link: fileLink })
   if (error) throw new Error(error.message)
   if (data?.error) throw new Error(data.error === 'forbidden' ? 'Non hai i permessi su questo album' : data.error)

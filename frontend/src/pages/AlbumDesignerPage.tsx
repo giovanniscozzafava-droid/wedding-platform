@@ -98,6 +98,7 @@ import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spaci
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
 import { genTavolaLayouts, assignPhotos, gutterSlot, classifyAspect, type Orient, type Slot, type GenLayout } from '@/lib/albumPresetGen'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
+import { shareAlbumCommission } from '@/hooks/useAlbumLab'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 import { MyStylePanel } from '@/components/album/MyStylePanel'
@@ -369,6 +370,11 @@ function AlbumDesignerInner() {
   const [priceList, setPriceList] = useState<AlbumPriceList | null>(null)
   const [priceOpen, setPriceOpen] = useState(false)
   const [couplePriceOpen, setCouplePriceOpen] = useState(false) // dettaglio prezzo aperto nel visore coppia
+  // Copia commissione per la stampa (link pubblico generato dall'export).
+  const [commNotes, setCommNotes] = useState('')
+  const [commFileLink, setCommFileLink] = useState('')
+  const [commLink, setCommLink] = useState<string | null>(null)
+  const [commBusy, setCommBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -1650,6 +1656,20 @@ function AlbumDesignerInner() {
     document.body.appendChild(a); a.click(); a.remove()
     setTimeout(() => URL.revokeObjectURL(a.href), 3000)
     toast.success(`Ponte pronto: ${withTime.length} orari di scatto${missing ? ` · ${missing} senza orario` : ''}. In Lightroom ordina la cartella RAW per "Ora di scatto" e ritrovi le stesse foto anche se rinominate.`, { duration: 12000 })
+  }
+
+  // COPIA COMMISSIONE per la stampa: link pubblico con le specifiche dell'album (formato, pagine,
+  // copie, selezione) + note + link ai file. Cover/copie preservate (passo null) se già impostate.
+  async function genCommission() {
+    if (!entryId) return
+    setCommBusy(true)
+    try {
+      const url = await shareAlbumCommission(entryId, null, null, commNotes.trim() || null, commFileLink.trim() || null)
+      setCommLink(url)
+      try { await navigator.clipboard.writeText(url); toast.success('Link commissione copiato negli appunti') }
+      catch { toast.success('Link commissione generato') }
+    } catch (e) { toast.error(`Link non generato: ${(e as Error).message}`) }
+    finally { setCommBusy(false) }
   }
 
   const exportRef = useRef<HTMLDivElement>(null)
@@ -3626,6 +3646,27 @@ function AlbumDesignerInner() {
                   <div className="pt-1 grid grid-cols-2 gap-2">
                     <Button variant="gold" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('spread') }}><FileText size={14} /> Esporta PDF</Button>
                     <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setExportOpen(false); void doExport('jpgspread') }}><FileImage size={14} /> Esporta JPG (ZIP)</Button>
+                  </div>
+
+                  {/* COPIA COMMISSIONE: link pubblico da dare alla stampa (evita WeTransfer + email) */}
+                  <div className="pt-3 border-t border-[rgb(var(--border))] space-y-2">
+                    <div className="flex items-center gap-2"><BadgeEuro size={15} className="text-[rgb(var(--gold-600))]" /><p className="text-sm font-medium">Copia commissione per la stampa</p></div>
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Un link con le specifiche (formato, pagine, copie, foto selezionate) da dare alla stampa: la apre senza account, niente WeTransfer né email. Incolla qui il link ai file (il PDF che esporti) così ha tutto in un colpo.</p>
+                    <input value={commFileLink} onChange={(e) => setCommFileLink(e.target.value)} placeholder="Link ai file (Drive/WeTransfer/galleria) — facoltativo" className="w-full h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm" />
+                    <textarea value={commNotes} onChange={(e) => setCommNotes(e.target.value)} rows={2} placeholder="Note per la stampa (copertina, materiale, box, finiture, consegna…) — facoltativo" className="w-full rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 text-sm" />
+                    {commLink ? (
+                      <div className="rounded-lg border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] p-2.5 space-y-1.5">
+                        <p className="text-[11px] text-[rgb(var(--fg-muted))]">Link pronto (copiato negli appunti):</p>
+                        <div className="flex items-center gap-1.5">
+                          <input readOnly value={commLink} onFocus={(e) => e.currentTarget.select()} className="flex-1 h-8 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-[11px]" />
+                          <button onClick={() => { void navigator.clipboard.writeText(commLink); toast.success('Copiato') }} className="h-8 px-2 rounded-md border border-[rgb(var(--border))] text-xs hover:bg-[rgb(var(--bg))]">Copia</button>
+                          <a href={commLink} target="_blank" rel="noopener noreferrer" className="h-8 px-2 grid place-items-center rounded-md border border-[rgb(var(--border))] text-xs hover:bg-[rgb(var(--bg))]">Apri</a>
+                        </div>
+                        <button onClick={() => void genCommission()} disabled={commBusy} className="text-[11px] text-[rgb(var(--gold-700))] hover:underline disabled:opacity-50">Rigenera (aggiorna le specifiche dall'album)</button>
+                      </div>
+                    ) : (
+                      <Button variant="outline" size="sm" disabled={commBusy} onClick={() => void genCommission()}><FileText size={14} /> {commBusy ? 'Genero…' : 'Genera link commissione'}</Button>
+                    )}
                   </div>
                 </div>
               </div>
