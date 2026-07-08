@@ -1586,10 +1586,10 @@ function AlbumDesignerInner() {
     toast.success('Foto sostituita. Ricontrolla il ritaglio se serve.')
   }
 
-  // LISTA PER LIGHTROOM: file .txt pronto da TRASPORTARE — i nomi file delle foto scelte, uno per
-  // riga, SENZA estensione (così matcha anche i RAW quando la coppia ha scelto sui JPG). Funziona sia
-  // col plugin "Photo List Importer" (crea una collection) sia col filtro Libreria › Testo › Nome file
-  // › Contiene (incollando, gli a-capo collassano in spazi). Ordinato per orario di scatto EXIF.
+  // LISTA PER LIGHTROOM: i nomi file delle foto scelte su UNA riga sola, separati da spazi, SENZA
+  // estensione (matcha anche i RAW). Da incollare in Lightroom Classic → Libreria › filtro Testo ›
+  // Nome file › Contiene: con più nomi separati da spazio "Contiene" fa OR e mostra tutte le scelte.
+  // Copio la stringa negli APPUNTI (incolli diretto) + scarico il .txt di backup.
   async function exportLightroomList() {
     const rows = kept.filter((m) => m.media_type === 'PHOTO')
     if (rows.length === 0) { toast.error('Nessuna foto selezionata'); return }
@@ -1607,13 +1607,15 @@ function AlbumDesignerInner() {
       toast.warning('Nessun nome file disponibile: collega Google Drive per generare la lista da portare in Lightroom.', { duration: 9000 })
       return
     }
-    const txt = names.join('\r\n') + '\r\n' // una foto per riga, senza estensione
-    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' })
+    const oneLine = names.join(' ') // TUTTI i nomi su una riga → incolla e Lightroom li cerca insieme
+    let copied = false
+    try { await navigator.clipboard.writeText(oneLine); copied = true } catch { /* clipboard negato: resta il download */ }
+    const blob = new Blob([oneLine + '\n'], { type: 'text/plain;charset=utf-8' })
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
     a.download = `selezione-lightroom-${(title || 'album').replace(/[^\w-]+/g, '_').slice(0, 40)}.txt`
     document.body.appendChild(a); a.click(); a.remove()
     setTimeout(() => URL.revokeObjectURL(a.href), 3000)
-    toast.success(`Lista pronta: ${names.length} nomi file (senza estensione)${missing ? ` · ${missing} senza nome` : ''}. In Lightroom Classic: plugin Photo List Importer, oppure Libreria › filtro Testo › Nome file › Contiene.`, { duration: 12000 })
+    toast.success(`${names.length} nomi ${copied ? 'copiati negli appunti' : 'nel file .txt'} (una riga, senza estensione)${missing ? ` · ${missing} senza nome` : ''}. In Lightroom: filtro Testo › Nome file › Contiene → incolla.`, { duration: 12000 })
   }
 
   // ORARIO DI SCATTO: ponte per chi RINOMINA i JPG in export (il nome file non matcha più il RAW,
@@ -3744,7 +3746,7 @@ function SelectStep(props: {
             {likedTotal > 0 && <Button variant="outline" size="sm" onClick={onKeepLiked} title="Aggiungi all'album le foto a cui gli sposi hanno messo mi piace"><Heart size={14} className="fill-rose-400 text-rose-400" /> Tieni le preferite ({likedTotal})</Button>}
             {likedTotal > 0 && <Button variant={likedFirst ? 'gold' : 'outline'} size="sm" onClick={() => setLikedFirst((v) => !v)} title="Mostra prima le foto più piaciute dagli sposi">{likedFirst ? 'Ordine originale' : 'Preferite prima'}</Button>}
             {total > 0 && photos.length > total && <Button variant={showingKeptOnly ? 'gold' : 'outline'} size="sm" onClick={() => setOnlyKept((v) => !v)} title={showingKeptOnly ? 'Mostra tutta la galleria per aggiungerne altre' : 'Mostra solo le foto scelte per l’album'}>{showingKeptOnly ? `Tutte le foto (${photos.length})` : `Solo selezionate (${total})`}</Button>}
-            {total > 0 && <Button variant="outline" size="sm" onClick={onExportLightroom} title="Lista dei nomi file (uno per riga, senza estensione) — per Lightroom: plugin Photo List Importer o filtro Testo › Nome file › Contiene. Usa questa se NON rinomini i file in export."><FileText size={14} /> Lista Lightroom</Button>}
+            {total > 0 && <Button variant="outline" size="sm" onClick={onExportLightroom} title="Copia negli appunti i nomi file (una riga, separati da spazi, senza estensione). In Lightroom: filtro Testo › Nome file › Contiene → incolla e le trova tutte insieme. Usa questa se NON rinomini in export."><FileText size={14} /> Lista Lightroom</Button>}
             {total > 0 && <Button variant="outline" size="sm" onClick={onExportCaptureTimes} title="Orari di scatto EXIF (al secondo) — il ponte se RINOMINI i JPG in export: in Lightroom ordina il RAW per Ora di scatto e ritrovi le stesse foto"><FileText size={14} /> Orario scatto</Button>}
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto"><strong>{total}</strong>/{photos.length} selezionate</span>
           </>}

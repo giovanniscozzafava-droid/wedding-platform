@@ -271,6 +271,32 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
         </div>
       )}
 
+      {/* Preventivo INVIATO ma non ancora accettato: mostro TUTTE le voci (read-only) così il
+          cliente vede l'offerta completa — con più voci di più fornitori — nella dashboard. */}
+      {!isLive && q.status === 'INVIATO' && items.length > 0 && (
+        <div className="mt-3 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
+          <p className="text-xs font-semibold inline-flex items-center gap-1.5 mb-2" style={{ color: accent }}>
+            <Sparkles size={13} /> L'offerta
+          </p>
+          <div className="space-y-1.5">
+            {items.map((it) => (
+              <div key={it.id} className="flex items-center gap-2 text-xs">
+                <p className="min-w-0 flex-1 truncate">
+                  {it.name}
+                  {it.qty > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{it.qty}</span>}
+                  {it.supplier && <span className="text-[rgb(var(--fg-subtle))]"> · {it.supplier}</span>}
+                </p>
+                <span className="shrink-0 tabular-nums text-[rgb(var(--fg-muted))]">{fmtEuro(it.line_client)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2.5 pt-2.5 border-t flex items-center justify-between text-xs" style={{ borderColor: 'rgb(var(--border))' }}>
+            <span className="text-[rgb(var(--fg-muted))]">Totale offerta</span>
+            <span className="font-semibold tabular-nums" style={{ color: accent }}>{fmtEuro(q.total_client)}</span>
+          </div>
+        </div>
+      )}
+
       {brief && (brief.headline || brief.delivery_date || (brief.items && brief.items.length) || brief.note) && (
         <div className="mt-3 rounded-lg p-3 text-xs" style={{ background: 'rgb(var(--bg-sunken))' }}>
           {brief.headline && <p className="font-medium text-[rgb(var(--fg))] mb-1.5">{brief.headline}</p>}

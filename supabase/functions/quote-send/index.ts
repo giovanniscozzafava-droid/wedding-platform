@@ -217,9 +217,10 @@ Deno.serve(async (req) => {
     // - Se client_email NON e' un utente registrato → invito coppia con registrazione
     //   (crea wedding_couple_members con token; dopo signup li trova nella loro dashboard)
     // - Se utente esiste → link preview pubblico standard
-    // Regola: niente cifre/accettazione fuori dalla piattaforma. Il link porta
-    // SEMPRE all'accesso cliente, poi atterra sul preventivo nella sua area.
-    let link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/p/preview/' + accessToken)}`
+    // Regola: niente cifre/accettazione fuori dalla piattaforma. Il link porta SEMPRE
+    // all'accesso cliente, poi atterra sulla DASHBOARD aggregata (tutte le offerte di tutti
+    // i fornitori nella stessa area), da cui apre/firma il singolo preventivo.
+    let link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
     let isNewCouple = false
     try {
       const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })

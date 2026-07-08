@@ -59,7 +59,8 @@ Deno.serve(async (req) => {
   // nome del fornitore (mittente logico)
   const { data: sup } = await admin.from('profiles').select('full_name, business_name, subrole').eq('id', q.owner_id).maybeSingle()
   const supName = sup?.business_name ?? sup?.full_name ?? 'Un fornitore'
-  const link = `${APP_BASE}/p/preview/${token}`
+  // Atterra sulla dashboard aggregata del cliente (tutte le offerte insieme), previo accesso.
+  const link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
 
   const html = `
   <div style="background:#F7F4EE;padding:32px 0;font-family:Arial,sans-serif">

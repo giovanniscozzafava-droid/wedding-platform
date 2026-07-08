@@ -554,9 +554,9 @@ export default function QuoteEditorPage() {
         setSendResult(r); setPdfUrl(r.pdf_url ?? pdfUrl); token = r.access_token
       }
       if (!token) { toast.error('Non riesco a generare il link cliente'); return }
-      // Niente cifre/firma fuori dalla piattaforma: il link porta all'accesso
-      // cliente, poi atterra sul preventivo nella sua area.
-      const url = `${window.location.origin}/area-cliente/accedi?next=${encodeURIComponent('/p/preview/' + token)}`
+      // Niente cifre/firma fuori dalla piattaforma: il link porta all'accesso cliente,
+      // poi atterra sulla dashboard aggregata (tutte le offerte insieme).
+      const url = `${window.location.origin}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
       shareWhatsAppLink(waQuoteToClient({ clientName: quote.client_name, title: quote.title }), url)
     } catch (e) { toast.error((e as Error).message) }
   }

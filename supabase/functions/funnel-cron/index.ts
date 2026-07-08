@@ -38,7 +38,8 @@ async function sendBranded(q: any, subject: string, intro: string, cta: string) 
   const o = await loadOwner(q.owner_id)
   const wpName = o?.business_name ?? o?.full_name ?? 'Il tuo referente'
   const primary = o?.brand_primary_color ?? '#1A2E4F'
-  const link = `${APP_BASE}/p/preview/${q.access_token}`
+  // Atterra sulla dashboard aggregata del cliente (tutte le offerte insieme), previo accesso.
+  const link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
   const fromAddr = (FROM.match(/<(.+)>/)?.[1]) ?? FROM
   const totFmt = q.total_client != null ? new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(q.total_client)) : ''
   const html = `<!doctype html><html lang="it"><body style="font-family:Georgia,serif;background:#F8F5EE;margin:0;padding:30px 16px;color:#1A1714">
