@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import {
   useIngredients, useRecipes, useMenus, useMyServices, useMenuFoodcost, useFoodCostMutations,
-  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost, useEventTasting,
+  useSuppliers, useLocationEvents, useRequirements, useStock, useAiWallet, useBrigade, useAllMenusFoodcost, useEventTasting, useEventCosting,
   fetchEventSheet, fetchBrand, COURSES,
   type FbIngredient, type FbRecipe, type FbMenu, type FbSupplier, type FbBrigadeMember,
 } from '@/hooks/useFoodCost'
@@ -336,15 +336,29 @@ function EventiTab() {
   const menuMap = useMemo(() => new Map((menus ?? []).map((m) => [m.id, m])), [menus])
   return (
     <div className="space-y-3">
-      <p className="text-xs text-[rgb(var(--fg-muted))]">Assegna a ogni evento il menu (costato) e i coperti: da qui esce il fabbisogno della spesa.</p>
+      <p className="text-xs text-[rgb(var(--fg-muted))]">Assegna a ogni evento uno o più menu con il <strong>gruppo di coperti</strong> (ospiti · bambini · professionisti/fornitori · brigata): ogni gruppo può avere il suo menu e i suoi coperti. Da qui esce il fabbisogno della spesa e lo scarico dispensa, sommando tutti i gruppi.</p>
       {(events ?? []).map((ev) => <EventRow key={ev.id} ev={ev} menus={menus ?? []} menuMap={menuMap} mut={mut} />)}
       {(events ?? []).length === 0 && <Card className="p-6 text-center text-[rgb(var(--fg-subtle))]">Nessun evento.</Card>}
     </div>
   )
 }
+const EVENT_ROLES: Array<[string, string]> = [['OSPITI', 'Ospiti'], ['BAMBINI', 'Bambini'], ['PROFESSIONISTI', 'Professionisti/fornitori'], ['BRIGATA', 'Brigata']]
+const roleLabel = (r: string) => EVENT_ROLES.find(([v]) => v === r)?.[1] ?? r
+const roleTone: Record<string, string> = { OSPITI: 'bg-[rgb(var(--gold-100))]', BAMBINI: 'bg-[rgb(var(--sky-100,var(--gold-100)))]', PROFESSIONISTI: 'bg-[rgb(var(--sage-100,var(--gold-100)))]', BRIGATA: 'bg-[rgb(var(--bg-sunken))]' }
+
 function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuMap: Map<string, FbMenu>; mut: ReturnType<typeof useFoodCostMutations> }) {
-  const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState(''); const [pdfBusy, setPdfBusy] = useState(false); const [showProva, setShowProva] = useState(false)
-  async function add() { if (!menuId) { toast.error('Scegli un menu'); return } try { await mut.setEventMenu.mutateAsync({ entry_id: ev.id, menu_id: menuId, covers: covers ? Number(covers) : null }); setMenuId(''); setCovers('') } catch (e) { toast.error((e as Error).message) } }
+  const [menuId, setMenuId] = useState(''); const [covers, setCovers] = useState(''); const [role, setRole] = useState('OSPITI'); const [label, setLabel] = useState('')
+  const [pdfBusy, setPdfBusy] = useState(false); const [showProva, setShowProva] = useState(false)
+  const hasMenus = (ev.menus ?? []).length > 0
+  const { data: costing } = useEventCosting(ev.id, hasMenus)
+  const grandTotal = (costing?.gruppi ?? []).reduce((s, g) => s + (g.total_cost ?? 0), 0)
+  async function add() {
+    if (!menuId) { toast.error('Scegli un menu'); return }
+    try {
+      await mut.setEventMenu.mutateAsync({ entry_id: ev.id, menu_id: menuId, covers: covers ? Number(covers) : null, role, label: label.trim() || null })
+      setMenuId(''); setCovers(''); setLabel('')
+    } catch (e) { toast.error((e as Error).message) }
+  }
   async function foglio() {
     setPdfBusy(true)
     try {
@@ -358,24 +372,45 @@ function EventRow({ ev, menus, menuMap, mut }: { ev: any; menus: FbMenu[]; menuM
     <Card className="p-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div><p className="font-medium text-sm">{ev.title ?? 'Evento'}</p><p className="text-[11px] text-[rgb(var(--fg-subtle))]">{new Date(ev.date_from).toLocaleDateString('it-IT')}{ev.guest_count ? ` · ${ev.guest_count} coperti` : ''}</p></div>
-        <div className="flex items-end gap-1.5">
-          {(ev.menus ?? []).length > 0 && <Button size="sm" variant="outline" onClick={foglio} disabled={pdfBusy}><FileText size={14} /> {pdfBusy ? '…' : 'Foglio PDF'}</Button>}
+        <div className="flex items-end gap-1.5 flex-wrap justify-end">
+          {hasMenus && <Button size="sm" variant="outline" onClick={foglio} disabled={pdfBusy}><FileText size={14} /> {pdfBusy ? '…' : 'Foglio PDF'}</Button>}
+          <Select value={role} onChange={(e) => setRole(e.target.value)} className="h-8 w-36" title="Gruppo di coperti">{EVENT_ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select>
           <Select value={menuId} onChange={(e) => setMenuId(e.target.value)} className="h-8 w-40"><option value="">+ menu…</option>{menus.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</Select>
           <Input value={covers} onChange={(e) => setCovers(e.target.value)} className="h-8 w-20" placeholder="coperti" />
+          {role !== 'OSPITI' && <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-8 w-32" placeholder="etichetta (es. fotografi)" />}
           <Button size="sm" onClick={add}><Plus size={14} /></Button>
         </div>
       </div>
-      {(ev.menus ?? []).length > 0 && (
+      {hasMenus && (
         <div className="flex flex-wrap gap-1.5 mt-2">
           {ev.menus.map((em: any) => (
-            <span key={em.id} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--gold-100))]">
-              {menuMap.get(em.menu_id)?.name ?? 'menu'}{em.covers ? ` ×${em.covers}` : ''}
+            <span key={em.id} className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${roleTone[em.role] ?? 'bg-[rgb(var(--gold-100))]'}`}>
+              {em.role && em.role !== 'OSPITI' && <strong className="uppercase tracking-wide">{roleLabel(em.role)}:</strong>}
+              {menuMap.get(em.menu_id)?.name ?? 'menu'}{em.label ? ` · ${em.label}` : ''}{em.covers ? ` ×${em.covers}` : ''}
               <button onClick={() => mut.delEventMenu.mutate(em.id)} className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]">×</button>
             </span>
           ))}
         </div>
       )}
-      <button onClick={() => setShowProva((v) => !v)} className="mt-2 text-xs text-[rgb(var(--gold-700))] font-medium">{showProva ? '− Chiudi prova menu' : '🍽 Prova menu & voti ospiti'}</button>
+      {(costing?.gruppi ?? []).length > 0 && (
+        <div className="mt-2 rounded-lg border border-[rgb(var(--border))] overflow-hidden text-[11px]">
+          <table className="w-full">
+            <tbody>
+              {costing!.gruppi.map((g) => (
+                <tr key={g.em_id} className="border-b border-[rgb(var(--border))] last:border-0">
+                  <td className="px-2 py-1">{roleLabel(g.role)}{g.label ? ` · ${g.label}` : ''}</td>
+                  <td className="px-2 py-1 text-[rgb(var(--fg-subtle))]">{g.menu}</td>
+                  <td className="px-2 py-1 text-right text-[rgb(var(--fg-muted))]">{g.coperti} cop.</td>
+                  <td className="px-2 py-1 text-right">{eur(g.cost_per_cover)}/cop.</td>
+                  <td className="px-2 py-1 text-right font-medium">{eur(g.total_cost)}</td>
+                </tr>
+              ))}
+              <tr className="bg-[rgb(var(--bg-sunken))]"><td className="px-2 py-1 font-medium" colSpan={4}>Food cost totale evento (tutti i gruppi)</td><td className="px-2 py-1 text-right font-semibold">{eur(grandTotal)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+      <button onClick={() => setShowProva((v) => !v)} className="mt-2 text-xs text-[rgb(var(--gold-700))] font-medium">{showProva ? '− Chiudi prova menu' : 'Prova menu & voti ospiti'}</button>
       {showProva && <ProvaMenuPanel ev={ev} menus={menus} mut={mut} />}
     </Card>
   )

@@ -95,15 +95,28 @@ export function useSuppliers() {
     },
   })
 }
-export type FbLocEvent = { id: string; title: string | null; date_from: string; guest_count: number | null; menus: Array<{ id: string; menu_id: string; covers: number | null }> }
+export type FbLocEvent = { id: string; title: string | null; date_from: string; guest_count: number | null; menus: Array<{ id: string; menu_id: string; covers: number | null; role: string; label: string | null }> }
 export function useLocationEvents() {
   return useQuery<FbLocEvent[]>({
     queryKey: ['fb-events'],
     queryFn: async () => {
       const id = await uid(); if (!id) return []
-      const { data, error } = await sb('calendar_entries').select('id, title, date_from, guest_count, menus:fb_event_menus(id, menu_id, covers)').eq('owner_id', id).order('date_from')
+      const { data, error } = await sb('calendar_entries').select('id, title, date_from, guest_count, menus:fb_event_menus(id, menu_id, covers, role, label)').eq('owner_id', id).order('date_from')
       if (error) throw error
       return (data ?? []) as FbLocEvent[]
+    },
+  })
+}
+// Costo per GRUPPO di coperti dell'evento (ospiti/bambini/professionisti/brigata)
+export type EventCosting = { gruppi: Array<{ em_id: string; role: string; label: string | null; menu: string; coperti: number; total_cost: number; cost_per_cover: number }> }
+export function useEventCosting(entryId: string | null, enabled: boolean) {
+  return useQuery<EventCosting>({
+    queryKey: ['fb-costing', entryId],
+    enabled: enabled && !!entryId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('fb_event_costing', { p_entry: entryId })
+      if (error) throw error
+      return { gruppi: (data?.gruppi ?? []) as EventCosting['gruppi'] }
     },
   })
 }
@@ -184,7 +197,7 @@ export function useEventTasting(entryId: string | null, enabled: boolean) {
 
 export function useFoodCostMutations() {
   const qc = useQueryClient()
-  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade', 'fb-tasting'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
+  const inv = () => { ['fb-ing', 'fb-rec', 'fb-menu', 'fb-foodcost', 'fb-allfc', 'fb-sup', 'fb-events', 'fb-costing', 'fb-req', 'fb-stock', 'fb-ai-wallet', 'fb-brigade', 'fb-tasting'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })) }
   const m = (fn: (p: any) => Promise<void>) => useMutation({ mutationFn: fn, onSuccess: inv })
   return {
     addIngredient: m(async (p: { name: string; stock_unit: string; yield_percent: number; category?: string | null }) => {
@@ -203,7 +216,7 @@ export function useFoodCostMutations() {
     delSupplier: m(async (id: string) => { const { error } = await sb('fb_suppliers').update({ is_active: false }).eq('id', id); if (error) throw error }),
     addSupplierProduct: m(async (p: { supplier_id: string; ingredient_id: string; pack_label: string; pack_qty_stock_unit: number; pack_price: number; is_preferred?: boolean }) => { const { error } = await sb('fb_supplier_products').insert(p); if (error) throw error }),
     delSupplierProduct: m(async (id: string) => { const { error } = await sb('fb_supplier_products').delete().eq('id', id); if (error) throw error }),
-    setEventMenu: m(async (p: { entry_id: string; menu_id: string; covers: number | null }) => { const id = await uid(); const { error } = await sb('fb_event_menus').insert({ location_id: id, ...p }); if (error) throw error }),
+    setEventMenu: m(async (p: { entry_id: string; menu_id: string; covers: number | null; role?: string; label?: string | null }) => { const id = await uid(); const { error } = await sb('fb_event_menus').insert({ location_id: id, ...p }); if (error) throw error }),
     delEventMenu: m(async (id: string) => { const { error } = await sb('fb_event_menus').delete().eq('id', id); if (error) throw error }),
     addBrigadeMember: m(async (p: { full_name: string; role: string; reparto: string; phone?: string | null; hourly_cost?: number }) => { const id = await uid(); const { error } = await sb('fb_brigade_members').insert({ location_id: id, ...p }); if (error) throw error }),
     delBrigadeMember: m(async (id: string) => { const { error } = await sb('fb_brigade_members').update({ active: false }).eq('id', id); if (error) throw error }),

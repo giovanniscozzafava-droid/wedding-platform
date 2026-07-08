@@ -6,6 +6,7 @@ export type EventSheet = {
   evento: { titolo: string | null; data: string | null; coperti: number; tavoli: number; coperti_per_tavolo: number }
   brigata: Array<{ reparto: string; ruolo: string; nome: string; postazione: string | null; chiamata: string | null; fine: string | null; tel: string | null }>
   menu: string[]
+  gruppi?: Array<{ ruolo: string; etichetta: string | null; menu: string; coperti: number }>
   piatti: Array<{ piatto: string; per_coperto: number; porzioni: number }>
   fabbisogno: Array<{ ingrediente: string; qta: number; unita: string }>
   magazzino: Array<{ ingrediente: string; lotto: string | null; disponibile: number; unita: string; scadenza: string | null }>
@@ -68,6 +69,15 @@ export async function buildFoglioServizio(s: EventSheet, brand: Brand): Promise<
     row(['Ruolo', 'Nome', 'Postazione', 'Chiamata'], [M, M + 48, M + 110, M + 158], true, 8.5)
     for (const b of mem) row([b.ruolo, b.nome, b.postazione || '—', b.chiamata || '—'], [M, M + 48, M + 110, M + 158], false, 9)
     y += 2
+  }
+
+  // Coperti per gruppo (ospiti / bambini / professionisti / brigata) — se ci sono gruppi extra
+  const gruppi = s.gruppi ?? []
+  if (gruppi.length > 1 || gruppi.some((g) => g.ruolo !== 'OSPITI')) {
+    const roleLbl: Record<string, string> = { OSPITI: 'Ospiti', BAMBINI: 'Bambini', PROFESSIONISTI: 'Professionisti / fornitori', BRIGATA: 'Brigata' }
+    section('Coperti per gruppo')
+    row(['Gruppo', 'Menu', 'Coperti'], [M, M + 70, M + 160], true, 8.5)
+    for (const g of gruppi) row([(roleLbl[g.ruolo] ?? g.ruolo) + (g.etichetta ? ` · ${g.etichetta}` : ''), g.menu, String(g.coperti)], [M, M + 70, M + 160], false, 9)
   }
 
   // Menu & produzione
