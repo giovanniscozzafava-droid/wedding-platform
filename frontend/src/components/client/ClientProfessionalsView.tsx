@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   FileText, FileSignature, Calendar, MapPin, Package, CheckCircle2, Clock,
-  CalendarClock, ListMusic, ExternalLink, Sparkles,
+  CalendarClock, ListMusic, ExternalLink, Sparkles, CreditCard,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
@@ -204,6 +204,31 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
     } finally { setBusyId(null) }
   }
 
+  const [payBusy, setPayBusy] = useState(false)
+  // Pagamento del preventivo (acconto/saldo) → checkout Stripe sul conto del professionista.
+  // L'importo lo calcola il server dal totale (la coppia non lo controlla).
+  async function payQuote(kind: 'QUOTE_DEPOSIT' | 'QUOTE_BALANCE') {
+    setPayBusy(true)
+    try {
+      const { data, error } = await (supabase as unknown as { functions: { invoke: (f: string, o: { body: unknown }) => Promise<{ data: unknown; error: Error | null }> } })
+        .functions.invoke('payment-create', { body: { ref_type: 'quote', ref_id: q.id, kind } })
+      if (error) throw new Error(error.message)
+      const r = (data ?? {}) as { url?: string; error?: string }
+      const msg: Record<string, string> = {
+        stripe_not_configured: 'Pagamenti online non ancora attivi.',
+        payee_not_onboarded: 'Il professionista non ha ancora attivato gli incassi online.',
+        payee_onboarding_incomplete: 'Il professionista sta completando l’attivazione degli incassi.',
+        deposit_already_paid: 'L’acconto risulta già pagato.',
+        already_paid: 'Questo preventivo risulta già saldato.',
+        forbidden: 'Non risulti intestatario di questo preventivo.',
+        quote_not_found: 'Preventivo non trovato.',
+      }
+      if (r.error) throw new Error(msg[r.error] ?? ('Pagamento non avviato: ' + r.error))
+      if (r.url) { window.location.href = r.url; return }
+    } catch (e) { window.alert(e instanceof Error ? e.message : 'Errore') }
+    finally { setPayBusy(false) }
+  }
+
   return (
     <div className="rounded-xl border p-3.5 mb-2 last:mb-0" style={{ borderColor: 'rgb(var(--border))' }}>
       <div className="flex items-start gap-3">
@@ -217,6 +242,19 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
         </div>
         <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: st.c, background: `${st.c}1a` }}>{st.l}</span>
       </div>
+
+      {isLive && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button disabled={payBusy} onClick={() => void payQuote('QUOTE_DEPOSIT')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ background: accent }}>
+            <CreditCard size={13} /> Paga acconto
+          </button>
+          <button disabled={payBusy} onClick={() => void payQuote('QUOTE_BALANCE')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg))' }}>
+            Paga intero importo
+          </button>
+        </div>
+      )}
 
       {isLive && items.length > 0 && (
         <div className="mt-3 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
