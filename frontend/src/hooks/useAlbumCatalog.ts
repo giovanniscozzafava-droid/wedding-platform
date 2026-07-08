@@ -11,6 +11,7 @@ const COMM_BUCKET = 'album-commissions'
 export type Hotspot = {
   id?: string; page: number; x: number; y: number; w: number; h: number
   label: string; default_format?: string | null; default_pages?: number | null
+  price?: number | null   // prezzo di vendita del modello (listino fotografo)
 }
 export type Catalog = { id: string; name: string; pdf_path: string; page_count: number; owner_id?: string; studio?: string }
 export type CommissionSpecs = { format: string; size?: string; pages: number; box?: string; finishes?: string[]; note?: string }
@@ -35,9 +36,18 @@ export async function getMyCatalog(): Promise<{ catalog: Catalog; hotspots: Hots
     .eq('owner_id', id).eq('active', true).order('updated_at', { ascending: false }).limit(1).maybeSingle()
   if (!cat) return null
   const { data: hs } = await (supabase as any)
-    .from('album_catalog_hotspots').select('id,page,x,y,w,h,label,default_format,default_pages')
+    .from('album_catalog_hotspots').select('id,page,x,y,w,h,label,default_format,default_pages,price')
     .eq('catalog_id', cat.id).order('page', { ascending: true })
   return { catalog: cat as Catalog, hotspots: (hs ?? []) as Hotspot[] }
+}
+
+// Modelli del catalogo del fotografo (label + prezzo), per il listino/pacchetti e il pannello prezzo.
+export async function getCatalogModels(): Promise<{ label: string; price: number | null }[]> {
+  const r = await getMyCatalog()
+  if (!r) return []
+  const seen = new Map<string, number | null>()
+  for (const h of r.hotspots) if (!seen.has(h.label)) seen.set(h.label, h.price ?? null)
+  return Array.from(seen, ([label, price]) => ({ label, price }))
 }
 
 export async function uploadCatalogPdf(file: File, name?: string): Promise<Catalog> {
@@ -64,6 +74,7 @@ export async function saveHotspots(catalogId: string, hotspots: Hotspot[]): Prom
   const rows = hotspots.map((h) => ({
     catalog_id: catalogId, page: h.page, x: h.x, y: h.y, w: h.w, h: h.h,
     label: h.label || 'Modello', default_format: h.default_format ?? null, default_pages: h.default_pages ?? null,
+    price: h.price ?? null,
   }))
   const { error } = await (supabase as any).from('album_catalog_hotspots').insert(rows)
   if (error) throw error

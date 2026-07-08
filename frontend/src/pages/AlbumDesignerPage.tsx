@@ -13,7 +13,7 @@ import { MOMENTS, getMoment, ALBUM_MIN_PHOTOS, ALBUM_MAX_PHOTOS } from '@/lib/al
 import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, MAX_PER_PAGE, type AlbumPage, type TemplateKey } from '@/lib/albumEngine'
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl, ExportCancelled } from '@/lib/albumExport'
 import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, coverWindow, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
-import { type AlbumPriceConfig, type AlbumPriceList, computeAlbumPrice, seedConfigFromList, modelDeltaFor, emptyPriceList, DEFAULT_MODEL_DELTA, euroA, looksLikeAlbum, parseQuoteItem } from '@/lib/albumPricing'
+import { type AlbumPriceConfig, type AlbumPriceList, type AlbumPackage, computeAlbumPrice, seedConfigFromList, modelDeltaFor, applyPackage, emptyPriceList, DEFAULT_MODEL_DELTA, euroA, looksLikeAlbum, parseQuoteItem } from '@/lib/albumPricing'
 
 // Ritaglio TESTA-SAFE + aureo: orizzontalmente mette il volto su una linea aurea; verticalmente
 // GARANTISCE che la testa (ht = top testa) resti nell'inquadratura — MAI teste tagliate. z=1 (nessuno
@@ -99,6 +99,7 @@ import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageT
 import { genTavolaLayouts, assignPhotos, gutterSlot, classifyAspect, type Orient, type Slot, type GenLayout } from '@/lib/albumPresetGen'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { shareAlbumCommission } from '@/hooks/useAlbumLab'
+import { getCatalogModels } from '@/hooks/useAlbumCatalog'
 import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 import { MyStylePanel } from '@/components/album/MyStylePanel'
@@ -368,6 +369,7 @@ function AlbumDesignerInner() {
   // Prezzo album (vendita fotografo → coppia): listino ereditato + contratto evento.
   const [priceCfg, setPriceCfg] = useState<AlbumPriceConfig | null>(null)
   const [priceList, setPriceList] = useState<AlbumPriceList | null>(null)
+  const [catalogModels, setCatalogModels] = useState<{ label: string; price: number | null }[]>([])
   const [priceOpen, setPriceOpen] = useState(false)
   const [couplePriceOpen, setCouplePriceOpen] = useState(false) // dettaglio prezzo aperto nel visore coppia
   // Copia commissione per la stampa (link pubblico generato dall'export).
@@ -534,8 +536,9 @@ function AlbumDesignerInner() {
       try {
         const { data } = await (supabase.from as any)('album_price_settings').select('config').maybeSingle()
         const cfg = (data?.config ?? null) as AlbumPriceList | null
-        setPriceList(cfg && cfg.formats ? { formats: cfg.formats, modelDelta: { ...DEFAULT_MODEL_DELTA, ...(cfg.modelDelta ?? {}) } } : emptyPriceList())
+        setPriceList(cfg && cfg.formats ? { formats: cfg.formats, modelDelta: { ...DEFAULT_MODEL_DELTA, ...(cfg.modelDelta ?? {}) }, packages: cfg.packages ?? [] } : emptyPriceList())
       } catch { setPriceList(emptyPriceList()) }
+      try { setCatalogModels(await getCatalogModels()) } catch { /* nessun catalogo */ }
     })()
   }, [isCouple])
 
@@ -2570,10 +2573,8 @@ function AlbumDesignerInner() {
             onChange={(e) => on(Math.max(0, Number(e.target.value) || 0))}
             className={`h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm ${opts?.w ?? 'w-24'}`} />
         )
-        const TIERS: { key: string; label: string }[] = [
-          { key: 'BASIC', label: 'Base' }, { key: 'ROYAL', label: 'Royal' }, { key: 'PRIME', label: 'Prime' }, { key: 'TOP', label: 'Top' },
-        ]
-        const deltaFor = (tier: string) => Number((priceList?.modelDelta as any)?.[tier] ?? (DEFAULT_MODEL_DELTA as any)[tier] ?? 0)
+        const pkgs: AlbumPackage[] = priceList?.packages ?? []
+        const mode = pc.mode ?? 'package'
         return (
           <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={() => setPriceOpen(false)}>
             <div className="bg-[rgb(var(--bg))] w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2588,11 +2589,40 @@ function AlbumDesignerInner() {
                   <Button size="sm" variant="outline" onClick={() => void importPriceFromQuote()}><FileText size={14} /> Dal preventivo</Button>
                 </div>
 
-                {/* Album sposi */}
+                {/* Album sposi: modalità + modello dal catalogo */}
                 <div className="rounded-lg border border-[rgb(var(--border))] p-3 space-y-3">
                   <p className="text-xs uppercase tracking-wide text-[rgb(var(--fg-muted))]">Album sposi · {getFormat(format).label.replace(/ ·.*/, '')}</p>
+
+                  {/* modalità: base preventivata (differenza) vs da zero (prezzo pieno) */}
+                  <div className="flex items-center gap-1.5">
+                    {([['package', 'Base preventivata'], ['zero', 'Da zero']] as const).map(([m, l]) => (
+                      <button key={m} onClick={() => set({ mode: m })} className={`px-3 py-1.5 rounded-lg text-sm border ${mode === m ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] font-medium' : 'border-[rgb(var(--border))]'}`}>{l}</button>
+                    ))}
+                  </div>
+
+                  {/* pacchetto (solo modalità preventivata) */}
+                  {mode === 'package' && (pkgs.length > 0 ? (
+                    <label className="flex items-center gap-2 text-sm flex-wrap">Pacchetto
+                      <select value={pc.packageLabel ?? ''} onChange={(e) => { const p = pkgs.find((x) => x.label === e.target.value); if (p) void savePrice(applyPackage(pc, p)) }} className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm max-w-[18rem]">
+                        <option value="">— scegli —</option>
+                        {pkgs.map((p) => <option key={p.id} value={p.label}>{p.label} · {euroA(p.base)}{p.includedModelLabel ? ` (incl. ${p.includedModelLabel})` : ''}</option>)}
+                      </select>
+                    </label>
+                  ) : (
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Nessun pacchetto nel listino: impostali in <a className="underline" href="/settings/album-prezzi">Listino album</a>, oppure metti la base a mano qui sotto.</p>
+                  ))}
+
+                  {/* modello scelto dal catalogo PDF */}
+                  <label className="flex items-center gap-2 text-sm flex-wrap">Modello scelto
+                    <select value={pc.chosenModelLabel ?? ''} onChange={(e) => { const m = catalogModels.find((x) => x.label === e.target.value); set({ chosenModelLabel: e.target.value || undefined, chosenModelPrice: m?.price ?? undefined }) }} className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm max-w-[18rem]">
+                      <option value="">— dal catalogo —</option>
+                      {catalogModels.map((m) => <option key={m.label} value={m.label}>{m.label}{m.price != null ? ` · ${euroA(m.price)}` : ''}</option>)}
+                    </select>
+                  </label>
+                  {catalogModels.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-muted))]">Per scegliere un modello col prezzo, carica il catalogo PDF e metti i prezzi in <a className="underline" href="/album-catalogo">Gestisci catalogo</a>.</p>}
+
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <label className="flex items-center gap-2 text-sm">Base contratto {num(pc.base, (n) => set({ base: n }), { step: 10 })} €</label>
+                    {mode !== 'zero' && <label className="flex items-center gap-2 text-sm">Base {num(pc.base, (n) => set({ base: n }), { step: 10 })} €</label>}
                     <label className="flex items-center gap-2 text-sm">Pagine incluse {num(pc.includedPages, (n) => set({ includedPages: n }))}</label>
                     <label className="flex items-center gap-2 text-sm">Pagina extra {num(pc.extraPageRate, (n) => set({ extraPageRate: n }))} €/pag</label>
                   </div>
@@ -2601,17 +2631,6 @@ function AlbumDesignerInner() {
                       <input type="checkbox" checked={pc.box} onChange={(e) => set({ box: e.target.checked })} /> Box / custodia
                     </label>
                     {pc.box && <label className="flex items-center gap-2 text-sm">{num(pc.boxPrice, (n) => set({ boxPrice: n }), { step: 5 })} €</label>}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm flex-wrap">
-                    <span>Modello</span>
-                    <select value={pc.modelDelta > 0 && pc.modelLabel ? pc.modelLabel : ''} onChange={(e) => {
-                      const t = TIERS.find((x) => x.label === e.target.value)
-                      if (!t) set({ modelLabel: undefined, modelDelta: 0 })
-                      else set({ modelLabel: t.label, modelDelta: deltaFor(t.key) })
-                    }} className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm">
-                      <option value="">Incluso (nessun sovrapprezzo)</option>
-                      {TIERS.map((t) => <option key={t.key} value={t.label}>{t.label} · +{euroA(deltaFor(t.key))}</option>)}
-                    </select>
                   </div>
                 </div>
 

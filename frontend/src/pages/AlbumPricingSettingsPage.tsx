@@ -7,7 +7,8 @@ import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { ALBUM_FORMATS } from '@/lib/albumFormats'
-import { type AlbumPriceList, type AlbumFormatPrice, emptyPriceList, DEFAULT_FORMAT_PRICE, DEFAULT_MODEL_DELTA, euroA } from '@/lib/albumPricing'
+import { type AlbumPriceList, type AlbumFormatPrice, type AlbumPackage, emptyPriceList, DEFAULT_FORMAT_PRICE, DEFAULT_MODEL_DELTA, euroA } from '@/lib/albumPricing'
+import { getCatalogModels } from '@/hooks/useAlbumCatalog'
 import type { Tier } from '@/components/album/albumCatalog'
 
 const TIERS: { key: Tier; label: string; hint: string }[] = [
@@ -35,6 +36,7 @@ function NumField({ label, suffix, value, onChange, step = 1 }: { label: string;
 
 export default function AlbumPricingSettingsPage() {
   const [list, setList] = useState<AlbumPriceList>(emptyPriceList())
+  const [models, setModels] = useState<{ label: string; price: number | null }[]>([]) // modelli dal catalogo PDF
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [addKey, setAddKey] = useState('')
@@ -44,11 +46,22 @@ export default function AlbumPricingSettingsPage() {
       try {
         const { data } = await (supabase.from as any)('album_price_settings').select('config').maybeSingle()
         const cfg = (data?.config ?? null) as AlbumPriceList | null
-        if (cfg && cfg.formats) setList({ formats: cfg.formats ?? {}, modelDelta: { ...DEFAULT_MODEL_DELTA, ...(cfg.modelDelta ?? {}) } })
+        if (cfg && cfg.formats) setList({ formats: cfg.formats ?? {}, modelDelta: { ...DEFAULT_MODEL_DELTA, ...(cfg.modelDelta ?? {}) }, packages: cfg.packages ?? [] })
       } catch { /* nessun listino ancora */ }
       finally { setLoading(false) }
+      try { setModels(await getCatalogModels()) } catch { /* nessun catalogo */ }
     })()
   }, [])
+
+  const packages = list.packages ?? []
+  const addPackage = () => setList((l) => ({ ...l, packages: [...(l.packages ?? []), { id: crypto.randomUUID(), label: `Pacchetto ${(l.packages?.length ?? 0) + 1}`, base: 390, includedPages: 50 }] }))
+  const setPackage = (id: string, patch: Partial<AlbumPackage>) =>
+    setList((l) => ({ ...l, packages: (l.packages ?? []).map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
+  const removePackage = (id: string) => setList((l) => ({ ...l, packages: (l.packages ?? []).filter((p) => p.id !== id) }))
+  const pickIncludedModel = (id: string, label: string) => {
+    const m = models.find((x) => x.label === label)
+    setPackage(id, { includedModelLabel: label || undefined, includedModelPrice: m?.price ?? undefined })
+  }
 
   const usedKeys = useMemo(() => new Set(Object.keys(list.formats)), [list.formats])
   const available = ALBUM_FORMATS.filter((f) => !usedKeys.has(f.key) && f.category !== 'Proof')
@@ -127,8 +140,43 @@ export default function AlbumPricingSettingsPage() {
         </Card>
 
         <Card className="p-6 mt-6 space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="font-display text-lg">Pacchetti base</h3>
+              <p className="text-sm text-[rgb(var(--fg-muted))]">I pacchetti che vendi nel preventivo (es. 290/390/490). Ognuno include un modello: se il cliente dal catalogo ne sceglie uno più caro, paga solo la differenza.</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={addPackage}><Plus size={14} /> Pacchetto</Button>
+          </div>
+          {models.length === 0 && (
+            <p className="text-[13px] text-[rgb(var(--fg-muted))] rounded-lg bg-[rgb(var(--bg-sunken))] p-3">Per collegare il <strong>modello incluso</strong>, carica il catalogo PDF e metti un prezzo a ogni modello in <a href="/album-catalogo" className="underline">Gestisci catalogo</a>.</p>
+          )}
+          {packages.length === 0 ? (
+            <p className="text-sm text-[rgb(var(--fg-muted))]">Nessun pacchetto. Aggiungine uno con la base che hai già preventivato.</p>
+          ) : packages.map((p) => (
+            <div key={p.id} className="rounded-lg border border-[rgb(var(--border))] p-4">
+              <div className="flex items-center justify-between mb-3 gap-2">
+                <input value={p.label} onChange={(e) => setPackage(p.id, { label: e.target.value })} className="h-9 rounded-md border border-[rgb(var(--border))] bg-transparent px-2 text-sm font-medium max-w-[16rem]" placeholder="Nome pacchetto" />
+                <button onClick={() => removePackage(p.id)} className="text-[rgb(var(--fg-muted))] hover:text-red-500" title="Rimuovi pacchetto"><Trash2 size={16} /></button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+                <NumField label="Base" suffix="€" step={10} value={p.base} onChange={(n) => setPackage(p.id, { base: n })} />
+                <NumField label="Pagine incluse" value={p.includedPages} onChange={(n) => setPackage(p.id, { includedPages: n })} />
+                <label className="block md:col-span-2">
+                  <span className="text-[11px] uppercase tracking-wide text-[rgb(var(--fg-muted))]">Modello incluso</span>
+                  <select value={p.includedModelLabel ?? ''} onChange={(e) => pickIncludedModel(p.id, e.target.value)} className="mt-0.5 h-9 w-full rounded-md border border-[rgb(var(--border))] bg-transparent px-2 text-sm">
+                    <option value="">— nessuno —</option>
+                    {models.map((m) => <option key={m.label} value={m.label}>{m.label}{m.price != null ? ` · ${euroA(m.price)}` : ''}</option>)}
+                  </select>
+                </label>
+              </div>
+              {p.includedModelLabel && p.includedModelPrice == null && <p className="text-[11px] text-amber-600 mt-1.5">Questo modello non ha un prezzo nel catalogo: mettilo in Gestisci catalogo, poi riseleziona.</p>}
+            </div>
+          ))}
+        </Card>
+
+        <Card className="p-6 mt-6 space-y-4">
           <div>
-            <h3 className="font-display text-lg">Upgrade modello</h3>
+            <h3 className="font-display text-lg">Upgrade modello (fascia)</h3>
             <p className="text-sm text-[rgb(var(--fg-muted))]">Quanto aggiunge la scelta di un modello dal catalogo, in base alla sua fascia. Si somma alla base.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

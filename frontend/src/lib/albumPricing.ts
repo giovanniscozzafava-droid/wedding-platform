@@ -18,26 +18,43 @@ export type AlbumFormatPrice = {
   familyExtraPageRate: number // € per pagina extra su ogni album famiglia
 }
 
-// Listino del fotografo: default per formato + delta prezzo per tier del modello.
+// Pacchetto base del fotografo (es. dal preventivo: 290/390/490). Include un modello di
+// riferimento: se il cliente ne sceglie uno più caro dal catalogo, paga solo la DIFFERENZA.
+export type AlbumPackage = {
+  id: string
+  label: string                 // es. "Pacchetto 390"
+  base: number                  // importo base (già preventivato)
+  includedPages: number
+  includedModelLabel?: string   // modello incluso (label dal catalogo PDF)
+  includedModelPrice?: number   // suo prezzo (snapshot, per calcolare la differenza)
+}
+
+// Listino del fotografo: default per formato + pacchetti base + delta per tier (legacy).
 export type AlbumPriceList = {
   formats: Record<string, AlbumFormatPrice>   // key = ALBUM_FORMATS.key
-  modelDelta: Partial<Record<Tier, number>>   // upgrade modello: quanto aggiunge ogni tier
+  modelDelta: Partial<Record<Tier, number>>   // legacy: upgrade modello per tier
+  packages?: AlbumPackage[]                    // pacchetti base preventivati
 }
 
 // Contratto di un evento.
 export type AlbumPriceConfig = {
   formatKey?: string
+  mode?: 'package' | 'zero'  // 'package' = base preventivata (paga differenza) · 'zero' = da zero
   base: number
   includedPages: number
   extraPageRate: number
   box: boolean
   boxPrice: number
-  modelKey?: string       // modello scelto dal catalogo
-  modelLabel?: string     // etichetta leggibile della scelta (es. fascia)
-  modelDelta: number      // delta risolto dal tier del modello (via listino)
+  modelKey?: string          // modello scelto dal catalogo DesignAlbum (legacy)
+  modelLabel?: string        // etichetta leggibile della scelta
+  modelDelta: number         // legacy: delta dal tier
+  packageLabel?: string      // pacchetto scelto (modalità 'package')
+  includedModelPrice?: number // prezzo del modello incluso nel pacchetto (per la differenza)
+  chosenModelLabel?: string  // modello scelto dal catalogo PDF del fotografo
+  chosenModelPrice?: number  // suo prezzo di listino
   family: { qty: number; base: number; extraPageRate: number }
-  showCouple: boolean     // il totale è visibile alla coppia nel visore album
-  note?: string           // provenienza (es. "da preventivo") / annotazione libera
+  showCouple: boolean        // il totale è visibile alla coppia nel visore album
+  note?: string              // provenienza / annotazione libera
 }
 
 export const DEFAULT_MODEL_DELTA: Partial<Record<Tier, number>> = { BASIC: 0, ROYAL: 30, PRIME: 45, TOP: 60 }
@@ -46,12 +63,18 @@ export const DEFAULT_FORMAT_PRICE: AlbumFormatPrice = {
   base: 390, includedPages: 50, extraPageRate: 12, boxPrice: 40, familyBase: 100, familyExtraPageRate: 8,
 }
 
-export const emptyPriceList = (): AlbumPriceList => ({ formats: {}, modelDelta: { ...DEFAULT_MODEL_DELTA } })
+export const emptyPriceList = (): AlbumPriceList => ({ formats: {}, modelDelta: { ...DEFAULT_MODEL_DELTA }, packages: [] })
+
+// Applica un pacchetto base alla config evento (modalità 'package').
+export function applyPackage(cfg: AlbumPriceConfig, pkg: AlbumPackage): AlbumPriceConfig {
+  return { ...cfg, mode: 'package', packageLabel: pkg.label, base: pkg.base, includedPages: pkg.includedPages, includedModelPrice: pkg.includedModelPrice ?? 0 }
+}
 
 // Crea il contratto di un evento a partire dal listino (o dai default) per un formato.
+// Se il listino ha pacchetti, parte dal primo (modalità 'package'); altrimenti resta legacy.
 export function seedConfigFromList(list: AlbumPriceList | null, formatKey: string): AlbumPriceConfig {
   const fp = list?.formats?.[formatKey] ?? DEFAULT_FORMAT_PRICE
-  return {
+  const base: AlbumPriceConfig = {
     formatKey,
     base: fp.base, includedPages: fp.includedPages, extraPageRate: fp.extraPageRate,
     box: false, boxPrice: fp.boxPrice,
@@ -59,6 +82,8 @@ export function seedConfigFromList(list: AlbumPriceList | null, formatKey: strin
     family: { qty: 0, base: fp.familyBase, extraPageRate: fp.familyExtraPageRate },
     showCouple: true,
   }
+  const pkgs = list?.packages ?? []
+  return pkgs[0] ? applyPackage(base, pkgs[0]) : base
 }
 
 // Delta del modello: dal suo tier via listino (fallback ai default).
@@ -80,8 +105,20 @@ export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actu
   const extraPages = Math.max(0, Math.round(actualPages || 0) - included)
   const n2 = (x: unknown) => { const v = Number(x); return Number.isFinite(v) ? v : 0 }
 
-  lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse` })
-  if (n2(cfg.modelDelta) > 0) lines.push({ label: `Modello${cfg.modelLabel ? ` · ${cfg.modelLabel}` : cfg.modelKey ? ` ${modelLabel(cfg.modelKey)}` : ''}`, amount: n2(cfg.modelDelta) })
+  const chosen = n2(cfg.chosenModelPrice)
+  if (cfg.mode === 'zero') {
+    // DA ZERO: il cliente compone; paga il prezzo pieno del modello scelto.
+    lines.push({ label: cfg.chosenModelLabel ? `Modello ${cfg.chosenModelLabel}` : 'Album (da zero)', amount: chosen, hint: `${included} pagine incluse` })
+  } else if (cfg.mode === 'package') {
+    // BASE PREVENTIVATA: base del pacchetto + differenza col modello scelto (se più caro dell'incluso).
+    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse${cfg.packageLabel ? ` · ${cfg.packageLabel}` : ''}` })
+    const diff = Math.max(0, chosen - n2(cfg.includedModelPrice))
+    if (diff > 0) lines.push({ label: `Modello ${cfg.chosenModelLabel ?? ''}`.trim(), amount: diff, hint: `scelto ${euroA(chosen)} · incluso ${euroA(n2(cfg.includedModelPrice))}` })
+  } else {
+    // LEGACY (nessuna modalità): base + delta per tier.
+    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse` })
+    if (n2(cfg.modelDelta) > 0) lines.push({ label: `Modello${cfg.modelLabel ? ` · ${cfg.modelLabel}` : cfg.modelKey ? ` ${modelLabel(cfg.modelKey)}` : ''}`, amount: n2(cfg.modelDelta) })
+  }
   if (cfg.box && n2(cfg.boxPrice) > 0) lines.push({ label: 'Box / custodia', amount: n2(cfg.boxPrice) })
   if (extraPages > 0 && n2(cfg.extraPageRate) > 0) {
     lines.push({ label: `${extraPages} pagine in più`, amount: extraPages * n2(cfg.extraPageRate), hint: `€ ${n2(cfg.extraPageRate)} a pagina` })
