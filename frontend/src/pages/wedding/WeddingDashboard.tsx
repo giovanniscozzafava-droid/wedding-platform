@@ -62,51 +62,70 @@ import { useQueryClient } from '@tanstack/react-query'
 
 type TabKey = 'overview' | 'album_funnel' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'angoli' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
 
-type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean; coupleOnly?: boolean }
+// Navigazione a due livelli: 7 macro-categorie sempre visibili (riga 1) →
+// le sotto-voci della macro attiva compaiono nella riga 2. Ogni tab dichiara
+// la sua `group`; il gating per ruolo resta identico e sfoltisce sia le
+// sotto-voci sia — se una macro resta vuota — la macro stessa.
+type GroupKey = 'panoramica' | 'ricordi' | 'ospiti' | 'programma' | 'logistica' | 'organizzazione' | 'gestione'
+
+type TabDef = { key: TabKey; label: string; icon: typeof CalendarClock; group: GroupKey; nuovoModelloOnly?: boolean; capostipiteOnly?: boolean; coupleOnly?: boolean }
+
+// Ordine e identità delle macro-categorie (riga 1). L'ordine riflette la priorità:
+// prima ciò che si consegna/consulta di più, in fondo la gestione amministrativa.
+const GROUPS: Array<{ key: GroupKey; label: string; icon: typeof CalendarClock }> = [
+  { key: 'panoramica',     label: 'Panoramica',     icon: FileText },
+  { key: 'ricordi',        label: 'Ricordi',        icon: Images },
+  { key: 'ospiti',         label: 'Ospiti & festa', icon: UsersIcon },
+  { key: 'programma',      label: 'Programma',      icon: CalendarClock },
+  { key: 'logistica',      label: 'Logistica',      icon: Bus },
+  { key: 'organizzazione', label: 'Organizzazione', icon: ListChecks },
+  { key: 'gestione',       label: 'Gestione',       icon: Wallet },
+]
 
 // Evento "solo ricordi" (passato + senza preventivo): tengo attive Foto/Video e, lato
 // professionista, anche Overview (così l'owner non resta intrappolato e può sempre gestire).
 const PRO_PHOTO_ONLY_KEYS = new Set(['foto', 'video', 'overview'])
 
 const TABS: Array<TabDef> = [
-  { key: 'overview',       label: 'Overview',     icon: FileText },
+  // Panoramica
+  { key: 'overview',       label: 'Overview',     icon: FileText, group: 'panoramica' },
   // Percorso guidato del cliente (solo coppia): foto → impaginazione → copertina → stampe
-  { key: 'album_funnel',   label: 'Il tuo album', icon: BookHeart, coupleOnly: true },
+  { key: 'album_funnel',   label: 'Il tuo album', icon: BookHeart, group: 'panoramica', coupleOnly: true },
   // Ricordi (consegne) — priorità e coerenza: Foto e Video subito, vicini
-  { key: 'foto',           label: 'Foto',         icon: Images },
-  { key: 'video',          label: 'Video',        icon: Film },
-  { key: 'audio',          label: 'Audio auguri', icon: Mic },
-  { key: 'guestbook',      label: 'Guestbook',    icon: BookHeart },
+  { key: 'foto',           label: 'Foto',         icon: Images, group: 'ricordi' },
+  { key: 'video',          label: 'Video',        icon: Film, group: 'ricordi' },
+  { key: 'audio',          label: 'Audio auguri', icon: Mic, group: 'ricordi' },
+  { key: 'guestbook',      label: 'Guestbook',    icon: BookHeart, group: 'ricordi' },
   // Ospiti & festa
-  { key: 'guests',         label: 'Invitati',     icon: UsersIcon },
-  { key: 'tables',         label: 'Tavoli',       icon: Table2 },
-  { key: 'regali',         label: 'Regali',       icon: Gift },
-  { key: 'menu',           label: 'Menu',         icon: Utensils, capostipiteOnly: true },
-  { key: 'gadgets',        label: 'Bomboniere',   icon: Gift },
-  { key: 'angoli',         label: 'Angoli',       icon: Boxes },
-  { key: 'subevents',      label: 'Eventi',       icon: PartyPopper },
+  { key: 'guests',         label: 'Invitati',     icon: UsersIcon, group: 'ospiti' },
+  { key: 'tables',         label: 'Tavoli',       icon: Table2, group: 'ospiti' },
+  { key: 'regali',         label: 'Regali',       icon: Gift, group: 'ospiti' },
+  { key: 'menu',           label: 'Menu',         icon: Utensils, group: 'ospiti', capostipiteOnly: true },
+  { key: 'gadgets',        label: 'Bomboniere',   icon: Gift, group: 'ospiti' },
+  { key: 'angoli',         label: 'Angoli',       icon: Boxes, group: 'ospiti' },
+  { key: 'subevents',      label: 'Eventi',       icon: PartyPopper, group: 'ospiti' },
   // Programma & stile
-  { key: 'ceremony',       label: 'Cerimonia',    icon: Church },
-  { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock },
-  { key: 'mood',           label: 'Mood',         icon: Palette },
-  { key: 'playlist',       label: 'Playlist',     icon: Music },
+  { key: 'ceremony',       label: 'Cerimonia',    icon: Church, group: 'programma' },
+  { key: 'timeline',       label: 'Scaletta',     icon: CalendarClock, group: 'programma' },
+  { key: 'mood',           label: 'Mood',         icon: Palette, group: 'programma' },
+  { key: 'playlist',       label: 'Playlist',     icon: Music, group: 'programma' },
   // Logistica
-  { key: 'accommodations', label: 'Alloggi',      icon: BedDouble },
-  { key: 'transport',      label: 'Trasporti',    icon: Bus },
+  { key: 'accommodations', label: 'Alloggi',      icon: BedDouble, group: 'logistica' },
+  { key: 'transport',      label: 'Trasporti',    icon: Bus, group: 'logistica' },
   // Organizzazione
-  { key: 'chat',           label: 'Chat',         icon: MessageCircle, nuovoModelloOnly: true },
-  { key: 'checklist',      label: 'Checklist',    icon: ListChecks },
-  { key: 'planning',       label: 'Questionario', icon: ClipboardList, capostipiteOnly: true },
+  { key: 'chat',           label: 'Chat',         icon: MessageCircle, group: 'organizzazione', nuovoModelloOnly: true },
+  { key: 'checklist',      label: 'Checklist',    icon: ListChecks, group: 'organizzazione' },
+  { key: 'planning',       label: 'Questionario', icon: ClipboardList, group: 'organizzazione', capostipiteOnly: true },
+  { key: 'docs',           label: 'Documenti',    icon: FolderOpen, group: 'organizzazione', capostipiteOnly: true },
   // Gestione (capostipite)
-  { key: 'contract',       label: 'Contratto',    icon: FileSignature, capostipiteOnly: true },
-  { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature, capostipiteOnly: true },
-  { key: 'budget',         label: 'Budget',       icon: Wallet, capostipiteOnly: true },
-  { key: 'payments',       label: 'Pagamenti',    icon: Wallet, capostipiteOnly: true },
-  { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale, nuovoModelloOnly: true, capostipiteOnly: true },
-  { key: 'members',        label: 'Clienti',      icon: Heart, capostipiteOnly: true },
-  { key: 'website',        label: 'Sito evento', icon: Globe, capostipiteOnly: true },
-  { key: 'docs',           label: 'Documenti',    icon: FolderOpen, capostipiteOnly: true },
-  { key: 'analytics', label: 'Analytics',  icon: BarChart3, capostipiteOnly: true },
+  { key: 'contract',       label: 'Contratto',    icon: FileSignature, group: 'gestione', capostipiteOnly: true },
+  { key: 'contracts_net',  label: 'Contratti rete', icon: FileSignature, group: 'gestione', capostipiteOnly: true },
+  { key: 'budget',         label: 'Budget',       icon: Wallet, group: 'gestione', capostipiteOnly: true },
+  { key: 'payments',       label: 'Pagamenti',    icon: Wallet, group: 'gestione', capostipiteOnly: true },
+  { key: 'riconciliazione', label: 'Riconciliazione', icon: Scale, group: 'gestione', nuovoModelloOnly: true, capostipiteOnly: true },
+  { key: 'members',        label: 'Clienti',      icon: Heart, group: 'gestione', capostipiteOnly: true },
+  { key: 'website',        label: 'Sito evento', icon: Globe, group: 'gestione', capostipiteOnly: true },
+  { key: 'analytics',      label: 'Analytics',    icon: BarChart3, group: 'gestione', capostipiteOnly: true },
 ]
 
 export default function WeddingDashboard() {
@@ -201,6 +220,37 @@ export default function WeddingDashboard() {
     if (ringView === 'fornitore' && end && new Date(end) < new Date()) setTab('foto')
   }, [wedding, ringView])
 
+  // --- Navigazione a due livelli ---------------------------------------------
+  // La macro attiva deriva dalla tab attiva (unica fonte di verità): così anche
+  // quando `tab` cambia da codice (overview, photoOnly→foto, cerchi di completamento)
+  // la riga 1 evidenzia il gruppo giusto e la riga 2 mostra le sue sotto-voci.
+  const groupOf = (k: TabKey): GroupKey => TABS.find((t) => t.key === k)?.group ?? 'panoramica'
+  const activeGroup = groupOf(tab)
+  // Solo le macro che hanno almeno una sotto-voce visibile per questo ruolo.
+  const visibleGroups = useMemo(
+    () => GROUPS.filter((g) => visibleTabs.some((t) => t.group === g.key)),
+    [visibleTabs],
+  )
+  // Sotto-voci della macro attiva (già filtrate dal gating).
+  const subTabs = useMemo(
+    () => visibleTabs.filter((t) => t.group === activeGroup),
+    [visibleTabs, activeGroup],
+  )
+  // Una macro è "bloccata" (evento solo-ricordi) se nessuna sua sotto-voce resta attiva.
+  const groupLocked = (g: GroupKey) =>
+    photoOnly && !visibleTabs.some((t) => t.group === g && PRO_PHOTO_ONLY_KEYS.has(t.key))
+  // Clic su una macro → apri la sua prima sotto-voce disponibile (e marca letta se aveva un pallino).
+  const goToGroup = (g: GroupKey) => {
+    if (g === activeGroup) return
+    const first = visibleTabs.find((t) => t.group === g)
+    if (!first) return
+    setTab(first.key)
+    if (dotTabs.has(first.key) && wedding?.id) {
+      setDotTabs((s) => { const n = new Set(s); n.delete(first.key); return n })
+      void markEntryTabRead(wedding.id, typesForTab(first.key))
+    }
+  }
+
   if (isLoading) return <div className="p-10 text-[rgb(var(--fg-subtle))]">Caricamento...</div>
   if (!wedding) return <div className="p-10 text-[rgb(var(--rose-500))]">Wedding non trovato</div>
 
@@ -282,66 +332,105 @@ export default function WeddingDashboard() {
           </div>
         </div>
 
-        {/* Tabs — scrollable on mobile with edge-fade indicators */}
+        {/* Tabs — navigazione a due livelli: macro (riga 1) + sotto-voci (riga 2) */}
         <div className="border-t relative z-20" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
-          <div ref={tabsRef} onWheel={(e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) tabsRef.current?.scrollBy({ left: e.deltaY }) }}
-            className="max-w-7xl mx-auto px-6 sm:px-10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          {/* Riga 1 — macro-categorie (sempre visibili) */}
+          <div className="max-w-7xl mx-auto px-6 sm:px-10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <div className="flex gap-1 py-2 min-w-max">
-              {visibleTabs.map((t) => {
-                const Icon = t.icon
-                const active = tab === t.key
-                // SOLO_PROPRI_SERVIZI: enfatizza "Menu" + tab dedicato ai servizi
-                // propri (qui usiamo "contract" come tab "Documenti del proprio
-                // catalogo" via highlight visivo; il routing reale lo gestisce
-                // /services tramite la link_action del ProssimaMossa).
-                const emphasized =
-                  effectiveAmbito === 'SOLO_PROPRI_SERVIZI' && t.key === 'menu'
-                const locked = photoOnly && !PRO_PHOTO_ONLY_KEYS.has(t.key)
+              {visibleGroups.map((g) => {
+                const GIcon = g.icon
+                const activeG = g.key === activeGroup
+                const gLocked = groupLocked(g.key)
+                // Pallino sulla macro se una sua sotto-voce (non attiva) ha novità.
+                const gDot = !activeG && visibleTabs.some((t) => t.group === g.key && dotTabs.has(t.key))
+                // Stella sulla macro se contiene la sotto-voce in evidenza (SOLO_PROPRI_SERVIZI: Menu).
+                const gStar = !activeG && effectiveAmbito === 'SOLO_PROPRI_SERVIZI'
+                  && visibleTabs.some((t) => t.group === g.key && t.key === 'menu')
                 return (
                   <button
-                    key={t.key}
-                    disabled={locked}
-                    title={locked ? 'Evento concluso — disponibili solo Foto e Video' : undefined}
-                    onClick={(e) => {
-                      setTab(t.key)
-                      if (dotTabs.has(t.key) && wedding?.id) {
-                        setDotTabs((s) => { const n = new Set(s); n.delete(t.key); return n })
-                        void markEntryTabRead(wedding.id, typesForTab(t.key))
-                      }
-                      ;(e.currentTarget as HTMLElement).scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' })
-                    }}
+                    key={g.key}
+                    disabled={gLocked}
+                    onClick={() => goToGroup(g.key)}
                     className={cn(
-                      'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[44px]',
-                      locked
+                      'inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap min-h-[44px]',
+                      gLocked
                         ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
-                        : active
+                        : activeG
                           ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
-                          : emphasized
-                            ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] hover:bg-[rgb(var(--bg-sunken))]'
-                            : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
+                          : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
                     )}
-                    aria-label={emphasized ? `${t.label} (in evidenza)` : t.label}
+                    aria-current={activeG ? 'page' : undefined}
                   >
-                    <Icon size={14} />
-                    {t.label}
-                    {emphasized && !active && (
-                      <span aria-hidden className="ml-1">★</span>
-                    )}
-                    {dotTabs.has(t.key) && !active && (
-                      <span aria-hidden className="ml-0.5 h-2 w-2 rounded-full bg-[rgb(var(--rose-500))] animate-pulse" />
-                    )}
+                    <GIcon size={15} />
+                    {g.label}
+                    {gStar && <span aria-hidden className="ml-0.5">★</span>}
+                    {gDot && <span aria-hidden className="ml-0.5 h-2 w-2 rounded-full bg-[rgb(var(--rose-500))] animate-pulse" />}
                   </button>
                 )
               })}
             </div>
           </div>
-          {/* Frecce: spostano la barra anche con un mouse normale (clic) — oltre a rotella e trascinamento */}
-          <button type="button" aria-label="Scorri i tab a sinistra" onClick={() => scrollTabs(-1)}
-            className="absolute inset-y-0 left-0 w-10 flex items-center justify-start pl-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"
-            style={{ background: 'linear-gradient(90deg, rgb(var(--bg-elev)) 60%, transparent)' }}><ChevronLeft size={18} /></button>
-          <button type="button" aria-label="Scorri i tab a destra" onClick={() => scrollTabs(1)}
-            className="absolute inset-y-0 right-0 w-10 flex items-center justify-end pr-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"
-            style={{ background: 'linear-gradient(-90deg, rgb(var(--bg-elev)) 60%, transparent)' }}><ChevronRight size={18} /></button>
+          {/* Riga 2 — sotto-voci della macro attiva (scrollabile, con frecce) */}
+          <div className="relative border-t" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+            <div ref={tabsRef} onWheel={(e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) tabsRef.current?.scrollBy({ left: e.deltaY }) }}
+              className="max-w-7xl mx-auto px-6 sm:px-10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              <div className="flex gap-1 py-1.5 min-w-max">
+                {subTabs.map((t) => {
+                  const Icon = t.icon
+                  const active = tab === t.key
+                  // SOLO_PROPRI_SERVIZI: enfatizza "Menu" + tab dedicato ai servizi
+                  // propri (qui usiamo "contract" come tab "Documenti del proprio
+                  // catalogo" via highlight visivo; il routing reale lo gestisce
+                  // /services tramite la link_action del ProssimaMossa).
+                  const emphasized =
+                    effectiveAmbito === 'SOLO_PROPRI_SERVIZI' && t.key === 'menu'
+                  const locked = photoOnly && !PRO_PHOTO_ONLY_KEYS.has(t.key)
+                  return (
+                    <button
+                      key={t.key}
+                      disabled={locked}
+                      title={locked ? 'Evento concluso — disponibili solo Foto e Video' : undefined}
+                      onClick={(e) => {
+                        setTab(t.key)
+                        if (dotTabs.has(t.key) && wedding?.id) {
+                          setDotTabs((s) => { const n = new Set(s); n.delete(t.key); return n })
+                          void markEntryTabRead(wedding.id, typesForTab(t.key))
+                        }
+                        ;(e.currentTarget as HTMLElement).scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' })
+                      }}
+                      className={cn(
+                        'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[40px]',
+                        locked
+                          ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
+                          : active
+                            ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]'
+                            : emphasized
+                              ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))] hover:bg-[rgb(var(--bg-elev))]'
+                              : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-elev))] hover:text-[rgb(var(--fg))]',
+                      )}
+                      aria-label={emphasized ? `${t.label} (in evidenza)` : t.label}
+                    >
+                      <Icon size={14} />
+                      {t.label}
+                      {emphasized && !active && (
+                        <span aria-hidden className="ml-1">★</span>
+                      )}
+                      {dotTabs.has(t.key) && !active && (
+                        <span aria-hidden className="ml-0.5 h-2 w-2 rounded-full bg-[rgb(var(--rose-500))] animate-pulse" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            {/* Frecce: spostano la riga 2 anche con un mouse normale (clic) — oltre a rotella e trascinamento */}
+            <button type="button" aria-label="Scorri i tab a sinistra" onClick={() => scrollTabs(-1)}
+              className="absolute inset-y-0 left-0 w-10 flex items-center justify-start pl-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"
+              style={{ background: 'linear-gradient(90deg, rgb(var(--bg-sunken)) 60%, transparent)' }}><ChevronLeft size={18} /></button>
+            <button type="button" aria-label="Scorri i tab a destra" onClick={() => scrollTabs(1)}
+              className="absolute inset-y-0 right-0 w-10 flex items-center justify-end pr-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"
+              style={{ background: 'linear-gradient(-90deg, rgb(var(--bg-sunken)) 60%, transparent)' }}><ChevronRight size={18} /></button>
+          </div>
         </div>
       </div>
 
