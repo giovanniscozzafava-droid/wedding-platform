@@ -380,6 +380,7 @@ function AlbumDesignerInner() {
   const [commBusy, setCommBusy] = useState(false)
   const [commFmt, setCommFmt] = useState<'pdf' | 'jpg'>('pdf')   // formato tavole per lo stampatore
   const [commStep, setCommStep] = useState('')                    // stato avanzamento (export/upload)
+  const [commProg, setCommProg] = useState<number | null>(null)   // 0..100: barra avanzamento export→upload commissione (visibile al fotografo)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -1670,7 +1671,7 @@ function AlbumDesignerInner() {
   async function genCommission() {
     if (!entryId) return
     if (pages.length === 0) { toast.error('Nessuna tavola da esportare'); return }
-    setCommBusy(true); setCommStep('Esporto le tavole…')
+    setCommBusy(true); setCommStep('Esporto le tavole…'); setCommProg(0)
     try {
       // grant + resolve alta risoluzione (come doExport)
       let grant: string | null = null
@@ -1678,28 +1679,31 @@ function AlbumDesignerInner() {
       const SB = import.meta.env.VITE_SUPABASE_URL, AK = import.meta.env.VITE_SUPABASE_ANON_KEY
       const resolve = (id: string) => { const m = mediaById.get(id); if (!m) return ''; return grant && isDrive(m) ? hiResProxyUrl(SB, AK, grant, id) : hiUrl(m) }
       const base = (title || 'album').toLowerCase().replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '') || 'album'
-      // TAVOLE (spreads) — è quello che stampa il lab
+      // TAVOLE (spreads) — è quello che stampa il lab. Barra reale: export tavole 0→60,
+      // zip 60→68, upload Drive 70→95, link 97, fatto 100.
+      const onProgress = (done: number, total: number) => setCommProg(Math.round((done / Math.max(1, total)) * 60))
+      const onZip = (z: number) => setCommProg(60 + Math.round(z * 0.08))
       const blob = commFmt === 'jpg'
-        ? await exportAlbumJpgZip(pages, format, resolve, { returnBlob: true, dpi: Math.min(exportDpi, 240), mode: 'spreads', pageNumbers: pageNums })
-        : await exportAlbumPdf(pages, format, resolve, { returnBlob: true, mode: 'spreads', dpi: exportDpi, bleed, cutMarks: cutMarks && bleed, pageNumbers: pageNums })
+        ? await exportAlbumJpgZip(pages, format, resolve, { returnBlob: true, dpi: Math.min(exportDpi, 240), mode: 'spreads', pageNumbers: pageNums, onProgress, onZip })
+        : await exportAlbumPdf(pages, format, resolve, { returnBlob: true, mode: 'spreads', dpi: exportDpi, bleed, cutMarks: cutMarks && bleed, pageNumbers: pageNums, onProgress })
       if (!(blob instanceof Blob)) throw new Error('Export non riuscito')
       const fname = `${base}-tavole.${commFmt === 'jpg' ? 'zip' : 'pdf'}`
       const mime = commFmt === 'jpg' ? 'application/zip' : 'application/pdf'
 
       // upload sul Drive del fotografo
-      setCommStep('Carico sul tuo Google Drive…')
+      setCommStep('Carico sul tuo Google Drive…'); setCommProg(70)
       const token = await getDriveToken()
       const q = await driveQuota(token)
       const folder = await ensureDriveFolder(token, 'Planfully - Commissioni', null)
       const file = new File([blob], fname, { type: mime })
-      const { id } = await uploadAnyToDrive(token, folder, file, (frac) => setCommStep(`Carico sul Drive… ${Math.round(frac * 100)}%`))
+      const { id } = await uploadAnyToDrive(token, folder, file, (frac) => { setCommStep(`Carico sul Drive… ${Math.round(frac * 100)}%`); setCommProg(70 + Math.round(frac * 25)) })
       const driveLink = driveDownloadUrl(id)
 
       // commissione col link alle tavole (+ eventuale link extra nelle note)
-      setCommStep('Genero il link…')
+      setCommStep('Genero il link…'); setCommProg(97)
       const notes = [commNotes.trim() || null, commFileLink.trim() ? `Altro: ${commFileLink.trim()}` : null].filter(Boolean).join('\n') || null
       const url = await shareAlbumCommission(entryId, null, null, notes, driveLink)
-      setCommLink(url)
+      setCommLink(url); setCommProg(100)
       try { await navigator.clipboard.writeText(url); toast.success('Link commissione (con le tavole) copiato negli appunti') }
       catch { toast.success('Link commissione generato') }
       // avviso spazio Drive
@@ -1707,7 +1711,7 @@ function AlbumDesignerInner() {
         toast.warning(`Spazio Google Drive quasi esaurito (${q.usedPct}% usato${q.freeGb != null ? `, ~${q.freeGb.toFixed(1)} GB liberi` : ''}). Libera spazio cancellando i lavori già consegnati, oppure aumenta lo spazio Google.`, { duration: 14000 })
       }
     } catch (e) { toast.error(`Commissione non generata: ${(e as Error).message}`.slice(0, 180)) }
-    finally { setCommBusy(false); setCommStep('') }
+    finally { setCommBusy(false); setCommStep(''); setCommProg(null) }
   }
 
   const exportRef = useRef<HTMLDivElement>(null)
@@ -3714,6 +3718,15 @@ function AlbumDesignerInner() {
                     </div>
                     <input value={commFileLink} onChange={(e) => setCommFileLink(e.target.value)} placeholder="Link extra ai file — facoltativo" className="w-full h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm" />
                     <textarea value={commNotes} onChange={(e) => setCommNotes(e.target.value)} rows={2} placeholder="Note per la stampa (copertina, materiale, box, finiture, consegna…) — facoltativo" className="w-full rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 text-sm" />
+                    {/* Barra di avanzamento export→upload delle tavole (il fotografo vede a che punto è) */}
+                    {commBusy && (
+                      <div className="rounded-lg border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] p-2.5">
+                        <div className="flex items-center gap-2 text-[12px] text-[rgb(var(--fg))]"><Loader2 size={13} className="animate-spin text-[rgb(var(--gold-600))]" /> {commStep || 'Preparo la commissione…'}{commProg != null && <span className="ml-auto tabular-nums text-[rgb(var(--fg-muted))]">{commProg}%</span>}</div>
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
+                          <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${commProg ?? 8}%` }} />
+                        </div>
+                      </div>
+                    )}
                     {commLink ? (
                       <div className="rounded-lg border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] p-2.5 space-y-1.5">
                         <p className="text-[11px] text-[rgb(var(--fg-muted))]">Link pronto (copiato negli appunti):</p>
@@ -3722,6 +3735,12 @@ function AlbumDesignerInner() {
                           <button onClick={() => { void navigator.clipboard.writeText(commLink); toast.success('Copiato') }} className="h-8 px-2 rounded-md border border-[rgb(var(--border))] text-xs hover:bg-[rgb(var(--bg))]">Copia</button>
                           <a href={commLink} target="_blank" rel="noopener noreferrer" className="h-8 px-2 grid place-items-center rounded-md border border-[rgb(var(--border))] text-xs hover:bg-[rgb(var(--bg))]">Apri</a>
                         </div>
+                        {/* Ultima occhiata del fotografo: apre la copia commissione esatta che vedrà lo stampatore (specifiche + foto copertina) */}
+                        <a href={commLink} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-1.5 h-9 rounded-md bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] text-sm font-medium hover:opacity-90">
+                          <Eye size={14} /> Rivedi la copia commissione
+                        </a>
+                        <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Dai un'ultima occhiata prima di inviarla allo stampatore: specifiche, note e <strong>foto in copertina</strong>.</p>
                         <button onClick={() => void genCommission()} disabled={commBusy} className="text-[11px] text-[rgb(var(--gold-700))] hover:underline disabled:opacity-50">Rigenera (riesporta le tavole aggiornate)</button>
                       </div>
                     ) : (
