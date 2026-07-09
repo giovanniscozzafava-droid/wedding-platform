@@ -172,7 +172,7 @@ export default function AlbumCatalogManager() {
             <h1 className="font-display text-3xl sm:text-4xl">Catalogo modelli</h1>
             <p className="text-[rgb(var(--fg-muted))] mt-1">I tuoi modelli d'album: da uno o più PDF, oppure card create a mano dalle tue foto. Costo, prezzo e opzioni per modello.</p>
           </div>
-          {nModels > 0 && (
+          {(nModels > 0 || catalogs.length > 0) && (
             <div className="flex gap-2 flex-wrap">
               {selCatalog && <Button variant="gold" onClick={interpretPdf} disabled={busy} title="L'AI legge tutto il PDF e crea i modelli da zero: riquadri cliccabili + prezzo + materiali/colori/logo/foto, con le intersezioni. Tu controlli e salvi.">
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Interpreta catalogo (AI)
