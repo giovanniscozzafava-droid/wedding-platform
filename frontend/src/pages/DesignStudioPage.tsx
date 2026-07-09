@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   Paintbrush, Pencil, Highlighter, SprayCan, Eraser, Minus, Square, Circle, ArrowUpRight, PaintBucket, Type, Pipette,
   Hand, Move, ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Plus, Trash2, Copy,
-  Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText,
+  Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -114,6 +115,8 @@ export default function DesignStudioPage() {
   const [showNew, setShowNew] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [sp] = useSearchParams(); const navigate = useNavigate()
+  const entryId = sp.get('entry'); const openDocParam = sp.get('doc')
 
   const history = useRef<Array<{ layerId: string; before: string; after: string }>>([])
   const redo = useRef<Array<{ layerId: string; before: string; after: string }>>([])
@@ -170,7 +173,7 @@ export default function DesignStudioPage() {
     setTimeout(() => fitView(w, h), 0)
   }, [fitView])
 
-  useEffect(() => { initDoc(1500, 1500) /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
+  useEffect(() => { if (openDocParam) void openDesign(openDocParam); else initDoc(1500, 1500) /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
   useEffect(() => { composite() }, [composite])
   useEffect(() => {
     resize(); const ro = new ResizeObserver(resize); if (stageRef.current) ro.observe(stageRef.current)
@@ -321,7 +324,7 @@ export default function DesignStudioPage() {
     setSaving(true)
     try {
       const doc = JSON.stringify({ layers: layers.map((l) => ({ ...l, data: layerCanvases.current.get(l.id)!.toDataURL('image/png') })) })
-      const id = await save.mutateAsync({ id: docId, title: title || 'Senza titolo', width: dims.w, height: dims.h, doc, thumbnail: thumbOf() })
+      const id = await save.mutateAsync({ id: docId, title: title || 'Senza titolo', width: dims.w, height: dims.h, doc, thumbnail: thumbOf(), entry_id: entryId })
       setDocId(id); toast.success('Progetto salvato')
     } catch (e) { toast.error((e as Error).message) } finally { setSaving(false) }
   }
@@ -360,7 +363,8 @@ export default function DesignStudioPage() {
     <div ref={rootRef} className="fixed inset-0 z-40 flex flex-col bg-[rgb(var(--bg))] select-none" style={{ touchAction: 'none' }}>
       {/* Top bar */}
       <div className="flex items-center gap-2 px-3 h-12 border-b border-[rgb(var(--border))] shrink-0">
-        <span className="font-semibold text-sm inline-flex items-center gap-1.5"><Paintbrush size={16} /> Studio</span>
+        {entryId && <button onClick={() => navigate(`/weddings/${entryId}`)} title="Torna all'evento" className="h-8 w-8 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))]"><ArrowLeft size={16} /></button>}
+        <span className="font-semibold text-sm inline-flex items-center gap-1.5"><Paintbrush size={16} /> Studio{entryId && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-100))] font-normal">evento</span>}</span>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-8 w-48" />
         <div className="flex items-center gap-1">
           <Button size="sm" variant="outline" onClick={() => setShowNew(true)} title="Nuovo"><FilePlus2 size={14} /></Button>
@@ -452,7 +456,7 @@ export default function DesignStudioPage() {
       </div>
 
       {showNew && <NewDocModal onClose={() => setShowNew(false)} onCreate={(w, h) => { initDoc(w, h); setDocId(null); setTitle('Senza titolo'); setShowNew(false) }} />}
-      {showGallery && <GalleryModal onClose={() => setShowGallery(false)} onOpen={openDesign} onDelete={(id) => del.mutate(id)} />}
+      {showGallery && <GalleryModal entryId={entryId} onClose={() => setShowGallery(false)} onOpen={openDesign} onDelete={(id) => del.mutate(id)} />}
     </div>
   )
 }
@@ -477,8 +481,8 @@ function NewDocModal({ onClose, onCreate }: { onClose: () => void; onCreate: (w:
   )
 }
 
-function GalleryModal({ onClose, onOpen, onDelete }: { onClose: () => void; onOpen: (id: string) => void; onDelete: (id: string) => void }) {
-  const { data: docs } = useDesigns()
+function GalleryModal({ entryId, onClose, onOpen, onDelete }: { entryId: string | null; onClose: () => void; onOpen: (id: string) => void; onDelete: (id: string) => void }) {
+  const { data: docs } = useDesigns(entryId)
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose}>
       <div className="bg-[rgb(var(--bg))] rounded-2xl p-5 w-full max-w-3xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>

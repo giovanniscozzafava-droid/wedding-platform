@@ -33,6 +33,7 @@ import { SubEventsTab } from '@/components/wedding/SubEventsTab'
 import { WebsiteTab } from '@/components/wedding/WebsiteTab'
 import { MembersTab } from '@/components/wedding/MembersTab'
 import { MenuTab } from '@/components/wedding/MenuTab'
+import { GraficaTab } from '@/components/wedding/GraficaTab'
 import { CeremonyTab } from '@/components/wedding/CeremonyTab'
 import { CouplePlanningTab } from '@/components/wedding/CouplePlanningTab'
 import { AllContractsMonitor } from '@/components/wedding/AllContractsMonitor'
@@ -60,7 +61,7 @@ import { fetchUnreadByEntry, tabsWithDot, typesForTab, markEntryTabRead } from '
 import { isPhotoOnlyEvent } from '@/lib/eventMode'
 import { useQueryClient } from '@tanstack/react-query'
 
-type TabKey = 'overview' | 'album_funnel' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'angoli' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video'
+type TabKey = 'overview' | 'album_funnel' | 'planning' | 'ceremony' | 'timeline' | 'tables' | 'guests' | 'regali' | 'menu' | 'budget' | 'payments' | 'checklist' | 'mood' | 'playlist' | 'contract' | 'contracts_net' | 'docs' | 'analytics' | 'accommodations' | 'transport' | 'gadgets' | 'angoli' | 'subevents' | 'website' | 'members' | 'riconciliazione' | 'chat' | 'foto' | 'audio' | 'guestbook' | 'video' | 'grafica'
 
 // Navigazione a due livelli: 7 macro-categorie sempre visibili (riga 1) →
 // le sotto-voci della macro attiva compaiono nella riga 2. Ogni tab dichiara
@@ -96,6 +97,7 @@ const TABS: Array<TabDef> = [
   { key: 'video',          label: 'Video',        icon: Film, group: 'ricordi' },
   { key: 'audio',          label: 'Audio auguri', icon: Mic, group: 'ricordi' },
   { key: 'guestbook',      label: 'Guestbook',    icon: BookHeart, group: 'ricordi' },
+  { key: 'grafica',        label: 'Grafica',      icon: Palette, group: 'ricordi' },
   // Ospiti & festa
   { key: 'guests',         label: 'Invitati',     icon: UsersIcon, group: 'ospiti' },
   { key: 'tables',         label: 'Tavoli',       icon: Table2, group: 'ospiti' },
@@ -454,6 +456,7 @@ export default function WeddingDashboard() {
             {tab === 'foto' && <EventGalleryTab entryId={wedding.id} role={ringView} />}
             {tab === 'audio' && <AudioWishes entryId={wedding.id} readOnly />}
             {tab === 'guestbook' && <Guestbook entryId={wedding.id} readOnly />}
+            {tab === 'grafica' && <GraficaTab entryId={wedding.id} />}
             {tab === 'video' && (
               <div className="rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-8 text-center">
                 <Film size={26} className="mx-auto mb-3 text-[rgb(var(--gold-600))]" />
