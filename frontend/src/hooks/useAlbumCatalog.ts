@@ -93,9 +93,10 @@ export async function interpretCatalog(pdfPath: string): Promise<InterpretedMode
   if (error) throw new Error(error.message)
   if (!data?.ok) {
     const e = data?.error
-    throw new Error(e === 'no_ai_key' ? 'Manca la chiave AI sul server (ANTHROPIC_API_KEY)'
-      : e === 'parse' || e === 'ai_error' ? "L'AI non è riuscita a interpretare il catalogo"
-      : (e ?? 'Interpretazione non riuscita'))
+    const tried: string = Array.isArray(data?.tried) ? data.tried.join(' | ') : ''
+    if (e === 'ai_error' && /credit|balance/i.test(tried)) throw new Error('Crediti AI esauriti (Anthropic). Aggiungi credito, oppure con un catalogo più leggero interviene il provider di riserva.')
+    if (e === 'ai_error' && /too large|file size/i.test(tried)) throw new Error('Catalogo troppo grande per il provider di riserva: serve il provider principale (Anthropic) con credito.')
+    throw new Error(e === 'no_ai_key' ? 'Manca la chiave AI sul server' : e === 'parse' ? "L'AI ha risposto in un formato non valido (catalogo troppo lungo?)" : e === 'ai_error' ? `AI non disponibile${tried ? `: ${tried.slice(0, 140)}` : ''}` : (e ?? 'Interpretazione non riuscita'))
   }
   return (data.models ?? []) as InterpretedModel[]
 }

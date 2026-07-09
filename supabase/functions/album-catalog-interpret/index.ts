@@ -8,7 +8,43 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
+const DASHSCOPE_KEY = Deno.env.get('DASHSCOPE_API_KEY') ?? ''
 const MODEL = 'claude-sonnet-4-6'
+
+// Provider AI con FALLBACK: se il primo è senza credito/giù, prova il successivo.
+// Ritorna il testo della risposta, o null se il provider fallisce (con motivo in `why`).
+async function callAnthropic(url: string, base64: string, prompt: string): Promise<{ text: string } | { why: string }> {
+  if (!ANTHROPIC_KEY) return { why: 'anthropic:no_key' }
+  const source = url ? { type: 'url', url } : { type: 'base64', media_type: 'application/pdf', data: base64 }
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST', headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 16000, messages: [{ role: 'user', content: [{ type: 'document', source }, { type: 'text', text: prompt }] }] }),
+  })
+  if (!r.ok) return { why: `anthropic:${r.status}:${(await r.text()).slice(0, 160)}` }
+  const d = await r.json()
+  return { text: d?.content?.[0]?.text ?? '' }
+}
+// Qwen (DashScope, OpenAI-compatibile). Legge il PDF come immagine → ok solo per cataloghi piccoli.
+async function callQwen(url: string, prompt: string): Promise<{ text: string } | { why: string }> {
+  if (!DASHSCOPE_KEY || !url) return { why: 'qwen:no_key_or_url' }
+  const r = await fetch('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    method: 'POST', headers: { Authorization: `Bearer ${DASHSCOPE_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'qwen-vl-max', max_tokens: 8000, messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url } }, { type: 'text', text: prompt }] }] }),
+  })
+  if (!r.ok) return { why: `qwen:${r.status}:${(await r.text()).slice(0, 160)}` }
+  const d = await r.json()
+  return { text: d?.choices?.[0]?.message?.content ?? '' }
+}
+async function callAI(url: string, base64: string, prompt: string): Promise<{ text: string; provider: string } | { error: string; tried: string[] }> {
+  const tried: string[] = []
+  const a = await callAnthropic(url, base64, prompt)
+  if ('text' in a && a.text) return { text: a.text, provider: 'anthropic' }
+  tried.push('why' in a ? a.why : 'anthropic:empty')
+  const q = await callQwen(url, prompt)
+  if ('text' in q && q.text) return { text: q.text, provider: 'qwen' }
+  tried.push('why' in q ? q.why : 'qwen:empty')
+  return { error: 'all_providers_failed', tried }
+}
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -61,27 +97,13 @@ Deno.serve(async (req) => {
   const url = body.url || ''
   const base64 = (body.base64 || '').replace(/^data:[^,]+,/, '')
   if (!url && !base64) return json({ ok: false, error: 'no_file' })
-  const docSource = url
-    ? { type: 'url', url }
-    : { type: 'base64', media_type: 'application/pdf', data: base64 }
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: MODEL, max_tokens: 16000,
-        messages: [{ role: 'user', content: [
-          { type: 'document', source: docSource },
-          { type: 'text', text: PROMPT },
-        ] }],
-      }),
-    })
-    if (!r.ok) return json({ ok: false, error: 'ai_error', detail: (await r.text()).slice(0, 300) })
-    const d = await r.json()
-    const text: string = d?.content?.[0]?.text ?? ''
+    const ai = await callAI(url, base64, PROMPT)
+    if ('error' in ai) return json({ ok: false, error: 'ai_error', tried: ai.tried })
+    const text: string = ai.text
     const m = text.match(/\{[\s\S]*\}/)
-    if (!m) return json({ ok: false, error: 'parse', raw: text.slice(0, 300) })
+    if (!m) return json({ ok: false, error: 'parse', provider: ai.provider, raw: text.slice(0, 300) })
     const parsed = JSON.parse(m[0])
     const clamp01 = (v: unknown, def: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : def }
     const models = Array.isArray(parsed.models) ? parsed.models.map((x: Record<string, unknown>) => ({
