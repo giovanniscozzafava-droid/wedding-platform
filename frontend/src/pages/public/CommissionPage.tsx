@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Printer, Download, Loader2, FileText, Package } from 'lucide-react'
+import { Download, Loader2, FileText, Package } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getFormat } from '@/lib/albumFormats'
 import { modelLabel, materialLabel, colorLabel, boxLabel, sizeByKey, FINISHES, type Cover } from '@/components/album/albumCatalog'
@@ -48,33 +48,6 @@ export default function CommissionPage() {
   const [data, setData] = useState<Commission | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [dl, setDl] = useState(false)
-
-  // Download dei file (come un WeTransfer, poggia sul Drive del fotografo): il token risolve la
-  // commissione, l'edge function zippa la selezione dal Drive dell'owner e la restituisce.
-  async function downloadFiles(size: 'original' | 'web' = 'original') {
-    if (!token || dl) return
-    setDl(true)
-    try {
-      const base = import.meta.env.VITE_SUPABASE_URL
-      const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
-      const r = await fetch(`${base}/functions/v1/album-commission-zip`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', apikey: anon, Authorization: `Bearer ${anon}` },
-        body: JSON.stringify({ token, size }),
-      })
-      if (!r.ok) {
-        const b = await r.json().catch(() => ({}))
-        throw new Error(b?.error === 'no_selection' ? 'Nessun file selezionato' : b?.error === 'empty' ? 'File non scaricabili (Drive non collegato dal fotografo)' : 'Download non riuscito')
-      }
-      const blob = await r.blob()
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
-      a.download = `file-album.zip`
-      document.body.appendChild(a); a.click(); a.remove()
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000)
-    } catch (e) { alert((e as Error).message) }
-    finally { setDl(false) }
-  }
 
   useEffect(() => {
     (async () => {
@@ -118,15 +91,6 @@ export default function CommissionPage() {
                 <Download size={15} /> Scarica le tavole
               </a>
             )}
-            {selection_count > 0 && (
-              <button onClick={() => void downloadFiles('original')} disabled={dl}
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50 disabled:opacity-60">
-                {dl ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {dl ? 'ZIP…' : 'Foto selezionate'}
-              </button>
-            )}
-            <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50">
-              <Printer size={15} /> Stampa
-            </button>
           </div>
         </div>
 
