@@ -22,6 +22,19 @@ export function useDesigns(entryId?: string | null) {
   })
 }
 
+// Eventi a cui indirizzare/condividere un progetto (RLS: quelli che l'utente può vedere)
+export type AttachableEvent = { id: string; title: string | null; date_from: string | null }
+export function useAttachableEvents() {
+  return useQuery<AttachableEvent[]>({
+    queryKey: ['studio-events'],
+    queryFn: async () => {
+      const { data, error } = await sb('calendar_entries').select('id, title, date_from').order('date_from', { ascending: false }).limit(300)
+      if (error) throw error
+      return (data ?? []) as AttachableEvent[]
+    },
+  })
+}
+
 export async function fetchDesign(id: string): Promise<DesignFull | null> {
   const { data, error } = await sb('design_docs').select('id, title, width, height, thumbnail, doc, updated_at').eq('id', id).maybeSingle()
   if (error) throw error
