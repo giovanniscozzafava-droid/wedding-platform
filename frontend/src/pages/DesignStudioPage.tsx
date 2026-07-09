@@ -224,7 +224,7 @@ export default function DesignStudioPage() {
 
   // ── Pointer ──────────────────────────────────────────────────────────────
   function onDown(e: React.PointerEvent) {
-    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+    try { (e.target as HTMLElement).setPointerCapture?.(e.pointerId) } catch { /* pointer sintetico o non catturabile */ }
     if (tool === 'hand' || spaceRef.current || e.button === 1) { draw.current = { active: false, last: { x: 0, y: 0 }, start: { x: 0, y: 0 }, before: '', panning: true, panStart: { x: e.clientX, y: e.clientY }, panOrig: { ...pan } }; return }
     const p = toDoc(e); const ctx = getCtx(activeId); if (!ctx) return
     if (tool === 'eyedropper') { const disp = displayRef.current!; const r = disp.getBoundingClientRect(); const px = disp.getContext('2d')!.getImageData(Math.round(e.clientX - r.left), Math.round(e.clientY - r.top), 1, 1).data; const hex = '#' + [px[0], px[1], px[2]].map((n) => (n ?? 0).toString(16).padStart(2, '0')).join(''); setColor(hex); pushColor(hex); return }
