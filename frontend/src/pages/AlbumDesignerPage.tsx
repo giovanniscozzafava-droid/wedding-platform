@@ -101,7 +101,7 @@ import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { shareAlbumCommission } from '@/hooks/useAlbumLab'
 import { getCatalogModels } from '@/hooks/useAlbumCatalog'
 import { getDriveToken, ensureDriveFolder, uploadAnyToDrive, driveQuota, driveDownloadUrl } from '@/lib/driveUpload'
-import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ThumbsDown, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 import { MyStylePanel } from '@/components/album/MyStylePanel'
 import { FunnelSteps } from '@/components/album/FunnelSteps'
@@ -235,8 +235,8 @@ function PostitLayer({ pins, openId, onOpen, canPlace, onPlaceAt, placing, compo
         return (
           <div key={p.id} className="absolute" style={{ left: `${p.anchor_x * 100}%`, top: `${p.anchor_y * 100}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'auto' }}>
             <button onPointerDown={(e) => { e.stopPropagation(); onOpen(open ? null : p.id) }}
-              className={`grid place-items-center h-6 w-6 rounded-full rounded-bl-none shadow-md ring-2 ring-white text-[11px] font-bold text-white transition-transform ${open ? 'scale-125' : ''} ${done ? 'bg-emerald-500' : 'bg-[rgb(var(--gold-500))]'}`}
-              title={p.body}>{done ? '✓' : i + 1}</button>
+              className={`grid place-items-center h-6 w-6 rounded-full rounded-bl-none shadow-md ring-2 ring-white text-[11px] font-bold text-white transition-transform ${open ? 'scale-125' : ''} ${done ? 'bg-emerald-500' : p.kind === 'REMOVE' ? 'bg-rose-500' : 'bg-[rgb(var(--gold-500))]'}`}
+              title={p.body}>{done ? '✓' : p.kind === 'REMOVE' ? '✕' : i + 1}</button>
             {open && renderBubble && (
               <div className="absolute left-1/2 top-7 -translate-x-1/2 z-[60] w-60 max-w-[70vw]" onPointerDown={(e) => e.stopPropagation()}>{renderBubble(p)}</div>
             )}
@@ -468,6 +468,7 @@ function AlbumDesignerInner() {
   const [placing, setPlacing] = useState<{ tav: number; x: number; y: number; mediaId: string | null } | null>(null)
   const [openPin, setOpenPin] = useState<string | null>(null)
   const [replaceMode, setReplaceMode] = useState(false)          // post-it "sostituisci la foto"
+  const [removeMode, setRemoveMode] = useState(false)            // post-it "togli/non mi piace" (dislike cliente)
   const [replaceId, setReplaceId] = useState<string | null>(null) // foto scelta per la sostituzione
 
   const role = albumRoleOf(profile?.role)
@@ -737,9 +738,10 @@ function AlbumDesignerInner() {
   // libreria e la scarta (KEPT→DISCARDED). Così sparisce dal cassetto e TUTTI i numeri si aggiornano
   // (Usate, ×N, selezione album, minimi per momento, avviso risoluzione). Vale sia per le foto che ho
   // caricato io sia per quelle scelte dalla coppia. Reversibile dal passo "Selezione" (ri-metti il cuore).
-  async function removeFromSelection(m: M) {
-    const n = usageCount.get(m.id) ?? 0
-    if (n > 0 && !window.confirm(`Questa foto è ${n > 1 ? `usata ${n} volte` : 'usata'} nell'album: toglierla dalla selezione la rimuoverà anche dalle tavole. Procedere?`)) return
+  // NUCLEO condiviso: toglie una foto da TUTTE le tavole + memoria libreria + selezione
+  // (KEPT→DISCARDED). Niente confirm/toast qui: li mettono i chiamanti. Ritorna false se il
+  // salvataggio dello scarto fallisce (così il chiamante non segna "fatto" a vuoto).
+  async function discardMediaCore(m: M): Promise<boolean> {
     // 1) via da tutte le tavole (elementi liberi, slot template, foto a doppia pagina)
     setPages((prev) => prev.map((p) => {
       let np: AlbumPage = p
@@ -763,10 +765,17 @@ function AlbumDesignerInner() {
       const { data, error } = await (supabase.rpc as any)('set_album_choice', { p_media: m.id, p_choice: 'DISCARDED' })
       if (error || (data && (data as { error?: string }).error)) {
         setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: 'KEPT' } : x)))
-        toast.error('Non sono riuscito a togliere la foto dalla selezione'); return
+        return false
       }
     }
-    toast.success('Foto tolta dalla selezione')
+    return true
+  }
+  async function removeFromSelection(m: M) {
+    const n = usageCount.get(m.id) ?? 0
+    if (n > 0 && !window.confirm(`Questa foto è ${n > 1 ? `usata ${n} volte` : 'usata'} nell'album: toglierla dalla selezione la rimuoverà anche dalle tavole. Procedere?`)) return
+    const ok = await discardMediaCore(m)
+    if (ok) toast.success('Foto tolta dalla selezione')
+    else toast.error('Non sono riuscito a togliere la foto dalla selezione')
   }
   // Seleziona/deseleziona TUTTI i cuori in UN colpo (RPC atomica: niente fallimenti parziali).
   async function setKeepAll(choice: 'KEPT' | 'DISCARDED') {
@@ -1546,6 +1555,31 @@ function AlbumDesignerInner() {
   async function resolveRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'DONE' }).eq('id', id); await loadRevs() }
   async function reopenRev(id: string) { await (supabase.from as any)('album_revision_requests').update({ status: 'OPEN' }).eq('id', id); await loadRevs() }
   async function deleteRev(id: string) { await (supabase.from as any)('album_revision_requests').delete().eq('id', id); setOpenPin(null); await loadRevs() }
+  // FOTOGRAFO: applica un "non mi piace / togli" del cliente → rimuove la foto dall'album
+  // (tavole + selezione) e segna la richiesta come fatta. L'album cala di foto (e, ri-impaginando,
+  // di pagine). È l'atto che il dislike del cliente "invita" a compiere.
+  async function applyRemovePostit(p: Postit) {
+    const m = p.media_id ? mediaById.get(p.media_id) : null
+    if (!m) { toast.message('Foto non più disponibile'); await resolveRev(p.id); return }
+    const n = usageCount.get(m.id) ?? 0
+    if (n > 0 && !window.confirm(`Togliere questa foto dall'album?${n > 1 ? ` È usata ${n} volte.` : ''} L'album si accorcerà.`)) return
+    const ok = await discardMediaCore(m)
+    if (!ok) { toast.error('Non sono riuscito a togliere la foto'); return }
+    setOpenPin(null); await resolveRev(p.id)
+    toast.success("Foto tolta dall'album")
+  }
+  // FOTOGRAFO: toglie in blocco TUTTE le foto che il cliente ha chiesto di eliminare (dislike).
+  async function removeAllDisliked() {
+    const reqs = revList.filter((r) => r.status === 'OPEN' && r.kind === 'REMOVE' && r.media_id)
+    const medias = [...new Map(reqs.map((r) => [r.media_id!, mediaById.get(r.media_id!)])).values()].filter(Boolean) as M[]
+    if (!medias.length) { toast('Nessuna foto da togliere'); return }
+    if (!window.confirm(`Togliere ${medias.length} foto dall'album (quelle che il cliente vuole eliminare)? L'album si accorcerà.`)) return
+    let done = 0
+    for (const m of medias) { if (await discardMediaCore(m)) done++ }
+    await (supabase.from as any)('album_revision_requests').update({ status: 'DONE' }).in('id', reqs.map((r) => r.id))
+    await loadRevs()
+    toast.success(`${done} foto tolte dall'album`)
+  }
   // fotografo: risponde "perché meglio di no" → la richiesta passa a DECLINED con la motivazione
   // (tecnica: proporzioni, pagine, risoluzione, taglio, dorso…) e la coppia viene avvisata.
   async function replyRev(id: string, reason: string, text: string) {
@@ -1577,15 +1611,18 @@ function AlbumDesignerInner() {
     if (!placing || !entryId) return
     const body = revBody.trim()
     const isReplace = replaceMode && !!placing.mediaId
-    const defText = isReplace ? (replaceId ? 'Sostituisci con la foto indicata' : 'Sostituisci questa foto') : '(senza testo)'
+    const isRemove = removeMode && !!placing.mediaId
+    const defText = isRemove ? 'Questa foto non mi convince: la toglierei dall\'album'
+      : isReplace ? (replaceId ? 'Sostituisci con la foto indicata' : 'Sostituisci questa foto')
+      : '(senza testo)'
     const { error } = await (supabase.from as any)('album_revision_requests').insert({
       entry_id: entryId, body: body || defText, page_index: placing.tav * 2 + 1,
       tavola_index: placing.tav, anchor_x: placing.x, anchor_y: placing.y, media_id: placing.mediaId,
-      kind: isReplace ? 'REPLACE' : 'NOTE', replace_media_id: isReplace ? replaceId : null,
+      kind: isRemove ? 'REMOVE' : isReplace ? 'REPLACE' : 'NOTE', replace_media_id: isReplace ? replaceId : null,
     })
     if (error) { toast.error(error.message); return }
-    toast.success(isReplace ? 'Richiesta di sostituzione inviata' : 'Post-it inviato al fotografo')
-    setRevBody(''); setPlacing(null); setReplaceMode(false); setReplaceId(null); await loadRevs()
+    toast.success(isRemove ? 'Segnalato: toglieresti questa foto' : isReplace ? 'Richiesta di sostituzione inviata' : 'Post-it inviato al fotografo')
+    setRevBody(''); setPlacing(null); setReplaceMode(false); setRemoveMode(false); setReplaceId(null); await loadRevs()
   }
   // FOTOGRAFO: applica una richiesta "sostituisci con" → rimpiazza la foto del post-it sulla tavola
   // con quella scelta dal cliente, pronta da inserire. Poi segna il post-it come fatto.
@@ -2310,18 +2347,20 @@ function AlbumDesignerInner() {
         <PostitLayer
           pins={tavPins(si)} openId={interactive ? openPin : null} onOpen={interactive ? setOpenPin : () => {}}
           canPlace={!!interactive && isCouple}
-          onPlaceAt={(x, y) => { setRevBody(''); setReplaceMode(false); setReplaceId(null); setPlacing({ tav: si, x, y, mediaId: hitMediaAt(pair[0], x, y) }) }}
+          onPlaceAt={(x, y) => { setRevBody(''); setReplaceMode(false); setRemoveMode(false); setReplaceId(null); setPlacing({ tav: si, x, y, mediaId: hitMediaAt(pair[0], x, y) }) }}
           placing={placing && placing.tav === si ? placing : null}
           composer={interactive && placing && placing.tav === si ? (
             <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 space-y-2 -rotate-1">
               <p className="text-[11px] text-amber-800 font-medium">{placing.mediaId ? '📷 Su questa foto' : '📍 Su questo punto'} · Tav. {si + 1}</p>
               {placing.mediaId && (
                 <div className="flex gap-1">
-                  <button onClick={() => setReplaceMode(false)} className={`flex-1 text-[11px] py-1 rounded border ${!replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>✍️ Nota</button>
-                  <button onClick={() => setReplaceMode(true)} className={`flex-1 text-[11px] py-1 rounded border ${replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>🔄 Sostituisci</button>
+                  <button onClick={() => { setReplaceMode(false); setRemoveMode(false) }} className={`flex-1 text-[11px] py-1 rounded border ${!replaceMode && !removeMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>✍️ Nota</button>
+                  <button onClick={() => { setReplaceMode(true); setRemoveMode(false) }} className={`flex-1 text-[11px] py-1 rounded border ${replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>🔄 Sostituisci</button>
+                  <button onClick={() => { setRemoveMode(true); setReplaceMode(false) }} className={`flex-1 inline-flex items-center justify-center gap-1 text-[11px] py-1 rounded border ${removeMode ? 'bg-rose-500 text-white border-rose-500' : 'border-rose-300 text-rose-600'}`}><ThumbsDown size={11} /> Togli</button>
                 </div>
               )}
-              <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={2} autoFocus placeholder={replaceMode ? 'Perché la cambieresti? (facoltativo)' : 'Cosa vorresti cambiare qui?'} className="w-full text-sm rounded border border-amber-300 bg-white/90 px-2 py-1.5 outline-none focus:border-amber-500" />
+              <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={2} autoFocus placeholder={removeMode ? 'Perché la toglieresti? (facoltativo)' : replaceMode ? 'Perché la cambieresti? (facoltativo)' : 'Cosa vorresti cambiare qui?'} className={`w-full text-sm rounded border bg-white/90 px-2 py-1.5 outline-none ${removeMode ? 'border-rose-300 focus:border-rose-500' : 'border-amber-300 focus:border-amber-500'}`} />
+              {removeMode && <p className="text-[10px] text-rose-600 leading-snug">La segnali al fotografo come foto da togliere: l'album può scendere di foto (e di pagine).</p>}
               {replaceMode && placing.mediaId && (
                 <div className="space-y-1">
                   <p className="text-[10px] text-amber-700">Con quale foto? <span className="opacity-70">(facoltativo — può scegliere il fotografo)</span></p>
@@ -2336,8 +2375,8 @@ function AlbumDesignerInner() {
                 </div>
               )}
               <div className="flex justify-end gap-1.5">
-                <button onClick={() => { setPlacing(null); setReplaceMode(false); setReplaceId(null) }} className="text-xs px-2 py-1 rounded text-amber-800 hover:bg-amber-100">Annulla</button>
-                <button onClick={() => void savePostit()} className="text-xs px-2.5 py-1 rounded bg-amber-500 text-white font-medium hover:bg-amber-600">{replaceMode ? 'Chiedi sostituzione' : 'Invia'}</button>
+                <button onClick={() => { setPlacing(null); setReplaceMode(false); setRemoveMode(false); setReplaceId(null) }} className="text-xs px-2 py-1 rounded text-amber-800 hover:bg-amber-100">Annulla</button>
+                <button onClick={() => void savePostit()} className={`text-xs px-2.5 py-1 rounded text-white font-medium ${removeMode ? 'bg-rose-500 hover:bg-rose-600' : 'bg-amber-500 hover:bg-amber-600'}`}>{removeMode ? 'Chiedi di togliere' : replaceMode ? 'Chiedi sostituzione' : 'Invia'}</button>
               </div>
             </div>
           ) : null}
@@ -2347,6 +2386,7 @@ function AlbumDesignerInner() {
             return (
             <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 -rotate-1">
               {isRepl && <p className="text-[10px] font-medium text-amber-800 mb-1 flex items-center gap-1">🔄 Sostituisci questa foto{rep ? ' con:' : ''}</p>}
+              {p.kind === 'REMOVE' && <p className="text-[10px] font-medium text-rose-600 mb-1 flex items-center gap-1"><ThumbsDown size={11} /> Hai chiesto di togliere questa foto</p>}
               {isRepl && rep && <img src={thumbUrl(rep)} alt="" className="w-full h-20 object-cover rounded mb-1.5" />}
               {p.body && p.body !== '(senza testo)' && <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>}
               <div className="mt-1.5 flex items-center justify-between gap-2">
@@ -2443,7 +2483,7 @@ function AlbumDesignerInner() {
                           {/* puntine post-it (sola lettura) sulla metà giusta della tavola */}
                           {tavPins(fp.si).filter((p) => p.anchor_x != null && ((fp.side === 'L') === ((p.anchor_x as number) < 0.5))).map((p) => {
                             const lx = fp.side === 'L' ? (p.anchor_x as number) * 2 : ((p.anchor_x as number) - 0.5) * 2
-                            return <span key={p.id} className="absolute h-3 w-3 rounded-full bg-amber-400 border border-white shadow -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ left: `${lx * 100}%`, top: `${(p.anchor_y as number) * 100}%` }} />
+                            return <span key={p.id} className={`absolute h-3 w-3 rounded-full border border-white shadow -translate-x-1/2 -translate-y-1/2 pointer-events-none ${p.kind === 'REMOVE' ? 'bg-rose-500' : 'bg-amber-400'}`} style={{ left: `${lx * 100}%`, top: `${(p.anchor_y as number) * 100}%` }} />
                           })}
                         </div>
                       </div>
@@ -2982,11 +3022,13 @@ function AlbumDesignerInner() {
                         return (
                         <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 text-[rgb(var(--fg))]">
                           {isRepl && <p className="text-[11px] font-semibold text-amber-800 mb-1">🔄 Richiesta: sostituisci questa foto{rep ? ' con quella scelta:' : ' (foto a tua scelta)'}</p>}
+                          {p.kind === 'REMOVE' && <p className="text-[11px] font-semibold text-rose-600 mb-1 flex items-center gap-1"><ThumbsDown size={12} /> Il cliente toglierebbe questa foto</p>}
                           {isRepl && rep && <img src={thumbUrl(rep)} alt="" className="w-full h-24 object-cover rounded mb-1.5" />}
                           {p.body && p.body !== '(senza testo)' && <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>}
                           <p className="text-[10px] text-amber-700 mt-1">{p.author_name ?? 'Cliente'} · {new Date(p.created_at).toLocaleDateString('it-IT')}</p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 justify-end">
                             {isRepl && rep && p.status === 'OPEN' && <button onClick={() => applyReplacePostit(p)} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-[rgb(var(--gold-500))] text-white font-medium"><Shuffle size={11} /> Inserisci la foto</button>}
+                            {p.kind === 'REMOVE' && p.status === 'OPEN' && <button onClick={() => void applyRemovePostit(p)} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-rose-500 text-white font-medium"><ThumbsDown size={11} /> Togli dall'album</button>}
                             {p.status === 'OPEN'
                               ? <button onClick={() => { void resolveRev(p.id); setOpenPin(null) }} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-emerald-500 text-white"><Check size={11} /> Fatto</button>
                               : <button onClick={() => void reopenRev(p.id)} className="text-[11px] px-2 py-0.5 rounded border border-amber-300">Riapri</button>}
@@ -3629,6 +3671,12 @@ function AlbumDesignerInner() {
                   </div>
                 </div>
                 <div className="p-4 overflow-auto space-y-2">
+                  {!isCouple && (() => { const dis = revList.filter((r) => r.status === 'OPEN' && r.kind === 'REMOVE'); return dis.length > 0 ? (
+                    <div className="rounded-lg border border-rose-300 bg-rose-50 p-2.5 flex items-center justify-between gap-2">
+                      <p className="text-[13px] text-rose-700 flex items-center gap-1.5"><ThumbsDown size={14} /> Il cliente vuole togliere <strong>{dis.length}</strong> foto dall'album</p>
+                      <button onClick={() => void removeAllDisliked()} className="shrink-0 text-[12px] px-2.5 py-1 rounded-md bg-rose-500 text-white font-medium hover:bg-rose-600">Togli tutte</button>
+                    </div>
+                  ) : null })()}
                   {revList.length === 0 && <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessuna richiesta ancora.</p>}
                   {revList.map((r) => (
                     <div key={r.id} className={`rounded-lg border p-2.5 text-sm ${r.status === 'DONE' ? 'opacity-60 border-[rgb(var(--border))]' : r.status === 'DECLINED' ? 'border-sky-300 bg-sky-50' : 'border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/30'}`}>
@@ -3639,6 +3687,7 @@ function AlbumDesignerInner() {
                         </div>
                         {!isCouple && r.status === 'OPEN' && (
                           <div className="shrink-0 flex items-center gap-1">
+                            {r.kind === 'REMOVE' && <button onClick={() => void applyRemovePostit(r)} title="Togli la foto dall'album" className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-rose-500 text-white font-medium hover:bg-rose-600"><ThumbsDown size={12} /> Togli</button>}
                             <button onClick={() => void resolveRev(r.id)} title="Segna fatto" className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><Check size={12} /> Fatto</button>
                             <button onClick={() => (replyFor === r.id ? setReplyFor(null) : startReply(r.id, 'proporzioni'))} title="Spiega perché conviene tenerla così" className="inline-flex items-center text-[11px] px-2 py-1 rounded border border-sky-300 text-sky-700 hover:bg-sky-100">Perché meglio di no</button>
                           </div>
