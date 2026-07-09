@@ -9,7 +9,7 @@ import { PdfHotspotEditor } from '@/components/album/catalog/PdfHotspotEditor'
 import { ModelOptionsEditor } from '@/components/album/catalog/ModelOptionsEditor'
 import {
   getMyModels, uploadCatalogPdf, saveAllModels, saveCatalogMarkup, uploadCardImage, applyMarkup,
-  uploadTempPdf, catalogPublicUrl, extractCatalogPrices, type Catalog, type Hotspot, type ModelOptions,
+  uploadTempPdf, catalogPublicUrl, extractCatalogPrices, interpretCatalog, type Catalog, type Hotspot, type ModelOptions,
 } from '@/hooks/useAlbumCatalog'
 
 // Lato fotografo: i MODELLI come card unificate. Vengono da uno o più PDF (riquadri marcati) oppure
@@ -131,6 +131,26 @@ export default function AlbumCatalogManager() {
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 
+  // AI: INTERPRETA tutto il PDF → CREA i modelli da zero (posizione + prezzo + pagine + opzioni
+  // materiali/colori/logo/foto-copertina, con le intersezioni). Sostituisce i modelli di questo PDF.
+  async function interpretPdf() {
+    if (!selCatalog) return
+    if (models.some((m) => m.catalog_id === selCat) && !window.confirm("L'AI ricrea i modelli di questo PDF da capo (posizione, prezzo, opzioni). Sostituire quelli attuali? Le card a mano e gli altri PDF restano.")) return
+    setBusy(true)
+    try {
+      const found = await interpretCatalog(selCatalog.pdf_path)
+      if (!found.length) { toast.message("L'AI non ha trovato modelli nel PDF"); return }
+      const created: Hotspot[] = found.map((f, i) => ({
+        catalog_id: selCat, page: f.page, x: f.x, y: f.y, w: f.w, h: f.h,
+        label: f.label, cost: null, price: f.price ?? null, default_pages: f.pages ?? null, default_format: null, sort_order: i,
+        options: { materials: f.materials, colors: f.colors, logos: f.logos, coverPhoto: f.coverPhoto, coverPhotoSurcharge: 0 } as ModelOptions,
+      }))
+      setModels((ms) => [...ms.filter((m) => m.catalog_id !== selCat), ...created])
+      setDirty(true)
+      toast.success(`AI: ${created.length} modelli creati (riquadri + opzioni). Controlla i riquadri sulle pagine e i prezzi, poi salva.`, { duration: 13000 })
+    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+
   // Target del modale opzioni (ricalcolato dallo stato corrente → mai stale).
   const optTarget = opt ? (opt.kind === 'pdf' ? pdfModels[opt.i] : manualCards[opt.i]) : null
   const applyOptions = (o: ModelOptions) => {
@@ -154,7 +174,10 @@ export default function AlbumCatalogManager() {
           </div>
           {nModels > 0 && (
             <div className="flex gap-2 flex-wrap">
-              {selCatalog && <Button variant="outline" onClick={readCosts} disabled={busy} title="L'AI legge i COSTI dal PDF del catalogo selezionato">
+              {selCatalog && <Button variant="gold" onClick={interpretPdf} disabled={busy} title="L'AI legge tutto il PDF e crea i modelli da zero: riquadri cliccabili + prezzo + materiali/colori/logo/foto, con le intersezioni. Tu controlli e salvi.">
+                {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Interpreta catalogo (AI)
+              </Button>}
+              {selCatalog && <Button variant="outline" onClick={readCosts} disabled={busy} title="L'AI legge solo i COSTI dal PDF selezionato">
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Leggi costi (AI)
               </Button>}
               <label className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-xl border border-[rgb(var(--border))] cursor-pointer hover:border-[rgb(var(--gold-300))] ${busy ? 'opacity-50 pointer-events-none' : ''}`} title="Carica il tuo listino PREZZI DI VENDITA (PDF): l'AI li associa ai modelli. Margine = prezzo − costo.">

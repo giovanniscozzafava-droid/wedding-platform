@@ -85,6 +85,30 @@ export async function extractCatalogPrices(pdfPath: string): Promise<{ label: st
   return (data.models ?? []) as { label: string; price: number | null }[]
 }
 
+// AI: INTERPRETA tutto il catalogo PDF → modelli strutturati (posizione + prezzo + pagine + opzioni
+// materiali/colori/logo/foto-copertina, con le intersezioni). Il fotografo poi conferma.
+export type InterpretedModel = {
+  label: string; price: number | null; pages: number | null
+  page: number; x: number; y: number; w: number; h: number
+  materials: ModelOption[]; colors: ModelOption[]; logos: ModelOption[]; coverPhoto: boolean
+}
+export async function interpretCatalog(pdfPath: string): Promise<InterpretedModel[]> {
+  const buf = await (await fetch(catalogPublicUrl(pdfPath))).arrayBuffer()
+  const bytes = new Uint8Array(buf)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!)
+  const base64 = btoa(bin)
+  const { data, error } = await (supabase as any).functions.invoke('album-catalog-interpret', { body: { base64 } })
+  if (error) throw new Error(error.message)
+  if (!data?.ok) {
+    const e = data?.error
+    throw new Error(e === 'no_ai_key' ? 'Manca la chiave AI sul server (ANTHROPIC_API_KEY)'
+      : e === 'parse' || e === 'ai_error' ? "L'AI non è riuscita a interpretare il catalogo"
+      : (e ?? 'Interpretazione non riuscita'))
+  }
+  return (data.models ?? []) as InterpretedModel[]
+}
+
 // Modelli del catalogo del fotografo (label + prezzo), per il listino/pacchetti e il pannello prezzo.
 export async function getCatalogModels(): Promise<{ label: string; price: number | null }[]> {
   const r = await getMyCatalog()
