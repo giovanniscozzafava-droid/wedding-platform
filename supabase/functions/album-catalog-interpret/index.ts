@@ -55,19 +55,24 @@ Deno.serve(async (req) => {
   const { data: cu } = await admin.auth.getUser(authH.slice(7))
   if (!cu?.user) return json({ ok: false, error: 'auth' })
 
-  let body: { base64?: string }
+  // Preferiamo l'URL (Claude scarica il PDF: niente base64, regge cataloghi fino a 32MB/100 pagine).
+  let body: { url?: string; base64?: string }
   try { body = await req.json() } catch { return json({ ok: false, error: 'bad_json' }) }
+  const url = body.url || ''
   const base64 = (body.base64 || '').replace(/^data:[^,]+,/, '')
-  if (!base64) return json({ ok: false, error: 'no_file' })
+  if (!url && !base64) return json({ ok: false, error: 'no_file' })
+  const docSource = url
+    ? { type: 'url', url }
+    : { type: 'base64', media_type: 'application/pdf', data: base64 }
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: MODEL, max_tokens: 8000,
+        model: MODEL, max_tokens: 16000,
         messages: [{ role: 'user', content: [
-          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+          { type: 'document', source: docSource },
           { type: 'text', text: PROMPT },
         ] }],
       }),

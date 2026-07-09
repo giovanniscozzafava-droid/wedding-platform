@@ -69,12 +69,7 @@ export async function uploadTempPdf(file: File): Promise<string> {
 
 // AI: legge il PDF del catalogo ed estrae [{label, price}] (il fotografo poi conferma).
 export async function extractCatalogPrices(pdfPath: string): Promise<{ label: string; price: number | null }[]> {
-  const buf = await (await fetch(catalogPublicUrl(pdfPath))).arrayBuffer()
-  const bytes = new Uint8Array(buf)
-  let bin = ''
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!)
-  const base64 = btoa(bin)
-  const { data, error } = await (supabase as any).functions.invoke('album-catalog-extract', { body: { base64 } })
+  const { data, error } = await (supabase as any).functions.invoke('album-catalog-extract', { body: { url: catalogPublicUrl(pdfPath) } })
   if (error) throw new Error(error.message)
   if (!data?.ok) {
     const e = data?.error
@@ -93,12 +88,8 @@ export type InterpretedModel = {
   materials: ModelOption[]; colors: ModelOption[]; logos: ModelOption[]; coverPhoto: boolean
 }
 export async function interpretCatalog(pdfPath: string): Promise<InterpretedModel[]> {
-  const buf = await (await fetch(catalogPublicUrl(pdfPath))).arrayBuffer()
-  const bytes = new Uint8Array(buf)
-  let bin = ''
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!)
-  const base64 = btoa(bin)
-  const { data, error } = await (supabase as any).functions.invoke('album-catalog-interpret', { body: { base64 } })
+  // Passiamo l'URL pubblico del PDF: lo scarica Claude (niente base64 → regge cataloghi grandi).
+  const { data, error } = await (supabase as any).functions.invoke('album-catalog-interpret', { body: { url: catalogPublicUrl(pdfPath) } })
   if (error) throw new Error(error.message)
   if (!data?.ok) {
     const e = data?.error
