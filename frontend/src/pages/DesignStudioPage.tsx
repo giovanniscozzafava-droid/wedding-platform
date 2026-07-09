@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import {
   Paintbrush, Pencil, Highlighter, SprayCan, Eraser, Minus, Square, Circle, ArrowUpRight, PaintBucket, Type, Pipette,
   Hand, Move, ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Plus, Trash2, Copy,
-  Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft,
+  Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -115,6 +115,7 @@ export default function DesignStudioPage() {
   const [showNew, setShowNew] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [rightOpen, setRightOpen] = useState(true)
   const [sp] = useSearchParams(); const navigate = useNavigate()
   const entryId = sp.get('entry'); const openDocParam = sp.get('doc')
 
@@ -407,8 +408,12 @@ export default function DesignStudioPage() {
           <div ref={ringRef} className="pointer-events-none absolute rounded-full border border-white/80 mix-blend-difference -translate-x-1/2 -translate-y-1/2" style={{ display: 'none' }} />
         </div>
 
-        {/* Pannello destro */}
-        <div className="w-60 shrink-0 border-l border-[rgb(var(--border))] flex flex-col overflow-y-auto">
+        {/* Pannello destro (riducibile) */}
+        {!rightOpen && (
+          <button onClick={() => setRightOpen(true)} title="Mostra strumenti" className="w-8 shrink-0 border-l border-[rgb(var(--border))] grid place-items-center hover:bg-[rgb(var(--bg-sunken))]"><PanelRightOpen size={16} /></button>
+        )}
+        <div className={`${rightOpen ? 'w-60' : 'hidden'} shrink-0 border-l border-[rgb(var(--border))] flex flex-col overflow-y-auto relative`}>
+          <button onClick={() => setRightOpen(false)} title="Riduci pannello" className="absolute -left-3 top-2 z-20 h-6 w-6 grid place-items-center rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--bg))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] shadow-sm"><PanelRightClose size={13} /></button>
           {/* Colore + pennello */}
           <div className="p-3 border-b border-[rgb(var(--border))] space-y-2">
             <div className="flex items-center gap-2">
