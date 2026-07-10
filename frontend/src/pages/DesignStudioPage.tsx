@@ -55,6 +55,30 @@ function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(m[1]!, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 const rgba = (hex: string, a: number) => { const [r, g, b] = hexToRgb(hex); return `rgba(${r},${g},${b},${a})` }
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
+const rgbToHex = (r: number, g: number, b: number) => '#' + [r, g, b].map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')).join('')
+function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
+  h = ((h % 360) + 360) % 360; s = clamp01(s); v = clamp01(v)
+  const c = v * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v - c
+  let r = 0, g = 0, b = 0
+  if (h < 60) { r = c; g = x } else if (h < 120) { r = x; g = c } else if (h < 180) { g = c; b = x } else if (h < 240) { g = x; b = c } else if (h < 300) { r = x; b = c } else { r = c; b = x }
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255]
+}
+function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn
+  let h = 0
+  if (d) { if (mx === r) h = 60 * (((g - b) / d) % 6); else if (mx === g) h = 60 * ((b - r) / d + 2); else h = 60 * ((r - g) / d + 4) }
+  if (h < 0) h += 360
+  return [h, mx ? d / mx : 0, mx]
+}
+// vincola il punto finale: forme perfette (quadrato/cerchio) o angoli a 45° con Shift
+function constrainEnd(a: Pt, b: Pt, tool: Tool, shift: boolean): Pt {
+  if (!shift) return b
+  const dx = b.x - a.x, dy = b.y - a.y
+  if (tool === 'line' || tool === 'arrow') { const len = Math.hypot(dx, dy); const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4); return { x: a.x + Math.cos(ang) * len, y: a.y + Math.sin(ang) * len } }
+  const side = Math.max(Math.abs(dx), Math.abs(dy)); return { x: a.x + Math.sign(dx || 1) * side, y: a.y + Math.sign(dy || 1) * side }
+}
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.crossOrigin = 'anonymous'; i.src = src })
 }
@@ -163,6 +187,9 @@ export default function DesignStudioPage() {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [recent, setRecent] = useState<string[]>([])
+  const [palette, setPalette] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('studio-palette') || '[]') as string[] } catch { return [] } })
+  const [showWheel, setShowWheel] = useState(true)
+  useEffect(() => { try { localStorage.setItem('studio-palette', JSON.stringify(palette)) } catch { /* no-op */ } }, [palette])
   const [title, setTitle] = useState('Senza titolo')
   const [docId, setDocId] = useState<string | null>(null)
   const [showNew, setShowNew] = useState(false)
@@ -294,14 +321,14 @@ export default function DesignStudioPage() {
       const p = toDoc(e); const dx = p.x - st.start.x, dy = p.y - st.start.y
       void loadImage(st.before).then((img) => { ctx.clearRect(0, 0, dims.w, dims.h); ctx.drawImage(img, dx, dy); composite() })
     } else if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') {
-      composite(); const c2 = displayRef.current!.getContext('2d')!; c2.save(); c2.translate(pan.x, pan.y); c2.scale(zoom, zoom); drawShape(c2, tool, st.start, toDoc(e), { color, size, fill, alpha: opacity }); c2.restore()
+      composite(); const c2 = displayRef.current!.getContext('2d')!; c2.save(); c2.translate(pan.x, pan.y); c2.scale(zoom, zoom); drawShape(c2, tool, st.start, constrainEnd(st.start, toDoc(e), tool, e.shiftKey), { color, size, fill, alpha: opacity }); c2.restore()
     }
   }
   function onUp(e: React.PointerEvent) {
     const st = draw.current; draw.current = null; if (!st || st.panning) return
     const ctx = getCtx(activeId); if (!ctx) return
     if (PAINT.has(tool)) { const end = toDoc(e); if (tool === 'smudge') smudge(ctx, st.last, end, pressureOf(e)); else { paintM(ctx, st.last, end, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e) }); pushColor(color) } ctx.globalCompositeOperation = 'source-over'; composite() }
-    if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') { drawShape(ctx, tool, st.start, toDoc(e), { color, size, fill, alpha: opacity }); composite() }
+    if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') { drawShape(ctx, tool, st.start, constrainEnd(st.start, toDoc(e), tool, e.shiftKey), { color, size, fill, alpha: opacity }); composite() }
     pushHistory(activeId, st.before, layerCanvases.current.get(activeId)!.toDataURL())
   }
   function onWheel(e: React.WheelEvent) {
@@ -462,6 +489,12 @@ export default function DesignStudioPage() {
               <input type="color" value={color} onChange={(e) => { setColor(e.target.value); pushColor(e.target.value) }} className="h-9 w-9 rounded cursor-pointer border border-[rgb(var(--border))]" />
               <Input value={color} onChange={(e) => setColor(e.target.value)} className="h-8 flex-1" />
             </div>
+            {showWheel && <ColorWheel color={color} onChange={(c) => { setColor(c); pushColor(c) }} />}
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowWheel((w) => !w)} className="text-[10px] text-[rgb(var(--gold-700))]">{showWheel ? '− Ruota colore' : '+ Ruota colore'}</button>
+              <button onClick={() => setPalette((p) => (p.includes(color) ? p : [color, ...p].slice(0, 30)))} className="ml-auto text-[10px] text-[rgb(var(--gold-700))] inline-flex items-center gap-0.5"><Plus size={11} /> Salva in palette</button>
+            </div>
+            {palette.length > 0 && <div className="flex flex-wrap gap-1">{palette.map((c, i) => <button key={i} onClick={() => { setColor(c); pushColor(c) }} onContextMenu={(e) => { e.preventDefault(); setPalette((p) => p.filter((x) => x !== c)) }} title="Click = usa · tasto destro = rimuovi" className="h-5 w-5 rounded border border-[rgb(var(--border))]" style={{ background: c }} />)}</div>}
             <div className="flex flex-wrap gap-1">{SWATCHES.map((c) => <button key={c} onClick={() => { setColor(c); pushColor(c) }} className="h-5 w-5 rounded border border-[rgb(var(--border))]" style={{ background: c }} />)}</div>
             {recent.length > 0 && <div className="flex flex-wrap gap-1">{recent.map((c, i) => <button key={i} onClick={() => setColor(c)} className="h-4 w-4 rounded" style={{ background: c }} />)}</div>}
             {tool !== 'text' && <>
@@ -471,6 +504,7 @@ export default function DesignStudioPage() {
               {PAINT.has(tool) && <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Simmetria<Select value={sym} onChange={(e) => setSym(e.target.value as SymMode)} className="h-8 mt-0.5"><option value="off">Nessuna</option><option value="v">Verticale</option><option value="h">Orizzontale</option><option value="quad">Quadrante (4)</option><option value="radial">Radiale (6)</option></Select></label>}
               {PAINT.has(tool) && <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Penna: pressione e inclinazione attive. Matita/gessetto sfumano con l'inclinazione.</p>}
               {(tool === 'rect' || tool === 'ellipse') && <label className="flex items-center gap-1.5 text-[11px] text-[rgb(var(--fg-muted))]"><input type="checkbox" checked={fill} onChange={(e) => setFill(e.target.checked)} /> Riempi forma</label>}
+              {(tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') && <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Tieni <strong>Shift</strong> = forma perfetta (quadrato/cerchio) o angoli a 45°.</p>}
             </>}
             {tool === 'text' && <>
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Corpo: {fontSize}px<input type="range" min={12} max={300} value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="w-full" /></label>
@@ -517,6 +551,41 @@ export default function DesignStudioPage() {
 
       {showNew && <NewDocModal onClose={() => setShowNew(false)} onCreate={(w, h) => { initDoc(w, h); setDocId(null); setTitle('Senza titolo'); setShowNew(false) }} />}
       {showGallery && <GalleryModal entryId={entryId} onClose={() => setShowGallery(false)} onOpen={openDesign} onDelete={(id) => del.mutate(id)} />}
+    </div>
+  )
+}
+
+function ColorWheel({ color, onChange }: { color: string; onChange: (hex: string) => void }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  const [hsv, setHsv] = useState<[number, number, number]>(() => { const [r, g, b] = hexToRgb(color); return rgbToHsv(r, g, b) })
+  const [h, s, v] = hsv
+  const R = 82
+  useEffect(() => {
+    const [r, g, b] = hexToRgb(color); const c = hsvToRgb(h, s, v)
+    if (Math.round(c[0]) !== r || Math.round(c[1]) !== g || Math.round(c[2]) !== b) setHsv(rgbToHsv(r, g, b))
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [color])
+  useEffect(() => {
+    const cvs = ref.current; if (!cvs) return; const ctx = cvs.getContext('2d')!; const D = R * 2; const img = ctx.createImageData(D, D); const d = img.data
+    for (let y = 0; y < D; y++) for (let x = 0; x < D; x++) {
+      const dx = x - R, dy = y - R, rr = Math.hypot(dx, dy), i = (y * D + x) * 4
+      if (rr <= R) { const hue = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360, sat = rr / R; const [cr, cg, cb] = hsvToRgb(hue, sat, v); d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; d[i + 3] = 255 } else d[i + 3] = 0
+    }
+    ctx.putImageData(img, 0, 0)
+  }, [v])
+  const pick = (e: React.PointerEvent) => {
+    const cvs = ref.current!; const rect = cvs.getBoundingClientRect(); const x = e.clientX - rect.left - R, y = e.clientY - rect.top - R
+    const rr = Math.min(R, Math.hypot(x, y)); const hue = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360, sat = rr / R
+    setHsv([hue, sat, v]); const [cr, cg, cb] = hsvToRgb(hue, sat, v); onChange(rgbToHex(cr, cg, cb))
+  }
+  const mx = R + Math.cos((h * Math.PI) / 180) * s * R, my = R + Math.sin((h * Math.PI) / 180) * s * R
+  return (
+    <div>
+      <div className="relative mx-auto" style={{ width: R * 2, height: R * 2 }}>
+        <canvas ref={ref} width={R * 2} height={R * 2} className="rounded-full cursor-crosshair" style={{ touchAction: 'none' }} onPointerDown={pick} onPointerMove={(e) => { if (e.buttons) pick(e) }} />
+        <div className="absolute w-3 h-3 rounded-full border-2 border-white shadow -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ left: mx, top: my, background: color }} />
+      </div>
+      <label className="block text-[11px] text-[rgb(var(--fg-muted))] mt-1">Luminosità<input type="range" min={0} max={1} step={0.01} value={v} onChange={(e) => { const nv = Number(e.target.value); setHsv([h, s, nv]); const [cr, cg, cb] = hsvToRgb(h, s, nv); onChange(rgbToHex(cr, cg, cb)) }} className="w-full" /></label>
     </div>
   )
 }
