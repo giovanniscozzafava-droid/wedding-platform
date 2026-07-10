@@ -34,6 +34,8 @@ export default function CaroselloPage() {
   const [strip, setStrip] = useState<AlbumPage>({ id: 'strip', moment: null, template: '1', mediaIds: [], mode: 'free', elements: [], bg: '#ffffff' })
   const [selId, setSelId] = useState<string | null>(null)
   const [modelKey, setModelKey] = useState<string | null>('one')
+  const [modelCat, setModelCat] = useState<'base' | 'editoriale'>('base')
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [exportProg, setExportProg] = useState<{ done: number; total: number; zip?: number } | null>(null)
   const loadedRef = useRef(false)
@@ -89,6 +91,21 @@ export default function CaroselloPage() {
     autoTimer.current = window.setTimeout(() => { void save() }, 1500)
     return () => { if (autoTimer.current) window.clearTimeout(autoTimer.current) }
   }, [strip, format, n, save])
+
+  // ── tasto CANC/Backspace: elimina l'elemento selezionato ────────────────────
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selId) {
+        e.preventDefault()
+        setStrip((s) => ({ ...s, elements: (s.elements ?? []).filter((x) => x.id !== selId) }))
+        setSelId(null); setModelKey(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selId])
 
   // ── helpers editing ─────────────────────────────────────────────────────────
   const setElements = (els: FreeEl[]) => setStrip((s) => ({ ...s, elements: els }))
@@ -190,18 +207,26 @@ export default function CaroselloPage() {
       </header>
 
       {/* PREMODELLI */}
-      <div className="bg-[rgb(var(--bg))] border-b border-[rgb(var(--border))] px-3 sm:px-5 py-2 flex items-center gap-2 overflow-x-auto">
-        <span className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] flex items-center gap-1 shrink-0"><LayoutTemplate size={13} /> Premodelli</span>
-        {CAROUSEL_MODELS.map((m) => (
-          <button key={m.key} title={m.hint} onClick={() => applyModel(m.key)}
-            className={`shrink-0 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${modelKey === m.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{m.label}</button>
-        ))}
-        <span className="text-[11px] text-[rgb(var(--fg-subtle))] shrink-0 ml-1">oppure sposta/ridimensiona a mano</span>
-        <div className="ml-auto flex items-center gap-1 shrink-0">
-          <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Sfondo</span>
-          {BG_SWATCHES.map((c) => (
-            <button key={c} onClick={() => setStrip((s) => ({ ...s, bg: c }))} title="Sfondo strip"
-              className={`h-6 w-6 rounded-full border ${strip.bg === c ? 'ring-2 ring-[rgb(var(--gold-500))] border-transparent' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />
+      <div className="bg-[rgb(var(--bg))] border-b border-[rgb(var(--border))] px-3 sm:px-5 py-2">
+        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+          <span className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] flex items-center gap-1"><LayoutTemplate size={13} /> Premodelli</span>
+          {(['base', 'editoriale'] as const).map((g) => (
+            <button key={g} onClick={() => setModelCat(g)}
+              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${modelCat === g ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{g === 'base' ? 'Base' : 'Editoriale Vogue'}</button>
+          ))}
+          <span className="text-[11px] text-[rgb(var(--fg-subtle))]">inserisci solo le foto · oppure a mano</span>
+          <div className="ml-auto flex items-center gap-1">
+            <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Sfondo</span>
+            {BG_SWATCHES.map((c) => (
+              <button key={c} onClick={() => setStrip((s) => ({ ...s, bg: c }))} title="Sfondo strip"
+                className={`h-6 w-6 rounded-full border ${strip.bg === c ? 'ring-2 ring-[rgb(var(--gold-500))] border-transparent' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          {CAROUSEL_MODELS.filter((m) => (m.group ?? 'base') === modelCat).map((m) => (
+            <button key={m.key} title={m.hint} onClick={() => applyModel(m.key)}
+              className={`shrink-0 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${modelKey === m.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{m.label}</button>
           ))}
         </div>
       </div>
@@ -219,7 +244,10 @@ export default function CaroselloPage() {
               const active = el.id === selId
               return (
                 <div key={el.id} onPointerDown={(e) => startDrag(e, 'move', el)}
-                  className={`absolute overflow-hidden cursor-move ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-20' : 'z-10'}`}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOverId(el.id) }}
+                  onDragLeave={() => setDragOverId((d) => (d === el.id ? null : d))}
+                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); setDragOverId(null); if (id) { updateEl(el.id, (x) => ({ ...x, mediaId: id })); setSelId(el.id); setModelKey(null) } }}
+                  className={`absolute overflow-hidden cursor-move ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-20' : 'z-10'} ${dragOverId === el.id ? 'ring-4 ring-[rgb(var(--gold-500))]' : ''}`}
                   style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>
                   {m ? <img src={thumbUrl(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />
                     : <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]"><ImagePlus size={20} /></div>}
@@ -261,13 +289,16 @@ export default function CaroselloPage() {
 
       {/* TRAY selezione foto */}
       <div className="sticky bottom-0 z-20 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-3 py-2">
-        <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1.5">{sel ? 'Tocca una foto per metterla nello slot selezionato' : 'Tocca una foto per riempire il primo slot vuoto'} · dalla selezione dell’album ({media.length})</p>
+        <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1.5">Trascina una foto su uno slot per metterla lì (o toccala) · seleziona uno slot e premi <kbd className="px-1 rounded bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))]">Canc</kbd> per eliminarlo · dalla selezione dell’album ({media.length})</p>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {media.length === 0 && <p className="text-sm text-[rgb(var(--fg-subtle))] py-2">Nessuna foto selezionata: scegli le foto nell’album (cuori) e torna qui.</p>}
           {media.map((m) => {
             const used = elements.some((e) => e.mediaId === m.id)
             return (
-              <button key={m.id} onClick={() => assignPhoto(m.id)} className="relative shrink-0 h-16 w-16 rounded-md overflow-hidden border border-[rgb(var(--border))] hover:ring-2 hover:ring-[rgb(var(--gold-400))]">
+              <button key={m.id} onClick={() => assignPhoto(m.id)} draggable
+                onDragStart={(e) => { e.dataTransfer.setData('text/plain', m.id); e.dataTransfer.effectAllowed = 'copy' }}
+                title="Trascinala su uno slot per metterla lì · o tocca"
+                className="relative shrink-0 h-16 w-16 rounded-md overflow-hidden border border-[rgb(var(--border))] hover:ring-2 hover:ring-[rgb(var(--gold-400))] cursor-grab active:cursor-grabbing">
                 <img src={thumbUrl(m)} alt="" className="h-full w-full object-cover" draggable={false} />
                 {used && <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-[rgb(var(--gold-500))] text-white grid place-items-center"><Check size={11} /></span>}
               </button>
