@@ -6,7 +6,7 @@ import {
   Minus, Square, Circle, ArrowUpRight, PaintBucket, Type, Pipette, Hand, Move,
   ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Images, Plus, Trash2, Copy,
   Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen, Search,
-  Fingerprint, Lock, Unlock,
+  Fingerprint, Lock, Unlock, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -375,6 +375,18 @@ export default function DesignStudioPage() {
   const delLayer = () => { if (layers.length <= 1) return; layerCanvases.current.delete(activeId); setLayers((ls) => { const n = ls.filter((l) => l.id !== activeId); setActiveId(n[n.length - 1]!.id); return n }) }
   const moveLayer = (id: string, dir: -1 | 1) => setLayers((ls) => { const i = ls.findIndex((l) => l.id === id); const j = i + dir; if (j < 0 || j >= ls.length) return ls; const n = [...ls]; const [x] = n.splice(i, 1); n.splice(j, 0, x!); return n })
   const patchLayer = (id: string, p: Partial<LayerMeta>) => setLayers((ls) => ls.map((l) => (l.id === id ? { ...l, ...p } : l)))
+  // Trasforma il livello attivo (rifletti / ruota) con undo
+  const transformLayer = (fn: (ctx: CanvasRenderingContext2D, temp: HTMLCanvasElement, W: number, H: number) => void) => {
+    const c = layerCanvases.current.get(activeId); if (!c) return
+    const before = c.toDataURL()
+    const temp = newCanvas(dims.w, dims.h); temp.getContext('2d')!.drawImage(c, 0, 0)
+    const ctx = c.getContext('2d')!; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, dims.w, dims.h)
+    fn(ctx, temp, dims.w, dims.h); ctx.restore()
+    composite(); pushHistory(activeId, before, c.toDataURL())
+  }
+  const flipH = () => transformLayer((ctx, temp, W) => { ctx.translate(W, 0); ctx.scale(-1, 1); ctx.drawImage(temp, 0, 0) })
+  const flipV = () => transformLayer((ctx, temp, _W, H) => { ctx.translate(0, H); ctx.scale(1, -1); ctx.drawImage(temp, 0, 0) })
+  const rot90 = (cw: boolean) => transformLayer((ctx, temp, W, H) => { ctx.translate(W / 2, H / 2); ctx.rotate((cw ? 90 : -90) * Math.PI / 180); ctx.drawImage(temp, -W / 2, -H / 2) })
 
   // ── Export / persistenza ──────────────────────────────────────────────────
   const flatten = (): HTMLCanvasElement => { const out = newCanvas(dims.w, dims.h); const ctx = out.getContext('2d')!; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, dims.w, dims.h); for (const l of layers) { if (!l.visible) continue; const c = layerCanvases.current.get(l.id); if (!c) continue; ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blend; ctx.drawImage(c, 0, 0) } return out }
@@ -521,6 +533,13 @@ export default function DesignStudioPage() {
             </>}
           </div>
 
+          <div className="p-2 border-b border-[rgb(var(--border))] flex items-center gap-1">
+            <span className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mr-auto">Trasforma livello</span>
+            <button onClick={flipH} title="Rifletti orizzontale" className="h-7 w-7 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))]"><FlipHorizontal2 size={14} /></button>
+            <button onClick={flipV} title="Rifletti verticale" className="h-7 w-7 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))]"><FlipVertical2 size={14} /></button>
+            <button onClick={() => rot90(false)} title="Ruota 90° antioraria" className="h-7 w-7 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))]"><RotateCcw size={14} /></button>
+            <button onClick={() => rot90(true)} title="Ruota 90° oraria" className="h-7 w-7 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))]"><RotateCw size={14} /></button>
+          </div>
           <div className="p-2 border-b border-[rgb(var(--border))] flex items-center gap-1">
             <span className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mr-auto">Livelli</span>
             <button onClick={addLayer} title="Nuovo livello" className="h-7 w-7 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))]"><Plus size={14} /></button>
