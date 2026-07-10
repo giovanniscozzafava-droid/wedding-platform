@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
   ZoomIn, ZoomOut, ImagePlus, Sparkles, X, LayoutTemplate, Check,
-  Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic,
+  Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,9 @@ import type { AlbumPage } from '@/lib/albumEngine'
 import { CAROUSEL_FORMATS, getCarouselFormat, DEFAULT_CAROUSEL_FORMAT, CAROUSEL_MODELS, getModel, CAROUSEL_FONTS, getFontFamily, TEXT_PRESETS, newText, type TextEl } from '@/lib/caroselloModels'
 import { exportCaroselloZip } from '@/lib/caroselloExport'
 import { hiResProxyUrl } from '@/lib/albumExport'
+import { getDriveToken, ensureDriveFolder, uploadAnyToDrive, driveDownloadUrl } from '@/lib/driveUpload'
+
+const isDirectSrc = (id: string) => id.startsWith('data:') || id.startsWith('http')
 
 type Geo = { x: number; y: number; w: number; h: number }
 const clampN = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
@@ -26,6 +29,17 @@ function gResize<T extends Geo>(e: T, c: Corner, nx: number, ny: number): T {
   else if (c === 'sw') { x = Math.min(nx, right - MIN); w = right - x; h = ny - e.y }
   else { x = Math.min(nx, right - MIN); w = right - x; y = Math.min(ny, bottom - MIN); h = bottom - y }
   return { ...e, x, y, w: Math.max(MIN, w), h: Math.max(MIN, h) }
+}
+// Aggancio (durante lo spostamento) ai confini delle slide (k/n), al centro strip e ai bordi:
+// così è facile allineare le foto ai tagli e ottenere il seamless pulito.
+function snapGeo<T extends Geo>(e: T, n: number): T {
+  const thr = 0.006
+  const xb: number[] = [0.5]; for (let k = 0; k <= n; k++) xb.push(k / n)
+  const yb = [0, 0.5, 1]
+  let nx = e.x, ny = e.y, bdx = thr, bdy = thr
+  for (const a of [e.x, e.x + e.w, e.x + e.w / 2]) for (const b of xb) { const d = Math.abs(a - b); if (d < bdx) { bdx = d; nx = b - (a - e.x) } }
+  for (const a of [e.y, e.y + e.h, e.y + e.h / 2]) for (const b of yb) { const d = Math.abs(a - b); if (d < bdy) { bdy = d; ny = b - (a - e.y) } }
+  return { ...e, x: nx, y: ny }
 }
 
 type M = {
@@ -115,13 +129,17 @@ export default function CaroselloPage() {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      const meta = e.metaKey || e.ctrlKey
+      if (meta && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return }
+      if (meta && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); redo(); return }
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selId) { e.preventDefault(); setStrip((s) => ({ ...s, elements: (s.elements ?? []).filter((x) => x.id !== selId) })); setSelId(null); setModelKey(null) }
-        else if (selText) { e.preventDefault(); setTexts((ts) => ts.filter((t) => t.id !== selText)); setSelText(null) }
+        if (selId) { e.preventDefault(); snapshot(); setStrip((s) => ({ ...s, elements: (s.elements ?? []).filter((x) => x.id !== selId) })); setSelId(null); setModelKey(null) }
+        else if (selText) { e.preventDefault(); snapshot(); setTexts((ts) => ts.filter((t) => t.id !== selText)); setSelText(null) }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selId, selText])
 
   // ── helpers editing ─────────────────────────────────────────────────────────
@@ -130,22 +148,37 @@ export default function CaroselloPage() {
   const updateCell = (id: string, patch: Partial<FreeEl['cell']>) => updateEl(id, (e) => ({ ...e, cell: { ...e.cell, ...patch } }))
   const updateText = (id: string, fn: (t: TextEl) => TextEl) => setTexts((ts) => ts.map((t) => (t.id === id ? fn(t) : t)))
   const patchText = (id: string, patch: Partial<TextEl>) => updateText(id, (t) => ({ ...t, ...patch }))
-  function addText(patch: Partial<TextEl>) { const t = newText(patch); setTexts((ts) => [...ts, t]); setSelText(t.id); setSelId(null); setModelKey(null) }
+  function addText(patch: Partial<TextEl>) { snapshot(); const t = newText(patch); setTexts((ts) => [...ts, t]); setSelText(t.id); setSelId(null); setModelKey(null) }
+
+  // ── UNDO / REDO (snapshot su azioni discrete) ────────────────────────────────
+  const cur = useRef<{ strip: AlbumPage; texts: TextEl[] }>({ strip, texts })
+  cur.current = { strip, texts }
+  const histRef = useRef<{ strip: AlbumPage; texts: TextEl[] }[]>([])
+  const futRef = useRef<{ strip: AlbumPage; texts: TextEl[] }[]>([])
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+  const syncUR = () => { setCanUndo(histRef.current.length > 0); setCanRedo(futRef.current.length > 0) }
+  function snapshot() { histRef.current.push(cur.current); if (histRef.current.length > 60) histRef.current.shift(); futRef.current = []; syncUR() }
+  function undo() { const h = histRef.current.pop(); if (!h) return; futRef.current.push(cur.current); setStrip(h.strip); setTexts(h.texts); setSelId(null); setSelText(null); setModelKey(null); syncUR() }
+  function redo() { const f = futRef.current.pop(); if (!f) return; histRef.current.push(cur.current); setStrip(f.strip); setTexts(f.texts); setSelId(null); setSelText(null); syncUR() }
 
   function applyModel(key: string) {
+    snapshot()
     const model = getModel(key)
     setElements(model.build(n, keptIds))
     setModelKey(key)
-    setSelId(null)
+    setSelId(null); setSelText(null)
   }
   function changeN(next: number) {
+    snapshot()
     const nn = Math.min(20, Math.max(1, next))
     setN(nn)
     if (modelKey) setElements(getModel(modelKey).build(nn, keptIds)) // rebuild premodello sul nuovo N
-    setSelId(null)
+    setSelId(null); setSelText(null)
   }
   // assegna/sostituisci la foto: se c'è uno slot selezionato lo riempie; altrimenti il primo vuoto.
   function assignPhoto(mediaId: string) {
+    snapshot()
     if (sel) { updateEl(sel.id, (e) => ({ ...e, mediaId })); return }
     const empty = elements.find((e) => !e.mediaId)
     if (empty) { updateEl(empty.id, (e) => ({ ...e, mediaId })); setSelId(empty.id); return }
@@ -155,7 +188,7 @@ export default function CaroselloPage() {
   }
 
   // ── drag / resize (pointer) — generico per foto (el) e testo (text) ─────────
-  const drag = useRef<{ mode: 'move' | Corner; id: string; sx: number; sy: number; e0: Geo; arr: 'el' | 'text' } | null>(null)
+  const drag = useRef<{ mode: 'move' | Corner; id: string; sx: number; sy: number; e0: Geo; arr: 'el' | 'text'; moved: boolean } | null>(null)
   const ptTo01 = (clientX: number, clientY: number) => {
     const r = stripRef.current!.getBoundingClientRect()
     return { x: Math.min(1, Math.max(0, (clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (clientY - r.top) / r.height)) }
@@ -164,42 +197,71 @@ export default function CaroselloPage() {
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
     const p = ptTo01(e.clientX, e.clientY)
-    drag.current = { mode, id: item.id, sx: p.x, sy: p.y, e0: item, arr }
+    drag.current = { mode, id: item.id, sx: p.x, sy: p.y, e0: item, arr, moved: false }
     if (arr === 'el') { setSelId(item.id); setSelText(null) } else { setSelText(item.id); setSelId(null) }
     setModelKey(null)
   }
   function onPointerMove(e: React.PointerEvent) {
     const d = drag.current; if (!d) return
+    if (!d.moved) { d.moved = true; snapshot() }
     const p = ptTo01(e.clientX, e.clientY)
-    if (d.arr === 'el') { const b = d.e0 as FreeEl; updateEl(d.id, () => (d.mode === 'move' ? gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)) : gResize(b, d.mode as Corner, p.x, p.y))) }
-    else { const b = d.e0 as TextEl; updateText(d.id, () => (d.mode === 'move' ? gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)) : gResize(b, d.mode as Corner, p.x, p.y))) }
+    if (d.arr === 'el') { const b = d.e0 as FreeEl; updateEl(d.id, () => (d.mode === 'move' ? snapGeo(gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)), n) : gResize(b, d.mode as Corner, p.x, p.y))) }
+    else { const b = d.e0 as TextEl; updateText(d.id, () => (d.mode === 'move' ? snapGeo(gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)), n) : gResize(b, d.mode as Corner, p.x, p.y))) }
   }
   function endDrag() { drag.current = null }
 
-  function removeSel() { if (!sel) return; setElements(elements.filter((e) => e.id !== sel.id)); setSelId(null); setModelKey(null) }
-  function duplicateSel() { if (!sel) return; const c = { ...sel, id: uid(), x: Math.min(0.9, sel.x + 0.02), y: Math.min(0.9, sel.y + 0.02) }; setElements([...elements, c]); setSelId(c.id); setModelKey(null) }
-  function bringFront() { if (!sel) return; setElements([...elements.filter((e) => e.id !== sel.id), sel]); setModelKey(null) }
+  function removeSel() { if (!sel) return; snapshot(); setElements(elements.filter((e) => e.id !== sel.id)); setSelId(null); setModelKey(null) }
+  function duplicateSel() { if (!sel) return; snapshot(); const c = { ...sel, id: uid(), x: Math.min(0.9, sel.x + 0.02), y: Math.min(0.9, sel.y + 0.02) }; setElements([...elements, c]); setSelId(c.id); setModelKey(null) }
+  function bringFront() { if (!sel) return; snapshot(); setElements([...elements.filter((e) => e.id !== sel.id), sel]); setModelKey(null) }
 
-  // ── EXPORT seamless ─────────────────────────────────────────────────────────
+  // ── LOGO / grafica (data-URL: vive nel layout, niente upload) ────────────────
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  function addLogoFile(file: File) {
+    const r = new FileReader()
+    r.onload = () => { snapshot(); const url = String(r.result); const el: FreeEl = { id: uid(), mediaId: url, x: 0.02, y: 0.04, w: Math.min(0.14, 1 / n * 0.5), h: 0.14, rot: 0, cell: { ...DEFAULT_CELL } }; setElements([...elements, el]); setSelId(el.id); setSelText(null); setModelKey(null) }
+    r.readAsDataURL(file)
+  }
+
+  // ── EXPORT / SALVA ──────────────────────────────────────────────────────────
   const [exporting, setExporting] = useState(false)
+  const [driveBusy, setDriveBusy] = useState(false)
+  async function buildResolver(): Promise<(id: string) => string> {
+    const SB = import.meta.env.VITE_SUPABASE_URL, AK = import.meta.env.VITE_SUPABASE_ANON_KEY
+    let grant: string | null = null
+    try { const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId }); grant = (data as string) ?? null } catch { grant = null }
+    return (id: string) => { if (isDirectSrc(id)) return id; const m = mediaById.get(id); if (!m) return ''; return grant && isDrive(m) ? hiResProxyUrl(SB, AK, grant, id) : hiUrl(m) }
+  }
+  const onZipProg = (z: number) => setExportProg((p) => (p ? { ...p, zip: z } : { done: n, total: n, zip: z }))
   async function exportZip() {
-    if (exporting) return
+    if (exporting || driveBusy) return
     if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
     setExporting(true); setExportProg({ done: 0, total: n })
     try {
-      const SB = import.meta.env.VITE_SUPABASE_URL, AK = import.meta.env.VITE_SUPABASE_ANON_KEY
-      let grant: string | null = null
-      try { const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId }); grant = (data as string) ?? null } catch { grant = null }
-      const resolve = (id: string) => { const m = mediaById.get(id); if (!m) return ''; return grant && isDrive(m) ? hiResProxyUrl(SB, AK, grant, id) : hiUrl(m) }
+      const resolve = await buildResolver()
       await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, {
-        texts,
-        filename: `carosello-${n}slide.zip`,
-        onProgress: (done, total) => setExportProg({ done, total }),
-        onZip: (z) => setExportProg((p) => (p ? { ...p, zip: z } : { done: n, total: n, zip: z })),
+        texts, filename: `carosello-${n}slide.zip`,
+        onProgress: (done, total) => setExportProg({ done, total }), onZip: onZipProg,
       })
       toast.success(`${n} slide esportate: caricale su Instagram nell'ordine slide-01 → slide-${String(n).padStart(2, '0')} per lo swipe continuo.`, { duration: 9000 })
     } catch (e) { toast.error(`Export non riuscito: ${(e as Error).message}`) }
     finally { setExporting(false); setExportProg(null) }
+  }
+  async function saveToDrive() {
+    if (exporting || driveBusy) return
+    if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
+    setDriveBusy(true); setExportProg({ done: 0, total: n })
+    try {
+      const resolve = await buildResolver()
+      const blob = await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, { texts, returnBlob: true, onProgress: (done, total) => setExportProg({ done, total }), onZip: onZipProg }) as Blob
+      setExportProg(null)
+      const token = await getDriveToken()
+      const folder = await ensureDriveFolder(token, 'Planfully - Caroselli', null)
+      const file = new File([blob], `carosello-${n}slide.zip`, { type: 'application/zip' })
+      const { id } = await uploadAnyToDrive(token, folder, file)
+      const link = driveDownloadUrl(id)
+      try { await navigator.clipboard.writeText(link); toast.success('Salvato sul tuo Drive · link copiato negli appunti', { duration: 8000 }) } catch { toast.success('Salvato sul tuo Drive') }
+    } catch (e) { toast.error(`Salvataggio su Drive non riuscito: ${(e as Error).message}`.slice(0, 160)) }
+    finally { setDriveBusy(false); setExportProg(null) }
   }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[rgb(var(--fg-muted))]" /></div>
@@ -214,6 +276,10 @@ export default function CaroselloPage() {
           <p className="text-[11px] text-[rgb(var(--fg-muted))]">{savedAt ? '✓ salvato' : 'Slide Instagram collegate · flusso unico'}</p>
         </div>
         <div className="flex items-center gap-2 ml-auto flex-wrap">
+          <div className="flex items-center gap-0.5">
+            <button onClick={undo} disabled={!canUndo} title="Annulla (Cmd/Ctrl+Z)" className="p-1.5 rounded-md disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))]"><Undo2 size={16} /></button>
+            <button onClick={redo} disabled={!canRedo} title="Ripeti (Cmd/Ctrl+Shift+Z)" className="p-1.5 rounded-md disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))]"><Redo2 size={16} /></button>
+          </div>
           {/* formato */}
           <select value={format} onChange={(e) => setFormat(e.target.value)} className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm">
             {CAROUSEL_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
@@ -224,7 +290,8 @@ export default function CaroselloPage() {
             <span className="text-sm tabular-nums w-16 text-center">{n} slide</span>
             <button onClick={() => changeN(n + 1)} disabled={n >= 20} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Plus size={14} /></button>
           </div>
-          <Button variant="gold" size="sm" disabled={exporting} onClick={() => void exportZip()}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Esporta per Instagram</Button>
+          <Button variant="outline" size="sm" disabled={exporting || driveBusy} onClick={() => void saveToDrive()} title="Salva le slide sul tuo Google Drive e copia il link">{driveBusy ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Drive</Button>
+          <Button variant="gold" size="sm" disabled={exporting || driveBusy} onClick={() => void exportZip()}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Esporta per Instagram</Button>
         </div>
       </header>
 
@@ -242,6 +309,8 @@ export default function CaroselloPage() {
           {TEXT_PRESETS.map((p) => (
             <button key={p.label} onClick={() => addText(p.patch)} className="text-xs px-2 py-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">+ {p.label}</button>
           ))}
+          <button onClick={() => logoInputRef.current?.click()} title="Aggiungi un logo o una grafica (PNG con trasparenza consigliato)" className="text-xs px-2 py-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center gap-1"><Upload size={12} /> Logo</button>
+          <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addLogoFile(f); e.currentTarget.value = '' }} />
           <div className="ml-auto flex items-center gap-1">
             <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Sfondo</span>
             {BG_SWATCHES.map((c) => (
@@ -267,7 +336,9 @@ export default function CaroselloPage() {
             onPointerDown={(e) => e.stopPropagation()}>
             {/* elementi foto */}
             {elements.map((el) => {
-              const m = el.mediaId ? mediaById.get(el.mediaId) : null
+              const direct = !!el.mediaId && isDirectSrc(el.mediaId)
+              const m = el.mediaId && !direct ? mediaById.get(el.mediaId) : null
+              const src = direct ? el.mediaId : (m ? thumbUrl(m) : null)
               const active = el.id === selId
               return (
                 <div key={el.id} onPointerDown={(e) => startDrag(e, 'move', el, 'el')}
@@ -276,7 +347,7 @@ export default function CaroselloPage() {
                   onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); setDragOverId(null); if (id) { updateEl(el.id, (x) => ({ ...x, mediaId: id })); setSelId(el.id); setModelKey(null) } }}
                   className={`absolute overflow-hidden cursor-move ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-20' : 'z-10'} ${dragOverId === el.id ? 'ring-4 ring-[rgb(var(--gold-500))]' : ''}`}
                   style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>
-                  {m ? <img src={thumbUrl(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />
+                  {src ? <img src={src} alt="" draggable={false} style={coverImgStyle(el.cell)} />
                     : <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]"><ImagePlus size={20} /></div>}
                   {active && (['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
                     <span key={c} onPointerDown={(e) => startDrag(e, c, el, 'el')}
