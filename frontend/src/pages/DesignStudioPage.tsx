@@ -6,6 +6,7 @@ import {
   Minus, Square, Circle, ArrowUpRight, PaintBucket, Type, Pipette, Hand, Move,
   ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Images, Plus, Trash2, Copy,
   Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen, Search,
+  Fingerprint, Lock, Unlock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -19,13 +20,14 @@ import { FONTS, ensureFont, injectFontsStylesheet } from '@/lib/studioFonts'
 // salvataggio riapribile e indirizzabile a un EVENTO.
 
 type Tool =
-  | 'brush' | 'pencil' | 'ink' | 'marker' | 'watercolor' | 'chalk' | 'pastel' | 'floral' | 'airbrush' | 'eraser'
+  | 'brush' | 'pencil' | 'ink' | 'marker' | 'watercolor' | 'chalk' | 'pastel' | 'floral' | 'airbrush' | 'smudge' | 'eraser'
   | 'line' | 'rect' | 'ellipse' | 'arrow' | 'fill' | 'text' | 'eyedropper' | 'hand' | 'move'
-type LayerMeta = { id: string; name: string; visible: boolean; opacity: number; blend: GlobalCompositeOperation }
+type LayerMeta = { id: string; name: string; visible: boolean; opacity: number; blend: GlobalCompositeOperation; alphaLock?: boolean }
+type SymMode = 'off' | 'v' | 'h' | 'quad' | 'radial'
 type Pt = { x: number; y: number }
 type DabOpt = { color: string; size: number; opacity: number; press: number; tilt: number }
 
-const PAINT = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'watercolor', 'chalk', 'pastel', 'floral', 'airbrush', 'eraser'])
+const PAINT = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'watercolor', 'chalk', 'pastel', 'floral', 'airbrush', 'smudge', 'eraser'])
 const LINE_TOOLS = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'eraser'])
 const MAXDIM = 2400
 const PRESETS: Array<{ key: string; label: string; w: number; h: number }> = [
@@ -40,6 +42,10 @@ const PRESETS: Array<{ key: string; label: string; w: number; h: number }> = [
 const BLENDS: Array<{ v: GlobalCompositeOperation; l: string }> = [
   { v: 'source-over', l: 'Normale' }, { v: 'multiply', l: 'Moltiplica' }, { v: 'screen', l: 'Scherma' },
   { v: 'overlay', l: 'Sovrapponi' }, { v: 'darken', l: 'Scurisci' }, { v: 'lighten', l: 'Schiarisci' },
+  { v: 'color-dodge', l: 'Scherma colori' }, { v: 'color-burn', l: 'Brucia colori' },
+  { v: 'hard-light', l: 'Luce intensa' }, { v: 'soft-light', l: 'Luce soffusa' },
+  { v: 'difference', l: 'Differenza' }, { v: 'exclusion', l: 'Esclusione' },
+  { v: 'hue', l: 'Tonalità' }, { v: 'saturation', l: 'Saturazione' }, { v: 'color', l: 'Colore' }, { v: 'luminosity', l: 'Luminosità' },
 ]
 const SWATCHES = ['#1a1a1a', '#ffffff', '#c8a24b', '#b08d3c', '#8a6d3b', '#c65d5d', '#d98c5f', '#6b8e6b', '#5f7d95', '#3a4a6b', '#7a5c8e', '#d9b8c4']
 
@@ -149,6 +155,7 @@ export default function DesignStudioPage() {
   const [size, setSize] = useState(14)
   const [opacity, setOpacity] = useState(1)
   const [streamline, setStreamline] = useState(0.4)
+  const [sym, setSym] = useState<SymMode>('off')
   const [fill, setFill] = useState(false)
   const [font, setFont] = useState(FONTS[0]!.name)
   const [fontSize, setFontSize] = useState(64)
@@ -222,6 +229,38 @@ export default function DesignStudioPage() {
   const redoFn = async () => { const h = redo.current.pop(); if (!h) return; history.current.push(h); await applyUrl(h.layerId, h.after) }
   const pushColor = (c: string) => setRecent((r) => [c, ...r.filter((x) => x !== c)].slice(0, 10))
 
+  // Simmetria: restituisce le trasformazioni dei punti (identità + specchi/rotazioni attorno al centro)
+  const symTransforms = (): Array<(p: Pt) => Pt> => {
+    const W = dims.w, H = dims.h, cx = W / 2, cy = H / 2
+    const id = (p: Pt) => p
+    const vx = (p: Pt) => ({ x: W - p.x, y: p.y })
+    const hy = (p: Pt) => ({ x: p.x, y: H - p.y })
+    const both = (p: Pt) => ({ x: W - p.x, y: H - p.y })
+    const rot = (deg: number) => (p: Pt) => { const a = (deg * Math.PI) / 180, dx = p.x - cx, dy = p.y - cy; return { x: cx + dx * Math.cos(a) - dy * Math.sin(a), y: cy + dx * Math.sin(a) + dy * Math.cos(a) } }
+    switch (sym) {
+      case 'v': return [id, vx]; case 'h': return [id, hy]; case 'quad': return [id, vx, hy, both]
+      case 'radial': return [id, rot(60), rot(120), rot(180), rot(240), rot(300)]; default: return [id]
+    }
+  }
+  // disegna il tratto + tutte le copie simmetriche
+  const paintM = (ctx: CanvasRenderingContext2D, a: Pt, b: Pt, o: DabOpt) => { for (const T of symTransforms()) paintSeg(ctx, tool, T(a), T(b), o) }
+  // Sfumino: trascina i pixel sotto al pennello (self-draw clippato al cerchio)
+  const smudge = (ctx: CanvasRenderingContext2D, a: Pt, b: Pt, press: number) => {
+    const r = Math.max(2, size * press) / 2, canvas = ctx.canvas
+    const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), steps = Math.max(1, Math.floor(dist / Math.max(1, r * 0.3)))
+    let lx = a.x, ly = a.y
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps, cx = a.x + dx * t, cy = a.y + dy * t
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.clip(); ctx.globalAlpha = Math.min(0.92, opacity)
+      ctx.drawImage(canvas, lx - r, ly - r, r * 2, r * 2, cx - r, cy - r, r * 2, r * 2); ctx.restore()
+      lx = cx; ly = cy
+    }
+  }
+  const startPaint = (ctx: CanvasRenderingContext2D) => {
+    const al = layers.find((l) => l.id === activeId)?.alphaLock
+    ctx.globalCompositeOperation = (al && tool !== 'eraser' && tool !== 'smudge') ? 'source-atop' : (tool === 'eraser' ? 'destination-out' : 'source-over')
+  }
+
   // ── Pointer ──────────────────────────────────────────────────────────────
   function onDown(e: React.PointerEvent) {
     try { (e.target as HTMLElement).setPointerCapture?.(e.pointerId) } catch { /* pointer sintetico o non catturabile */ }
@@ -232,7 +271,7 @@ export default function DesignStudioPage() {
     if (tool === 'text') { const r = stageRef.current!.getBoundingClientRect(); void ensureFont(font); setTextEdit({ sx: e.clientX - r.left, sy: e.clientY - r.top, dx: p.x, dy: p.y, value: '' }); return }
     const before = layerCanvases.current.get(activeId)!.toDataURL()
     draw.current = { active: true, last: p, start: p, before, panning: false, panStart: { x: 0, y: 0 }, panOrig: { x: 0, y: 0 } }
-    if (PAINT.has(tool)) { paintSeg(ctx, tool, p, p, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e) }); composite() }
+    if (PAINT.has(tool)) { startPaint(ctx); if (tool === 'smudge') smudge(ctx, p, p, pressureOf(e)); else paintM(ctx, p, p, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e) }); composite() }
   }
   function onMove(e: React.PointerEvent) {
     const ring = ringRef.current, disp = displayRef.current
@@ -248,7 +287,7 @@ export default function DesignStudioPage() {
         const rp = toDoc(ce); const sm = { x: lerp(last.x, rp.x, 1 - streamline), y: lerp(last.y, rp.y, 1 - streamline) }
         const press = ce.pointerType === 'pen' ? Math.max(0.06, ce.pressure || 0.5) : 1
         const tilt = ce.pointerType === 'pen' ? Math.min(1, Math.hypot((ce as any).tiltX || 0, (ce as any).tiltY || 0) / 54) : 0
-        paintSeg(ctx, tool, last, sm, { color, size, opacity, press, tilt }); last = sm
+        if (tool === 'smudge') smudge(ctx, last, sm, press); else paintM(ctx, last, sm, { color, size, opacity, press, tilt }); last = sm
       }
       st.last = last; composite()
     } else if (tool === 'move') {
@@ -261,7 +300,7 @@ export default function DesignStudioPage() {
   function onUp(e: React.PointerEvent) {
     const st = draw.current; draw.current = null; if (!st || st.panning) return
     const ctx = getCtx(activeId); if (!ctx) return
-    if (PAINT.has(tool)) { paintSeg(ctx, tool, st.last, toDoc(e), { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e) }); pushColor(color); composite() }
+    if (PAINT.has(tool)) { const end = toDoc(e); if (tool === 'smudge') smudge(ctx, st.last, end, pressureOf(e)); else { paintM(ctx, st.last, end, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e) }); pushColor(color) } ctx.globalCompositeOperation = 'source-over'; composite() }
     if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') { drawShape(ctx, tool, st.start, toDoc(e), { color, size, fill, alpha: opacity }); composite() }
     pushHistory(activeId, st.before, layerCanvases.current.get(activeId)!.toDataURL())
   }
@@ -294,7 +333,7 @@ export default function DesignStudioPage() {
       const t = e.target as HTMLElement; if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? void redoFn() : void undo(); return }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); void doSave(); return }
-      const map: Record<string, Tool> = { b: 'brush', p: 'pencil', k: 'ink', m: 'marker', w: 'watercolor', c: 'chalk', e: 'eraser', g: 'fill', t: 'text', i: 'eyedropper', h: 'hand', v: 'move', l: 'line', r: 'rect', o: 'ellipse', f: 'floral' }
+      const map: Record<string, Tool> = { b: 'brush', p: 'pencil', k: 'ink', m: 'marker', w: 'watercolor', c: 'chalk', s: 'smudge', e: 'eraser', g: 'fill', t: 'text', i: 'eyedropper', h: 'hand', v: 'move', l: 'line', r: 'rect', o: 'ellipse', f: 'floral' }
       if (map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]!)
       if (e.key === '[') setSize((s) => Math.max(1, s - 2)); if (e.key === ']') setSize((s) => Math.min(400, s + 2))
     }
@@ -353,7 +392,7 @@ export default function DesignStudioPage() {
   const TOOLS: Array<{ t: Tool; Icon: typeof Paintbrush; label: string }> = [
     { t: 'brush', Icon: Paintbrush, label: 'Pennello (B)' }, { t: 'pencil', Icon: Pencil, label: 'Matita — con inclinazione (P)' }, { t: 'ink', Icon: PenTool, label: 'Pennino a china (K)' },
     { t: 'marker', Icon: Highlighter, label: 'Pennarello (M)' }, { t: 'watercolor', Icon: Droplets, label: 'Acquarello (W)' }, { t: 'chalk', Icon: Brush, label: 'Gessetto / carboncino (C)' },
-    { t: 'pastel', Icon: Feather, label: 'Pastello' }, { t: 'floral', Icon: Flower2, label: 'Texture floreale (F)' }, { t: 'airbrush', Icon: SprayCan, label: 'Aerografo' }, { t: 'eraser', Icon: Eraser, label: 'Gomma (E)' },
+    { t: 'pastel', Icon: Feather, label: 'Pastello' }, { t: 'floral', Icon: Flower2, label: 'Texture floreale (F)' }, { t: 'airbrush', Icon: SprayCan, label: 'Aerografo' }, { t: 'smudge', Icon: Fingerprint, label: 'Sfumino (S)' }, { t: 'eraser', Icon: Eraser, label: 'Gomma (E)' },
     { t: 'fill', Icon: PaintBucket, label: 'Riempimento (G)' }, { t: 'line', Icon: Minus, label: 'Linea (L)' }, { t: 'rect', Icon: Square, label: 'Rettangolo (R)' }, { t: 'ellipse', Icon: Circle, label: 'Ellisse (O)' }, { t: 'arrow', Icon: ArrowUpRight, label: 'Freccia' },
     { t: 'text', Icon: Type, label: 'Testo (T)' }, { t: 'eyedropper', Icon: Pipette, label: 'Contagocce (I)' }, { t: 'move', Icon: Move, label: 'Sposta livello (V)' }, { t: 'hand', Icon: Hand, label: 'Mano / pan (H)' },
   ]
@@ -429,6 +468,7 @@ export default function DesignStudioPage() {
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Dimensione: {size}px<input type="range" min={1} max={200} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full" /></label>
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Opacità: {Math.round(opacity * 100)}%<input type="range" min={0.02} max={1} step={0.02} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full" /></label>
               {PAINT.has(tool) && <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Stabilizzazione: {Math.round(streamline * 100)}%<input type="range" min={0} max={0.9} step={0.05} value={streamline} onChange={(e) => setStreamline(Number(e.target.value))} className="w-full" /></label>}
+              {PAINT.has(tool) && <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Simmetria<Select value={sym} onChange={(e) => setSym(e.target.value as SymMode)} className="h-8 mt-0.5"><option value="off">Nessuna</option><option value="v">Verticale</option><option value="h">Orizzontale</option><option value="quad">Quadrante (4)</option><option value="radial">Radiale (6)</option></Select></label>}
               {PAINT.has(tool) && <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Penna: pressione e inclinazione attive. Matita/gessetto sfumano con l'inclinazione.</p>}
               {(tool === 'rect' || tool === 'ellipse') && <label className="flex items-center gap-1.5 text-[11px] text-[rgb(var(--fg-muted))]"><input type="checkbox" checked={fill} onChange={(e) => setFill(e.target.checked)} /> Riempi forma</label>}
             </>}
@@ -464,6 +504,7 @@ export default function DesignStudioPage() {
                 </div>
                 {activeId === l.id && (
                   <div className="mt-1 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => patchLayer(l.id, { alphaLock: !l.alphaLock })} title={l.alphaLock ? 'Alpha lock attivo (disegna solo sui pixel esistenti)' : 'Alpha lock'} className={l.alphaLock ? 'text-[rgb(var(--gold-600))]' : 'text-[rgb(var(--fg-subtle))]'}>{l.alphaLock ? <Lock size={13} /> : <Unlock size={13} />}</button>
                     <input type="range" min={0} max={1} step={0.02} value={l.opacity} onChange={(e) => patchLayer(l.id, { opacity: Number(e.target.value) })} className="flex-1" />
                     <Select value={l.blend} onChange={(e) => patchLayer(l.id, { blend: e.target.value as GlobalCompositeOperation })} className="h-6 text-[10px] w-20">{BLENDS.map((b) => <option key={b.v} value={b.v}>{b.l}</option>)}</Select>
                   </div>
