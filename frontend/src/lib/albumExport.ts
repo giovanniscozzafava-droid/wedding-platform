@@ -207,7 +207,8 @@ export async function exportAlbumPdf(pages: AlbumPage[], formatKey: string, reso
 
 // JPG per pagina dentro uno ZIP (una facciata = un'immagine). Senza abbondanza.
 // Disegna una pagina dentro il riquadro (ox,0,wpx,hpx) del contesto dato.
-async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: number, wpx: number, hpx: number, pxPerMm: number, resolve: UrlResolver, pageNumber: number | null) {
+// Esportata: il Carosello la riusa per disegnare la strip continua su un canvas largo N*slide.
+export async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPage, ox: number, wpx: number, hpx: number, pxPerMm: number, resolve: UrlResolver, pageNumber: number | null) {
   ctx.fillStyle = page.mode === 'free' ? (page.bg ?? '#ffffff') : '#ffffff'; ctx.fillRect(ox, 0, wpx, hpx)
   if (page.mode === 'free') {
     for (const el of page.elements ?? []) {
