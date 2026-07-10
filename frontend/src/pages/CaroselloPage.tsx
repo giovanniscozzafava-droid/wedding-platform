@@ -3,16 +3,30 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
   ZoomIn, ZoomOut, ImagePlus, Sparkles, X, LayoutTemplate, Check,
+  Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { coverImgStyle, DEFAULT_CELL } from '@/lib/albumGeometry'
-import { moveEl, resizeEl, type FreeEl, type Corner } from '@/lib/albumFree'
+import { type FreeEl, type Corner } from '@/lib/albumFree'
 import type { AlbumPage } from '@/lib/albumEngine'
-import { CAROUSEL_FORMATS, getCarouselFormat, DEFAULT_CAROUSEL_FORMAT, CAROUSEL_MODELS, getModel } from '@/lib/caroselloModels'
+import { CAROUSEL_FORMATS, getCarouselFormat, DEFAULT_CAROUSEL_FORMAT, CAROUSEL_MODELS, getModel, CAROUSEL_FONTS, getFontFamily, TEXT_PRESETS, newText, type TextEl } from '@/lib/caroselloModels'
 import { exportCaroselloZip } from '@/lib/caroselloExport'
 import { hiResProxyUrl } from '@/lib/albumExport'
+
+type Geo = { x: number; y: number; w: number; h: number }
+const clampN = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
+function gMove<T extends Geo>(e: T, x: number, y: number): T { return { ...e, x: clampN(x, -e.w + 0.02, 1 - 0.02), y: clampN(y, -e.h + 0.02, 1 - 0.02) } }
+function gResize<T extends Geo>(e: T, c: Corner, nx: number, ny: number): T {
+  const right = e.x + e.w, bottom = e.y + e.h, MIN = 0.03
+  let x = e.x, y = e.y, w = e.w, h = e.h
+  if (c === 'se') { w = nx - e.x; h = ny - e.y }
+  else if (c === 'ne') { w = nx - e.x; y = Math.min(ny, bottom - MIN); h = bottom - y }
+  else if (c === 'sw') { x = Math.min(nx, right - MIN); w = right - x; h = ny - e.y }
+  else { x = Math.min(nx, right - MIN); w = right - x; y = Math.min(ny, bottom - MIN); h = bottom - y }
+  return { ...e, x, y, w: Math.max(MIN, w), h: Math.max(MIN, h) }
+}
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
@@ -32,7 +46,9 @@ export default function CaroselloPage() {
   const [format, setFormat] = useState(DEFAULT_CAROUSEL_FORMAT)
   const [n, setN] = useState(3)
   const [strip, setStrip] = useState<AlbumPage>({ id: 'strip', moment: null, template: '1', mediaIds: [], mode: 'free', elements: [], bg: '#ffffff' })
+  const [texts, setTexts] = useState<TextEl[]>([])
   const [selId, setSelId] = useState<string | null>(null)
+  const [selText, setSelText] = useState<string | null>(null)
   const [modelKey, setModelKey] = useState<string | null>('one')
   const [modelCat, setModelCat] = useState<'base' | 'editoriale'>('base')
   const [dragOverId, setDragOverId] = useState<string | null>(null)
@@ -48,6 +64,7 @@ export default function CaroselloPage() {
   const mediaById = useMemo(() => new Map(media.map((m) => [m.id, m] as const)), [media])
   const elements = strip.elements ?? []
   const sel = elements.find((e) => e.id === selId) ?? null
+  const selT = texts.find((t) => t.id === selText) ?? null
 
   // ── LOAD: selezione foto (KEPT) + progetto carosello salvato ────────────────
   useEffect(() => {
@@ -59,11 +76,12 @@ export default function CaroselloPage() {
       const list = (gm as M[] | null) ?? []
       setMedia(list)
       const { data } = await (supabase.rpc as any)('carousel_project_get', { p_entry: entryId })
-      const res = data as { exists?: boolean; format_key?: string; slides?: number; layout?: { strip?: AlbumPage } } | null
+      const res = data as { exists?: boolean; format_key?: string; slides?: number; layout?: { strip?: AlbumPage; texts?: TextEl[] } } | null
       if (res?.exists && res.layout?.strip) {
         setFormat(res.format_key || DEFAULT_CAROUSEL_FORMAT)
         setN(Math.min(20, Math.max(1, res.slides || 3)))
         setStrip({ ...res.layout.strip, mode: 'free', elements: res.layout.strip.elements ?? [] })
+        setTexts(res.layout.texts ?? [])
         setModelKey(null)
       } else {
         // primo avvio: applica il premodello "una foto per slide" con le prime foto
@@ -81,36 +99,38 @@ export default function CaroselloPage() {
   const save = useCallback(async () => {
     if (!entryId) return
     const { error } = await (supabase.rpc as any)('carousel_project_save', {
-      p_entry: entryId, p_format: format, p_slides: n, p_status: 'DRAFT', p_layout: { strip },
+      p_entry: entryId, p_format: format, p_slides: n, p_status: 'DRAFT', p_layout: { strip, texts },
     })
     if (!error) setSavedAt(Date.now())
-  }, [entryId, format, n, strip])
+  }, [entryId, format, n, strip, texts])
   useEffect(() => {
     if (!loadedRef.current) return
     if (autoTimer.current) window.clearTimeout(autoTimer.current)
     autoTimer.current = window.setTimeout(() => { void save() }, 1500)
     return () => { if (autoTimer.current) window.clearTimeout(autoTimer.current) }
-  }, [strip, format, n, save])
+  }, [strip, texts, format, n, save])
 
   // ── tasto CANC/Backspace: elimina l'elemento selezionato ────────────────────
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selId) {
-        e.preventDefault()
-        setStrip((s) => ({ ...s, elements: (s.elements ?? []).filter((x) => x.id !== selId) }))
-        setSelId(null); setModelKey(null)
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selId) { e.preventDefault(); setStrip((s) => ({ ...s, elements: (s.elements ?? []).filter((x) => x.id !== selId) })); setSelId(null); setModelKey(null) }
+        else if (selText) { e.preventDefault(); setTexts((ts) => ts.filter((t) => t.id !== selText)); setSelText(null) }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selId])
+  }, [selId, selText])
 
   // ── helpers editing ─────────────────────────────────────────────────────────
   const setElements = (els: FreeEl[]) => setStrip((s) => ({ ...s, elements: els }))
   const updateEl = (id: string, fn: (e: FreeEl) => FreeEl) => setElements(elements.map((e) => (e.id === id ? fn(e) : e)))
   const updateCell = (id: string, patch: Partial<FreeEl['cell']>) => updateEl(id, (e) => ({ ...e, cell: { ...e.cell, ...patch } }))
+  const updateText = (id: string, fn: (t: TextEl) => TextEl) => setTexts((ts) => ts.map((t) => (t.id === id ? fn(t) : t)))
+  const patchText = (id: string, patch: Partial<TextEl>) => updateText(id, (t) => ({ ...t, ...patch }))
+  function addText(patch: Partial<TextEl>) { const t = newText(patch); setTexts((ts) => [...ts, t]); setSelText(t.id); setSelId(null); setModelKey(null) }
 
   function applyModel(key: string) {
     const model = getModel(key)
@@ -134,24 +154,25 @@ export default function CaroselloPage() {
     setElements([...elements, el]); setSelId(el.id); setModelKey(null)
   }
 
-  // ── drag / resize (pointer) ────────────────────────────────────────────────
-  const drag = useRef<{ mode: 'move' | Corner; id: string; sx: number; sy: number; e0: FreeEl } | null>(null)
+  // ── drag / resize (pointer) — generico per foto (el) e testo (text) ─────────
+  const drag = useRef<{ mode: 'move' | Corner; id: string; sx: number; sy: number; e0: Geo; arr: 'el' | 'text' } | null>(null)
   const ptTo01 = (clientX: number, clientY: number) => {
     const r = stripRef.current!.getBoundingClientRect()
     return { x: Math.min(1, Math.max(0, (clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (clientY - r.top) / r.height)) }
   }
-  function startDrag(e: React.PointerEvent, mode: 'move' | Corner, el: FreeEl) {
+  function startDrag(e: React.PointerEvent, mode: 'move' | Corner, item: Geo & { id: string }, arr: 'el' | 'text') {
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
     const p = ptTo01(e.clientX, e.clientY)
-    drag.current = { mode, id: el.id, sx: p.x, sy: p.y, e0: el }
-    setSelId(el.id); setModelKey(null)
+    drag.current = { mode, id: item.id, sx: p.x, sy: p.y, e0: item, arr }
+    if (arr === 'el') { setSelId(item.id); setSelText(null) } else { setSelText(item.id); setSelId(null) }
+    setModelKey(null)
   }
   function onPointerMove(e: React.PointerEvent) {
     const d = drag.current; if (!d) return
     const p = ptTo01(e.clientX, e.clientY)
-    if (d.mode === 'move') { const e0 = d.e0, sx = d.sx, sy = d.sy; updateEl(d.id, () => moveEl(e0, e0.x + (p.x - sx), e0.y + (p.y - sy))) }
-    else { const corner = d.mode, e0 = d.e0; updateEl(d.id, () => resizeEl(e0, corner, p.x, p.y)) }
+    if (d.arr === 'el') { const b = d.e0 as FreeEl; updateEl(d.id, () => (d.mode === 'move' ? gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)) : gResize(b, d.mode as Corner, p.x, p.y))) }
+    else { const b = d.e0 as TextEl; updateText(d.id, () => (d.mode === 'move' ? gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)) : gResize(b, d.mode as Corner, p.x, p.y))) }
   }
   function endDrag() { drag.current = null }
 
@@ -171,6 +192,7 @@ export default function CaroselloPage() {
       try { const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId }); grant = (data as string) ?? null } catch { grant = null }
       const resolve = (id: string) => { const m = mediaById.get(id); if (!m) return ''; return grant && isDrive(m) ? hiResProxyUrl(SB, AK, grant, id) : hiUrl(m) }
       await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, {
+        texts,
         filename: `carosello-${n}slide.zip`,
         onProgress: (done, total) => setExportProg({ done, total }),
         onZip: (z) => setExportProg((p) => (p ? { ...p, zip: z } : { done: n, total: n, zip: z })),
@@ -215,6 +237,11 @@ export default function CaroselloPage() {
               className={`text-xs px-2.5 py-1 rounded-full transition-colors ${modelCat === g ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{g === 'base' ? 'Base' : 'Editoriale Vogue'}</button>
           ))}
           <span className="text-[11px] text-[rgb(var(--fg-subtle))]">inserisci solo le foto · oppure a mano</span>
+          <span className="mx-1 h-4 w-px bg-[rgb(var(--border))]" />
+          <span className="text-[11px] text-[rgb(var(--fg-subtle))] flex items-center gap-1"><Type size={12} /> Testo:</span>
+          {TEXT_PRESETS.map((p) => (
+            <button key={p.label} onClick={() => addText(p.patch)} className="text-xs px-2 py-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">+ {p.label}</button>
+          ))}
           <div className="ml-auto flex items-center gap-1">
             <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Sfondo</span>
             {BG_SWATCHES.map((c) => (
@@ -232,18 +259,18 @@ export default function CaroselloPage() {
       </div>
 
       {/* STRIP EDITOR */}
-      <div className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start justify-center" onPointerDown={() => setSelId(null)}>
+      <div className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start justify-center" onPointerDown={() => { setSelId(null); setSelText(null) }}>
         <div className="inline-block">
           <div ref={stripRef} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
             className="relative shadow-2xl select-none touch-none"
-            style={{ height: 'min(64vh, 620px)', aspectRatio: String(stripAspect), background: strip.bg ?? '#fff' }}
+            style={{ height: 'min(64vh, 620px)', aspectRatio: String(stripAspect), background: strip.bg ?? '#fff', containerType: 'size' }}
             onPointerDown={(e) => e.stopPropagation()}>
-            {/* elementi */}
+            {/* elementi foto */}
             {elements.map((el) => {
               const m = el.mediaId ? mediaById.get(el.mediaId) : null
               const active = el.id === selId
               return (
-                <div key={el.id} onPointerDown={(e) => startDrag(e, 'move', el)}
+                <div key={el.id} onPointerDown={(e) => startDrag(e, 'move', el, 'el')}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOverId(el.id) }}
                   onDragLeave={() => setDragOverId((d) => (d === el.id ? null : d))}
                   onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); setDragOverId(null); if (id) { updateEl(el.id, (x) => ({ ...x, mediaId: id })); setSelId(el.id); setModelKey(null) } }}
@@ -252,8 +279,25 @@ export default function CaroselloPage() {
                   {m ? <img src={thumbUrl(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />
                     : <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]"><ImagePlus size={20} /></div>}
                   {active && (['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
-                    <span key={c} onPointerDown={(e) => startDrag(e, c, el)}
+                    <span key={c} onPointerDown={(e) => startDrag(e, c, el, 'el')}
                       className="absolute h-3.5 w-3.5 rounded-full bg-white border-2 border-[rgb(var(--gold-500))] z-30"
+                      style={{ left: c.includes('w') ? -7 : undefined, right: c.includes('e') ? -7 : undefined, top: c.includes('n') ? -7 : undefined, bottom: c.includes('s') ? -7 : undefined, cursor: `${c}-resize` }} />
+                  ))}
+                </div>
+              )
+            })}
+            {/* blocchi di testo */}
+            {texts.map((t) => {
+              const active = t.id === selText
+              const valign = t.valign === 'middle' ? 'center' : t.valign === 'bottom' ? 'flex-end' : 'flex-start'
+              return (
+                <div key={t.id} onPointerDown={(e) => startDrag(e, 'move', t, 'text')}
+                  className={`absolute flex cursor-move ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-30' : 'z-20'}`}
+                  style={{ left: `${t.x * 100}%`, top: `${t.y * 100}%`, width: `${t.w * 100}%`, height: `${t.h * 100}%`, transform: `rotate(${t.rot}deg)`, alignItems: valign, background: t.bg ?? undefined, padding: t.bg ? '2%' : undefined }}>
+                  <div style={{ width: '100%', fontFamily: getFontFamily(t.font), fontSize: `${(t.size * 100).toFixed(2)}cqh`, fontWeight: t.weight, fontStyle: t.italic ? 'italic' : 'normal', color: t.color, textAlign: t.align, lineHeight: t.line ?? 1.15, letterSpacing: `${t.letter ?? 0}em`, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.text || ' '}</div>
+                  {active && (['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
+                    <span key={c} onPointerDown={(e) => startDrag(e, c, t, 'text')}
+                      className="absolute h-3.5 w-3.5 rounded-full bg-white border-2 border-[rgb(var(--gold-500))] z-40"
                       style={{ left: c.includes('w') ? -7 : undefined, right: c.includes('e') ? -7 : undefined, top: c.includes('n') ? -7 : undefined, bottom: c.includes('s') ? -7 : undefined, cursor: `${c}-resize` }} />
                   ))}
                 </div>
@@ -284,6 +328,38 @@ export default function CaroselloPage() {
           <button title="Duplica" onClick={duplicateSel} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><Copy size={16} /></button>
           <button title="Elimina" onClick={removeSel} className="p-1.5 rounded-full text-rose-500 hover:bg-rose-50"><Trash2 size={16} /></button>
           <button title="Chiudi" onClick={() => setSelId(null)} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><X size={16} /></button>
+        </div>
+      )}
+
+      {/* TOOLBAR testo selezionato */}
+      {selT && (
+        <div className="sticky bottom-[76px] z-30 mx-auto mb-1 w-[min(96vw,760px)] rounded-2xl bg-[rgb(var(--bg))] border border-[rgb(var(--border))] shadow-lg px-3 py-2 space-y-2">
+          <textarea value={selT.text} onChange={(e) => patchText(selT.id, { text: e.target.value })} rows={2} placeholder="Scrivi qui il testo…" className="w-full text-sm rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 outline-none focus:border-[rgb(var(--gold-500))]" />
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <select value={selT.font} onChange={(e) => patchText(selT.id, { font: e.target.value })} className="h-8 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-1.5 text-xs">
+              {CAROUSEL_FONTS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+            <div className="flex items-center h-8 rounded-md border border-[rgb(var(--border))]">
+              <button title="Più piccolo" onClick={() => patchText(selT.id, { size: Math.max(0.02, +(selT.size - 0.008).toFixed(3)) })} className="px-2 hover:bg-[rgb(var(--bg-sunken))]"><Minus size={13} /></button>
+              <span className="text-[11px] w-7 text-center tabular-nums">{Math.round(selT.size * 100)}</span>
+              <button title="Più grande" onClick={() => patchText(selT.id, { size: Math.min(0.4, +(selT.size + 0.008).toFixed(3)) })} className="px-2 hover:bg-[rgb(var(--bg-sunken))]"><Plus size={13} /></button>
+            </div>
+            <button title="Grassetto" onClick={() => patchText(selT.id, { weight: selT.weight >= 700 ? 400 : 700 })} className={`h-8 w-8 grid place-items-center rounded-md border ${selT.weight >= 700 ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}><Bold size={14} /></button>
+            <button title="Corsivo" onClick={() => patchText(selT.id, { italic: !selT.italic })} className={`h-8 w-8 grid place-items-center rounded-md border ${selT.italic ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}><Italic size={14} /></button>
+            <div className="flex items-center h-8 rounded-md border border-[rgb(var(--border))] overflow-hidden">
+              {([['left', AlignLeft], ['center', AlignCenter], ['right', AlignRight]] as const).map(([a, Ic]) => (
+                <button key={a} onClick={() => patchText(selT.id, { align: a })} className={`h-full px-1.5 hover:bg-[rgb(var(--bg-sunken))] ${selT.align === a ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))]' : ''}`}><Ic size={14} /></button>
+              ))}
+            </div>
+            {['#111111', '#ffffff', '#b8923f', '#7e6633', '#c0392b'].map((c) => (
+              <button key={c} onClick={() => patchText(selT.id, { color: c })} title="Colore testo" className={`h-7 w-7 rounded-full border ${selT.color === c ? 'ring-2 ring-[rgb(var(--gold-500))] border-transparent' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />
+            ))}
+            <button title="Sfondo dietro il testo" onClick={() => patchText(selT.id, { bg: selT.bg ? null : '#ffffff' })} className={`text-[11px] px-2 h-8 rounded-md border ${selT.bg ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}>Box</button>
+            <div className="ml-auto flex items-center gap-1">
+              <button title="Elimina (o Canc)" onClick={() => { setTexts((ts) => ts.filter((t) => t.id !== selT.id)); setSelText(null) }} className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50"><Trash2 size={16} /></button>
+              <button title="Chiudi" onClick={() => setSelText(null)} className="p-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))]"><X size={16} /></button>
+            </div>
+          </div>
         </div>
       )}
 

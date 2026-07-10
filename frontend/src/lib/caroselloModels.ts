@@ -163,3 +163,30 @@ export const CAROUSEL_MODELS: CarouselModel[] = [
 export function getModel(key: string): CarouselModel {
   return CAROUSEL_MODELS.find((m) => m.key === key) ?? CAROUSEL_MODELS[0]!
 }
+
+// ── TESTO ─────────────────────────────────────────────────────────────────────
+// Blocco di testo sulla strip (stesse coordinate 0..1 delle foto). size = frazione dell'ALTEZZA
+// slide → scala con l'anteprima e con l'export.
+export const CAROUSEL_FONTS: { key: string; label: string; family: string }[] = [
+  { key: 'display', label: 'Serif', family: "'Fraunces Variable', Georgia, serif" },
+  { key: 'sans', label: 'Sans', family: "'Inter Variable', system-ui, sans-serif" },
+]
+export const getFontFamily = (k: string) => CAROUSEL_FONTS.find((f) => f.key === k)?.family ?? CAROUSEL_FONTS[0]!.family
+
+export type TextEl = {
+  id: string; kind: 'text'; text: string
+  x: number; y: number; w: number; h: number; rot: number
+  align: 'left' | 'center' | 'right'
+  valign: 'top' | 'middle' | 'bottom'
+  color: string; font: string; size: number; weight: number
+  italic?: boolean; bg?: string | null; line?: number; letter?: number
+}
+export function newText(patch: Partial<TextEl> = {}): TextEl {
+  return { id: uid(), kind: 'text', text: 'Testo', x: 0.04, y: 0.06, w: 0.3, h: 0.14, rot: 0, align: 'left', valign: 'top', color: '#111111', font: 'display', size: 0.07, weight: 600, ...patch }
+}
+export const TEXT_PRESETS: { label: string; patch: Partial<TextEl> }[] = [
+  { label: 'Titolo', patch: { text: 'Il tuo titolo', font: 'display', size: 0.12, weight: 700, w: 0.34, h: 0.24, line: 1.02 } },
+  { label: 'Sottotitolo', patch: { text: 'Sottotitolo', font: 'sans', size: 0.05, weight: 500, w: 0.32, h: 0.1 } },
+  { label: 'Didascalia', patch: { text: 'didascalia', font: 'sans', size: 0.032, weight: 400, w: 0.28, h: 0.08, color: '#444444' } },
+  { label: 'Firma studio', patch: { text: '@iltuostudio', font: 'sans', size: 0.03, weight: 600, w: 0.24, h: 0.06, letter: 0.08 } },
+]
