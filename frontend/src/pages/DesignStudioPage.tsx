@@ -6,7 +6,7 @@ import {
   Minus, Square, Circle, ArrowUpRight, PaintBucket, Type, Pipette, Hand, Move,
   ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Images, Plus, Trash2, Copy,
   Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen, Search,
-  Fingerprint, Lock, Unlock, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcw,
+  Fingerprint, Lock, Unlock, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcw, SlidersHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -207,6 +207,9 @@ export default function DesignStudioPage() {
   const draw = useRef<{ active: boolean; last: Pt; start: Pt; before: string; panning: boolean; panStart: Pt; panOrig: { x: number; y: number } } | null>(null)
   const spaceRef = useRef(false)
   const textCommitting = useRef(false)
+  const adjustSrc = useRef<HTMLCanvasElement | null>(null)
+  const adjustBefore = useRef<string>('')
+  const [adjust, setAdjust] = useState<{ b: number; c: number; s: number; h: number; blur: number } | null>(null)
 
   const getCtx = (id: string) => layerCanvases.current.get(id)?.getContext('2d') ?? null
 
@@ -387,6 +390,18 @@ export default function DesignStudioPage() {
   const flipH = () => transformLayer((ctx, temp, W) => { ctx.translate(W, 0); ctx.scale(-1, 1); ctx.drawImage(temp, 0, 0) })
   const flipV = () => transformLayer((ctx, temp, _W, H) => { ctx.translate(0, H); ctx.scale(1, -1); ctx.drawImage(temp, 0, 0) })
   const rot90 = (cw: boolean) => transformLayer((ctx, temp, W, H) => { ctx.translate(W / 2, H / 2); ctx.rotate((cw ? 90 : -90) * Math.PI / 180); ctx.drawImage(temp, -W / 2, -H / 2) })
+  // Regolazioni (luminosità/contrasto/saturazione/tonalità/sfocatura) col filtro canvas
+  const openAdjust = () => { const c = layerCanvases.current.get(activeId); if (!c) return; const src = newCanvas(dims.w, dims.h); src.getContext('2d')!.drawImage(c, 0, 0); adjustSrc.current = src; adjustBefore.current = c.toDataURL(); setAdjust({ b: 1, c: 1, s: 1, h: 0, blur: 0 }) }
+  useEffect(() => {
+    if (!adjust || !adjustSrc.current) return
+    const ctx = getCtx(activeId); if (!ctx) return
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, dims.w, dims.h)
+    ctx.filter = `brightness(${adjust.b}) contrast(${adjust.c}) saturate(${adjust.s}) hue-rotate(${adjust.h}deg) blur(${adjust.blur}px)`
+    ctx.drawImage(adjustSrc.current, 0, 0); ctx.filter = 'none'; ctx.restore(); composite()
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [adjust])
+  const applyAdjust = () => { const c = layerCanvases.current.get(activeId); if (c) pushHistory(activeId, adjustBefore.current, c.toDataURL()); adjustSrc.current = null; setAdjust(null) }
+  const cancelAdjust = () => { void applyUrl(activeId, adjustBefore.current); adjustSrc.current = null; setAdjust(null) }
 
   // ── Export / persistenza ──────────────────────────────────────────────────
   const flatten = (): HTMLCanvasElement => { const out = newCanvas(dims.w, dims.h); const ctx = out.getContext('2d')!; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, dims.w, dims.h); for (const l of layers) { if (!l.visible) continue; const c = layerCanvases.current.get(l.id); if (!c) continue; ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blend; ctx.drawImage(c, 0, 0) } return out }
@@ -453,6 +468,7 @@ export default function DesignStudioPage() {
           <Button size="sm" variant="outline" onClick={() => setShowGallery(true)} title="Apri"><FolderOpen size={14} /></Button>
           <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} title="Importa immagine nel livello"><ImagePlus size={14} /></Button>
           <Button size="sm" variant="outline" onClick={() => refFileRef.current?.click()} title="Foto da ricalcare (sfondo trasparente)"><Images size={14} /> Ricalca</Button>
+          <Button size="sm" variant="outline" onClick={openAdjust} title="Regolazioni del livello"><SlidersHorizontal size={14} /> Regola</Button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importToActive(f) }} />
           <input ref={refFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importReference(f) }} />
         </div>
@@ -570,6 +586,19 @@ export default function DesignStudioPage() {
 
       {showNew && <NewDocModal onClose={() => setShowNew(false)} onCreate={(w, h) => { initDoc(w, h); setDocId(null); setTitle('Senza titolo'); setShowNew(false) }} />}
       {showGallery && <GalleryModal entryId={entryId} onClose={() => setShowGallery(false)} onOpen={openDesign} onDelete={(id) => del.mutate(id)} />}
+      {adjust && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={cancelAdjust}>
+          <div className="bg-[rgb(var(--bg))] rounded-2xl p-5 w-full max-w-sm space-y-2.5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-sm inline-flex items-center gap-1.5"><SlidersHorizontal size={15} /> Regolazioni livello</h3>
+            <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Luminosità: {Math.round(adjust.b * 100)}%<input type="range" min={0} max={2} step={0.01} value={adjust.b} onChange={(e) => setAdjust((a) => a && { ...a, b: Number(e.target.value) })} className="w-full" /></label>
+            <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Contrasto: {Math.round(adjust.c * 100)}%<input type="range" min={0} max={2} step={0.01} value={adjust.c} onChange={(e) => setAdjust((a) => a && { ...a, c: Number(e.target.value) })} className="w-full" /></label>
+            <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Saturazione: {Math.round(adjust.s * 100)}%<input type="range" min={0} max={3} step={0.01} value={adjust.s} onChange={(e) => setAdjust((a) => a && { ...a, s: Number(e.target.value) })} className="w-full" /></label>
+            <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Tonalità: {adjust.h}°<input type="range" min={-180} max={180} step={1} value={adjust.h} onChange={(e) => setAdjust((a) => a && { ...a, h: Number(e.target.value) })} className="w-full" /></label>
+            <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Sfocatura: {adjust.blur}px<input type="range" min={0} max={30} step={0.5} value={adjust.blur} onChange={(e) => setAdjust((a) => a && { ...a, blur: Number(e.target.value) })} className="w-full" /></label>
+            <div className="flex gap-2 justify-end pt-1"><Button size="sm" variant="outline" onClick={cancelAdjust}>Annulla</Button><Button size="sm" onClick={applyAdjust}>Applica</Button></div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
