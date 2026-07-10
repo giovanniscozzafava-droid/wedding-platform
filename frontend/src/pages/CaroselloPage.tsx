@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
   ZoomIn, ZoomOut, ImagePlus, Sparkles, X, LayoutTemplate, Check,
-  Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2,
+  Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -213,6 +213,16 @@ export default function CaroselloPage() {
   function removeSel() { if (!sel) return; snapshot(); setElements(elements.filter((e) => e.id !== sel.id)); setSelId(null); setModelKey(null) }
   function duplicateSel() { if (!sel) return; snapshot(); const c = { ...sel, id: uid(), x: Math.min(0.9, sel.x + 0.02), y: Math.min(0.9, sel.y + 0.02) }; setElements([...elements, c]); setSelId(c.id); setModelKey(null) }
   function bringFront() { if (!sel) return; snapshot(); setElements([...elements.filter((e) => e.id !== sel.id), sel]); setModelKey(null) }
+  // Riordino: scambia il CONTENUTO di due slide adiacenti. Sposta gli elementi il cui centro cade
+  // nella slide a↔b; quelli che ATTRAVERSANO il confine (seamless) restano dove sono.
+  function swapSlides(a: number, b: number) {
+    if (a < 0 || b < 0 || a >= n || b >= n) return
+    snapshot()
+    const slideOf = (e: Geo) => Math.min(n - 1, Math.max(0, Math.floor((e.x + e.w / 2) * n)))
+    const shift = <T extends Geo>(e: T, from: number, to: number): T => ({ ...e, x: e.x + (to - from) / n })
+    const move = <T extends Geo>(arr: T[]) => arr.map((e) => { const s = slideOf(e); return s === a ? shift(e, a, b) : s === b ? shift(e, b, a) : e })
+    setElements(move(elements)); setTexts(move(texts)); setModelKey(null); setSelId(null); setSelText(null)
+  }
 
   // ── LOGO / grafica (data-URL: vive nel layout, niente upload) ────────────────
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -384,6 +394,17 @@ export default function CaroselloPage() {
             ))}
           </div>
           <p className="text-center text-[11px] text-[rgb(var(--fg-muted))] mt-2">Le linee segnano dove Instagram taglia le slide · trascina/ridimensiona le foto · quello che attraversa una linea resta continuo nello swipe</p>
+          {n > 1 && (
+            <div className="mt-2 flex items-center justify-center gap-0.5 flex-wrap">
+              <span className="text-[11px] text-[rgb(var(--fg-subtle))] mr-1">Riordina:</span>
+              {Array.from({ length: n }, (_, i) => (
+                <span key={i} className="inline-flex items-center">
+                  <span className="text-[11px] tabular-nums px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))]">{i + 1}</span>
+                  {i < n - 1 && <button onClick={() => swapSlides(i, i + 1)} title={`Scambia il contenuto delle slide ${i + 1} e ${i + 2}`} className="mx-0.5 p-0.5 rounded hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]"><ArrowLeftRight size={12} /></button>}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
