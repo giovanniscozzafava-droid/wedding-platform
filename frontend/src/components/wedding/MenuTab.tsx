@@ -340,6 +340,22 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
           </p>
         </div>
       )}
+      {(Object.keys(vincoli).length > 0 || confermatiN > 0) && (
+        <div className="flex items-center gap-3 rounded-xl border border-[rgb(var(--gold-200))] bg-[rgb(var(--gold-50,250_246_237))] px-4 py-3 flex-wrap">
+          <Utensils size={18} className="text-[rgb(var(--gold-700))] shrink-0" />
+          <p className="text-sm flex-1 min-w-[12rem]">
+            <span className="font-medium">Menù dell'evento</span>{' '}
+            {Object.keys(vincoli).length > 0 ? (
+              composizioneCompleta
+                ? <span className="text-[rgb(var(--sage-700))]">composizione completa — puoi generarlo per la stampa.</span>
+                : <span className="text-[rgb(var(--fg-muted))]">mancano ancora: {mancanti.map((c) => SECTIONS.find((s) => s.key === COURSE_TO_SECTION[c])?.label ?? c).join(', ')}.</span>
+            ) : <span className="text-[rgb(var(--fg-muted))]">{confermatiN} piatti scelti.</span>}
+          </p>
+          <Button variant="gold" size="sm" disabled={genBusy || (Object.keys(vincoli).length > 0 ? !composizioneCompleta : confermatiN === 0)} onClick={generaMenu}>
+            <BookOpen size={14} /> {genBusy ? 'Genero…' : 'Genera menù'}
+          </Button>
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="font-display text-2xl flex items-center gap-2">
@@ -368,7 +384,11 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
             (sec.items.length > 0 || (dishesBySection[sec.key]?.length ?? 0) > 0 || !readOnly) && (
               <section key={sec.key}>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-display text-lg" style={{ color: 'rgb(var(--gold-700))' }}>{sec.label}</h3>
+                  <h3 className="font-display text-lg flex items-baseline gap-2" style={{ color: 'rgb(var(--gold-700))' }}>
+                    {sec.label}
+                    {(() => { const c = COURSE_OPTIONS.find((k) => COURSE_TO_SECTION[k] === sec.key); const v = c ? vincoli[c] : undefined; if (!v) return null; const n = c ? (selByCourse[c] || 0) : 0
+                      return <span className="text-[11px] font-normal text-[rgb(var(--fg-muted))]">scegli {v.min === v.max ? v.min : `${v.min}–${v.max}`} · {n} scelt{n === 1 ? 'o' : 'i'}</span> })()}
+                  </h3>
                   {!readOnly && (
                     <Button variant="ghost" size="sm" onClick={() => openCreate(sec.key)}>
                       <Plus size={14} /> Aggiungi
@@ -404,6 +424,7 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
                                   </span>
                                 )}
                               </div>
+                              {d.descrizione && <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">{d.descrizione}</p>}
                               {fuori ? (
                                 <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1.5 italic">Non disponibile per la data del matrimonio{d.season ? ` (solo ${mese(d.season.from)}–${mese(d.season.to)})` : ''}.</p>
                               ) : (

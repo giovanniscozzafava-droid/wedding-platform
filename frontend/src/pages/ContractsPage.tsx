@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FileSignature, FileDown, X, Copy, Mail, MessageCircle, Sparkles } from 'lucide-react'
 import { shareWhatsAppLink } from '@/lib/share'
@@ -55,6 +55,11 @@ export default function ContractsPage() {
     })()
   }, [])
 
+  // Cambio card = contesto pulito: azzera l'editing e tiene un ref dell'id aperto ORA, così le operazioni
+  // async (AI) applicano il risultato solo alla card su cui sono partite, non a quella aperta nel frattempo.
+  const openIdRef = useRef<string | null>(null)
+  useEffect(() => { openIdRef.current = selected?.id ?? null; setEditMode(false) }, [selected?.id])
+
   const [generatingPdf, setGeneratingPdf] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
@@ -100,7 +105,10 @@ export default function ContractsPage() {
   const [aiBusy, setAiBusy] = useState(false)
   async function aiFill() {
     if (!selected) return
+    // Cattura la card SU CUI parte l'AI: da qui in poi si opera solo su questo id, mai su "selected" corrente.
+    const cid = selected.id
     const qid = selected.quote_id
+    const label = selected.title ?? 'contratto'
     if (!qid) { toast.error('Contratto senza preventivo collegato: l’AI non può ribaltarne i dati'); return }
     if (selected.status === 'FIRMATO') { toast.error('Contratto firmato: non modificabile'); return }
     if (!confirm('L’AI ribalta tutti i dati del preventivo nel contratto (dati fiscali, offerta, importi) e riscrive le clausole.\n\nContinuo?')) return
@@ -118,13 +126,19 @@ export default function ContractsPage() {
         throw new Error(map[r?.error ?? ''] ?? ('Compilazione AI non riuscita: ' + (r?.error ?? '')))
       }
       const secs = r.sections ?? []
+      // Il DB e la lista si aggiornano SEMPRE sulla card di partenza (cid), non su quella aperta ora.
       const { error: upErr } = await (supabase.from('contracts' as any) as any)
-        .update({ sections: secs, updated_at: new Date().toISOString() }).eq('id', selected.id)
+        .update({ sections: secs, updated_at: new Date().toISOString() }).eq('id', cid)
       if (upErr) throw upErr
-      setRows((rs) => rs.map((x) => x.id === selected.id ? { ...x, sections: secs } : x))
-      setSelected((s) => s ? { ...s, sections: secs } : s)
-      if (editMode) setDraftSections(secs)
-      toast.success('Contratto compilato dall’AI dal preventivo — rivedilo prima di inviare')
+      setRows((rs) => rs.map((x) => x.id === cid ? { ...x, sections: secs } : x))
+      // La UI aperta si aggiorna solo se stai ancora guardando quella stessa card.
+      if (openIdRef.current === cid) {
+        setSelected((s) => (s && s.id === cid) ? { ...s, sections: secs } : s)
+        if (editMode) setDraftSections(secs)
+        toast.success('Contratto compilato dall’AI dal preventivo — rivedilo prima di inviare')
+      } else {
+        toast.success(`"${label}" compilato dall’AI — riaprilo per rivederlo`)
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Compilazione AI non riuscita')
     } finally { setAiBusy(false) }
