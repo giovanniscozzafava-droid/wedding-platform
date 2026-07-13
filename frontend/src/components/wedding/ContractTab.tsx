@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2 } from 'lucide-react'
+import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -83,6 +83,29 @@ export function ContractTab({ wedding }: { wedding: any }) {
     if (!editing) return
     try { setEditing({ ...editing, sections: await mergeSections(editing.sections ?? []) }); toast.success('Dati importati nelle sezioni') }
     catch { toast.error('Import non riuscito') }
+  }
+
+  const [aiBusy, setAiBusy] = useState(false)
+  // Perfeziona con AI (Qwen): ribalta offerta + dati del preventivo → sezioni di contratto pronte.
+  async function aiDraft() {
+    if (!editing || !wedding.quote?.id) { toast.error('Serve un preventivo collegato'); return }
+    setAiBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-ai-draft', { body: { quote_id: wedding.quote.id } })
+      if (error) throw new Error(error.message)
+      const r = data as { ok?: boolean; sections?: any[]; error?: string }
+      if (!r?.ok) {
+        const map: Record<string, string> = {
+          no_ai_key: 'AI non ancora configurata.', forbidden: 'Non sei il proprietario del preventivo.',
+          quote_not_found: 'Preventivo non trovato.', ai_error: 'Errore del servizio AI.',
+          parse: 'Risposta AI non interpretabile.', empty: 'Nessuna sezione generata.',
+        }
+        throw new Error(map[r?.error ?? ''] ?? ('Bozza AI non riuscita: ' + (r?.error ?? '')))
+      }
+      setEditing({ ...editing, sections: r.sections })
+      toast.success('Bozza generata dall’AI — rivedila prima di inviare')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setAiBusy(false) }
   }
 
   async function createFromQuote() {
@@ -267,6 +290,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
                     setEditing({ ...editing, sections: ns })
                   }}><Plus size={14} /> Aggiungi articolo</Button>
                   <Button variant="ghost" size="sm" onClick={fillData}><Wand2 size={14} /> Riempi dati</Button>
+                  <Button variant="ghost" size="sm" onClick={aiDraft} disabled={aiBusy}><Sparkles size={14} /> {aiBusy ? 'Genero…' : 'Perfeziona con AI'}</Button>
                   <Button variant="ghost" size="sm" onClick={saveAsTemplate}><BookMarked size={14} /> Salva come modello</Button>
                 </div>
               )}
