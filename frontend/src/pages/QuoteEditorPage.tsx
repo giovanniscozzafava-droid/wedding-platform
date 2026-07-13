@@ -117,8 +117,19 @@ export default function QuoteEditorPage() {
   const [clientEmail, setClientEmail] = useState<string>('')
   const [eventDate, setEventDate] = useState<string>('')
   const [blockDays, setBlockDays] = useState(15)
-  const [notifyClient, setNotifyClient] = useState(true)
+  const [notifyClient] = useState(true)
   const [blocking, setBlocking] = useState(false)
+  const [optionAllowed, setOptionAllowed] = useState(false)
+  // Il PRO abilita (per preventivo) la possibilità che il CLIENTE opzioni la data senza firmare.
+  async function saveOption(allowed: boolean, days: number) {
+    if (!id) return
+    setOptionAllowed(allowed)
+    try {
+      const { error } = await (supabase.from('quotes' as any) as any).update({ option_allowed: allowed, option_days: days }).eq('id', id)
+      if (error) throw error
+      toast.success(allowed ? 'Il cliente può ora opzionare la data' : 'Opzione data disattivata')
+    } catch (e) { setOptionAllowed(!allowed); toast.error((e as Error).message) }
+  }
   // Blocca la data SENZA impegno (opzione dal preventivo) → evento OPZIONATA + countdown; la data
   // risulta bloccata sul calendario ma senza vincolo, finché il cliente firma o scade.
   async function blockDate() {
@@ -311,6 +322,8 @@ export default function QuoteEditorPage() {
       setClientName(quote.client_name ?? '')
       setClientEmail(quote.client_email ?? '')
       setEventDate(quote.event_date ?? '')
+      setOptionAllowed(!!(quote as any).option_allowed)
+      if ((quote as any).option_days) setBlockDays(Number((quote as any).option_days))
       setEventKind(((quote as any).event_kind ?? 'matrimonio').toLowerCase())
       setPdfUrl(quote.pdf_url ?? null)
     }
@@ -744,21 +757,22 @@ export default function QuoteEditorPage() {
               <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} disabled={isLocked} />
             </div>
             <div className="space-y-1 lg:col-span-3">
-              <Label>Blocco data — senza impegno</Label>
-              <div className="flex flex-wrap items-center gap-2">
-                <select value={blockDays} onChange={(e) => setBlockDays(Number(e.target.value))}
+              <Label>Opzione data — il cliente può tenerla senza firmare</Label>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="inline-flex items-center gap-1.5 text-sm">
+                  <input type="checkbox" checked={optionAllowed} onChange={(e) => void saveOption(e.target.checked, blockDays)} />
+                  Consenti al cliente di opzionare la data
+                </label>
+                <select value={blockDays} onChange={(e) => { const d = Number(e.target.value); setBlockDays(d); if (optionAllowed) void saveOption(true, d) }}
                   className="h-9 px-2 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))] text-sm">
                   {[7, 14, 15, 30].map((d) => <option key={d} value={d}>{d} giorni</option>)}
                 </select>
-                <label className="inline-flex items-center gap-1.5 text-xs text-[rgb(var(--fg-muted))]">
-                  <input type="checkbox" checked={notifyClient} onChange={(e) => setNotifyClient(e.target.checked)} /> Avvisa il cliente via email
-                </label>
-                <Button variant="outline" size="sm" disabled={blocking || !eventDate} onClick={() => void blockDate()}>
-                  <Calendar size={14} /> {blocking ? '…' : 'Blocca la data'}
-                </Button>
-                <button type="button" onClick={() => void unblockDate()} className="text-xs underline text-[rgb(var(--fg-subtle))]">rilascia</button>
               </div>
-              <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Tiene la data sul tuo calendario senza vincolo. Si libera da sola alla scadenza, o diventa confermata quando il cliente firma.</p>
+              <p className="text-[11px] text-[rgb(var(--fg-subtle))]">
+                Se attivo, dal preventivo il cliente vede <strong>“Richiedi opzione”</strong>: tiene la data (bloccata sul tuo calendario, senza vincolo) per i giorni scelti, finché firma o scade.
+                {' '}Puoi anche <button type="button" onClick={() => void blockDate()} disabled={blocking || !eventDate} className="underline disabled:opacity-50">bloccarla tu ora</button>
+                {' '}o <button type="button" onClick={() => void unblockDate()} className="underline">rilasciarla</button>.
+              </p>
             </div>
             <div className="space-y-1">
               <Label>Tipo di evento</Label>

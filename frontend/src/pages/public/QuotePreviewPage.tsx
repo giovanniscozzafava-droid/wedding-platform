@@ -33,6 +33,37 @@ function QuotePreviewPageInner() {
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [unlocked, setUnlocked] = useState(false)
+  const [opt, setOpt] = useState<{ allowed: boolean; days: number; optioned: boolean } | null>(null)
+  const [optBusy, setOptBusy] = useState(false)
+
+  // Il pro ha abilitato l'opzione? Il cliente può tenere la data senza firmare.
+  useEffect(() => {
+    if (!token) return
+    void (async () => {
+      try {
+        const { data: s } = await (supabase.rpc as any)('quote_option_status', { p_token: token })
+        if (s) setOpt({ allowed: !!s.option_allowed, days: Number(s.option_days ?? 15), optioned: !!s.optioned })
+      } catch { /* ignora */ }
+    })()
+  }, [token])
+
+  async function requestOption() {
+    if (!token) return
+    setOptBusy(true)
+    try {
+      const { data: r, error } = await (supabase.rpc as any)('richiedi_opzione_da_preventivo', { p_token: token })
+      if (error) throw new Error(error.message)
+      const res = r as { ok?: boolean; error?: string; scade?: string }
+      const map: Record<string, string> = {
+        non_abilitato: 'Opzione non disponibile su questo preventivo.', gia_opzionata: 'La data è già opzionata per te.',
+        date_already_optioned: 'Quella data è già stata opzionata.', no_date: 'Manca la data dell’evento.',
+      }
+      if (res?.error) throw new Error(map[res.error] ?? res.error)
+      setOpt((o) => o ? { ...o, optioned: true } : o)
+      toast.success(`Data tenuta per te${res?.scade ? ` fino al ${new Date(res.scade).toLocaleDateString('it-IT')}` : ''} — senza impegno`)
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setOptBusy(false) }
+  }
 
   const load = async () => {
     if (!token) return
@@ -98,6 +129,20 @@ function QuotePreviewPageInner() {
               {' · '}
               <Badge status={data.status} />
             </p>
+            {opt?.allowed && data.status !== 'ACCETTATO' && data.status !== 'CONVERTITO_IN_CONTRATTO' && (
+              <div className="mt-4 rounded-xl border p-3" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+                {opt.optioned ? (
+                  <p className="text-sm text-[rgb(var(--fg))]">Ti stiamo tenendo la data <strong>senza impegno</strong>. Confermala firmando quando sei pronto.</p>
+                ) : (
+                  <>
+                    <p className="text-sm text-[rgb(var(--fg))] mb-2">Non sei ancora pronto a firmare? Puoi <strong>tenere la data senza impegno</strong> per {opt.days} giorni.</p>
+                    <Button size="sm" variant="outline" disabled={optBusy} onClick={() => void requestOption()}>
+                      {optBusy ? 'Attendere…' : 'Richiedi opzione sulla data'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </header>
 
           <div className="px-6 sm:px-10 py-6 space-y-2 text-sm">
