@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles, CalendarClock, Star, Check, Wallet, Lock } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles, CalendarClock, Star, Check, Wallet, Lock, ImagePlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -169,6 +169,26 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
       toast.success(`Menù ufficiale generato (${r.inseriti} portate) — ora è pronto nella stampa`)
       setChoiceReload((x) => x + 1)
     } catch { toast.error('Generazione menù non riuscita') } finally { setGenBusy(false) }
+  }
+  // Foto piatto (lato location): upload nel bucket fb-dish-photos + salva l'URL sul piatto.
+  const photoInput = useRef<HTMLInputElement>(null)
+  const photoTarget = useRef<string>('')
+  async function uploadDishPhoto(mi: string, file: File) {
+    setBusyDish(mi + ':p')
+    try {
+      const { data: u } = await supabase.auth.getUser()
+      const uid = u?.user?.id; if (!uid) throw new Error()
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+      const path = `${uid}/${mi}.${ext}`
+      const up = await supabase.storage.from('fb-dish-photos').upload(path, file, { upsert: true, cacheControl: '3600' })
+      if (up.error) throw up.error
+      const { data: pub } = supabase.storage.from('fb-dish-photos').getPublicUrl(path)
+      const url = `${pub.publicUrl}?v=${Date.now()}`
+      const { data: r, error } = await (supabase as any).rpc('fb_dish_set_photo', { p_menu_item_id: mi, p_url: url })
+      if (error || r?.error) throw new Error()
+      toast.success('Foto del piatto caricata')
+      setChoiceReload((x) => x + 1)
+    } catch { toast.error('Foto non caricata') } finally { setBusyDish('') }
   }
 
   async function voteDish(mi: string, n: number) {
@@ -380,6 +400,7 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
         </div>
       ) : (
         <div className="space-y-5">
+          <input ref={photoInput} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void uploadDishPhoto(photoTarget.current, f) }} />
           {grouped.map((sec) => (
             (sec.items.length > 0 || (dishesBySection[sec.key]?.length ?? 0) > 0 || !readOnly) && (
               <section key={sec.key}>
@@ -404,8 +425,9 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
                       return (
                       <li key={d.menu_item_id}>
                         <Card className={`p-3.5 ${d.confermato ? 'ring-1 ring-[rgb(var(--sage-500))] bg-[rgb(var(--sage-100))]/40' : ''} ${fuori ? 'opacity-60' : ''}`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
+                          <div className="flex items-start gap-3">
+                            {d.foto && <img src={d.foto} alt={d.piatto} className="w-14 h-14 rounded-lg object-cover shrink-0 border border-[rgb(var(--border))]" />}
+                            <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-medium">{d.piatto}</span>
                                 {d.confermato && (
@@ -443,6 +465,12 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
                               )}
                             </div>
                             <div className="shrink-0 flex items-center gap-1">
+                              {!readOnly && (
+                                <Button variant="ghost" size="icon" aria-label="Foto piatto" disabled={busyDish === d.menu_item_id + ':p'}
+                                  onClick={() => { photoTarget.current = d.menu_item_id; photoInput.current?.click() }}>
+                                  <ImagePlus size={14} />
+                                </Button>
+                              )}
                               {!readOnly && (
                                 <Button variant="ghost" size="icon" aria-label="Modifica piatto"
                                   onClick={() => setDishEdit({ mi: d.menu_item_id, name: d.piatto, course: d.portata || 'ANTIPASTO', from: d.season?.from ?? 0, to: d.season?.to ?? d.season?.from ?? 9 })}>
