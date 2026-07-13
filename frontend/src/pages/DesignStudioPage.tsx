@@ -7,7 +7,7 @@ import {
   ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Images, Plus, Trash2, Copy,
   Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen, Search,
   Fingerprint, Lock, Unlock, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcw, SlidersHorizontal,
-  Stamp,
+  Stamp, Home, Maximize2, Minimize2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -229,6 +229,7 @@ export default function DesignStudioPage() {
   const [customPresets, setCustomPresets] = useState<BrushPreset[]>([])
   const [presetSel, setPresetSel] = useState('')
   const [motif, setMotif] = useState('leaf')   // timbro decorativo selezionato (foglie/fiori/ghirigori)
+  const [immersive, setImmersive] = useState(false)   // iPad "pagina piena": nasconde barra + strumenti + pannello
   useEffect(() => { setCustomPresets(loadCustomPresets()) }, [])
   const applyPreset = (p: BrushPreset) => { setTool(p.tool as Tool); setSize(p.size); setOpacity(p.opacity); if (p.color) setColor(p.color); setPresetSel(p.id) }
   const [streamline, setStreamline] = useState(0.4)
@@ -527,8 +528,10 @@ export default function DesignStudioPage() {
 
   return (
     <div ref={rootRef} className="fixed inset-0 z-40 flex flex-col bg-[rgb(var(--bg))] select-none" style={{ touchAction: 'none' }}>
+      {!immersive && (
       <div className="flex items-center gap-2 px-3 h-12 border-b border-[rgb(var(--border))] shrink-0 overflow-x-auto">
-        {entryId && <button onClick={() => navigate(`/weddings/${entryId}`)} title="Torna all'evento" className="h-8 w-8 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))]"><ArrowLeft size={16} /></button>}
+        <button onClick={() => navigate(entryId ? `/weddings/${entryId}` : '/')} title={entryId ? "Torna all'evento" : 'Torna in Planfully'} className="h-8 w-8 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))] shrink-0">{entryId ? <ArrowLeft size={16} /> : <Home size={16} />}</button>
+        {entryId && <button onClick={() => navigate('/')} title="Torna in Planfully" className="h-8 w-8 grid place-items-center rounded hover:bg-[rgb(var(--bg-sunken))] shrink-0"><Home size={16} /></button>}
         <span className="font-semibold text-sm inline-flex items-center gap-1.5 shrink-0"><Paintbrush size={16} /> Studio</span>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-8 w-40 shrink-0" />
         <Select value={assignEntry ?? ''} onChange={(e) => setAssignEntry(e.target.value || null)} className="h-8 w-44 shrink-0" title="Indirizza il progetto a un evento">
@@ -553,6 +556,7 @@ export default function DesignStudioPage() {
           <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.min(8, z * 1.15))}><ZoomIn size={14} /></Button>
           <Button size="sm" variant="outline" onClick={() => fitView()}><Maximize size={14} /></Button>
           <Button size="sm" variant="outline" onClick={goFullscreen} title="Schermo intero"><Expand size={14} /></Button>
+          <Button size="sm" variant="outline" onClick={() => setImmersive(true)} title="Pagina piena — nasconde gli strumenti (iPad)"><Maximize2 size={14} /></Button>
           <span className="w-px h-5 bg-[rgb(var(--border))] mx-1" />
           <Button size="sm" variant="outline" onClick={exportPNG}><Download size={14} /> PNG</Button>
           <Button size="sm" variant="outline" onClick={exportPDF}><FileText size={14} /> PDF</Button>
@@ -561,15 +565,21 @@ export default function DesignStudioPage() {
           <Button size="sm" onClick={doSave} disabled={saving}><Save size={14} /> {saving ? '…' : 'Salva'}</Button>
         </div>
       </div>
+      )}
 
       <div className="flex-1 flex min-h-0">
+        {!immersive && (
         <div className="w-12 shrink-0 border-r border-[rgb(var(--border))] flex flex-col items-center gap-1 py-2 overflow-y-auto">
           {TOOLS.map(({ t, Icon, label }) => (
             <button key={t} title={label} onClick={() => setTool(t)} className={`h-9 w-9 grid place-items-center rounded-lg ${tool === t ? 'bg-[rgb(var(--gold-500))] text-white' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><Icon size={17} /></button>
           ))}
         </div>
+        )}
 
         <div ref={stageRef} className="flex-1 relative overflow-hidden bg-[#3a3d44]">
+          {immersive && (
+            <button onClick={() => setImmersive(false)} title="Mostra gli strumenti" className="absolute top-2 right-2 z-30 h-10 w-10 grid place-items-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60 shadow-lg"><Minimize2 size={18} /></button>
+          )}
           <canvas ref={displayRef} className="absolute inset-0 touch-none" style={{ cursor: tool === 'hand' ? 'grab' : tool === 'eyedropper' ? 'crosshair' : tool === 'text' ? 'text' : 'crosshair' }}
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => { if (ringRef.current) ringRef.current.style.display = 'none' }} onWheel={onWheel} />
           <div ref={ringRef} className="pointer-events-none absolute rounded-full border border-white/80 mix-blend-difference -translate-x-1/2 -translate-y-1/2" style={{ display: 'none' }} />
@@ -582,8 +592,8 @@ export default function DesignStudioPage() {
           )}
         </div>
 
-        {!rightOpen && <button onClick={() => setRightOpen(true)} title="Mostra strumenti" className="w-8 shrink-0 border-l border-[rgb(var(--border))] grid place-items-center hover:bg-[rgb(var(--bg-sunken))]"><PanelRightOpen size={16} /></button>}
-        <div className={`${rightOpen ? 'w-60' : 'hidden'} shrink-0 border-l border-[rgb(var(--border))] flex flex-col overflow-y-auto relative`}>
+        {!immersive && !rightOpen && <button onClick={() => setRightOpen(true)} title="Mostra strumenti" className="w-8 shrink-0 border-l border-[rgb(var(--border))] grid place-items-center hover:bg-[rgb(var(--bg-sunken))]"><PanelRightOpen size={16} /></button>}
+        <div className={`${rightOpen && !immersive ? 'w-60' : 'hidden'} shrink-0 border-l border-[rgb(var(--border))] flex flex-col overflow-y-auto relative`}>
           <button onClick={() => setRightOpen(false)} title="Riduci pannello" className="absolute -left-3 top-2 z-20 h-6 w-6 grid place-items-center rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--bg))] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] shadow-sm"><PanelRightClose size={13} /></button>
 
           <div className="p-3 border-b border-[rgb(var(--border))] space-y-2">
