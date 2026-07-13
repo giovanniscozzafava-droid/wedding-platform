@@ -7,6 +7,7 @@ import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
+import { decodeCodiceFiscale, birthPlaceFromCF } from '@/lib/codiceFiscale'
 
 type ContractData = {
   id: string
@@ -45,6 +46,10 @@ export default function ContractSignPage() {
   const [docType, setDocType] = useState('CARTA_IDENTITA')
   const [docNumber, setDocNumber] = useState('')
   const [docIssuedBy, setDocIssuedBy] = useState('')
+  // Data + luogo di nascita: dedotti dal codice fiscale (il cliente li verifica/corregge → entrano nel contratto).
+  const [birthDate, setBirthDate] = useState('')
+  const [birthPlace, setBirthPlace] = useState('')
+  const [birthTouched, setBirthTouched] = useState(false)
   const [signature, setSignature] = useState<string | null>(null)
   const [consentTerms, setConsentTerms] = useState(false)
   const [consentPrivacy, setConsentPrivacy] = useState(false)
@@ -116,6 +121,17 @@ export default function ContractSignPage() {
 
   useEffect(() => { void load() }, [token])
 
+  // Deduci data + luogo di nascita dal codice fiscale (finché il cliente non li corregge a mano).
+  useEffect(() => {
+    if (birthTouched) return
+    const d = decodeCodiceFiscale(signerFiscal)
+    if (!d.valid) return
+    if (d.birthDate) setBirthDate(d.birthDate)
+    let alive = true
+    birthPlaceFromCF(signerFiscal).then((r) => { if (alive && !birthTouched && r.label) setBirthPlace(r.label) })
+    return () => { alive = false }
+  }, [signerFiscal, birthTouched])
+
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (!token) return
@@ -133,6 +149,8 @@ export default function ContractSignPage() {
         p_signature_data_url: signature,
         p_consent_terms: consentTerms,
         p_consent_privacy: consentPrivacy,
+        p_birth_date: birthDate || null,
+        p_birth_place: birthPlace.trim() || null,
       })
       if (error) throw error
       if (!ok) { setErr('Contratto non firmabile (già annullato o non disponibile).'); return }
@@ -266,6 +284,34 @@ export default function ContractSignPage() {
                     <Label htmlFor="docIssued">Rilasciato da</Label>
                     <Input id="docIssued" value={docIssuedBy} onChange={(e) => setDocIssuedBy(e.target.value)} placeholder="Comune di…" />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="birthDate">Data di nascita</Label>
+                    <Input id="birthDate" type="date" value={birthDate}
+                      onChange={(e) => { setBirthTouched(true); setBirthDate(e.target.value) }} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="birthPlace">Luogo di nascita</Label>
+                    <Input id="birthPlace" value={birthPlace} placeholder="Comune (Provincia)"
+                      onChange={(e) => { setBirthTouched(true); setBirthPlace(e.target.value) }} />
+                  </div>
+                </div>
+                <p className="text-xs text-[rgb(var(--fg-subtle))] -mt-2">
+                  Data e luogo di nascita sono dedotti dal tuo codice fiscale: <strong>controllali</strong> e correggili se sbagliati.
+                </p>
+
+                {/* Riepilogo live: quello che confermi qui entra nel contratto come "Dati del Committente". */}
+                <div className="rounded-lg border p-3 text-sm" style={{ borderColor: 'rgb(var(--border))', background: '#fff' }}>
+                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1.5">Come appariranno nel contratto</p>
+                  <dl className="space-y-0.5 text-[rgb(var(--fg-muted))]">
+                    <div className="flex gap-2"><dt className="w-32 shrink-0 text-[rgb(var(--fg-subtle))]">Nome e cognome</dt><dd className="font-medium text-[rgb(var(--fg))]">{signerName || '—'}</dd></div>
+                    <div className="flex gap-2"><dt className="w-32 shrink-0 text-[rgb(var(--fg-subtle))]">Codice fiscale</dt><dd className="font-medium text-[rgb(var(--fg))]">{signerFiscal ? signerFiscal.toUpperCase() : '—'}</dd></div>
+                    <div className="flex gap-2"><dt className="w-32 shrink-0 text-[rgb(var(--fg-subtle))]">Data di nascita</dt><dd className="font-medium text-[rgb(var(--fg))]">{birthDate ? new Date(birthDate + 'T00:00:00').toLocaleDateString('it-IT') : '—'}</dd></div>
+                    <div className="flex gap-2"><dt className="w-32 shrink-0 text-[rgb(var(--fg-subtle))]">Luogo di nascita</dt><dd className="font-medium text-[rgb(var(--fg))]">{birthPlace || '—'}</dd></div>
+                  </dl>
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">Se un dato non è corretto, modificalo qui sopra: verrà aggiornato anche nel contratto.</p>
                 </div>
 
                 <div className="space-y-1">

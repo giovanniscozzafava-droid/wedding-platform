@@ -16,6 +16,7 @@ export type Comune = {
 
 let _all: Comune[] | null = null
 let _byKey: Map<string, Comune> | null = null
+let _byCode: Map<string, Comune> | null = null
 let _loading: Promise<Comune[]> | null = null
 
 const norm = (s: string) =>
@@ -37,9 +38,11 @@ export async function loadComuni(): Promise<Comune[]> {
     .then((data: Comune[]) => {
       _all = data
       _byKey = new Map()
+      _byCode = new Map()
       for (const c of data) {
         const k = norm(c.n)
         if (!_byKey.has(k)) _byKey.set(k, c)
+        if (c.cc) _byCode.set(c.cc.toUpperCase(), c)
       }
       _loading = null
       return data
@@ -70,4 +73,10 @@ export async function searchComuni(query: string, limit = 12): Promise<Comune[]>
 export async function findComune(nome: string): Promise<Comune | null> {
   await loadComuni()
   return _byKey?.get(norm(nome)) ?? null
+}
+
+/** Reverse lookup dal codice catastale (belfiore) — es. 'H501' → Roma. Usato per dedurre il luogo di nascita dal codice fiscale. */
+export async function findComuneByCode(cc: string): Promise<Comune | null> {
+  await loadComuni()
+  return _byCode?.get((cc ?? '').toUpperCase()) ?? null
 }
