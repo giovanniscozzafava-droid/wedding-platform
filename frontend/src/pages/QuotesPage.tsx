@@ -81,7 +81,10 @@ export default function QuotesPage() {
           .rpc('check_owner_date_busy', { p_date: form.event_date })
         if (error) throw error
         setBusyCheck(data as BusyCheck)
-      } catch {
+      } catch (e) {
+        // Mai più fallimenti invisibili su una funzione di sicurezza commerciale (avviso doppia prenotazione).
+        console.error('busy-check', e)
+        toast.error('Verifica disponibilità non riuscita')
         setBusyCheck(null)
       } finally {
         setCheckingBusy(false)

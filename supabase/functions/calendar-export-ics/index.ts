@@ -30,22 +30,30 @@ Deno.serve(async (req) => {
   }
 
   // Eventi visibili al destinatario: owner OR participant. RLS bypass: filtriamo lato server.
+  // NB: `notes`/`client_name` NON esistono più su calendar_entries (spostate in calendar_entries_private
+  // dalla migration 20260610010000). Selezionarle qui rendeva la query in errore e `?? []` la ingoiava
+  // → il feed non conteneva più gli eventi PROPRI. Ora gli errori fanno esplodere (500 + log), mai VCALENDAR parziale.
+  const fail = (where: string, err: unknown) => { console.error('calendar-export-ics error', where, err); return new Response('export error', { status: 500, headers: { 'content-type': 'text/plain' } }) }
+
   const owned = await admin
     .from('calendar_entries')
-    .select('id, title, date_from, date_to, status, notes')
+    .select('id, title, date_from, date_to, status')
     .eq('owner_id', tk.user_id)
+  if (owned.error) return fail('owned', owned.error)
 
   const participantIds = await admin
     .from('calendar_entry_participants')
     .select('entry_id')
     .eq('user_id', tk.user_id)
+  if (participantIds.error) return fail('participantIds', participantIds.error)
   const ids = (participantIds.data ?? []).map((r: any) => r.entry_id as string)
   const participated = ids.length
     ? await admin
         .from('calendar_entries')
         .select('id, title, date_from, date_to, status')
         .in('id', ids)
-    : { data: [] as any[] }
+    : { data: [] as any[], error: null }
+  if (participated.error) return fail('participated', participated.error)
 
   const all = [
     ...((owned.data ?? []) as any[]).map((e) => ({ ...e, _role: 'owner' as const })),
