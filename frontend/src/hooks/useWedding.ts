@@ -398,6 +398,14 @@ export function useContractMutations() {
       },
       onSuccess: inv,
     }),
+    // Firmato su carta: stampato e firmato a mano, il fornitore lo registra come FIRMATO (RPC, non UPDATE diretto).
+    markPaper: useMutation({
+      mutationFn: async (contractId: string) => {
+        const { error } = await (supabase as any).rpc('contract_mark_signed_paper', { p_id: contractId })
+        if (error) throw error
+      },
+      onSuccess: inv,
+    }),
   }
 }
 

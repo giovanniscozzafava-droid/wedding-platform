@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2, Sparkles } from 'lucide-react'
+import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2, Sparkles, PenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,7 @@ const STANDARD_SECTIONS = [
 
 export function ContractTab({ wedding }: { wedding: any }) {
   const { data: contracts } = useContracts(wedding.quote?.id ?? null)
-  const { create, update, send } = useContractMutations()
+  const { create, update, send, markPaper: markPaperMut } = useContractMutations()
   const { profile } = useAuth()
   const me = profile?.id ?? null
   const [editing, setEditing] = useState<any | null>(null)
@@ -86,12 +86,16 @@ export function ContractTab({ wedding }: { wedding: any }) {
   }
 
   const [aiBusy, setAiBusy] = useState(false)
-  // Perfeziona con AI (Qwen): ribalta offerta + dati del preventivo → sezioni di contratto pronte.
+  // Perfeziona con AI (Qwen): parte dalle sezioni che hai davanti, compila i dati reali e rende la lettura
+  // più professionale/giuridica preservando le tue scelte. Se non c'è nulla, genera da zero dal preventivo.
   async function aiDraft() {
     if (!editing || !wedding.quote?.id) { toast.error('Serve un preventivo collegato'); return }
+    const hasContent = (editing.sections ?? []).some((s: any) => (s.body ?? '').trim() || (s.heading ?? '').trim())
     setAiBusy(true)
     try {
-      const { data, error } = await supabase.functions.invoke('contract-ai-draft', { body: { quote_id: wedding.quote.id } })
+      const { data, error } = await supabase.functions.invoke('contract-ai-draft', {
+        body: { quote_id: wedding.quote.id, sections: hasContent ? editing.sections : undefined },
+      })
       if (error) throw new Error(error.message)
       const r = data as { ok?: boolean; sections?: any[]; error?: string }
       if (!r?.ok) {
@@ -103,9 +107,16 @@ export function ContractTab({ wedding }: { wedding: any }) {
         throw new Error(map[r?.error ?? ''] ?? ('Bozza AI non riuscita: ' + (r?.error ?? '')))
       }
       setEditing({ ...editing, sections: r.sections })
-      toast.success('Bozza generata dall’AI — rivedila prima di inviare')
+      toast.success(hasContent ? 'Contratto rifinito dall’AI (dati compilati) — rivedilo prima di inviare' : 'Bozza generata dall’AI — rivedila prima di inviare')
     } catch (e) { toast.error((e as Error).message) }
     finally { setAiBusy(false) }
+  }
+
+  // Firmato su carta: stampato e firmato a mano → registralo come FIRMATO (diventa immutabile come il digitale).
+  async function markPaper(id: string) {
+    if (!confirm('Confermi che questo contratto è stato firmato su carta?\n\nDiventerà immutabile, esattamente come una firma digitale.')) return
+    try { await markPaperMut.mutateAsync(id); toast.success('Registrato come firmato (cartaceo)') }
+    catch (e) { toast.error((e as Error).message) }
   }
 
   async function createFromQuote() {
@@ -174,6 +185,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
                 <p className="text-xs text-[rgb(var(--fg-subtle))]">
                   {c.client_name ?? '—'} · € {Number(c.total_amount).toLocaleString('it-IT')}
                   {c.signed_at && ` · firmato il ${new Date(c.signed_at).toLocaleDateString('it-IT')}`}
+                  {(c.signature_data as any)?.method === 'CARTACEO' && ' (cartaceo)'}
                 </p>
               </div>
               <Badge tone={c.status === 'FIRMATO' ? 'emerald' : c.status === 'INVIATO' ? 'amber' : 'neutral'}>{c.status}</Badge>
@@ -189,6 +201,12 @@ export function ContractTab({ wedding }: { wedding: any }) {
                   <Button variant="gold" size="sm" onClick={() => sendContract(c.id)}><Send /> Invia per firma</Button>
                   <HelpDot id="contract.invia" />
                 </span>
+              )}
+              {(c.status === 'BOZZA' || c.status === 'INVIATO') && (
+                <Button variant="outline" size="sm" onClick={() => markPaper(c.id)} disabled={markPaperMut.isPending}
+                  title="Se il cliente ha firmato una copia stampata invece del digitale">
+                  <PenLine size={13} /> Firmato cartaceo
+                </Button>
               )}
               {c.access_token && (
                 <>
@@ -224,7 +242,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
             </div>
             {editing.status === 'FIRMATO' && (
               <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: 'rgb(var(--bg-sunken))', borderLeft: '3px solid rgb(var(--gold-500))' }}>
-                Questo contratto è stato firmato dal cliente il <strong>{new Date(editing.signed_at).toLocaleString('it-IT')}</strong>.
+                Questo contratto è stato firmato {editing.signature_data?.method === 'CARTACEO' ? 'su copia cartacea e registrato dal professionista' : 'dal cliente'} il <strong>{new Date(editing.signed_at).toLocaleString('it-IT')}</strong>.
                 Per legge non è più modificabile. In caso di modifiche, crea un addendum o un nuovo contratto.
               </div>
             )}
@@ -261,7 +279,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
                   ))}
                   <div className="mt-6 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
                     <p className="text-xs" style={{ color: '#6E6E6E' }}>
-                      <strong>Firmato</strong> il {new Date(editing.signed_at).toLocaleString('it-IT')}
+                      <strong>Firmato{editing.signature_data?.method === 'CARTACEO' ? ' su carta' : ''}</strong> il {new Date(editing.signed_at).toLocaleString('it-IT')}
                     </p>
                   </div>
                 </div>

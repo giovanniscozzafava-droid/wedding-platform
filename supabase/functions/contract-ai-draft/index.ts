@@ -34,6 +34,13 @@ Deno.serve(async (req) => {
   const b = await req.json().catch(() => ({})) as Record<string, unknown>
   const quoteId = String(b.quote_id ?? '')
   if (!quoteId) return json({ ok: false, error: 'no_quote' })
+  // Sezioni correnti (quelle che il fornitore ha davanti nell'editor): se presenti, l'AI le RIFINISCE
+  // (riempie i dati reali + lettura/interpretazione più professionale) invece di rigenerare da zero.
+  const current = Array.isArray(b.sections)
+    ? (b.sections as any[]).filter((s) => s && s.heading != null && s.body != null)
+        .map((s) => ({ heading: String(s.heading), body: String(s.body), type: String(s.type ?? 'CLAUSULE') }))
+    : []
+  const refine = current.length > 0
 
   // preventivo + proprietà (solo l'owner puo' generare il contratto)
   const { data: q } = await admin.from('quotes')
@@ -73,7 +80,7 @@ Deno.serve(async (req) => {
     totale_eur: q.total_client,
   }
 
-  const PROMPT = `Sei un giurista che redige CONTRATTI per professionisti di eventi/matrimoni.
+  const GEN_PROMPT = `Sei un giurista che redige CONTRATTI per professionisti di eventi/matrimoni.
 Redigi un contratto COMPLETO e professionale a partire dai dati qui sotto, adattandolo al sistema
 giuridico di "${jurisdiction}" e scritto interamente in lingua "${language}".
 Includi almeno: parti contraenti (con i dati forniti), oggetto/prestazioni (ribaltando l'offerta),
@@ -86,6 +93,28 @@ Rispondi ESCLUSIVAMENTE con JSON valido, senza testo intorno:
 
 DATI:
 ${JSON.stringify(dossier, null, 2)}`
+
+  // Modalità RIFINITURA: parte dalla bozza che il fornitore ha già davanti e la migliora, senza stravolgerla.
+  const REFINE_PROMPT = `Sei un giurista che PERFEZIONA un contratto già impostato da un professionista di eventi/matrimoni.
+Ti do (A) le SEZIONI ATTUALI del contratto così come sono nell'editor e (B) i DATI reali dell'evento.
+Il tuo compito:
+1) COMPILA per bene i dati: sostituisci ogni segnaposto o campo generico (parti, date, luogo, importi, prestazioni)
+   con i valori reali presi dai DATI; NON inventare importi diversi dal totale indicato.
+2) Rendi la lettura più PROFESSIONALE e giuridicamente solida: migliora forma, chiarezza e interpretazione,
+   completa le clausole deboli, adatta il testo al sistema giuridico di "${jurisdiction}" e alla lingua "${language}"
+   (usa la normativa privacy corretta per "${jurisdiction}", non citare leggi italiane se la giurisdizione è diversa).
+3) PRESERVA l'intento e le scelte del professionista: mantieni le sezioni che ha già scritto e il loro senso,
+   non cancellare clausole volute; puoi riordinare e aggiungerne di mancanti (es. foro competente, forza maggiore).
+Rispondi ESCLUSIVAMENTE con JSON valido, senza testo intorno:
+{"sections":[{"heading":"<titolo sezione>","body":"<testo completo>","type":"CLAUSULE|PRICE|TERMS"}]}
+
+(A) SEZIONI ATTUALI:
+${JSON.stringify(current, null, 2)}
+
+(B) DATI:
+${JSON.stringify(dossier, null, 2)}`
+
+  const PROMPT = refine ? REFINE_PROMPT : GEN_PROMPT
 
   try {
     const r = await fetch(`${BASE_URL}/chat/completions`, {
