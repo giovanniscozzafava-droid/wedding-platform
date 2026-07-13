@@ -14,6 +14,7 @@ import { Input, Select } from '@/components/ui/input'
 import { useDesigns, fetchDesign, useDesignMutations, useAttachableEvents, type DesignMeta } from '@/hooks/useDesignStudio'
 import { FONTS, ensureFont, injectFontsStylesheet } from '@/lib/studioFonts'
 import { BUILTIN_PRESETS, loadCustomPresets, saveCustomPreset, deleteCustomPreset, type BrushPreset } from '@/lib/studioBrushPresets'
+import { STAMPS, STAMP_GROUPS, DEFAULT_STAMP, drawStamp } from '@/lib/studioStamps'
 
 // ── Studio disegno a mano libera (tavola grafica / tablet) — ispirato a Procreate ─────────────────
 // Motore a LIVELLI raster + engine pennelli a "stamp" (acquarello/gessetto/pastello/floreale…),
@@ -88,50 +89,11 @@ function newCanvas(w: number, h: number): HTMLCanvasElement { const c = document
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 // ── TIMBRI decorativi: foglie, fiori, ghirigori (disegnati con path, colore = pennello). ──
-// Ogni motivo è centrato in (0,0) con estensione ~R; il chiamante ha già translate+rotate.
-export const STAMP_MOTIFS = [
-  'leaf', 'leaf-thin', 'sprig', 'branch', 'flower', 'flower6', 'daisy', 'tulip', 'rose',
-  'wreath', 'berries', 'babybreath', 'swirl', 'flourish', 'heart', 'star',
-] as const
-export const STAMP_LABELS: Record<string, string> = {
-  leaf: 'Foglia', 'leaf-thin': 'Foglia sottile', sprig: 'Rametto', branch: 'Ramo', flower: 'Fiore 5',
-  flower6: 'Fiore 6', daisy: 'Margherita', tulip: 'Tulipano', rose: 'Rosa', wreath: 'Ghirlanda',
-  berries: 'Bacche', babybreath: 'Nebbiolina', swirl: 'Ghirigoro', flourish: 'Svolazzo', heart: 'Cuore', star: 'Stella',
-}
-function leafPath(ctx: CanvasRenderingContext2D, R: number) {
-  ctx.beginPath(); ctx.moveTo(0, -R); ctx.quadraticCurveTo(R * 0.6, -R * 0.2, 0, R); ctx.quadraticCurveTo(-R * 0.6, -R * 0.2, 0, -R); ctx.closePath(); ctx.fill()
-  ctx.beginPath(); ctx.moveTo(0, -R * 0.85); ctx.lineTo(0, R * 0.85); ctx.stroke()
-}
-function drawMotif(ctx: CanvasRenderingContext2D, motif: string, R: number) {
-  const petal = (n: number, len: number, wid: number) => { for (let p = 0; p < n; p++) { ctx.rotate((Math.PI * 2) / n); ctx.beginPath(); ctx.ellipse(0, -len * 0.62, wid, len, 0, 0, 6.283); ctx.fill() } }
-  switch (motif) {
-    case 'leaf': leafPath(ctx, R); break
-    case 'leaf-thin': ctx.beginPath(); ctx.moveTo(0, -R); ctx.quadraticCurveTo(R * 0.32, -R * 0.1, 0, R); ctx.quadraticCurveTo(-R * 0.32, -R * 0.1, 0, -R); ctx.fill(); break
-    case 'sprig': { ctx.beginPath(); ctx.moveTo(0, R); ctx.lineTo(0, -R); ctx.stroke(); for (let i = -2; i <= 2; i++) { const yy = i * R * 0.38; for (const s of [-1, 1]) { ctx.save(); ctx.translate(0, yy); ctx.rotate(s * 0.9); ctx.scale(0.34, 0.34); leafPath(ctx, R); ctx.restore() } } break }
-    case 'branch': { ctx.beginPath(); ctx.moveTo(-R, R * 0.4); ctx.quadraticCurveTo(0, -R * 0.2, R, -R); ctx.stroke(); for (let i = 0; i < 6; i++) { const t = i / 5; const bx = -R + 2 * R * t, by = R * 0.4 - (R * 0.4 + R) * t; ctx.save(); ctx.translate(bx, by); ctx.rotate((i % 2 ? 1 : -1) * 1.1); ctx.scale(0.3, 0.3); ctx.beginPath(); ctx.ellipse(0, -R * 0.5, R * 0.4, R * 0.7, 0, 0, 6.283); ctx.fill(); ctx.restore() } break }
-    case 'flower': petal(5, R * 0.9, R * 0.4); ctx.save(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(0, 0, R * 0.28, 0, 6.283); ctx.fill(); ctx.restore(); break
-    case 'flower6': petal(6, R * 0.85, R * 0.36); ctx.save(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(0, 0, R * 0.25, 0, 6.283); ctx.fill(); ctx.restore(); break
-    case 'daisy': petal(12, R * 0.95, R * 0.14); ctx.save(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(0, 0, R * 0.24, 0, 6.283); ctx.fill(); ctx.restore(); break
-    case 'tulip': for (const dx of [-1, 0, 1]) { ctx.save(); ctx.translate(dx * R * 0.42, 0); ctx.rotate(dx * 0.35); ctx.beginPath(); ctx.ellipse(0, -R * 0.4, R * 0.28, R * 0.6, 0, 0, 6.283); ctx.fill(); ctx.restore() } break
-    case 'rose': for (let k = 5; k >= 1; k--) { ctx.beginPath(); ctx.arc(0, 0, R * (k / 5) * 0.8, 0, Math.PI * 1.6); ctx.stroke() } break
-    case 'wreath': { ctx.save(); for (let p = 0; p < 14; p++) { ctx.rotate((Math.PI * 2) / 14); ctx.save(); ctx.translate(0, -R * 0.8); ctx.scale(0.28, 0.28); leafPath(ctx, R); ctx.restore() } ctx.restore(); break }
-    case 'berries': { ctx.beginPath(); ctx.moveTo(0, R); ctx.lineTo(0, -R * 0.4); ctx.stroke(); for (const [bx, by] of [[0, -R], [-R * 0.4, -R * 0.5], [R * 0.4, -R * 0.5], [-R * 0.25, 0], [R * 0.3, R * 0.1]] as const) { ctx.beginPath(); ctx.arc(bx, by, R * 0.2, 0, 6.283); ctx.fill() } break }
-    case 'babybreath': for (let k = 0; k < 9; k++) { const a = (k / 9) * 6.283, rad = R * (0.4 + Math.random() * 0.6); ctx.beginPath(); ctx.arc(Math.cos(a) * rad, Math.sin(a) * rad, R * 0.09, 0, 6.283); ctx.fill() } break
-    case 'swirl': ctx.beginPath(); ctx.moveTo(-R, R * 0.3); ctx.bezierCurveTo(-R * 0.3, -R, R * 0.3, R, R, -R * 0.3); ctx.stroke(); break
-    case 'flourish': ctx.beginPath(); ctx.moveTo(0, R * 0.6); ctx.bezierCurveTo(-R, 0, -R * 0.3, -R, 0, -R * 0.2); ctx.bezierCurveTo(R * 0.3, -R, R, 0, 0, R * 0.6); ctx.stroke(); break
-    case 'heart': ctx.beginPath(); ctx.moveTo(0, R * 0.65); ctx.bezierCurveTo(-R * 1.1, -R * 0.2, -R * 0.4, -R, 0, -R * 0.35); ctx.bezierCurveTo(R * 0.4, -R, R * 1.1, -R * 0.2, 0, R * 0.65); ctx.fill(); break
-    case 'star': { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? R * 0.42 : R; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rad, Math.sin(a) * rad) } ctx.closePath(); ctx.fill(); break }
-    default: leafPath(ctx, R)
-  }
-}
-
 // ── Engine pennelli (a stamp/linea) ─────────────────────────────────────────
 function stamp(ctx: CanvasRenderingContext2D, tool: Tool, x: number, y: number, r: number, o: DabOpt) {
   if (tool === 'stamp') {
-    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = o.opacity
-    ctx.fillStyle = o.color; ctx.strokeStyle = o.color; ctx.lineWidth = Math.max(1, r * 0.14); ctx.lineCap = 'round'; ctx.lineJoin = 'round'
-    drawMotif(ctx, o.motif || 'leaf', r)
-    ctx.restore(); ctx.globalAlpha = 1
+    // timbri decorativi vettoriali di qualità (foglie/fiori/ghirigori) — vedi lib/studioStamps
+    drawStamp(ctx, o.motif || DEFAULT_STAMP, x, y, r, o.color, o.opacity)
     return
   }
   if (tool === 'watercolor') {
@@ -228,7 +190,7 @@ export default function DesignStudioPage() {
   // Preset pennello (disegnati a mano) + personalizzati salvabili, scegliibili da dropdown.
   const [customPresets, setCustomPresets] = useState<BrushPreset[]>([])
   const [presetSel, setPresetSel] = useState('')
-  const [motif, setMotif] = useState('leaf')   // timbro decorativo selezionato (foglie/fiori/ghirigori)
+  const [motif, setMotif] = useState(DEFAULT_STAMP)   // timbro decorativo selezionato (foglie/fiori/ghirigori)
   const [immersive, setImmersive] = useState(false)   // iPad "pagina piena": nasconde barra + strumenti + pannello
   useEffect(() => { setCustomPresets(loadCustomPresets()) }, [])
   const applyPreset = (p: BrushPreset) => { setTool(p.tool as Tool); setSize(p.size); setOpacity(p.opacity); if (p.color) setColor(p.color); setPresetSel(p.id) }
@@ -632,14 +594,19 @@ export default function DesignStudioPage() {
               {tool === 'stamp' && (
                 <div>
                   <div className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Timbro — foglie, fiori, ghirigori</div>
-                  <div className="grid grid-cols-4 gap-1">
-                    {STAMP_MOTIFS.map((m) => (
-                      <button key={m} onClick={() => setMotif(m)} title={STAMP_LABELS[m]}
-                        className={`aspect-square grid place-items-center rounded-md border ${motif === m ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
-                        <MotifIcon motif={m} />
-                      </button>
-                    ))}
-                  </div>
+                  {STAMP_GROUPS.map((g) => (
+                    <div key={g} className="mb-2">
+                      <div className="text-[9px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-0.5">{g}</div>
+                      <div className="grid grid-cols-4 gap-1">
+                        {STAMPS.filter((s) => s.group === g).map((s) => (
+                          <button key={s.id} onClick={() => setMotif(s.id)} title={s.label}
+                            className={`aspect-square grid place-items-center rounded-md border ${motif === s.id ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                            <MotifIcon motif={s.id} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                   <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Trascina per timbrare in fila. La dimensione regola il timbro.</p>
                 </div>
               )}
@@ -720,20 +687,16 @@ export default function DesignStudioPage() {
   )
 }
 
-// Anteprima di un timbro nel pannello (mini canvas che riusa drawMotif)
+// Anteprima di un timbro nel pannello (mini canvas che riusa drawStamp)
 function MotifIcon({ motif }: { motif: string }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const c = ref.current; if (!c) return
     const ctx = c.getContext('2d'); if (!ctx) return
     ctx.clearRect(0, 0, c.width, c.height)
-    ctx.save(); ctx.translate(c.width / 2, c.height / 2)
-    ctx.fillStyle = 'currentColor'; ctx.strokeStyle = 'currentColor'; ctx.lineWidth = 1.1
-    ctx.fillStyle = '#5b4636'; ctx.strokeStyle = '#5b4636'
-    drawMotif(ctx, motif, 9)
-    ctx.restore()
+    drawStamp(ctx, motif, c.width / 2, c.height / 2, 15, '#5b4636')
   }, [motif])
-  return <canvas ref={ref} width={26} height={26} className="pointer-events-none" />
+  return <canvas ref={ref} width={30} height={30} className="pointer-events-none" />
 }
 
 function ColorWheel({ color, onChange }: { color: string; onChange: (hex: string) => void }) {
