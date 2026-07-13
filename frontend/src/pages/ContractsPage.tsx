@@ -113,7 +113,7 @@ export default function ContractsPage() {
         const map: Record<string, string> = {
           no_ai_key: 'AI non ancora configurata.', forbidden: 'Non sei il proprietario del preventivo.',
           quote_not_found: 'Preventivo non trovato.', ai_error: 'Errore del servizio AI.', no_quote: 'Contratto senza preventivo collegato.',
-          parse: 'Risposta AI non interpretabile.', empty: 'Nessuna sezione generata.',
+          quote_query: 'Errore nel leggere il preventivo.', parse: 'Risposta AI non interpretabile.', empty: 'Nessuna sezione generata.',
         }
         throw new Error(map[r?.error ?? ''] ?? ('Compilazione AI non riuscita: ' + (r?.error ?? '')))
       }

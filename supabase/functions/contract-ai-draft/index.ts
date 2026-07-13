@@ -43,9 +43,10 @@ Deno.serve(async (req) => {
   const refine = current.length > 0
 
   // preventivo + proprietà (solo l'owner puo' generare il contratto)
-  const { data: q } = await admin.from('quotes')
+  const { data: q, error: qErr } = await admin.from('quotes')
     .select('id, owner_id, title, client_name, client_email, event_date, event_location, event_kind, guest_count, total_client, client_country')
     .eq('id', quoteId).maybeSingle()
+  if (qErr) return json({ ok: false, error: 'quote_query', detail: qErr.message.slice(0, 200) })
   if (!q) return json({ ok: false, error: 'quote_not_found' })
   if (q.owner_id !== user.id) return json({ ok: false, error: 'forbidden' }, 403)
 
