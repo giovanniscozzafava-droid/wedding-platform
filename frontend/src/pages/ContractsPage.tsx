@@ -100,8 +100,9 @@ export default function ContractsPage() {
     } finally { setSavingEdit(false) }
   }
 
-  // Compila con AI: ribalta TUTTO il preventivo nel contratto (dati fiscali del professionista, parti,
-  // evento, offerta contrattualizzata, importi) e riscrive le clausole. Salva sul contratto.
+  // Compila con AI dal preventivo. Se il contratto ha già un FORMAT (le sezioni del professionista, es. da
+  // un suo modello), l'AI RIFINISCE quel format inserendo i dati reali senza stravolgerlo; se è vuoto,
+  // genera da zero ribaltando tutto il preventivo (dati fiscali, parti, offerta, importi).
   const [aiBusy, setAiBusy] = useState(false)
   async function aiFill() {
     if (!selected) return
@@ -109,12 +110,16 @@ export default function ContractsPage() {
     const cid = selected.id
     const qid = selected.quote_id
     const label = selected.title ?? 'contratto'
+    const hasFormat = Array.isArray(selected.sections) && selected.sections.some((s) => (s?.body ?? '').trim() || (s?.heading ?? '').trim())
+    const secsIn = hasFormat ? selected.sections : undefined
     if (!qid) { toast.error('Contratto senza preventivo collegato: l’AI non può ribaltarne i dati'); return }
     if (selected.status === 'FIRMATO') { toast.error('Contratto firmato: non modificabile'); return }
-    if (!confirm('L’AI ribalta tutti i dati del preventivo nel contratto (dati fiscali, offerta, importi) e riscrive le clausole.\n\nContinuo?')) return
+    if (!confirm(hasFormat
+      ? 'L’AI compila i dati reali del preventivo nel TUO format di contratto, migliorandone la forma senza stravolgerlo.\n\nContinuo?'
+      : 'L’AI ribalta tutti i dati del preventivo nel contratto (dati fiscali, offerta, importi) e scrive le clausole.\n\nContinuo?')) return
     setAiBusy(true)
     try {
-      const { data, error } = await supabase.functions.invoke('contract-ai-draft', { body: { quote_id: qid } })
+      const { data, error } = await supabase.functions.invoke('contract-ai-draft', { body: { quote_id: qid, sections: secsIn } })
       if (error) throw new Error(error.message)
       const r = data as { ok?: boolean; sections?: Array<{ heading?: string; body?: string }>; error?: string }
       if (!r?.ok) {
