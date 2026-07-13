@@ -81,7 +81,8 @@ function QuoteAcceptPageInner() {
   const [city, setCity] = useState('')
   const [zip, setZip] = useState('')
   const [province, setProvince] = useState('')
-  const [country] = useState('Italia')
+  const [country, setCountry] = useState('Italia')
+  const isForeign = country.trim().toLowerCase() !== 'italia'
   const [sdiCode, setSdiCode] = useState('')
   const [pecEmail, setPecEmail] = useState('')
 
@@ -133,9 +134,10 @@ function QuoteAcceptPageInner() {
   async function submit() {
     if (!token) return
     if (!signerName.trim()) return toast.error('Inserisci nome e cognome')
-    if (!fiscalCode.trim()) return toast.error('Codice fiscale obbligatorio')
+    // Codice fiscale obbligatorio solo per clienti italiani; per gli esteri basta il documento locale.
+    if (!isForeign && !fiscalCode.trim()) return toast.error('Codice fiscale obbligatorio')
     if (!address.trim() || !city.trim()) return toast.error('Indirizzo e città obbligatori')
-    if (!docNumber.trim()) return toast.error('Inserisci numero documento')
+    if (!docNumber.trim()) return toast.error(isForeign ? 'Inserisci il numero del documento (es. passaporto)' : 'Inserisci numero documento')
     if (!signature) return toast.error('Firma sul riquadro')
     if (!consentTerms || !consentPrivacy) return toast.error('Devi accettare termini e privacy')
     setBusy(true)
@@ -359,11 +361,29 @@ function QuoteAcceptPageInner() {
               </p>
             </div>
             <div className="space-y-1">
-              <Label>Codice fiscale <span className="text-[rgb(var(--rose-500))]">*</span></Label>
-              <Input value={fiscalCode} maxLength={16}
-                onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
-                placeholder="RSSMRA80A01H501Z" />
+              <Label>Paese di residenza / nazionalità</Label>
+              <select value={country}
+                onChange={(e) => { setCountry(e.target.value); if (e.target.value !== 'Italia') setDocType('PASSAPORTO') }}
+                className="h-10 w-full px-3 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))] text-sm">
+                {['Italia', 'Germania', 'Francia', 'Regno Unito', 'Spagna', 'Svizzera', 'Austria', 'Paesi Bassi', 'Belgio', 'Stati Uniti', 'Altro'].map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
+            {!isForeign ? (
+              <div className="space-y-1">
+                <Label>Codice fiscale <span className="text-[rgb(var(--rose-500))]">*</span></Label>
+                <Input value={fiscalCode} maxLength={16}
+                  onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
+                  placeholder="RSSMRA80A01H501Z" />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Label>Codice fiscale / Tax ID (se ne hai uno)</Label>
+                <Input value={fiscalCode}
+                  onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
+                  placeholder="Facoltativo per clienti esteri" />
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Cliente estero: è sufficiente il documento (es. passaporto). Il contratto sarà redatto nella tua lingua e nel tuo quadro normativo.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Partita IVA (se azienda)</Label>

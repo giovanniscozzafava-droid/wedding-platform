@@ -34,15 +34,25 @@ Deno.serve(async (req) => {
   const b = await req.json().catch(() => ({})) as Record<string, unknown>
   const quoteId = String(b.quote_id ?? '')
   if (!quoteId) return json({ ok: false, error: 'no_quote' })
-  const language = String(b.language ?? 'it')        // ISO breve; default italiano
-  const jurisdiction = String(b.jurisdiction ?? 'Italia')
 
   // preventivo + proprietà (solo l'owner puo' generare il contratto)
   const { data: q } = await admin.from('quotes')
-    .select('id, owner_id, title, client_name, client_email, event_date, event_location, event_kind, guest_count, total_client')
+    .select('id, owner_id, title, client_name, client_email, event_date, event_location, event_kind, guest_count, total_client, client_country')
     .eq('id', quoteId).maybeSingle()
   if (!q) return json({ ok: false, error: 'quote_not_found' })
   if (q.owner_id !== user.id) return json({ ok: false, error: 'forbidden' }, 403)
+
+  // Lingua + giurisdizione: derivate dal Paese del cliente (indicato in fase di firma), con override dal body.
+  const COUNTRY: Record<string, { lang: string; juris: string }> = {
+    italia: { lang: 'it', juris: 'Italia' }, germania: { lang: 'de', juris: 'Germania' },
+    francia: { lang: 'fr', juris: 'Francia' }, 'regno unito': { lang: 'en', juris: 'Regno Unito' },
+    spagna: { lang: 'es', juris: 'Spagna' }, svizzera: { lang: 'de', juris: 'Svizzera' },
+    austria: { lang: 'de', juris: 'Austria' }, 'paesi bassi': { lang: 'nl', juris: 'Paesi Bassi' },
+    belgio: { lang: 'fr', juris: 'Belgio' }, 'stati uniti': { lang: 'en', juris: 'Stati Uniti' },
+  }
+  const map = COUNTRY[String(q.client_country ?? '').trim().toLowerCase()] ?? null
+  const language = String(b.language ?? map?.lang ?? 'it')
+  const jurisdiction = String(b.jurisdiction ?? map?.juris ?? q.client_country ?? 'Italia')
 
   const { data: items } = await admin.from('quote_items')
     .select('name_snapshot, description_snapshot, quantity, unit_snapshot, line_client')
