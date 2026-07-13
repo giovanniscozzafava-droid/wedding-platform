@@ -44,13 +44,41 @@ Deno.serve(async (req) => {
 
   // preventivo + proprietà (solo l'owner puo' generare il contratto)
   const { data: q, error: qErr } = await admin.from('quotes')
-    .select('id, owner_id, title, client_name, client_email, event_date, event_location, event_kind, guest_count, total_client, client_country')
+    .select('id, owner_id, title, client_name, client_email, event_date, event_location, event_kind, guest_count, total_client, client_country, direct_client_id')
     .eq('id', quoteId).maybeSingle()
   if (qErr) return json({ ok: false, error: 'quote_query', detail: qErr.message.slice(0, 200) })
   if (!q) return json({ ok: false, error: 'quote_not_found' })
   if (q.owner_id !== user.id) return json({ ok: false, error: 'forbidden' }, 403)
 
-  // Lingua + giurisdizione: derivate dal Paese del cliente (indicato in fase di firma), con override dal body.
+  // Dati fiscali del CLIENTE: li scrive lui accettando/firmando il preventivo → snapshot in quote_acceptances.
+  // Per i clienti diretti (senza ancora una firma) fallback sull'anagrafica supplier_clients.
+  const { data: acc } = await admin.from('quote_acceptances')
+    .select('signer_name, doc_type, doc_number, client_fiscal_code, client_vat_number, client_business_name, client_address, client_city, client_zip, client_province, client_country, client_sdi_code, client_pec_email, created_at')
+    .eq('quote_id', quoteId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  let dc: any = null
+  if (!acc && q.direct_client_id) {
+    const { data } = await admin.from('supplier_clients')
+      .select('full_name, fiscal_code, vat_number, business_name, address, city, zip, province, country, sdi_code, pec_email')
+      .eq('id', q.direct_client_id).maybeSingle()
+    dc = data
+  }
+  const cliente = {
+    nome: acc?.signer_name ?? q.client_name ?? dc?.full_name ?? null,
+    email: q.client_email ?? null,
+    codice_fiscale: acc?.client_fiscal_code ?? dc?.fiscal_code ?? null,
+    partita_iva: acc?.client_vat_number ?? dc?.vat_number ?? null,
+    ragione_sociale: acc?.client_business_name ?? dc?.business_name ?? null,
+    indirizzo: acc?.client_address ?? dc?.address ?? null,
+    citta: acc?.client_city ?? dc?.city ?? null,
+    cap: acc?.client_zip ?? dc?.zip ?? null,
+    provincia: acc?.client_province ?? dc?.province ?? null,
+    paese: acc?.client_country ?? dc?.country ?? q.client_country ?? null,
+    codice_sdi: acc?.client_sdi_code ?? dc?.sdi_code ?? null,
+    pec: acc?.client_pec_email ?? dc?.pec_email ?? null,
+    documento: acc?.doc_type ? `${acc.doc_type} n. ${acc.doc_number ?? ''}`.trim() : null,
+  }
+
+  // Lingua + giurisdizione: derivate dal Paese del cliente (da firma/anagrafica), con override dal body.
   const COUNTRY: Record<string, { lang: string; juris: string }> = {
     italia: { lang: 'it', juris: 'Italia' }, germania: { lang: 'de', juris: 'Germania' },
     francia: { lang: 'fr', juris: 'Francia' }, 'regno unito': { lang: 'en', juris: 'Regno Unito' },
@@ -58,9 +86,9 @@ Deno.serve(async (req) => {
     austria: { lang: 'de', juris: 'Austria' }, 'paesi bassi': { lang: 'nl', juris: 'Paesi Bassi' },
     belgio: { lang: 'fr', juris: 'Belgio' }, 'stati uniti': { lang: 'en', juris: 'Stati Uniti' },
   }
-  const map = COUNTRY[String(q.client_country ?? '').trim().toLowerCase()] ?? null
+  const map = COUNTRY[String(cliente.paese ?? '').trim().toLowerCase()] ?? null
   const language = String(b.language ?? map?.lang ?? 'it')
-  const jurisdiction = String(b.jurisdiction ?? map?.juris ?? q.client_country ?? 'Italia')
+  const jurisdiction = String(b.jurisdiction ?? map?.juris ?? cliente.paese ?? 'Italia')
 
   const { data: items } = await admin.from('quote_items')
     .select('name_snapshot, description_snapshot, quantity, unit_snapshot, line_client')
@@ -75,7 +103,7 @@ Deno.serve(async (req) => {
 
   const dossier = {
     professionista: owner,
-    cliente: { nome: q.client_name, email: q.client_email },
+    cliente,
     evento: { tipo: q.event_kind, data: q.event_date, luogo: q.event_location, invitati: q.guest_count },
     offerta: offer,
     totale_eur: q.total_client,
@@ -86,8 +114,11 @@ Redigi un contratto COMPLETO e professionale a partire dai dati qui sotto, RIBAL
 preventivo nel contratto, adattato al sistema giuridico di "${jurisdiction}" e scritto interamente in lingua "${language}".
 Includi almeno:
 - PARTI CONTRAENTI: inserisci per il professionista TUTTI i suoi dati fiscali disponibili (ragione sociale/
-  business_legal_name, P.IVA/vat_number, codice fiscale/fiscal_code, indirizzo completo, PEC); per il cliente
-  nome ed email (e codice fiscale se presente).
+  business_legal_name, P.IVA/vat_number, codice fiscale/fiscal_code, indirizzo completo, PEC); per il CLIENTE
+  inserisci TUTTI i suoi dati fiscali disponibili nel dossier (nome, codice fiscale, e se azienda P.IVA e
+  ragione sociale, indirizzo/città/CAP/provincia/paese, PEC, codice SDI, estremi del documento d'identità).
+  Usa SOLO i dati presenti nel dossier: se un campo del cliente è null/mancante, mettilo tra parentesi quadre
+  come segnaposto e NON inventarlo.
 - OGGETTO/PRESTAZIONI: contrattualizza OGNI voce dell'offerta (nome, quantità, descrizione) trasformandola in
   obbligazione contrattuale; non ometterne nessuna.
 - CORRISPETTIVO E PAGAMENTO: usa il totale indicato con acconto/saldo coerenti; NON inventare importi diversi dal totale.

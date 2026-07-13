@@ -97,7 +97,7 @@ const COURSE_OPTIONS = ['APERITIVO', 'ANTIPASTO', 'PRIMO', 'SECONDO', 'CONTORNO'
 const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic']
 const mese = (m: number) => MESI[(m - 1) % 12] ?? ''
 type DishSeason = { from: number; to: number } | null
-type ProposalDish = { menu_item_id: string; portata: string; piatto: string; confermato: boolean; voti: { media: number | null; n: number } | null; menu_nome: string; season?: DishSeason; disponibile?: boolean }
+type ProposalDish = { menu_item_id: string; portata: string; piatto: string; confermato: boolean; voti: { media: number | null; n: number } | null; menu_nome: string; season?: DishSeason; disponibile?: boolean; descrizione?: string | null; foto?: string | null; costo?: number | null }
 
 export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOnly?: boolean }) {
   const { data, isLoading } = useMenu(entryId)
@@ -153,6 +153,23 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
   const confermatiN = Object.values(dishesBySection).flat().filter((d) => d.confermato).length
   const allDishes = (choice?.proposte ?? []).flatMap((m: any) => (m.piatti ?? []).map((p: any) => ({ menu_item_id: p.menu_item_id, piatto: p.piatto, portata: p.portata })))
   const coperti = (fc?.coperti ?? choice?.coperti ?? 0) as number
+  // Vincoli per portata (min/max) dal paniere + stato composizione per il tasto "Genera menù".
+  const vincoli: Record<string, { min: number; max: number }> = {}
+  for (const m of choice?.proposte ?? []) for (const [c, v] of Object.entries(m.vincoli ?? {})) vincoli[c] = v as { min: number; max: number }
+  const selByCourse: Record<string, number> = {}
+  for (const d of Object.values(dishesBySection).flat()) if (d.confermato) selByCourse[d.portata] = (selByCourse[d.portata] || 0) + 1
+  const mancanti = Object.entries(vincoli).filter(([c, v]) => (selByCourse[c] || 0) < v.min).map(([c]) => c)
+  const composizioneCompleta = Object.keys(vincoli).length > 0 && mancanti.length === 0
+  const [genBusy, setGenBusy] = useState(false)
+  async function generaMenu() {
+    setGenBusy(true)
+    try {
+      const { data: r, error } = await (supabase as any).rpc('fb_generate_event_menu', { p_entry: entryId })
+      if (error || r?.error) throw new Error()
+      toast.success(`Menù ufficiale generato (${r.inseriti} portate) — ora è pronto nella stampa`)
+      setChoiceReload((x) => x + 1)
+    } catch { toast.error('Generazione menù non riuscita') } finally { setGenBusy(false) }
+  }
 
   async function voteDish(mi: string, n: number) {
     setBusyDish(mi + ':v')
