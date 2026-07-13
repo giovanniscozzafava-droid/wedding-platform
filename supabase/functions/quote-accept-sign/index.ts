@@ -99,7 +99,10 @@ Deno.serve(async (req) => {
   if (!body.doc_number?.trim()) return json({ error: 'Numero documento obbligatorio' }, 400)
   if (!body.signature_data_url) return json({ error: 'Firma obbligatoria' }, 400)
   if (!body.consent_terms || !body.consent_privacy) return json({ error: 'Devi accettare termini e privacy' }, 400)
-  if (!body.fiscal?.fiscal_code?.trim()) return json({ error: 'Codice fiscale obbligatorio per la stipula del contratto' }, 400)
+  // Codice fiscale obbligatorio solo per clienti ITALIANI; per gli esteri basta il documento (passaporto).
+  if ((body.fiscal?.country ?? 'Italia').trim().toLowerCase() === 'italia' && !body.fiscal?.fiscal_code?.trim()) {
+    return json({ error: 'Codice fiscale obbligatorio per la stipula del contratto' }, 400)
+  }
   if (!body.fiscal?.address?.trim() || !body.fiscal?.city?.trim()) return json({ error: 'Indirizzo e città obbligatori' }, 400)
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
