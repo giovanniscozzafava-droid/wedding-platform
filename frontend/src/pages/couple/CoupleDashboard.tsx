@@ -1002,11 +1002,13 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
     try {
       const { data: r, error } = await (supabase.rpc as any)('richiedi_opzione_da_preventivo', { p_token: tok })
       if (error) throw new Error(error.message)
-      const res = r as { ok?: boolean; error?: string; scade?: string }
-      const map: Record<string, string> = { non_abilitato: 'Opzione non disponibile su questo preventivo.', gia_opzionata: 'La data è già opzionata per te.', date_already_optioned: 'Quella data è già stata opzionata.', no_date: 'Manca la data dell’evento.' }
+      const res = r as { ok?: boolean; error?: string; scade?: string; posizione?: number; contesa?: boolean }
+      const map: Record<string, string> = { non_abilitato: 'Opzione non disponibile su questo preventivo.', gia_opzionata: 'La data è già opzionata per te.', no_date: 'Manca la data dell’evento.' }
       if (res?.error) throw new Error(map[res.error] ?? res.error)
       setOpt((o) => o ? { ...o, optioned: true } : o)
-      toast.success(`Data tenuta per te${res?.scade ? ` fino al ${new Date(res.scade).toLocaleDateString('it-IT')}` : ''} — senza impegno`)
+      toast.success(res?.contesa
+        ? `Data tenuta per te${res?.scade ? ` fino al ${new Date(res.scade).toLocaleDateString('it-IT')}` : ''}. Attenzione: altri l’hanno già richiesta — chi firma per primo la prende.`
+        : `Data tenuta per te${res?.scade ? ` fino al ${new Date(res.scade).toLocaleDateString('it-IT')}` : ''} — senza impegno.`)
     } catch (e) { toast.error((e as Error).message) }
     finally { setOptBusy(false) }
   }
@@ -1186,7 +1188,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
         </ul>
         {opt?.allowed && !opt.optioned && !signed && !isClosed && (
           <div className="rounded-lg border p-3 mb-4" style={{ borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
-            <p className="text-sm mb-2">Non sei pronto a firmare? <strong>Tieni la data senza impegno</strong> per {opt.days} giorni: la blocchiamo sul calendario, si libera da sola se non confermi.</p>
+            <p className="text-sm mb-2">Non sei pronto a firmare? <strong>Tieni la data senza impegno</strong> per {opt.days} giorni. Anche altri clienti possono richiederla: <strong>chi firma per primo la prende</strong>.</p>
             <Button variant="gold" size="sm" disabled={optBusy} onClick={() => void requestOption()}>
               {optBusy ? 'Attendere…' : 'Opziona la data'}
             </Button>

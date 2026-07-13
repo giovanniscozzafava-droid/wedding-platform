@@ -53,14 +53,16 @@ function QuotePreviewPageInner() {
     try {
       const { data: r, error } = await (supabase.rpc as any)('richiedi_opzione_da_preventivo', { p_token: token })
       if (error) throw new Error(error.message)
-      const res = r as { ok?: boolean; error?: string; scade?: string }
+      const res = r as { ok?: boolean; error?: string; scade?: string; contesa?: boolean }
       const map: Record<string, string> = {
         non_abilitato: 'Opzione non disponibile su questo preventivo.', gia_opzionata: 'La data è già opzionata per te.',
-        date_already_optioned: 'Quella data è già stata opzionata.', no_date: 'Manca la data dell’evento.',
+        no_date: 'Manca la data dell’evento.',
       }
       if (res?.error) throw new Error(map[res.error] ?? res.error)
       setOpt((o) => o ? { ...o, optioned: true } : o)
-      toast.success(`Data tenuta per te${res?.scade ? ` fino al ${new Date(res.scade).toLocaleDateString('it-IT')}` : ''} — senza impegno`)
+      toast.success(res?.contesa
+        ? `Data tenuta per te${res?.scade ? ` fino al ${new Date(res.scade).toLocaleDateString('it-IT')}` : ''}. Attenzione: altri l’hanno già richiesta — chi firma per primo la prende.`
+        : `Data tenuta per te${res?.scade ? ` fino al ${new Date(res.scade).toLocaleDateString('it-IT')}` : ''} — senza impegno.`)
     } catch (e) { toast.error((e as Error).message) }
     finally { setOptBusy(false) }
   }
