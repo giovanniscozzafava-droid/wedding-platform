@@ -34,7 +34,16 @@ export function useWeddings() {
         .in('status', ['OPZIONATA', 'CONFERMATA', 'IN_TRATTATIVA'])
         .order('date_from', { ascending: true })
       if (error) throw error
-      return (data ?? []).map((r) => flattenPrivate(r as Record<string, unknown>)) as unknown as WeddingRow[]
+      const base = (data ?? []).map((r) => flattenPrivate(r as Record<string, unknown>)) as unknown as WeddingRow[]
+      // D-CAL-4: il fornitore-collaboratore non legge piu' la riga base (niente titolo
+      // libero). Recupera gli eventi collaborati dalla view mascherata "Tipo · data".
+      const seen = new Set(base.map((r) => r.id))
+      const collab = await (supabase.from('calendar_entries_collab' as never) as any)
+        .select('*')
+        .in('status', ['OPZIONATA', 'CONFERMATA', 'IN_TRATTATIVA'])
+        .order('date_from', { ascending: true })
+      const extra = ((collab.data ?? []) as unknown as WeddingRow[]).filter((r) => !seen.has(r.id))
+      return [...base, ...extra].sort((a, b) => (a.date_from ?? '').localeCompare(b.date_from ?? ''))
     },
   })
 }
@@ -56,6 +65,15 @@ export function useWedding(entryId: string | null) {
         .eq('id', entryId!)
         .maybeSingle()
       if (error) throw error
+      // D-CAL-4: se la riga base non e' leggibile (fornitore-collaboratore: niente
+      // policy diretta), ripiega sulla view mascherata "Tipo · data" (titolo redatto).
+      if (!data) {
+        const { data: masked } = await (supabase.from('calendar_entries_collab' as never) as any)
+          .select('*')
+          .eq('id', entryId!)
+          .maybeSingle()
+        return masked ?? null
+      }
       return flattenPrivate(data as Record<string, unknown> | null)
     },
   })
