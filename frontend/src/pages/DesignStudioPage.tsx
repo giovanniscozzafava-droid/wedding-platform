@@ -28,7 +28,7 @@ type Tool =
 type LayerMeta = { id: string; name: string; visible: boolean; opacity: number; blend: GlobalCompositeOperation; alphaLock?: boolean }
 type SymMode = 'off' | 'v' | 'h' | 'quad' | 'radial'
 type Pt = { x: number; y: number }
-type DabOpt = { color: string; size: number; opacity: number; press: number; tilt: number; motif?: string }
+type DabOpt = { color: string; size: number; opacity: number; press: number; tilt: number; motif?: string; softness?: number }
 
 const PAINT = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'watercolor', 'chalk', 'pastel', 'floral', 'airbrush', 'smudge', 'eraser', 'stamp'])
 const LINE_TOOLS = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'eraser'])
@@ -126,6 +126,25 @@ function stamp(ctx: CanvasRenderingContext2D, tool: Tool, x: number, y: number, 
   }
 }
 function paintSeg(ctx: CanvasRenderingContext2D, tool: Tool, a: Pt, b: Pt, o: DabOpt) {
+  // SFUMATURA bordo (pennello/gomma): dab a gradiente radiale — centro pieno, bordo che sfuma.
+  const soft = o.softness ?? 0
+  if (soft > 0 && (tool === 'eraser' || tool === 'brush')) {
+    const r = Math.max(1, o.size * o.press) / 2
+    const spacing = Math.max(1, r * 0.35)
+    const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), steps = Math.max(1, Math.floor(dist / spacing))
+    const inner = Math.max(0, 1 - soft)                 // quota di raggio ancora "piena"
+    const erase = tool === 'eraser'
+    const [rr, gg, bb] = hexToRgb(o.color); const col = erase ? '0,0,0' : `${rr},${gg},${bb}`
+    ctx.save(); if (erase) ctx.globalCompositeOperation = 'destination-out'
+    for (let i = 0; i <= steps; i++) {
+      const t = steps ? i / steps : 0; const x = a.x + dx * t, y = a.y + dy * t
+      const g = ctx.createRadialGradient(x, y, r * inner, x, y, r)
+      g.addColorStop(0, `rgba(${col},${o.opacity})`); g.addColorStop(1, `rgba(${col},0)`)
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill()
+    }
+    ctx.restore()
+    return
+  }
   if (LINE_TOOLS.has(tool)) {
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = o.color
     let w = o.size * o.press
@@ -187,6 +206,7 @@ export default function DesignStudioPage() {
   const [color, setColor] = useState('#1a1a1a')
   const [size, setSize] = useState(14)
   const [opacity, setOpacity] = useState(1)
+  const [softness, setSoftness] = useState(0)   // sfumatura bordo pennello/gomma (0 = netto, 1 = molto morbido)
   // Preset pennello (disegnati a mano) + personalizzati salvabili, scegliibili da dropdown.
   const [customPresets, setCustomPresets] = useState<BrushPreset[]>([])
   const [presetSel, setPresetSel] = useState('')
@@ -223,6 +243,8 @@ export default function DesignStudioPage() {
   const draw = useRef<{ active: boolean; last: Pt; start: Pt; before: string; panning: boolean; panStart: Pt; panOrig: { x: number; y: number } } | null>(null)
   const spaceRef = useRef(false)
   const textCommitting = useRef(false)
+  const textAreaRef = useRef<HTMLTextAreaElement>(null)
+  const textPlacedAt = useRef(0)
   const adjustSrc = useRef<HTMLCanvasElement | null>(null)
   const adjustBefore = useRef<string>('')
   const [adjust, setAdjust] = useState<{ b: number; c: number; s: number; h: number; blur: number } | null>(null)
@@ -309,15 +331,17 @@ export default function DesignStudioPage() {
 
   // ── Pointer ──────────────────────────────────────────────────────────────
   function onDown(e: React.PointerEvent) {
+    // TESTO (stile Photoshop): posiziona il caret e apri l'editor. PRIMA del pointer-capture,
+    // così su touch/iPad il tap dà fuoco al box e apre la tastiera (niente capture che lo ingoia).
+    if (tool === 'text') { const r = stageRef.current!.getBoundingClientRect(); const p = toDoc(e); void ensureFont(font); textPlacedAt.current = Date.now(); setTextEdit({ sx: e.clientX - r.left, sy: e.clientY - r.top, dx: p.x, dy: p.y, value: '' }); return }
     try { (e.target as HTMLElement).setPointerCapture?.(e.pointerId) } catch { /* pointer sintetico o non catturabile */ }
     if (tool === 'hand' || spaceRef.current || e.button === 1) { draw.current = { active: false, last: { x: 0, y: 0 }, start: { x: 0, y: 0 }, before: '', panning: true, panStart: { x: e.clientX, y: e.clientY }, panOrig: { ...pan } }; return }
     const p = toDoc(e); const ctx = getCtx(activeId); if (!ctx) return
     if (tool === 'eyedropper') { const disp = displayRef.current!; const r = disp.getBoundingClientRect(); const px = disp.getContext('2d')!.getImageData(Math.round(e.clientX - r.left), Math.round(e.clientY - r.top), 1, 1).data; const hex = '#' + [px[0], px[1], px[2]].map((n) => (n ?? 0).toString(16).padStart(2, '0')).join(''); setColor(hex); pushColor(hex); return }
     if (tool === 'fill') { const before = layerCanvases.current.get(activeId)!.toDataURL(); floodFill(ctx, dims.w, dims.h, p.x, p.y, color); composite(); pushHistory(activeId, before, layerCanvases.current.get(activeId)!.toDataURL()); pushColor(color); return }
-    if (tool === 'text') { const r = stageRef.current!.getBoundingClientRect(); void ensureFont(font); setTextEdit({ sx: e.clientX - r.left, sy: e.clientY - r.top, dx: p.x, dy: p.y, value: '' }); return }
     const before = layerCanvases.current.get(activeId)!.toDataURL()
     draw.current = { active: true, last: p, start: p, before, panning: false, panStart: { x: 0, y: 0 }, panOrig: { x: 0, y: 0 } }
-    if (PAINT.has(tool)) { startPaint(ctx); if (tool === 'smudge') smudge(ctx, p, p, pressureOf(e)); else paintM(ctx, p, p, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif }); composite() }
+    if (PAINT.has(tool)) { startPaint(ctx); if (tool === 'smudge') smudge(ctx, p, p, pressureOf(e)); else paintM(ctx, p, p, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif, softness }); composite() }
   }
   function onMove(e: React.PointerEvent) {
     const ring = ringRef.current, disp = displayRef.current
@@ -333,7 +357,7 @@ export default function DesignStudioPage() {
         const rp = toDoc(ce); const sm = { x: lerp(last.x, rp.x, 1 - streamline), y: lerp(last.y, rp.y, 1 - streamline) }
         const press = ce.pointerType === 'pen' ? Math.max(0.06, ce.pressure || 0.5) : 1
         const tilt = ce.pointerType === 'pen' ? Math.min(1, Math.hypot((ce as any).tiltX || 0, (ce as any).tiltY || 0) / 54) : 0
-        if (tool === 'smudge') smudge(ctx, last, sm, press); else paintM(ctx, last, sm, { color, size, opacity, press, tilt }); last = sm
+        if (tool === 'smudge') smudge(ctx, last, sm, press); else paintM(ctx, last, sm, { color, size, opacity, press, tilt, motif, softness }); last = sm
       }
       st.last = last; composite()
     } else if (tool === 'move') {
@@ -346,7 +370,7 @@ export default function DesignStudioPage() {
   function onUp(e: React.PointerEvent) {
     const st = draw.current; draw.current = null; if (!st || st.panning) return
     const ctx = getCtx(activeId); if (!ctx) return
-    if (PAINT.has(tool)) { const end = toDoc(e); if (tool === 'smudge') smudge(ctx, st.last, end, pressureOf(e)); else { paintM(ctx, st.last, end, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif }); pushColor(color) } ctx.globalCompositeOperation = 'source-over'; composite() }
+    if (PAINT.has(tool)) { const end = toDoc(e); if (tool === 'smudge') smudge(ctx, st.last, end, pressureOf(e)); else { paintM(ctx, st.last, end, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif, softness }); pushColor(color) } ctx.globalCompositeOperation = 'source-over'; composite() }
     if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') { drawShape(ctx, tool, st.start, constrainEnd(st.start, toDoc(e), tool, e.shiftKey), { color, size, fill, alpha: opacity }); composite() }
     pushHistory(activeId, st.before, layerCanvases.current.get(activeId)!.toDataURL())
   }
@@ -359,6 +383,9 @@ export default function DesignStudioPage() {
   function commitText() {
     if (!textEdit || textCommitting.current) return
     const te = textEdit; const t = te.value
+    // ignora un blur "a vuoto" nei primi 300ms dal posizionamento (su touch la tastiera che si
+    // apre può rubare il fuoco un istante): non chiudere il box appena creato.
+    if (!t.trim() && Date.now() - textPlacedAt.current < 300) return
     if (!t.trim()) { setTextEdit(null); return }
     textCommitting.current = true
     void ensureFont(font).then(() => {
@@ -372,6 +399,15 @@ export default function DesignStudioPage() {
       setTextEdit(null); textCommitting.current = false
     })
   }
+  // Fuoco affidabile sul box di testo al posizionamento (più robusto di autoFocus su touch/iPad).
+  // Dipende solo da sx/sy (nuovo click), non dal valore → non sposta il caret mentre si scrive.
+  useEffect(() => {
+    if (!textEdit) return
+    const el = textAreaRef.current; if (!el) return
+    const id = requestAnimationFrame(() => { try { el.focus({ preventScroll: true }) } catch { el.focus() } })
+    return () => cancelAnimationFrame(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textEdit?.sx, textEdit?.sy])
 
   useEffect(() => {
     const kd = (e: KeyboardEvent) => {
@@ -546,11 +582,11 @@ export default function DesignStudioPage() {
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => { if (ringRef.current) ringRef.current.style.display = 'none' }} onWheel={onWheel} />
           <div ref={ringRef} className="pointer-events-none absolute rounded-full border border-white/80 mix-blend-difference -translate-x-1/2 -translate-y-1/2" style={{ display: 'none' }} />
           {textEdit && (
-            <textarea autoFocus value={textEdit.value} onChange={(e) => setTextEdit({ ...textEdit, value: e.target.value })}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText() } else if (e.key === 'Escape') setTextEdit(null) }}
-              onBlur={commitText} spellCheck={false}
+            <textarea ref={textAreaRef} autoFocus value={textEdit.value} onChange={(e) => setTextEdit({ ...textEdit, value: e.target.value })}
+              onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText() } else if (e.key === 'Escape') setTextEdit(null) }}
+              onPointerDown={(e) => e.stopPropagation()} onBlur={commitText} spellCheck={false} rows={1}
               className="absolute z-30 bg-white/10 outline-none resize-none overflow-hidden border border-dashed border-[rgb(var(--gold-400))]"
-              style={{ left: textEdit.sx, top: textEdit.sy, color, fontFamily: `"${font}"`, fontSize: fontSize * zoom, lineHeight: 1.2, minWidth: 40, padding: 0, whiteSpace: 'pre' }} />
+              style={{ left: textEdit.sx, top: textEdit.sy, color, fontFamily: `"${font}"`, fontSize: fontSize * zoom, lineHeight: 1.2, minWidth: 40, padding: 0, whiteSpace: 'pre', userSelect: 'text', WebkitUserSelect: 'text', touchAction: 'auto', caretColor: color }} />
           )}
         </div>
 
@@ -612,6 +648,7 @@ export default function DesignStudioPage() {
               )}
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Dimensione: {size}px<input type="range" min={1} max={200} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full" /></label>
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Opacità: {Math.round(opacity * 100)}%<input type="range" min={0.02} max={1} step={0.02} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full" /></label>
+              {(tool === 'eraser' || tool === 'brush') && <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Sfumatura bordo: {softness === 0 ? 'netto' : Math.round(softness * 100) + '%'}<input type="range" min={0} max={1} step={0.02} value={softness} onChange={(e) => setSoftness(Number(e.target.value))} className="w-full" /></label>}
               {PAINT.has(tool) && <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Stabilizzazione: {Math.round(streamline * 100)}%<input type="range" min={0} max={0.9} step={0.05} value={streamline} onChange={(e) => setStreamline(Number(e.target.value))} className="w-full" /></label>}
               {PAINT.has(tool) && <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Simmetria<Select value={sym} onChange={(e) => setSym(e.target.value as SymMode)} className="h-8 mt-0.5"><option value="off">Nessuna</option><option value="v">Verticale</option><option value="h">Orizzontale</option><option value="quad">Quadrante (4)</option><option value="radial">Radiale (6)</option></Select></label>}
               {PAINT.has(tool) && <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Penna: pressione e inclinazione attive. Matita/gessetto sfumano con l'inclinazione.</p>}
