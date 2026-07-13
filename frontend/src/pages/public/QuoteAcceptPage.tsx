@@ -507,7 +507,9 @@ function QuoteAcceptPageInner() {
 
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setStep(3)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
-              <Button variant="gold" onClick={submit} disabled={busy || !signature || !consentTerms || !consentPrivacy} className="flex-1">
+              {/* Niente disable "muto": il click esegue submit(), che segnala con un toast cosa manca
+                  (firma, consensi). Prima il pulsante disabilitato non reagiva → sembrava rotto. */}
+              <Button variant="gold" onClick={submit} disabled={busy} className="flex-1">
                 {busy ? 'Invio...' : 'Conferma e firma'}
               </Button>
             </div>
