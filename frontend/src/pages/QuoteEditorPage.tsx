@@ -116,6 +116,33 @@ export default function QuoteEditorPage() {
   const [clientName, setClientName] = useState<string>('')
   const [clientEmail, setClientEmail] = useState<string>('')
   const [eventDate, setEventDate] = useState<string>('')
+  const [blockDays, setBlockDays] = useState(15)
+  const [notifyClient, setNotifyClient] = useState(true)
+  const [blocking, setBlocking] = useState(false)
+  // Blocca la data SENZA impegno (opzione dal preventivo) → evento OPZIONATA + countdown; la data
+  // risulta bloccata sul calendario ma senza vincolo, finché il cliente firma o scade.
+  async function blockDate() {
+    if (!id) return
+    setBlocking(true)
+    try {
+      const { data, error } = await (supabase.rpc as any)('blocca_data_preventivo', { p_quote_id: id, p_days: blockDays })
+      if (error) throw new Error(error.message)
+      const r = data as { ok?: boolean; error?: string; scade?: string }
+      if (r?.error) throw new Error(r.error === 'no_date' ? 'Imposta prima la data evento' : r.error === 'forbidden' ? 'Non sei il proprietario' : r.error)
+      if (notifyClient) { try { await supabase.functions.invoke('option-notify', { body: { quote_id: id } }) } catch { /* best-effort */ } }
+      toast.success(`Data bloccata senza impegno${r?.scade ? ` fino al ${new Date(r.scade).toLocaleDateString('it-IT')}` : ''}`)
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setBlocking(false) }
+  }
+  async function unblockDate() {
+    if (!id) return
+    try {
+      const { data, error } = await (supabase.rpc as any)('sblocca_data_preventivo', { p_quote_id: id })
+      if (error) throw new Error(error.message)
+      if ((data as any)?.error) throw new Error((data as any).error)
+      toast.success('Blocco rilasciato: data di nuovo disponibile')
+    } catch (e) { toast.error((e as Error).message) }
+  }
   const [eventKind, setEventKind] = useState<string>('matrimonio')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [sendResult, setSendResult] = useState<{ access_token?: string } | null>(null)
@@ -715,6 +742,23 @@ export default function QuoteEditorPage() {
             <div className="space-y-1">
               <Label><Calendar size={12} className="inline" /> Data evento</Label>
               <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} disabled={isLocked} />
+            </div>
+            <div className="space-y-1 lg:col-span-3">
+              <Label>Blocco data — senza impegno</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <select value={blockDays} onChange={(e) => setBlockDays(Number(e.target.value))}
+                  className="h-9 px-2 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))] text-sm">
+                  {[7, 14, 15, 30].map((d) => <option key={d} value={d}>{d} giorni</option>)}
+                </select>
+                <label className="inline-flex items-center gap-1.5 text-xs text-[rgb(var(--fg-muted))]">
+                  <input type="checkbox" checked={notifyClient} onChange={(e) => setNotifyClient(e.target.checked)} /> Avvisa il cliente via email
+                </label>
+                <Button variant="outline" size="sm" disabled={blocking || !eventDate} onClick={() => void blockDate()}>
+                  <Calendar size={14} /> {blocking ? '…' : 'Blocca la data'}
+                </Button>
+                <button type="button" onClick={() => void unblockDate()} className="text-xs underline text-[rgb(var(--fg-subtle))]">rilascia</button>
+              </div>
+              <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Tiene la data sul tuo calendario senza vincolo. Si libera da sola alla scadenza, o diventa confermata quando il cliente firma.</p>
             </div>
             <div className="space-y-1">
               <Label>Tipo di evento</Label>
