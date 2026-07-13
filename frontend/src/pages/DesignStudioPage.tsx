@@ -7,7 +7,7 @@ import {
   ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Images, Plus, Trash2, Copy,
   Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen, Search,
   Fingerprint, Lock, Unlock, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcw, SlidersHorizontal,
-  Stamp, Home, Maximize2, Minimize2,
+  Stamp, Home, Maximize2, Minimize2, AlignLeft, AlignCenter, AlignRight, Upload,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -15,6 +15,7 @@ import { useDesigns, fetchDesign, useDesignMutations, useAttachableEvents, type 
 import { FONTS, ensureFont, injectFontsStylesheet } from '@/lib/studioFonts'
 import { BUILTIN_PRESETS, loadCustomPresets, saveCustomPreset, deleteCustomPreset, type BrushPreset } from '@/lib/studioBrushPresets'
 import { STAMPS, STAMP_GROUPS, DEFAULT_STAMP, drawStamp } from '@/lib/studioStamps'
+import { loadCustomFonts, importCustomFont } from '@/lib/studioCustomFonts'
 
 // ── Studio disegno a mano libera (tavola grafica / tablet) — ispirato a Procreate ─────────────────
 // Motore a LIVELLI raster + engine pennelli a "stamp" (acquarello/gessetto/pastello/floreale…),
@@ -29,6 +30,30 @@ type LayerMeta = { id: string; name: string; visible: boolean; opacity: number; 
 type SymMode = 'off' | 'v' | 'h' | 'quad' | 'radial'
 type Pt = { x: number; y: number }
 type DabOpt = { color: string; size: number; opacity: number; press: number; tilt: number; motif?: string; softness?: number }
+// Oggetto testo editabile (stile Photoshop): coord in spazio DOC (px canvas), larghezza box `w` con a-capo automatico.
+type TextObj = { id: string; x: number; y: number; w: number; text: string; font: string; size: number; color: string; align: 'left' | 'center' | 'right' }
+// a-capo per larghezza (rispetta i \n espliciti) — usato per rasterizzare il testo in export/salvataggio.
+function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const out: string[] = []
+  for (const para of text.split('\n')) {
+    if (!para) { out.push(''); continue }
+    const words = para.split(' '); let line = ''
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w
+      if (ctx.measureText(test).width > maxW && line) { out.push(line); line = w } else line = test
+    }
+    out.push(line)
+  }
+  return out
+}
+function drawTextObj(ctx: CanvasRenderingContext2D, t: TextObj) {
+  if (!t.text.trim()) return
+  ctx.save(); ctx.fillStyle = t.color; ctx.textBaseline = 'top'; ctx.font = `${t.size}px "${t.font}"`; ctx.textAlign = t.align
+  const lh = t.size * 1.25
+  const ax = t.align === 'center' ? t.x + t.w / 2 : t.align === 'right' ? t.x + t.w : t.x
+  wrapLines(ctx, t.text, t.w).forEach((ln, i) => ctx.fillText(ln, ax, t.y + i * lh))
+  ctx.restore()
+}
 
 const PAINT = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'watercolor', 'chalk', 'pastel', 'floral', 'airbrush', 'smudge', 'eraser', 'stamp'])
 const LINE_TOOLS = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'eraser'])
@@ -214,6 +239,7 @@ export default function DesignStudioPage() {
   const [immersive, setImmersive] = useState(false)   // iPad "pagina piena": nasconde barra + strumenti + pannello
   useEffect(() => { setCustomPresets(loadCustomPresets()) }, [])
   const applyPreset = (p: BrushPreset) => { setTool(p.tool as Tool); setSize(p.size); setOpacity(p.opacity); if (p.color) setColor(p.color); setPresetSel(p.id) }
+
   const [streamline, setStreamline] = useState(0.4)
   const [sym, setSym] = useState<SymMode>('off')
   const [fill, setFill] = useState(false)
@@ -232,19 +258,45 @@ export default function DesignStudioPage() {
   const [showGallery, setShowGallery] = useState(false)
   const [saving, setSaving] = useState(false)
   const [rightOpen, setRightOpen] = useState(true)
-  const [textEdit, setTextEdit] = useState<{ sx: number; sy: number; dx: number; dy: number; value: string } | null>(null)
+  // TESTO come oggetti editabili (stile Photoshop): box allargabili/spostabili/ri-modificabili/eliminabili,
+  // rasterizzati solo in export/salvataggio. + font importati dall'utente (persistono in IndexedDB).
+  const [texts, setTexts] = useState<TextObj[]>([])
+  const [activeTextId, setActiveTextId] = useState<string | null>(null)
+  const [customFonts, setCustomFonts] = useState<string[]>([])
   const [sp] = useSearchParams(); const navigate = useNavigate()
   const entryId = sp.get('entry'); const openDocParam = sp.get('doc')
   const [assignEntry, setAssignEntry] = useState<string | null>(entryId)
   const { data: events } = useAttachableEvents()
 
+  // ── TESTO (oggetti) + FONT importati ─────────────────────────────────────────
+  useEffect(() => { void loadCustomFonts().then((names) => setCustomFonts(names)) }, [])
+  const patchText = (id: string, patch: Partial<TextObj>) => setTexts((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)))
+  const removeText = (id: string) => { setTexts((ts) => ts.filter((t) => t.id !== id)); setActiveTextId((a) => (a === id ? null : a)) }
+  const addText = (x: number, y: number) => {
+    const id = uidgen()
+    const w = Math.min(Math.max(160, dims.w * 0.5), dims.w - x - 8)
+    setTexts((ts) => [...ts, { id, x, y, w: Math.max(80, w), text: '', font, size: fontSize, color, align: 'left' }])
+    setActiveTextId(id); void ensureFont(font)
+  }
+  const importFont = async (file: File) => {
+    try {
+      const name = await importCustomFont(file)
+      setCustomFonts((cf) => (cf.includes(name) ? cf : [name, ...cf]))
+      setFont(name); if (activeTextId) patchText(activeTextId, { font: name })
+      toast.success(`Font "${name}" importato — resta disponibile anche dopo`)
+    } catch (e) { toast.error('Font non importato: ' + (e as Error).message) }
+  }
+  const activeText = texts.find((t) => t.id === activeTextId) ?? null
+  // il colore della tavolozza aggiorna il testo selezionato (come in Photoshop)
+  useEffect(() => { if (tool === 'text' && activeTextId) patchText(activeTextId, { color })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [color])
+
   const history = useRef<Array<{ layerId: string; before: string; after: string }>>([])
   const redo = useRef<Array<{ layerId: string; before: string; after: string }>>([])
   const draw = useRef<{ active: boolean; last: Pt; start: Pt; before: string; panning: boolean; panStart: Pt; panOrig: { x: number; y: number } } | null>(null)
   const spaceRef = useRef(false)
-  const textCommitting = useRef(false)
-  const textAreaRef = useRef<HTMLTextAreaElement>(null)
-  const textPlacedAt = useRef(0)
+  const fontFileRef = useRef<HTMLInputElement>(null)
   const adjustSrc = useRef<HTMLCanvasElement | null>(null)
   const adjustBefore = useRef<string>('')
   const [adjust, setAdjust] = useState<{ b: number; c: number; s: number; h: number; blur: number } | null>(null)
@@ -277,6 +329,7 @@ export default function DesignStudioPage() {
     const bgC = newCanvas(w, h); const bctx = bgC.getContext('2d')!; bctx.fillStyle = '#ffffff'; bctx.fillRect(0, 0, w, h)
     layerCanvases.current.set(bg, bgC); layerCanvases.current.set(l1, newCanvas(w, h))
     history.current = []; redo.current = []
+    setTexts([]); setActiveTextId(null)
     setDims({ w, h })
     setLayers([{ id: bg, name: 'Sfondo', visible: true, opacity: 1, blend: 'source-over' }, { id: l1, name: 'Livello 1', visible: true, opacity: 1, blend: 'source-over' }])
     setActiveId(l1); setTimeout(() => fitView(w, h), 0)
@@ -331,9 +384,9 @@ export default function DesignStudioPage() {
 
   // ── Pointer ──────────────────────────────────────────────────────────────
   function onDown(e: React.PointerEvent) {
-    // TESTO (stile Photoshop): posiziona il caret e apri l'editor. PRIMA del pointer-capture,
-    // così su touch/iPad il tap dà fuoco al box e apre la tastiera (niente capture che lo ingoia).
-    if (tool === 'text') { const r = stageRef.current!.getBoundingClientRect(); const p = toDoc(e); void ensureFont(font); textPlacedAt.current = Date.now(); setTextEdit({ sx: e.clientX - r.left, sy: e.clientY - r.top, dx: p.x, dy: p.y, value: '' }); return }
+    // TESTO (stile Photoshop): click a vuoto crea un nuovo box editabile. PRIMA del pointer-capture,
+    // così su touch/iPad il tap dà fuoco (i box esistenti fermano l'evento e gestiscono da sé).
+    if (tool === 'text') { const p = toDoc(e); addText(p.x, p.y); return }
     try { (e.target as HTMLElement).setPointerCapture?.(e.pointerId) } catch { /* pointer sintetico o non catturabile */ }
     if (tool === 'hand' || spaceRef.current || e.button === 1) { draw.current = { active: false, last: { x: 0, y: 0 }, start: { x: 0, y: 0 }, before: '', panning: true, panStart: { x: e.clientX, y: e.clientY }, panOrig: { ...pan } }; return }
     const p = toDoc(e); const ctx = getCtx(activeId); if (!ctx) return
@@ -379,35 +432,6 @@ export default function DesignStudioPage() {
     const nz = Math.min(8, Math.max(0.08, zoom * (e.deltaY < 0 ? 1.12 : 0.89)))
     setPan({ x: mx - (mx - pan.x) * (nz / zoom), y: my - (my - pan.y) * (nz / zoom) }); setZoom(nz)
   }
-
-  function commitText() {
-    if (!textEdit || textCommitting.current) return
-    const te = textEdit; const t = te.value
-    // ignora un blur "a vuoto" nei primi 300ms dal posizionamento (su touch la tastiera che si
-    // apre può rubare il fuoco un istante): non chiudere il box appena creato.
-    if (!t.trim() && Date.now() - textPlacedAt.current < 300) return
-    if (!t.trim()) { setTextEdit(null); return }
-    textCommitting.current = true
-    void ensureFont(font).then(() => {
-      const ctx = getCtx(activeId)
-      if (ctx) {
-        const before = layerCanvases.current.get(activeId)!.toDataURL()
-        ctx.save(); ctx.globalAlpha = opacity; ctx.fillStyle = color; ctx.textBaseline = 'top'; ctx.font = `${fontSize}px "${font}"`
-        t.split('\n').forEach((ln, i) => ctx.fillText(ln, te.dx, te.dy + i * fontSize * 1.2)); ctx.restore()
-        composite(); pushHistory(activeId, before, layerCanvases.current.get(activeId)!.toDataURL()); pushColor(color)
-      }
-      setTextEdit(null); textCommitting.current = false
-    })
-  }
-  // Fuoco affidabile sul box di testo al posizionamento (più robusto di autoFocus su touch/iPad).
-  // Dipende solo da sx/sy (nuovo click), non dal valore → non sposta il caret mentre si scrive.
-  useEffect(() => {
-    if (!textEdit) return
-    const el = textAreaRef.current; if (!el) return
-    const id = requestAnimationFrame(() => { try { el.focus({ preventScroll: true }) } catch { el.focus() } })
-    return () => cancelAnimationFrame(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [textEdit?.sx, textEdit?.sy])
 
   useEffect(() => {
     const kd = (e: KeyboardEvent) => {
@@ -456,7 +480,7 @@ export default function DesignStudioPage() {
   const cancelAdjust = () => { void applyUrl(activeId, adjustBefore.current); adjustSrc.current = null; setAdjust(null) }
 
   // ── Export / persistenza ──────────────────────────────────────────────────
-  const flatten = (): HTMLCanvasElement => { const out = newCanvas(dims.w, dims.h); const ctx = out.getContext('2d')!; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, dims.w, dims.h); for (const l of layers) { if (!l.visible) continue; const c = layerCanvases.current.get(l.id); if (!c) continue; ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blend; ctx.drawImage(c, 0, 0) } return out }
+  const flatten = (): HTMLCanvasElement => { const out = newCanvas(dims.w, dims.h); const ctx = out.getContext('2d')!; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, dims.w, dims.h); for (const l of layers) { if (!l.visible) continue; const c = layerCanvases.current.get(l.id); if (!c) continue; ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blend; ctx.drawImage(c, 0, 0) } ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; for (const t of texts) drawTextObj(ctx, t); return out }
   const exportPNG = () => { const a = document.createElement('a'); a.href = flatten().toDataURL('image/png'); a.download = `${title || 'disegno'}.png`; a.click() }
   const exportPDF = async () => { const { default: JsPDF } = await import('jspdf'); const doc = new JsPDF({ unit: 'px', format: [dims.w, dims.h], orientation: dims.w > dims.h ? 'landscape' : 'portrait' }); doc.addImage(flatten().toDataURL('image/png'), 'PNG', 0, 0, dims.w, dims.h); doc.save(`${title || 'disegno'}.pdf`) }
   // VETTORIZZA: traccia il disegno (raster) in SVG con tracciati editabili → apribile in Illustrator
@@ -484,7 +508,7 @@ export default function DesignStudioPage() {
   async function doSave() {
     setSaving(true)
     try {
-      const doc = JSON.stringify({ layers: layers.map((l) => ({ ...l, data: layerCanvases.current.get(l.id)!.toDataURL('image/png') })) })
+      const doc = JSON.stringify({ layers: layers.map((l) => ({ ...l, data: layerCanvases.current.get(l.id)!.toDataURL('image/png') })), texts })
       const id = await save.mutateAsync({ id: docId, title: title || 'Senza titolo', width: dims.w, height: dims.h, doc, thumbnail: thumbOf(), entry_id: assignEntry })
       setDocId(id); toast.success(assignEntry ? 'Progetto salvato e condiviso nell’evento' : 'Progetto salvato')
     } catch (e) { toast.error((e as Error).message) } finally { setSaving(false) }
@@ -492,10 +516,11 @@ export default function DesignStudioPage() {
   async function openDesign(id: string) {
     try {
       const d = await fetchDesign(id); if (!d || !d.doc) { toast.error('Progetto non leggibile'); return }
-      const parsed = JSON.parse(d.doc) as { layers: Array<LayerMeta & { data: string }> }
+      const parsed = JSON.parse(d.doc) as { layers: Array<LayerMeta & { data: string }>; texts?: TextObj[] }
       layerCanvases.current.clear()
       for (const l of parsed.layers) { const c = newCanvas(d.width, d.height); const img = await loadImage(l.data); c.getContext('2d')!.drawImage(img, 0, 0); layerCanvases.current.set(l.id, c) }
       history.current = []; redo.current = []
+      setTexts(parsed.texts ?? []); setActiveTextId(null)
       setDims({ w: d.width, h: d.height }); setLayers(parsed.layers.map(({ data: _d, ...m }) => m)); setActiveId(parsed.layers[parsed.layers.length - 1]!.id)
       setTitle(d.title); setDocId(d.id); setShowGallery(false); setTimeout(() => fitView(d.width, d.height), 0)
     } catch (e) { toast.error((e as Error).message) }
@@ -581,13 +606,12 @@ export default function DesignStudioPage() {
           <canvas ref={displayRef} className="absolute inset-0 touch-none" style={{ cursor: tool === 'hand' ? 'grab' : tool === 'eyedropper' ? 'crosshair' : tool === 'text' ? 'text' : 'crosshair' }}
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => { if (ringRef.current) ringRef.current.style.display = 'none' }} onWheel={onWheel} />
           <div ref={ringRef} className="pointer-events-none absolute rounded-full border border-white/80 mix-blend-difference -translate-x-1/2 -translate-y-1/2" style={{ display: 'none' }} />
-          {textEdit && (
-            <textarea ref={textAreaRef} autoFocus value={textEdit.value} onChange={(e) => setTextEdit({ ...textEdit, value: e.target.value })}
-              onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText() } else if (e.key === 'Escape') setTextEdit(null) }}
-              onPointerDown={(e) => e.stopPropagation()} onBlur={commitText} spellCheck={false} rows={1}
-              className="absolute z-30 bg-white/10 outline-none resize-none overflow-hidden border border-dashed border-[rgb(var(--gold-400))]"
-              style={{ left: textEdit.sx, top: textEdit.sy, color, fontFamily: `"${font}"`, fontSize: fontSize * zoom, lineHeight: 1.2, minWidth: 40, padding: 0, whiteSpace: 'pre', userSelect: 'text', WebkitUserSelect: 'text', touchAction: 'auto', caretColor: color }} />
-          )}
+          {/* TESTO: box editabili sovrapposti (spostabili/allargabili/ri-modificabili/eliminabili col tool Testo) */}
+          {texts.map((t) => (
+            <TextBox key={t.id} t={t} zoom={zoom} pan={pan} editable={tool === 'text'} active={tool === 'text' && activeTextId === t.id}
+              onSelect={() => { setActiveTextId(t.id); setFont(t.font); setFontSize(t.size); setColor(t.color) }} onChange={(patch) => patchText(t.id, patch)} onDelete={() => removeText(t.id)}
+              onCommitEmpty={() => { if (!t.text.trim()) removeText(t.id) }} />
+          ))}
         </div>
 
         {!immersive && !rightOpen && <button onClick={() => setRightOpen(true)} title="Mostra strumenti" className="w-8 shrink-0 border-l border-[rgb(var(--border))] grid place-items-center hover:bg-[rgb(var(--bg-sunken))]"><PanelRightOpen size={16} /></button>}
@@ -656,17 +680,37 @@ export default function DesignStudioPage() {
               {(tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') && <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Tieni <strong>Shift</strong> = forma perfetta (quadrato/cerchio) o angoli a 45°.</p>}
             </>}
             {tool === 'text' && <>
-              <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Corpo: {fontSize}px<input type="range" min={12} max={300} value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="w-full" /></label>
-              <div className="relative"><Search size={13} className="absolute left-2 top-2 text-[rgb(var(--fg-subtle))]" /><Input value={fontQuery} onChange={(e) => setFontQuery(e.target.value)} placeholder={`Cerca tra ${FONTS.length} font…`} className="h-8 pl-7" /></div>
+              <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Corpo: {fontSize}px<input type="range" min={8} max={400} value={fontSize} onChange={(e) => { const v = Number(e.target.value); setFontSize(v); if (activeTextId) patchText(activeTextId, { size: v }) }} className="w-full" /></label>
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-[rgb(var(--fg-muted))] mr-auto">Allineamento</span>
+                {(['left', 'center', 'right'] as const).map((al) => (
+                  <button key={al} onClick={() => activeTextId && patchText(activeTextId, { align: al })} disabled={!activeTextId}
+                    className={`h-7 w-7 grid place-items-center rounded border disabled:opacity-40 ${activeText?.align === al ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                    {al === 'left' ? <AlignLeft size={14} /> : al === 'center' ? <AlignCenter size={14} /> : <AlignRight size={14} />}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => fontFileRef.current?.click()} title="Carica un tuo font (.ttf/.otf/.woff) — resta disponibile" className="h-8 px-2 flex-1 inline-flex items-center justify-center gap-1 rounded-md border border-[rgb(var(--border))] text-xs hover:bg-[rgb(var(--bg-sunken))]"><Upload size={13} /> Importa font</button>
+                {activeTextId && <button onClick={() => removeText(activeTextId)} title="Elimina il testo selezionato" className="h-8 px-2 rounded-md border border-[rgb(var(--border))] text-xs text-[rgb(var(--rose-600,225_29_72))] hover:bg-[rgb(var(--bg-sunken))]"><Trash2 size={13} /></button>}
+              </div>
+              <input ref={fontFileRef} type="file" accept=".ttf,.otf,.woff,.woff2,.ttc,font/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFont(f) }} />
+              <div className="relative"><Search size={13} className="absolute left-2 top-2 text-[rgb(var(--fg-subtle))]" /><Input value={fontQuery} onChange={(e) => setFontQuery(e.target.value)} placeholder={`Cerca tra ${FONTS.length + customFonts.length} font…`} className="h-8 pl-7" /></div>
               <div className="max-h-64 overflow-y-auto rounded-lg border border-[rgb(var(--border))]">
+                {customFonts.filter((n) => !fontQuery || n.toLowerCase().includes(fontQuery.toLowerCase())).map((name) => (
+                  <button key={'imp-' + name} onClick={() => { setFont(name); if (activeTextId) patchText(activeTextId, { font: name }) }} className={`w-full text-left px-2 py-1.5 border-b border-[rgb(var(--border))] last:border-0 ${font === name ? 'bg-[rgb(var(--gold-100))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                    <span style={{ fontFamily: `"${name}"` }} className="text-base leading-none">{name}</span>
+                    <span className="block text-[9px] text-[rgb(var(--gold-700))] uppercase tracking-wide">Importato</span>
+                  </button>
+                ))}
                 {filteredFonts.map((f) => (
-                  <button key={f.name} onClick={() => { setFont(f.name); void ensureFont(f.name) }} className={`w-full text-left px-2 py-1.5 border-b border-[rgb(var(--border))] last:border-0 ${font === f.name ? 'bg-[rgb(var(--gold-100))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                  <button key={f.name} onClick={() => { setFont(f.name); void ensureFont(f.name); if (activeTextId) patchText(activeTextId, { font: f.name }) }} className={`w-full text-left px-2 py-1.5 border-b border-[rgb(var(--border))] last:border-0 ${font === f.name ? 'bg-[rgb(var(--gold-100))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>
                     <span style={{ fontFamily: `"${f.name}"` }} className="text-base leading-none">{f.name}</span>
                     <span className="block text-[9px] text-[rgb(var(--fg-subtle))] uppercase tracking-wide">{f.cat}</span>
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Clicca sul foglio, scrivi, Invio per confermare (Shift+Invio = a capo).</p>
+              <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Clic sul foglio = nuovo testo. Trascina la barra in alto per spostarlo, la maniglia in basso a destra per allargarlo, la × per eliminarlo. Il colore usa la tavolozza in alto.</p>
             </>}
           </div>
 
@@ -734,6 +778,57 @@ function MotifIcon({ motif }: { motif: string }) {
     drawStamp(ctx, motif, c.width / 2, c.height / 2, 15, '#5b4636')
   }, [motif])
   return <canvas ref={ref} width={30} height={30} className="pointer-events-none" />
+}
+
+// Box di testo editabile sovrapposto al canvas (stile Photoshop): spostabile, allargabile,
+// ri-modificabile, eliminabile. Interattivo solo col tool Testo; altrimenti mostra solo il testo.
+function TextBox({ t, zoom, pan, editable, active, onSelect, onChange, onDelete, onCommitEmpty }: {
+  t: TextObj; zoom: number; pan: { x: number; y: number }; editable: boolean; active: boolean
+  onSelect: () => void; onChange: (patch: Partial<TextObj>) => void; onDelete: () => void; onCommitEmpty: () => void
+}) {
+  const taRef = useRef<HTMLTextAreaElement>(null)
+  const drag = useRef<{ mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number } | null>(null)
+  useEffect(() => { const el = taRef.current; if (!el) return; el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' }, [t.text, t.size, t.w, t.font, zoom])
+  useEffect(() => { if (!active) return; const el = taRef.current; if (!el) return; const id = requestAnimationFrame(() => { try { el.focus({ preventScroll: true }) } catch { el.focus() } }); return () => cancelAnimationFrame(id) }, [active])
+
+  const down = (mode: 'move' | 'resize') => (e: React.PointerEvent) => {
+    e.stopPropagation(); e.preventDefault()
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId) } catch { /* */ }
+    drag.current = { mode, sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y, ow: t.w }; onSelect()
+  }
+  const move = (e: React.PointerEvent) => {
+    const d = drag.current; if (!d) return
+    const dx = (e.clientX - d.sx) / zoom, dy = (e.clientY - d.sy) / zoom
+    if (d.mode === 'move') onChange({ x: Math.round(d.ox + dx), y: Math.round(d.oy + dy) })
+    else onChange({ w: Math.max(40, Math.round(d.ow + dx)) })
+  }
+  const up = (e: React.PointerEvent) => { drag.current = null; try { (e.target as HTMLElement).releasePointerCapture(e.pointerId) } catch { /* */ } }
+
+  const left = pan.x + t.x * zoom, top = pan.y + t.y * zoom, width = t.w * zoom
+  return (
+    <div className="absolute" style={{ left, top, width, pointerEvents: editable ? 'auto' : 'none' }}>
+      {editable && active && (
+        <>
+          <div onPointerDown={down('move')} onPointerMove={move} onPointerUp={up} title="Trascina per spostare"
+            className="absolute -top-4 left-0 right-0 h-4 rounded-t cursor-move flex items-center justify-center touch-none" style={{ background: 'rgba(197,160,80,0.85)' }}>
+            <div className="w-6 h-0.5 bg-white/80 rounded" />
+          </div>
+          <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDelete() }} title="Elimina testo"
+            className="absolute -top-4 -right-5 h-5 w-5 grid place-items-center rounded-full bg-black/60 text-white text-[11px] leading-none">×</button>
+          <div onPointerDown={down('resize')} onPointerMove={move} onPointerUp={up} title="Trascina per allargare il box"
+            className="absolute -bottom-1.5 -right-1.5 h-3 w-3 border border-white rounded-sm cursor-nwse-resize touch-none" style={{ background: 'rgb(197,160,80)' }} />
+        </>
+      )}
+      <textarea ref={taRef} value={t.text} readOnly={!editable} spellCheck={false} rows={1} placeholder={editable ? 'Scrivi…' : ''}
+        onChange={(e) => onChange({ text: e.target.value })}
+        onPointerDown={(e) => { if (editable) { e.stopPropagation(); onSelect() } }}
+        onFocus={onSelect}
+        onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') (e.target as HTMLTextAreaElement).blur() }}
+        onBlur={onCommitEmpty}
+        className={`block w-full bg-transparent outline-none resize-none overflow-hidden ${editable && active ? 'ring-1 ring-[rgb(var(--gold-400))]' : ''}`}
+        style={{ color: t.color, fontFamily: `"${t.font}"`, fontSize: t.size * zoom, lineHeight: 1.25, textAlign: t.align, padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: editable ? 'text' : 'none', WebkitUserSelect: editable ? 'text' : 'none', touchAction: editable ? 'auto' : 'none', caretColor: t.color, cursor: editable ? 'text' : 'default' }} />
+    </div>
+  )
 }
 
 function ColorWheel({ color, onChange }: { color: string; onChange: (hex: string) => void }) {
