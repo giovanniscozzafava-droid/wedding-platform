@@ -77,10 +77,17 @@ function QuotePreviewPageInner() {
         <div className="surface surface-lift overflow-hidden">
           <div className="h-2" style={{ background: primary }} />
           <header className="px-6 sm:px-10 pt-8 pb-6 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+            {/* Il preventivo è del PROFESSIONISTA: logo suo in testa; Planfully solo in piccolo a piè pagina. */}
+            {data.owner?.brand_logo_url ? (
+              <img src={data.owner.brand_logo_url} alt={data.owner.business_name ?? 'Logo'}
+                className="h-14 sm:h-16 w-auto max-w-[240px] object-contain mb-3" />
+            ) : null}
             <div className="flex items-center gap-2 mb-2">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-                <Sparkles size={14} strokeWidth={2.2} />
-              </span>
+              {!data.owner?.brand_logo_url && (
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
+                  <Sparkles size={14} strokeWidth={2.2} />
+                </span>
+              )}
               <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Preventivo riservato</span>
             </div>
             <h1 className="font-display text-3xl sm:text-4xl tracking-tight" style={{ color: primary }}>

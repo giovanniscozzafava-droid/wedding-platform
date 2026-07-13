@@ -224,7 +224,7 @@ export async function publicQuoteByToken(token: string) {
     revision: number
     total_client: number
     pdf_url: string | null
-    owner: { business_name: string | null; full_name: string | null; brand_primary_color: string | null }
+    owner: { business_name: string | null; full_name: string | null; brand_primary_color: string | null; brand_logo_url: string | null }
     items: Array<{ name_snapshot: string; quantity: number; snapshot_price: number; line_client: number }>
   } | null
 }
