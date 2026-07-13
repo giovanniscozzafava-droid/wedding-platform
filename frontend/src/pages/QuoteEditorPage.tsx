@@ -656,10 +656,15 @@ export default function QuoteEditorPage() {
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 {!contractInfo && quote.status === 'ACCETTATO' && (
                   <div className="flex flex-col items-end gap-1">
-                    <Button variant="gold" size="sm" onClick={handleCreateContract}
+                    {(profile as { default_stop_at_quote?: boolean } | null)?.default_stop_at_quote && (
+                      <p className="text-[11px] text-[rgb(var(--fg-muted))] max-w-[240px] text-right leading-tight">
+                        Accordo concluso alla firma del preventivo — nessun contratto necessario.
+                      </p>
+                    )}
+                    <Button variant={(profile as { default_stop_at_quote?: boolean } | null)?.default_stop_at_quote ? 'outline' : 'gold'} size="sm" onClick={handleCreateContract}
                       disabled={creatingContract || (budgetReadiness ? !budgetReadiness.ready_for_contract : false)}
                       data-testid="generate-contract-btn">
-                      <FileSignature size={14} /> {creatingContract ? 'Genero…' : 'Genera contratto'}
+                      <FileSignature size={14} /> {creatingContract ? 'Genero…' : ((profile as { default_stop_at_quote?: boolean } | null)?.default_stop_at_quote ? 'Genera comunque un contratto' : 'Genera contratto')}
                     </Button>
                     {budgetReadiness && !budgetReadiness.ready_for_contract && (
                       <p className="text-[11px] text-[rgb(var(--amber-600))] max-w-[240px] text-right leading-tight">
