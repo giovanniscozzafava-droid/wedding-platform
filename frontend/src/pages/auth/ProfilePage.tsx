@@ -16,6 +16,7 @@ import { useNuovoModello, useSetNuovoModello } from '@/hooks/useNuovoModello'
 import { DriveConnectCard } from '@/components/event/DriveConnectCard'
 import { BookingSettingsCard } from '@/components/event/BookingSettingsCard'
 import { PrintShopSettingsCard } from '@/components/event/PrintShopSettingsCard'
+import { AmbitoDefaultCard } from '@/components/event/AmbitoDefaultCard'
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth()
@@ -426,6 +427,7 @@ export default function ProfilePage() {
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN'].includes(profile?.role ?? '') && <DriveConnectCard />}
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN'].includes(profile?.role ?? '') && <BookingSettingsCard />}
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN'].includes(profile?.role ?? '') && <PrintShopSettingsCard />}
+          {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE'].includes(profile?.role ?? '') && <AmbitoDefaultCard />}
 
           {/* Aiuto contestuale — sostituisce il vecchio tutorial a card */}
           {profile?.role === 'FORNITORE' && (
