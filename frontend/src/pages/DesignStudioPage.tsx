@@ -206,6 +206,8 @@ export default function DesignStudioPage() {
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H)
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0
     for (const l of layers) { if (!l.visible) continue; const c = layerCanvases.current.get(l.id); if (!c) continue; ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blend; ctx.drawImage(c, 0, 0) }
+    // anteprima del tratto in corso (buffer bagnato) all'opacità finale
+    if (wet.current) { ctx.globalAlpha = wet.current.alpha; ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(wet.current.c, 0, 0) }
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.restore()
   }, [dims, layers, zoom, pan])
 
@@ -276,6 +278,22 @@ export default function DesignStudioPage() {
     ctx.globalCompositeOperation = (al && tool !== 'eraser' && tool !== 'smudge') ? 'source-atop' : (tool === 'eraser' ? 'destination-out' : 'source-over')
   }
 
+  // ── Tratto "bagnato" (wet layer, come Procreate/PS): pennello/matita/china/pennarello disegnano
+  // su un BUFFER a opacità PIENA e vengono riversati sul livello UNA sola volta all'opacità scelta.
+  // Così i cap tondi dei segmenti non si sommano più → tratto uniforme, niente puntini scuri.
+  const wet = useRef<{ c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; alpha: number } | null>(null)
+  const useWetFor = (t: Tool) => softness === 0 && (t === 'brush' || t === 'pencil' || t === 'ink' || t === 'marker')
+  const strokeAlpha = (t: Tool) => (t === 'marker' ? opacity * 0.4 : t === 'pencil' ? opacity * 0.9 : opacity)
+  const wetSeg = (wctx: CanvasRenderingContext2D, t: Tool, a: Pt, b: Pt, o: { color: string; size: number; press: number; tilt: number }) => {
+    wctx.save(); wctx.lineCap = 'round'; wctx.lineJoin = 'round'; wctx.strokeStyle = o.color; wctx.globalAlpha = 1
+    let w = o.size * o.press
+    if (t === 'pencil') w = Math.max(0.6, o.size * 0.5 * o.press * (1 + o.tilt * 2.2))
+    else if (t === 'ink') w = o.size * (0.45 + 0.55 * o.press)
+    wctx.lineWidth = w; wctx.beginPath(); wctx.moveTo(a.x, a.y); wctx.lineTo(b.x, b.y); wctx.stroke(); wctx.restore()
+  }
+  // disegna il segmento (+ copie simmetriche) sul buffer bagnato
+  const wetStamp = (a: Pt, b: Pt, o: { color: string; size: number; press: number; tilt: number }) => { const w = wet.current; if (!w) return; for (const T of symTransforms()) wetSeg(w.ctx, tool, T(a), T(b), o) }
+
   // ── Pointer ──────────────────────────────────────────────────────────────
   function onDown(e: React.PointerEvent) {
     // TESTO (stile Photoshop): click a vuoto crea un nuovo box editabile. PRIMA del pointer-capture,
@@ -288,7 +306,11 @@ export default function DesignStudioPage() {
     if (tool === 'fill') { const before = layerCanvases.current.get(activeId)!.toDataURL(); floodFill(ctx, dims.w, dims.h, p.x, p.y, color); composite(); pushHistory(activeId, before, layerCanvases.current.get(activeId)!.toDataURL()); pushColor(color); return }
     const before = layerCanvases.current.get(activeId)!.toDataURL()
     draw.current = { active: true, last: p, start: p, before, panning: false, panStart: { x: 0, y: 0 }, panOrig: { x: 0, y: 0 } }
-    if (PAINT.has(tool)) { startPaint(ctx); if (tool === 'smudge') smudge(ctx, p, p, pressureOf(e)); else paintM(ctx, p, p, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif, softness }); composite() }
+    if (PAINT.has(tool)) {
+      if (useWetFor(tool)) { const c = newCanvas(dims.w, dims.h); wet.current = { c, ctx: c.getContext('2d')!, alpha: strokeAlpha(tool) }; wetStamp(p, p, { color, size, press: pressureOf(e), tilt: tiltOf(e) }) }
+      else { startPaint(ctx); if (tool === 'smudge') smudge(ctx, p, p, pressureOf(e)); else paintM(ctx, p, p, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif, softness }) }
+      composite()
+    }
   }
   function onMove(e: React.PointerEvent) {
     const ring = ringRef.current, disp = displayRef.current
@@ -304,7 +326,7 @@ export default function DesignStudioPage() {
         const rp = toDoc(ce); const sm = { x: lerp(last.x, rp.x, 1 - streamline), y: lerp(last.y, rp.y, 1 - streamline) }
         const press = ce.pointerType === 'pen' ? Math.max(0.06, ce.pressure || 0.5) : 1
         const tilt = ce.pointerType === 'pen' ? Math.min(1, Math.hypot((ce as any).tiltX || 0, (ce as any).tiltY || 0) / 54) : 0
-        if (tool === 'smudge') smudge(ctx, last, sm, press); else paintM(ctx, last, sm, { color, size, opacity, press, tilt, motif, softness }); last = sm
+        if (wet.current) wetStamp(last, sm, { color, size, press, tilt }); else if (tool === 'smudge') smudge(ctx, last, sm, press); else paintM(ctx, last, sm, { color, size, opacity, press, tilt, motif, softness }); last = sm
       }
       st.last = last; composite()
     } else if (tool === 'move') {
@@ -317,7 +339,19 @@ export default function DesignStudioPage() {
   function onUp(e: React.PointerEvent) {
     const st = draw.current; draw.current = null; if (!st || st.panning) return
     const ctx = getCtx(activeId); if (!ctx) return
-    if (PAINT.has(tool)) { const end = toDoc(e); if (tool === 'smudge') smudge(ctx, st.last, end, pressureOf(e)); else { paintM(ctx, st.last, end, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif, softness }); pushColor(color) } ctx.globalCompositeOperation = 'source-over'; composite() }
+    if (PAINT.has(tool)) {
+      const end = toDoc(e)
+      if (wet.current) {
+        wetStamp(st.last, end, { color, size, press: pressureOf(e), tilt: tiltOf(e) })
+        // riversamento UNICO del tratto sul livello all'opacità scelta (niente puntini)
+        const al = layers.find((l) => l.id === activeId)?.alphaLock
+        ctx.save(); ctx.globalAlpha = wet.current.alpha; ctx.globalCompositeOperation = al ? 'source-atop' : 'source-over'
+        ctx.drawImage(wet.current.c, 0, 0); ctx.restore()
+        wet.current = null; pushColor(color)
+      } else if (tool === 'smudge') smudge(ctx, st.last, end, pressureOf(e))
+      else { paintM(ctx, st.last, end, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif, softness }); pushColor(color) }
+      ctx.globalCompositeOperation = 'source-over'; composite()
+    }
     if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') { drawShape(ctx, tool, st.start, constrainEnd(st.start, toDoc(e), tool, e.shiftKey), { color, size, fill, alpha: opacity }); composite() }
     pushHistory(activeId, st.before, layerCanvases.current.get(activeId)!.toDataURL())
   }
