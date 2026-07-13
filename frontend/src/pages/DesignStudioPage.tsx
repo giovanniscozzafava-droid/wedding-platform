@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { useDesigns, fetchDesign, useDesignMutations, useAttachableEvents, type DesignMeta } from '@/hooks/useDesignStudio'
 import { FONTS, ensureFont, injectFontsStylesheet } from '@/lib/studioFonts'
+import { BUILTIN_PRESETS, loadCustomPresets, saveCustomPreset, deleteCustomPreset, type BrushPreset } from '@/lib/studioBrushPresets'
 
 // ── Studio disegno a mano libera (tavola grafica / tablet) — ispirato a Procreate ─────────────────
 // Motore a LIVELLI raster + engine pennelli a "stamp" (acquarello/gessetto/pastello/floreale…),
@@ -178,6 +179,11 @@ export default function DesignStudioPage() {
   const [color, setColor] = useState('#1a1a1a')
   const [size, setSize] = useState(14)
   const [opacity, setOpacity] = useState(1)
+  // Preset pennello (disegnati a mano) + personalizzati salvabili, scegliibili da dropdown.
+  const [customPresets, setCustomPresets] = useState<BrushPreset[]>([])
+  const [presetSel, setPresetSel] = useState('')
+  useEffect(() => { setCustomPresets(loadCustomPresets()) }, [])
+  const applyPreset = (p: BrushPreset) => { setTool(p.tool as Tool); setSize(p.size); setOpacity(p.opacity); if (p.color) setColor(p.color); setPresetSel(p.id) }
   const [streamline, setStreamline] = useState(0.4)
   const [sym, setSym] = useState<SymMode>('off')
   const [fill, setFill] = useState(false)
@@ -407,6 +413,25 @@ export default function DesignStudioPage() {
   const flatten = (): HTMLCanvasElement => { const out = newCanvas(dims.w, dims.h); const ctx = out.getContext('2d')!; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, dims.w, dims.h); for (const l of layers) { if (!l.visible) continue; const c = layerCanvases.current.get(l.id); if (!c) continue; ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blend; ctx.drawImage(c, 0, 0) } return out }
   const exportPNG = () => { const a = document.createElement('a'); a.href = flatten().toDataURL('image/png'); a.download = `${title || 'disegno'}.png`; a.click() }
   const exportPDF = async () => { const { default: JsPDF } = await import('jspdf'); const doc = new JsPDF({ unit: 'px', format: [dims.w, dims.h], orientation: dims.w > dims.h ? 'landscape' : 'portrait' }); doc.addImage(flatten().toDataURL('image/png'), 'PNG', 0, 0, dims.w, dims.h); doc.save(`${title || 'disegno'}.pdf`) }
+  // VETTORIZZA: traccia il disegno (raster) in SVG con tracciati editabili → apribile in Illustrator
+  // e in ogni programma vettoriale. 'color' = fedele ai colori; 'bw' = linea pulita (2 colori).
+  const [vecBusy, setVecBusy] = useState(false)
+  const vectorize = async (mode: 'color' | 'bw' = 'color') => {
+    setVecBusy(true)
+    try {
+      const { default: ImageTracer } = await import('imagetracerjs')
+      const c = flatten(); const imgd = c.getContext('2d')!.getImageData(0, 0, c.width, c.height)
+      const opts = mode === 'bw'
+        ? { numberofcolors: 2, colorquantcycles: 3, pathomit: 8, ltres: 1, qtres: 1, roundcoords: 1, scale: 1 }
+        : { numberofcolors: 16, colorquantcycles: 3, pathomit: 4, ltres: 1, qtres: 1, roundcoords: 1, scale: 1 }
+      const svg = (ImageTracer as any).imagedataToSVG(imgd, opts)
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+      a.download = `${title || 'disegno'}.svg`; a.click()
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+      toast.success('Vettorializzato in SVG — aprilo in Illustrator: i tracciati sono editabili con tutti gli strumenti.')
+    } catch (e) { toast.error('Vettorializzazione non riuscita: ' + (e as Error).message) }
+    finally { setVecBusy(false) }
+  }
   const thumbOf = (): string => { const s = 320 / Math.max(dims.w, dims.h); const t = newCanvas(Math.round(dims.w * s), Math.round(dims.h * s)); t.getContext('2d')!.drawImage(flatten(), 0, 0, t.width, t.height); return t.toDataURL('image/png') }
 
   const { save, del } = useDesignMutations()
@@ -484,6 +509,8 @@ export default function DesignStudioPage() {
           <span className="w-px h-5 bg-[rgb(var(--border))] mx-1" />
           <Button size="sm" variant="outline" onClick={exportPNG}><Download size={14} /> PNG</Button>
           <Button size="sm" variant="outline" onClick={exportPDF}><FileText size={14} /> PDF</Button>
+          <Button size="sm" variant="outline" disabled={vecBusy} onClick={() => vectorize('color')} title="Trasforma il disegno in vettoriale (SVG) — apribile e modificabile in Illustrator"><PenTool size={14} /> {vecBusy ? 'Vettorizzo…' : 'Vettorizza'}</Button>
+          <Button size="sm" variant="outline" disabled={vecBusy} onClick={() => vectorize('bw')} title="Vettorizza in bianco/nero (linea pulita)">SVG b/n</Button>
           <Button size="sm" onClick={doSave} disabled={saving}><Save size={14} /> {saving ? '…' : 'Salva'}</Button>
         </div>
       </div>
@@ -526,6 +553,25 @@ export default function DesignStudioPage() {
             <div className="flex flex-wrap gap-1">{SWATCHES.map((c) => <button key={c} onClick={() => { setColor(c); pushColor(c) }} className="h-5 w-5 rounded border border-[rgb(var(--border))]" style={{ background: c }} />)}</div>
             {recent.length > 0 && <div className="flex flex-wrap gap-1">{recent.map((c, i) => <button key={i} onClick={() => setColor(c)} className="h-4 w-4 rounded" style={{ background: c }} />)}</div>}
             {tool !== 'text' && <>
+              {/* PRESET pennello: predefiniti "disegnati a mano" + i miei salvati */}
+              <div>
+                <div className="flex items-center gap-1">
+                  <Select value={presetSel} onChange={(e) => { const id = e.target.value; const p = [...BUILTIN_PRESETS, ...customPresets].find((x) => x.id === id); if (p) applyPreset(p) }} className="h-8 text-xs flex-1">
+                    <option value="">Preset pennello…</option>
+                    <optgroup label="Predefiniti">
+                      {BUILTIN_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </optgroup>
+                    {customPresets.length > 0 && <optgroup label="I miei">
+                      {customPresets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </optgroup>}
+                  </Select>
+                  <button title="Salva le impostazioni attuali come preset" onClick={() => { const name = window.prompt('Nome del preset:', ''); if (name && name.trim()) { setCustomPresets(saveCustomPreset({ name: name.trim(), tool: tool as any, size, opacity, color })); toast.success('Preset salvato') } }}
+                    className="h-8 px-2 rounded-md border border-[rgb(var(--border))] text-xs hover:bg-[rgb(var(--bg-sunken))] shrink-0">Salva</button>
+                  {presetSel.startsWith('custom-') && (
+                    <button title="Elimina questo preset" onClick={() => { setCustomPresets(deleteCustomPreset(presetSel)); setPresetSel('') }} className="h-8 px-2 rounded-md border border-[rgb(var(--border))] text-xs text-[rgb(var(--rose-600,225_29_72))] hover:bg-[rgb(var(--bg-sunken))] shrink-0">✕</button>
+                  )}
+                </div>
+              </div>
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Dimensione: {size}px<input type="range" min={1} max={200} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full" /></label>
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Opacità: {Math.round(opacity * 100)}%<input type="range" min={0.02} max={1} step={0.02} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full" /></label>
               {PAINT.has(tool) && <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Stabilizzazione: {Math.round(streamline * 100)}%<input type="range" min={0} max={0.9} step={0.05} value={streamline} onChange={(e) => setStreamline(Number(e.target.value))} className="w-full" /></label>}
