@@ -69,6 +69,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     e.preventDefault()
     setBusy(true)
     try {
+      if (!form.category_id) throw new Error('Scegli una categoria per il servizio (campo “Categoria” qui sopra).')
       const payload = {
         name: form.name.trim(),
         description: form.description.trim() || null,
