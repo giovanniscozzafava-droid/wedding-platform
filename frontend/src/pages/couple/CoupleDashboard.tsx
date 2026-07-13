@@ -971,6 +971,17 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
 
   useEffect(() => { void load(true) }, [entryId])
 
+  // Traccia la visita del cliente (una per sessione per evento) → alimenta "Attività del cliente" lato pro.
+  useEffect(() => {
+    if (!data?.id || !entryId) return
+    const k = `pf_qopen_couple_${entryId}`
+    if (sessionStorage.getItem(k)) return
+    sessionStorage.setItem(k, '1')
+    void (async () => {
+      try { await (supabase.rpc as any)('track_couple_quote_open', { p_entry_id: entryId, p_ua: navigator.userAgent }) } catch { /* ignora */ }
+    })()
+  }, [data?.id, entryId])
+
   async function decide(itemId: string, decision: 'ACCETTATO' | 'RIFIUTATO' | 'FORSE') {
     let reason: string | null = null
     if (decision === 'RIFIUTATO') reason = window.prompt('Vuoi indicare un motivo? (facoltativo)') || null
