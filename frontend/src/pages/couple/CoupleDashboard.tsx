@@ -982,6 +982,35 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
     })()
   }, [data?.id, entryId])
 
+  // Opzione data (il pro ha abilitato? già opzionata?) → il cliente può tenere la data senza firmare.
+  const [opt, setOpt] = useState<{ allowed: boolean; days: number; optioned: boolean } | null>(null)
+  const [optBusy, setOptBusy] = useState(false)
+  useEffect(() => {
+    const tok = data?.access_token
+    if (!tok) return
+    void (async () => {
+      try {
+        const { data: s } = await (supabase.rpc as any)('quote_option_status', { p_token: tok })
+        if (s) setOpt({ allowed: !!s.option_allowed, days: Number(s.option_days ?? 15), optioned: !!s.optioned })
+      } catch { /* ignora */ }
+    })()
+  }, [data?.access_token])
+  async function requestOption() {
+    const tok = data?.access_token
+    if (!tok) return
+    setOptBusy(true)
+    try {
+      const { data: r, error } = await (supabase.rpc as any)('richiedi_opzione_da_preventivo', { p_token: tok })
+      if (error) throw new Error(error.message)
+      const res = r as { ok?: boolean; error?: string; scade?: string }
+      const map: Record<string, string> = { non_abilitato: 'Opzione non disponibile su questo preventivo.', gia_opzionata: 'La data è già opzionata per te.', date_already_optioned: 'Quella data è già stata opzionata.', no_date: 'Manca la data dell’evento.' }
+      if (res?.error) throw new Error(map[res.error] ?? res.error)
+      setOpt((o) => o ? { ...o, optioned: true } : o)
+      toast.success(`Data tenuta per te${res?.scade ? ` fino al ${new Date(res.scade).toLocaleDateString('it-IT')}` : ''} — senza impegno`)
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setOptBusy(false) }
+  }
+
   async function decide(itemId: string, decision: 'ACCETTATO' | 'RIFIUTATO' | 'FORSE') {
     let reason: string | null = null
     if (decision === 'RIFIUTATO') reason = window.prompt('Vuoi indicare un motivo? (facoltativo)') || null
@@ -1155,6 +1184,19 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
             )
           })}
         </ul>
+        {opt?.allowed && !opt.optioned && !signed && !isClosed && (
+          <div className="rounded-lg border p-3 mb-4" style={{ borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
+            <p className="text-sm mb-2">Non sei pronto a firmare? <strong>Tieni la data senza impegno</strong> per {opt.days} giorni: la blocchiamo sul calendario, si libera da sola se non confermi.</p>
+            <Button variant="gold" size="sm" disabled={optBusy} onClick={() => void requestOption()}>
+              {optBusy ? 'Attendere…' : 'Opziona la data'}
+            </Button>
+          </div>
+        )}
+        {opt?.optioned && !signed && (
+          <div className="rounded-lg border p-3 mb-4 text-sm" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+            Data <strong>tenuta per te senza impegno</strong>. Firma per confermarla definitivamente, altrimenti si libera alla scadenza.
+          </div>
+        )}
         {hasLive && !isClosed && (!isFornitore || signed) && (
           <div className="rounded-lg border p-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ borderColor: 'rgb(var(--border))' }}>
             <div className="text-xs text-[rgb(var(--fg-muted))]">
