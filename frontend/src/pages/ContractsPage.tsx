@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileSignature, FileDown, X, Copy, Mail, MessageCircle } from 'lucide-react'
+import { FileSignature, FileDown, X, Copy, Mail, MessageCircle, Sparkles } from 'lucide-react'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'
 import { toast } from 'sonner'
@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase'
 
 type ContractRow = {
   id: string
+  quote_id?: string | null
   title: string | null
   client_name: string | null
   client_email: string | null
@@ -47,7 +48,7 @@ export default function ContractsPage() {
   useEffect(() => {
     void (async () => {
       const { data } = await (supabase.from('contracts' as any) as any)
-        .select('id, title, client_name, client_email, client_fiscal_code, event_date, total_amount, status, signed_at, pdf_url, access_token, sections, signature_data, created_at')
+        .select('id, quote_id, title, client_name, client_email, client_fiscal_code, event_date, total_amount, status, signed_at, pdf_url, access_token, sections, signature_data, created_at')
         .order('created_at', { ascending: false })
       setRows((data ?? []) as ContractRow[])
       setLoading(false)
@@ -92,6 +93,41 @@ export default function ContractsPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Salvataggio non riuscito')
     } finally { setSavingEdit(false) }
+  }
+
+  // Compila con AI: ribalta TUTTO il preventivo nel contratto (dati fiscali del professionista, parti,
+  // evento, offerta contrattualizzata, importi) e riscrive le clausole. Salva sul contratto.
+  const [aiBusy, setAiBusy] = useState(false)
+  async function aiFill() {
+    if (!selected) return
+    const qid = selected.quote_id
+    if (!qid) { toast.error('Contratto senza preventivo collegato: l’AI non può ribaltarne i dati'); return }
+    if (selected.status === 'FIRMATO') { toast.error('Contratto firmato: non modificabile'); return }
+    if (!confirm('L’AI ribalta tutti i dati del preventivo nel contratto (dati fiscali, offerta, importi) e riscrive le clausole.\n\nContinuo?')) return
+    setAiBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-ai-draft', { body: { quote_id: qid } })
+      if (error) throw new Error(error.message)
+      const r = data as { ok?: boolean; sections?: Array<{ heading?: string; body?: string }>; error?: string }
+      if (!r?.ok) {
+        const map: Record<string, string> = {
+          no_ai_key: 'AI non ancora configurata.', forbidden: 'Non sei il proprietario del preventivo.',
+          quote_not_found: 'Preventivo non trovato.', ai_error: 'Errore del servizio AI.', no_quote: 'Contratto senza preventivo collegato.',
+          parse: 'Risposta AI non interpretabile.', empty: 'Nessuna sezione generata.',
+        }
+        throw new Error(map[r?.error ?? ''] ?? ('Compilazione AI non riuscita: ' + (r?.error ?? '')))
+      }
+      const secs = r.sections ?? []
+      const { error: upErr } = await (supabase.from('contracts' as any) as any)
+        .update({ sections: secs, updated_at: new Date().toISOString() }).eq('id', selected.id)
+      if (upErr) throw upErr
+      setRows((rs) => rs.map((x) => x.id === selected.id ? { ...x, sections: secs } : x))
+      setSelected((s) => s ? { ...s, sections: secs } : s)
+      if (editMode) setDraftSections(secs)
+      toast.success('Contratto compilato dall’AI dal preventivo — rivedilo prima di inviare')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Compilazione AI non riuscita')
+    } finally { setAiBusy(false) }
   }
 
   function copyClientLink(token: string | null | undefined) {
@@ -298,7 +334,13 @@ export default function ContractsPage() {
                     </Button>
                   </>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={startEdit} className="mr-auto">✏️ Modifica testo</Button>
+                  <div className="mr-auto flex flex-wrap items-center gap-2">
+                    <Button variant="gold" size="sm" onClick={aiFill} disabled={aiBusy}
+                      title="Ribalta tutti i dati del preventivo nel contratto: dati fiscali, offerta, importi">
+                      <Sparkles size={14} /> {aiBusy ? 'Compilo…' : 'Compila con AI dal preventivo'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={startEdit}>✏️ Modifica testo</Button>
+                  </div>
                 )
               )}
               <Button variant="outline" size="sm" onClick={() => generatePdf(selected.id)} disabled={generatingPdf}>

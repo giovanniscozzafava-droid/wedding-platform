@@ -60,6 +60,11 @@ export default function CalendarPage() {
 
   const canCreate = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isSupplier = profile?.role === 'FORNITORE'
+  // Chi può gestire la disponibilità del proprio calendario (blocca/opziona la data, fasce, agenda):
+  // fornitore E anche location/wedding planner. La RLS di supplier_availability è owner-based
+  // (fornitore_id = auth.uid()), quindi non serve toccare il DB. L'earnings "Tuo guadagno" resta
+  // solo al fornitore (isSupplier).
+  const canAvail = isSupplier || profile?.role === 'LOCATION' || profile?.role === 'WEDDING_PLANNER'
   const { user } = useAuth()
 
   type AvailStatus = 'BUSY' | 'TENTATIVE' | 'OPTIONED' | 'UNAVAILABLE'
@@ -72,7 +77,7 @@ export default function CalendarPage() {
   const [slotsByDay, setSlotsByDay] = useState<Map<string, DaySlot[]>>(new Map())
 
   const reloadAvail = useCallback(async () => {
-    if (!isSupplier || !user) { setAvailMap(new Map()); setApptsByDay(new Map()); setSlotsByDay(new Map()); return }
+    if (!canAvail || !user) { setAvailMap(new Map()); setApptsByDay(new Map()); setSlotsByDay(new Map()); return }
     const start = `${range.from.slice(0, 7)}-01`
     const end = range.to
     const av = await (supabase.from('supplier_availability' as any) as any)
@@ -99,7 +104,7 @@ export default function CalendarPage() {
       am.set(r.date, arr)
     }
     setApptsByDay(am)
-  }, [isSupplier, user, range.from, range.to])
+  }, [canAvail, user, range.from, range.to])
 
   useEffect(() => { void reloadAvail() }, [reloadAvail])
 
@@ -232,7 +237,7 @@ export default function CalendarPage() {
                 <div key={i} className="text-center py-3" style={{ color: 'rgb(var(--fg-subtle))' }}>{w}</div>
               ))}
             </div>
-            {isSupplier && (
+            {canAvail && (
               <div className="flex flex-wrap gap-3 text-[11px] px-4 py-3 border-b" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
                 <span className="text-[rgb(var(--fg-muted))] font-medium">Disponibilità:</span>
                 <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-emerald-400" /> Disponibile</span>
@@ -248,9 +253,9 @@ export default function CalendarPage() {
                 const isToday = k === fmtDay(new Date())
                 const isSelected = k === selectedDay
                 const isPast = k < fmtDay(new Date())
-                const slot = isSupplier ? availMap.get(k) : undefined
-                const dayAppts = isSupplier ? (apptsByDay.get(k) ?? []) : []
-                const availBg = isSupplier
+                const slot = canAvail ? availMap.get(k) : undefined
+                const dayAppts = canAvail ? (apptsByDay.get(k) ?? []) : []
+                const availBg = canAvail
                   ? slot?.status === 'BUSY' || slot?.status === 'UNAVAILABLE' ? 'rgb(var(--rose-500) / 0.18)'
                     : slot?.status === 'TENTATIVE' || slot?.status === 'OPTIONED' ? 'rgb(var(--amber-500) / 0.20)'
                     : isPast ? undefined
@@ -264,7 +269,7 @@ export default function CalendarPage() {
                     onDoubleClick={() => canCreate && setCreating({ date: k })}
                     className={`relative min-h-24 p-2 text-left border-t border-r last:border-r-0 transition-colors ${cell.out ? 'opacity-40' : ''} ${cellBgClass}`}
                     style={{ borderColor: 'rgb(var(--border))', background: isSelected ? undefined : availBg }}
-                    title={isSupplier ? (slot?.notes ?? 'Disponibile') : undefined}
+                    title={canAvail ? (slot?.notes ?? 'Disponibile') : undefined}
                   >
                     <span className={`inline-flex items-center justify-center text-xs ${isToday ? 'h-6 w-6 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))]' : ''}`}>
                       {cell.date.getDate()}
@@ -303,14 +308,16 @@ export default function CalendarPage() {
               </h2>
               {!selectedDay && <p className="text-xs text-[rgb(var(--fg-subtle))]">Seleziona un giorno nella griglia</p>}
               {/* Blocco disponibilità con un click: libero / forse / occupato */}
-              {isSupplier && selectedDay && (() => {
+              {canAvail && selectedDay && (() => {
                 const st = availMap.get(selectedDay)?.status
                 const isFree = !st
                 const isMaybe = st === 'TENTATIVE' || st === 'OPTIONED'
                 const isBusy = st === 'BUSY' || st === 'UNAVAILABLE'
                 const base = 'flex-1 min-h-[40px] rounded-lg text-sm font-medium border transition-colors'
                 return (
-                  <div className="flex gap-2 mt-3">
+                  <div className="mt-3">
+                    <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))] mb-1.5">Blocca la data — o opzionala (forse) / rimettila libera</p>
+                    <div className="flex gap-2">
                     <button onClick={() => void setAvailability(selectedDay, null)} className={base}
                       style={{ background: isFree ? 'rgb(var(--emerald-500))' : 'transparent', color: isFree ? 'white' : 'rgb(var(--emerald-600,5_150_105))', borderColor: 'rgb(var(--emerald-500))' }}>
                       ● Libero
@@ -324,12 +331,13 @@ export default function CalendarPage() {
                       ● Occupato
                     </button>
                     <span className="self-center"><HelpDot id="calendar.disponibilita" /></span>
+                    </div>
                   </div>
                 )
               })()}
             </div>
             <CardContent className="p-0">
-              {isSupplier && selectedDay && (
+              {canAvail && selectedDay && (
                 <SupplierDaySlots
                   date={selectedDay}
                   slots={slotsByDay.get(selectedDay) ?? []}
@@ -337,7 +345,7 @@ export default function CalendarPage() {
                   onDelete={deleteSlot}
                 />
               )}
-              {isSupplier && selectedDay && (
+              {canAvail && selectedDay && (
                 <SupplierDayAgenda
                   date={selectedDay}
                   appts={apptsByDay.get(selectedDay) ?? []}
