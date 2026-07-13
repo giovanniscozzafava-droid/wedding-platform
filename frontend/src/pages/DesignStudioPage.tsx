@@ -7,7 +7,7 @@ import {
   ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Images, Plus, Trash2, Copy,
   Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen, Search,
   Fingerprint, Lock, Unlock, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcw, SlidersHorizontal,
-  Stamp, Home, Maximize2, Minimize2, AlignLeft, AlignCenter, AlignRight, Upload,
+  Stamp, Home, Maximize2, Minimize2, AlignLeft, AlignCenter, AlignRight, Upload, Ruler, Grid3x3,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -243,6 +243,16 @@ export default function DesignStudioPage() {
   const [brushImportTint, setBrushImportTint] = useState(true)            // import: tinta col colore o colori originali
   const refBrushFile = useRef<HTMLInputElement | null>(null)
   const [immersive, setImmersive] = useState(false)   // iPad "pagina piena": nasconde barra + strumenti + pannello
+  // Righelli + guide (linee automatiche) + griglia, come nell'impaginatore. Guide in coord DOC (px).
+  const [rulersOn, setRulersOn] = useState(false)
+  const [gridOn, setGridOn] = useState(false)
+  const [guidesV, setGuidesV] = useState<number[]>([])
+  const [guidesH, setGuidesH] = useState<number[]>([])
+  const [selGuide, setSelGuide] = useState<{ axis: 'v' | 'h'; i: number } | null>(null)
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 })
+  const hRulerRef = useRef<HTMLCanvasElement>(null)
+  const vRulerRef = useRef<HTMLCanvasElement>(null)
+  const guideDrag = useRef<{ axis: 'v' | 'h'; i: number } | null>(null)
   useEffect(() => { setCustomPresets(loadCustomPresets()) }, [])
   const applyPreset = (p: BrushPreset) => { setTool(p.tool as Tool); setSize(p.size); setOpacity(p.opacity); if (p.color) setColor(p.color); setPresetSel(p.id) }
 
@@ -303,6 +313,64 @@ export default function DesignStudioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [color])
 
+  // ── RIGHELLI + GUIDE + GRIGLIA (stile impaginatore) ──────────────────────────
+  const RUL = 18                                     // spessore righello (px schermo)
+  useEffect(() => {
+    const el = stageRef.current; if (!el) return
+    const set = () => { const r = el.getBoundingClientRect(); setStageSize({ w: r.width, h: r.height }) }
+    const ro = new ResizeObserver(set); ro.observe(el); set()
+    return () => ro.disconnect()
+  }, [])
+  useEffect(() => {
+    if (!rulersOn) return
+    const drawRuler = (cv: HTMLCanvasElement | null, horiz: boolean) => {
+      if (!cv) return
+      const len = Math.max(1, horiz ? stageSize.w : stageSize.h)
+      cv.width = horiz ? len : RUL; cv.height = horiz ? RUL : len
+      const ctx = cv.getContext('2d'); if (!ctx) return
+      ctx.fillStyle = 'rgba(24,26,31,0.92)'; ctx.fillRect(0, 0, cv.width, cv.height)
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.font = '9px sans-serif'; ctx.lineWidth = 1
+      let step = Math.pow(10, Math.floor(Math.log10(64 / zoom))); while (step * zoom < 46) step *= 2
+      const panv = horiz ? pan.x : pan.y
+      const start = Math.floor((-panv) / zoom / step) * step
+      for (let d = start; d * zoom + panv < len; d += step) {
+        const s = Math.round(d * zoom + panv); if (s < 0) continue
+        ctx.beginPath()
+        if (horiz) { ctx.moveTo(s, RUL); ctx.lineTo(s, RUL - 8); ctx.stroke(); ctx.fillText(String(Math.round(d)), s + 2, 9) }
+        else { ctx.moveTo(RUL, s); ctx.lineTo(RUL - 8, s); ctx.stroke(); ctx.save(); ctx.translate(9, s + 2); ctx.rotate(-Math.PI / 2); ctx.fillText(String(Math.round(d)), 0, 0); ctx.restore() }
+      }
+    }
+    drawRuler(hRulerRef.current, true); drawRuler(vRulerRef.current, false)
+  }, [rulersOn, stageSize, pan, zoom, dims])
+  const guidePosFromEvent = (e: { clientX: number; clientY: number }, axis: 'v' | 'h') => {
+    const r = stageRef.current!.getBoundingClientRect()
+    return axis === 'v' ? (e.clientX - r.left - pan.x) / zoom : (e.clientY - r.top - pan.y) / zoom
+  }
+  const rulerDown = (rulerHoriz: boolean) => (e: React.PointerEvent) => {
+    const axis: 'v' | 'h' = rulerHoriz ? 'v' : 'h'         // righello orizzontale (in alto) crea guide VERTICALI
+    const pos = guidePosFromEvent(e, axis)
+    if (axis === 'v') { setGuidesV((g) => { guideDrag.current = { axis, i: g.length }; setSelGuide({ axis, i: g.length }); return [...g, pos] }) }
+    else { setGuidesH((g) => { guideDrag.current = { axis, i: g.length }; setSelGuide({ axis, i: g.length }); return [...g, pos] }) }
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* */ }
+  }
+  const startGuideDrag = (e: React.PointerEvent, axis: 'v' | 'h', i: number) => {
+    e.stopPropagation(); guideDrag.current = { axis, i }; setSelGuide({ axis, i })
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* */ }
+  }
+  const moveGuide = (e: React.PointerEvent) => {
+    const d = guideDrag.current; if (!d) return
+    const pos = guidePosFromEvent(e, d.axis)
+    if (d.axis === 'v') setGuidesV((g) => g.map((v, i) => (i === d.i ? pos : v))); else setGuidesH((g) => g.map((v, i) => (i === d.i ? pos : v)))
+  }
+  const endGuide = () => { guideDrag.current = null }
+  const removeGuide = (axis: 'v' | 'h', i: number) => {
+    if (axis === 'v') setGuidesV((g) => g.filter((_, k) => k !== i)); else setGuidesH((g) => g.filter((_, k) => k !== i))
+    setSelGuide(null)
+  }
+  // bersagli di aggancio per i testi (guide + bordi + centro tavola)
+  const snapX = [...guidesV, 0, dims.w, dims.w / 2]
+  const snapY = [...guidesH, 0, dims.h, dims.h / 2]
+
   const history = useRef<Array<{ layerId: string; before: string; after: string }>>([])
   const redo = useRef<Array<{ layerId: string; before: string; after: string }>>([])
   const draw = useRef<{ active: boolean; last: Pt; start: Pt; before: string; panning: boolean; panStart: Pt; panOrig: { x: number; y: number } } | null>(null)
@@ -340,7 +408,7 @@ export default function DesignStudioPage() {
     const bgC = newCanvas(w, h); const bctx = bgC.getContext('2d')!; bctx.fillStyle = '#ffffff'; bctx.fillRect(0, 0, w, h)
     layerCanvases.current.set(bg, bgC); layerCanvases.current.set(l1, newCanvas(w, h))
     history.current = []; redo.current = []
-    setTexts([]); setActiveTextId(null)
+    setTexts([]); setActiveTextId(null); setGuidesV([]); setGuidesH([]); setSelGuide(null)
     setDims({ w, h })
     setLayers([{ id: bg, name: 'Sfondo', visible: true, opacity: 1, blend: 'source-over' }, { id: l1, name: 'Livello 1', visible: true, opacity: 1, blend: 'source-over' }])
     setActiveId(l1); setTimeout(() => fitView(w, h), 0)
@@ -448,6 +516,9 @@ export default function DesignStudioPage() {
     const kd = (e: KeyboardEvent) => {
       if (e.code === 'Space') { spaceRef.current = true; return }
       const t = e.target as HTMLElement; if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return
+      // guida selezionata: Canc/Backspace la elimina, Esc la deseleziona
+      if (selGuide && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); removeGuide(selGuide.axis, selGuide.i); return }
+      if (selGuide && e.key === 'Escape') { setSelGuide(null); return }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? void redoFn() : void undo(); return }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); void doSave(); return }
       const map: Record<string, Tool> = { b: 'brush', p: 'pencil', k: 'ink', m: 'marker', w: 'watercolor', c: 'chalk', s: 'smudge', e: 'eraser', g: 'fill', t: 'text', i: 'eyedropper', h: 'hand', v: 'move', l: 'line', r: 'rect', o: 'ellipse', f: 'floral' }
@@ -519,7 +590,7 @@ export default function DesignStudioPage() {
   async function doSave() {
     setSaving(true)
     try {
-      const doc = JSON.stringify({ layers: layers.map((l) => ({ ...l, data: layerCanvases.current.get(l.id)!.toDataURL('image/png') })), texts })
+      const doc = JSON.stringify({ layers: layers.map((l) => ({ ...l, data: layerCanvases.current.get(l.id)!.toDataURL('image/png') })), texts, guidesV, guidesH })
       const id = await save.mutateAsync({ id: docId, title: title || 'Senza titolo', width: dims.w, height: dims.h, doc, thumbnail: thumbOf(), entry_id: assignEntry })
       setDocId(id); toast.success(assignEntry ? 'Progetto salvato e condiviso nell’evento' : 'Progetto salvato')
     } catch (e) { toast.error((e as Error).message) } finally { setSaving(false) }
@@ -527,11 +598,11 @@ export default function DesignStudioPage() {
   async function openDesign(id: string) {
     try {
       const d = await fetchDesign(id); if (!d || !d.doc) { toast.error('Progetto non leggibile'); return }
-      const parsed = JSON.parse(d.doc) as { layers: Array<LayerMeta & { data: string }>; texts?: TextObj[] }
+      const parsed = JSON.parse(d.doc) as { layers: Array<LayerMeta & { data: string }>; texts?: TextObj[]; guidesV?: number[]; guidesH?: number[] }
       layerCanvases.current.clear()
       for (const l of parsed.layers) { const c = newCanvas(d.width, d.height); const img = await loadImage(l.data); c.getContext('2d')!.drawImage(img, 0, 0); layerCanvases.current.set(l.id, c) }
       history.current = []; redo.current = []
-      setTexts(parsed.texts ?? []); setActiveTextId(null)
+      setTexts(parsed.texts ?? []); setActiveTextId(null); setGuidesV(parsed.guidesV ?? []); setGuidesH(parsed.guidesH ?? []); setSelGuide(null)
       setDims({ w: d.width, h: d.height }); setLayers(parsed.layers.map(({ data: _d, ...m }) => m)); setActiveId(parsed.layers[parsed.layers.length - 1]!.id)
       setTitle(d.title); setDocId(d.id); setShowGallery(false); setTimeout(() => fitView(d.width, d.height), 0)
     } catch (e) { toast.error((e as Error).message) }
@@ -589,6 +660,8 @@ export default function DesignStudioPage() {
           <span className="text-xs tabular-nums w-10 text-center">{Math.round(zoom * 100)}%</span>
           <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.min(8, z * 1.15))}><ZoomIn size={14} /></Button>
           <Button size="sm" variant="outline" onClick={() => fitView()}><Maximize size={14} /></Button>
+          <Button size="sm" variant={rulersOn ? 'default' : 'outline'} onClick={() => setRulersOn((v) => !v)} title="Righelli + guide (trascina dal righello; Canc per eliminare la guida)"><Ruler size={14} /></Button>
+          <Button size="sm" variant={gridOn ? 'default' : 'outline'} onClick={() => setGridOn((v) => !v)} title="Griglia"><Grid3x3 size={14} /></Button>
           <Button size="sm" variant="outline" onClick={goFullscreen} title="Schermo intero"><Expand size={14} /></Button>
           <Button size="sm" variant="outline" onClick={() => setImmersive(true)} title="Pagina piena — nasconde gli strumenti (iPad)"><Maximize2 size={14} /></Button>
           <span className="w-px h-5 bg-[rgb(var(--border))] mx-1" />
@@ -617,12 +690,31 @@ export default function DesignStudioPage() {
           <canvas ref={displayRef} className="absolute inset-0 touch-none" style={{ cursor: tool === 'hand' ? 'grab' : tool === 'eyedropper' ? 'crosshair' : tool === 'text' ? 'text' : 'crosshair' }}
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => { if (ringRef.current) ringRef.current.style.display = 'none' }} onWheel={onWheel} />
           <div ref={ringRef} className="pointer-events-none absolute rounded-full border border-white/80 mix-blend-difference -translate-x-1/2 -translate-y-1/2" style={{ display: 'none' }} />
+          {/* GRIGLIA (non stampata) */}
+          {gridOn && <div className="absolute inset-0 pointer-events-none z-[5]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.14) 1px, transparent 1px)', backgroundSize: `${50 * zoom}px ${50 * zoom}px`, backgroundPosition: `${pan.x}px ${pan.y}px` }} />}
           {/* TESTO: box editabili sovrapposti (spostabili/allargabili/ri-modificabili/eliminabili col tool Testo) */}
           {texts.map((t) => (
-            <TextBox key={t.id} t={t} zoom={zoom} pan={pan} editable={tool === 'text'} active={tool === 'text' && activeTextId === t.id}
+            <TextBox key={t.id} t={t} zoom={zoom} pan={pan} editable={tool === 'text'} active={tool === 'text' && activeTextId === t.id} snapX={snapX} snapY={snapY}
               onSelect={() => { setActiveTextId(t.id); setFont(t.font); setFontSize(t.size); setColor(t.color) }} onChange={(patch) => patchText(t.id, patch)} onDelete={() => removeText(t.id)}
               onCommitEmpty={() => { if (!t.text.trim()) removeText(t.id) }} />
           ))}
+          {/* GUIDE trascinabili (linee automatiche) */}
+          {guidesV.map((gx, i) => { const x = pan.x + gx * zoom; const on = selGuide?.axis === 'v' && selGuide.i === i; return (
+            <div key={'gv' + i} onPointerDown={(e) => startGuideDrag(e, 'v', i)} onPointerMove={moveGuide} onPointerUp={endGuide} onDoubleClick={() => removeGuide('v', i)} title="Trascina · doppio clic per eliminare"
+              className="absolute top-0 bottom-0 z-20 cursor-ew-resize touch-none" style={{ left: x - 4, width: 9 }}>
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2" style={{ width: on ? 2 : 1, background: on ? '#22d3ee' : 'rgba(34,211,238,0.8)' }} />
+            </div>) })}
+          {guidesH.map((gy, i) => { const y = pan.y + gy * zoom; const on = selGuide?.axis === 'h' && selGuide.i === i; return (
+            <div key={'gh' + i} onPointerDown={(e) => startGuideDrag(e, 'h', i)} onPointerMove={moveGuide} onPointerUp={endGuide} onDoubleClick={() => removeGuide('h', i)} title="Trascina · doppio clic per eliminare"
+              className="absolute left-0 right-0 z-20 cursor-ns-resize touch-none" style={{ top: y - 4, height: 9 }}>
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2" style={{ height: on ? 2 : 1, background: on ? '#22d3ee' : 'rgba(34,211,238,0.8)' }} />
+            </div>) })}
+          {/* RIGHELLI (trascina dal righello per creare una guida) */}
+          {rulersOn && <>
+            <canvas ref={hRulerRef} onPointerDown={rulerDown(true)} onPointerMove={moveGuide} onPointerUp={endGuide} className="absolute top-0 left-0 z-30 touch-none cursor-ns-resize" style={{ height: RUL }} />
+            <canvas ref={vRulerRef} onPointerDown={rulerDown(false)} onPointerMove={moveGuide} onPointerUp={endGuide} className="absolute top-0 left-0 z-30 touch-none cursor-ew-resize" style={{ width: RUL }} />
+            <div className="absolute top-0 left-0 z-30" style={{ width: RUL, height: RUL, background: 'rgb(24,26,31)' }} />
+          </>}
         </div>
 
         {!immersive && !rightOpen && <button onClick={() => setRightOpen(true)} title="Mostra strumenti" className="w-8 shrink-0 border-l border-[rgb(var(--border))] grid place-items-center hover:bg-[rgb(var(--bg-sunken))]"><PanelRightOpen size={16} /></button>}
@@ -818,10 +910,11 @@ function MotifIcon({ motif }: { motif: string }) {
 
 // Box di testo editabile sovrapposto al canvas (stile Photoshop): spostabile, allargabile,
 // ri-modificabile, eliminabile. Interattivo solo col tool Testo; altrimenti mostra solo il testo.
-function TextBox({ t, zoom, pan, editable, active, onSelect, onChange, onDelete, onCommitEmpty }: {
-  t: TextObj; zoom: number; pan: { x: number; y: number }; editable: boolean; active: boolean
+function TextBox({ t, zoom, pan, editable, active, snapX, snapY, onSelect, onChange, onDelete, onCommitEmpty }: {
+  t: TextObj; zoom: number; pan: { x: number; y: number }; editable: boolean; active: boolean; snapX?: number[]; snapY?: number[]
   onSelect: () => void; onChange: (patch: Partial<TextObj>) => void; onDelete: () => void; onCommitEmpty: () => void
 }) {
+  const snap = (val: number, targets?: number[]) => { const th = 8 / zoom; if (targets) for (const g of targets) if (Math.abs(val - g) < th) return g; return val }
   const taRef = useRef<HTMLTextAreaElement>(null)
   const drag = useRef<{ mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number } | null>(null)
   useEffect(() => { const el = taRef.current; if (!el) return; el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' }, [t.text, t.size, t.w, t.font, zoom])
@@ -835,8 +928,8 @@ function TextBox({ t, zoom, pan, editable, active, onSelect, onChange, onDelete,
   const move = (e: React.PointerEvent) => {
     const d = drag.current; if (!d) return
     const dx = (e.clientX - d.sx) / zoom, dy = (e.clientY - d.sy) / zoom
-    if (d.mode === 'move') onChange({ x: Math.round(d.ox + dx), y: Math.round(d.oy + dy) })
-    else onChange({ w: Math.max(40, Math.round(d.ow + dx)) })
+    if (d.mode === 'move') onChange({ x: Math.round(snap(d.ox + dx, snapX)), y: Math.round(snap(d.oy + dy, snapY)) })
+    else { const right = snap(d.ox + Math.max(40, d.ow + dx), snapX); onChange({ w: Math.max(40, Math.round(right - d.ox)) }) }
   }
   const up = (e: React.PointerEvent) => { drag.current = null; try { (e.target as HTMLElement).releasePointerCapture(e.pointerId) } catch { /* */ } }
 
