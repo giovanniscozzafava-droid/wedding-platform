@@ -16,6 +16,7 @@ import { FONTS, ensureFont, injectFontsStylesheet } from '@/lib/studioFonts'
 import { BUILTIN_PRESETS, loadCustomPresets, saveCustomPreset, deleteCustomPreset, type BrushPreset } from '@/lib/studioBrushPresets'
 import { STAMPS, STAMP_GROUPS, DEFAULT_STAMP, drawStamp } from '@/lib/studioStamps'
 import { loadCustomFonts, importCustomFont } from '@/lib/studioCustomFonts'
+import { importCustomBrush, loadCustomBrushes, deleteCustomBrush, drawCustomBrush, type CustomBrush } from '@/lib/studioCustomBrushes'
 
 // ── Studio disegno a mano libera (tavola grafica / tablet) — ispirato a Procreate ─────────────────
 // Motore a LIVELLI raster + engine pennelli a "stamp" (acquarello/gessetto/pastello/floreale…),
@@ -117,8 +118,9 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 // ── Engine pennelli (a stamp/linea) ─────────────────────────────────────────
 function stamp(ctx: CanvasRenderingContext2D, tool: Tool, x: number, y: number, r: number, o: DabOpt) {
   if (tool === 'stamp') {
-    // timbri decorativi vettoriali di qualità (foglie/fiori/ghirigori) — vedi lib/studioStamps
-    drawStamp(ctx, o.motif || DEFAULT_STAMP, x, y, r, o.color, o.opacity)
+    // pennello IMPORTATO (punta raster) oppure timbro decorativo vettoriale (lib/studioStamps)
+    if (o.motif && o.motif.startsWith('custom:')) drawCustomBrush(ctx, o.motif.slice(7), x, y, r, o.color, o.opacity)
+    else drawStamp(ctx, o.motif || DEFAULT_STAMP, x, y, r, o.color, o.opacity)
     return
   }
   if (tool === 'watercolor') {
@@ -182,7 +184,8 @@ function paintSeg(ctx: CanvasRenderingContext2D, tool: Tool, a: Pt, b: Pt, o: Da
     return
   }
   const r = Math.max(1, o.size * o.press) / 2
-  const spacing = tool === 'stamp' ? Math.max(10, r * 2.4) : tool === 'floral' ? Math.max(6, r * 1.6) : (tool === 'airbrush' ? Math.max(1, r * 0.25) : Math.max(1, r * 0.4))
+  const isCustomBrush = tool === 'stamp' && !!o.motif && o.motif.startsWith('custom:')
+  const spacing = tool === 'stamp' ? (isCustomBrush ? Math.max(1.5, r * 0.45) : Math.max(10, r * 2.4)) : tool === 'floral' ? Math.max(6, r * 1.6) : (tool === 'airbrush' ? Math.max(1, r * 0.25) : Math.max(1, r * 0.4))
   const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), steps = Math.max(1, Math.floor(dist / spacing))
   for (let i = 0; i <= steps; i++) { const t = steps ? i / steps : 0; stamp(ctx, tool, a.x + dx * t, a.y + dy * t, r, o) }
 }
@@ -236,6 +239,9 @@ export default function DesignStudioPage() {
   const [customPresets, setCustomPresets] = useState<BrushPreset[]>([])
   const [presetSel, setPresetSel] = useState('')
   const [motif, setMotif] = useState(DEFAULT_STAMP)   // timbro decorativo selezionato (foglie/fiori/ghirigori)
+  const [customBrushes, setCustomBrushes] = useState<CustomBrush[]>([])   // pennelli importati dall'utente (punte raster)
+  const [brushImportTint, setBrushImportTint] = useState(true)            // import: tinta col colore o colori originali
+  const refBrushFile = useRef<HTMLInputElement | null>(null)
   const [immersive, setImmersive] = useState(false)   // iPad "pagina piena": nasconde barra + strumenti + pannello
   useEffect(() => { setCustomPresets(loadCustomPresets()) }, [])
   const applyPreset = (p: BrushPreset) => { setTool(p.tool as Tool); setSize(p.size); setOpacity(p.opacity); if (p.color) setColor(p.color); setPresetSel(p.id) }
@@ -270,6 +276,11 @@ export default function DesignStudioPage() {
 
   // ── TESTO (oggetti) + FONT importati ─────────────────────────────────────────
   useEffect(() => { void loadCustomFonts().then((names) => setCustomFonts(names)) }, [])
+  useEffect(() => { void loadCustomBrushes().then(setCustomBrushes) }, [])
+  async function onImportBrush(file: File) {
+    try { const b = await importCustomBrush(file, brushImportTint); setCustomBrushes((cb) => [...cb.filter((x) => x.id !== b.id), b]); setTool('stamp'); setMotif('custom:' + b.id); toast.success('Pennello importato') }
+    catch (e) { toast.error((e as Error).message) }
+  }
   const patchText = (id: string, patch: Partial<TextObj>) => setTexts((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)))
   const removeText = (id: string) => { setTexts((ts) => ts.filter((t) => t.id !== id)); setActiveTextId((a) => (a === id ? null : a)) }
   const addText = (x: number, y: number) => {
@@ -667,6 +678,26 @@ export default function DesignStudioPage() {
                       </div>
                     </div>
                   ))}
+                  <div className="mt-2 pt-2 border-t border-[rgb(var(--border))]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[9px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Pennelli importati</span>
+                      <label className="text-[9px] text-[rgb(var(--fg-muted))] inline-flex items-center gap-1"><input type="checkbox" checked={brushImportTint} onChange={(e) => setBrushImportTint(e.target.checked)} /> tinta col colore</label>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1">
+                      {customBrushes.map((b) => (
+                        <div key={b.id} className="relative group">
+                          <button onClick={() => setMotif('custom:' + b.id)} title={b.name}
+                            className={`w-full aspect-square grid place-items-center rounded-md border overflow-hidden ${motif === 'custom:' + b.id ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                            <CustomBrushIcon id={b.id} />
+                          </button>
+                          <button onClick={() => { void deleteCustomBrush(b.id); setCustomBrushes((cb) => cb.filter((x) => x.id !== b.id)) }} title="Elimina" className="absolute -top-1 -right-1 h-4 w-4 grid place-items-center rounded-full bg-[rgb(var(--bg))] border border-[rgb(var(--border))] text-[rgb(var(--rose-500))] opacity-0 group-hover:opacity-100"><X size={9} /></button>
+                        </div>
+                      ))}
+                      <button onClick={() => refBrushFile.current?.click()} title="Importa pennello (immagine PNG con trasparenza)" className="aspect-square grid place-items-center rounded-md border border-dashed border-[rgb(var(--border))] text-[rgb(var(--fg-subtle))] hover:border-[rgb(var(--gold-400))]"><Upload size={14} /></button>
+                    </div>
+                    <input ref={refBrushFile} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void onImportBrush(f) }} />
+                    <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Carica una <strong>punta</strong> (PNG con trasparenza): diventa un pennello texturizzato. La punta si timbra fitta lungo il tratto.</p>
+                  </div>
                   <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Trascina per timbrare in fila. La dimensione regola il timbro.</p>
                 </div>
               )}
@@ -769,6 +800,11 @@ export default function DesignStudioPage() {
 }
 
 // Anteprima di un timbro nel pannello (mini canvas che riusa drawStamp)
+function CustomBrushIcon({ id }: { id: string }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => { const c = ref.current; if (!c) return; const ctx = c.getContext('2d')!; ctx.clearRect(0, 0, c.width, c.height); drawCustomBrush(ctx, id, c.width / 2, c.height / 2, c.width / 2 - 1, '#5b4636', 1) }, [id])
+  return <canvas ref={ref} width={30} height={30} className="max-w-full max-h-full" />
+}
 function MotifIcon({ motif }: { motif: string }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
