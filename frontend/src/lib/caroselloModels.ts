@@ -56,36 +56,36 @@ const model = (key: string, label: string, hint: string, rects: Rect[], group: '
 const hh = (1 - gy) / 2, ww = (1 - gx) / 2, w3 = (1 - 2 * gx) / 3
 const hair = 0.004 // gutter finissimo (dittici editoriali)
 
-// PREFORMAT EDITORIALI (stile rivista/Vogue): molto bianco, asimmetria, foto ancorate. Ogni slide
+// PREFORMAT EDITORIALI (stile rivista): molto bianco, asimmetria, foto ancorate. Ogni slide
 // ripete lo stesso schema → basta inserire le foto. [key, label, hint, rects locali slide 0..1].
 const ED: [string, string, string, Rect[]][] = [
-  ['ed-full', 'Vogue · pieno', 'Foto a tutta slide, drammatica.', [{ x: 0, y: 0, w: 1, h: 1 }]],
-  ['ed-masthead', 'Vogue · testata', 'Foto in basso, alto libero per il titolo.', [{ x: 0, y: 0.34, w: 1, h: 0.66 }]],
-  ['ed-colL', 'Vogue · colonna sx', 'Colonna verticale a sinistra, aria a destra.', [{ x: 0.06, y: 0.08, w: 0.5, h: 0.84 }]],
-  ['ed-colR', 'Vogue · colonna dx', 'Colonna verticale a destra, aria a sinistra.', [{ x: 0.44, y: 0.08, w: 0.5, h: 0.84 }]],
-  ['ed-center', 'Vogue · quadro centrale', 'Riquadro centrato con molto respiro.', [{ x: 0.2, y: 0.24, w: 0.6, h: 0.44 }]],
-  ['ed-bottom', 'Vogue · ancorata basso', 'Foto ancorata al bordo inferiore.', [{ x: 0, y: 0.5, w: 1, h: 0.5 }]],
-  ['ed-top', 'Vogue · ancorata alto', 'Foto ancorata al bordo superiore.', [{ x: 0, y: 0, w: 1, h: 0.5 }]],
-  ['ed-portrait', 'Vogue · ritratto', 'Ritratto verticale con ampi margini laterali.', [{ x: 0.22, y: 0.06, w: 0.56, h: 0.88 }]],
-  ['ed-corner', 'Vogue · angolo', 'Piccola foto in alto a sinistra, resto vuoto.', [{ x: 0.06, y: 0.07, w: 0.42, h: 0.42 }]],
-  ['ed-diptych', 'Vogue · dittico', 'Due foto con filo sottilissimo di stacco.', [{ x: 0, y: 0, w: 0.5 - hair, h: 1 }, { x: 0.5 + hair, y: 0, w: 0.5 - hair, h: 1 }]],
-  ['ed-triptych', 'Vogue · trittico', 'Una grande + due strette a destra.', [{ x: 0, y: 0, w: 0.56, h: 1 }, { x: 0.58, y: 0, w: 0.42, h: 0.5 - hair }, { x: 0.58, y: 0.5 + hair, w: 0.42, h: 0.5 - hair }]],
-  ['ed-contact', 'Vogue · provinato', 'Sei mini-foto a contatto: griglia 3×2.', [
+  ['ed-full', 'pieno', 'Foto a tutta slide, drammatica.', [{ x: 0, y: 0, w: 1, h: 1 }]],
+  ['ed-masthead', 'testata', 'Foto in basso, alto libero per il titolo.', [{ x: 0, y: 0.34, w: 1, h: 0.66 }]],
+  ['ed-colL', 'colonna sx', 'Colonna verticale a sinistra, aria a destra.', [{ x: 0.06, y: 0.08, w: 0.5, h: 0.84 }]],
+  ['ed-colR', 'colonna dx', 'Colonna verticale a destra, aria a sinistra.', [{ x: 0.44, y: 0.08, w: 0.5, h: 0.84 }]],
+  ['ed-center', 'quadro centrale', 'Riquadro centrato con molto respiro.', [{ x: 0.2, y: 0.24, w: 0.6, h: 0.44 }]],
+  ['ed-bottom', 'ancorata basso', 'Foto ancorata al bordo inferiore.', [{ x: 0, y: 0.5, w: 1, h: 0.5 }]],
+  ['ed-top', 'ancorata alto', 'Foto ancorata al bordo superiore.', [{ x: 0, y: 0, w: 1, h: 0.5 }]],
+  ['ed-portrait', 'ritratto', 'Ritratto verticale con ampi margini laterali.', [{ x: 0.22, y: 0.06, w: 0.56, h: 0.88 }]],
+  ['ed-corner', 'angolo', 'Piccola foto in alto a sinistra, resto vuoto.', [{ x: 0.06, y: 0.07, w: 0.42, h: 0.42 }]],
+  ['ed-diptych', 'dittico', 'Due foto con filo sottilissimo di stacco.', [{ x: 0, y: 0, w: 0.5 - hair, h: 1 }, { x: 0.5 + hair, y: 0, w: 0.5 - hair, h: 1 }]],
+  ['ed-triptych', 'trittico', 'Una grande + due strette a destra.', [{ x: 0, y: 0, w: 0.56, h: 1 }, { x: 0.58, y: 0, w: 0.42, h: 0.5 - hair }, { x: 0.58, y: 0.5 + hair, w: 0.42, h: 0.5 - hair }]],
+  ['ed-contact', 'provinato', 'Sei mini-foto a contatto: griglia 3×2.', [
     { x: 0.05, y: 0.1, w: 0.28, h: 0.36 }, { x: 0.36, y: 0.1, w: 0.28, h: 0.36 }, { x: 0.67, y: 0.1, w: 0.28, h: 0.36 },
     { x: 0.05, y: 0.54, w: 0.28, h: 0.36 }, { x: 0.36, y: 0.54, w: 0.28, h: 0.36 }, { x: 0.67, y: 0.54, w: 0.28, h: 0.36 },
   ]],
-  ['ed-band', 'Vogue · banda', 'Fascia orizzontale centrata, tanto bianco.', [{ x: 0, y: 0.34, w: 1, h: 0.32 }]],
-  ['ed-mini', 'Vogue · minimal', 'Immagine piccola centrata: massimo respiro.', [{ x: 0.28, y: 0.3, w: 0.44, h: 0.34 }]],
-  ['ed-hairline', 'Vogue · filo', 'Foto piena con cornice a filo scuro.', [{ x: 0.04, y: 0.03, w: 0.92, h: 0.94, border: { w: 2, color: '#111111' } }]],
-  ['ed-offset', 'Vogue · sfalsata', 'Due foto orizzontali sfalsate in diagonale.', [{ x: 0, y: 0.06, w: 0.7, h: 0.42 }, { x: 0.3, y: 0.52, w: 0.7, h: 0.42 }]],
-  ['ed-sign', 'Vogue · firma', 'Ritratto a sinistra, colonna destra per il testo.', [{ x: 0.05, y: 0.06, w: 0.55, h: 0.88 }]],
-  ['ed-row3', 'Vogue · terzine', 'Tre foto in fila in alto, basso libero.', [{ x: 0.03, y: 0.1, w: 0.3, h: 0.34 }, { x: 0.35, y: 0.1, w: 0.3, h: 0.34 }, { x: 0.67, y: 0.1, w: 0.3, h: 0.34 }]],
-  ['ed-air', 'Vogue · respiro alto', 'Foto in basso con aria in alto.', [{ x: 0, y: 0.2, w: 1, h: 0.8 }]],
-  ['ed-two', 'Vogue · doppio ritratto', 'Due ritratti affiancati con margini.', [{ x: 0.06, y: 0.14, w: 0.42, h: 0.72 }, { x: 0.52, y: 0.14, w: 0.42, h: 0.72 }]],
-  ['ed-Lbig', 'Vogue · L', 'Grande in alto + piccola in basso a sinistra.', [{ x: 0, y: 0, w: 1, h: 0.62 }, { x: 0.06, y: 0.68, w: 0.44, h: 0.26 }]],
-  ['ed-bleedL', 'Vogue · sanguina sx', 'Foto che sborda a sinistra, colonna vuota a destra.', [{ x: 0, y: 0, w: 0.68, h: 1 }]],
-  ['ed-bleedR', 'Vogue · sanguina dx', 'Foto che sborda a destra, colonna vuota a sinistra.', [{ x: 0.32, y: 0, w: 0.68, h: 1 }]],
-  ['ed-frameXL', 'Vogue · cornice ampia', 'Foto con cornice bianca molto larga.', [{ x: 0.12, y: 0.1, w: 0.76, h: 0.8 }]],
+  ['ed-band', 'banda', 'Fascia orizzontale centrata, tanto bianco.', [{ x: 0, y: 0.34, w: 1, h: 0.32 }]],
+  ['ed-mini', 'minimal', 'Immagine piccola centrata: massimo respiro.', [{ x: 0.28, y: 0.3, w: 0.44, h: 0.34 }]],
+  ['ed-hairline', 'filo', 'Foto piena con cornice a filo scuro.', [{ x: 0.04, y: 0.03, w: 0.92, h: 0.94, border: { w: 2, color: '#111111' } }]],
+  ['ed-offset', 'sfalsata', 'Due foto orizzontali sfalsate in diagonale.', [{ x: 0, y: 0.06, w: 0.7, h: 0.42 }, { x: 0.3, y: 0.52, w: 0.7, h: 0.42 }]],
+  ['ed-sign', 'firma', 'Ritratto a sinistra, colonna destra per il testo.', [{ x: 0.05, y: 0.06, w: 0.55, h: 0.88 }]],
+  ['ed-row3', 'terzine', 'Tre foto in fila in alto, basso libero.', [{ x: 0.03, y: 0.1, w: 0.3, h: 0.34 }, { x: 0.35, y: 0.1, w: 0.3, h: 0.34 }, { x: 0.67, y: 0.1, w: 0.3, h: 0.34 }]],
+  ['ed-air', 'respiro alto', 'Foto in basso con aria in alto.', [{ x: 0, y: 0.2, w: 1, h: 0.8 }]],
+  ['ed-two', 'doppio ritratto', 'Due ritratti affiancati con margini.', [{ x: 0.06, y: 0.14, w: 0.42, h: 0.72 }, { x: 0.52, y: 0.14, w: 0.42, h: 0.72 }]],
+  ['ed-Lbig', 'L', 'Grande in alto + piccola in basso a sinistra.', [{ x: 0, y: 0, w: 1, h: 0.62 }, { x: 0.06, y: 0.68, w: 0.44, h: 0.26 }]],
+  ['ed-bleedL', 'sanguina sx', 'Foto che sborda a sinistra, colonna vuota a destra.', [{ x: 0, y: 0, w: 0.68, h: 1 }]],
+  ['ed-bleedR', 'sanguina dx', 'Foto che sborda a destra, colonna vuota a sinistra.', [{ x: 0.32, y: 0, w: 0.68, h: 1 }]],
+  ['ed-frameXL', 'cornice ampia', 'Foto con cornice bianca molto larga.', [{ x: 0.12, y: 0.1, w: 0.76, h: 0.8 }]],
 ]
 const EDITORIAL_MODELS: CarouselModel[] = ED.map(([k, l, h, r]) => model(k, l, h, r, 'editoriale'))
 
@@ -189,4 +189,94 @@ export const TEXT_PRESETS: { label: string; patch: Partial<TextEl> }[] = [
   { label: 'Sottotitolo', patch: { text: 'Sottotitolo', font: 'sans', size: 0.05, weight: 500, w: 0.32, h: 0.1 } },
   { label: 'Didascalia', patch: { text: 'didascalia', font: 'sans', size: 0.032, weight: 400, w: 0.28, h: 0.08, color: '#444444' } },
   { label: 'Firma studio', patch: { text: '@iltuostudio', font: 'sans', size: 0.03, weight: 600, w: 0.24, h: 0.06, letter: 0.08 } },
+  { label: 'Testo semplice', patch: { text: 'Testo', font: 'sans', size: 0.04, weight: 400, w: 0.3, h: 0.1 } },
 ]
+
+// ── PRESET PRONTI ────────────────────────────────────────────────────────────
+// Composizioni FINITE (foto + testo già messi): la coppia/pro sostituisce solo le foto e cambia
+// i testi. Diversi dai "modelli" (che dispongono solo le foto). build → { elements, texts }.
+export type CarouselPreset = {
+  key: string; label: string; hint: string
+  build: (n: number, ids: string[]) => { elements: FreeEl[]; texts: TextEl[] }
+}
+// foto slot in slide k (coord LOCALI slide 0..1); testo in slide k (coord locali)
+const sp = (id: string, k: number, n: number, lx: number, ly: number, lw: number, lh: number): FreeEl => el(id ?? '', (k + lx) / n, ly, lw / n, lh)
+const stx = (k: number, n: number, patch: Partial<TextEl>, lx: number, ly: number, lw: number, lh: number): TextEl => newText({ ...patch, x: (k + lx) / n, y: ly, w: lw / n, h: lh })
+
+export const CAROUSEL_PRESETS: CarouselPreset[] = [
+  {
+    key: 'cover-story', label: 'Copertina + racconto', hint: '1ª slide con titolo grande sulla foto, poi una foto per slide.',
+    build: (n, ids) => {
+      const elements: FreeEl[] = [], texts: TextEl[] = []
+      for (let k = 0; k < n; k++) elements.push(sp(ids[k] ?? '', k, n, 0, 0, 1, 1))
+      texts.push(stx(0, n, { text: 'IL TITOLO', font: 'display', size: 0.12, weight: 800, color: '#ffffff', align: 'left', valign: 'bottom', line: 1.0, letter: 0.01 }, 0.06, 0.52, 0.88, 0.28))
+      texts.push(stx(0, n, { text: 'un sottotitolo che introduce', font: 'sans', size: 0.035, weight: 500, color: '#ffffff', align: 'left', valign: 'bottom' }, 0.06, 0.86, 0.88, 0.1))
+      return { elements, texts }
+    },
+  },
+  {
+    key: 'cover-clean', label: 'Copertina pulita', hint: '1ª slide di solo testo (titolo centrato), poi una foto per slide.',
+    build: (n, ids) => {
+      const elements: FreeEl[] = [], texts: TextEl[] = []
+      for (let k = 1; k < n; k++) elements.push(sp(ids[k - 1] ?? '', k, n, 0, 0, 1, 1))
+      texts.push(stx(0, n, { text: 'Il titolo', font: 'display', size: 0.1, weight: 700, color: '#111111', align: 'center', valign: 'middle', line: 1.05 }, 0.1, 0.3, 0.8, 0.28))
+      texts.push(stx(0, n, { text: 'sottotitolo', font: 'sans', size: 0.035, weight: 500, color: '#111111', align: 'center' }, 0.1, 0.6, 0.8, 0.1))
+      texts.push(stx(0, n, { text: '@iltuostudio', font: 'sans', size: 0.028, weight: 600, color: '#111111', align: 'center', valign: 'bottom', letter: 0.06 }, 0.1, 0.9, 0.8, 0.06))
+      return { elements, texts }
+    },
+  },
+  {
+    key: 'captions', label: 'Foto + didascalie', hint: 'Una foto per slide con una didascalia in basso.',
+    build: (n, ids) => {
+      const elements: FreeEl[] = [], texts: TextEl[] = []
+      for (let k = 0; k < n; k++) { elements.push(sp(ids[k] ?? '', k, n, 0, 0, 1, 1)); texts.push(stx(k, n, { text: 'Didascalia', font: 'sans', size: 0.03, weight: 600, color: '#ffffff', align: 'left', valign: 'bottom', bg: '#00000066' }, 0.04, 0.86, 0.7, 0.1)) }
+      return { elements, texts }
+    },
+  },
+  {
+    key: 'editorial-titles', label: 'Editoriale con titoli', hint: 'Foto in basso, titolo nello spazio bianco in alto.',
+    build: (n, ids) => {
+      const elements: FreeEl[] = [], texts: TextEl[] = []
+      for (let k = 0; k < n; k++) { elements.push(sp(ids[k] ?? '', k, n, 0, 0.34, 1, 0.66)); texts.push(stx(k, n, { text: 'Titolo', font: 'display', size: 0.08, weight: 700, color: '#111111', align: 'left', valign: 'middle', line: 1.02 }, 0.06, 0.03, 0.88, 0.28)) }
+      return { elements, texts }
+    },
+  },
+  {
+    key: 'numbered', label: 'Lista numerata', hint: 'Foto + numero grande + breve testo per ogni slide.',
+    build: (n, ids) => {
+      const elements: FreeEl[] = [], texts: TextEl[] = []
+      for (let k = 0; k < n; k++) {
+        elements.push(sp(ids[k] ?? '', k, n, 0.04, 0.2, 0.92, 0.58))
+        texts.push(stx(k, n, { text: String(k + 1).padStart(2, '0'), font: 'display', size: 0.14, weight: 800, color: '#111111', align: 'left', valign: 'top' }, 0.05, 0.03, 0.4, 0.16))
+        texts.push(stx(k, n, { text: 'Un punto del racconto', font: 'sans', size: 0.032, weight: 500, color: '#111111', align: 'left', valign: 'top' }, 0.05, 0.82, 0.9, 0.14))
+      }
+      return { elements, texts }
+    },
+  },
+  {
+    key: 'quote', label: 'Citazione', hint: '1ª slide con una frase grande, poi foto con cornice.',
+    build: (n, ids) => {
+      const elements: FreeEl[] = [], texts: TextEl[] = []
+      const py = 0.08
+      for (let k = 1; k < n; k++) elements.push(sp(ids[k - 1] ?? '', k, n, 0.08, py, 0.84, 1 - 2 * py))
+      texts.push(stx(0, n, { text: '“La frase che resta.”', font: 'display', size: 0.075, weight: 600, italic: true, color: '#111111', align: 'center', valign: 'middle', line: 1.15 }, 0.08, 0.2, 0.84, 0.5))
+      texts.push(stx(0, n, { text: '— autore', font: 'sans', size: 0.03, weight: 500, color: '#111111', align: 'center' }, 0.08, 0.74, 0.84, 0.08))
+      return { elements, texts }
+    },
+  },
+  {
+    key: 'magazine', label: 'Rivista', hint: 'Hero + due foto piccole + titolo per ogni slide.',
+    build: (n, ids) => {
+      const elements: FreeEl[] = [], texts: TextEl[] = []
+      let p = 0
+      for (let k = 0; k < n; k++) {
+        elements.push(sp(ids[p++] ?? '', k, n, 0, 0, 1, 0.62))
+        elements.push(sp(ids[p++] ?? '', k, n, 0.04, 0.66, 0.44, 0.3))
+        elements.push(sp(ids[p++] ?? '', k, n, 0.52, 0.66, 0.44, 0.3))
+        texts.push(stx(k, n, { text: 'Titolo', font: 'display', size: 0.055, weight: 700, color: '#ffffff', align: 'left', valign: 'bottom', bg: '#00000055' }, 0.04, 0.48, 0.7, 0.12))
+      }
+      return { elements, texts }
+    },
+  },
+]
+export function getPreset(key: string): CarouselPreset | undefined { return CAROUSEL_PRESETS.find((p) => p.key === key) }

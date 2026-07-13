@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
-  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, LayoutTemplate, Check,
+  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check,
   Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight,
+  ChevronDown, LayoutGrid, Newspaper, Palette, Image as ImageIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,12 +12,36 @@ import { supabase } from '@/lib/supabase'
 import { coverImgStyle, DEFAULT_CELL } from '@/lib/albumGeometry'
 import { type FreeEl, type Corner } from '@/lib/albumFree'
 import type { AlbumPage } from '@/lib/albumEngine'
-import { CAROUSEL_FORMATS, getCarouselFormat, DEFAULT_CAROUSEL_FORMAT, CAROUSEL_MODELS, getModel, CAROUSEL_FONTS, getFontFamily, TEXT_PRESETS, newText, type TextEl } from '@/lib/caroselloModels'
+import { CAROUSEL_FORMATS, getCarouselFormat, DEFAULT_CAROUSEL_FORMAT, CAROUSEL_MODELS, getModel, CAROUSEL_FONTS, getFontFamily, TEXT_PRESETS, newText, CAROUSEL_PRESETS, getPreset, type TextEl } from '@/lib/caroselloModels'
 import { exportCaroselloZip } from '@/lib/caroselloExport'
 import { hiResProxyUrl } from '@/lib/albumExport'
 import { getDriveToken, ensureDriveFolder, uploadAnyToDrive, driveDownloadUrl } from '@/lib/driveUpload'
 
 const isDirectSrc = (id: string) => id.startsWith('data:') || id.startsWith('http')
+
+// Dropdown riutilizzabile: bottone + pannello che si chiude cliccando fuori o su una voce.
+function Menu({ label, icon: Ic, width = 'w-60', children }: { label: string; icon?: typeof Type; width?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    window.addEventListener('mousedown', h)
+    return () => window.removeEventListener('mousedown', h)
+  }, [open])
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen((o) => !o)} className={`h-9 inline-flex items-center gap-1.5 px-2.5 rounded-md border text-sm transition-colors ${open ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] bg-[rgb(var(--bg))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+        {Ic && <Ic size={14} />} {label} <ChevronDown size={14} className="opacity-60" />
+      </button>
+      {open && (
+        <div className={`absolute left-0 z-50 mt-1 max-h-[70vh] overflow-auto rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-xl p-2 ${width}`} onClick={() => setOpen(false)}>
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
 
 type Geo = { x: number; y: number; w: number; h: number }
 const clampN = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
@@ -64,7 +89,6 @@ export default function CaroselloPage() {
   const [selId, setSelId] = useState<string | null>(null)
   const [selText, setSelText] = useState<string | null>(null)
   const [modelKey, setModelKey] = useState<string | null>('one')
-  const [modelCat, setModelCat] = useState<'base' | 'editoriale'>('base')
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [exportProg, setExportProg] = useState<{ done: number; total: number; zip?: number } | null>(null)
@@ -168,6 +192,14 @@ export default function CaroselloPage() {
     setElements(model.build(n, keptIds))
     setModelKey(key)
     setSelId(null); setSelText(null)
+  }
+  // Preset PRONTO: mette foto + testi già composti (sostituisci solo le foto / cambia i testi).
+  function applyPreset(key: string) {
+    const preset = getPreset(key); if (!preset) return
+    snapshot()
+    const built = preset.build(n, keptIds)
+    setElements(built.elements); setTexts(built.texts); setModelKey(null); setSelId(null); setSelText(null)
+    toast.success(`Preset "${preset.label}" applicato · sostituisci le foto e cambia i testi`)
   }
   function changeN(next: number) {
     snapshot()
@@ -290,51 +322,77 @@ export default function CaroselloPage() {
             <button onClick={undo} disabled={!canUndo} title="Annulla (Cmd/Ctrl+Z)" className="p-1.5 rounded-md disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))]"><Undo2 size={16} /></button>
             <button onClick={redo} disabled={!canRedo} title="Ripeti (Cmd/Ctrl+Shift+Z)" className="p-1.5 rounded-md disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))]"><Redo2 size={16} /></button>
           </div>
-          {/* formato */}
-          <select value={format} onChange={(e) => setFormat(e.target.value)} className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm">
-            {CAROUSEL_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-          </select>
-          {/* numero slide */}
-          <div className="flex items-center gap-1 h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-1">
-            <button onClick={() => changeN(n - 1)} disabled={n <= 1} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Minus size={14} /></button>
-            <span className="text-sm tabular-nums w-16 text-center">{n} slide</span>
-            <button onClick={() => changeN(n + 1)} disabled={n >= 20} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Plus size={14} /></button>
-          </div>
           <Button variant="outline" size="sm" disabled={exporting || driveBusy} onClick={() => void saveToDrive()} title="Salva le slide sul tuo Google Drive e copia il link">{driveBusy ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Drive</Button>
           <Button variant="gold" size="sm" disabled={exporting || driveBusy} onClick={() => void exportZip()}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Esporta per Instagram</Button>
         </div>
       </header>
 
-      {/* PREMODELLI */}
-      <div className="bg-[rgb(var(--bg))] border-b border-[rgb(var(--border))] px-3 sm:px-5 py-2">
-        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-          <span className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] flex items-center gap-1"><LayoutTemplate size={13} /> Premodelli</span>
-          {(['base', 'editoriale'] as const).map((g) => (
-            <button key={g} onClick={() => setModelCat(g)}
-              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${modelCat === g ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{g === 'base' ? 'Base' : 'Editoriale Vogue'}</button>
-          ))}
-          <span className="text-[11px] text-[rgb(var(--fg-subtle))]">inserisci solo le foto · oppure a mano</span>
-          <span className="mx-1 h-4 w-px bg-[rgb(var(--border))]" />
-          <span className="text-[11px] text-[rgb(var(--fg-subtle))] flex items-center gap-1"><Type size={12} /> Testo:</span>
-          {TEXT_PRESETS.map((p) => (
-            <button key={p.label} onClick={() => addText(p.patch)} className="text-xs px-2 py-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">+ {p.label}</button>
-          ))}
-          <button onClick={() => logoInputRef.current?.click()} title="Aggiungi un logo o una grafica (PNG con trasparenza consigliato)" className="text-xs px-2 py-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center gap-1"><Upload size={12} /> Logo</button>
-          <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addLogoFile(f); e.currentTarget.value = '' }} />
-          <div className="ml-auto flex items-center gap-1">
-            <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Sfondo</span>
-            {BG_SWATCHES.map((c) => (
-              <button key={c} onClick={() => setStrip((s) => ({ ...s, bg: c }))} title="Sfondo strip"
-                className={`h-6 w-6 rounded-full border ${strip.bg === c ? 'ring-2 ring-[rgb(var(--gold-500))] border-transparent' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />
+      {/* CONTROLLI (dropdown) */}
+      <div className="bg-[rgb(var(--bg))] border-b border-[rgb(var(--border))] px-3 sm:px-5 py-2 flex items-center gap-2 flex-wrap relative z-20">
+        {/* formato */}
+        <select value={format} onChange={(e) => setFormat(e.target.value)} title="Formato slide" className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm">
+          {CAROUSEL_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+        </select>
+        {/* numero slide */}
+        <div className="flex items-center gap-1 h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-1">
+          <button onClick={() => changeN(n - 1)} disabled={n <= 1} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Minus size={14} /></button>
+          <span className="text-sm tabular-nums w-16 text-center">{n} slide</span>
+          <button onClick={() => changeN(n + 1)} disabled={n >= 20} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Plus size={14} /></button>
+        </div>
+        <span className="mx-0.5 h-5 w-px bg-[rgb(var(--border))]" />
+
+        {/* MODELLI (solo disposizione foto) */}
+        <Menu label="Modelli" icon={LayoutGrid} width="w-[min(92vw,440px)]">
+          <p className="px-1 pt-0.5 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Impaginazioni</p>
+          <div className="grid grid-cols-2 gap-0.5">
+            {CAROUSEL_MODELS.filter((m) => (m.group ?? 'base') === 'base').map((m) => (
+              <button key={m.key} title={m.hint} onClick={() => applyModel(m.key)} className={`text-xs text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))] ${modelKey === m.key ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : ''}`}>{m.label}</button>
             ))}
           </div>
-        </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-          {CAROUSEL_MODELS.filter((m) => (m.group ?? 'base') === modelCat).map((m) => (
-            <button key={m.key} title={m.hint} onClick={() => applyModel(m.key)}
-              className={`shrink-0 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${modelKey === m.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{m.label}</button>
+          <p className="px-1 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Editoriale</p>
+          <div className="grid grid-cols-2 gap-0.5">
+            {CAROUSEL_MODELS.filter((m) => m.group === 'editoriale').map((m) => (
+              <button key={m.key} title={m.hint} onClick={() => applyModel(m.key)} className={`text-xs text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))] ${modelKey === m.key ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : ''}`}>{m.label}</button>
+            ))}
+          </div>
+        </Menu>
+
+        {/* PRESET PRONTI (foto + testo già composti) */}
+        <Menu label="Preset pronti" icon={Newspaper} width="w-[min(92vw,380px)]">
+          {CAROUSEL_PRESETS.map((p) => (
+            <button key={p.key} onClick={() => applyPreset(p.key)} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))]">
+              <span className="text-sm font-medium block">{p.label}</span>
+              <span className="text-[11px] text-[rgb(var(--fg-muted))] block">{p.hint}</span>
+            </button>
           ))}
-        </div>
+        </Menu>
+
+        {/* TESTO */}
+        <Menu label="Testo" icon={Type} width="w-64">
+          {TEXT_PRESETS.map((p) => (
+            <button key={p.label} onClick={() => addText(p.patch)} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-sm">＋ {p.label}</button>
+          ))}
+          <p className="px-2 pt-1.5 text-[11px] text-[rgb(var(--fg-subtle))]">Appena inserito, il testo è selezionato: sotto compaiono <strong>font</strong>, <strong>grandezza</strong>, colore e allineamento.</p>
+        </Menu>
+
+        {/* AGGIUNGI (logo/grafica) */}
+        <Menu label="Aggiungi" icon={ImageIcon} width="w-64">
+          <button onClick={() => logoInputRef.current?.click()} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-sm inline-flex items-center gap-2"><Upload size={14} /> Logo / grafica…</button>
+          <p className="px-2 pt-1.5 text-[11px] text-[rgb(var(--fg-subtle))]">Le <strong>foto</strong> si aggiungono dalla striscia in basso: tocca o trascina su uno slot.</p>
+        </Menu>
+
+        {/* SFONDO */}
+        <Menu label="Sfondo" icon={Palette} width="w-56">
+          <div className="flex items-center gap-1.5 px-1 py-1">
+            {BG_SWATCHES.map((c) => (
+              <button key={c} onClick={() => setStrip((s) => ({ ...s, bg: c }))} className={`h-7 w-7 rounded-full border ${strip.bg === c ? 'ring-2 ring-[rgb(var(--gold-500))] border-transparent' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />
+            ))}
+          </div>
+          <p className="px-2 pt-1 text-[11px] text-[rgb(var(--fg-subtle))]">Sfondo di tutta la striscia (si vede dove non ci sono foto).</p>
+        </Menu>
+
+        <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addLogoFile(f); e.currentTarget.value = '' }} />
+        <span className="ml-auto text-[11px] text-[rgb(var(--fg-subtle))]">{savedAt ? '✓ salvato' : 'bozza'}</span>
       </div>
 
       {/* STRIP EDITOR */}
@@ -426,11 +484,14 @@ export default function CaroselloPage() {
       {/* TOOLBAR testo selezionato */}
       {selT && (
         <div className="sticky bottom-[76px] z-30 mx-auto mb-1 w-[min(96vw,760px)] rounded-2xl bg-[rgb(var(--bg))] border border-[rgb(var(--border))] shadow-lg px-3 py-2 space-y-2">
+          <div className="flex items-center gap-2"><Type size={13} className="text-[rgb(var(--gold-600))]" /><span className="text-[11px] font-medium text-[rgb(var(--fg-muted))]">Testo selezionato</span></div>
           <textarea value={selT.text} onChange={(e) => patchText(selT.id, { text: e.target.value })} rows={2} placeholder="Scrivi qui il testo…" className="w-full text-sm rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 outline-none focus:border-[rgb(var(--gold-500))]" />
           <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Font</span>
             <select value={selT.font} onChange={(e) => patchText(selT.id, { font: e.target.value })} className="h-8 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-1.5 text-xs">
               {CAROUSEL_FONTS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
             </select>
+            <span className="text-[11px] text-[rgb(var(--fg-subtle))] ml-1">Grandezza</span>
             <div className="flex items-center h-8 rounded-md border border-[rgb(var(--border))]">
               <button title="Più piccolo" onClick={() => patchText(selT.id, { size: Math.max(0.02, +(selT.size - 0.008).toFixed(3)) })} className="px-2 hover:bg-[rgb(var(--bg-sunken))]"><Minus size={13} /></button>
               <span className="text-[11px] w-7 text-center tabular-nums">{Math.round(selT.size * 100)}</span>
