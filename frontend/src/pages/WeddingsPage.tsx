@@ -156,6 +156,12 @@ export default function WeddingsPage() {
                     </Link>
                     <div className="flex items-center gap-1">
                       <Badge status={w.status} />
+                      {w.status === 'OPZIONATA' && (w as { option_expires_at?: string | null }).option_expires_at && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700"
+                          title={`Opzione data — scade il ${new Date((w as { option_expires_at?: string }).option_expires_at!).toLocaleDateString('it-IT')}`}>
+                          scade tra {Math.max(0, Math.ceil((new Date((w as { option_expires_at?: string }).option_expires_at!).getTime() - Date.now()) / 86400000))}g
+                        </span>
+                      )}
                       {uid && w.owner_id === uid ? (
                         <Button
                           variant="ghost"

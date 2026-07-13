@@ -983,7 +983,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   }, [data?.id, entryId])
 
   // Opzione data (il pro ha abilitato? già opzionata?) → il cliente può tenere la data senza firmare.
-  const [opt, setOpt] = useState<{ allowed: boolean; days: number; optioned: boolean } | null>(null)
+  const [opt, setOpt] = useState<{ allowed: boolean; days: number; optioned: boolean; expires: string | null } | null>(null)
   const [optBusy, setOptBusy] = useState(false)
   useEffect(() => {
     const tok = data?.access_token
@@ -991,10 +991,25 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
     void (async () => {
       try {
         const { data: s } = await (supabase.rpc as any)('quote_option_status', { p_token: tok })
-        if (s) setOpt({ allowed: !!s.option_allowed, days: Number(s.option_days ?? 15), optioned: !!s.optioned })
+        if (s) setOpt({ allowed: !!s.option_allowed, days: Number(s.option_days ?? 15), optioned: !!s.optioned, expires: s.expires_at ?? null })
       } catch { /* ignora */ }
     })()
   }, [data?.access_token])
+  async function renewOption() {
+    const tok = data?.access_token
+    if (!tok) return
+    setOptBusy(true)
+    try {
+      const { data: r, error } = await (supabase.rpc as any)('proroga_opzione', { p_token: tok, p_days: opt?.days ?? 15 })
+      if (error) throw new Error(error.message)
+      const res = r as { ok?: boolean; error?: string; scade?: string }
+      if (res?.error) throw new Error(res.error === 'data_non_disponibile' ? 'La data è già stata presa da un altro cliente.' : res.error)
+      setOpt((o) => o ? { ...o, optioned: true, expires: res.scade ?? o.expires } : o)
+      toast.success('Opzione rinnovata')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setOptBusy(false) }
+  }
+  void renewOption // TODO(opzione-data): agganciare a bottone "Rinnova opzione" (sessione parallela). Ref per non rompere il build (noUnusedLocals).
   async function requestOption() {
     const tok = data?.access_token
     if (!tok) return
@@ -1195,8 +1210,9 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
           </div>
         )}
         {opt?.optioned && !signed && (
-          <div className="rounded-lg border p-3 mb-4 text-sm" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
-            Data <strong>tenuta per te senza impegno</strong>. Firma per confermarla definitivamente, altrimenti si libera alla scadenza.
+          <div className="rounded-lg border p-3 mb-4" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
+            <p className="text-sm">Data <strong>tenuta per te senza impegno</strong>{opt.expires ? <> — scade tra <strong>{Math.max(0, Math.ceil((new Date(opt.expires).getTime() - Date.now()) / 86400000))} giorni</strong> (il {new Date(opt.expires).toLocaleDateString('it-IT')})</> : ''}. Firma per confermarla; se scade e la data è ancora libera, puoi firmare comunque.</p>
+            <Button size="sm" variant="outline" className="mt-2" disabled={optBusy} onClick={() => void renewOption()}>Rinnova ({opt.days} giorni)</Button>
           </div>
         )}
         {hasLive && !isClosed && (!isFornitore || signed) && (
