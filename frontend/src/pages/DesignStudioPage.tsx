@@ -7,6 +7,7 @@ import {
   ZoomIn, ZoomOut, Maximize, Undo2, Redo2, Save, Download, FolderOpen, ImagePlus, Images, Plus, Trash2, Copy,
   Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen, Search,
   Fingerprint, Lock, Unlock, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcw, SlidersHorizontal,
+  Stamp,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -21,14 +22,14 @@ import { BUILTIN_PRESETS, loadCustomPresets, saveCustomPreset, deleteCustomPrese
 // salvataggio riapribile e indirizzabile a un EVENTO.
 
 type Tool =
-  | 'brush' | 'pencil' | 'ink' | 'marker' | 'watercolor' | 'chalk' | 'pastel' | 'floral' | 'airbrush' | 'smudge' | 'eraser'
+  | 'brush' | 'pencil' | 'ink' | 'marker' | 'watercolor' | 'chalk' | 'pastel' | 'floral' | 'airbrush' | 'smudge' | 'eraser' | 'stamp'
   | 'line' | 'rect' | 'ellipse' | 'arrow' | 'fill' | 'text' | 'eyedropper' | 'hand' | 'move'
 type LayerMeta = { id: string; name: string; visible: boolean; opacity: number; blend: GlobalCompositeOperation; alphaLock?: boolean }
 type SymMode = 'off' | 'v' | 'h' | 'quad' | 'radial'
 type Pt = { x: number; y: number }
-type DabOpt = { color: string; size: number; opacity: number; press: number; tilt: number }
+type DabOpt = { color: string; size: number; opacity: number; press: number; tilt: number; motif?: string }
 
-const PAINT = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'watercolor', 'chalk', 'pastel', 'floral', 'airbrush', 'smudge', 'eraser'])
+const PAINT = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'watercolor', 'chalk', 'pastel', 'floral', 'airbrush', 'smudge', 'eraser', 'stamp'])
 const LINE_TOOLS = new Set<Tool>(['brush', 'pencil', 'ink', 'marker', 'eraser'])
 const MAXDIM = 2400
 const PRESETS: Array<{ key: string; label: string; w: number; h: number }> = [
@@ -86,8 +87,53 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 function newCanvas(w: number, h: number): HTMLCanvasElement { const c = document.createElement('canvas'); c.width = w; c.height = h; return c }
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
+// ── TIMBRI decorativi: foglie, fiori, ghirigori (disegnati con path, colore = pennello). ──
+// Ogni motivo è centrato in (0,0) con estensione ~R; il chiamante ha già translate+rotate.
+export const STAMP_MOTIFS = [
+  'leaf', 'leaf-thin', 'sprig', 'branch', 'flower', 'flower6', 'daisy', 'tulip', 'rose',
+  'wreath', 'berries', 'babybreath', 'swirl', 'flourish', 'heart', 'star',
+] as const
+export const STAMP_LABELS: Record<string, string> = {
+  leaf: 'Foglia', 'leaf-thin': 'Foglia sottile', sprig: 'Rametto', branch: 'Ramo', flower: 'Fiore 5',
+  flower6: 'Fiore 6', daisy: 'Margherita', tulip: 'Tulipano', rose: 'Rosa', wreath: 'Ghirlanda',
+  berries: 'Bacche', babybreath: 'Nebbiolina', swirl: 'Ghirigoro', flourish: 'Svolazzo', heart: 'Cuore', star: 'Stella',
+}
+function leafPath(ctx: CanvasRenderingContext2D, R: number) {
+  ctx.beginPath(); ctx.moveTo(0, -R); ctx.quadraticCurveTo(R * 0.6, -R * 0.2, 0, R); ctx.quadraticCurveTo(-R * 0.6, -R * 0.2, 0, -R); ctx.closePath(); ctx.fill()
+  ctx.beginPath(); ctx.moveTo(0, -R * 0.85); ctx.lineTo(0, R * 0.85); ctx.stroke()
+}
+function drawMotif(ctx: CanvasRenderingContext2D, motif: string, R: number) {
+  const petal = (n: number, len: number, wid: number) => { for (let p = 0; p < n; p++) { ctx.rotate((Math.PI * 2) / n); ctx.beginPath(); ctx.ellipse(0, -len * 0.62, wid, len, 0, 0, 6.283); ctx.fill() } }
+  switch (motif) {
+    case 'leaf': leafPath(ctx, R); break
+    case 'leaf-thin': ctx.beginPath(); ctx.moveTo(0, -R); ctx.quadraticCurveTo(R * 0.32, -R * 0.1, 0, R); ctx.quadraticCurveTo(-R * 0.32, -R * 0.1, 0, -R); ctx.fill(); break
+    case 'sprig': { ctx.beginPath(); ctx.moveTo(0, R); ctx.lineTo(0, -R); ctx.stroke(); for (let i = -2; i <= 2; i++) { const yy = i * R * 0.38; for (const s of [-1, 1]) { ctx.save(); ctx.translate(0, yy); ctx.rotate(s * 0.9); ctx.scale(0.34, 0.34); leafPath(ctx, R); ctx.restore() } } break }
+    case 'branch': { ctx.beginPath(); ctx.moveTo(-R, R * 0.4); ctx.quadraticCurveTo(0, -R * 0.2, R, -R); ctx.stroke(); for (let i = 0; i < 6; i++) { const t = i / 5; const bx = -R + 2 * R * t, by = R * 0.4 - (R * 0.4 + R) * t; ctx.save(); ctx.translate(bx, by); ctx.rotate((i % 2 ? 1 : -1) * 1.1); ctx.scale(0.3, 0.3); ctx.beginPath(); ctx.ellipse(0, -R * 0.5, R * 0.4, R * 0.7, 0, 0, 6.283); ctx.fill(); ctx.restore() } break }
+    case 'flower': petal(5, R * 0.9, R * 0.4); ctx.save(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(0, 0, R * 0.28, 0, 6.283); ctx.fill(); ctx.restore(); break
+    case 'flower6': petal(6, R * 0.85, R * 0.36); ctx.save(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(0, 0, R * 0.25, 0, 6.283); ctx.fill(); ctx.restore(); break
+    case 'daisy': petal(12, R * 0.95, R * 0.14); ctx.save(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(0, 0, R * 0.24, 0, 6.283); ctx.fill(); ctx.restore(); break
+    case 'tulip': for (const dx of [-1, 0, 1]) { ctx.save(); ctx.translate(dx * R * 0.42, 0); ctx.rotate(dx * 0.35); ctx.beginPath(); ctx.ellipse(0, -R * 0.4, R * 0.28, R * 0.6, 0, 0, 6.283); ctx.fill(); ctx.restore() } break
+    case 'rose': for (let k = 5; k >= 1; k--) { ctx.beginPath(); ctx.arc(0, 0, R * (k / 5) * 0.8, 0, Math.PI * 1.6); ctx.stroke() } break
+    case 'wreath': { ctx.save(); for (let p = 0; p < 14; p++) { ctx.rotate((Math.PI * 2) / 14); ctx.save(); ctx.translate(0, -R * 0.8); ctx.scale(0.28, 0.28); leafPath(ctx, R); ctx.restore() } ctx.restore(); break }
+    case 'berries': { ctx.beginPath(); ctx.moveTo(0, R); ctx.lineTo(0, -R * 0.4); ctx.stroke(); for (const [bx, by] of [[0, -R], [-R * 0.4, -R * 0.5], [R * 0.4, -R * 0.5], [-R * 0.25, 0], [R * 0.3, R * 0.1]] as const) { ctx.beginPath(); ctx.arc(bx, by, R * 0.2, 0, 6.283); ctx.fill() } break }
+    case 'babybreath': for (let k = 0; k < 9; k++) { const a = (k / 9) * 6.283, rad = R * (0.4 + Math.random() * 0.6); ctx.beginPath(); ctx.arc(Math.cos(a) * rad, Math.sin(a) * rad, R * 0.09, 0, 6.283); ctx.fill() } break
+    case 'swirl': ctx.beginPath(); ctx.moveTo(-R, R * 0.3); ctx.bezierCurveTo(-R * 0.3, -R, R * 0.3, R, R, -R * 0.3); ctx.stroke(); break
+    case 'flourish': ctx.beginPath(); ctx.moveTo(0, R * 0.6); ctx.bezierCurveTo(-R, 0, -R * 0.3, -R, 0, -R * 0.2); ctx.bezierCurveTo(R * 0.3, -R, R, 0, 0, R * 0.6); ctx.stroke(); break
+    case 'heart': ctx.beginPath(); ctx.moveTo(0, R * 0.65); ctx.bezierCurveTo(-R * 1.1, -R * 0.2, -R * 0.4, -R, 0, -R * 0.35); ctx.bezierCurveTo(R * 0.4, -R, R * 1.1, -R * 0.2, 0, R * 0.65); ctx.fill(); break
+    case 'star': { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? R * 0.42 : R; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rad, Math.sin(a) * rad) } ctx.closePath(); ctx.fill(); break }
+    default: leafPath(ctx, R)
+  }
+}
+
 // ── Engine pennelli (a stamp/linea) ─────────────────────────────────────────
 function stamp(ctx: CanvasRenderingContext2D, tool: Tool, x: number, y: number, r: number, o: DabOpt) {
+  if (tool === 'stamp') {
+    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = o.opacity
+    ctx.fillStyle = o.color; ctx.strokeStyle = o.color; ctx.lineWidth = Math.max(1, r * 0.14); ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    drawMotif(ctx, o.motif || 'leaf', r)
+    ctx.restore(); ctx.globalAlpha = 1
+    return
+  }
   if (tool === 'watercolor') {
     for (let k = 0; k < 3; k++) {
       const rr = r * (0.7 + Math.random() * 0.6), ox = (Math.random() - 0.5) * r * 0.5, oy = (Math.random() - 0.5) * r * 0.5
@@ -130,7 +176,7 @@ function paintSeg(ctx: CanvasRenderingContext2D, tool: Tool, a: Pt, b: Pt, o: Da
     return
   }
   const r = Math.max(1, o.size * o.press) / 2
-  const spacing = tool === 'floral' ? Math.max(6, r * 1.6) : (tool === 'airbrush' ? Math.max(1, r * 0.25) : Math.max(1, r * 0.4))
+  const spacing = tool === 'stamp' ? Math.max(10, r * 2.4) : tool === 'floral' ? Math.max(6, r * 1.6) : (tool === 'airbrush' ? Math.max(1, r * 0.25) : Math.max(1, r * 0.4))
   const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), steps = Math.max(1, Math.floor(dist / spacing))
   for (let i = 0; i <= steps; i++) { const t = steps ? i / steps : 0; stamp(ctx, tool, a.x + dx * t, a.y + dy * t, r, o) }
 }
@@ -182,6 +228,7 @@ export default function DesignStudioPage() {
   // Preset pennello (disegnati a mano) + personalizzati salvabili, scegliibili da dropdown.
   const [customPresets, setCustomPresets] = useState<BrushPreset[]>([])
   const [presetSel, setPresetSel] = useState('')
+  const [motif, setMotif] = useState('leaf')   // timbro decorativo selezionato (foglie/fiori/ghirigori)
   useEffect(() => { setCustomPresets(loadCustomPresets()) }, [])
   const applyPreset = (p: BrushPreset) => { setTool(p.tool as Tool); setSize(p.size); setOpacity(p.opacity); if (p.color) setColor(p.color); setPresetSel(p.id) }
   const [streamline, setStreamline] = useState(0.4)
@@ -307,7 +354,7 @@ export default function DesignStudioPage() {
     if (tool === 'text') { const r = stageRef.current!.getBoundingClientRect(); void ensureFont(font); setTextEdit({ sx: e.clientX - r.left, sy: e.clientY - r.top, dx: p.x, dy: p.y, value: '' }); return }
     const before = layerCanvases.current.get(activeId)!.toDataURL()
     draw.current = { active: true, last: p, start: p, before, panning: false, panStart: { x: 0, y: 0 }, panOrig: { x: 0, y: 0 } }
-    if (PAINT.has(tool)) { startPaint(ctx); if (tool === 'smudge') smudge(ctx, p, p, pressureOf(e)); else paintM(ctx, p, p, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e) }); composite() }
+    if (PAINT.has(tool)) { startPaint(ctx); if (tool === 'smudge') smudge(ctx, p, p, pressureOf(e)); else paintM(ctx, p, p, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif }); composite() }
   }
   function onMove(e: React.PointerEvent) {
     const ring = ringRef.current, disp = displayRef.current
@@ -336,7 +383,7 @@ export default function DesignStudioPage() {
   function onUp(e: React.PointerEvent) {
     const st = draw.current; draw.current = null; if (!st || st.panning) return
     const ctx = getCtx(activeId); if (!ctx) return
-    if (PAINT.has(tool)) { const end = toDoc(e); if (tool === 'smudge') smudge(ctx, st.last, end, pressureOf(e)); else { paintM(ctx, st.last, end, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e) }); pushColor(color) } ctx.globalCompositeOperation = 'source-over'; composite() }
+    if (PAINT.has(tool)) { const end = toDoc(e); if (tool === 'smudge') smudge(ctx, st.last, end, pressureOf(e)); else { paintM(ctx, st.last, end, { color, size, opacity, press: pressureOf(e), tilt: tiltOf(e), motif }); pushColor(color) } ctx.globalCompositeOperation = 'source-over'; composite() }
     if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') { drawShape(ctx, tool, st.start, constrainEnd(st.start, toDoc(e), tool, e.shiftKey), { color, size, fill, alpha: opacity }); composite() }
     pushHistory(activeId, st.before, layerCanvases.current.get(activeId)!.toDataURL())
   }
@@ -471,7 +518,7 @@ export default function DesignStudioPage() {
   const TOOLS: Array<{ t: Tool; Icon: typeof Paintbrush; label: string }> = [
     { t: 'brush', Icon: Paintbrush, label: 'Pennello (B)' }, { t: 'pencil', Icon: Pencil, label: 'Matita — con inclinazione (P)' }, { t: 'ink', Icon: PenTool, label: 'Pennino a china (K)' },
     { t: 'marker', Icon: Highlighter, label: 'Pennarello (M)' }, { t: 'watercolor', Icon: Droplets, label: 'Acquarello (W)' }, { t: 'chalk', Icon: Brush, label: 'Gessetto / carboncino (C)' },
-    { t: 'pastel', Icon: Feather, label: 'Pastello' }, { t: 'floral', Icon: Flower2, label: 'Texture floreale (F)' }, { t: 'airbrush', Icon: SprayCan, label: 'Aerografo' }, { t: 'smudge', Icon: Fingerprint, label: 'Sfumino (S)' }, { t: 'eraser', Icon: Eraser, label: 'Gomma (E)' },
+    { t: 'pastel', Icon: Feather, label: 'Pastello' }, { t: 'floral', Icon: Flower2, label: 'Texture floreale (F)' }, { t: 'airbrush', Icon: SprayCan, label: 'Aerografo' }, { t: 'stamp', Icon: Stamp, label: 'Timbri — foglie, fiori, ghirigori' }, { t: 'smudge', Icon: Fingerprint, label: 'Sfumino (S)' }, { t: 'eraser', Icon: Eraser, label: 'Gomma (E)' },
     { t: 'fill', Icon: PaintBucket, label: 'Riempimento (G)' }, { t: 'line', Icon: Minus, label: 'Linea (L)' }, { t: 'rect', Icon: Square, label: 'Rettangolo (R)' }, { t: 'ellipse', Icon: Circle, label: 'Ellisse (O)' }, { t: 'arrow', Icon: ArrowUpRight, label: 'Freccia' },
     { t: 'text', Icon: Type, label: 'Testo (T)' }, { t: 'eyedropper', Icon: Pipette, label: 'Contagocce (I)' }, { t: 'move', Icon: Move, label: 'Sposta livello (V)' }, { t: 'hand', Icon: Hand, label: 'Mano / pan (H)' },
   ]
@@ -572,6 +619,20 @@ export default function DesignStudioPage() {
                   )}
                 </div>
               </div>
+              {tool === 'stamp' && (
+                <div>
+                  <div className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Timbro — foglie, fiori, ghirigori</div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {STAMP_MOTIFS.map((m) => (
+                      <button key={m} onClick={() => setMotif(m)} title={STAMP_LABELS[m]}
+                        className={`aspect-square grid place-items-center rounded-md border ${motif === m ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                        <MotifIcon motif={m} />
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Trascina per timbrare in fila. La dimensione regola il timbro.</p>
+                </div>
+              )}
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Dimensione: {size}px<input type="range" min={1} max={200} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full" /></label>
               <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Opacità: {Math.round(opacity * 100)}%<input type="range" min={0.02} max={1} step={0.02} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full" /></label>
               {PAINT.has(tool) && <label className="block text-[11px] text-[rgb(var(--fg-muted))]">Stabilizzazione: {Math.round(streamline * 100)}%<input type="range" min={0} max={0.9} step={0.05} value={streamline} onChange={(e) => setStreamline(Number(e.target.value))} className="w-full" /></label>}
@@ -647,6 +708,22 @@ export default function DesignStudioPage() {
       )}
     </div>
   )
+}
+
+// Anteprima di un timbro nel pannello (mini canvas che riusa drawMotif)
+function MotifIcon({ motif }: { motif: string }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const c = ref.current; if (!c) return
+    const ctx = c.getContext('2d'); if (!ctx) return
+    ctx.clearRect(0, 0, c.width, c.height)
+    ctx.save(); ctx.translate(c.width / 2, c.height / 2)
+    ctx.fillStyle = 'currentColor'; ctx.strokeStyle = 'currentColor'; ctx.lineWidth = 1.1
+    ctx.fillStyle = '#5b4636'; ctx.strokeStyle = '#5b4636'
+    drawMotif(ctx, motif, 9)
+    ctx.restore()
+  }, [motif])
+  return <canvas ref={ref} width={26} height={26} className="pointer-events-none" />
 }
 
 function ColorWheel({ color, onChange }: { color: string; onChange: (hex: string) => void }) {
