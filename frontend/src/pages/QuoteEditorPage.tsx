@@ -394,12 +394,22 @@ export default function QuoteEditorPage() {
 
     const basis = defaultBasisFor(svc.unit)
     const qty = quantityFor(basis, quote.guest_count, (quote as any).table_count)
+    // Supplementi per-servizio con data: se la data dell'evento combacia col periodo del supplemento,
+    // entra da solo nel preventivo (il trigger su quote_items ricalcola il prezzo dai modifiers_applied).
+    let mods: unknown[] = []
+    if (eventDate) {
+      try {
+        const { data: md } = await (supabase.rpc as any)('service_modifiers_for_date', { p_service_id: svc.id, p_date: eventDate })
+        if (Array.isArray(md)) mods = md
+      } catch { /* ignora */ }
+    }
     try {
       await addItem.mutateAsync({
         quote_id: id, service_id: svc.id, supplier_id: supplierId,
         name_snapshot: svc.name, description_snapshot: svc.description ?? null,
         unit_snapshot: svc.unit, snapshot_price: svc.base_price, quantity: qty,
         quantity_basis: basis,
+        ...(mods.length ? { modifiers_applied: mods } : {}),
         // REVISIONE B: capostipite come erogatore di se' stesso → no ricarico
         ...(isSelfCapostipite ? { erogatore_e_capostipite: true } : {}),
       } as any)

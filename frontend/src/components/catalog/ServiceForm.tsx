@@ -44,7 +44,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
   const [busy, setBusy] = useState(false)
   const [photoProg, setPhotoProg] = useState<{ done: number; total: number; name?: string; pct?: number } | null>(null)
   const [savedId, setSavedId] = useState<string | null>(service?.id ?? null)
-  const [newMod, setNewMod] = useState({ name: '', type: 'PERCENT' as ModType, value: '' })
+  const [newMod, setNewMod] = useState({ name: '', type: 'PERCENT' as ModType, value: '', date_from: '', date_to: '' })
 
   // Auto-suggerimento categoria dal titolo: niente più default su cats[0]
   // (che sceglieva una categoria a caso). Se il titolo combacia con una
@@ -114,8 +114,9 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
       await addMod.mutateAsync({
         service_id: savedId, name: newMod.name.trim(),
         modifier_type: newMod.type, value: Number(newMod.value || 0),
-      })
-      setNewMod({ name: '', type: 'PERCENT', value: '' })
+        date_from: newMod.date_from || null, date_to: newMod.date_to || newMod.date_from || null,
+      } as any)
+      setNewMod({ name: '', type: 'PERCENT', value: '', date_from: '', date_to: '' })
       toast.success('Modificatore aggiunto')
     } catch (e) { toast.error((e as Error).message) }
   }
@@ -328,6 +329,9 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                           <p className="font-medium">{m.name}</p>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
                             {m.modifier_type === 'PERCENT' ? `${m.value}%` : `€ ${m.value}`}
+                            {(m as { date_from?: string | null }).date_from && (
+                              <> · solo dal {new Date((m as { date_from?: string }).date_from!).toLocaleDateString('it-IT')} al {new Date(((m as { date_to?: string; date_from?: string }).date_to ?? (m as { date_from?: string }).date_from)!).toLocaleDateString('it-IT')}</>
+                            )}
                           </p>
                         </div>
                         <Button type="button" variant="ghost" size="icon" onClick={() => remMod.mutate(m.id)}>
@@ -349,6 +353,12 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                     <Button type="button" variant="outline" size="icon" className="col-span-1" onClick={handleAddMod}>
                       <Plus size={16} />
                     </Button>
+                    <div className="col-span-12 flex flex-wrap items-center gap-2 text-xs text-[rgb(var(--fg-muted))]">
+                      <span>Solo in un periodo (facoltativo): se la data dell’evento cade qui, il supplemento entra da solo nel preventivo.</span>
+                      <Input type="date" className="h-8 w-auto" value={newMod.date_from} onChange={(e) => setNewMod((m) => ({ ...m, date_from: e.target.value }))} />
+                      <span>→</span>
+                      <Input type="date" className="h-8 w-auto" value={newMod.date_to} onChange={(e) => setNewMod((m) => ({ ...m, date_to: e.target.value }))} />
+                    </div>
                   </div>
                 </div>
 
