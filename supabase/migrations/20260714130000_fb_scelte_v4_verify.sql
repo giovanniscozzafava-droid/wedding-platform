@@ -36,7 +36,6 @@ begin
   perform public.fb_dish_confirm(v_entry, v_dolce[1], true);
   select count(*), count(*) filter (where snapshot is not null) into v_n, v_ing from public.fb_event_dish where entry_id = v_entry;
   raise notice 'VERIFY 1 · confermati: % piatti, % con snapshot immutabile (atteso 6 e 6)', v_n, v_ing;
-  select snapshot->>'nome', snapshot->>'food_cost' into v_r from (select snapshot from public.fb_event_dish where entry_id=v_entry and menu_item_id=v_primo[1]) s;
   raise notice 'VERIFY 1b · snapshot primo: nome=%, food_cost=% (a costi correnti)',
     (select snapshot->>'nome' from public.fb_event_dish where entry_id=v_entry and menu_item_id=v_primo[1]),
     (select snapshot->>'food_cost' from public.fb_event_dish where entry_id=v_entry and menu_item_id=v_primo[1]);
