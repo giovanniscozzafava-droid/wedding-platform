@@ -1,41 +1,27 @@
 {
- "brief": "Funnel album coppia: modelli come card unificate (multi-PDF + card manuali), opzioni per modello, picker con formato bloccato + differenza prezzo, composizione, copia commissione",
- "created": "2026-07-08T16:31:03.421871+00:00",
+ "brief": "3 rifiniture funnel album: visore PDF 3D desktop, 2 listino prezzi vendita (AI associa, margine auto), composizione cliente nella pagina commissione",
+ "created": "2026-07-08T17:37:29.109415+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "Fondazione dati",
-   "objective": "hotspot->card unificata (owner_id+image_path+options+sort_order, catalog_id nullable) + RLS owner + backfill + multi-catalogo; data layer getMyModels/saveModel",
+   "title": "Visore PDF 3D",
+   "objective": "pulsante schermo intero nel picker con sfoglio 3D (react-pageflip) anche da desktop, hotspot cliccabili",
    "status": "complete",
-   "evidence": "migration 20260709100000 applicata (hotspots: catalog_id nullable + owner_id + image_path + options + sort_order, RLS owner, backfill). useAlbumCatalog: Hotspot esteso, getMyModels/saveAllModels/uploadCardImage, multi-PDF (no deactivate). build verde"
+   "evidence": "build verde. PdfLightbox: visore PDF a schermo intero con react-pageflip (sfoglio 3D), frecce+tastiera+trascinamento, hotspot cliccabili (onPick+close). Pulsante 'Ingrandisci e sfoglia in 3D' nel picker"
   },
   {
    "id": "G002",
-   "title": "Manager modelli",
-   "objective": "elenco card da tutti i PDF + card manuali con foto; costo/ricarico gia' fatti; editor opzioni (materiali/colori/logo/foto-copertina + sovrapprezzi)",
+   "title": "Listino vendita",
+   "objective": "secondo documento prezzi (AI associa prezzi->modelli come price); margine=prezzo-costo; ricarico% ripiego per i modelli senza prezzo listino",
    "status": "complete",
-   "evidence": "build verde. AlbumCatalogManager riscritto: modelli unificati (getMyModels/saveAllModels), selettore multi-PDF, sezione Card manuali (uploadCardImage+foto+costo/prezzo), ModelOptionsEditor (materiali/colori/logo/foto-copertina+sovrapprezzi), ricarico/AI costi"
+   "evidence": "build verde + pushato. Prezzi vendita AI + margine + ricarico ripiego"
   },
   {
    "id": "G003",
-   "title": "Picker coppia base",
-   "objective": "album_catalog_for_entry multi-PDF+card; formato bloccato su impaginato; PDF ingrandibile desktop; prezzo live differenza vs preventivo o pieno",
+   "title": "Composizione in commissione",
+   "objective": "la scelta del cliente (modello+opzioni+box/famiglia+prezzo) finisce nell'album_orders e appare nella CommissionPage per lo stampatore",
    "status": "complete",
-   "evidence": "build verde + migration 20260709110000 (album_catalog_for_entry ritorna catalogs+models con price/options/image). Picker: formato BLOCCATO su impaginato (album_projects, chip non modificabile), card prezzo con DIFFERENZA vs opzionato nel preventivo (couple_get_quote_for_entry+looksLikeAlbum) o prezzo pieno ex-novo. PENDENTE: zoom PDF desktop + browsing multi-PDF/card nel picker (rifinitura)"
-  },
-  {
-   "id": "G004",
-   "title": "Composizione coppia",
-   "objective": "opzioni sommano nel prezzo; box+album famiglia pre-spuntati da preventivo (couple_get_quote_for_entry)",
-   "status": "complete",
-   "evidence": "build+deploy. Picker: selettori materiale/colore/logo/foto-copertina, surcharge somma nel prezzo live; box+famiglia pre-spuntati dal preventivo"
-  },
-  {
-   "id": "G005",
-   "title": "Sbocco commissione",
-   "objective": "la composizione popola price_config + genera la copia commissione, flusso unico",
-   "status": "complete",
-   "evidence": "Composizione+prezzo/differenza nella nota della commessa firmata (arriva al fotografo). Fix bucket album-catalogs immagini per card manuali"
+   "evidence": "album_commission_by_token ritorna client_choice (ultima commessa picker per entry, cover.source=pdf_catalog). CommissionPage: sezione 'Scelta del cliente' (modello+misura+pagine+box+finiture+composizione/note+firma) per lo stampatore"
   }
  ]
 }
