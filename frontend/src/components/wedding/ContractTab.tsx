@@ -22,6 +22,12 @@ const PLACEHOLDERS: Array<{ k: string; d: string }> = [
 ]
 const sbt = (): any => (supabase as any).from('supplier_contract_templates')
 
+const AI_ERR: Record<string, string> = {
+  no_ai_key: 'AI non ancora configurata.', forbidden: 'Non sei il proprietario del preventivo.',
+  quote_not_found: 'Preventivo non trovato.', ai_error: 'Errore del servizio AI.', no_quote: 'Contratto senza preventivo collegato.',
+  parse: 'Risposta AI non interpretabile.', empty: 'Nessuna sezione generata.',
+}
+
 const STANDARD_SECTIONS = [
   { heading: 'Oggetto del contratto', body: 'Organizzazione e coordinamento dell\'evento matrimoniale come specificato nel preventivo allegato.', type: 'CLAUSULE' },
   { heading: 'Corrispettivo e modalita\' di pagamento', body: '30% alla firma, 40% 60 giorni prima dell\'evento, 30% il giorno dell\'evento.', type: 'PRICE' },
@@ -98,18 +104,32 @@ export function ContractTab({ wedding }: { wedding: any }) {
       })
       if (error) throw new Error(error.message)
       const r = data as { ok?: boolean; sections?: any[]; error?: string }
-      if (!r?.ok) {
-        const map: Record<string, string> = {
-          no_ai_key: 'AI non ancora configurata.', forbidden: 'Non sei il proprietario del preventivo.',
-          quote_not_found: 'Preventivo non trovato.', ai_error: 'Errore del servizio AI.',
-          parse: 'Risposta AI non interpretabile.', empty: 'Nessuna sezione generata.',
-        }
-        throw new Error(map[r?.error ?? ''] ?? ('Bozza AI non riuscita: ' + (r?.error ?? '')))
-      }
+      if (!r?.ok) throw new Error(AI_ERR[r?.error ?? ''] ?? ('Bozza AI non riuscita: ' + (r?.error ?? '')))
       setEditing({ ...editing, sections: r.sections })
       toast.success(hasContent ? 'Contratto rifinito dall’AI (dati compilati) — rivedilo prima di inviare' : 'Bozza generata dall’AI — rivedila prima di inviare')
     } catch (e) { toast.error((e as Error).message) }
     finally { setAiBusy(false) }
+  }
+
+  // AI dalla CARD: ribalta TUTTI i dati del preventivo sul contratto (dati fiscali del professionista,
+  // parti, evento, offerta contrattualizzata, importi) riscrivendo le sezioni. Salva direttamente sul contratto.
+  const [aiCardId, setAiCardId] = useState<string | null>(null)
+  async function aiFromCard(c: any) {
+    const qid = c.quote_id ?? wedding.quote?.id
+    if (!qid) { toast.error('Contratto senza preventivo collegato'); return }
+    if (c.status === 'FIRMATO') { toast.error('Contratto firmato: non modificabile'); return }
+    if (!confirm('L’AI ribalta tutti i dati del preventivo nel contratto (dati fiscali, offerta, importi) e riscrive le sezioni.\n\nContinuo?')) return
+    setAiCardId(c.id)
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-ai-draft', { body: { quote_id: qid } })
+      if (error) throw new Error(error.message)
+      const r = data as { ok?: boolean; sections?: any[]; error?: string }
+      if (!r?.ok) throw new Error(AI_ERR[r?.error ?? ''] ?? ('Compilazione AI non riuscita: ' + (r?.error ?? '')))
+      await update.mutateAsync({ id: c.id, patch: { sections: r.sections as any } })
+      if (editing?.id === c.id) setEditing({ ...editing, sections: r.sections })
+      toast.success('Contratto compilato dall’AI dal preventivo — aprilo per rivederlo prima di inviare')
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setAiCardId(null) }
   }
 
   // Firmato su carta: stampato e firmato a mano → registralo come FIRMATO (diventa immutabile come il digitale).
@@ -195,6 +215,15 @@ export function ContractTab({ wedding }: { wedding: any }) {
                 <Button variant="outline" size="sm" onClick={() => setEditing(c)}><Lock size={13} /> Visualizza (immutabile)</Button>
               ) : (
                 <Button variant="outline" size="sm" onClick={() => setEditing(c)}>Modifica sezioni</Button>
+              )}
+              {c.status !== 'FIRMATO' && (
+                <span className="inline-flex items-center gap-1">
+                  <Button variant="gold" size="sm" onClick={() => aiFromCard(c)} disabled={aiCardId === c.id}
+                    title="Ribalta tutti i dati del preventivo nel contratto (dati fiscali, offerta, importi)">
+                    <Sparkles size={14} /> {aiCardId === c.id ? 'Compilo…' : 'Compila con AI dal preventivo'}
+                  </Button>
+                  <HelpDot id="contract.ai" />
+                </span>
               )}
               {c.status === 'BOZZA' && (
                 <span className="inline-flex items-center gap-1">

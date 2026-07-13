@@ -81,13 +81,18 @@ Deno.serve(async (req) => {
   }
 
   const GEN_PROMPT = `Sei un giurista che redige CONTRATTI per professionisti di eventi/matrimoni.
-Redigi un contratto COMPLETO e professionale a partire dai dati qui sotto, adattandolo al sistema
-giuridico di "${jurisdiction}" e scritto interamente in lingua "${language}".
-Includi almeno: parti contraenti (con i dati forniti), oggetto/prestazioni (ribaltando l'offerta),
-corrispettivo e modalità di pagamento (con acconto/saldo coerenti col totale), tempistiche/consegne,
-recesso e cancellazione, forza maggiore, trattamento dati personali (usa la normativa privacy corretta
-per "${jurisdiction}", non citare leggi italiane se la giurisdizione è diversa), foro competente.
-NON inventare importi diversi dal totale. Se un dato manca, usa un segnaposto tra parentesi quadre.
+Redigi un contratto COMPLETO e professionale a partire dai dati qui sotto, RIBALTANDO integralmente il
+preventivo nel contratto, adattato al sistema giuridico di "${jurisdiction}" e scritto interamente in lingua "${language}".
+Includi almeno:
+- PARTI CONTRAENTI: inserisci per il professionista TUTTI i suoi dati fiscali disponibili (ragione sociale/
+  business_legal_name, P.IVA/vat_number, codice fiscale/fiscal_code, indirizzo completo, PEC); per il cliente
+  nome ed email (e codice fiscale se presente).
+- OGGETTO/PRESTAZIONI: contrattualizza OGNI voce dell'offerta (nome, quantità, descrizione) trasformandola in
+  obbligazione contrattuale; non ometterne nessuna.
+- CORRISPETTIVO E PAGAMENTO: usa il totale indicato con acconto/saldo coerenti; NON inventare importi diversi dal totale.
+- tempistiche/consegne, recesso e cancellazione, forza maggiore, trattamento dati personali (normativa privacy
+  corretta per "${jurisdiction}", non citare leggi italiane se la giurisdizione è diversa), foro competente.
+Se un dato manca, usa un segnaposto tra parentesi quadre. NON inventare dati fiscali non forniti.
 Rispondi ESCLUSIVAMENTE con JSON valido, senza testo intorno:
 {"sections":[{"heading":"<titolo sezione>","body":"<testo completo>","type":"CLAUSULE|PRICE|TERMS"}]}
 
