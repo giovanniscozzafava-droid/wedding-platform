@@ -954,6 +954,10 @@ export default function QuoteEditorPage() {
                 {(quote as any).subtotal_client != null && Number((quote as any).subtotal_client) !== Number(quote.total_client) && (
                   <Totals label="Subtotale" value={(quote as any).subtotal_client} />
                 )}
+                {Number((quote as any).surcharge_percent ?? 0) > 0 && (
+                  <Totals label={`Maggior. +${Number((quote as any).surcharge_percent)}%`}
+                    value={Number(quote.total_client) - Number(quote.total_client) / (1 + Number((quote as any).surcharge_percent) / 100)} />
+                )}
                 <Totals label="Cliente" value={quote.total_client} accent />
                 <Totals label="Margine" value={quote.margin_amount} />
                 <Totals label="Margine %" value={`${Number(quote.margin_percent).toFixed(2)}%`} raw />
