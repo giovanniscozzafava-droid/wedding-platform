@@ -333,14 +333,26 @@ export default function CaroselloPage() {
     setAllPhotos((xs) => xs.map((x) => (x.id === m.id ? { ...x, carousel_pick: next } : x)))
   }
 
-  // assegna/sostituisci la foto: se c'è uno slot selezionato lo riempie; altrimenti il primo vuoto.
+  // Assegna la foto: se c'è uno slot selezionato lo riempie; altrimenti uno slot vuoto DELLA PAGINA
+  // CORRENTE; altrimenti aggiunge una foto libera DENTRO la pagina corrente (poi la trascini dove vuoi).
   function assignPhoto(mediaId: string) {
     snapshot()
     if (sel) { updateEl(sel.id, (e) => ({ ...e, mediaId })); return }
-    const empty = elements.find((e) => !e.mediaId)
-    if (empty) { updateEl(empty.id, (e) => ({ ...e, mediaId })); setSelId(empty.id); return }
-    // nessuno slot: aggiungi un elemento libero al centro della slide corrente
-    const el: FreeEl = { id: uid(), mediaId, x: 0.3, y: 0.3, w: Math.min(0.4, 1 / n * 0.8), h: 0.4, rot: 0, cell: { ...DEFAULT_CELL } }
+    const emptyHere = elements.find((e) => !e.mediaId && slideOf(e) === curSlide)
+    if (emptyHere) { updateEl(emptyHere.id, (e) => ({ ...e, mediaId })); setSelId(emptyHere.id); return }
+    const w = 0.8 / n
+    const el: FreeEl = { id: uid(), mediaId, x: (curSlide + 0.1) / n, y: 0.1, w, h: 0.8, rot: 0, cell: { ...DEFAULT_CELL } }
+    setElements([...elements, el]); setSelId(el.id); setModelKey(null)
+  }
+  // Rilascio di una foto in un punto qualsiasi della strip → crea una foto libera lì (posizionala dove vuoi).
+  function dropPhotoAt(mediaId: string, clientX: number, clientY: number) {
+    const st = stripRef.current; if (!st) return
+    const rect = st.getBoundingClientRect()
+    const w = 0.8 / n, h = 0.8
+    const cx = (clientX - rect.left) / Math.max(1, rect.width)
+    const cy = (clientY - rect.top) / Math.max(1, rect.height)
+    snapshot()
+    const el: FreeEl = { id: uid(), mediaId, x: Math.max(0, Math.min(1 - w, cx - w / 2)), y: Math.max(0, Math.min(1 - h, cy - h / 2)), w, h, rot: 0, cell: { ...DEFAULT_CELL } }
     setElements([...elements, el]); setSelId(el.id); setModelKey(null)
   }
 
@@ -544,6 +556,8 @@ export default function CaroselloPage() {
       <div ref={scrollRef} onScroll={onScrollStrip} className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start [justify-content:safe_center]" onPointerDown={() => { setSelId(null); setSelText(null) }}>
         <div className="inline-block">
           <div ref={stripRef} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }}
+            onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) dropPhotoAt(id, e.clientX, e.clientY) }}
             className="relative shadow-2xl select-none touch-none"
             style={{ height: 'min(64vh, 620px)', aspectRatio: String(stripAspect), background: strip.bg ?? '#fff', containerType: 'size' }}
             onPointerDown={(e) => e.stopPropagation()}>
@@ -557,7 +571,7 @@ export default function CaroselloPage() {
                 <div key={el.id} onPointerDown={(e) => startDrag(e, 'move', el, 'el')}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOverId(el.id) }}
                   onDragLeave={() => setDragOverId((d) => (d === el.id ? null : d))}
-                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); setDragOverId(null); if (id) { updateEl(el.id, (x) => ({ ...x, mediaId: id })); setSelId(el.id); setModelKey(null) } }}
+                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const id = e.dataTransfer.getData('text/plain'); setDragOverId(null); if (id) { updateEl(el.id, (x) => ({ ...x, mediaId: id })); setSelId(el.id); setModelKey(null) } }}
                   className={`absolute overflow-hidden cursor-move ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-20' : 'z-10'} ${dragOverId === el.id ? 'ring-4 ring-[rgb(var(--gold-500))]' : ''}`}
                   style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>
                   {src ? <img src={src} alt="" draggable={false} style={coverImgStyle(el.cell)} />
@@ -675,7 +689,7 @@ export default function CaroselloPage() {
       {/* TRAY selezione foto */}
       <div className="sticky bottom-0 z-20 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-3 py-2">
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <p className="text-[11px] text-[rgb(var(--fg-muted))]">Trascina una foto su uno slot (o toccala) · <kbd className="px-1 rounded bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))]">Canc</kbd> elimina lo slot · la <strong>tua</strong> selezione carosello ({media.length})</p>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))]">Tocca una foto → va sulla pagina che stai guardando · <strong>trascinala dove vuoi</strong> sulla tavola (o su uno slot) · <kbd className="px-1 rounded bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))]">Canc</kbd> elimina · la <strong>tua</strong> selezione ({media.length})</p>
           {isOwner && (
             <Button variant="gold" size="sm" onClick={() => setPickerOpen(true)} className="shrink-0">
               <Heart size={13} /> Seleziona foto
