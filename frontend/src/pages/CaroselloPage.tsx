@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
-  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2,
+  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2, Maximize2,
   Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight,
   ChevronDown, LayoutGrid, Newspaper, Palette, Image as ImageIcon,
 } from 'lucide-react'
@@ -425,6 +425,15 @@ export default function CaroselloPage() {
   function removeSel() { if (!sel) return; snapshot(); setElements(elements.filter((e) => e.id !== sel.id)); setSelId(null); setModelKey(null) }
   function duplicateSel() { if (!sel) return; snapshot(); const c = { ...sel, id: uid(), x: Math.min(0.9, sel.x + 0.02), y: Math.min(0.9, sel.y + 0.02) }; setElements([...elements, c]); setSelId(c.id); setModelKey(null) }
   function bringFront() { if (!sel) return; snapshot(); setElements([...elements.filter((e) => e.id !== sel.id), sel]); setModelKey(null) }
+  // Riempi tavola: fa combaciare la foto con UNA tavola intera (quella in cui si trova), così ritagli
+  // preciso dentro quella tavola. Poi col navigatore/zoom scegli l'inquadratura.
+  function fillTavola() {
+    if (!sel) return
+    const k = slideOf(sel)
+    snapshot()
+    updateEl(sel.id, (e) => ({ ...e, x: k / n, y: 0, w: 1 / n, h: 1, rot: 0 }))
+    toast.success(`Foto adattata alla tavola ${k + 1}`)
+  }
   // Riordino: scambia il CONTENUTO di due slide adiacenti. Sposta gli elementi il cui centro cade
   // nella slide a↔b; quelli che ATTRAVERSANO il confine (seamless) restano dove sono.
   function swapSlides(a: number, b: number) {
@@ -754,6 +763,10 @@ export default function CaroselloPage() {
             </div>
           )}
           <div className="flex items-center gap-1.5 rounded-full bg-[rgb(var(--bg))] border border-[rgb(var(--border))] shadow-lg px-2 py-1.5">
+            {sel.mediaId && (
+              <button title="Adatta la foto a UNA tavola intera (poi ritaglia dentro)" onClick={fillTavola}
+                className="text-[11px] px-2 py-1 rounded-full inline-flex items-center gap-1 bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] hover:bg-[rgb(var(--gold-200))]"><Maximize2 size={14} /> Riempi tavola</button>
+            )}
             {sel.mediaId && (
               <button title="Ritaglio: sposta il fuoco, zoom, ruota, specchia" onClick={() => setCropOpen((o) => !o)}
                 className={`text-[11px] px-2 py-1 rounded-full inline-flex items-center gap-1 ${cropOpen ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><Crop size={14} /> Ritaglio</button>
