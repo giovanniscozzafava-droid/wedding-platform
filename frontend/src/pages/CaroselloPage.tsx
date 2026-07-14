@@ -250,9 +250,30 @@ export default function CaroselloPage() {
   function undo() { const h = histRef.current.pop(); if (!h) return; futRef.current.push(cur.current); setStrip(h.strip); setTexts(h.texts); setSelId(null); setSelText(null); setModelKey(null); syncUR() }
   function redo() { const f = futRef.current.pop(); if (!f) return; histRef.current.push(cur.current); setStrip(f.strip); setTexts(f.texts); setSelId(null); setSelText(null); syncUR() }
 
+  // Ambito di applicazione di modelli/preset: TUTTE le slide oppure SOLO la pagina (foglio) corrente.
+  const [perPage, setPerPage] = useState(false)
+  const slideOf = (g: { x: number; w: number }) => Math.floor((g.x + g.w / 2) * n)
+  // Rimappa elementi/testi costruiti per UNA slide (coord. 0..1) dentro la slide k della strip.
+  function remapToSlide<T extends { x: number; w: number; id: string }>(arr: T[], k: number): T[] {
+    return arr.map((e) => ({ ...e, id: uid(), x: (k + e.x) / n, w: e.w / n }))
+  }
+  // Foto ancora non usate nella strip (per pre-riempire un modello sulla singola pagina senza ripetere).
+  function unusedIds(): string[] {
+    const used = new Set(elements.map((e) => e.mediaId).filter(Boolean))
+    return keptIds.filter((id) => !used.has(id))
+  }
+
   function applyModel(key: string) {
     snapshot()
     const model = getModel(key)
+    if (perPage) {                                   // solo la pagina corrente
+      const k = curSlide
+      const built = remapToSlide(model.build(1, unusedIds()), k)
+      setElements([...elements.filter((e) => slideOf(e) !== k), ...built])
+      setModelKey(null); setSelId(null); setSelText(null)
+      toast.success(`Modello "${model.label}" sulla pagina ${k + 1}`)
+      return
+    }
     setElements(model.build(n, keptIds))
     setModelKey(key)
     setSelId(null); setSelText(null)
@@ -261,6 +282,15 @@ export default function CaroselloPage() {
   function applyPreset(key: string) {
     const preset = getPreset(key); if (!preset) return
     snapshot()
+    if (perPage) {                                   // solo la pagina corrente
+      const k = curSlide
+      const built = preset.build(1, unusedIds())
+      setElements([...elements.filter((e) => slideOf(e) !== k), ...remapToSlide(built.elements, k)])
+      setTexts([...texts.filter((t) => slideOf(t) !== k), ...remapToSlide(built.texts, k)])
+      setModelKey(null); setSelId(null); setSelText(null)
+      toast.success(`Preset "${preset.label}" sulla pagina ${k + 1} · sostituisci foto e testi`)
+      return
+    }
     const built = preset.build(n, keptIds)
     setElements(built.elements); setTexts(built.texts); setModelKey(null); setSelId(null); setSelText(null)
     toast.success(`Preset "${preset.label}" applicato · sostituisci le foto e cambia i testi`)
@@ -433,6 +463,13 @@ export default function CaroselloPage() {
           <button onClick={() => changeN(n - 1)} disabled={n <= 1} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Minus size={14} /></button>
           <span className="text-sm tabular-nums w-16 text-center">{n} slide</span>
           <button onClick={() => changeN(n + 1)} disabled={n >= 20} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Plus size={14} /></button>
+        </div>
+        <span className="mx-0.5 h-5 w-px bg-[rgb(var(--border))]" />
+
+        {/* AMBITO: modelli e preset su TUTTE le slide o solo sulla pagina corrente (singolo foglio) */}
+        <div className="inline-flex items-center rounded-lg border border-[rgb(var(--border))] overflow-hidden text-xs shrink-0" title="Dove applicare Modelli e Preset">
+          <button onClick={() => setPerPage(false)} className={`px-2 py-1 ${!perPage ? 'bg-[rgb(var(--gold-500))] text-white' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>Tutte</button>
+          <button onClick={() => setPerPage(true)} className={`px-2 py-1 ${perPage ? 'bg-[rgb(var(--gold-500))] text-white' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>Pagina {curSlide + 1}</button>
         </div>
         <span className="mx-0.5 h-5 w-px bg-[rgb(var(--border))]" />
 

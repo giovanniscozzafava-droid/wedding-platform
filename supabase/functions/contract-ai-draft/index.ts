@@ -10,7 +10,9 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
 const BASE_URL = Deno.env.get('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
-const MODEL = Deno.env.get('QWEN_TEXT_MODEL') ?? 'qwen-max'
+// qwen-plus: molto più veloce di qwen-max a parità di qualità sui contratti (qwen-max ci metteva troppo);
+// override con QWEN_TEXT_MODEL se serve (es. qwen-turbo ancora più rapido, qwen-max più "ricco").
+const MODEL = Deno.env.get('QWEN_TEXT_MODEL') ?? 'qwen-plus'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -157,7 +159,7 @@ ${JSON.stringify(dossier, null, 2)}`
     const r = await fetch(`${BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${QWEN_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, temperature: 0.2, max_tokens: 4000, messages: [{ role: 'user', content: PROMPT }] }),
+      body: JSON.stringify({ model: MODEL, temperature: 0.2, max_tokens: 2600, messages: [{ role: 'user', content: PROMPT }] }),
     })
     if (!r.ok) return json({ ok: false, error: 'ai_error', detail: (await r.text()).slice(0, 300) })
     const d = await r.json()
