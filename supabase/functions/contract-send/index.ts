@@ -46,8 +46,6 @@ Deno.serve(async (req) => {
     const { data: callerProfile } = await admin.from('profiles').select('role').eq('id', callerId).maybeSingle()
     if (callerProfile?.role !== 'ADMIN') return json({ error: 'forbidden' }, 403)
   }
-  if (!c.client_email) return json({ error: 'no_client_email' }, 400)
-
   // Assicura un access_token per il link di firma.
   let token = c.access_token as string | null
   if (!token) {
@@ -63,6 +61,9 @@ Deno.serve(async (req) => {
   const primary = owner?.brand_primary_color ?? '#1A2E4F'
 
   const link = `${APP_BASE}/p/contract/${token}`
+  // Nessuna email cliente (es. cliente diretto): il link di firma esiste comunque → si condivide via
+  // WhatsApp / copia. "Portare alla firma" non deve fallire solo perché manca l'indirizzo email.
+  if (!c.client_email) return json({ ok: true, link, skipped: 'no_email' })
   const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(c.total_amount ?? 0))
   const isSigned = c.status === 'FIRMATO'
   const subject = isSigned ? `Copia del contratto · ${c.title}` : `Contratto da firmare · ${c.title}`
