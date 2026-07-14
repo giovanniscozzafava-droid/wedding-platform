@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
 import { MOMENTS, getMoment } from '@/lib/albumMoments'
@@ -51,6 +51,25 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [salesEnabled, setSalesEnabled] = useState(false)
   const [albumOpen, setAlbumOpen] = useState(false)
   const [tagFilter, setTagFilter] = useState<string[]>([])
+  // Cartelle collassabili: di default mostrate come intestazione + anteprima, così TUTTE sono subito
+  // visibili (niente cartella grande che seppellisce le altre). L'utente apre quella che vuole.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const expandedInit = useRef(false)
+  const toggleExpand = (id: string) => setExpanded((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  function scrollToFolder(id: string) {
+    setExpanded((s) => new Set(s).add(id))
+    setTimeout(() => document.getElementById(`folder-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+  }
+  // Riordino cartelle (solo owner): sposta su/giù scambiando il sort_order col vicino.
+  async function moveFolder(f: Folder, dir: -1 | 1) {
+    const ordered = [...folders]
+    const i = ordered.findIndex((x) => x.id === f.id); const j = i + dir
+    if (j < 0 || j >= ordered.length) return
+    const a = ordered[i]!, b = ordered[j]!
+    setFolders((fs) => { const c = [...fs]; c[i] = b; c[j] = a; return c })   // ottimistico
+    await (supabase.from as any)('gallery_folders').update({ sort_order: j }).eq('id', a.id)
+    await (supabase.from as any)('gallery_folders').update({ sort_order: i }).eq('id', b.id)
+  }
   const [guestLinkUrl, setGuestLinkUrl] = useState<string | null>(null)
   const [driveModal, setDriveModal] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -137,6 +156,14 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   }, [entryId])
 
   useEffect(() => { void load() }, [load])
+  // Default apertura: apri le cartelle del LAVORO (non ospiti) così la coppia vede subito le foto del
+  // fotografo; se ci sono solo cartelle ospiti, aprile tutte. Una volta sola (non sovrascrive le scelte).
+  useEffect(() => {
+    if (expandedInit.current || folders.length === 0) return
+    expandedInit.current = true
+    const work = folders.filter((f) => f.level !== 'INVITATI').map((f) => f.id)
+    setExpanded(new Set(work.length ? work : folders.map((f) => f.id)))
+  }, [folders])
   // Il negozio stampe è acceso per questo evento? (gata il bottone "Stampa" nel lightbox)
   useEffect(() => { void (async () => { const { data } = await (supabase as any).rpc('print_shop_for_entry', { p_entry: entryId }); setPrintOn(!!(data as { enabled?: boolean } | null)?.enabled) })() }, [entryId])
 
@@ -653,7 +680,25 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
       {folders.length === 0 && <p className="text-sm text-[rgb(var(--fg-subtle))]">Nessuna cartella ancora.</p>}
 
+      {/* INDICE CARTELLE: tutte le cartelle sempre visibili in cima → tocca per aprirla e saltarci. */}
+      {folders.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Cartelle:</span>
+          {folders.map((f) => {
+            const lvl = LEVELS.find((l) => l.v === f.level)
+            return (
+              <button key={f.id} onClick={() => scrollToFolder(f.id)}
+                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">
+                {lvl && <lvl.icon size={12} className="text-[rgb(var(--gold-700))]" />}
+                <span className="font-medium">{f.name}</span> <span className="text-[rgb(var(--fg-subtle))]">{f.gallery_media.length}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {folders.map((f) => {
+        const isOpen = expanded.has(f.id)
         const lvl = LEVELS.find((l) => l.v === f.level)
         const isGuestFolder = f.level === 'INVITATI'
         // Catalogo: tag presenti tra le foto degli ospiti, per filtrare/distribuire ai professionisti.
@@ -662,19 +707,22 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           ? f.gallery_media.filter((m) => (m.guest_tags ?? []).some((t) => tagFilter.includes(t)))
           : f.gallery_media
         return (
-          <Card key={f.id} className="p-4">
+          <Card key={f.id} id={`folder-${f.id}`} className="p-4 scroll-mt-4">
             <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                {lvl && <lvl.icon size={16} className="text-[rgb(var(--gold-700))]" />}
-                <h3 className="font-medium">{f.name} <span className="text-xs font-normal text-[rgb(var(--fg-subtle))]">({f.gallery_media.length} foto)</span></h3>
-                <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))] text-[10px]">{lvl?.l ?? f.level}</Badge>
+              <button type="button" onClick={() => toggleExpand(f.id)} className="flex items-center gap-2 text-left min-w-0">
+                {isOpen ? <ChevronDown size={16} className="shrink-0 text-[rgb(var(--fg-muted))]" /> : <ChevronRight size={16} className="shrink-0 text-[rgb(var(--fg-muted))]" />}
+                {lvl && <lvl.icon size={16} className="shrink-0 text-[rgb(var(--gold-700))]" />}
+                <h3 className="font-medium truncate">{f.name} <span className="text-xs font-normal text-[rgb(var(--fg-subtle))]">({f.gallery_media.length} foto)</span></h3>
+                <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))] text-[10px] shrink-0">{lvl?.l ?? f.level}</Badge>
                 {f.level === 'LAVORO_INTERO' && (f.shared
                   ? <Badge className="bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] text-[10px]"><Check size={10} /> condivisa</Badge>
                   : <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] text-[10px]">non condivisa</Badge>)}
-                {salesEnabled && f.is_for_sale && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px]">€{((f.price_cents ?? 0) / 100).toFixed(0)} a pagamento</Badge>}
-              </div>
+                {salesEnabled && f.is_for_sale && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px] shrink-0">€{((f.price_cents ?? 0) / 100).toFixed(0)} a pagamento</Badge>}
+              </button>
               {isOwner && (
                 <div className="flex items-center gap-1.5">
+                  <Button variant="ghost" size="icon" title="Sposta su" disabled={busy} onClick={() => moveFolder(f, -1)}><ArrowUp size={13} /></Button>
+                  <Button variant="ghost" size="icon" title="Sposta giù" disabled={busy} onClick={() => moveFolder(f, 1)}><ArrowDown size={13} /></Button>
                   {f.level === 'LAVORO_INTERO' && <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleShared(f)}>{f.shared ? 'Non condividere' : 'Condividi al cerchio'}</Button>}
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => addDemoPhotos(f)}><Sparkles size={12} /> Foto demo</Button>
@@ -683,6 +731,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 </div>
               )}
             </div>
+            {isOpen ? (
+            <>
             {/* Catalogo foto ospiti: filtro per tag (per ritrovarle e distribuirle) */}
             {isGuestFolder && availTags.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mb-3">
@@ -722,6 +772,30 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                   </button>
                 ))}
               </div>
+            )}
+            <button type="button" onClick={() => toggleExpand(f.id)} className="mt-3 inline-flex items-center gap-1 text-xs text-[rgb(var(--fg-muted))] hover:underline"><ChevronDown size={13} className="rotate-180" /> Comprimi cartella</button>
+            </>
+            ) : (
+              f.gallery_media.length === 0 ? (
+                <p className="text-xs text-[rgb(var(--fg-subtle))]">Nessuna foto. {isOwner && 'Usa “Carica foto” (vanno sul tuo Drive) o “Foto demo”.'}</p>
+              ) : (
+                <div>
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+                    {f.gallery_media.slice(0, 8).map((m, idx) => (
+                      <button key={m.id} type="button" onClick={() => setBox({ list: f.gallery_media, i: idx })}
+                        className="relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] cursor-zoom-in" style={{ aspectRatio: '1' }}>
+                        {m.media_type === 'VIDEO' && !isDrive(m)
+                          ? <video src={m.thumbnail_link ?? ''} muted preload="metadata" className="w-full h-full object-cover" />
+                          : m.thumbnail_link && <img src={m.thumbnail_link} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                        {m.media_type === 'VIDEO' && <span className="absolute inset-0 grid place-items-center"><Play size={16} className="text-white/90 fill-white" /></span>}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => toggleExpand(f.id)} className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-[rgb(var(--gold-700))] hover:underline">
+                    <ChevronDown size={14} /> Apri cartella — {f.gallery_media.length} foto
+                  </button>
+                </div>
+              )
             )}
           </Card>
         )
