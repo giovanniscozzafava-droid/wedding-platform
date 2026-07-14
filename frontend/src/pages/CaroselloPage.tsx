@@ -265,19 +265,25 @@ export default function CaroselloPage() {
     setElements(built.elements); setTexts(built.texts); setModelKey(null); setSelId(null); setSelText(null)
     toast.success(`Preset "${preset.label}" applicato · sostituisci le foto e cambia i testi`)
   }
-  // Navigazione tra le (fino a 20) pagine: salta a una slide e centrala; evidenzia quella corrente.
+  // Navigazione tra le (fino a 20) pagine. Uso i bounding rect REALI (robusto a padding/centratura):
+  // la strip può essere centrata quando ci sta, o allineata a sinistra quando eccede ("safe center").
   function goToSlide(i: number) {
     const sc = scrollRef.current, st = stripRef.current
     if (!sc || !st) return
-    const slideW = st.offsetWidth / Math.max(1, n)
-    sc.scrollTo({ left: Math.max(0, i * slideW + slideW / 2 - sc.clientWidth / 2), behavior: 'smooth' })
+    const scR = sc.getBoundingClientRect(), stR = st.getBoundingClientRect()
+    const slideW = stR.width / Math.max(1, n)
+    const stripLeftInContent = sc.scrollLeft + (stR.left - scR.left)   // sx della strip nel sistema di scroll
+    const target = stripLeftInContent + i * slideW + slideW / 2 - sc.clientWidth / 2
+    sc.scrollTo({ left: Math.max(0, target), behavior: 'smooth' })
     setSelId(null); setSelText(null)
   }
   function onScrollStrip() {
     const sc = scrollRef.current, st = stripRef.current
     if (!sc || !st) return
-    const slideW = st.offsetWidth / Math.max(1, n)
-    setCurSlide(Math.max(0, Math.min(n - 1, Math.floor((sc.scrollLeft + sc.clientWidth / 2) / Math.max(1, slideW)))))
+    const scR = sc.getBoundingClientRect(), stR = st.getBoundingClientRect()
+    const slideW = stR.width / Math.max(1, n)
+    const centerInStrip = (scR.left + scR.width / 2) - stR.left           // centro viewport rispetto alla strip
+    setCurSlide(Math.max(0, Math.min(n - 1, Math.floor(centerInStrip / Math.max(1, slideW)))))
   }
 
   function changeN(next: number) {
@@ -498,7 +504,7 @@ export default function CaroselloPage() {
       )}
 
       {/* STRIP EDITOR */}
-      <div ref={scrollRef} onScroll={onScrollStrip} className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start justify-center" onPointerDown={() => { setSelId(null); setSelText(null) }}>
+      <div ref={scrollRef} onScroll={onScrollStrip} className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start [justify-content:safe_center]" onPointerDown={() => { setSelId(null); setSelText(null) }}>
         <div className="inline-block">
           <div ref={stripRef} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
             className="relative shadow-2xl select-none touch-none"
