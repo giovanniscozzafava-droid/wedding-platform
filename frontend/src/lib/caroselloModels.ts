@@ -53,7 +53,7 @@ const model = (key: string, label: string, hint: string, rects: Rect[], group: '
   key, label, hint, group, photosFor: (n) => n * rects.length, build: (n, ids) => tile(n, ids, rects),
 })
 
-const hh = (1 - gy) / 2, ww = (1 - gx) / 2, w3 = (1 - 2 * gx) / 3
+const hh = (1 - gy) / 2, ww = (1 - gx) / 2, w3 = (1 - 2 * gx) / 3, h3 = (1 - 2 * gy) / 3
 const hair = 0.004 // gutter finissimo (dittici editoriali)
 
 // PREFORMAT EDITORIALI (stile rivista): molto bianco, asimmetria, foto ancorate. Ogni slide
@@ -93,11 +93,16 @@ export const CAROUSEL_MODELS: CarouselModel[] = [
   // — layout ripetuto per slide (basta inserire le foto) —
   model('one', 'Piena · una per slide', 'Una foto a tutta slide: racconto pulito e forte.', [{ x: 0, y: 0, w: 1, h: 1 }]),
   model('framed', 'Cornice editoriale', 'Foto con margine su sfondo: stile rivista.', [{ x: 0.07, y: 0.055, w: 0.86, h: 0.89 }]),
-  model('stack2', 'Due impilate', 'Due foto una sopra l’altra per slide.', [{ x: 0, y: 0, w: 1, h: hh }, { x: 0, y: hh + gy, w: 1, h: hh }]),
-  model('cols2', 'Due affiancate', 'Due foto verticali fianco a fianco.', [{ x: 0, y: 0, w: ww, h: 1 }, { x: ww + gx, y: 0, w: ww, h: 1 }]),
-  model('grid4', 'Griglia 2×2', 'Quattro foto a griglia per slide: tanti momenti.', [
+  model('stack2', 'Due impilate · 2 foto', 'Due foto una sopra l’altra per slide.', [{ x: 0, y: 0, w: 1, h: hh }, { x: 0, y: hh + gy, w: 1, h: hh }]),
+  model('cols2', 'Due affiancate · 2 foto', 'Due foto verticali fianco a fianco.', [{ x: 0, y: 0, w: ww, h: 1 }, { x: ww + gx, y: 0, w: ww, h: 1 }]),
+  model('grid4', 'Griglia 2×2 · 4 foto', 'Quattro foto a griglia per slide: tanti momenti.', [
     { x: 0, y: 0, w: ww, h: hh }, { x: ww + gx, y: 0, w: ww, h: hh },
     { x: 0, y: hh + gy, w: ww, h: hh }, { x: ww + gx, y: hh + gy, w: ww, h: hh },
+  ]),
+  model('grid6', 'Griglia 2×3 · 6 foto', 'Sei foto a griglia per slide: massimo racconto.', [
+    { x: 0, y: 0, w: ww, h: h3 }, { x: ww + gx, y: 0, w: ww, h: h3 },
+    { x: 0, y: h3 + gy, w: ww, h: h3 }, { x: ww + gx, y: h3 + gy, w: ww, h: h3 },
+    { x: 0, y: 2 * (h3 + gy), w: ww, h: h3 }, { x: ww + gx, y: 2 * (h3 + gy), w: ww, h: h3 },
   ]),
   model('bands3', 'Tre bande verticali', 'Tre foto verticali affiancate.', [
     { x: 0, y: 0, w: w3, h: 1 }, { x: w3 + gx, y: 0, w: w3, h: 1 }, { x: 2 * (w3 + gx), y: 0, w: w3, h: 1 },

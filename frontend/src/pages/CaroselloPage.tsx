@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
-  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check, Heart,
+  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2,
   Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight,
   ChevronDown, LayoutGrid, Newspaper, Palette, Image as ImageIcon,
 } from 'lucide-react'
+import type { Cell } from '@/lib/albumGeometry'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -78,6 +79,51 @@ const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m
 const uid = () => { try { return crypto.randomUUID() } catch { return `c-${Date.now()}-${Math.floor(Math.random() * 1e9)}` } }
 const BG_SWATCHES = ['#ffffff', '#faf7f2', '#111111', '#0b1f3a', '#e9d9c3']
 
+// Navigatore di RITAGLIO (come nell'impaginatore album): trascina per spostare il ritaglio (fx/fy),
+// slider zoom, raddrizza/ruota 90°, Riempi (azzera), specchia H/V. Usa lo stesso Cell del rendering.
+function CropNav({ src, aspect, cell, onChange }: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null)
+  const z = Math.max(1, cell.z || 1)
+  const r = cell.r ?? 0, quarter = Math.round(r / 90) * 90, fine = Math.max(-45, Math.min(45, r - quarter))
+  function down(e: React.PointerEvent) { drag.current = { x: e.clientX, y: e.clientY, fx: cell.fx ?? 0.5, fy: cell.fy ?? 0.5 }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) }
+  function move(e: React.PointerEvent) {
+    const d = drag.current; if (!d || !ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    const nfx = Math.min(1, Math.max(0, d.fx - (e.clientX - d.x) / Math.max(1, rect.width) / z))
+    const nfy = Math.min(1, Math.max(0, d.fy - (e.clientY - d.y) / Math.max(1, rect.height) / z))
+    onChange({ ...cell, fx: nfx, fy: nfy })
+  }
+  function up() { drag.current = null }
+  return (
+    <div className="space-y-1.5 w-[min(88vw,300px)]">
+      <div ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}
+        className="relative w-full overflow-hidden rounded border border-[rgb(var(--border))] cursor-move touch-none bg-black/5"
+        style={{ aspectRatio: String(aspect > 0 ? aspect : 1) }}>
+        {src ? <img src={src} alt="" draggable={false} style={coverImgStyle(cell, aspect > 0 ? aspect : 1)} /> : null}
+        <span className="absolute bottom-0.5 left-0.5 text-[8px] bg-black/55 text-white rounded px-1 pointer-events-none">trascina il ritaglio</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <ZoomOut size={13} className="shrink-0 text-[rgb(var(--fg-subtle))]" />
+        <input type="range" min={1} max={4} step={0.05} value={z} onChange={(e) => onChange({ ...cell, z: +e.target.value })} className="flex-1 accent-[rgb(var(--gold-600))]" />
+        <ZoomIn size={13} className="shrink-0 text-[rgb(var(--fg-subtle))]" />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <RotateCw size={13} className="shrink-0 text-[rgb(var(--fg-subtle))]" />
+        <input type="range" min={-45} max={45} step={1} value={fine} title="Raddrizza la foto"
+          onChange={(e) => onChange({ ...cell, r: quarter + (+e.target.value) })} className="flex-1 accent-[rgb(var(--gold-600))]" />
+        <button title="Ruota 90° a sinistra" onClick={() => onChange({ ...cell, r: r - 90 })} className="h-6 w-6 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center justify-center"><RotateCw size={11} className="-scale-x-100" /></button>
+        <button title="Ruota 90° a destra" onClick={() => onChange({ ...cell, r: r + 90 })} className="h-6 w-6 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] inline-flex items-center justify-center"><RotateCw size={11} /></button>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <button onClick={() => onChange({ z: 1, fx: 0.5, fy: 0.5, r: 0, fh: false, fv: false })} className="text-[11px] px-2 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">Riempi</button>
+        <button title="Specchia in orizzontale" onClick={() => onChange({ ...cell, fh: !cell.fh })} className={`h-6 w-6 rounded border inline-flex items-center justify-center ${cell.fh ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}><FlipHorizontal2 size={12} /></button>
+        <button title="Specchia in verticale" onClick={() => onChange({ ...cell, fv: !cell.fv })} className={`h-6 w-6 rounded border inline-flex items-center justify-center ${cell.fv ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}><FlipVertical2 size={12} /></button>
+      </div>
+    </div>
+  )
+}
+
 export default function CaroselloPage() {
   const { entryId } = useParams<{ entryId: string }>()
   // Tutte le foto del servizio (per il pannello di selezione) + selezione carosello del FOTOGRAFO
@@ -99,6 +145,8 @@ export default function CaroselloPage() {
   const [exportProg, setExportProg] = useState<{ done: number; total: number; zip?: number } | null>(null)
   const loadedRef = useRef(false)
   const stripRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [curSlide, setCurSlide] = useState(0)
   const autoTimer = useRef<number | undefined>(undefined)
 
   const fmt = getCarouselFormat(format)
@@ -111,6 +159,10 @@ export default function CaroselloPage() {
   const elements = strip.elements ?? []
   const sel = elements.find((e) => e.id === selId) ?? null
   const selT = texts.find((t) => t.id === selText) ?? null
+  // Navigatore ritaglio del selezionato: sorgente immagine + aspetto reale della cornice sulla strip.
+  const [cropOpen, setCropOpen] = useState(false)
+  const selSrc = sel?.mediaId ? (isDirectSrc(sel.mediaId) ? sel.mediaId : (mediaById.get(sel.mediaId) ? hiUrl(mediaById.get(sel.mediaId)!) : '')) : ''
+  const selAspect = sel ? (sel.w * fmt.w * n) / Math.max(1e-6, sel.h * fmt.h) : 1
 
   // ── LOAD: tutte le foto (per selezionare) + selezione carosello del fotografo + progetto salvato ──
   useEffect(() => {
@@ -213,6 +265,21 @@ export default function CaroselloPage() {
     setElements(built.elements); setTexts(built.texts); setModelKey(null); setSelId(null); setSelText(null)
     toast.success(`Preset "${preset.label}" applicato · sostituisci le foto e cambia i testi`)
   }
+  // Navigazione tra le (fino a 20) pagine: salta a una slide e centrala; evidenzia quella corrente.
+  function goToSlide(i: number) {
+    const sc = scrollRef.current, st = stripRef.current
+    if (!sc || !st) return
+    const slideW = st.offsetWidth / Math.max(1, n)
+    sc.scrollTo({ left: Math.max(0, i * slideW + slideW / 2 - sc.clientWidth / 2), behavior: 'smooth' })
+    setSelId(null); setSelText(null)
+  }
+  function onScrollStrip() {
+    const sc = scrollRef.current, st = stripRef.current
+    if (!sc || !st) return
+    const slideW = st.offsetWidth / Math.max(1, n)
+    setCurSlide(Math.max(0, Math.min(n - 1, Math.floor((sc.scrollLeft + sc.clientWidth / 2) / Math.max(1, slideW)))))
+  }
+
   function changeN(next: number) {
     snapshot()
     const nn = Math.min(20, Math.max(1, next))
@@ -417,8 +484,21 @@ export default function CaroselloPage() {
         <span className="ml-auto text-[11px] text-[rgb(var(--fg-subtle))]">{savedAt ? '✓ salvato' : 'bozza'}</span>
       </div>
 
+      {/* NAVIGATORE PAGINE: salta a una qualunque delle (fino a 20) slide */}
+      {n > 1 && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))]">
+          <span className="text-[11px] text-[rgb(var(--fg-muted))] shrink-0">Pagine ({n}):</span>
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+            {Array.from({ length: n }, (_, i) => (
+              <button key={i} onClick={() => goToSlide(i)} title={`Vai alla pagina ${i + 1}`}
+                className={`h-7 min-w-[28px] px-1.5 rounded-md text-[11px] font-medium tabular-nums shrink-0 border transition-colors ${curSlide === i ? 'bg-[rgb(var(--gold-500))] text-white border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{i + 1}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* STRIP EDITOR */}
-      <div className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start justify-center" onPointerDown={() => { setSelId(null); setSelText(null) }}>
+      <div ref={scrollRef} onScroll={onScrollStrip} className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start justify-center" onPointerDown={() => { setSelId(null); setSelText(null) }}>
         <div className="inline-block">
           <div ref={stripRef} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
             className="relative shadow-2xl select-none touch-none"
@@ -488,18 +568,29 @@ export default function CaroselloPage() {
         </div>
       </div>
 
-      {/* TOOLBAR elemento selezionato */}
+      {/* TOOLBAR elemento selezionato + navigatore di ritaglio (come nell'impaginatore album) */}
       {sel && (
-        <div className="sticky bottom-[76px] z-30 mx-auto mb-1 flex items-center gap-1.5 rounded-full bg-[rgb(var(--bg))] border border-[rgb(var(--border))] shadow-lg px-2 py-1.5">
-          <button title="Zoom -" onClick={() => updateCell(sel.id, { z: Math.max(1, +(sel.cell.z - 0.1).toFixed(2)) })} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ZoomOut size={16} /></button>
-          <span className="text-[11px] tabular-nums w-9 text-center">{Math.round((sel.cell.z || 1) * 100)}%</span>
-          <button title="Zoom +" onClick={() => updateCell(sel.id, { z: Math.min(3, +(sel.cell.z + 0.1).toFixed(2)) })} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ZoomIn size={16} /></button>
-          <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
-          <button title="Ombra" onClick={() => updateEl(sel.id, (e) => ({ ...e, shadow: !e.shadow }))} className={`text-[11px] px-2 py-1 rounded-full ${sel.shadow ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>Ombra</button>
-          <button title="Porta avanti" onClick={bringFront} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ArrowUpToLine size={16} /></button>
-          <button title="Duplica" onClick={duplicateSel} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><Copy size={16} /></button>
-          <button title="Elimina" onClick={removeSel} className="p-1.5 rounded-full text-rose-500 hover:bg-rose-50"><Trash2 size={16} /></button>
-          <button title="Chiudi" onClick={() => setSelId(null)} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><X size={16} /></button>
+        <div className="sticky bottom-[76px] z-30 mx-auto mb-1 flex flex-col items-center gap-1.5">
+          {cropOpen && sel.mediaId && (
+            <div className="rounded-2xl bg-[rgb(var(--bg))] border border-[rgb(var(--border))] shadow-lg p-2.5">
+              <CropNav src={selSrc} aspect={selAspect} cell={sel.cell} onChange={(c) => updateCell(sel.id, c)} />
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 rounded-full bg-[rgb(var(--bg))] border border-[rgb(var(--border))] shadow-lg px-2 py-1.5">
+            {sel.mediaId && (
+              <button title="Ritaglio: sposta il fuoco, zoom, ruota, specchia" onClick={() => setCropOpen((o) => !o)}
+                className={`text-[11px] px-2 py-1 rounded-full inline-flex items-center gap-1 ${cropOpen ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><Crop size={14} /> Ritaglio</button>
+            )}
+            <button title="Zoom -" onClick={() => updateCell(sel.id, { z: Math.max(1, +(sel.cell.z - 0.1).toFixed(2)) })} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ZoomOut size={16} /></button>
+            <span className="text-[11px] tabular-nums w-9 text-center">{Math.round((sel.cell.z || 1) * 100)}%</span>
+            <button title="Zoom +" onClick={() => updateCell(sel.id, { z: Math.min(3, +(sel.cell.z + 0.1).toFixed(2)) })} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ZoomIn size={16} /></button>
+            <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
+            <button title="Ombra" onClick={() => updateEl(sel.id, (e) => ({ ...e, shadow: !e.shadow }))} className={`text-[11px] px-2 py-1 rounded-full ${sel.shadow ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>Ombra</button>
+            <button title="Porta avanti" onClick={bringFront} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><ArrowUpToLine size={16} /></button>
+            <button title="Duplica" onClick={duplicateSel} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><Copy size={16} /></button>
+            <button title="Elimina" onClick={removeSel} className="p-1.5 rounded-full text-rose-500 hover:bg-rose-50"><Trash2 size={16} /></button>
+            <button title="Chiudi" onClick={() => { setCropOpen(false); setSelId(null) }} className="p-1.5 rounded-full hover:bg-[rgb(var(--bg-sunken))]"><X size={16} /></button>
+          </div>
         </div>
       )}
 
