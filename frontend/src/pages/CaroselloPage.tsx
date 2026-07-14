@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
-  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check,
+  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check, Heart,
   Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight,
   ChevronDown, LayoutGrid, Newspaper, Palette, Image as ImageIcon,
 } from 'lucide-react'
@@ -69,7 +69,7 @@ function snapGeo<T extends Geo>(e: T, n: number): T {
 
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
-  media_type: 'PHOTO' | 'VIDEO'; album_choice: 'KEPT' | 'DISCARDED' | null
+  media_type: 'PHOTO' | 'VIDEO'; carousel_pick?: boolean | null
 }
 const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:')
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
@@ -80,7 +80,12 @@ const BG_SWATCHES = ['#ffffff', '#faf7f2', '#111111', '#0b1f3a', '#e9d9c3']
 
 export default function CaroselloPage() {
   const { entryId } = useParams<{ entryId: string }>()
-  const [media, setMedia] = useState<M[]>([])
+  // Tutte le foto del servizio (per il pannello di selezione) + selezione carosello del FOTOGRAFO
+  // (carousel_pick), indipendente dalla selezione album degli sposi.
+  const [allPhotos, setAllPhotos] = useState<M[]>([])
+  const [isOwner, setIsOwner] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickBusy, setPickBusy] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [format, setFormat] = useState(DEFAULT_CAROUSEL_FORMAT)
   const [n, setN] = useState(3)
@@ -98,21 +103,28 @@ export default function CaroselloPage() {
 
   const fmt = getCarouselFormat(format)
   const stripAspect = (fmt.w * n) / fmt.h
+  // Pool del carosello = foto scelte dal fotografo (carousel_pick). mediaById invece copre TUTTE le foto,
+  // così una foto già piazzata nella slide resta visibile anche se la togli dalla selezione.
+  const media = useMemo(() => allPhotos.filter((m) => m.carousel_pick), [allPhotos])
   const keptIds = useMemo(() => media.map((m) => m.id), [media])
-  const mediaById = useMemo(() => new Map(media.map((m) => [m.id, m] as const)), [media])
+  const mediaById = useMemo(() => new Map(allPhotos.map((m) => [m.id, m] as const)), [allPhotos])
   const elements = strip.elements ?? []
   const sel = elements.find((e) => e.id === selId) ?? null
   const selT = texts.find((t) => t.id === selText) ?? null
 
-  // ── LOAD: selezione foto (KEPT) + progetto carosello salvato ────────────────
+  // ── LOAD: tutte le foto (per selezionare) + selezione carosello del fotografo + progetto salvato ──
   useEffect(() => {
     if (!entryId) return
     void (async () => {
+      const myUid = (await supabase.auth.getUser()).data.user?.id ?? null
+      const { data: gal } = await (supabase.from as any)('event_galleries').select('owner_id').eq('entry_id', entryId).maybeSingle()
+      setIsOwner(!!gal && (gal as { owner_id: string }).owner_id === myUid)
       const { data: gm } = await (supabase.from as any)('gallery_media')
-        .select('id, drive_file_id, thumbnail_link, media_type, album_choice')
-        .eq('entry_id', entryId).eq('media_type', 'PHOTO').eq('album_choice', 'KEPT')
-      const list = (gm as M[] | null) ?? []
-      setMedia(list)
+        .select('id, drive_file_id, thumbnail_link, media_type, carousel_pick')
+        .eq('entry_id', entryId).eq('media_type', 'PHOTO').order('id')
+      const all = (gm as M[] | null) ?? []
+      setAllPhotos(all)
+      const list = all.filter((m) => m.carousel_pick)
       const { data } = await (supabase.rpc as any)('carousel_project_get', { p_entry: entryId })
       const res = data as { exists?: boolean; format_key?: string; slides?: number; layout?: { strip?: AlbumPage; texts?: TextEl[] } } | null
       if (res?.exists && res.layout?.strip) {
@@ -208,6 +220,16 @@ export default function CaroselloPage() {
     if (modelKey) setElements(getModel(modelKey).build(nn, keptIds)) // rebuild premodello sul nuovo N
     setSelId(null); setSelText(null)
   }
+  // Selezione carosello (cuoricini): SOLO il fotografo. Indipendente dalla selezione album degli sposi.
+  async function togglePick(m: M) {
+    const next = !m.carousel_pick
+    setPickBusy(m.id)
+    const { error } = await (supabase.rpc as any)('carousel_toggle_pick', { p_media: m.id, p_pick: next })
+    setPickBusy(null)
+    if (error) { toast.error('Selezione non salvata'); return }
+    setAllPhotos((xs) => xs.map((x) => (x.id === m.id ? { ...x, carousel_pick: next } : x)))
+  }
+
   // assegna/sostituisci la foto: se c'è uno slot selezionato lo riempie; altrimenti il primo vuoto.
   function assignPhoto(mediaId: string) {
     snapshot()
@@ -518,9 +540,16 @@ export default function CaroselloPage() {
 
       {/* TRAY selezione foto */}
       <div className="sticky bottom-0 z-20 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-3 py-2">
-        <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1.5">Trascina una foto su uno slot per metterla lì (o toccala) · seleziona uno slot e premi <kbd className="px-1 rounded bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))]">Canc</kbd> per eliminarlo · dalla selezione dell’album ({media.length})</p>
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <p className="text-[11px] text-[rgb(var(--fg-muted))]">Trascina una foto su uno slot (o toccala) · <kbd className="px-1 rounded bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))]">Canc</kbd> elimina lo slot · la <strong>tua</strong> selezione carosello ({media.length})</p>
+          {isOwner && (
+            <Button variant="gold" size="sm" onClick={() => setPickerOpen(true)} className="shrink-0">
+              <Heart size={13} /> Seleziona foto
+            </Button>
+          )}
+        </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {media.length === 0 && <p className="text-sm text-[rgb(var(--fg-subtle))] py-2">Nessuna foto selezionata: scegli le foto nell’album (cuori) e torna qui.</p>}
+          {media.length === 0 && <p className="text-sm text-[rgb(var(--fg-subtle))] py-2">{isOwner ? 'Nessuna foto selezionata: tocca «Seleziona foto» e scegli i tuoi scatti (cuori) per il carosello.' : 'Il fotografo non ha ancora selezionato foto per il carosello.'}</p>}
           {media.map((m) => {
             const used = elements.some((e) => e.mediaId === m.id)
             return (
@@ -545,6 +574,39 @@ export default function CaroselloPage() {
             <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
               <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${exportProg.zip != null ? exportProg.zip : Math.round((exportProg.done / Math.max(1, exportProg.total)) * 100)}%` }} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SELEZIONE FOTO del carosello (cuoricini) — solo il fotografo. Separata dalla selezione album. */}
+      {pickerOpen && (
+        <div className="fixed inset-0 z-[96] flex flex-col bg-[rgb(var(--bg))]">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[rgb(var(--border))]">
+            <div>
+              <p className="font-display text-lg flex items-center gap-2"><Heart size={16} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> Seleziona le foto del carosello</p>
+              <p className="text-xs text-[rgb(var(--fg-muted))]">La <strong>tua</strong> selezione, separata da quella dell’album degli sposi · {media.length} scelte su {allPhotos.length}</p>
+            </div>
+            <Button variant="gold" size="sm" onClick={() => setPickerOpen(false)}><Check size={14} /> Fatto</Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
+            {allPhotos.length === 0 ? (
+              <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Nessuna foto nel servizio: carica le foto dalla sezione «Foto» dell’evento e torna qui.</p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                {allPhotos.map((m) => {
+                  const on = !!m.carousel_pick
+                  return (
+                    <button key={m.id} type="button" onClick={() => void togglePick(m)} disabled={pickBusy === m.id}
+                      className={`relative rounded-md overflow-hidden border-2 ${on ? 'border-[rgb(var(--gold-500))]' : 'border-transparent'} bg-[rgb(var(--bg-sunken))]`} style={{ aspectRatio: '1/1' }}>
+                      <img src={thumbUrl(m)} alt="" className="h-full w-full object-cover" loading="lazy" draggable={false} />
+                      <span className={`absolute inset-0 transition ${on ? '' : 'bg-black/0 hover:bg-black/15'}`} />
+                      <span className="absolute top-1 right-1"><Heart size={18} className={on ? 'fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))] drop-shadow' : 'text-white/90 drop-shadow'} /></span>
+                      {pickBusy === m.id && <span className="absolute inset-0 grid place-items-center bg-black/30"><Loader2 size={16} className="animate-spin text-white" /></span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

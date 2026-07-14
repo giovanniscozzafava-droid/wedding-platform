@@ -578,6 +578,18 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         </Card>
       )}
 
+      {/* CAROSELLO Instagram — voce a sé (fuori dall'impaginatore). Selezione foto del FOTOGRAFO,
+          separata dalla selezione album degli sposi. */}
+      {isOwner && folders.some((f) => f.gallery_media.length > 0) && (
+        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium flex items-center gap-2"><Sparkles size={16} className="text-[rgb(var(--gold-600))]" /> Carosello Instagram</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">Scegli tu gli scatti (i cuori del carosello sono una tua selezione, separata da quella degli sposi) e monta le slide collegate con effetto seamless.</p>
+          </div>
+          <Link to={`/carosello/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><Sparkles size={14} /> Apri Carosello</Button></Link>
+        </Card>
+      )}
+
       {/* Selezione album → scarica solo le selezionate in ZIP (fotografo e sposi) */}
       {(isOwner || role === 'sposi') && folders.some((f) => f.gallery_media.some((m) => m.album_choice === 'KEPT')) && (
         <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">

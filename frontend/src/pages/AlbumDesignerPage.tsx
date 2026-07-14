@@ -2827,7 +2827,7 @@ function AlbumDesignerInner() {
             <ToolToggle on={fullscreen} onClick={toggleFullscreen} icon={fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />} label={fullscreen ? 'Esci pieno' : 'Piena pagina'} />
             <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
             {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
-            <Link to={`/carosello/${entryId}`} title="Crea un carosello Instagram dalle stesse foto (slide collegate, effetto seamless)" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[rgb(var(--border))] text-sm font-medium hover:bg-[rgb(var(--bg-sunken))] transition-colors"><Sparkles size={14} /> Carosello</Link>
+            {/* Carosello spostato FUORI dall'impaginatore: ora è una voce a sé in Foto (dopo «Stampe d'autore»). */}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => { if (action.next === 'FINAL') { setFinalNote(''); setFinalDialog(true) } else void save(action.next) }}>{action.label}</Button>
             <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
             <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{statusLabel(status)}</span></span>
