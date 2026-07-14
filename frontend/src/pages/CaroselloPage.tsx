@@ -381,16 +381,16 @@ export default function CaroselloPage() {
   }
 
   // ── drag / resize (pointer) — generico per foto (el) e testo (text) ─────────
-  const drag = useRef<{ mode: 'move' | Corner; id: string; sx: number; sy: number; e0: Geo; arr: 'el' | 'text'; moved: boolean } | null>(null)
+  const drag = useRef<{ mode: 'move' | 'crop' | Corner; id: string; sx: number; sy: number; e0: Geo; arr: 'el' | 'text'; moved: boolean; cell0?: Cell } | null>(null)
   const ptTo01 = (clientX: number, clientY: number) => {
     const r = stripRef.current!.getBoundingClientRect()
     return { x: Math.min(1, Math.max(0, (clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (clientY - r.top) / r.height)) }
   }
-  function startDrag(e: React.PointerEvent, mode: 'move' | Corner, item: Geo & { id: string }, arr: 'el' | 'text') {
+  function startDrag(e: React.PointerEvent, mode: 'move' | 'crop' | Corner, item: Geo & { id: string }, arr: 'el' | 'text') {
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
     const p = ptTo01(e.clientX, e.clientY)
-    drag.current = { mode, id: item.id, sx: p.x, sy: p.y, e0: item, arr, moved: false }
+    drag.current = { mode, id: item.id, sx: p.x, sy: p.y, e0: item, arr, moved: false, cell0: (item as FreeEl).cell }
     if (arr === 'el') { setSelId(item.id); setSelText(null) } else { setSelText(item.id); setSelId(null) }
     setModelKey(null)
   }
@@ -398,7 +398,17 @@ export default function CaroselloPage() {
     const d = drag.current; if (!d) return
     if (!d.moved) { d.moved = true; snapshot() }
     const p = ptTo01(e.clientX, e.clientY)
-    if (d.arr === 'el') { const b = d.e0 as FreeEl; updateEl(d.id, () => (d.mode === 'move' ? snapGeo(gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)), n) : gResize(b, d.mode as Corner, p.x, p.y))) }
+    if (d.arr === 'el') {
+      const b = d.e0 as FreeEl
+      if (d.mode === 'crop') {                                   // pan del RITAGLIO dentro la cornice (fx/fy)
+        const c0 = d.cell0 ?? DEFAULT_CELL, z = Math.max(1, c0.z || 1)
+        const exx = (p.x - d.sx) / Math.max(1e-4, b.w), eyy = (p.y - d.sy) / Math.max(1e-4, b.h)
+        const nfx = Math.min(1, Math.max(0, (c0.fx ?? 0.5) - exx / z)), nfy = Math.min(1, Math.max(0, (c0.fy ?? 0.5) - eyy / z))
+        updateEl(d.id, (el) => ({ ...el, cell: { ...el.cell, fx: nfx, fy: nfy } }))
+      } else {
+        updateEl(d.id, () => (d.mode === 'move' ? snapGeo(gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)), n) : gResize(b, d.mode as Corner, p.x, p.y)))
+      }
+    }
     else { const b = d.e0 as TextEl; updateText(d.id, () => (d.mode === 'move' ? snapGeo(gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)), n) : gResize(b, d.mode as Corner, p.x, p.y))) }
   }
   function endDrag() { drag.current = null }
@@ -577,7 +587,7 @@ export default function CaroselloPage() {
       )}
 
       {/* STRIP EDITOR */}
-      <div ref={scrollRef} onScroll={onScrollStrip} className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start [justify-content:safe_center]" onPointerDown={() => { setSelId(null); setSelText(null); setTavolaMenu(null) }}>
+      <div ref={scrollRef} onScroll={onScrollStrip} className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start [justify-content:safe_center]" onPointerDown={() => { setSelId(null); setSelText(null); setTavolaMenu(null); setCropOpen(false) }}>
         <div className="inline-block">
           <div ref={stripRef} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }}
@@ -592,14 +602,19 @@ export default function CaroselloPage() {
               const src = direct ? el.mediaId : (m ? thumbUrl(m) : null)
               const active = el.id === selId
               return (
-                <div key={el.id} onPointerDown={(e) => startDrag(e, 'move', el, 'el')}
+                <div key={el.id}
+                  onPointerDown={(e) => startDrag(e, (cropOpen && !!el.mediaId) ? 'crop' : 'move', el, 'el')}
+                  onWheel={(e) => { if (cropOpen && el.mediaId) { e.preventDefault(); const dz = e.deltaY < 0 ? 0.08 : -0.08; updateCell(el.id, { z: Math.min(4, Math.max(1, +((el.cell.z || 1) + dz).toFixed(2))) }) } }}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOverId(el.id) }}
                   onDragLeave={() => setDragOverId((d) => (d === el.id ? null : d))}
                   onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const id = e.dataTransfer.getData('text/plain'); setDragOverId(null); if (id) { updateEl(el.id, (x) => ({ ...x, mediaId: id })); setSelId(el.id); setModelKey(null) } }}
-                  className={`absolute overflow-hidden cursor-move ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-20' : 'z-10'} ${dragOverId === el.id ? 'ring-4 ring-[rgb(var(--gold-500))]' : ''}`}
+                  className={`absolute overflow-hidden ${cropOpen && el.mediaId ? 'cursor-grab active:cursor-grabbing ring-2 ring-inset ring-[rgb(var(--gold-400))]' : 'cursor-move'} ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-20' : 'z-10'} ${dragOverId === el.id ? 'ring-4 ring-[rgb(var(--gold-500))]' : ''}`}
                   style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>
                   {src ? <img src={src} alt="" draggable={false} style={coverImgStyle(el.cell)} />
                     : <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]"><ImagePlus size={20} /></div>}
+                  {cropOpen && active && el.mediaId && (
+                    <span className="absolute bottom-1 left-1 z-30 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-medium text-white pointer-events-none">trascina = ritaglia · rotellina = ingrandisci</span>
+                  )}
                   {active && (['nw', 'ne', 'sw', 'se'] as Corner[]).map((c) => (
                     <span key={c} onPointerDown={(e) => startDrag(e, c, el, 'el')}
                       className="absolute h-3.5 w-3.5 rounded-full bg-white border-2 border-[rgb(var(--gold-500))] z-30"
