@@ -629,6 +629,25 @@ export default function CaroselloPage() {
             {Array.from({ length: n - 1 }, (_, i) => (
               <div key={i} className="absolute top-0 bottom-0 w-px bg-white/70 mix-blend-difference pointer-events-none z-40" style={{ left: `${((i + 1) / n) * 100}%` }} />
             ))}
+            {/* ALLINEAMENTO AL TAGLIO della foto selezionata: oro = un bordo è in linea col taglio;
+                rosso = la foto STRABORDA nella tavola successiva (avviso, non blocca il seamless). */}
+            {sel && (() => {
+              const L = sel.x, R = sel.x + sel.w, thr = 0.006
+              const marks: { cut: number; kind: 'aligned' | 'cross' }[] = []
+              for (let k = 1; k < n; k++) {
+                const cut = k / n
+                if (L < cut - thr && R > cut + thr) marks.push({ cut, kind: 'cross' })
+                else if (Math.abs(L - cut) < thr || Math.abs(R - cut) < thr) marks.push({ cut, kind: 'aligned' })
+              }
+              return marks.map((m, i) => (
+                <div key={i} className="absolute top-0 bottom-0 pointer-events-none z-40" style={{ left: `${m.cut * 100}%`, transform: 'translateX(-50%)' }}>
+                  <div className="h-full" style={{ width: m.kind === 'cross' ? 3 : 2, background: m.kind === 'cross' ? 'rgb(244 63 94)' : 'rgb(212 160 23)' }} />
+                  <span className={`absolute top-8 left-1 whitespace-nowrap rounded px-1 py-0.5 text-[9px] font-semibold text-white ${m.kind === 'cross' ? 'bg-rose-500' : 'bg-[rgb(var(--gold-600))]'}`}>
+                    {m.kind === 'cross' ? 'esce nella tavola dopo' : 'in linea col taglio'}
+                  </span>
+                </div>
+              ))
+            })()}
             {/* CONTROLLI PER-TAVOLA: numero (clic = centra la pagina, come Canva) · quante foto 1/2/3/4/6 ·
                 ▾ altri layout e preset PER QUESTA tavola (non per tutte). */}
             {Array.from({ length: n }, (_, i) => (
