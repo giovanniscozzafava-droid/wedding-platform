@@ -10,7 +10,7 @@ import type { Cell } from '@/lib/albumGeometry'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
-import { coverImgStyle, DEFAULT_CELL } from '@/lib/albumGeometry'
+import { coverImgStyle, coverWindow, DEFAULT_CELL } from '@/lib/albumGeometry'
 import { type FreeEl, type Corner } from '@/lib/albumFree'
 import type { AlbumPage } from '@/lib/albumEngine'
 import { CAROUSEL_FORMATS, getCarouselFormat, DEFAULT_CAROUSEL_FORMAT, CAROUSEL_MODELS, getModel, CAROUSEL_FONTS, getFontFamily, TEXT_PRESETS, newText, CAROUSEL_PRESETS, getPreset, type TextEl } from '@/lib/caroselloModels'
@@ -79,29 +79,38 @@ const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m
 const uid = () => { try { return crypto.randomUUID() } catch { return `c-${Date.now()}-${Math.floor(Math.random() * 1e9)}` } }
 const BG_SWATCHES = ['#ffffff', '#faf7f2', '#111111', '#0b1f3a', '#e9d9c3']
 
-// Navigatore di RITAGLIO (come nell'impaginatore album): trascina per spostare il ritaglio (fx/fy),
-// slider zoom, raddrizza/ruota 90°, Riempi (azzera), specchia H/V. Usa lo stesso Cell del rendering.
+// Navigatore di RITAGLIO stile Canva: mostra TUTTA la foto con un riquadro oro = la parte che entra nella
+// cornice; trascini il riquadro sulla foto per scegliere cosa mostrare (muovi la foto). + zoom/rotazione/specchia.
 function CropNav({ src, aspect, cell, onChange }: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void }) {
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null)
+  const [imgAsp, setImgAsp] = useState(aspect > 0 ? aspect : 1)   // aspetto NATURALE della foto (da onLoad)
   const z = Math.max(1, cell.z || 1)
   const r = cell.r ?? 0, quarter = Math.round(r / 90) * 90, fine = Math.max(-45, Math.min(45, r - quarter))
+  const w = coverWindow(imgAsp, aspect > 0 ? aspect : 1, cell)     // riquadro visibile in coord. immagine
   function down(e: React.PointerEvent) { drag.current = { x: e.clientX, y: e.clientY, fx: cell.fx ?? 0.5, fy: cell.fy ?? 0.5 }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) }
   function move(e: React.PointerEvent) {
     const d = drag.current; if (!d || !ref.current) return
     const rect = ref.current.getBoundingClientRect()
-    const nfx = Math.min(1, Math.max(0, d.fx - (e.clientX - d.x) / Math.max(1, rect.width) / z))
-    const nfy = Math.min(1, Math.max(0, d.fy - (e.clientY - d.y) / Math.max(1, rect.height) / z))
+    // trascino il riquadro sulla foto: sposto il centro (fx/fy) del delta del puntatore (in frazioni immagine)
+    const nfx = Math.min(1, Math.max(0, d.fx + (e.clientX - d.x) / Math.max(1, rect.width)))
+    const nfy = Math.min(1, Math.max(0, d.fy + (e.clientY - d.y) / Math.max(1, rect.height)))
     onChange({ ...cell, fx: nfx, fy: nfy })
   }
   function up() { drag.current = null }
   return (
-    <div className="space-y-1.5 w-[min(88vw,300px)]">
+    <div className="space-y-1.5 w-[min(90vw,320px)]">
+      <p className="text-[10px] font-medium text-[rgb(var(--fg-muted))]">Trascina il riquadro sulla foto per scegliere cosa entra nella tavola</p>
       <div ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}
-        className="relative w-full overflow-hidden rounded border border-[rgb(var(--border))] cursor-move touch-none bg-black/5"
-        style={{ aspectRatio: String(aspect > 0 ? aspect : 1) }}>
-        {src ? <img src={src} alt="" draggable={false} style={coverImgStyle(cell, aspect > 0 ? aspect : 1)} /> : null}
-        <span className="absolute bottom-0.5 left-0.5 text-[8px] bg-black/55 text-white rounded px-1 pointer-events-none">trascina il ritaglio</span>
+        className="relative w-full overflow-hidden rounded border border-[rgb(var(--border))] cursor-move touch-none bg-black/80"
+        style={{ aspectRatio: String(imgAsp > 0 ? imgAsp : 1) }}>
+        {src ? <img src={src} alt="" draggable={false} onLoad={(e) => { const im = e.currentTarget; if (im.naturalWidth && im.naturalHeight) setImgAsp(im.naturalWidth / im.naturalHeight) }}
+          className="absolute inset-0 h-full w-full object-cover opacity-90" style={{ transform: `${cell.fh ? 'scaleX(-1) ' : ''}${cell.fv ? 'scaleY(-1)' : ''}` }} /> : null}
+        {/* riquadro visibile (oro) + oscura il resto */}
+        <div className="absolute border-2 border-[rgb(var(--gold-500))] pointer-events-none" style={{
+          left: `${(w.wx / w.sw) * 100}%`, top: `${(w.wy / w.sh) * 100}%`, width: `${(w.ww / w.sw) * 100}%`, height: `${(w.wh / w.sh) * 100}%`,
+          boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+        }} />
       </div>
       <div className="flex items-center gap-1.5">
         <ZoomOut size={13} className="shrink-0 text-[rgb(var(--fg-subtle))]" />
