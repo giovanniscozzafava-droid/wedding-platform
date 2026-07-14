@@ -295,6 +295,30 @@ export default function CaroselloPage() {
     setElements(built.elements); setTexts(built.texts); setModelKey(null); setSelId(null); setSelText(null)
     toast.success(`Preset "${preset.label}" applicato · sostituisci le foto e cambia i testi`)
   }
+  // Applica un MODELLO a UNA tavola specifica (k), sostituendo solo i suoi elementi. Usato dai controlli
+  // per-tavola: ogni foglio decide quante foto e che layout, indipendentemente dagli altri.
+  function applyModelToSlide(key: string, k: number) {
+    snapshot()
+    const built = remapToSlide(getModel(key).build(1, unusedIds()), k)
+    setElements([...elements.filter((e) => slideOf(e) !== k), ...built])
+    setModelKey(null); setSelId(null); setSelText(null)
+  }
+  function applyPresetToSlide(key: string, k: number) {
+    const preset = getPreset(key); if (!preset) return
+    snapshot()
+    const built = preset.build(1, unusedIds())
+    setElements([...elements.filter((e) => slideOf(e) !== k), ...remapToSlide(built.elements, k)])
+    setTexts([...texts.filter((t) => slideOf(t) !== k), ...remapToSlide(built.texts, k)])
+    setModelKey(null); setSelId(null); setSelText(null)
+    toast.success(`Preset "${preset.label}" sulla tavola ${k + 1}`)
+  }
+  // Scorciatoia "quante foto" per la singola tavola.
+  const COUNT_MODEL: Record<number, string> = { 1: 'one', 2: 'cols2', 3: 'bands3', 4: 'grid4', 6: 'grid6' }
+  function applyCountToSlide(cnt: number, k: number) {
+    applyModelToSlide(COUNT_MODEL[cnt] ?? 'one', k)
+    toast.success(`Tavola ${k + 1}: ${cnt} ${cnt === 1 ? 'foto' : 'foto'}`)
+  }
+  const [tavolaMenu, setTavolaMenu] = useState<number | null>(null)
   // Navigazione tra le (fino a 20) pagine. Uso i bounding rect REALI (robusto a padding/centratura):
   // la strip può essere centrata quando ci sta, o allineata a sinistra quando eccede ("safe center").
   function goToSlide(i: number) {
@@ -553,7 +577,7 @@ export default function CaroselloPage() {
       )}
 
       {/* STRIP EDITOR */}
-      <div ref={scrollRef} onScroll={onScrollStrip} className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start [justify-content:safe_center]" onPointerDown={() => { setSelId(null); setSelText(null) }}>
+      <div ref={scrollRef} onScroll={onScrollStrip} className="flex-1 min-h-0 overflow-auto p-4 sm:p-6 flex items-start [justify-content:safe_center]" onPointerDown={() => { setSelId(null); setSelText(null); setTavolaMenu(null) }}>
         <div className="inline-block">
           <div ref={stripRef} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }}
@@ -605,9 +629,41 @@ export default function CaroselloPage() {
             {Array.from({ length: n - 1 }, (_, i) => (
               <div key={i} className="absolute top-0 bottom-0 w-px bg-white/70 mix-blend-difference pointer-events-none z-40" style={{ left: `${((i + 1) / n) * 100}%` }} />
             ))}
-            {/* etichette slide */}
+            {/* CONTROLLI PER-TAVOLA: numero (clic = centra la pagina, come Canva) · quante foto 1/2/3/4/6 ·
+                ▾ altri layout e preset PER QUESTA tavola (non per tutte). */}
             {Array.from({ length: n }, (_, i) => (
-              <span key={i} className="absolute top-1 text-[10px] font-medium text-white mix-blend-difference pointer-events-none z-40" style={{ left: `${(i / n) * 100 + 0.5}%` }}>{i + 1}</span>
+              <div key={i} className="absolute top-0 z-40 pointer-events-none" style={{ left: `${(i / n) * 100}%`, width: `${(1 / n) * 100}%` }}>
+                <div className="flex items-center gap-1 p-1">
+                  <button onClick={() => goToSlide(i)} title={`Centra la pagina ${i + 1}`}
+                    className="text-[11px] font-bold text-white mix-blend-difference px-1 pointer-events-auto hover:underline">{i + 1}</button>
+                  <div className="ml-auto flex items-center gap-0.5 rounded-md bg-black/55 px-1 py-0.5 pointer-events-auto">
+                    {[1, 2, 3, 4, 6].map((cnt) => (
+                      <button key={cnt} onClick={() => applyCountToSlide(cnt, i)} title={`${cnt} foto in questa tavola`}
+                        className="text-[10px] font-semibold text-white hover:text-[rgb(var(--gold-300))] w-3.5 text-center leading-none">{cnt}</button>
+                    ))}
+                    <button onClick={() => setTavolaMenu((m) => (m === i ? null : i))} title="Altri layout e preset per questa tavola"
+                      className="text-white/90 hover:text-white pl-0.5"><ChevronDown size={12} /></button>
+                  </div>
+                </div>
+                {tavolaMenu === i && (
+                  <div className="absolute right-1 top-8 z-50 w-48 max-h-[52vh] overflow-auto rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-xl p-1.5 pointer-events-auto" onPointerDown={(e) => e.stopPropagation()}>
+                    <p className="px-1 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Layout · tavola {i + 1}</p>
+                    <div className="grid grid-cols-2 gap-0.5">
+                      {CAROUSEL_MODELS.filter((m) => (m.group ?? 'base') === 'base').map((m) => (
+                        <button key={m.key} title={m.hint} onClick={() => { applyModelToSlide(m.key, i); setTavolaMenu(null) }}
+                          className="text-[11px] text-left px-1.5 py-1 rounded hover:bg-[rgb(var(--bg-sunken))]">{m.label}</button>
+                      ))}
+                    </div>
+                    <p className="px-1 pt-1.5 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Preset (foto + testo)</p>
+                    <div className="flex flex-col gap-0.5">
+                      {CAROUSEL_PRESETS.map((p) => (
+                        <button key={p.key} onClick={() => { applyPresetToSlide(p.key, i); setTavolaMenu(null) }}
+                          className="text-[11px] text-left px-1.5 py-1 rounded hover:bg-[rgb(var(--bg-sunken))]">{p.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           <p className="text-center text-[11px] text-[rgb(var(--fg-muted))] mt-2">Le linee segnano dove Instagram taglia le slide · trascina/ridimensiona le foto · quello che attraversa una linea resta continuo nello swipe</p>
