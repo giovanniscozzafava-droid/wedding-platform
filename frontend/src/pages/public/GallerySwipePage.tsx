@@ -42,11 +42,16 @@ export default function GallerySwipePage() {
   const applyState = (s: { kept?: number; decided?: number; pool?: number }) =>
     setSel((prev) => (prev ? { ...prev, kept: s.kept ?? prev.kept, decided: s.decided ?? prev.decided, pool: s.pool ?? prev.pool } : prev))
 
+  const setDecisionInData = (id: string, decision: boolean | null) =>
+    setData((prev) => (prev ? { ...prev, media: prev.media.map((x) => (x.id === id ? { ...x, decision } : x)) } : prev))
+
   async function decide(m: GMedia, keep: boolean) {
     if (!token || busy) return
+    const wasDecided = m.decision != null // ripescata già decisa → non ricontare "decided"/"kept" al lordo
     setQueue((q) => q.filter((x) => x.id !== m.id))
     setHistory((h) => [{ ...m, decision: keep }, ...h])
-    setSel((prev) => (prev ? { ...prev, decided: prev.decided + 1, kept: prev.kept + (keep ? 1 : 0) } : prev))
+    setDecisionInData(m.id, keep)
+    setSel((prev) => (prev ? { ...prev, kept: Math.max(0, prev.kept + (keep ? 1 : 0) - (m.decision === true ? 1 : 0)), decided: prev.decided + (wasDecided ? 0 : 1) } : prev))
     const res = await decideMedia(token, m.id, keep)
     if (typeof res.kept === 'number') applyState(res)
   }
@@ -55,9 +60,17 @@ export default function GallerySwipePage() {
     const [last, ...rest] = history
     setHistory(rest)
     setQueue((q) => [last!, ...q])
+    setDecisionInData(last!.id, null)
     setSel((prev) => (prev ? { ...prev, decided: Math.max(0, prev.decided - 1), kept: Math.max(0, prev.kept - (last!.decision ? 1 : 0)) } : prev))
     const res = await undoMedia(token, last!.id)
     if (typeof res.kept === 'number') applyState(res)
+  }
+  // RIPESCA: rimetti in coda le foto scartate in questo giro, per rivederle (in qualsiasi momento).
+  function ripesca() {
+    const inQ = new Set(queue.map((m) => m.id))
+    const left = (data?.media ?? []).filter((m) => m.in_pool && m.decision === false && !inQ.has(m.id))
+    if (!left.length) return
+    setQueue((q) => [...left, ...q])
   }
 
   // tastiera desktop: ← lascia · → tiene · Backspace annulla · Spazio ingrandisce
@@ -84,8 +97,10 @@ export default function GallerySwipePage() {
   if (loading) return <div className="min-h-screen grid place-items-center bg-[rgb(var(--bg-sunken))]"><Loader2 className="animate-spin text-[rgb(var(--fg-subtle))]" size={26} /></div>
   if (err || !data || !sel) return <SwipeError err={err} token={token} />
 
-  const decidedInRound = sel.decided
   const poolN = sel.pool
+  const decidedInRound = Math.max(0, poolN - queue.length) // basato sulla coda: la ripesca fa tornare indietro il progresso
+  const inQ = new Set(queue.map((m) => m.id))
+  const discardedCount = (data.media ?? []).filter((m) => m.in_pool && m.decision === false && !inQ.has(m.id)).length
 
   return (
     <div className="min-h-screen bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg))] flex flex-col">
@@ -112,6 +127,16 @@ export default function GallerySwipePage() {
           ? <RoundEnd sel={sel} studio={studio} busy={busy} onAdvance={doAdvance} onSubmit={doSubmit} onRescue={doRescue} />
           : <>
               <Deck queue={queue} onDecide={decide} onUndo={undo} canUndo={history.length > 0} onZoom={setZoom} />
+              {/* RIPESCA: rivedi le scartate in qualsiasi momento (per arrivare al traguardo o cambiare idea) */}
+              {discardedCount > 0 && (
+                <button onClick={ripesca} className="mt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] underline underline-offset-4">
+                  Ripesca dalle scartate ({discardedCount})
+                </button>
+              )}
+              {/* oltre il tetto: invito a sfoltire; la conferma resta nascosta finché non si rientra nel range */}
+              {sel.status === 'ACTIVE' && sel.kept > sel.target_max && (
+                <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-[rgb(var(--rose-600))]">Troppe ({sel.kept}) · il traguardo è {sel.target_min}–{sel.target_max}</p>
+              )}
               {/* CONFERMA: appare appena raggiunto il numero (tenute nel range), anche senza scorrere tutto */}
               {sel.status === 'ACTIVE' && sel.kept >= sel.target_min && sel.kept <= sel.target_max && (
                 <ConfirmBar kept={sel.kept} studio={studio} busy={busy} onConfirm={doSubmit} />
@@ -209,8 +234,9 @@ function TopCard({ m, onDecide, onZoom }: { m: GMedia; onDecide: (m: GMedia, kee
 function PhotoCard({ m, dim, stamp }: { m: GMedia; dim?: boolean; stamp?: { text: string; op: number; tone: 'gold' | 'rose' } }) {
   return (
     <div className={`w-full h-full rounded-xl bg-white p-2.5 pb-8 shadow-[var(--shadow-lift)] border border-black/5 ${dim ? 'opacity-70' : ''}`}>
-      <div className="relative w-full h-full rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))]">
-        <img src={thumbUrl(m)} alt="" draggable={false} className="w-full h-full object-cover" />
+      <div className="relative w-full h-full rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] grid place-items-center">
+        {/* object-contain: la foto si vede INTERA (orizzontali comprese), non tagliata */}
+        <img src={thumbUrl(m)} alt="" draggable={false} className="max-w-full max-h-full object-contain" />
         {stamp && (
           <span aria-hidden className={`absolute top-5 left-4 -rotate-[14deg] font-mono text-lg uppercase tracking-[0.14em] px-3 py-1 rounded border-2 ${stamp.tone === 'gold' ? 'text-[rgb(var(--gold-700))] border-[rgb(var(--gold-500))]' : 'text-[rgb(var(--rose-600))] border-[rgb(var(--rose-500))]'}`} style={{ opacity: stamp.op }}>
             {stamp.text}

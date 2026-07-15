@@ -126,14 +126,15 @@ export default function PublicGalleryPage() {
                   {pad3(startNo + 1)} → {pad3(startNo + c.items.length)} di {pad3(total)}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {/* masonry: ogni foto mantiene le sue proporzioni → orizzontali e verticali si vedono INTERE */}
+              <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 sm:gap-4">
                 {c.items.map((m, i) => {
                   const globalIdx = flat.findIndex((x) => x.id === m.id)
                   const fav = m.decision === true
                   return (
-                    <figure key={m.id} className="group relative">
-                      <button onClick={() => setViewer(globalIdx)} className={`block w-full aspect-[3/4] overflow-hidden rounded-md bg-[rgb(var(--bg-sunken))] ${fav ? 'ring-2 ring-[rgb(var(--gold-500))] ring-offset-2 ring-offset-[rgb(var(--bg))]' : ''}`}>
-                        <img src={thumbUrl(m)} alt="" loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+                    <figure key={m.id} className="group relative mb-3 sm:mb-4 break-inside-avoid">
+                      <button onClick={() => setViewer(globalIdx)} className={`block w-full overflow-hidden rounded-md bg-[rgb(var(--bg-sunken))] ${fav ? 'ring-2 ring-[rgb(var(--gold-500))] ring-offset-2 ring-offset-[rgb(var(--bg))]' : ''}`}>
+                        <img src={thumbUrl(m)} alt="" loading="lazy" className="w-full h-auto object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
                       </button>
                       <figcaption className="absolute left-2 top-2 font-mono text-[10px] tracking-wide text-white/90 drop-shadow">Nº {pad3(startNo + i + 1)}</figcaption>
                       {!submitted && m.in_pool && (
