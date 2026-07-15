@@ -894,46 +894,51 @@ function AlbumDesignerInner() {
     if (!entryId || !files.length) return
     const imgs = files.filter((f) => f.type.startsWith('image/'))
     if (!imgs.length) { toast.error('Seleziona immagini'); return }
-    // Foto EFFETTIVAMENTE impaginate (solo quelle vanno sostituite mantenendo il posto).
-    const placed = Array.from(placedIds).map((id) => mediaById.get(id)).filter((m): m is M => !!m && m.media_type === 'PHOTO')
-    if (!placed.length) { toast.error('Nessuna foto ancora impaginata da sostituire'); return }
+    // TUTTE le foto della libreria (impaginate O NO): la ricolorata sostituisce la sua gemella per nome
+    // ovunque sia, anche se non è ancora usata in una tavola.
+    const library = trayMedia.filter((m) => m.media_type === 'PHOTO')
+    if (!library.length) { toast.error('Nessuna foto in libreria da sostituire'); return }
     // I nomi file delle foto da Drive stanno nell'EXIF (album-exif), non in DB: li recupero se mancano.
     let meta = exifMeta
-    const needFetch = placed.filter((m) => isDrive(m)).some((m) => meta[m.id]?.name == null)
+    const needFetch = library.filter((m) => isDrive(m)).some((m) => meta[m.id]?.name == null)
     if (needFetch) { const t = toast.loading('Recupero i nomi file da Google Drive…'); meta = { ...meta, ...(await loadExif()) }; toast.dismiss(t) }
     const nameOf = (m: M) => (meta[m.id]?.name ?? m.source_name ?? '')
     const norm = (n: string) => n.replace(/\.[A-Za-z0-9]{1,5}$/, '').trim().toLowerCase() // senza estensione (RAW→JPG), case-insensitive
     const byName = new Map<string, M[]>()
-    for (const m of placed) { const k = norm(nameOf(m)); if (!k) continue; const a = byName.get(k) ?? []; a.push(m); byName.set(k, a) }
+    for (const m of library) { const k = norm(nameOf(m)); if (!k) continue; const a = byName.get(k) ?? []; a.push(m); byName.set(k, a) }
 
     setImporting({ done: 0, total: imgs.length })
-    let replaced = 0; const notFound: string[] = []; const fails: string[] = []
+    let replaced = 0; let deduped = 0; const notFound: string[] = []; const fails: string[] = []
     for (let i = 0; i < imgs.length; i++) {
       const file = imgs[i]!; setImporting({ done: i, total: imgs.length })
       const twins = byName.get(norm(file.name))
       if (!twins || !twins.length) { notFound.push(file.name); continue }
-      // Sostituzione SU DRIVE: la ricolorata diventa un NUOVO file Drive (leggero come le altre foto),
-      // il media ripunta lì (STESSO id → ritaglio/posizione invariati), il vecchio va nel cestino di Drive
-      // (o l'oggetto storage di una vecchia sostituzione viene eliminato). Lato server: album-replace-photo.
-      for (const twin of twins) {
-        try {
-          const fd = new FormData()
-          fd.append('file', file, file.name)
-          fd.append('media_id', twin.id)
-          const { data: res, error } = await supabase.functions.invoke('album-replace-photo', { body: fd })
-          if (error) throw error
-          const r = res as { ok?: boolean; error?: string; drive_file_id?: string; thumbnail_link?: string }
-          if (!r?.ok || !r.drive_file_id) throw new Error(r?.error || 'sostituzione non riuscita')
-          const nId = r.drive_file_id
-          const nThumb = r.thumbnail_link ?? `https://drive.google.com/thumbnail?id=${nId}&sz=w800`
-          setMedia((arr) => arr.map((x) => (x.id === twin.id ? { ...x, drive_file_id: nId, thumbnail_link: nThumb } : x)))
-          replaced += 1
-        } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
+      // La "primaria" è la gemella impaginata (se c'è), altrimenti la prima: viene SOSTITUITA IN PLACE su
+      // Drive (stesso id → posto/ritaglio/selezione invariati). Poi i DOPPIONI con lo stesso nome (la
+      // vecchia originale NON impaginata, rimasta dalla prima sostituzione) vengono tolti dalla libreria.
+      const primary = twins.find((t) => placedIds.has(t.id)) ?? twins[0]!
+      try {
+        const fd = new FormData()
+        fd.append('file', file, file.name)
+        fd.append('media_id', primary.id)
+        const { data: res, error } = await supabase.functions.invoke('album-replace-photo', { body: fd })
+        if (error) throw error
+        const r = res as { ok?: boolean; error?: string; drive_file_id?: string; thumbnail_link?: string }
+        if (!r?.ok || !r.drive_file_id) throw new Error(r?.error || 'sostituzione non riuscita')
+        const nId = r.drive_file_id
+        const nThumb = r.thumbnail_link ?? `https://drive.google.com/thumbnail?id=${nId}&sz=w800`
+        setMedia((arr) => arr.map((x) => (x.id === primary.id ? { ...x, drive_file_id: nId, thumbnail_link: nThumb } : x)))
+        replaced += 1
+      } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`); continue }
+      // Doppioni superstiti (SOLO non impaginati → sicuro, restano recuperabili nelle scartate).
+      for (const t of twins) {
+        if (t.id === primary.id || placedIds.has(t.id)) continue
+        try { await discardMediaCore(t); deduped += 1 } catch { /* best-effort */ }
       }
     }
     setImporting(null)
-    if (replaced) toast.success(`${replaced} foto sostituite su Drive (posizione e ritaglio invariati)`)
-    if (notFound.length) toast.warning(`${notFound.length} non impaginate, saltate: ${notFound.slice(0, 3).join(', ')}${notFound.length > 3 ? '…' : ''}`, { duration: 9000 })
+    if (replaced) toast.success(`${replaced} foto sostituite su Drive${deduped ? ` · ${deduped} ${deduped === 1 ? 'doppione tolto' : 'doppioni tolti'}` : ''} (posizione e ritaglio invariati)`)
+    if (notFound.length) toast.warning(`${notFound.length} non trovate in libreria, saltate: ${notFound.slice(0, 3).join(', ')}${notFound.length > 3 ? '…' : ''}`, { duration: 9000 })
     if (fails.length) toast.error(`${fails.length} non sostituite — ${fails[0]}`, { duration: 12000 })
   }
 
