@@ -6,8 +6,6 @@ import {
   PackageSearch,
   CalendarDays,
   FileText,
-  TrendingUp,
-  Sparkles,
   Eye,
   EyeOff,
   Clock,
@@ -18,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import { eurInt } from '@/lib/money'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
@@ -154,17 +153,18 @@ export default function HomePage() {
           />
         </motion.div>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <StatCard label="Servizi attivi" value={stats?.servicesCount ?? 0} icon={PackageSearch} accent="gold" />
-          <StatCard label={isCapostipite ? 'Collaboratori' : 'Capostipiti'} value={stats?.collabCount ?? 0} icon={Sparkles} accent="sage" />
-          <StatCard label="Eventi (60 gg)" value={stats?.upcomingCount ?? 0} icon={CalendarDays} accent="sky" />
-          <StatCard
-            label={isCapostipite ? 'Margine generato' : 'Preventivi in cui sono'}
-            value={isCapostipite ? `€ ${(stats?.marginMonth ?? 0).toLocaleString('it-IT')}` : (stats?.quotesActive ?? 0)}
-            icon={TrendingUp}
-            accent="ink"
-          />
+        {/* KPI come annotazioni su filetto: bordo alto inchiostro, celle divise da hairline. */}
+        <div className="mb-10 border-t-2 border-[rgb(var(--fg))]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[rgb(var(--border))]">
+            <Annot label="Servizi attivi" value={stats?.servicesCount ?? 0} context="nel tuo catalogo" />
+            <Annot label={isCapostipite ? 'Collaboratori' : 'Committenti'} value={stats?.collabCount ?? 0} context="nella tua rete" />
+            <Annot label="Eventi · 60 giorni" value={stats?.upcomingCount ?? 0} context="in arrivo" />
+            <Annot
+              label={isCapostipite ? 'Margine generato' : 'Preventivi attivi'}
+              value={isCapostipite ? eurInt(stats?.marginMonth ?? 0) : (stats?.quotesActive ?? 0)}
+              context={isCapostipite ? 'questo mese' : 'in cui compari'}
+            />
+          </div>
         </div>
 
         {/* Agenda: il calendario in overview — prossimi appuntamenti (orario) ed eventi */}
@@ -305,37 +305,14 @@ export default function HomePage() {
   )
 }
 
-function StatCard({
-  label, value, icon: Icon, accent,
-}: {
-  label: string
-  value: number | string
-  icon: typeof PackageSearch
-  accent: 'gold' | 'sage' | 'sky' | 'ink'
-}) {
-  const accents: Record<typeof accent, string> = {
-    gold: 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]',
-    sage: 'bg-[rgb(var(--sage-100))] text-[rgb(var(--sage-700))]',
-    sky:  'bg-[rgb(var(--sky-100))] text-[rgb(var(--sky-500))]',
-    ink:  'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]',
-  }
+// KPI editoriale: annotazione su filetto. Nessuna icona in chip, nessun colore d'accento.
+function Annot({ label, value, context }: { label: string; value: number | string; context: string }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-      className="surface surface-elev p-5 flex flex-col gap-3"
-    >
-      <div className="flex items-center justify-between">
-        <span className={`inline-flex items-center justify-center h-9 w-9 rounded-lg ${accents[accent]}`}>
-          <Icon size={18} strokeWidth={1.8} />
-        </span>
-      </div>
-      <div>
-        <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{label}</p>
-        <p className="font-display text-3xl mt-1 tabular-nums" style={{ color: 'rgb(var(--fg))' }}>
-          {value}
-        </p>
-      </div>
-    </motion.div>
+    <div className="px-4 py-4">
+      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[rgb(var(--fg-subtle))]">{label}</p>
+      <p className="font-display text-3xl mt-1.5 tabular-nums whitespace-nowrap" style={{ color: 'rgb(var(--fg))' }}>{value}</p>
+      <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">{context}</p>
+    </div>
   )
 }
 
