@@ -1075,6 +1075,36 @@ function AlbumDesignerInner() {
     return trayMedia.filter((m) => m.album_moment === momentFilter)
   }, [trayMedia, momentFilter])
 
+  // AUTO-DEDUP: la PRIMA sostituzione (vecchio codice) lasciava in libreria la vecchia originale ACCANTO
+  // alla ricolorata (doppioni). All'apertura li togliamo: accoppiamo per NOME e, se in un gruppo c'è una
+  // foto impaginata (la ricolorata) e delle gemelle NON impaginate (le vecchie originali), scartiamo le
+  // non impaginate (soft, recuperabili nelle scartate). Mai le impaginate. Solo il fotografo.
+  const autoDedupRef = useRef(false)
+  useEffect(() => {
+    if (lite || isCouple || autoDedupRef.current) return
+    const tray = trayMedia.filter((m) => m.media_type === 'PHOTO')
+    if (tray.length < 2) return
+    autoDedupRef.current = true
+    void (async () => {
+      let meta = exifMeta
+      if (tray.filter((m) => isDrive(m)).some((m) => meta[m.id]?.name == null)) meta = { ...meta, ...(await loadExif()) }
+      const nameOf = (m: M) => (meta[m.id]?.name ?? m.source_name ?? '')
+      const norm = (n: string) => n.replace(/\.[A-Za-z0-9]{1,5}$/, '').trim().toLowerCase()
+      const byName = new Map<string, M[]>()
+      for (const m of tray) { const k = norm(nameOf(m)); if (!k) continue; const a = byName.get(k) ?? []; a.push(m); byName.set(k, a) }
+      let removed = 0
+      for (const [, group] of byName) {
+        if (group.length < 2 || !group.some((m) => placedIds.has(m.id))) continue // niente gruppo o nessuna impaginata → skip
+        for (const m of group) {
+          if (placedIds.has(m.id)) continue // MAI le impaginate
+          try { await discardMediaCore(m); removed++ } catch { /* best-effort */ }
+        }
+      }
+      if (removed) toast.success(`Libreria pulita: ${removed} ${removed === 1 ? 'doppione tolto' : 'doppioni tolti'} (recuperabili nelle foto scartate)`)
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trayMedia.length, lite, isCouple])
+
   function updatePage(id: string, fn: (p: AlbumPage) => AlbumPage) {
     setPages((arr) => arr.map((p) => (p.id === id ? fn(p) : p)))
   }
