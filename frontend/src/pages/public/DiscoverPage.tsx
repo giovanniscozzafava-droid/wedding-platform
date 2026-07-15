@@ -218,10 +218,10 @@ export default function DiscoverPage() {
             Costruisci il tuo profilo, mostra i tuoi lavori, entra nel network dei migliori
             professionisti italiani. Senza carta di credito.
           </p>
-          <Link to="/register"
+          <Link to="/lista-attesa"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-colors"
             style={{ background: 'rgb(var(--gold-500))', color: 'white' }}>
-            Crea il tuo profilo
+            Entra nella lista d'attesa
           </Link>
         </div>
       </section>

@@ -71,6 +71,7 @@ const CoupleInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/Couple
 const PrivacyPage = lazyWithRetry(() => import('@/pages/public/PrivacyPage'))
 const CookiePage = lazyWithRetry(() => import('@/pages/public/CookiePage'))
 const DiscoverPage = lazyWithRetry(() => import('@/pages/public/DiscoverPage'))
+const WaitlistPage = lazyWithRetry(() => import('@/pages/public/WaitlistPage'))
 const PublicSupplierPage = lazyWithRetry(() => import('@/pages/public/PublicSupplierPage'))
 const BlogListPage = lazyWithRetry(() => import('@/pages/public/BlogListPage'))
 const BlogPostPage = lazyWithRetry(() => import('@/pages/public/BlogPostPage'))
@@ -125,6 +126,7 @@ export default function App() {
           <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/lista-attesa" element={<WaitlistPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/prova-menu-invito/:token" element={<TastingSessionInvite />} />

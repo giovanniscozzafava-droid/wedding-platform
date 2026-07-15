@@ -93,7 +93,7 @@ export default function PublicHomePage() {
             <Link to="/scopri-pro" className="text-white/80 hover:text-white hidden sm:inline">Scopri</Link>
             <Link to="/blog" className="text-white/80 hover:text-white hidden sm:inline">Blog</Link>
             <Link to="/login" className="text-white/80 hover:text-white">Accedi</Link>
-            <Link to="/register" className="px-3 py-1.5 rounded-full text-xs font-medium"
+            <Link to="/lista-attesa" className="px-3 py-1.5 rounded-full text-xs font-medium"
               style={{ background: 'white', color: 'rgb(var(--fg))' }}>
               Sei un professionista?
             </Link>
@@ -244,7 +244,7 @@ export default function PublicHomePage() {
                 forma la tua rete di fiducia, lavora come una squadra.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Link to="/register">
+                <Link to="/lista-attesa">
                   <Button variant="gold">Crea il tuo profilo</Button>
                 </Link>
                 <Link to="/login">
