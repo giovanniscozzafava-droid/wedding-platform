@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles, Check, X, ExternalLink, Home, LogIn, Lock } from 'lucide-react'
+import { Check, X, ExternalLink, Home, LogIn, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -115,14 +115,7 @@ function QuotePreviewPageInner() {
               <img src={data.owner.brand_logo_url} alt={data.owner.business_name ?? 'Logo'}
                 className="h-14 sm:h-16 w-auto max-w-[240px] object-contain mb-3" />
             ) : null}
-            <div className="flex items-center gap-2 mb-2">
-              {!data.owner?.brand_logo_url && (
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-                  <Sparkles size={14} strokeWidth={2.2} />
-                </span>
-              )}
-              <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Preventivo riservato</span>
-            </div>
+            <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-2">Preventivo riservato</p>
             <h1 className="font-display text-3xl sm:text-4xl tracking-tight" style={{ color: primary }}>
               {data.title}
             </h1>
@@ -242,8 +235,12 @@ function QuotePreviewPageInner() {
           <div className="h-2" style={{ background: data.owner?.brand_primary_color ? primary : 'rgb(var(--gold-500))' }} />
         </div>
 
-        <p className="text-center text-xs text-[rgb(var(--fg-subtle))] mt-6">
-          Powered by Planfully &middot; Documento riservato, condividere solo con persone autorizzate.
+        <p className="text-center text-xs text-[rgb(var(--fg-subtle))] mt-6 flex items-center justify-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1.5">
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-3.5 w-3.5" style={{ color: 'rgb(var(--fg))' }} />
+            Realizzato con Planfully
+          </span>
+          <span>&middot; Documento riservato, condividere solo con persone autorizzate.</span>
         </p>
       </motion.div>
     </div>

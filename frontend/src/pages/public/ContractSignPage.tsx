@@ -339,8 +339,12 @@ export default function ContractSignPage() {
           </div>
           <div className="h-2" style={{ background: primary }} />
         </div>
-        <p className="text-center text-xs text-[rgb(var(--fg-subtle))] mt-6">
-          Documento legale · powered by Planfully.
+        <p className="text-center text-xs text-[rgb(var(--fg-subtle))] mt-6 flex items-center justify-center gap-1.5">
+          Documento legale ·
+          <span className="inline-flex items-center gap-1.5">
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-3.5 w-3.5" style={{ color: '#1A1714' }} />
+            Realizzato con Planfully
+          </span>
         </p>
       </motion.div>
       </div>
