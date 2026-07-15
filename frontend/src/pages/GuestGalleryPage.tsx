@@ -117,9 +117,11 @@ export default function GuestGalleryPage() {
   const [signingUp, setSigningUp] = useState(false)
 
   const loadFolders = useCallback(async (entry: string) => {
+    // Cartelle visibili all'ospite: le INVITATI (dove carica) + quelle che il fotografo ha aperto agli
+    // ospiti (guest_visible, sola lettura). La RLS gm_read/gf_read gata comunque il contenuto.
     const { data: f } = await (supabase.from as any)('gallery_folders')
       .select('id, name, level, gallery_media(id, thumbnail_link, drive_file_id, media_type, guest_tag_name, uploader_name, uploaded_by)')
-      .eq('entry_id', entry).eq('level', 'INVITATI').order('sort_order')
+      .eq('entry_id', entry).or('level.eq.INVITATI,guest_visible.eq.true').order('sort_order')
     setFolders((f as Folder[]) ?? [])
   }, [])
 

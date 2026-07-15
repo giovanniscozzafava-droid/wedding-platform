@@ -29,7 +29,7 @@ import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
 type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null }
-type Folder = { id: string; name: string; level: string; shared: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
+type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string }
 
 const LEVELS = [
@@ -127,7 +127,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       if (gs) setGsettings({ ...DEFAULT_GALLERY_SETTINGS, ...gs })
     }
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents')
+      .select('id, name, level, shared, guest_visible, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents')
       .eq('entry_id', entryId).order('sort_order')
     // Media a PAGINE: PostgREST limita a 1000 righe/richiesta → senza paginare la galleria
     // si fermava a 1000 foto. Qui le carichiamo TUTTE (capienza illimitata) e le raggruppiamo.
@@ -229,6 +229,15 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { error } = await (supabase.from as any)('gallery_folders').update({ shared: !f.shared }).eq('id', f.id)
     if (error) { toast.error(error.message); return }
     await load()
+  }
+
+  // Rende la cartella visibile (sola lettura) a TUTTI gli ospiti registrati, o la nasconde di nuovo.
+  async function toggleGuestVisible(f: Folder) {
+    const next = !f.guest_visible
+    setFolders((fs) => fs.map((x) => (x.id === f.id ? { ...x, guest_visible: next } : x)))   // ottimistico
+    const { error } = await (supabase.from as any)('gallery_folders').update({ guest_visible: next }).eq('id', f.id)
+    if (error) { toast.error(error.message); await load(); return }
+    toast.success(next ? 'Cartella ora visibile a tutti gli ospiti' : 'Cartella nascosta agli ospiti')
   }
 
   async function deleteFolder(f: Folder) {
@@ -718,12 +727,19 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                   ? <Badge className="bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] text-[10px]"><Check size={10} /> condivisa</Badge>
                   : <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] text-[10px]">non condivisa</Badge>)}
                 {salesEnabled && f.is_for_sale && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px] shrink-0">€{((f.price_cents ?? 0) / 100).toFixed(0)} a pagamento</Badge>}
+                {f.level !== 'INVITATI' && f.guest_visible && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px] shrink-0 inline-flex items-center gap-0.5"><Globe size={10} /> visibile agli ospiti</Badge>}
               </button>
               {isOwner && (
                 <div className="flex items-center gap-1.5">
                   <Button variant="ghost" size="icon" title="Sposta su" disabled={busy} onClick={() => moveFolder(f, -1)}><ArrowUp size={13} /></Button>
                   <Button variant="ghost" size="icon" title="Sposta giù" disabled={busy} onClick={() => moveFolder(f, 1)}><ArrowDown size={13} /></Button>
                   {f.level === 'LAVORO_INTERO' && <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleShared(f)}>{f.shared ? 'Non condividere' : 'Condividi al cerchio'}</Button>}
+                  {f.level !== 'INVITATI' && (
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleGuestVisible(f)}
+                      title="Rendi questa cartella visibile (sola lettura) a tutti gli ospiti registrati">
+                      <Globe size={12} /> {f.guest_visible ? 'Nascondi agli ospiti' : 'Mostra agli ospiti'}
+                    </Button>
+                  )}
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => addDemoPhotos(f)}><Sparkles size={12} /> Foto demo</Button>
                   {salesEnabled && <Button variant="outline" size="sm" onClick={() => setFolderPrice(f)}>{f.is_for_sale ? `€${((f.price_cents ?? 0) / 100).toFixed(0)}` : 'Prezzo'}</Button>}
