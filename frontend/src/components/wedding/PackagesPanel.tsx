@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
+import { eur as fmtEur } from '@/lib/money'
 
 // Pacchetti "tutto incluso" (percorsi) multipli + calcolatrice prezzo buffet.
 // Ruoli voce: INCLUSO (nel prezzo base) · OPZIONALE (integrazione a scelta +€) · OBBLIGATORIO (integrazione sempre +€).
@@ -16,7 +17,7 @@ type Dish = { menu_item_id: string; piatto: string; portata: string }
 
 const COURSE_LBL: Record<string, string> = { APERITIVO: 'Aperitivo', ANTIPASTO: 'Antipasti', PRIMO: 'Primi', SECONDO: 'Secondi', CONTORNO: 'Contorni', DOLCE: 'Dolci', FRUTTA: 'Frutta', BEVANDE: 'Bevande' }
 const COURSE_ORD = ['APERITIVO', 'ANTIPASTO', 'PRIMO', 'SECONDO', 'CONTORNO', 'DOLCE', 'FRUTTA', 'BEVANDE']
-const eur = (n: number) => `€ ${(Number(n) || 0).toFixed(2)}`
+const eur = (n: number) => fmtEur(n)   // formato it-IT canonico (money.ts)
 
 export function PackagesPanel({ entryId, dishes, coperti, readOnly }: { entryId: string; dishes: Dish[]; coperti: number; readOnly?: boolean }) {
   const [pkgs, setPkgs] = useState<Pkg[]>([])

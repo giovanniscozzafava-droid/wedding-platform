@@ -7,6 +7,7 @@
 // dell'impaginato (non salvato), così il prezzo segue il lavoro.
 // ============================================================================
 import { modelTier, modelLabel, type Tier } from '@/components/album/albumCatalog'
+import { eurInt } from '@/lib/money'
 
 // Voce di listino per un formato.
 export type AlbumFormatPrice = {
@@ -132,7 +133,7 @@ export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actu
   return { lines, extraPages, total }
 }
 
-export const euroA = (n: number) => `€ ${Math.round(Number(n) || 0).toLocaleString('it-IT')}`
+export const euroA = (n: number) => eurInt(n)   // formato it-IT canonico (money.ts), senza decimali
 
 // ── IMPORT DAL PREVENTIVO ────────────────────────────────────────────────────
 // Le voci del preventivo sono testo libero (nome + descrizione + importo). Da esse
