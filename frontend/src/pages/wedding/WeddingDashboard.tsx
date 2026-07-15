@@ -6,8 +6,9 @@ import {
   ArrowLeft, CalendarClock, Table2, Users as UsersIcon, Wallet, ListChecks,
   Palette, Music, FileSignature, FolderOpen, BarChart3, FileText,
   BedDouble, Bus, Gift, PartyPopper, Globe, Heart, Utensils, Church, ClipboardList,
-  Scale, MessageCircle, ChevronLeft, ChevronRight,
+  Scale, MessageCircle, ChevronLeft, ChevronRight, Check,
 } from 'lucide-react'
+import { eurInt } from '@/lib/money'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { useWedding, useUpdateWedding } from '@/hooks/useWedding'
@@ -298,8 +299,8 @@ export default function WeddingDashboard() {
                 {new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
               {eventPassed && (
-                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-                  ✓ Evento concluso — il lavoro si chiude: valuta chi ha collaborato con te.
+                <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: 'rgb(var(--gold-700))' }}>
+                  <Check size={13} strokeWidth={2} /> Evento concluso — il lavoro si chiude: valuta chi ha collaborato con te.
                 </p>
               )}
             </div>
@@ -307,22 +308,18 @@ export default function WeddingDashboard() {
               <Badge status={wedding.status} />
               {nuovoModello && <SaluteEventoBadge entryId={wedding.id} />}
               {ambito && (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border"
-                  style={{ borderColor: 'rgb(var(--border-strong))', color: 'rgb(var(--gold-700))', background: 'rgb(var(--gold-100))' }}
-                  title="Ambito incarico capostipite"
-                >
-                  {ambito === 'COMPLETO' && 'Ambito: completo'}
-                  {ambito === 'SOLO_COORDINAMENTO' && 'Ambito: solo coordinamento'}
-                  {ambito === 'SOLO_PROPRI_SERVIZI' && 'Ambito: solo propri servizi'}
+                <span className="text-xs text-[rgb(var(--fg-muted))]" title="Ambito incarico referente evento">
+                  {ambito === 'COMPLETO' && 'Ambito · completo'}
+                  {ambito === 'SOLO_COORDINAMENTO' && 'Ambito · solo coordinamento'}
+                  {ambito === 'SOLO_PROPRI_SERVIZI' && 'Ambito · solo propri servizi'}
                 </span>
               )}
               {/* "Tutto WP" è una scelta commerciale da capostipite/WP (contratto unico
                   + sub-appalto fornitori). Un fornitore non la gestisce. */}
               {!isFornitore && <BusinessModelToggle wedding={wedding} />}
               {wedding.value_amount && (
-                <span className="font-display text-2xl tabular-nums" style={{ color: 'rgb(var(--gold-700))' }}>
-                  € {Number(wedding.value_amount).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                <span className="font-display text-2xl tabular-nums whitespace-nowrap" style={{ color: 'rgb(var(--gold-700))' }}>
+                  {eurInt(wedding.value_amount)}
                 </span>
               )}
               {eventPassed && (
@@ -358,14 +355,14 @@ export default function WeddingDashboard() {
                       gLocked
                         ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
                         : activeG
-                          ? 'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] shadow-sm'
+                          ? 'bg-[#7E6633] text-[#FAF5EA]'
                           : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
                     )}
                     aria-current={activeG ? 'page' : undefined}
                   >
                     <GIcon size={15} />
                     {g.label}
-                    {gStar && <span aria-hidden className="ml-0.5">★</span>}
+                    {gStar && <Star size={12} aria-hidden className="ml-0.5 fill-current" />}
                     {gDot && <span aria-hidden className="ml-0.5 h-2 w-2 rounded-full bg-[rgb(var(--rose-500))] animate-pulse" />}
                   </button>
                 )
@@ -415,7 +412,7 @@ export default function WeddingDashboard() {
                       <Icon size={14} />
                       {t.label}
                       {emphasized && !active && (
-                        <span aria-hidden className="ml-1">★</span>
+                        <Star size={11} aria-hidden className="ml-1 fill-current" />
                       )}
                       {dotTabs.has(t.key) && !active && (
                         <span aria-hidden className="ml-0.5 h-2 w-2 rounded-full bg-[rgb(var(--rose-500))] animate-pulse" />
