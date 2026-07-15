@@ -5,10 +5,8 @@ import {
   LayoutDashboard,
   PackageSearch,
   CalendarDays,
-  Printer,
   FileText,
   Palette,
-  Images,
   UserRound,
   Users as UsersIcon,
   Heart,
@@ -17,30 +15,19 @@ import {
   LogOut,
   Menu,
   X,
-  Calculator,
   Wallet,
-  PiggyBank,
-  Carrot,
-  NotebookPen,
   BarChart3,
-  ShieldCheck,
   FileSignature,
-  Contact,
   HelpCircle,
   LifeBuoy,
   Sparkles,
-  PenSquare,
   Newspaper,
   Inbox,
-  Gift,
-  PhoneCall,
   Code2,
-  Coins,
-  CheckSquare,
   TicketPercent,
-  Boxes,
   BookImage,
   BadgeEuro,
+  Wrench,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -78,23 +65,13 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/quotes',    label: 'Preventivi', icon: FileText },
     { to: '/contracts', label: 'Contratti',  icon: FileSignature },
   ]},
-  { section: 'Catalogo & rete', items: [
-    { to: '/catalog',   label: 'Catalogo',       icon: PackageSearch },
-    { to: '/stili',     label: 'Portfolio',  icon: Images },
-    { to: '/suppliers', label: 'Rete fornitori', icon: UsersIcon },
-    { to: '/scopri',    label: 'Scopri',         icon: Sparkles },
+  { section: 'Studio', items: [
+    { to: '/calendar',  label: 'Calendario', icon: CalendarDays },
+    { to: '/catalog',   label: 'Catalogo',   icon: PackageSearch },
+    { to: '/suppliers', label: 'Rete',       icon: UsersIcon },
   ]},
-  { section: 'Crescita', items: [
-    { to: '/feed',       label: 'Feed',    icon: Newspaper },
-    { to: '/blog/admin', label: 'Blog',    icon: PenSquare },
-    { to: '/recruiting', label: 'Recruiting', icon: PhoneCall },
-    { to: '/rewards',    label: 'Rewards', icon: Gift },
-  ]},
-  { section: 'Gestione', items: [
-    { to: '/calendar', label: 'Calendario', icon: CalendarDays },
-    { to: '/richieste-stampa', label: 'Richieste stampa', icon: Printer },
-    { to: '/team',     label: 'Team',       icon: UsersIcon },
-    { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
+  { section: null, items: [
+    { to: '/strumenti', label: 'Strumenti', icon: Wrench },
   ]},
   { section: 'Impostazioni', items: [
     { to: '/settings/brand',   label: 'Brand',            icon: Palette },
@@ -104,10 +81,6 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/profile',          label: 'Profilo',          icon: UserRound },
     { to: '/assistenza',       label: 'Assistenza',       icon: LifeBuoy },
     { to: '/faq',              label: 'FAQ',              icon: HelpCircle },
-  ]},
-  { section: 'Prodotti (presto)', items: [
-    { to: '/finanziamento', label: 'Finanziamento', icon: Wallet,      badge: 'SOON' },
-    { to: '/assicurazione', label: 'Assicurazione', icon: ShieldCheck, badge: 'SOON' },
   ]},
 ]
 
@@ -120,33 +93,17 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Pipeline', items: [
     { to: '/richieste',   label: 'Richieste',   icon: Inbox },
-    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti', icon: Gift },
-    { to: '/capostipiti', label: 'Capostipiti', icon: UsersIcon },
-    { to: '/clienti',     label: 'Clienti',     icon: Contact },
-    { to: '/quotes',      label: 'Preventivi',  icon: FileText },
-    { to: '/lavori-da-confermare', label: 'Da confermare', icon: CheckSquare },
-    { to: '/voci-da-rivedere', label: 'Da rivedere', icon: TicketPercent },
-    { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
     { to: '/weddings',    label: 'Eventi',      icon: Heart },
+    { to: '/quotes',      label: 'Preventivi',  icon: FileText },
+    { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
   ]},
-  { section: 'Catalogo & lavoro', items: [
-    { to: '/catalog',        label: 'Catalogo',       icon: PackageSearch },
-    { to: '/album-catalogo', label: 'Catalogo album', icon: FileText },
-    { to: '/stili',          label: 'Portfolio', icon: Images },
-    { to: '/team',           label: 'Team',          icon: UsersIcon },
-    { to: '/calcolatore',    label: 'Calcolatore',   icon: Calculator },
+  { section: 'Studio', items: [
+    { to: '/calendar',    label: 'Calendario',  icon: CalendarDays },
+    { to: '/catalog',     label: 'Catalogo',    icon: PackageSearch },
+    { to: '/scopri',      label: 'Rete',        icon: Sparkles },
   ]},
-  { section: 'Crescita', items: [
-    { to: '/feed', label: 'Feed', icon: Newspaper },
-    { to: '/blog/admin', label: 'Blog', icon: PenSquare },
-    { to: '/scopri', label: 'Scopri fornitori', icon: Sparkles },
-    { to: '/recruiting', label: 'Recruiting', icon: PhoneCall },
-    { to: '/crediti', label: 'Crediti rete', icon: Coins },
-  ]},
-  { section: 'Gestione', items: [
-    { to: '/calendar', label: 'Calendario', icon: CalendarDays },
-    { to: '/richieste-stampa', label: 'Richieste stampa', icon: Printer },
-    { to: '/bilancio', label: 'Bilancio',   icon: PiggyBank },
+  { section: null, items: [
+    { to: '/strumenti', label: 'Strumenti', icon: Wrench },
   ]},
   { section: 'Impostazioni', items: [
     { to: '/settings/brand',   label: 'Brand',            icon: Palette },
@@ -216,33 +173,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isFornitore = profile?.role === 'FORNITORE'
   const isStaff = (profile as any)?.is_support_staff || profile?.role === 'ADMIN'
-  const baseGroupsRaw0 = isCapostipite
+  // La sidebar tiene SOLO il flusso quotidiano; tutti gli altri strumenti (Portfolio, Crescita, Food cost,
+  // Studio disegno, Richieste stampa, Bilancio, Calcolatore, Clienti…) vivono nella pagina hub /strumenti,
+  // con visibilità per ruolo. Rotte invariate.
+  const baseGroups = isCapostipite
     ? NAV_CAPOSTIPITE_GROUPS
     : isFornitore
     ? NAV_FORNITORE_GROUPS
     : NAV_FALLBACK_GROUPS
-  // "Richieste stampa" è una funzione da FOTOGRAFI: via per location e ogni altro fornitore.
-  const isPhotographer = isFornitore && /fotograf|video/.test((profile?.subrole ?? '').toLowerCase())
-  const baseGroupsRaw = baseGroupsRaw0.map((g) => ({ ...g, items: g.items.filter((i) => i.to !== '/richieste-stampa' || isPhotographer) }))
-  // Food cost: strumento gestionale SOLO per le Location (PRP-4 Fase A).
-  const baseGroups = profile?.role === 'LOCATION'
-    ? baseGroupsRaw.map((g) => g.section === 'Gestione'
-        ? { ...g, items: [...g.items, { to: '/prima-nota', label: 'Prima nota', icon: NotebookPen }, { to: '/food-cost', label: 'Food cost', icon: Carrot }, { to: '/prove-menu', label: 'Prove menu', icon: CalendarDays }, { to: '/magazzino', label: 'Magazzino', icon: Boxes }, { to: '/ragioniere', label: 'Ragioniere', icon: Calculator }] }
-        : g)
-    : baseGroupsRaw
-  // Studio disegno: strumento per chi fa grafica/progettazione (tutti i professionisti).
-  const baseGroupsStudio = (isCapostipite || isFornitore)
-    ? baseGroups.map((g, i) => (i === 0 ? { ...g, items: [...g.items, { to: '/studio', label: 'Studio disegno', icon: Palette }] } : g))
-    : baseGroups
   // Gruppo riservato a staff/admin (gestione piattaforma + ticket).
   const NAV_GROUPS: NavGroup[] = isStaff
-    ? [...baseGroupsStudio, { section: 'Staff', items: [
+    ? [...baseGroups, { section: 'Staff', items: [
         { to: '/admin', label: 'Pannello Admin', icon: LifeBuoy },
         ...(profile?.role === 'ADMIN' ? [{ to: '/admin/osservatorio', label: 'Osservatorio', icon: BarChart3 }] : []),
         { to: '/admin/finance', label: 'Finance', icon: Wallet },
         { to: '/admin/assistenza', label: 'Ticket assistenza', icon: LifeBuoy },
       ] }]
-    : baseGroupsStudio
+    : baseGroups
 
   const initials =
     (profile?.business_name ?? profile?.full_name ?? user?.email ?? '?')
@@ -437,7 +384,7 @@ function NavGroups({ groups, onNavigate, dots }: { groups: NavGroup[]; onNavigat
                 )
               }
             >
-              <n.icon size={18} strokeWidth={1.8} />
+              <n.icon size={18} strokeWidth={1.5} />
               <span className="flex-1">{n.label}</span>
               {dots?.has(n.to) && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} aria-label="Nuove notifiche" />}
               {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}

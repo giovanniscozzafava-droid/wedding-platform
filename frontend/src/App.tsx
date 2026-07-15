@@ -41,6 +41,7 @@ const ContractsPage = lazyWithRetry(() => import('@/pages/ContractsPage'))
 const SupplierContractsPage = lazyWithRetry(() => import('@/pages/SupplierContractsPage'))
 const FinancePage = lazyWithRetry(() => import('@/pages/FinancePage'))
 const BilancioPage = lazyWithRetry(() => import('@/pages/BilancioPage'))
+const StrumentiHubPage = lazyWithRetry(() => import('@/pages/StrumentiHubPage'))
 const PrimaNotaPage = lazyWithRetry(() => import('@/pages/PrimaNotaPage'))
 const ObservatoryPage = lazyWithRetry(() => import('@/pages/ObservatoryPage'))
 const InsurancePage = lazyWithRetry(() => import('@/pages/InsurancePage'))
@@ -338,6 +339,7 @@ export default function App() {
           <Route path="/admin/finance" element={<RequireAuth><AdminFinancePage /></RequireAuth>} />
           <Route path="/admin/osservatorio" element={<RequireAuth roles={['ADMIN']}><ObservatoryPage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
+          <Route path="/strumenti" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><StrumentiHubPage /></RequireAuth>} />
           <Route path="/prima-nota" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><PrimaNotaPage /></RequireAuth>} />
           <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />
           <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />

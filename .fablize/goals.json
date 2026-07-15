@@ -1,27 +1,13 @@
 {
- "brief": "3 rifiniture funnel album: visore PDF 3D desktop, 2 listino prezzi vendita (AI associa, margine auto), composizione cliente nella pagina commissione",
- "created": "2026-07-08T17:37:29.109415+00:00",
+ "brief": "Storie: (1) IA sidebar snella max 8 voci + hub Strumenti per ruolo + Impostazioni a tab, rotte invariate; (2) Dashboard Partitura KPI a filetto + timeline stagione; (3) superfici cliente editoriali (portfolio, wedding site, preventivo, contratto pubblici) carta+inchiostro; (4) email transazionali layout condiviso; (5) PDF allineati; (6) sweep toFixed->money.ts. Guardrail in CLAUDE.md; fondamenta (3 font + bottone AA) gia' live.",
+ "created": "2026-07-15T09:40:10.460519+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "Visore PDF 3D",
-   "objective": "pulsante schermo intero nel picker con sfoglio 3D (react-pageflip) anche da desktop, hotspot cliccabili",
-   "status": "complete",
-   "evidence": "build verde. PdfLightbox: visore PDF a schermo intero con react-pageflip (sfoglio 3D), frecce+tastiera+trascinamento, hotspot cliccabili (onPick+close). Pulsante 'Ingrandisci e sfoglia in 3D' nel picker"
-  },
-  {
-   "id": "G002",
-   "title": "Listino vendita",
-   "objective": "secondo documento prezzi (AI associa prezzi->modelli come price); margine=prezzo-costo; ricarico% ripiego per i modelli senza prezzo listino",
-   "status": "complete",
-   "evidence": "build verde + pushato. Prezzi vendita AI + margine + ricarico ripiego"
-  },
-  {
-   "id": "G003",
-   "title": "Composizione in commissione",
-   "objective": "la scelta del cliente (modello+opzioni+box/famiglia+prezzo) finisce nell'album_orders e appare nella CommissionPage per lo stampatore",
-   "status": "complete",
-   "evidence": "album_commission_by_token ritorna client_choice (ultima commessa picker per entry, cover.source=pdf_catalog). CommissionPage: sezione 'Scelta del cliente' (modello+misura+pagine+box+finiture+composizione/note+firma) per lo stampatore"
+   "title": "Restyling Partitura",
+   "objective": "Restyling di sola presentazione (design/UX) di Planfully, senza toccare logica/RPC/RLS",
+   "status": "pending",
+   "evidence": null
   }
  ]
 }
