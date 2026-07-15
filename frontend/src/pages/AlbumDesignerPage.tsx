@@ -139,17 +139,8 @@ const ALBUM_REPLY_REASONS: { key: string; label: string; hint: string }[] = [
 ]
 
 const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:')
-// Le foto caricate su storage (album:/guest:, es. dopo "Sostituisci foto") venivano servite a
-// PIENA risoluzione (thumbnail_link = URL originale) → libreria/canvas caricavano decine di JPEG
-// multi-MB e l'editor diventava impraticabile. Le ridimensioniamo on-the-fly col render di
-// Supabase Storage, come le Drive (sz=w800/1600). L'export/stampa usa comunque l'originale
-// full-res (edge album-image), quindi la qualità di stampa non cambia.
-const storageThumb = (url: string, w: number) =>
-  url.includes('/storage/v1/object/public/')
-    ? `${url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=${w}&quality=80`
-    : url
-const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.media_type === 'PHOTO' ? storageThumb(m.thumbnail_link ?? '', 800) : (m.thumbnail_link ?? '')))
-const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.media_type === 'PHOTO' ? storageThumb(m.thumbnail_link ?? '', 1600) : (m.thumbnail_link ?? '')))
+const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
+const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
 
 // Stili di impaginazione che l'AI può seguire (li sceglie il fotografo prima di comporre).
 const AI_STYLES: { key: string; label: string; desc: string }[] = [
@@ -2974,8 +2965,7 @@ function AlbumDesignerInner() {
                       {/* SEMPRE a colori. INSERITE: sfumate (opacità) → si capisce che sono a posto.
                           NON inserite: piene e nitide, con bordino dorato → le foto che MANCANO
                           saltano subito all'occhio. (niente bianco/nero) */}
-                      <img src={thumbUrl(m)} alt="" loading="lazy" decoding="async"
-                        onError={(e) => { const el = e.currentTarget; const raw = m.thumbnail_link ?? ''; if (raw && el.src !== raw) el.src = raw }}
+                      <img src={thumbUrl(m)} alt="" loading="lazy"
                         className={`w-full h-full object-cover ${placedIds.has(m.id) ? 'opacity-40' : ''}`} />
                       {/* VOLTO mappato dall'AI: pallino sulla posizione del viso (mappato sul crop quadrato) */}
                       {showFaces && faceMap[m.id]?.face && (() => {
