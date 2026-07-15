@@ -103,9 +103,12 @@ export default function GallerySwipePage() {
           ? <RoundEnd sel={sel} studio={studio} busy={busy}
               onAdvance={async () => { if (!token) return; setBusy(true); const r = await advanceRound(token); setBusy(false); if (!r.error) await refresh() }}
               onSubmit={async () => { if (!token) return; setBusy(true); const r = await submitSelection(token); setBusy(false); if (r.ok) await refresh() }}
-              onRescue={() => { // ripesca: rimetti in coda le scartate di questo giro
-                const left = (data.media ?? []).filter((m) => m.in_pool && m.decision === false)
-                setQueue(left); setHistory([]) }}
+              onRescue={async () => { // ripesca: ricarica e rimetti in coda le scartate di questo giro
+                if (!token) return
+                const d = await loadGallery(token)
+                if (d.error) return
+                setData(d); setSel(d.selection); setHistory([])
+                setQueue((d.media ?? []).filter((m) => m.in_pool && m.decision === false)) }}
             />
           : <Deck queue={queue} onDecide={decide} onUndo={undo} canUndo={history.length > 0} onZoom={setZoom} />}
       </main>
