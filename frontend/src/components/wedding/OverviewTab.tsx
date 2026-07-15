@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
-import { CalendarClock, Table2, Users, Wallet, ListChecks, Palette, Music, FileSignature, FolderOpen, MessageSquare, Check, X as XIcon } from 'lucide-react'
-import { Card } from '@/components/ui/card'
+import { CalendarClock, Table2, Users, Wallet, ListChecks, Palette, Music, FileSignature, FolderOpen, Check, X as XIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { useBudget, useGuests, useMood, usePlaylist, useTables, useTasks, useTimeline } from '@/hooks/useWedding'
 import { useChangeRequests, useReviewChangeRequest, entityLabel } from '@/hooks/useChangeRequests'
 import { useAuth } from '@/lib/auth'
+import { eurInt } from '@/lib/money'
 
 export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: string) => void }) {
   const eid = wedding.id
@@ -47,29 +47,24 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
   }
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {cards.map((c) => {
-          const Icon = c.icon
-          return (
-            <button key={c.key} onClick={() => onTab(c.key)}
-              className="surface surface-elev p-4 text-left hover:shadow-[var(--shadow-lift)] transition-shadow">
-              <Icon size={18} className="text-[rgb(var(--gold-600))]" />
-              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mt-2">{c.label}</p>
-              <p className="font-display text-2xl mt-0.5 tabular-nums">{c.value}</p>
-              {c.hint && <p className="text-[10px] text-[rgb(var(--fg-subtle))]">{c.hint}</p>}
-            </button>
-          )
-        })}
+    <div className="space-y-10">
+      {/* KPI come annotazioni su filetto: niente card con ombra né icone decorative. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 border-t-2 border-[rgb(var(--fg))]">
+        {cards.map((c) => (
+          <button key={c.key} onClick={() => onTab(c.key)}
+            className="text-left px-4 py-4 border-b border-r border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] transition-colors">
+            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-[rgb(var(--fg-subtle))]">{c.label}</p>
+            <p className="font-display text-2xl mt-1 tabular-nums">{c.value}</p>
+            {c.hint && <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-0.5">{c.hint}</p>}
+          </button>
+        ))}
       </div>
 
       {(pendingReqs.length > 0 || (requests.data ?? []).length > 0) && (
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display text-lg flex items-center gap-2">
-              <MessageSquare size={16} /> Richieste dei clienti
-              {pendingReqs.length > 0 && <Badge tone="amber">{pendingReqs.length} da gestire</Badge>}
-            </h2>
+        <section>
+          <div className="flex items-center justify-between border-b border-[rgb(var(--fg))] pb-2 mb-3">
+            <h2 className="font-display text-lg">Richieste dei clienti</h2>
+            {pendingReqs.length > 0 && <Badge tone="amber">{pendingReqs.length} da gestire</Badge>}
           </div>
           {pendingReqs.length === 0 ? (
             <p className="text-sm text-[rgb(var(--fg-subtle))]">Nessuna richiesta in attesa.</p>
@@ -78,13 +73,10 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
               {pendingReqs.map((r) => (
                 <li key={r.id} className="py-3 flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge tone="sage">{entityLabel(r.entity_type)}</Badge>
-                      <Badge tone="neutral">{r.action}</Badge>
-                      <span className="text-xs text-[rgb(var(--fg-subtle))]">
-                        {r.requester?.full_name ?? 'Cliente'} · {new Date(r.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
+                    <p className="text-[11px] font-mono uppercase tracking-wide text-[rgb(var(--gold-700))]">
+                      {entityLabel(r.entity_type)} · {r.action}
+                      <span className="text-[rgb(var(--fg-subtle))] normal-case tracking-normal"> — {r.requester?.full_name ?? 'Cliente'} · {new Date(r.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    </p>
                     <p className="font-medium mt-1">{r.title}</p>
                     {r.description && <p className="text-sm text-[rgb(var(--fg-muted))] mt-0.5 whitespace-pre-wrap">{r.description}</p>}
                   </div>
@@ -100,30 +92,30 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
               ))}
             </ul>
           )}
-        </Card>
+        </section>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h2 className="font-display text-lg mb-3">Dettagli evento</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-10">
+        <section>
+          <h2 className="font-display text-lg mb-3 border-b border-[rgb(var(--fg))] pb-2">Dettagli evento</h2>
           <dl className="space-y-2 text-sm">
             <Row k="Cliente" v={wedding.client_name ?? '—'} />
             <Row k="Email" v={wedding.client_email ?? '—'} />
             <Row k="Data" v={new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} />
             <Row k="Invitati" v={wedding.guest_count?.toString() ?? '—'} />
             <Row k="Tavoli" v={wedding.table_count?.toString() ?? '—'} />
-            <Row k="Valore" v={`€ ${Number(wedding.value_amount ?? 0).toLocaleString('it-IT')}`} />
+            <Row k="Valore" v={eurInt(wedding.value_amount ?? 0)} />
           </dl>
           {wedding.notes && (
             <div className="mt-4 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-muted))]">Note private</p>
+              <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-[rgb(var(--fg-muted))]">Note private</p>
               <p className="text-sm mt-1">{wedding.notes}</p>
             </div>
           )}
-        </Card>
+        </section>
 
-        <Card className="p-6">
-          <h2 className="font-display text-lg mb-3">Fornitori coinvolti ({participants.length})</h2>
+        <section>
+          <h2 className="font-display text-lg mb-3 border-b border-[rgb(var(--fg))] pb-2">Fornitori coinvolti ({participants.length})</h2>
           {participants.length === 0 ? (
             <p className="text-sm text-[rgb(var(--fg-subtle))]">Nessun fornitore agganciato ancora.</p>
           ) : (
@@ -134,26 +126,26 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
                     <p className="font-medium text-sm">{p.user?.business_name ?? p.user?.full_name}</p>
                     <p className="text-xs text-[rgb(var(--fg-subtle))]">{p.user?.subrole} · {p.role_in_entry}</p>
                   </div>
-                  {canOpenSupplier && <Link to={`/suppliers/${p.user?.id}`} className="text-xs text-[rgb(var(--fg-muted))] hover:underline">apri →</Link>}
+                  {canOpenSupplier && <Link to={`/suppliers/${p.user?.id}`} className="text-xs font-medium text-[rgb(var(--gold-700))] hover:underline">apri</Link>}
                 </li>
               ))}
             </ul>
           )}
-        </Card>
+        </section>
 
         {wedding.quote && (
-          <Card className="lg:col-span-2 p-6">
-            <div className="flex items-center justify-between mb-3">
+          <section className="lg:col-span-2">
+            <div className="flex items-center justify-between border-b border-[rgb(var(--fg))] pb-2 mb-3">
               <h2 className="font-display text-lg">Preventivo</h2>
-              <Link to={`/quotes/${wedding.quote.id}`} className="text-sm text-[rgb(var(--fg-muted))] hover:underline">apri editor →</Link>
+              <Link to={`/quotes/${wedding.quote.id}`} className="text-sm font-medium text-[rgb(var(--gold-700))] hover:underline">apri editor</Link>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <Row k="Stato" v={wedding.quote.status} />
               <Row k="Revisione" v={`v${wedding.quote.revision}`} />
-              <Row k="Cliente" v={`€ ${Number(wedding.quote.total_client).toLocaleString('it-IT')}`} />
-              <Row k="Costo" v={`€ ${Number(wedding.quote.total_cost ?? 0).toLocaleString('it-IT')}`} />
+              <Row k="Cliente" v={eurInt(wedding.quote.total_client)} />
+              <Row k="Costo" v={eurInt(wedding.quote.total_cost ?? 0)} />
             </div>
-          </Card>
+          </section>
         )}
       </div>
     </div>

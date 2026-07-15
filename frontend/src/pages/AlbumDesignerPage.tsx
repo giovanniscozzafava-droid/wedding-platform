@@ -101,7 +101,7 @@ import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { shareAlbumCommission } from '@/hooks/useAlbumLab'
 import { getCatalogModels } from '@/hooks/useAlbumCatalog'
 import { getDriveToken, ensureDriveFolder, uploadAnyToDrive, driveQuota, driveDownloadUrl } from '@/lib/driveUpload'
-import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ThumbsDown, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ThumbsDown, RefreshCw, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 import { MyStylePanel } from '@/components/album/MyStylePanel'
 import { FunnelSteps } from '@/components/album/FunnelSteps'
@@ -815,6 +815,7 @@ function AlbumDesignerInner() {
   // RPC album_add_media → entrano KEPT nella selezione). Niente Drive.
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
   const trayFileRef = useRef<HTMLInputElement>(null)
+  const replaceFileRef = useRef<HTMLInputElement>(null) // "Sostituisci foto": ri-carica le versioni ricolorate
   async function importPhotos(files: File[]) {
     if (!entryId || !files.length) return
     const list = files.filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'))
@@ -830,17 +831,64 @@ function AlbumDesignerInner() {
         if (up.error) throw up.error
         const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
         const mt: 'PHOTO' | 'VIDEO' = file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO'
-        const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: mt, p_moment: null })
+        const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: mt, p_moment: null, p_source_name: file.name })
         if (error) throw error
         const newId = (data as { id?: string } | null)?.id
         if (newId) {
-          setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: mt, guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: null }])
+          setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: mt, guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: file.name }])
           ok++
         }
       } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
     }
     setImporting(null)
     if (ok) toast.success(`${ok} foto aggiunte all'album`)
+    if (fails.length) toast.error(`${fails.length} non caricate — ${fails[0]}`)
+  }
+
+  // SOSTITUISCI FOTO (per nome file): il fotografo ri-fa la color dopo la selezione ed esporta i JPG
+  // con LO STESSO NOME. Qui ri-carica quei file: ogni foto rimpiazza la sua "gemella" (stesso nome)
+  // OVUNQUE sia impaginata, MANTENENDO posizione, dimensione e ritaglio (è la stessa immagine, solo
+  // ricolorata). Una o N foto insieme. Chi non trova una gemella nell'impaginato viene segnalata.
+  async function replacePhotosByName(files: File[]) {
+    if (!entryId || !files.length) return
+    const imgs = files.filter((f) => f.type.startsWith('image/'))
+    if (!imgs.length) { toast.error('Seleziona immagini'); return }
+    // Foto EFFETTIVAMENTE impaginate (solo quelle vanno sostituite mantenendo il posto).
+    const placed = Array.from(placedIds).map((id) => mediaById.get(id)).filter((m): m is M => !!m && m.media_type === 'PHOTO')
+    if (!placed.length) { toast.error('Nessuna foto ancora impaginata da sostituire'); return }
+    // I nomi file delle foto da Drive stanno nell'EXIF (album-exif), non in DB: li recupero se mancano.
+    let meta = exifMeta
+    const needFetch = placed.filter((m) => isDrive(m)).some((m) => meta[m.id]?.name == null)
+    if (needFetch) { const t = toast.loading('Recupero i nomi file da Google Drive…'); meta = { ...meta, ...(await loadExif()) }; toast.dismiss(t) }
+    const nameOf = (m: M) => (meta[m.id]?.name ?? m.source_name ?? '')
+    const norm = (n: string) => n.replace(/\.[A-Za-z0-9]{1,5}$/, '').trim().toLowerCase() // senza estensione (RAW→JPG), case-insensitive
+    const byName = new Map<string, M[]>()
+    for (const m of placed) { const k = norm(nameOf(m)); if (!k) continue; const a = byName.get(k) ?? []; a.push(m); byName.set(k, a) }
+
+    setImporting({ done: 0, total: imgs.length })
+    let replaced = 0; const notFound: string[] = []; const fails: string[] = []
+    for (let i = 0; i < imgs.length; i++) {
+      const file = imgs[i]!; setImporting({ done: i, total: imgs.length })
+      const twins = byName.get(norm(file.name))
+      if (!twins || !twins.length) { notFound.push(file.name); continue }
+      try {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+        const path = `${entryId}/album/${crypto.randomUUID()}.${ext}`
+        const up = await supabase.storage.from('event-guest-uploads').upload(path, file, { upsert: false, contentType: file.type || undefined })
+        if (up.error) throw up.error
+        const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
+        const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: 'PHOTO', p_moment: twins[0]!.album_moment ?? null, p_source_name: file.name })
+        if (error) throw error
+        const newId = (data as { id?: string } | null)?.id
+        if (!newId) throw new Error('upload non riuscito')
+        setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: twins[0]!.album_moment ?? null, source_name: file.name }])
+        replaceMediaIds(new Set(twins.map((t) => t.id)), newId) // swap OVUNQUE, ritaglio invariato → resta al suo posto
+        replaced += twins.length
+      } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
+    }
+    setImporting(null)
+    if (replaced) toast.success(`${replaced} foto sostituite (posizione e ritaglio invariati)`)
+    if (notFound.length) toast.warning(`${notFound.length} non impaginate, saltate: ${notFound.slice(0, 3).join(', ')}${notFound.length > 3 ? '…' : ''}`, { duration: 9000 })
     if (fails.length) toast.error(`${fails.length} non caricate — ${fails[0]}`)
   }
 
@@ -1155,6 +1203,20 @@ function AlbumDesignerInner() {
     }))
     toast.success('Foto scambiate')
   }
+  // SOSTITUISCI OVUNQUE: rimpiazza ogni occorrenza delle vecchie foto (oldIds) con la nuova (newId),
+  // in elementi liberi / slot template / foto a doppia pagina. A differenza di freeReplace NON azzera
+  // il ritaglio: è la STESSA immagine ricolorata, quindi posizione/zoom/ritaglio restano identici.
+  function replaceMediaIds(oldIds: Set<string>, newId: string) {
+    if (!oldIds.size) return
+    const sw = (id: string) => (oldIds.has(id) ? newId : id)
+    setPages((arr) => arr.map((p) => {
+      let np: AlbumPage = p
+      if ((p.elements?.length ?? 0) > 0) np = { ...np, elements: (np.elements ?? []).map((e) => (oldIds.has(e.mediaId) ? { ...e, mediaId: newId } : e)) }
+      if ((p.mediaIds?.length ?? 0) > 0) np = { ...np, mediaIds: (np.mediaIds ?? []).map(sw) }
+      if (p.spreadImage && oldIds.has(p.spreadImage.mediaId)) np = { ...np, spreadImage: { ...p.spreadImage, mediaId: newId } }
+      return np
+    }))
+  }
   function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
   function moveSpread(si: number, dir: -1 | 1) {
     setPages((arr) => { const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2)); const j = si + dir; if (j < 0 || j >= blocks.length) return arr; const t = blocks[si]!; blocks[si] = blocks[j]!; blocks[j] = t; return blocks.flat() })
@@ -1362,11 +1424,11 @@ function AlbumDesignerInner() {
       const up = await supabase.storage.from('event-guest-uploads').upload(path, file, { upsert: false, contentType: file.type || undefined })
       if (up.error) throw up.error
       const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
-      const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: 'PHOTO', p_moment: null })
+      const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: 'PHOTO', p_moment: null, p_source_name: file.name })
       if (error) throw error
       const newId = (data as { id?: string } | null)?.id
       if (!newId) throw new Error('upload non riuscito')
-      setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: null }])
+      setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: file.name }])
       freeReplace(pageId, elId, newId)
       toast.success('Versione modificata caricata e inserita nella tavola')
     } catch (e) { toast.error('Caricamento non riuscito: ' + (e as Error).message) } finally { setImporting(null) }
@@ -2796,6 +2858,11 @@ function AlbumDesignerInner() {
             {!lite && <Button variant="outline" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché e cosa fare">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>}
             {!lite && Object.keys(qualityScores).length > 0 && <Button variant="outline" size="sm" onClick={() => setQualityOpen(true)} title="Riapri il report qualità di stampa"><FileText size={14} /> Report</Button>}
             {!lite && <Button variant="outline" size="sm" disabled={busy} onClick={() => setStyleOpen(true)} title="Carica i tuoi album PDF: l'AI impara COME impagini (foto per tavola, respiro, doppia pagina) e 'Impagina con AI' comporrà nel tuo stile"><Frame size={14} /> Il mio stile</Button>}
+            {!lite && <>
+              <input ref={replaceFileRef} type="file" accept="image/*" multiple className="hidden"
+                onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; if (fs.length) void replacePhotosByName(fs) }} />
+              <Button variant="outline" size="sm" disabled={busy || !!importing} onClick={() => replaceFileRef.current?.click()} title="Hai rifatto la color dopo la selezione? Ri-carica i file ricolorati (STESSO NOME): ogni foto rimpiazza la sua gemella nell'impaginato mantenendo posizione e ritaglio. Una o più insieme.">{importing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sostituisci foto</Button>
+            </>}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
             <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
             <Button variant="outline" size="sm" disabled={!histPast.current.length} onClick={undo} title="Annulla (⌘Z)"><Undo2 size={14} /></Button>
