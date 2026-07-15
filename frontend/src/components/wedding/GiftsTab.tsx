@@ -42,7 +42,7 @@ export function GiftsTab({ entryId }: { entryId: string }) {
           <h4 className="font-medium text-sm mb-2">Regali senza insieme</h4>
           {sum!.senza_insieme.map((gi) => (
             <div key={gi.id} className="flex items-center gap-2 text-sm py-1 border-b border-[rgb(var(--border))] last:border-0">
-              <span className="flex-1">{gi.kind === 'MONEY' ? `💶 ${eur(gi.amount ?? 0)}` : `🎁 ${gi.descrizione || 'regalo'}`}{gi.note ? ` · ${gi.note}` : ''}</span>
+              <span className="flex-1">{gi.kind === 'MONEY' ? `${eur(gi.amount ?? 0)}` : `${gi.descrizione || 'regalo'}`}{gi.note ? ` · ${gi.note}` : ''}</span>
               <button onClick={() => mut.delGift.mutate(gi.id)} className="text-[rgb(var(--rose-500))]"><Trash2 size={13} /></button>
             </div>
           ))}

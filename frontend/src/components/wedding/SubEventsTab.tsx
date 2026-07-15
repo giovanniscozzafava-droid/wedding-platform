@@ -107,7 +107,7 @@ export function SubEventsTab({ entryId }: { entryId: string }) {
                   <Button variant="ghost" size="icon" onClick={() => remove.mutate(e.id)}><Trash2 size={14} /></Button>
                 </div>
                 {e.location && (
-                  <p className="text-sm text-[rgb(var(--fg-muted))]">📍 {e.location}</p>
+                  <p className="text-sm text-[rgb(var(--fg-muted))]">{e.location}</p>
                 )}
                 <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
                   {e.budget && <span className="font-display tabular-nums">€ {Number(e.budget).toLocaleString('it-IT')}</span>}

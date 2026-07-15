@@ -62,7 +62,7 @@ export function Guestbook({ entryId, readOnly = false }: { entryId: string; read
       }
       const { error } = await (supabase.from as any)('event_guestbook').insert({ entry_id: entryId, message: message.trim() || null, signature_path: sigPath })
       if (error) throw error
-      toast.success('Grazie! Il tuo pensiero è nel guestbook 💛')
+      toast.success('Grazie! Il tuo pensiero è nel guestbook')
       setMessage(''); clearSig(); await load()
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
@@ -74,7 +74,7 @@ export function Guestbook({ entryId, readOnly = false }: { entryId: string; read
           <div className="flex items-center gap-2">
             <BookHeart size={18} className="text-[rgb(var(--gold-700))]" />
             <div>
-              <p className="text-sm font-medium">Firma il guestbook ✍️</p>
+              <p className="text-sm font-medium">Firma il guestbook</p>
               <p className="text-xs text-[rgb(var(--fg-muted))]">Lascia un pensiero e la tua firma agli sposi.</p>
             </div>
           </div>

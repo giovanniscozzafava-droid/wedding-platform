@@ -78,7 +78,7 @@ export default function VideoReviewPage() {
     if (!compose || !compose.body.trim() || !entryId) return
     const { error } = await (supabase.from as any)('video_comments').insert({ entry_id: entryId, t_seconds: Math.round(compose.t), target, kind: compose.kind, body: compose.body.trim() })
     if (error) { toast.error(error.message); return }
-    toast.success('Post-it inviato 📌'); setCompose(null); await load()
+    toast.success('Post-it inviato'); setCompose(null); await load()
   }
   async function resolve(id: string) { await (supabase.from as any)('video_comments').update({ status: 'DONE' }).eq('id', id); await load() }
   function seek(t: number) { if (videoRef.current) { videoRef.current.currentTime = t; void videoRef.current.play() } }
@@ -162,7 +162,7 @@ export default function VideoReviewPage() {
       {compose && (
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={() => setCompose(null)}>
           <div className="bg-[rgb(var(--bg))] w-full max-w-md rounded-2xl shadow-xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
-            <p className="font-medium flex items-center gap-2">📌 Post-it sul video <span className="text-xs text-[rgb(var(--fg-muted))]">a {fmt(compose.t)}</span></p>
+            <p className="font-medium flex items-center gap-2">Post-it sul video <span className="text-xs text-[rgb(var(--fg-muted))]">a {fmt(compose.t)}</span></p>
             {!direct && (
               <label className="text-xs text-[rgb(var(--fg-muted))] block">Momento (min:sec)
                 <input type="number" min={0} value={Math.round(compose.t)} onChange={(e) => setCompose({ ...compose, t: +e.target.value })} className="mt-1 w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" placeholder="secondi" />

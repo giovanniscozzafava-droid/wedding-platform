@@ -221,7 +221,7 @@ export default function GuestGalleryPage() {
       if (v.error) v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'email' })
       if (v.error) throw v.error
       const who = (d.name ?? gname.trim()).split(' ')[0]
-      toast.success(d.returning ? `Bentornato, ${who}! 🎉` : `Benvenuto, ${who}!`)
+      toast.success(d.returning ? `Bentornato, ${who}!` : `Benvenuto, ${who}!`)
       // sessione impostata → l'effetto su [session] fa partire join() e carica le foto
     } catch (err) { toast.error((err as Error).message) } finally { setSigningUp(false) }
   }
@@ -309,7 +309,7 @@ export default function GuestGalleryPage() {
       {view === 'upload' && (
         <div className="mb-6 rounded-2xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))]/30 p-4 space-y-3">
           <div>
-            <p className="text-sm font-medium">Carica le tue foto e i tuoi video 📸</p>
+            <p className="text-sm font-medium">Carica le tue foto e i tuoi video</p>
             <p className="text-xs text-[rgb(var(--fg-muted))]">Le condividi con gli sposi e con i fornitori dell'evento.</p>
           </div>
 
@@ -372,7 +372,7 @@ export default function GuestGalleryPage() {
 
       {view === 'gallery' && (
         folders.length === 0 || allEmpty ? (
-          <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Ancora nessuna foto. Sii il primo a caricare i tuoi scatti! ✨</p>
+          <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Ancora nessuna foto. Sii il primo a caricare i tuoi scatti!</p>
         ) : (
           folders.map((f) => {
             const mine = (m: Media) => !!user && m.uploaded_by === user.id

@@ -402,7 +402,7 @@ export function TableauPlan({
         <p className="text-xs font-medium mb-1.5 flex items-center gap-1"><UserPlus size={12} /> Da sedere ({unseated.length})</p>
         <p className="text-[10px] text-[rgb(var(--fg-subtle))] mb-1.5">{overUnseat ? 'Rilascia qui per togliere dal tavolo' : 'Prendi un nominativo e trascinalo sul tavolo'}</p>
         <div className="flex-1 overflow-y-auto space-y-1">
-          {unseated.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-subtle))] italic">Tutti seduti 🎉</p>}
+          {unseated.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-subtle))] italic">Tutti seduti</p>}
           {unseated.map((g) => (
             <div key={g.id}
               onPointerDown={(e) => startGuestDrag(e, g)}

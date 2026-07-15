@@ -11,7 +11,7 @@ const SIGN = '— inviato con Planfully'
 /** Saluto col nome se presente, altrimenti generico. */
 function hello(name?: string | null) {
   const n = (name ?? '').trim()
-  return n ? `Ciao ${n} 👋` : 'Ciao 👋'
+  return n ? `Ciao ${n}` : 'Ciao'
 }
 
 /** Preventivo inviato al cliente — raccomanda WhatsApp perché la mail può finire in spam. */
@@ -42,7 +42,7 @@ export function waContractToClient(opts: { clientName?: string | null; title?: s
 export function waSupplierInvite(opts?: { fromName?: string | null }) {
   const from = (opts?.fromName ?? '').trim()
   return [
-    'Ciao 👋',
+    'Ciao',
     from
       ? `sono ${from}: ti ho aggiunto come fornitore su Planfully, lo strumento con cui gestisco preventivi, contratti e team dei miei eventi.`
       : 'ti ho aggiunto come fornitore su Planfully, lo strumento con cui gestisco preventivi, contratti e team dei miei eventi.',
@@ -67,7 +67,7 @@ export function waTeamSheet(opts: { eventTitle: string; eventDate?: string | nul
     ? new Date(opts.eventDate).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
     : null
   return [
-    `📋 Foglio presenze · ${opts.eventTitle}${date ? ` · ${date}` : ''}`,
+    `Foglio presenze · ${opts.eventTitle}${date ? ` · ${date}` : ''}`,
     'In allegato trovi i turni e le presenze del team per questo evento.',
     'Controlla il tuo nominativo, l\'orario e conferma la tua disponibilità rispondendo a questo messaggio.',
     SIGN,

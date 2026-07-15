@@ -385,7 +385,7 @@ export function ProviderOnboardingWizard() {
                             form.service_regions.length === ITALIAN_REGIONS.length
                               ? 'bg-[rgb(var(--gold-500))] text-white border-[rgb(var(--gold-500))]'
                               : 'border-[rgb(var(--border-strong))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
-                          🇮🇹 Tutta Italia
+                          Tutta Italia
                         </button>
                         <div className="flex flex-wrap gap-1.5">
                           {ITALIAN_REGIONS.map((r) => {

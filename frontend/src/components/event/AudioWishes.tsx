@@ -36,7 +36,7 @@ export function AudioWishes({ entryId, readOnly = false }: { entryId: string; re
       if (up.error) throw up.error
       const { error } = await (supabase.from as any)('event_audio_wishes').insert({ entry_id: entryId, storage_path: path })
       if (error) throw error
-      toast.success('Augurio inviato 🎤')
+      toast.success('Augurio inviato')
       await load()
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
@@ -62,7 +62,7 @@ export function AudioWishes({ entryId, readOnly = false }: { entryId: string; re
       <div className="flex items-center gap-2">
         <MessageSquareHeart size={18} className="text-[rgb(var(--gold-700))]" />
         <div>
-          <p className="text-sm font-medium">Auguri vocali agli sposi 🎤</p>
+          <p className="text-sm font-medium">Auguri vocali agli sposi</p>
           <p className="text-xs text-[rgb(var(--fg-muted))]">{readOnly ? 'Messaggi vocali lasciati dagli invitati.' : 'Registra un messaggio: lo ascolteranno gli sposi.'}</p>
         </div>
       </div>

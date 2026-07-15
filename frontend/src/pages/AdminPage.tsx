@@ -301,7 +301,7 @@ export default function AdminPage() {
           <div className="space-y-3">
             <Filters options={ERR_STATUS} labels={ERR_STATUS_LABEL} value={errFilter} onChange={setErrFilter} />
             {errors.length === 0 ? (
-              <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]"><AlertTriangle className="mx-auto mb-2 opacity-40" size={24} />Nessun errore {ERR_STATUS_LABEL[errFilter]?.toLowerCase()}. Ottimo segno. 🎉</Card>
+              <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]"><AlertTriangle className="mx-auto mb-2 opacity-40" size={24} />Nessun errore {ERR_STATUS_LABEL[errFilter]?.toLowerCase()}. Ottimo segno.</Card>
             ) : errors.map((e) => (
               <Card key={e.id} className="p-4">
                 <div className="flex items-start justify-between gap-3">

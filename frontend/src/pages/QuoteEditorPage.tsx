@@ -387,7 +387,7 @@ export default function QuoteEditorPage() {
         }
         const tentative = (conflicts as Array<{ status: string }> | null)?.find((c) => c.status === 'TENTATIVE')
         if (tentative) {
-          if (!confirm(`⚠️ Il fornitore ha segnato questa data come "in forse". Vuoi aggiungerlo comunque al preventivo?`)) return
+          if (!confirm(`Il fornitore ha segnato questa data come "in forse". Vuoi aggiungerlo comunque al preventivo?`)) return
         }
       } catch { /* check soft, prosegui */ }
     }
@@ -692,8 +692,8 @@ export default function QuoteEditorPage() {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">
                   {isClosed
-                    ? `🔒 Preventivo chiuso · rev. v${quote.revision}`
-                    : `✨ Preventivo vivo — ${quote.status === 'CONVERTITO_IN_CONTRATTO' ? 'convertito in contratto' : 'accettato dal cliente'} · rev. v${quote.revision}`}
+                    ? `Preventivo chiuso · rev. v${quote.revision}`
+                    : `Preventivo vivo — ${quote.status === 'CONVERTITO_IN_CONTRATTO' ? 'convertito in contratto' : 'accettato dal cliente'} · rev. v${quote.revision}`}
                 </p>
                 <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
                   {isClosed
@@ -718,7 +718,7 @@ export default function QuoteEditorPage() {
                     </Button>
                     {budgetReadiness && !budgetReadiness.ready_for_contract && (
                       <p className="text-[11px] text-[rgb(var(--amber-600))] max-w-[240px] text-right leading-tight">
-                        🔒 {budgetReadiness.reason}
+                        {budgetReadiness.reason}
                       </p>
                     )}
                     {budgetReadiness?.ready_for_contract && budgetReadiness.ambito !== 'COMPLETO' && (
@@ -852,7 +852,7 @@ export default function QuoteEditorPage() {
               </div>
               <div className="p-5 space-y-3">
                 <div className="rounded-lg p-3 text-xs border" style={{ borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
-                  ⚠️ <strong>Cosa succede</strong>:
+                  <strong>Cosa succede</strong>:
                   <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
                     <li>la revisione viene incrementata (v{(quote.revision ?? 1) + 1})</li>
                     <li>il cliente riceve email con il motivo + nuovo PDF</li>
@@ -917,7 +917,7 @@ export default function QuoteEditorPage() {
                                 }}
                                 title="Erogatore = io · nessun ricarico applicato"
                               >
-                                ⭐ Mio servizio
+                                Mio servizio
                               </span>
                             )}
                             {(isLive || isClosed) && (() => {
@@ -1086,7 +1086,7 @@ export default function QuoteEditorPage() {
                       {/* REVISIONE B: WP/LOCATION puo' essere fornitore di se' stesso (no ricarico) */}
                       {profile?.id && (profile.role === 'WEDDING_PLANNER' || profile.role === 'LOCATION') && grouped.has(profile.id) && (
                         <option value={profile.id}>
-                          ⭐ I miei servizi (sono io l'erogatore · no ricarico) ({grouped.get(profile.id)?.length ?? 0})
+                          I miei servizi (sono io l'erogatore · no ricarico) ({grouped.get(profile.id)?.length ?? 0})
                         </option>
                       )}
                       {Array.from(grouped.entries())
@@ -1095,7 +1095,7 @@ export default function QuoteEditorPage() {
                           const sup = suppliers?.find((s) => s.id === sid)
                           const isSelf = sid === quote.owner_id
                           const label = isSelf
-                            ? "⭐ I miei servizi (sono io l'erogatore · no ricarico)"
+                            ? "I miei servizi (sono io l'erogatore · no ricarico)"
                             : (sup?.business_name ?? sup?.full_name ?? 'Fornitore senza nome')
                           return (
                             <option key={sid} value={sid}>
@@ -1112,7 +1112,7 @@ export default function QuoteEditorPage() {
               {!isFornitoreFlow && isSoloProprioServizi && (
                 <div className="rounded-lg border p-3 text-sm max-w-md"
                   style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
-                  <p className="font-medium">⭐ Solo i miei servizi</p>
+                  <p className="font-medium">Solo i miei servizi</p>
                   <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
                     L'incarico e' "{eventAmbito?.replaceAll('_', ' ').toLowerCase()}": componi il preventivo
                     usando solo il tuo catalogo. Nessun ricarico applicato.

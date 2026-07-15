@@ -255,13 +255,13 @@ export function PostCard({ post, onChanged }: { post: FeedPost; onChanged?: () =
           {profile?.role === 'COUPLE' || profile?.role === 'CLIENT' ? (
             <span className="inline-block text-xs px-2 py-1 rounded-full"
               style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
-              📅 {post.event_title}
+              {post.event_title}
             </span>
           ) : (
             <Link to={`/weddings/${post.event_id}`}
               className="inline-block text-xs px-2 py-1 rounded-full hover:underline"
               style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
-              📅 {post.event_title}
+              {post.event_title}
             </Link>
           )}
         </div>

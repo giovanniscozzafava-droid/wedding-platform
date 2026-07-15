@@ -358,7 +358,7 @@ export default function ContractsPage() {
                       title="Ribalta tutti i dati del preventivo nel contratto: dati fiscali, offerta, importi">
                       <Sparkles size={14} /> {aiBusy ? 'Compilo…' : 'Compila con AI dal preventivo'}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={startEdit}>✏️ Modifica testo</Button>
+                    <Button variant="outline" size="sm" onClick={startEdit}>Modifica testo</Button>
                   </div>
                 )
               )}

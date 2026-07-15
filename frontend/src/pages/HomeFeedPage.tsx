@@ -10,7 +10,7 @@ import { PostCard, type FeedPost } from '@/components/feed/PostCard'
 type FilterTab = 'DISCOVER' | 'ALL' | 'NETWORK' | 'FOLLOWING' | 'MINE'
 
 const TABS: { v: FilterTab; l: string }[] = [
-  { v: 'DISCOVER',  l: '✨ Scopri' },
+  { v: 'DISCOVER',  l: 'Scopri' },
   { v: 'NETWORK',   l: 'La mia rete' },
   { v: 'FOLLOWING', l: 'Chi seguo' },
   { v: 'ALL',       l: 'Tutto' },

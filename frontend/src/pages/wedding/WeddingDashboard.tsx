@@ -526,7 +526,7 @@ function BusinessModelToggle({ wedding }: { wedding: any }) {
         className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border hover:bg-[rgb(var(--bg-sunken))] transition-colors"
         style={{ borderColor: 'rgb(var(--border-strong))' }}
         title="Cambia modello di business">
-        {current === 'GLOBAL' ? '🏛 Tutto WP' : '🤝 Clienti diretti'}
+        {current === 'GLOBAL' ? 'Tutto WP' : 'Clienti diretti'}
       </button>
       {open && createPortal(
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
@@ -540,12 +540,12 @@ function BusinessModelToggle({ wedding }: { wedding: any }) {
             <div className="space-y-2">
               <button onClick={() => set('GLOBAL')}
                 className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${current === 'GLOBAL' ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--bg-sunken))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
-                <p className="font-medium">🏛 Tutto a carico WP</p>
+                <p className="font-medium">Tutto a carico WP</p>
                 <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">Tu firmi un contratto unico con gli sposi. Sub-contrattualizzi tu i fornitori. Gli sposi pagano solo a te.</p>
               </button>
               <button onClick={() => set('BROKER')}
                 className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${current === 'BROKER' ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--bg-sunken))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
-                <p className="font-medium">🤝 Clienti firmano coi fornitori</p>
+                <p className="font-medium">Clienti firmano coi fornitori</p>
                 <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">Tu organizzi e coordini. Gli sposi firmano contratti diretti con ogni fornitore e pagano direttamente loro. Tu emetti eventuale fee organizzativa separata.</p>
               </button>
             </div>

@@ -262,7 +262,7 @@ export default function BlogEditorPage() {
                 style={{ background: 'rgba(255,255,255,.06)', color: '#fff', borderColor: 'rgba(255,255,255,.18)' }} />
               <div className="flex justify-end mt-3">
                 <Button variant="gold" onClick={() => void generateFromAI()} disabled={generating}>
-                  {generating ? 'Genero…' : '✨ Genera bozza'}
+                  {generating ? 'Genero…' : 'Genera bozza'}
                 </Button>
               </div>
             </div>

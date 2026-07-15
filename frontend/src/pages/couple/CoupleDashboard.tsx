@@ -1091,7 +1091,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
     <div className="space-y-5">
       {pendingCount > 0 && !isClosed && (
         <Card className="p-4 flex items-center gap-3" style={{ background: 'rgb(var(--gold-100))', borderColor: 'rgb(var(--gold-500))' }}>
-          <span className="text-xl">✨</span>
+          
           <p className="text-sm">
             Hai <strong>{pendingCount} {pendingCount === 1 ? 'nuova proposta' : 'nuove proposte'}</strong> {isFornitore ? `da ${ownerName}` : 'dal tuo organizzatore'} da rivedere qui sotto: approva, metti in forse o non accettare.
           </p>

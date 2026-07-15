@@ -360,7 +360,7 @@ function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose:
           {(lead.status === 'CLOSED_WON' || lead.status === 'CLOSED_LOST') && (
             <div className="surface surface-elev p-4 text-sm">
               <p className="font-medium mb-1">
-                {lead.status === 'CLOSED_WON' ? '🎉 Hai chiuso questo lead' : '❌ Lead perso'}
+                {lead.status === 'CLOSED_WON' ? 'Hai chiuso questo lead' : 'Lead perso'}
               </p>
               {lead.close_amount && <p className="text-xs text-[rgb(var(--fg-muted))]">Valore contratto: € {Number(lead.close_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>}
               {lead.close_notes && <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">{lead.close_notes}</p>}

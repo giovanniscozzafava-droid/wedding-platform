@@ -464,7 +464,7 @@ export default function EmbedLeadPage() {
           )
           return (
             <div style={{ marginTop: 6, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.08)' }}>
-              <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Scegli il tuo stile ✨</p>
+              <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Scegli il tuo stile</p>
               {finalists ? (
                 <div style={{ textAlign: 'center', padding: '6px 0' }}>
                   <p style={{ fontSize: 14 }}>{finalists.length > 0 ? `Ecco il tuo stile: ${finalists.length} preferiti.` : 'Saltato — nessun problema.'}</p>

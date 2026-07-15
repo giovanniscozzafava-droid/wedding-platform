@@ -15,19 +15,19 @@ type StyleKey =
   | 'CLASSICO' | 'MODERNO' | 'BOHO' | 'RUSTICO' | 'GLAMOUR' | 'MINIMAL'
   | 'VINTAGE' | 'INDUSTRIALE' | 'BEACH' | 'MOUNTAIN' | 'GARDEN' | 'DESTINATION'
 
-const STYLES: Array<{ k: StyleKey; l: string; emoji: string }> = [
-  { k: 'CLASSICO', l: 'Classico', emoji: '🤍' },
-  { k: 'MODERNO', l: 'Moderno', emoji: '◾' },
-  { k: 'BOHO', l: 'Boho', emoji: '🌾' },
-  { k: 'RUSTICO', l: 'Rustico', emoji: '🪵' },
-  { k: 'GLAMOUR', l: 'Glamour', emoji: '✨' },
-  { k: 'MINIMAL', l: 'Minimal', emoji: '◯' },
-  { k: 'VINTAGE', l: 'Vintage', emoji: '📻' },
-  { k: 'INDUSTRIALE', l: 'Industrial', emoji: '🏭' },
-  { k: 'BEACH', l: 'Beach', emoji: '🌊' },
-  { k: 'MOUNTAIN', l: 'Montagna', emoji: '⛰️' },
-  { k: 'GARDEN', l: 'Garden', emoji: '🌷' },
-  { k: 'DESTINATION', l: 'Destination', emoji: '✈️' },
+const STYLES: Array<{ k: StyleKey; l: string }> = [
+  { k: 'CLASSICO', l: 'Classico' },
+  { k: 'MODERNO', l: 'Moderno' },
+  { k: 'BOHO', l: 'Boho' },
+  { k: 'RUSTICO', l: 'Rustico' },
+  { k: 'GLAMOUR', l: 'Glamour' },
+  { k: 'MINIMAL', l: 'Minimal' },
+  { k: 'VINTAGE', l: 'Vintage' },
+  { k: 'INDUSTRIALE', l: 'Industrial' },
+  { k: 'BEACH', l: 'Beach' },
+  { k: 'MOUNTAIN', l: 'Montagna' },
+  { k: 'GARDEN', l: 'Garden' },
+  { k: 'DESTINATION', l: 'Destination' },
 ]
 
 const PALETTES = [
@@ -42,30 +42,30 @@ const PALETTES = [
 ]
 
 const LOCATION_KINDS = [
-  { v: 'villa', l: '🏛️ Villa storica' },
-  { v: 'spiaggia', l: '🌊 Spiaggia' },
-  { v: 'montagna', l: '⛰️ Montagna' },
-  { v: 'borgo', l: '🏘️ Borgo' },
-  { v: 'campagna', l: '🌾 Campagna' },
-  { v: 'castello', l: '🏰 Castello' },
-  { v: 'agriturismo', l: '🚜 Agriturismo' },
-  { v: 'estero', l: '✈️ Estero' },
+  { v: 'villa', l: 'Villa storica' },
+  { v: 'spiaggia', l: 'Spiaggia' },
+  { v: 'montagna', l: 'Montagna' },
+  { v: 'borgo', l: 'Borgo' },
+  { v: 'campagna', l: 'Campagna' },
+  { v: 'castello', l: 'Castello' },
+  { v: 'agriturismo', l: 'Agriturismo' },
+  { v: 'estero', l: 'Estero' },
 ]
 
 const SEASONS = [
-  { v: 'primavera', l: '🌸 Primavera' },
-  { v: 'estate', l: '☀️ Estate' },
-  { v: 'autunno', l: '🍂 Autunno' },
-  { v: 'inverno', l: '❄️ Inverno' },
+  { v: 'primavera', l: 'Primavera' },
+  { v: 'estate', l: 'Estate' },
+  { v: 'autunno', l: 'Autunno' },
+  { v: 'inverno', l: 'Inverno' },
 ]
 
 // Priorità di spesa SU MISURA per tipo evento (niente "abito" a una festa aziendale).
 function prioritiesFor(kind: string): Array<{ v: string; l: string }> {
   const base = {
-    cibo: '🍽️ Cibo / catering', location: '🏛️ Location', foto: '📸 Foto/Video',
-    musica: '🎵 Musica', intrattenimento: '🎤 Intrattenimento', allestimento: '💐 Allestimento',
-    torta: '🎂 Torta', abito: '👗 Abito', bomboniere: '🎁 Bomboniere',
-    av: '🔊 Audio/video & tech', branding: '🏷️ Branding / immagine',
+    cibo: 'Cibo / catering', location: 'Location', foto: 'Foto/Video',
+    musica: 'Musica', intrattenimento: 'Intrattenimento', allestimento: 'Allestimento',
+    torta: 'Torta', abito: 'Abito', bomboniere: 'Bomboniere',
+    av: 'Audio/video & tech', branding: 'Branding / immagine',
   }
   const P = (...keys: Array<keyof typeof base>) => keys.map((k) => ({ v: k as string, l: base[k] }))
   switch (kind) {
@@ -300,8 +300,7 @@ export function CoupleOnboardingWizard() {
                         const active = form.styles.includes(s.k)
                         return (
                           <button key={s.k} type="button" onClick={() => toggleStyle(s.k)}
-                            className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-3 text-xs transition-colors ${active ? 'bg-[rgb(var(--rose-100))] border-[rgb(var(--rose-500))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
-                            <span className="text-xl">{s.emoji}</span>
+                            className={`flex items-center justify-center rounded-lg border px-3 py-4 text-sm font-medium transition-colors ${active ? 'bg-[rgb(var(--rose-100))] border-[rgb(var(--rose-500))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
                             <span>{s.l}</span>
                           </button>
                         )

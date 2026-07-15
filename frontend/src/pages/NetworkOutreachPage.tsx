@@ -296,7 +296,7 @@ export default function NetworkOutreachPage() {
                     {p.last_contacted_at && <span>Ultimo contatto: {fmtDate(p.last_contacted_at)}</span>}
                   </div>
                   {recallDue && <div className="text-xs font-semibold text-[rgb(var(--rose-500))] mt-1">⏰ Richiamo previsto: {fmtDate(p.recall_at)}</div>}
-                  {p.status === 'APPUNTAMENTO' && p.appointment_at && <div className="text-xs font-semibold mt-1" style={{ color: '#3F7A56' }}>📅 Appuntamento: {fmtDate(p.appointment_at)}</div>}
+                  {p.status === 'APPUNTAMENTO' && p.appointment_at && <div className="text-xs font-semibold mt-1" style={{ color: '#3F7A56' }}>Appuntamento: {fmtDate(p.appointment_at)}</div>}
                   {p.notes && <div className="text-xs text-[rgb(var(--fg-muted))] mt-1 italic">“{p.notes}”</div>}
                   {p.logs?.[0] && (
                     <div className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">

@@ -2421,11 +2421,11 @@ function AlbumDesignerInner() {
           placing={placing && placing.tav === si ? placing : null}
           composer={interactive && placing && placing.tav === si ? (
             <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 space-y-2 -rotate-1">
-              <p className="text-[11px] text-amber-800 font-medium">{placing.mediaId ? '📷 Su questa foto' : '📍 Su questo punto'} · Tav. {si + 1}</p>
+              <p className="text-[11px] text-amber-800 font-medium">{placing.mediaId ? 'Su questa foto' : 'Su questo punto'} · Tav. {si + 1}</p>
               {placing.mediaId && (
                 <div className="flex gap-1">
                   <button onClick={() => { setReplaceMode(false); setRemoveMode(false) }} className={`flex-1 text-[11px] py-1 rounded border ${!replaceMode && !removeMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>✍️ Nota</button>
-                  <button onClick={() => { setReplaceMode(true); setRemoveMode(false) }} className={`flex-1 text-[11px] py-1 rounded border ${replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>🔄 Sostituisci</button>
+                  <button onClick={() => { setReplaceMode(true); setRemoveMode(false) }} className={`flex-1 text-[11px] py-1 rounded border ${replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>Sostituisci</button>
                   <button onClick={() => { setRemoveMode(true); setReplaceMode(false) }} className={`flex-1 inline-flex items-center justify-center gap-1 text-[11px] py-1 rounded border ${removeMode ? 'bg-rose-500 text-white border-rose-500' : 'border-rose-300 text-rose-600'}`}><ThumbsDown size={11} /> Togli</button>
                 </div>
               )}
@@ -2455,7 +2455,7 @@ function AlbumDesignerInner() {
             const rep = p.replace_media_id ? mediaById.get(p.replace_media_id) : null
             return (
             <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 -rotate-1">
-              {isRepl && <p className="text-[10px] font-medium text-amber-800 mb-1 flex items-center gap-1">🔄 Sostituisci questa foto{rep ? ' con:' : ''}</p>}
+              {isRepl && <p className="text-[10px] font-medium text-amber-800 mb-1 flex items-center gap-1">Sostituisci questa foto{rep ? ' con:' : ''}</p>}
               {p.kind === 'REMOVE' && <p className="text-[10px] font-medium text-rose-600 mb-1 flex items-center gap-1"><ThumbsDown size={11} /> Hai chiesto di togliere questa foto</p>}
               {isRepl && rep && <img src={thumbUrl(rep)} alt="" className="w-full h-20 object-cover rounded mb-1.5" />}
               {p.body && p.body !== '(senza testo)' && <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>}
@@ -3097,7 +3097,7 @@ function AlbumDesignerInner() {
                         const rep = p.replace_media_id ? mediaById.get(p.replace_media_id) : null
                         return (
                         <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 text-[rgb(var(--fg))]">
-                          {isRepl && <p className="text-[11px] font-semibold text-amber-800 mb-1">🔄 Richiesta: sostituisci questa foto{rep ? ' con quella scelta:' : ' (foto a tua scelta)'}</p>}
+                          {isRepl && <p className="text-[11px] font-semibold text-amber-800 mb-1">Richiesta: sostituisci questa foto{rep ? ' con quella scelta:' : ' (foto a tua scelta)'}</p>}
                           {p.kind === 'REMOVE' && <p className="text-[11px] font-semibold text-rose-600 mb-1 flex items-center gap-1"><ThumbsDown size={12} /> Il cliente toglierebbe questa foto</p>}
                           {isRepl && rep && <img src={thumbUrl(rep)} alt="" className="w-full h-24 object-cover rounded mb-1.5" />}
                           {p.body && p.body !== '(senza testo)' && <p className="text-sm whitespace-pre-wrap break-words">{p.body}</p>}
@@ -3684,7 +3684,7 @@ function AlbumDesignerInner() {
                   <div className="flex items-start justify-between gap-3 border-b border-[rgb(var(--border))] p-4">
                     <div>
                       <p className="font-display text-lg">Bilanciamento del bianco — tavola</p>
-                      <p className={`mt-0.5 text-sm font-medium ${wbResult.consistent ? 'text-[rgb(var(--emerald-600))]' : 'text-amber-600'}`}>{wbResult.consistent ? '✓ Coerente: le foto si accordano tra loro' : '⚠ Da uniformare: qualcuna stona'}</p>
+                      <p className={`mt-0.5 text-sm font-medium ${wbResult.consistent ? 'text-[rgb(var(--emerald-600))]' : 'text-amber-600'}`}>{wbResult.consistent ? '✓ Coerente: le foto si accordano tra loro' : 'Da uniformare: qualcuna stona'}</p>
                       {wbResult.note && <p className="mt-0.5 text-xs text-[rgb(var(--fg-muted))]">{wbResult.note}</p>}
                     </div>
                     <button onClick={() => setWbResult(null)} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
