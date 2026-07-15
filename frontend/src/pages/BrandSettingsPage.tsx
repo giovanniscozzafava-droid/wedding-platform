@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { SettingsTabs } from '@/components/settings/SettingsTabs'
 import { LogoCropper } from '@/components/brand/LogoCropper'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
@@ -60,6 +61,7 @@ export default function BrandSettingsPage() {
 
   return (
     <div className="min-h-full">
+      <SettingsTabs />
       {cropSrc && (
         <LogoCropper src={cropSrc} onCancel={() => setCropSrc(null)} onSave={saveCroppedLogo} />
       )}

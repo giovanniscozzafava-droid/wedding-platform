@@ -274,10 +274,10 @@ function NetworkSchema() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 44, marginTop: 22 }}>
       <div>
-        <div style={{ ...kicker(), marginBottom: 12 }}>Via 1 · Capostipite porta lavoro</div>
+        <div style={{ ...kicker(), marginBottom: 12 }}>Via 1 · Il referente evento porta lavoro</div>
         <Node label="Coppia / Cliente" sub="cerca e compila il form" />
         <Arrow t="↓" />
-        <Node label="Capostipite" sub="Wedding Planner / Location" gold />
+        <Node label="Referente evento" sub="Wedding Planner / Location" gold />
         <Arrow t="↓ porta gli eventi" />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
           <Node label="Fornitore" /><Node label="Tu" gold /><Node label="Fornitore" />
@@ -523,7 +523,7 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
           <p style={kicker()}>Anche da fermo</p>
           <h2 style={{ ...h2, fontSize: 32 }}>Sei in “Scopri”. E guadagni anche quando non lavori.</h2>
           <Feat items={[
-            { t: 'Entri in Scopri', d: 'Capostipiti e colleghi ti trovano per settore e zona, anche senza conoscerti.' },
+            { t: 'Entri in Scopri', d: 'Referenti evento e colleghi ti trovano per settore e zona, anche senza conoscerti.' },
             { t: 'Noleggi quello che hai', d: 'Metti a noleggio attrezzi e servizi: la macchina fotografica, un porta-fiori, un candelabro, una postazione make-up, casse e luci…' },
             { t: 'Reddito passivo', d: 'Chi non ha quello strumento lo prende da te. Incassi anche nei giorni senza eventi.' },
           ]} />

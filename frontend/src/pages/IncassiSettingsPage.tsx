@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { SettingsTabs } from '@/components/settings/SettingsTabs'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
@@ -65,6 +66,7 @@ export default function IncassiSettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
+      <SettingsTabs />
       <PageHeader title="Incassi" description="Ricevi i pagamenti dei tuoi clienti direttamente sul tuo conto" />
 
       <Card className="p-6">

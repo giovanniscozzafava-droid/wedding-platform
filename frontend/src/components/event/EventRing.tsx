@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Heart, Sparkles, UserPlus, Gift, X, Loader2, Mail, Plus } from 'lucide-react'
+import { Check, Heart, Sparkles, UserPlus, X, Loader2, Mail, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -265,8 +265,8 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
                 )}
                 {!role.covered && canSuggest && (
                   <button type="button" onClick={() => openPicker(role.role_key, role.label)}
-                    className="ml-auto text-[11px] text-[rgb(var(--gold-600))] hover:underline inline-flex items-center gap-0.5 shrink-0">
-                    {view === 'capostipite' ? <><UserPlus size={11} /> invita</> : <><Gift size={11} /> suggerisci</>}
+                    className="ml-auto text-[11px] font-medium text-[rgb(var(--gold-700))] hover:underline shrink-0">
+                    {view === 'capostipite' ? 'invita' : 'suggerisci'}
                   </button>
                 )}
               </div>

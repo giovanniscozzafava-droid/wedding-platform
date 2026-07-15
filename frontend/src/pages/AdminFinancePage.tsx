@@ -202,7 +202,7 @@ function Panoramica({ ov, M }: { ov: Overview; M: Metrics }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="rounded-lg p-4" style={{ background: 'rgb(var(--bg-sunken))' }}>
             <p className="font-medium text-sm mb-1">1 · Abbonamenti fornitori</p>
-            <p className="text-xs text-[rgb(var(--fg-muted))] mb-2"><strong>Tutti gratis fino a dicembre 2026.</strong> Abbonamenti da gennaio 2027 (valori provvisori: {PLANS.map((p) => `${p.price}€`).join(' / ')}). Capostipiti e clienti non pagano.</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))] mb-2"><strong>Tutti gratis fino a dicembre 2026.</strong> Abbonamenti da gennaio 2027 (valori provvisori: {PLANS.map((p) => `${p.price}€`).join(' / ')}). Referenti evento e clienti non pagano.</p>
             <Row k="MRR da abbonamenti" v={fmtE(M.mrr)} />
             <Row k="ARPA (ricavo medio per abbonato)" v={fmtE(M.arpa)} />
           </div>

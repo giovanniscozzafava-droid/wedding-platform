@@ -6,7 +6,6 @@ import {
   PackageSearch,
   CalendarDays,
   FileText,
-  Palette,
   UserRound,
   Users as UsersIcon,
   Heart,
@@ -23,11 +22,8 @@ import {
   Sparkles,
   Newspaper,
   Inbox,
-  Code2,
-  TicketPercent,
-  BookImage,
-  BadgeEuro,
   Wrench,
+  Settings,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -71,16 +67,8 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/suppliers', label: 'Rete',       icon: UsersIcon },
   ]},
   { section: null, items: [
-    { to: '/strumenti', label: 'Strumenti', icon: Wrench },
-  ]},
-  { section: 'Impostazioni', items: [
-    { to: '/settings/brand',   label: 'Brand',            icon: Palette },
-    { to: '/settings/incassi', label: 'Incassi',          icon: BadgeEuro },
-    { to: '/settings/maggiorazioni', label: 'Maggiorazioni', icon: TicketPercent },
-    { to: '/integrazione-sito', label: 'Integrazione sito', icon: Code2 },
-    { to: '/profile',          label: 'Profilo',          icon: UserRound },
-    { to: '/assistenza',       label: 'Assistenza',       icon: LifeBuoy },
-    { to: '/faq',              label: 'FAQ',              icon: HelpCircle },
+    { to: '/strumenti',   label: 'Strumenti',    icon: Wrench },
+    { to: '/settings/brand', label: 'Impostazioni', icon: Settings },
   ]},
 ]
 
@@ -103,17 +91,8 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/scopri',      label: 'Rete',        icon: Sparkles },
   ]},
   { section: null, items: [
-    { to: '/strumenti', label: 'Strumenti', icon: Wrench },
-  ]},
-  { section: 'Impostazioni', items: [
-    { to: '/settings/brand',   label: 'Brand',            icon: Palette },
-    { to: '/settings/incassi', label: 'Incassi',          icon: BadgeEuro },
-    { to: '/settings/maggiorazioni', label: 'Maggiorazioni', icon: TicketPercent },
-    { to: '/settings/album-prezzi', label: 'Listino album', icon: BookImage },
-    { to: '/integrazione-sito', label: 'Integrazione sito', icon: Code2 },
-    { to: '/profile',          label: 'Profilo',          icon: UserRound },
-    { to: '/assistenza',       label: 'Assistenza',       icon: LifeBuoy },
-    { to: '/faq',              label: 'FAQ',              icon: HelpCircle },
+    { to: '/strumenti',   label: 'Strumenti',    icon: Wrench },
+    { to: '/settings/brand', label: 'Impostazioni', icon: Settings },
   ]},
 ]
 

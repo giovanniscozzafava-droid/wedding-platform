@@ -33,7 +33,7 @@ const TIPS: Array<{ m: string; t: Tip }> = [
   { m: '/leads', t: { area: 'Lead', what: 'Le richieste in arrivo. Il punto di partenza della pipeline.', next: 'Rispondi in fretta a quelli nuovi: la velocità è metà del lavoro.' } },
   { m: '/richieste', t: { area: 'Richieste', what: 'I lavori che ti propongono i capostipiti.', next: 'Apri le nuove e conferma la tua disponibilità: così il preventivo va avanti.' } },
   { m: '/clienti', t: { area: 'Clienti', what: 'I tuoi clienti diretti.', next: 'Tieni le schede in ordine: ti servono quando prepari un preventivo.' } },
-  { m: '/capostipiti', t: { area: 'Capostipiti', what: 'I wedding planner e le location con cui collabori.', next: 'Più capostipiti attivi, più eventi che ti arrivano.' } },
+  { m: '/capostipiti', t: { area: 'Referenti evento', what: 'I wedding planner e le location con cui collabori.', next: 'Più referenti evento attivi, più eventi che ti arrivano.' } },
   { m: '/lavori-da-confermare', t: { area: 'Da confermare', what: 'Le voci che un capostipite ti ha messo a preventivo.', next: 'Confermale o segnala una modifica: senza la tua conferma il preventivo resta fermo.' } },
   { m: '/album', t: { area: 'Album', what: 'Impagini le foto e le fai sfogliare al cliente.', next: 'Quando la bozza è pronta, condividila: il cliente lascia i post-it e tu rispondi.' } },
   { m: '/profile', t: { area: 'Profilo', what: 'I tuoi dati e il tuo brand.', next: 'Completa logo e dati: i preventivi e i contratti escono già con la tua faccia.' } },

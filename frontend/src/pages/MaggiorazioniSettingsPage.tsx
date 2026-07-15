@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { SettingsTabs } from '@/components/settings/SettingsTabs'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
@@ -67,6 +68,7 @@ export default function MaggiorazioniSettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
+      <SettingsTabs />
       <PageHeader title="Maggiorazioni" description="Sovrapprezzi automatici in base alla data dell'evento (weekend, alta stagione, date). Il preventivo li calcola e li mostra da solo." />
 
       <Card className="p-4 mb-4">

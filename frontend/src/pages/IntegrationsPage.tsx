@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { SettingsTabs } from '@/components/settings/SettingsTabs'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -75,6 +76,7 @@ export default function IntegrationsPage() {
 
   return (
     <div className="min-h-full">
+      <SettingsTabs />
       <div className="max-w-3xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader
           eyebrow="Integrazione"

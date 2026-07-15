@@ -127,6 +127,9 @@ export function SaluteEventoBadge({
   const label = ((row.salute_label as SaluteLabel) in TONES
     ? (row.salute_label as SaluteLabel)
     : 'OK') as SaluteLabel
+  // Un solo indicatore di stato: 'OK' è ridondante con lo stato dell'evento (es. CONFERMATA) → non lo
+  // mostriamo; la salute compare solo quando è notevole (OTTIMA) o richiede attenzione (ATTENZIONE/CRITICA).
+  if (label === 'OK') return null
   const tone = TONES[label]
   const Icon = tone.Icon
 

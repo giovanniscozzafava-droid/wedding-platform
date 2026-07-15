@@ -37,7 +37,7 @@ const GROUPS: Group[] = [
   { key: 'rete', title: 'Rete & clienti', tools: [
     { to: '/suppliers', label: 'Rete fornitori', desc: 'I fornitori che segui e con cui collabori.', icon: UsersIcon, show: (r) => cap(r) },
     { to: '/team', label: 'Team', desc: 'Le persone del tuo studio e i loro accessi.', icon: UsersIcon, show: (r) => cap(r) || forn(r) },
-    { to: '/capostipiti', label: 'Committenti', desc: 'I capostipiti che ti hanno ingaggiato.', icon: UsersIcon, show: (r) => forn(r) },
+    { to: '/capostipiti', label: 'Referenti evento', desc: 'I referenti evento che ti hanno ingaggiato.', icon: UsersIcon, show: (r) => forn(r) },
     { to: '/clienti', label: 'Clienti', desc: 'La tua anagrafica clienti diretti.', icon: Contact, show: (r) => forn(r) },
     { to: '/suggerimenti-ricevuti', label: 'Suggerimenti', desc: 'Le segnalazioni che hai ricevuto dai colleghi.', icon: Gift, show: (r) => forn(r) },
   ]},

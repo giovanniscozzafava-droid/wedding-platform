@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { SettingsTabs } from '@/components/settings/SettingsTabs'
 import { supabase } from '@/lib/supabase'
 import { ALBUM_FORMATS } from '@/lib/albumFormats'
 import { type AlbumPriceList, type AlbumFormatPrice, type AlbumPackage, emptyPriceList, DEFAULT_FORMAT_PRICE, DEFAULT_MODEL_DELTA, euroA } from '@/lib/albumPricing'
@@ -93,6 +94,7 @@ export default function AlbumPricingSettingsPage() {
 
   return (
     <div className="min-h-full">
+      <SettingsTabs />
       <div className="max-w-5xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader
           eyebrow="Album"

@@ -80,7 +80,7 @@ export default function SupplierCapostipitiPage() {
       if (error) throw error
       const r = data as { ok?: boolean; error?: string; detail?: string; capostipite_name?: string; mode?: string }
       if (r.error === 'capostipite_non_trovato') {
-        toast.error(r.detail ?? 'Capostipite non trovato')
+        toast.error(r.detail ?? 'Referente evento non trovato')
       } else if (r.error === 'non_e_capostipite') {
         toast.error(r.detail ?? 'Account trovato ma non è wedding planner/location')
       } else if (r.error === 'gia_collaborano') {
@@ -190,11 +190,11 @@ export default function SupplierCapostipitiPage() {
       <div className="max-w-6xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader
           eyebrow="Network"
-          title="I tuoi capostipiti"
+          title="I tuoi referenti evento"
           description="I wedding planner e le location con cui collabori. Per ognuno puoi impostare prezzi personalizzati e modificatori di markup."
           actions={
             <Button variant="gold" onClick={() => setInviteOpen(true)}>
-              <UserPlus size={14} /> Invita capostipite
+              <UserPlus size={14} /> Invita referente evento
             </Button>
           }
         />
@@ -206,7 +206,7 @@ export default function SupplierCapostipitiPage() {
         ) : sortedCollabs.length === 0 ? (
           <Card className="p-12 text-center">
             <UserPlus size={28} className="mx-auto mb-3 text-[rgb(var(--fg-subtle))]" />
-            <h3 className="font-display text-lg mb-1">Nessun capostipite ancora</h3>
+            <h3 className="font-display text-lg mb-1">Nessun referente evento ancora</h3>
             <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">
               Aggiungi i wedding planner o le location con cui lavori. Riceveranno una richiesta che possono accettare per iniziare la collaborazione.
             </p>
@@ -217,7 +217,7 @@ export default function SupplierCapostipitiPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {sortedCollabs.map((c, i) => {
-              const name = c.capostipite?.business_name || c.capostipite?.full_name || 'Capostipite'
+              const name = c.capostipite?.business_name || c.capostipite?.full_name || 'Referente evento'
               const roleLabel = c.capostipite?.role === 'LOCATION' ? 'Location' : c.capostipite?.role === 'WEDDING_PLANNER' ? 'Wedding planner' : 'Admin'
               return (
                 <motion.div key={c.id}
@@ -243,7 +243,7 @@ export default function SupplierCapostipitiPage() {
                       </div>
                       <div>
                         <p className="text-[9px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Iniziato da</p>
-                        <p className="font-medium">{c.initiated_by === 'FORNITORE' ? 'Te' : 'Capostipite'}</p>
+                        <p className="font-medium">{c.initiated_by === 'FORNITORE' ? 'Te' : 'Referente evento'}</p>
                       </div>
                     </div>
                     {c.supplier_note && (
@@ -266,7 +266,7 @@ export default function SupplierCapostipitiPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setInviteOpen(false)}>
             <div className="surface surface-elev max-w-md w-full p-6 rounded-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-display text-xl">Invita capostipite</h2>
+                <h2 className="font-display text-xl">Invita referente evento</h2>
                 <Button variant="ghost" size="icon" onClick={() => setInviteOpen(false)} aria-label="Chiudi"><XIcon size={18} /></Button>
               </div>
               <form onSubmit={handleInvite} className="space-y-3">
