@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/ses.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -68,29 +69,17 @@ Deno.serve(async (req) => {
   const isSigned = c.status === 'FIRMATO'
   const subject = isSigned ? `Copia del contratto · ${c.title}` : `Contratto da firmare · ${c.title}`
 
-  const html = `<!doctype html><html lang="it"><body style="font-family:Georgia,serif;background:#F8F5EE;margin:0;padding:32px 16px;color:#1A1714">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-  <table role="presentation" width="560" style="max-width:560px;background:#FDFBF6;border-radius:14px;overflow:hidden">
-    <tr><td style="background:${primary};height:4px"></td></tr>
-    <tr><td style="padding:32px 36px">
-      <img src="https://planfully.it/brand/planfully-symbol.png" width="40" height="40" style="display:block;border-radius:8px;border:0" alt="Planfully" />
-      <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#A59C8E;margin:18px 0 4px">${isSigned ? 'Contratto firmato' : 'Contratto da firmare'}</p>
-      <h1 style="font-size:26px;margin:0 0 6px;color:${primary}">${esc(c.title)}</h1>
-      <p style="font-size:14px;color:#787164;margin:0 0 18px">Da <strong>${esc(wpName)}</strong> · ${totFmt}</p>
-      <p style="font-size:15px;line-height:1.7;color:#1A1714;margin:0 0 22px">
-        ${isSigned
-          ? 'Trovi qui la copia del contratto. Puoi riaprirlo in qualsiasi momento dal link qui sotto.'
-          : 'Apri il contratto e firmalo online in pochi minuti: ti basterà compilare i tuoi dati, il documento d’identità e firmare nel riquadro (stessa procedura del preventivo).'}
-      </p>
-      <a href="${link}" style="display:inline-block;background:${primary};color:#FDFBF6;padding:14px 32px;border-radius:40px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px;letter-spacing:1px">${isSigned ? 'Apri il contratto' : 'Apri e firma il contratto'}</a>
-      ${c.pdf_url ? `<p style="margin:16px 0 0;font-size:13px"><a href="${esc(c.pdf_url)}" style="color:${primary}">Scarica il PDF</a></p>` : ''}
-      <p style="margin:26px 0 0;font-size:12px;color:#A59C8E">${ownerEmail ? esc(ownerEmail) : ''}${ownerEmail && owner?.phone ? ' · ' : ''}${owner?.phone ? esc(owner.phone) : ''}</p>
-    </td></tr>
-    <tr><td style="background:${primary};height:3px"></td></tr>
-  </table>
-  <p style="font-size:10px;color:#A59C8E;margin-top:16px;letter-spacing:1px">Powered by Planfully · Un progetto Fuyue Srl</p>
-</td></tr></table>
-</body></html>`
+  const html = emailShell({
+    accent: primary,
+    eyebrow: isSigned ? 'Contratto firmato' : 'Contratto da firmare',
+    title: c.title,
+    subtitleHtml: `Da <strong>${esc(wpName)}</strong> · ${totFmt}`,
+    bodyHtml: `<p style="margin:0">${isSigned
+      ? 'Trovi qui la copia del contratto. Puoi riaprirlo in qualsiasi momento dal link qui sotto.'
+      : 'Apri il contratto e firmalo online in pochi minuti: ti basterà compilare i tuoi dati, il documento d’identità e firmare nel riquadro (stessa procedura del preventivo).'}</p>${c.pdf_url ? `<p style="margin:16px 0 0;font-size:13px"><a href="${esc(c.pdf_url)}" style="color:${primary}">Scarica il PDF</a></p>` : ''}`,
+    cta: { href: link, label: isSigned ? 'Apri il contratto' : 'Apri e firma il contratto' },
+    contactHtml: `${ownerEmail ? esc(ownerEmail) : ''}${ownerEmail && owner?.phone ? ' · ' : ''}${owner?.phone ? esc(owner.phone) : ''}`,
+  })
 
   const r = await sendEmail({
     to: c.client_name ? `${c.client_name.replace(/[",;<>\r\n]/g, ' ')} <${c.client_email}>` : c.client_email,
