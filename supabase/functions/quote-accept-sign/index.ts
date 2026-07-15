@@ -495,7 +495,7 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
     const wpHtml = `<!doctype html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f6f4ef;padding:24px;color:#1A1714">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.06)">
   <div style="background:linear-gradient(135deg,#1A2E4F 0%,#C49A5C 100%);padding:28px;color:#fff">
-    <h1 style="margin:0;font-size:22px">🎉 Preventivo accettato</h1>
+    <h1 style="margin:0;font-size:22px">Preventivo accettato</h1>
     <p style="margin:6px 0 0;opacity:0.9;font-size:13px">${safeText(quote.title)} · revisione v${quote.revision}</p>
   </div>
   <div style="padding:24px">
@@ -513,7 +513,7 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
   </div>
 </div></body>`
 
-    await sendEmail(toOwner ?? ownerEmail, `🎉 ${a.signer_name} ha firmato · ${quote.title}`, wpHtml, {
+    await sendEmail(toOwner ?? ownerEmail, `${a.signer_name} ha firmato · ${quote.title}`, wpHtml, {
       from: `Planfully <${fromAddr}>`,
     }).catch(() => null)
   }

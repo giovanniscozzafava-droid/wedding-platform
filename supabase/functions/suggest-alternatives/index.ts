@@ -55,8 +55,8 @@ Deno.serve(async (req) => {
     return `<div style="background:#FDFBF6;border:1px solid #E4DED2;border-radius:12px;padding:16px;margin:10px 0">
       <p style="margin:0 0 4px;font-weight:600;font-size:16px">${esc(a.full_name ?? a.name)}</p>
       ${sector ? `<p style="margin:0 0 10px;font-size:13px;color:#6E6E6E">${esc(sector)}</p>` : ''}
-      ${a.phone ? `<p style="margin:0 0 6px;font-size:14px">📞 <a href="tel:${esc(a.phone)}" style="color:#C49A5C;text-decoration:none">${esc(a.phone)}</a></p>` : ''}
-      ${a.email ? `<p style="margin:0;font-size:14px">✉️ <a href="mailto:${esc(a.email)}" style="color:#C49A5C;text-decoration:none">${esc(a.email)}</a></p>` : ''}
+      ${a.phone ? `<p style="margin:0 0 6px;font-size:14px">Tel: <a href="tel:${esc(a.phone)}" style="color:#7E6633;text-decoration:none">${esc(a.phone)}</a></p>` : ''}
+      ${a.email ? `<p style="margin:0;font-size:14px">Email: <a href="mailto:${esc(a.email)}" style="color:#7E6633;text-decoration:none">${esc(a.email)}</a></p>` : ''}
     </div>`
   }).join('')
 

@@ -1,14 +1,16 @@
 -- ============================================================================
--- SUITE TEST RLS a IMPERSONATION (DoD Blocco 1 · chiusura gate sicurezza)
--- NET-ZERO: SOLO SELECT, nessun insert/update/delete. Impersona `anon` e un
--- `authenticated` ESTRANEO (uid casuale, non owner di nulla) e verifica che NON
--- vedano dati privati altrui (righe della location demo Baronella).
+-- SUITE TEST RLS a IMPERSONATION (DoD Blocco 1 · gate sicurezza)
+-- NET-ZERO: solo SELECT. Impersona `anon` e un `authenticated` ESTRANEO e verifica
+-- che NON vedano dati privati altrui (righe della location demo Baronella).
 --
--- Meccanica: `set local role` fa applicare la RLS (il ruolo di migrazione è
--- superuser → bypasserebbe la RLS; anon/authenticated NO). `set local` è
--- transazione-locale → si azzera a fine migration. Ogni asserzione stampa un
--- NOTICE; se una tabella privata restituisce righe a un estraneo → RLS BUCATA →
--- la migration FALLISCE (raise exception). Ri-eseguibile: è un check.
+-- COME ESEGUIRLA:
+--   psql "$SUPABASE_DB_URL" -f supabase/tests/rls_impersonation.sql
+--   (oppure incollala nel SQL editor Supabase). Stampa "N PASS, M FAIL" e FALLISCE
+--   con eccezione se una tabella privata è visibile a un estraneo (RLS bucata).
+--
+-- NB: NON metterla tra le migration: `set local role` confligge col bookkeeping di
+--     `supabase db push` (42501 su schema supabase_migrations). Va eseguita a parte.
+--     Verificata verde il 15/07/2026: 18 PASS, 0 FAIL.
 -- ============================================================================
 do $$
 declare
@@ -17,7 +19,6 @@ declare
   v_fail  int := 0;
   v_pass  int := 0;
   n int; i int; who text;
-  -- [tabella, predicato "righe PRIVATE di Baronella"]. to_regclass salta le assenti.
   checks text[][] := array[
     ['calendar_entries',         'owner_id = ''' || v_loc || ''''],
     ['calendar_entries_private', 'entry_id in (select id from public.calendar_entries where owner_id = ''' || v_loc || ''')'],
@@ -65,6 +66,7 @@ begin
 
   raise notice '==== RLS IMPERSONATION: % PASS, % FAIL ====', v_pass, v_fail;
   if v_fail > 0 then
-    raise exception 'RLS IMPERSONATION FALLITA: % asserzioni bucate (vedi WARNING sopra)', v_fail;
+    raise exception 'RLS IMPERSONATION FALLITA: % asserzioni bucate', v_fail;
   end if;
 end $$;
+reset role;

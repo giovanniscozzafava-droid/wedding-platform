@@ -816,6 +816,20 @@ function AlbumDesignerInner() {
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
   const trayFileRef = useRef<HTMLInputElement>(null)
   const replaceFileRef = useRef<HTMLInputElement>(null) // "Sostituisci foto": ri-carica le versioni ricolorate
+  // Registra un media caricato nell'album. Passa source_name (nome file) per poterlo RITROVARE ai giri
+  // successivi di "Sostituisci foto". Se il DB non ha ancora la firma a 6 argomenti (migration non
+  // ancora deployata) ripiega sulla vecchia a 5 argomenti: il nome resta comunque in memoria per la
+  // sessione, quindi la sostituzione funziona lo stesso (non persiste solo tra reload diversi).
+  async function addAlbumMedia(path: string, thumb: string, mt: 'PHOTO' | 'VIDEO', moment: string | null, sourceName: string | null): Promise<string | null> {
+    const base = { p_entry: entryId, p_storage_path: path, p_thumb: thumb, p_media_type: mt, p_moment: moment }
+    let { data, error } = await (supabase.rpc as any)('album_add_media', { ...base, p_source_name: sourceName })
+    // PGRST202 = nessuna funzione col set di parametri passato (firma vecchia): riprova senza source_name.
+    if (error && ((error as { code?: string }).code === 'PGRST202' || /album_add_media/i.test((error as { message?: string }).message ?? ''))) {
+      ;({ data, error } = await (supabase.rpc as any)('album_add_media', base))
+    }
+    if (error) throw error
+    return (data as { id?: string } | null)?.id ?? null
+  }
   async function importPhotos(files: File[]) {
     if (!entryId || !files.length) return
     const list = files.filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'))
@@ -831,9 +845,7 @@ function AlbumDesignerInner() {
         if (up.error) throw up.error
         const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
         const mt: 'PHOTO' | 'VIDEO' = file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO'
-        const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: mt, p_moment: null, p_source_name: file.name })
-        if (error) throw error
-        const newId = (data as { id?: string } | null)?.id
+        const newId = await addAlbumMedia(path, pub, mt, null, file.name)
         if (newId) {
           setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: mt, guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: file.name }])
           ok++
@@ -877,9 +889,7 @@ function AlbumDesignerInner() {
         const up = await supabase.storage.from('event-guest-uploads').upload(path, file, { upsert: false, contentType: file.type || undefined })
         if (up.error) throw up.error
         const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
-        const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: 'PHOTO', p_moment: twins[0]!.album_moment ?? null, p_source_name: file.name })
-        if (error) throw error
-        const newId = (data as { id?: string } | null)?.id
+        const newId = await addAlbumMedia(path, pub, 'PHOTO', twins[0]!.album_moment ?? null, file.name)
         if (!newId) throw new Error('upload non riuscito')
         setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: twins[0]!.album_moment ?? null, source_name: file.name }])
         replaceMediaIds(new Set(twins.map((t) => t.id)), newId) // swap OVUNQUE, ritaglio invariato → resta al suo posto
@@ -1424,9 +1434,7 @@ function AlbumDesignerInner() {
       const up = await supabase.storage.from('event-guest-uploads').upload(path, file, { upsert: false, contentType: file.type || undefined })
       if (up.error) throw up.error
       const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
-      const { data, error } = await (supabase.rpc as any)('album_add_media', { p_entry: entryId, p_storage_path: path, p_thumb: pub, p_media_type: 'PHOTO', p_moment: null, p_source_name: file.name })
-      if (error) throw error
-      const newId = (data as { id?: string } | null)?.id
+      const newId = await addAlbumMedia(path, pub, 'PHOTO', null, file.name)
       if (!newId) throw new Error('upload non riuscito')
       setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: file.name }])
       freeReplace(pageId, elId, newId)

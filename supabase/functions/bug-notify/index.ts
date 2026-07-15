@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
   }
 
   const html = `<!doctype html><html lang="it"><body style="font-family:Georgia,serif;color:#1A1714">
-    <h2 style="margin:0 0 4px;color:#b91c1c">⚠️ Segnalazione ${esc(severity)}</h2>
+    <h2 style="margin:0 0 4px;color:#b91c1c">Segnalazione ${esc(severity)}</h2>
     <p style="color:#787164;margin:0 0 14px;font-size:13px">Da <strong>${esc(reporter)}</strong>${body.url ? ` · su ${esc(body.url)}` : ''}</p>
     <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#FBF7EF;border-left:3px solid #b91c1c;padding:12px 16px;border-radius:6px">${esc(message)}</div>
     <p style="margin-top:16px"><a href="${APP_BASE}/admin" style="color:#1A2E4F">Apri il pannello</a></p>
