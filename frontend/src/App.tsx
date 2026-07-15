@@ -48,6 +48,7 @@ const InsurancePage = lazyWithRetry(() => import('@/pages/InsurancePage'))
 const BrandSettingsPage = lazyWithRetry(() => import('@/pages/BrandSettingsPage'))
 const AlbumPricingSettingsPage = lazyWithRetry(() => import('@/pages/AlbumPricingSettingsPage'))
 const IncassiSettingsPage = lazyWithRetry(() => import('@/pages/IncassiSettingsPage'))
+const BillingPage = lazyWithRetry(() => import('@/pages/BillingPage'))
 const MaggiorazioniSettingsPage = lazyWithRetry(() => import('@/pages/MaggiorazioniSettingsPage'))
 const PaymentResultPage = lazyWithRetry(() => import('@/pages/public/PaymentResultPage'))
 const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreviewPage'))
@@ -248,6 +249,14 @@ export default function App() {
             element={
               <RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
                 <IncassiSettingsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings/billing"
+            element={
+              <RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+                <BillingPage />
               </RequireAuth>
             }
           />
