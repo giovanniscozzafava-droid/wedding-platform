@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Save, BookImage } from 'lucide-react'
+import { Plus, Trash2, Save, BookImage, ListPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -88,6 +88,73 @@ export default function AlbumPricingSettingsPage() {
       toast.success('Listino album salvato')
     } catch (e) { toast.error(`Salvataggio non riuscito: ${(e as Error).message}`) }
     finally { setBusy(false) }
+  }
+
+  // PUBBLICA NEL CATALOGO PREVENTIVI: crea/aggiorna in `services` una voce per ogni formato e
+  // pacchetto del listino, così le ritrovi nel preventivo (categoria «Album»). Idempotente via
+  // album_ref (fmt:<key> / pkg:<id>): ri-pubblicando aggiorna prezzo e descrizione, niente doppioni.
+  const [publishing, setPublishing] = useState(false)
+  async function ensureAlbumCategory(uid: string): Promise<string> {
+    // categoria "Album" già visibile (mia o standard)?
+    const { data: cats } = await (supabase.from as any)('service_categories').select('id, created_by').ilike('name', 'album')
+    const rows = ((cats as { id: string; created_by: string | null }[] | null) ?? [])
+    const mine = rows.find((c) => c.created_by === uid)
+    if (mine) return mine.id
+    if (rows[0]) return rows[0].id
+    // creane una mia
+    let subrole: string | null = null
+    try { const { data: p } = await (supabase.from as any)('profiles').select('subrole').eq('id', uid).maybeSingle(); subrole = (p?.subrole as string | null) ?? null } catch { /* subrole opzionale */ }
+    const slug = `album-${uid.slice(0, 8)}`
+    const { data, error } = await (supabase.from as any)('service_categories')
+      .insert({ name: 'Album', slug, subrole, created_by: uid, is_standard: false }).select('id').single()
+    if (error) { // slug già preso (ri-tentativo): rileggi
+      const { data: again } = await (supabase.from as any)('service_categories').select('id').eq('slug', slug).maybeSingle()
+      if (again?.id) return again.id
+      throw error
+    }
+    return data.id as string
+  }
+  async function publishToCatalog() {
+    setPublishing(true)
+    try {
+      const { data: me } = await supabase.auth.getUser()
+      const uid = me.user?.id
+      if (!uid) throw new Error('Utente non autenticato')
+      // salva prima il listino, così il catalogo riflette ciò che vedi a schermo
+      await (supabase.rpc as any)('album_price_settings_save', { p_config: list })
+
+      const items: { album_ref: string; name: string; description: string; base_price: number }[] = []
+      for (const [key, fp] of Object.entries(list.formats)) {
+        if (!fp) continue
+        const extra = fp.extraPageRate > 0 ? ` · € ${fp.extraPageRate}/pagina extra` : ''
+        const box = fp.boxPrice > 0 ? ` · box € ${fp.boxPrice}` : ''
+        items.push({ album_ref: `fmt:${key}`, name: `Album ${formatLabel(key)}`, description: `${fp.includedPages} pagine incluse${extra}${box}`, base_price: fp.base })
+      }
+      for (const p of (list.packages ?? [])) {
+        const model = p.includedModelLabel ? ` · modello ${p.includedModelLabel}` : ''
+        items.push({ album_ref: `pkg:${p.id}`, name: p.label?.trim() || 'Pacchetto album', description: `Album · ${p.includedPages} pagine incluse${model}`, base_price: p.base })
+      }
+      if (!items.length) { toast.error('Aggiungi almeno un formato o un pacchetto prima di pubblicare'); return }
+
+      const catId = await ensureAlbumCategory(uid)
+      let created = 0, updated = 0
+      for (const it of items) {
+        const { data: ex } = await (supabase.from as any)('services').select('id').eq('fornitore_id', uid).eq('album_ref', it.album_ref).maybeSingle()
+        if (ex?.id) {
+          // aggiorna solo prezzo + descrizione: NOME e CATEGORIA restano come li hai personalizzati nel catalogo
+          const { error } = await (supabase.from as any)('services').update({ base_price: it.base_price, description: it.description, is_active: true }).eq('id', ex.id)
+          if (error) throw error
+          updated++
+        } else {
+          const { error } = await (supabase.from as any)('services').insert({ fornitore_id: uid, category_id: catId, name: it.name, description: it.description, base_price: it.base_price, unit: 'PEZZO', is_active: true, album_ref: it.album_ref, tags: ['album'] })
+          if (error) throw error
+          created++
+        }
+      }
+      const parts = [created ? `${created} nuove` : '', updated ? `${updated} aggiornate` : ''].filter(Boolean).join(' · ')
+      toast.success(`Catalogo preventivi aggiornato (${parts}). Le trovi nel preventivo, categoria «Album».`)
+    } catch (e) { toast.error(`Pubblicazione non riuscita: ${(e as Error).message}`) }
+    finally { setPublishing(false) }
   }
 
   const rows = Object.keys(list.formats)
@@ -191,10 +258,18 @@ export default function AlbumPricingSettingsPage() {
           </div>
         </Card>
 
-        <div className="flex items-center gap-3 mt-6">
-          <Button onClick={save} disabled={busy}><Save size={16} /> {busy ? 'Salvo…' : 'Salva listino'}</Button>
+        <div className="flex items-center gap-3 mt-6 flex-wrap">
+          <Button onClick={save} disabled={busy || publishing}><Save size={16} /> {busy ? 'Salvo…' : 'Salva listino'}</Button>
+          <Button variant="outline" onClick={publishToCatalog} disabled={publishing || busy || rows.length + packages.length === 0}
+            title="Crea/aggiorna nel Catalogo servizi una voce per ogni formato e pacchetto, così le ritrovi quando componi un preventivo (categoria «Album»). Ri-pubblicando aggiorni i prezzi.">
+            <ListPlus size={16} /> {publishing ? 'Pubblico…' : 'Pubblica nel catalogo preventivi'}
+          </Button>
           {rows[0] && list.formats[rows[0]] && <span className="text-sm text-[rgb(var(--fg-muted))]">Es. {formatLabel(rows[0])}: base {euroA(list.formats[rows[0]]!.base)} · {list.formats[rows[0]]!.includedPages} pag.</span>}
         </div>
+        <p className="text-[13px] text-[rgb(var(--fg-muted))] mt-3">
+          <strong>Pubblica nel catalogo preventivi</strong> porta i tuoi formati e pacchetti tra i servizi selezionabili nel preventivo
+          (prezzo base con le pagine incluse; le pagine extra si conteggiano poi nell'album). Aggiorni il listino? Ri-pubblica per allineare i prezzi.
+        </p>
       </div>
     </div>
   )
