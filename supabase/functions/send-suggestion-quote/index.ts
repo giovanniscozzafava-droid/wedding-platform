@@ -6,6 +6,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail as sendEmailSES } from '../_shared/ses.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -62,21 +63,14 @@ Deno.serve(async (req) => {
   // Atterra sulla dashboard aggregata del cliente (tutte le offerte insieme), previo accesso.
   const link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
 
-  const html = `
-  <div style="background:#F7F4EE;padding:32px 0;font-family:Arial,sans-serif">
-    <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#FFFDF8;border-radius:14px;overflow:hidden">
-      <tr><td style="height:6px;background:#B08D57"></td></tr>
-      <tr><td style="padding:28px 32px 8px 32px">
-        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#B08D57">Preventivo dedicato</div>
-        <h1 style="font-family:Georgia,serif;font-size:23px;color:#1A1714;margin:6px 0 6px">${esc(supName)} ti ha preparato un preventivo</h1>
-        <p style="font-size:14px;color:#6B6358;line-height:1.6;margin:0">Per il tuo <strong>${esc(q.event_kind ?? 'evento')}</strong>${q.event_date ? ` del <strong>${esc(new Date(q.event_date).toLocaleDateString('it-IT'))}</strong>` : ''}. Aprilo per vederlo nel dettaglio e, se ti convince, accettarlo.</p>
-      </td></tr>
-      <tr><td style="padding:16px 32px 26px 32px">
-        <a href="${link}" style="display:inline-block;background:#1A1714;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:8px">Apri il preventivo →</a>
-      </td></tr>
-      <tr><td style="padding:0 32px 24px 32px;font-size:11px;color:#A59C8E">Hai ricevuto questo preventivo perché ti è stato suggerito ${esc(supName)}. Powered by Planfully.</td></tr>
-    </table>
-  </div>`
+  const html = emailShell({
+    eyebrow: 'Preventivo dedicato',
+    title: `${supName} ti ha preparato un preventivo`,
+    subtitleHtml: `Per il tuo <strong>${esc(q.event_kind ?? 'evento')}</strong>${q.event_date ? ` del <strong>${esc(new Date(q.event_date).toLocaleDateString('it-IT'))}</strong>` : ''}`,
+    bodyHtml: `<p style="margin:0">Aprilo per vederlo nel dettaglio e, se ti convince, accettarlo.</p>`,
+    cta: { href: link, label: 'Apri il preventivo' },
+    contactHtml: `Hai ricevuto questo preventivo perché ti è stato suggerito ${esc(supName)}.`,
+  })
 
   let sent = false
   try { await sendEmailSES({ to: String(clientEmail), subject: `${supName} ti ha preparato un preventivo`, html }); sent = true } catch { /* */ }

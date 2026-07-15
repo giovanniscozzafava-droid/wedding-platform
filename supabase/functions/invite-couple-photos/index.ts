@@ -3,6 +3,7 @@
 // (/invito-coppia/:token): da lì si registrano (lato CLIENTE, non fornitore) o accedono, e vedono le foto.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/ses.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -51,25 +52,17 @@ Deno.serve(async (req) => {
 
   // ?to=foto → dopo registrazione/login il cliente atterra sulla tab Foto (regola fissa)
   const link = `${APP_BASE}/invito-coppia/${token}?to=foto`
-  const studio = esc((prof?.business_name || prof?.full_name || 'Il tuo professionista') as string)
-  const title = esc((ce.title || 'il vostro evento') as string)
-  const html = `
-  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
-    <div style="background:#1a2e4f;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0">
-      <p style="margin:0;font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.8">${studio}</p>
-      <h1 style="margin:6px 0 0;font-size:22px">Le foto di ${title} sono pronte</h1>
-    </div>
-    <div style="border:1px solid #e6e8ec;border-top:none;border-radius:0 0 14px 14px;padding:24px">
-      <p>Le vostre foto sono online. Per vederle, entrate nella vostra area: vi basta <strong>registrarvi</strong> (è gratis) o <strong>accedere</strong> se avete già un account.</p>
-      <p style="text-align:center;margin:26px 0">
-        <a href="${link}" style="display:inline-block;background:#c9a227;color:#1a2e4f;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:10px">Guarda le foto</a>
-      </p>
-      <p style="font-size:13px;color:#64748b">Oppure copia questo link nel browser:<br><span style="word-break:break-all">${link}</span></p>
-      <p style="font-size:12px;color:#94a3b8;margin-top:20px">Hai ricevuto questa email perché ${studio} ha condiviso con te le foto del tuo evento su Planfully.</p>
-    </div>
-  </div>`
+  const rawStudio = String(prof?.business_name || prof?.full_name || 'Il tuo professionista')
+  const rawTitle = String(ce.title || 'il vostro evento')
+  const html = emailShell({
+    eyebrow: 'Foto pronte',
+    title: `Le foto di ${rawTitle} sono pronte`,
+    bodyHtml: `<p style="margin:0">Le vostre foto sono online. Per vederle, entrate nella vostra area: vi basta <strong>registrarvi</strong> (è gratis) o <strong>accedere</strong> se avete già un account.</p><p style="font-size:13px;color:#787164;margin:16px 0 0">Oppure copia questo link nel browser:<br><span style="word-break:break-all">${esc(link)}</span></p>`,
+    cta: { href: link, label: 'Guarda le foto' },
+    contactHtml: `Hai ricevuto questa email perché ${esc(rawStudio)} ha condiviso con te le foto del tuo evento su Planfully.`,
+  })
 
-  const r = await sendEmail({ to: email, subject: `Le foto di ${title} sono pronte`, html })
+  const r = await sendEmail({ to: email, subject: `Le foto di ${rawTitle} sono pronte`, html })
   if (!r.ok) return json({ error: 'email_failed', reason: (r as { reason?: string }).reason }, 502)
   return json({ ok: true })
 })

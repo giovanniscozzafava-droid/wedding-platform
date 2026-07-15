@@ -4,6 +4,7 @@
 // configurata torna {skipped:true}. Auth: solo il proprietario del preventivo.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/ses.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -40,20 +41,14 @@ Deno.serve(async (req) => {
   const link = q.access_token ? `${APP_BASE}/p/accept/${q.access_token}` : `${APP_BASE}/area-cliente`
   const dateFmt = q.event_date ? new Date(q.event_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : null
 
-  const html = `<div style="font-family:Georgia,serif;background:#F7F4EE;padding:28px 16px;color:#1A1714">
-  <table role="presentation" width="100%"><tr><td align="center">
-    <table role="presentation" width="520" style="max-width:520px;background:#FFFDF8;border-radius:14px;overflow:hidden">
-      <tr><td style="background:${primary};height:4px"></td></tr>
-      <tr><td style="padding:28px 30px">
-        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${primary}">Data tenuta per te</div>
-        <h1 style="font-size:22px;margin:8px 0 6px">Ho bloccato la tua data${dateFmt ? ` del ${esc(dateFmt)}` : ''}</h1>
-        <p style="font-size:15px;line-height:1.6;margin:0 0 16px">Te la tengo <strong>senza impegno</strong>${scad ? ` fino al <strong>${esc(scad)}</strong>` : ''}. Se vuoi assicurartela, ti basta confermare il preventivo: dopo quella data potrebbe tornare disponibile per altri.</p>
-        <a href="${link}" style="display:inline-block;background:${primary};color:#fff;padding:12px 26px;border-radius:40px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px">Conferma la data</a>
-        <p style="margin:22px 0 0;font-size:13px;color:#787164">— ${esc(proName)}</p>
-      </td></tr>
-    </table>
-    <p style="font-size:10px;color:#A59C8E;margin-top:12px">Powered by Planfully</p>
-  </td></tr></table></div>`
+  const html = emailShell({
+    accent: primary,
+    eyebrow: 'Data tenuta per te',
+    title: `Ho bloccato la tua data${dateFmt ? ` del ${esc(dateFmt)}` : ''}`,
+    bodyHtml: `<p style="margin:0">Te la tengo <strong>senza impegno</strong>${scad ? ` fino al <strong>${esc(scad)}</strong>` : ''}. Se vuoi assicurartela, ti basta confermare il preventivo: dopo quella data potrebbe tornare disponibile per altri.</p>`,
+    cta: { href: link, label: 'Conferma la data' },
+    contactHtml: `— ${esc(proName)}`,
+  })
 
   try {
     await sendEmail({ to: q.client_email, subject: `Ho tenuto la tua data${scad ? ` (fino al ${scad})` : ''}`, html })
