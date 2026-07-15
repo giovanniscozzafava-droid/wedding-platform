@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { MapPin, Users, Sparkles, Briefcase, Globe, Heart, ArrowLeft, AlertCircle, Send, BadgeCheck } from 'lucide-react'
+import { MapPin, Users, Globe, Heart, ArrowLeft, AlertCircle, Send, BadgeCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
@@ -256,15 +256,15 @@ export default function PublicSupplierPage() {
                     )}
                   </h1>
                   {subroleLabel && (
-                    <p className="text-sm font-medium uppercase tracking-wider mt-1" style={{ color: 'rgb(var(--gold-600))' }}>
+                    <p className="font-mono text-[11px] uppercase tracking-[0.2em] mt-1" style={{ color: 'rgb(var(--gold-600))' }}>
                       {subroleLabel}
                     </p>
                   )}
                 </div>
                 {data.discover_tier === 'PREMIUM' && (
-                  <span className="text-xs uppercase tracking-wider px-3 py-1 rounded-full"
-                    style={{ background: 'rgb(var(--gold-500))', color: 'white' }}>
-                    <Sparkles size={11} className="inline mr-1" /> Premium
+                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] px-3 py-1 rounded-full"
+                    style={{ background: '#7E6633', color: '#FAF5EA' }}>
+                    Premium
                   </span>
                 )}
               </div>
@@ -377,7 +377,7 @@ export default function PublicSupplierPage() {
             {data.bio && <p className="text-sm leading-relaxed mb-3">{data.bio}</p>}
             {data.work_style && (
               <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-                <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Come lavoro</p>
+                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--fg-subtle))] mb-1">Come lavoro</p>
                 <p className="text-sm leading-relaxed italic">{data.work_style}</p>
               </div>
             )}
@@ -387,9 +387,10 @@ export default function PublicSupplierPage() {
         {/* Servizi */}
         {data.services.length > 0 && (
           <section className="surface p-6 mb-6">
-            <h2 className="font-display text-xl mb-4 flex items-center gap-2">
-              <Briefcase size={18} /> Servizi · {data.services.length}
-            </h2>
+            <div className="mb-4">
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-1">Cosa offro</p>
+              <h2 className="font-display text-xl">Servizi · {data.services.length}</h2>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {data.services.map((s) => (
                 <div key={s.id} className="p-4 rounded-lg border" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -397,7 +398,7 @@ export default function PublicSupplierPage() {
                     <img src={s.photos[0]!.url} alt={s.photos[0]!.caption ?? s.name}
                       className="w-full h-32 object-cover rounded-md mb-3" />
                   )}
-                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-600))]">{s.category ?? 'Servizio'}</p>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))]">{s.category ?? 'Servizio'}</p>
                   <h3 className="font-medium mt-0.5">{s.name}</h3>
                   {s.description && <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 line-clamp-3">{s.description}</p>}
                   <p className="text-sm font-medium mt-2 tabular-nums">
@@ -414,9 +415,7 @@ export default function PublicSupplierPage() {
         {/* Contatta — modulo cliente↔fornitore. Solo per potenziali clienti, MAI per i pro. */}
         {!isOwner && !viewerIsPro && (
           <section id="contatta" className="surface p-6 mb-6">
-            <h2 className="font-display text-xl mb-1 flex items-center gap-2">
-              <Send size={18} /> Contatta {data.business_name ?? data.full_name}
-            </h2>
+            <h2 className="font-display text-xl mb-1">Contatta {data.business_name ?? data.full_name}</h2>
             <p className="text-xs text-[rgb(var(--fg-muted))] mb-4">Lascia i tuoi dati: il professionista li riceve subito e ti ricontatta.</p>
             {cSent ? (
               <div className="rounded-lg p-4 text-sm flex items-start gap-2" style={{ background: 'rgb(var(--emerald-100))', color: 'rgb(var(--emerald-700))' }}>
@@ -461,9 +460,10 @@ export default function PublicSupplierPage() {
         {/* In pancia a */}
         {data.capostipiti.length > 0 && (
           <section className="surface p-6 mb-6">
-            <h2 className="font-display text-xl mb-4 flex items-center gap-2">
-              <Users size={18} /> Lavora con
-            </h2>
+            <div className="mb-4">
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-1">La rete</p>
+              <h2 className="font-display text-xl">Lavora con</h2>
+            </div>
             <div className="flex flex-wrap gap-2">
               {data.capostipiti.map((c, i) => (
                 <span key={i} className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full"

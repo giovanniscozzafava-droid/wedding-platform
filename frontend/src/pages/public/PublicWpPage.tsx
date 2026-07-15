@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { ArrowLeft, MapPin, Users, Briefcase, Globe, Send, AlertCircle, Heart, Sparkles, FileText, UserPlus, Check } from 'lucide-react'
+import { ArrowLeft, MapPin, Users, Briefcase, Globe, Send, AlertCircle, Heart, UserPlus, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
@@ -242,7 +242,7 @@ export default function PublicWpPage() {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs uppercase tracking-[0.25em] mb-1" style={{ color: 'rgb(var(--gold-600))' }}>
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] mb-1" style={{ color: 'rgb(var(--gold-600))' }}>
                 {roleLabel}
               </p>
               <h1 className="font-display text-3xl sm:text-4xl tracking-tight">{displayName}</h1>
@@ -308,17 +308,20 @@ export default function PublicWpPage() {
             {wp.work_style ? (
               <p className="text-sm leading-relaxed italic">{wp.work_style}</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                <div className="surface surface-elev p-3">
-                  <p className="font-medium mb-0.5">1 · Ci raccontate</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
+                <div className="border-t border-[rgb(var(--border))] pt-3">
+                  <p className="font-mono text-[11px] tracking-[0.2em] text-[rgb(var(--gold-600))] mb-1">01</p>
+                  <p className="font-medium mb-0.5">Ci raccontate</p>
                   <p className="text-xs text-[rgb(var(--fg-muted))]">Stile, budget, must-have. Bastano pochi minuti.</p>
                 </div>
-                <div className="surface surface-elev p-3">
-                  <p className="font-medium mb-0.5">2 · Proposta su misura</p>
+                <div className="border-t border-[rgb(var(--border))] pt-3">
+                  <p className="font-mono text-[11px] tracking-[0.2em] text-[rgb(var(--gold-600))] mb-1">02</p>
+                  <p className="font-medium mb-0.5">Proposta su misura</p>
                   <p className="text-xs text-[rgb(var(--fg-muted))]">Idea, fornitori selezionati e preventivo trasparente.</p>
                 </div>
-                <div className="surface surface-elev p-3">
-                  <p className="font-medium mb-0.5">3 · Pensiamo a tutto</p>
+                <div className="border-t border-[rgb(var(--border))] pt-3">
+                  <p className="font-mono text-[11px] tracking-[0.2em] text-[rgb(var(--gold-600))] mb-1">03</p>
+                  <p className="font-medium mb-0.5">Pensiamo a tutto</p>
                   <p className="text-xs text-[rgb(var(--fg-muted))]">Coordinamento e regia fino al giorno dell'evento.</p>
                 </div>
               </div>
@@ -337,7 +340,10 @@ export default function PublicWpPage() {
         {wp.recent_posts.length > 0 && (
           <section className="surface p-6 mb-5">
             <div className="flex items-baseline justify-between mb-4">
-              <h2 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} /> Lavori recenti</h2>
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-1">Portfolio</p>
+                <h2 className="font-display text-xl">Lavori recenti</h2>
+              </div>
               {!isPublicVisitor && <Link to="/feed" className="text-xs text-[rgb(var(--gold-600))] hover:underline">Vedi tutto →</Link>}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -360,7 +366,10 @@ export default function PublicWpPage() {
         {/* Suppliers in pancia */}
         {wp.suppliers.length > 0 && (
           <section className="surface p-6 mb-5">
-            <h2 className="font-display text-xl mb-4 flex items-center gap-2"><Users size={18} /> La rete · {wp.suppliers.length} fornitori</h2>
+            <div className="mb-4">
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-1">La rete</p>
+              <h2 className="font-display text-xl">{wp.suppliers.length} fornitori selezionati</h2>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {wp.suppliers.slice(0, 12).map((s) => (
                 <Link key={s.id} to={s.slug ? `/p/fornitore/${s.slug}` : '#'}
@@ -385,7 +394,10 @@ export default function PublicWpPage() {
         {/* Blog */}
         {wp.blog_posts.length > 0 && (
           <section className="surface p-6 mb-5">
-            <h2 className="font-display text-xl mb-4 flex items-center gap-2"><FileText size={18} /> Articoli</h2>
+            <div className="mb-4">
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-1">Dal diario</p>
+              <h2 className="font-display text-xl">Articoli</h2>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {wp.blog_posts.map((b) => (
                 <Link key={b.slug} to={`/blog/${b.slug}`}
@@ -419,7 +431,7 @@ export default function PublicWpPage() {
               <div className="space-y-4">
                 {/* — Contatti — */}
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-600))] mb-2">I tuoi contatti</p>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-2">I tuoi contatti</p>
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div><Label>Nome *</Label><Input value={form.client_name} onChange={(e) => setForm((f) => ({ ...f, client_name: e.target.value }))} placeholder="Giulia & Marco" /></div>
@@ -431,7 +443,7 @@ export default function PublicWpPage() {
 
                 {/* — L'evento — */}
                 <div className="pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-600))] mb-2">L'evento</p>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-2">L'evento</p>
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div><Label>Tipo evento</Label>
@@ -455,7 +467,7 @@ export default function PublicWpPage() {
 
                 {/* — Profilazione: la vostra storia e i gusti — */}
                 <div className="pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-600))] mb-2">Il vostro stile</p>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] mb-2">Il vostro stile</p>
                   <div className="space-y-3">
                     <div>
                       <Label>Raccontateci la vostra storia / cosa immaginate</Label>
@@ -471,7 +483,7 @@ export default function PublicWpPage() {
                             <button key={s} type="button" onClick={() => toggleChip('styles', s, 3)}
                               className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
                               style={on
-                                ? { background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))', borderColor: 'rgb(var(--gold-500))' }
+                                ? { background: '#7E6633', color: '#FAF5EA', borderColor: '#7E6633' }
                                 : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
                               {s}
                             </button>
@@ -488,7 +500,7 @@ export default function PublicWpPage() {
                             <button key={p} type="button" onClick={() => toggleChip('priorities', p, 3)}
                               className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
                               style={on
-                                ? { background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))', borderColor: 'rgb(var(--gold-500))' }
+                                ? { background: '#7E6633', color: '#FAF5EA', borderColor: '#7E6633' }
                                 : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
                               {p}
                             </button>
