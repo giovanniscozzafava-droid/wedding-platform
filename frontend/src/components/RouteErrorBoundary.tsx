@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react'
 import { reportError } from '@/lib/errorReporting'
+import { hardReloadOnce, clearReloadGuard } from '@/lib/lazyWithRetry'
 
 type Props = { children: ReactNode }
 type State = { hasError: boolean; recovering: boolean }
@@ -29,18 +30,14 @@ export class RouteErrorBoundary extends Component<Props, State> {
   componentDidMount() {
     // caricata bene: dopo qualche secondo azzera il guard, così un futuro inciampo
     // transitorio può di nuovo auto-recuperare in silenzio.
-    this.clearTimer = setTimeout(() => { try { sessionStorage.removeItem(RELOAD_KEY) } catch { /* no-op */ } }, 4000)
+    this.clearTimer = setTimeout(() => clearReloadGuard(), 4000)
   }
   componentWillUnmount() { if (this.clearTimer) clearTimeout(this.clearTimer) }
 
   componentDidCatch(err: unknown) {
     if (!looksLikeChunkError(err)) void reportError(err, 'REACT')
-    let retried = false
-    try { retried = sessionStorage.getItem(RELOAD_KEY) === '1' } catch { /* no-op */ }
-    if (!retried) {
-      try { sessionStorage.setItem(RELOAD_KEY, '1') } catch { /* no-op */ }
-      setTimeout(() => location.reload(), 500)
-    }
+    // Primo inciampo → hard-reload una volta (cache-bust); se già fatto, resta il messaggio.
+    hardReloadOnce()
   }
 
   render() {
@@ -65,7 +62,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
           <img src="/brand/planfully-symbol.svg" alt="Planfully" className="h-9 w-9 mx-auto mb-3" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
           <h1 className="font-display text-2xl mb-2">Riproviamo</h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mb-5">La pagina non si è caricata. Ricaricala per continuare.</p>
-          <button onClick={() => { try { sessionStorage.removeItem(RELOAD_KEY) } catch { /* no-op */ } location.reload() }}
+          <button onClick={() => { clearReloadGuard(); hardReloadOnce() }}
             className="inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium"
             style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
             Ricarica

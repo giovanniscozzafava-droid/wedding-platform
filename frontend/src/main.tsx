@@ -6,21 +6,29 @@ import { Toaster } from 'sonner'
 import App from './App.tsx'
 import { ThemeProvider } from './lib/theme.tsx'
 import { installErrorReporting } from './lib/errorReporting'
+import { hardReloadOnce } from './lib/lazyWithRetry'
 import './index.css'
+
+// Pulisci il parametro usa-e-getta `_r` (aggiunto dall'hard-reload di recupero
+// chunk) così l'URL resta pulito e i router non lo vedono.
+try {
+  const u = new URL(window.location.href)
+  if (u.searchParams.has('_r')) {
+    u.searchParams.delete('_r')
+    window.history.replaceState(null, '', u.pathname + (u.search || '') + u.hash)
+  }
+} catch { /* no-op */ }
 
 // Monitoraggio errori client (errori JS + promise non gestite) → pannello admin.
 installErrorReporting()
 
 // Backstop: se un import dinamico (chunk) fallisce dopo un deploy, Vite emette
-// 'vite:preloadError' → ricarica la pagina una sola volta per prendere i nuovi
-// chunk. Evita la "pagina bianca" cliccando una sezione subito dopo un aggiornamento.
+// 'vite:preloadError' → hard-reload una sola volta per prendere i nuovi chunk
+// (bypassando anche le cache delle webview in-app). Evita la "pagina bianca"
+// cliccando una sezione subito dopo un aggiornamento.
 window.addEventListener('vite:preloadError', (e) => {
   e.preventDefault()
-  try {
-    if (sessionStorage.getItem('pf_chunk_reloaded') === '1') return
-    sessionStorage.setItem('pf_chunk_reloaded', '1')
-  } catch { /* no-op */ }
-  location.reload()
+  hardReloadOnce()
 })
 
 const queryClient = new QueryClient({
