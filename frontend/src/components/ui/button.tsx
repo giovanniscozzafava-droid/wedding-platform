@@ -9,7 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] hover:opacity-90 active:scale-[.98]',
-        gold:    'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] hover:bg-[rgb(var(--gold-600))] active:scale-[.98] shadow-[0_1px_2px_rgba(170,140,60,.18),0_8px_24px_rgba(170,140,60,.18)]',
+        gold:    'bg-[#7E6633] text-[#FAF5EA] hover:bg-[#6b572c] active:scale-[.98] shadow-[0_1px_2px_rgba(126,102,51,.2),0_8px_24px_rgba(126,102,51,.16)]',
         outline: 'border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] text-[rgb(var(--fg))] hover:bg-[rgb(var(--bg-sunken))] active:scale-[.98]',
         ghost:   'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
         destructive: 'bg-[rgb(var(--rose-500))] text-white hover:bg-[rgb(var(--rose-700))] active:scale-[.98]',

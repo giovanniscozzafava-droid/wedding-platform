@@ -10,14 +10,21 @@
 @import "@fontsource/great-vibes/400.css";
 @import "@fontsource/cinzel/400.css";
 @import "@fontsource/cinzel/600.css";
+/* Restyling "Partitura": font UI ufficiali (Bodoni Moda display, Schibsted Grotesk testo, Fragment Mono dati).
+   I font sopra RESTANO perché usati dagli strumenti di design (copertine album, tableau, poster). */
+@import "@fontsource-variable/bodoni-moda/opsz.css";
+@import "@fontsource-variable/bodoni-moda/opsz-italic.css";
+@import "@fontsource-variable/schibsted-grotesk";
+@import "@fontsource/fragment-mono/400.css";
 
 /* ─────────────────────────────────────────────────────────────
    Wedding Platform — Design Tokens 2027
    ───────────────────────────────────────────────────────────── */
 
 @theme {
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+  --font-sans: 'Schibsted Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bodoni Moda Variable', 'Bodoni Moda', ui-serif, Georgia, serif;
+  --font-mono: 'Fragment Mono', ui-monospace, 'Courier New', monospace;
 }
 
 :root {
