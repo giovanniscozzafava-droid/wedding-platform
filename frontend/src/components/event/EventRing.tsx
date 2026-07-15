@@ -27,8 +27,6 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   const [pick, setPick] = useState<{ roleKey: string; label: string } | null>(null)
   const [suppliers, setSuppliers] = useState<Suggestable[] | null>(null)
   const [adding, setAdding] = useState<string | null>(null)
-  // scelta: segnalazione fornitore→fornitore (credito €39, da gennaio 2027) o solo inserimento nel cerchio (gratis)
-  const [kindPick, setKindPick] = useState<Suggestable | null>(null)
   // invito email a un fornitore NON ancora su Planfully (conta per i punti referral)
   const [invite, setInvite] = useState<{ email: string; sending: boolean }>({ email: '', sending: false })
   // aggiungi wedding planner / location (capostipite): picker dei già iscritti + email
@@ -93,17 +91,18 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
     } catch (e) { toast.error((e as Error).message) } finally { setCapBusy(false) }
   }
 
-  async function addSupplier(s: Suggestable, kind: 'REFERRAL' | 'SHARE') {
-    setKindPick(null); setAdding(s.id)
+  // Inserimento nel cerchio dell'evento = SEMPRE condivisione (SHARE), gratis e senza richiesta €39.
+  // Il credito referral €39 vive SOLO nella fase preventivo ("Suggerisci i miei fornitori"), non qui.
+  async function addSupplier(s: Suggestable) {
+    setAdding(s.id)
     try {
-      const r = await rpc<{ ok?: boolean; pending?: boolean; error?: string }>('suggest_supplier_to_event', { p_entry: entryId, p_supplier: s.id, p_kind: kind })
+      const r = await rpc<{ ok?: boolean; pending?: boolean; error?: string }>('suggest_supplier_to_event', { p_entry: entryId, p_supplier: s.id, p_kind: 'SHARE' })
       if (r?.error) {
         toast.error(r.error === 'not_a_supplier' ? 'Profilo non valido.' : `Non aggiunto: ${r.error}`)
         return
       }
-      const suff = kind === 'REFERRAL' ? ' (segnalazione registrata)' : ''
-      if (r?.pending) toast.success(`Richiesta inviata agli sposi: ${s.name} entrerà quando accettano.${suff}`)
-      else toast.success(`${s.name} è ora nell'evento${suff}`)
+      if (r?.pending) toast.success(`Richiesta inviata agli sposi: ${s.name} entrerà quando accettano.`)
+      else toast.success(`${s.name} è ora nell'evento`)
       setPick(null); setSuppliers(null)
       await load()
     } finally { setAdding(null) }
@@ -370,7 +369,7 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
                 <p className="text-sm text-[rgb(var(--fg-muted))] p-4">Nessun fornitore disponibile.</p>
               ) : (
                 suppliers.map((s) => (
-                  <button key={s.id} type="button" disabled={s.in_event || adding === s.id} onClick={() => setKindPick(s)}
+                  <button key={s.id} type="button" disabled={s.in_event || adding === s.id} onClick={() => addSupplier(s)}
                     className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60 disabled:cursor-not-allowed text-left">
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-sm font-medium shrink-0">
                       {s.name.charAt(0).toUpperCase()}
@@ -404,24 +403,6 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
         </div>
       )}
 
-      {kindPick && (
-        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={() => setKindPick(null)}>
-          <div className="bg-[rgb(var(--bg))] rounded-2xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">Come aggiungi {kindPick.name}?</h3>
-              <button onClick={() => setKindPick(null)} aria-label="Chiudi"><X size={18} /></button>
-            </div>
-            <button onClick={() => addSupplier(kindPick, 'SHARE')} className="w-full text-left rounded-xl border border-[rgb(var(--border))] p-3 hover:border-[rgb(var(--gold-400))]">
-              <p className="text-sm font-medium">Solo nel cerchio · condividi materiale</p>
-              <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Entra nell'evento per collaborare e vedere il materiale condiviso. Nessun credito, nessun costo.</p>
-            </button>
-            <button onClick={() => addSupplier(kindPick, 'REFERRAL')} className="w-full text-left rounded-xl border border-[rgb(var(--border))] p-3 hover:border-[rgb(var(--gold-400))]">
-              <p className="text-sm font-medium">Segnalazione fornitore → fornitore</p>
-              <p className="text-[11px] text-[rgb(var(--fg-subtle))]">È una tua segnalazione: matura un credito di <strong>€39</strong> quando firma un contratto. La funzione crediti parte da <strong>gennaio 2027</strong>.</p>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
