@@ -8,7 +8,7 @@ import {
   FileText,
   UserRound,
   Users as UsersIcon,
-  Heart,
+  Gem,
   Sun,
   Moon,
   LogOut,
@@ -22,7 +22,7 @@ import {
   Sparkles,
   Newspaper,
   Inbox,
-  Wrench,
+  LayoutGrid,
   Settings,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
@@ -57,7 +57,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Pipeline', items: [
     { to: '/leads',     label: 'Lead',       icon: Inbox },
-    { to: '/weddings',  label: 'Eventi',     icon: Heart },
+    { to: '/weddings',  label: 'Eventi',     icon: Gem },
     { to: '/quotes',    label: 'Preventivi', icon: FileText },
     { to: '/contracts', label: 'Contratti',  icon: FileSignature },
   ]},
@@ -67,7 +67,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/suppliers', label: 'Rete',       icon: UsersIcon },
   ]},
   { section: null, items: [
-    { to: '/strumenti',   label: 'Strumenti',    icon: Wrench },
+    { to: '/strumenti',   label: 'Strumenti',    icon: LayoutGrid },
     { to: '/settings/brand', label: 'Impostazioni', icon: Settings },
   ]},
 ]
@@ -81,7 +81,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Pipeline', items: [
     { to: '/richieste',   label: 'Richieste',   icon: Inbox },
-    { to: '/weddings',    label: 'Eventi',      icon: Heart },
+    { to: '/weddings',    label: 'Eventi',      icon: Gem },
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
     { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
   ]},
@@ -91,7 +91,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/scopri',      label: 'Rete',        icon: Sparkles },
   ]},
   { section: null, items: [
-    { to: '/strumenti',   label: 'Strumenti',    icon: Wrench },
+    { to: '/strumenti',   label: 'Strumenti',    icon: LayoutGrid },
     { to: '/settings/brand', label: 'Impostazioni', icon: Settings },
   ]},
 ]
@@ -356,17 +356,23 @@ function NavGroups({ groups, onNavigate, dots }: { groups: NavGroup[]; onNavigat
               onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
-                  'group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  'group relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                   isActive
                     ? 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg))]'
                     : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
                 )
               }
             >
-              <n.icon size={18} strokeWidth={1.5} />
-              <span className="flex-1">{n.label}</span>
-              {dots?.has(n.to) && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} aria-label="Nuove notifiche" />}
-              {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
+              {({ isActive }) => (
+                <>
+                  {/* Stato attivo = rail oro a sinistra (geometria costante) + icona oro. */}
+                  {isActive && <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-[rgb(var(--gold-500))]" />}
+                  <n.icon size={18} strokeWidth={1.5} className={isActive ? 'text-[rgb(var(--gold-700))]' : undefined} />
+                  <span className="flex-1">{n.label}</span>
+                  {dots?.has(n.to) && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} aria-label="Nuove notifiche" />}
+                  {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
+                </>
+              )}
             </NavLink>
           ))}
         </div>

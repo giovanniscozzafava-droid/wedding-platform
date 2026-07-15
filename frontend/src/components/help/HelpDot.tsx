@@ -67,8 +67,10 @@ export function HelpModeToggle({ compact = false }: { compact?: boolean }) {
       className="inline-flex items-center gap-1.5 rounded-full transition-colors"
       style={{
         padding: compact ? '6px' : '6px 10px',
+        // Attivo: inchiostro scuro su oro-500 (costante nei due temi) → contrasto AA,
+        // non più bianco-su-oro illeggibile.
         background: enabled ? 'rgb(var(--gold-500))' : 'transparent',
-        color: enabled ? 'white' : 'rgb(var(--fg-muted))',
+        color: enabled ? '#1c1710' : 'rgb(var(--fg-muted))',
         border: enabled ? '1px solid transparent' : '1px solid rgb(var(--border-strong))',
       }}
     >

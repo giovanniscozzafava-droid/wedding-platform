@@ -10,6 +10,7 @@ const TABS: Tab[] = [
   { to: '/settings/maggiorazioni', label: 'Maggiorazioni' },
   { to: '/settings/album-prezzi', label: 'Listino album', show: (r) => r === 'FORNITORE' || r === 'ADMIN' },
   { to: '/integrazione-sito', label: 'Integrazione sito' },
+  { to: '/team', label: 'Team' },
   { to: '/profile', label: 'Profilo' },
   { to: '/assistenza', label: 'Assistenza' },
   { to: '/faq', label: 'FAQ' },
