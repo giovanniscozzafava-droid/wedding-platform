@@ -30,7 +30,7 @@ import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 
 type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null }
 type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
-type Gallery = { id: string; owner_id: string; title: string }
+type Gallery = { id: string; owner_id: string; title: string; share_token: string | null }
 
 const LEVELS = [
   { v: 'LAVORO_INTERO', l: 'Lavoro intero (sposi)', icon: Lock },
@@ -120,7 +120,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const uid = (await supabase.auth.getUser()).data.user?.id ?? null
     setMe(uid)
     if (uid) { const { data: prof } = await (supabase.from as any)('profiles').select('role').eq('id', uid).maybeSingle(); setIsAdmin(prof?.role === 'ADMIN') }
-    const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title').eq('entry_id', entryId).maybeSingle()
+    const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title, share_token').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
     if (gal) {
       const { data: gs } = await (supabase.from as any)('gallery_settings').select('*').eq('gallery_id', (gal as Gallery).id).maybeSingle()
@@ -610,6 +610,21 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
             {isOwner && <Link to="/album-catalogo"><Button variant="outline" size="sm" title="Carica il PDF del tuo catalogo e marca i modelli per i clienti"><BookOpen size={14} /> Gestisci catalogo PDF</Button></Link>}
             <Link to="/stampe"><Button variant="outline" size="sm" title="Scopri le stampe d'autore: apri una foto e tocca Stampa"><Images size={14} /> Stampe d’autore</Button></Link>
+          </div>
+        </Card>
+      )}
+
+      {/* GALLERIA SPOSI pubblica: link privato (senza login) per sfogliare e selezionare le foto
+          con lo swipe. Le scelte tornano qui come «Preferite degli sposi» (album_choice KEPT). */}
+      {isOwner && gallery?.share_token && folders.some((f) => f.level === 'LAVORO_INTERO' && f.gallery_media.length > 0) && (
+        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium flex items-center gap-2"><Images size={16} className="text-[rgb(var(--gold-600))]" /> Galleria sposi + selezione</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">Un link privato (niente login) per farle sfogliare e scegliere con lo swipe le foto dell’album. Le loro scelte tornano qui come «Preferite degli sposi».</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="gold" size="sm" onClick={() => { const url = `${window.location.origin}/g/${gallery.share_token}`; void navigator.clipboard.writeText(url).then(() => toast.success('Link galleria sposi copiato')).catch(() => toast.message(url)) }}><Link2 size={14} /> Copia link sposi</Button>
+            <a href={`/g/${gallery.share_token}`} target="_blank" rel="noreferrer"><Button variant="outline" size="sm"><Globe size={14} /> Anteprima</Button></a>
           </div>
         </Card>
       )}

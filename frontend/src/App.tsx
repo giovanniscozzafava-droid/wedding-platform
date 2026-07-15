@@ -54,6 +54,8 @@ const PaymentResultPage = lazyWithRetry(() => import('@/pages/public/PaymentResu
 const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreviewPage'))
 const QuoteAcceptPage = lazyWithRetry(() => import('@/pages/public/QuoteAcceptPage'))
 const CommissionPage = lazyWithRetry(() => import('@/pages/public/CommissionPage'))
+const PublicGalleryPage = lazyWithRetry(() => import('@/pages/public/PublicGalleryPage'))
+const GallerySwipePage = lazyWithRetry(() => import('@/pages/public/GallerySwipePage'))
 const QuoteRejectPage = lazyWithRetry(() => import('@/pages/public/QuoteRejectPage'))
 const ContractSignPage = lazyWithRetry(() => import('@/pages/public/ContractSignPage'))
 const AddendumSignPage = lazyWithRetry(() => import('@/pages/public/AddendumSignPage'))
@@ -304,6 +306,9 @@ export default function App() {
           <Route path="/invito-capostipite/:token" element={<CapostipiteInviteAcceptPage />} />
           <Route path="/invito-coppia/:token" element={<CoupleInviteAcceptPage />} />
           <Route path="/galleria/:galleryId" element={<GuestGalleryPage />} />
+          {/* Galleria sposi pubblica (link con token, senza login) + selezione swipe a giri */}
+          <Route path="/g/:token" element={<PublicGalleryPage />} />
+          <Route path="/g/:token/selezione" element={<GallerySwipePage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookie" element={<CookiePage />} />
           <Route path="/scopri" element={<DiscoverPage />} />
