@@ -72,6 +72,15 @@ export default function GallerySwipePage() {
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
   }, [queue, roundDone, zoom]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function doAdvance() { if (!token) return; setBusy(true); const r = await advanceRound(token); setBusy(false); if (!r.error) await refresh() }
+  async function doSubmit() { if (!token) return; setBusy(true); const r = await submitSelection(token); setBusy(false); if (r.ok) await refresh() }
+  async function doRescue() { // ripesca: ricarica e rimetti in coda le scartate di questo giro
+    if (!token) return
+    const d = await loadGallery(token); if (d.error) return
+    setData(d); setSel(d.selection); setHistory([])
+    setQueue((d.media ?? []).filter((m) => m.in_pool && m.decision === false))
+  }
+
   if (loading) return <div className="min-h-screen grid place-items-center bg-[rgb(var(--bg-sunken))]"><Loader2 className="animate-spin text-[rgb(var(--fg-subtle))]" size={26} /></div>
   if (err || !data || !sel) return <SwipeError err={err} token={token} />
 
@@ -100,17 +109,14 @@ export default function GallerySwipePage() {
 
       <main className="flex-1 flex flex-col items-center justify-center px-5 pb-6 min-h-0">
         {roundDone
-          ? <RoundEnd sel={sel} studio={studio} busy={busy}
-              onAdvance={async () => { if (!token) return; setBusy(true); const r = await advanceRound(token); setBusy(false); if (!r.error) await refresh() }}
-              onSubmit={async () => { if (!token) return; setBusy(true); const r = await submitSelection(token); setBusy(false); if (r.ok) await refresh() }}
-              onRescue={async () => { // ripesca: ricarica e rimetti in coda le scartate di questo giro
-                if (!token) return
-                const d = await loadGallery(token)
-                if (d.error) return
-                setData(d); setSel(d.selection); setHistory([])
-                setQueue((d.media ?? []).filter((m) => m.in_pool && m.decision === false)) }}
-            />
-          : <Deck queue={queue} onDecide={decide} onUndo={undo} canUndo={history.length > 0} onZoom={setZoom} />}
+          ? <RoundEnd sel={sel} studio={studio} busy={busy} onAdvance={doAdvance} onSubmit={doSubmit} onRescue={doRescue} />
+          : <>
+              <Deck queue={queue} onDecide={decide} onUndo={undo} canUndo={history.length > 0} onZoom={setZoom} />
+              {/* CONFERMA: appare appena raggiunto il numero (tenute nel range), anche senza scorrere tutto */}
+              {sel.status === 'ACTIVE' && sel.kept >= sel.target_min && sel.kept <= sel.target_max && (
+                <ConfirmBar kept={sel.kept} studio={studio} busy={busy} onConfirm={doSubmit} />
+              )}
+            </>}
       </main>
 
       {zoom && (
@@ -225,6 +231,23 @@ function IconBtn({ children, label, size, tone, disabled, onClick }: { children:
       className={`grid place-items-center rounded-full transition-transform active:scale-90 disabled:opacity-40 ${base}`} style={{ width: size, height: size }}>
       {children}
     </button>
+  )
+}
+
+// Barra "Conferma la selezione": compare durante lo swipe appena le tenute entrano nel range,
+// così gli sposi possono confermare (inviare al fotografo) senza scorrere ogni foto rimasta.
+function ConfirmBar({ kept, studio, busy, onConfirm }: { kept: number; studio: string; busy: boolean; onConfirm: () => void }) {
+  return (
+    <div className="mt-7 w-full max-w-[22rem] mx-auto rounded-2xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] px-4 py-3 flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgb(var(--gold-700))]">Pronte per l'album</p>
+        <p className="text-sm text-[rgb(var(--fg))] truncate">Avete tenuto <b>{kept}</b> foto — potete inviarle a {studio}</p>
+      </div>
+      <button onClick={onConfirm} disabled={busy} aria-label={`Conferma la selezione e inviala a ${studio}`}
+        className="shrink-0 inline-flex items-center gap-2 rounded-full h-11 px-5 bg-[rgb(var(--gold-500))] text-white font-mono text-[11px] uppercase tracking-[0.14em] disabled:opacity-50">
+        {busy ? <Loader2 className="animate-spin" size={15} /> : <Check size={15} />} Conferma
+      </button>
+    </div>
   )
 }
 
