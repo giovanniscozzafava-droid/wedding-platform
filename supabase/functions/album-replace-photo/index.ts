@@ -47,13 +47,22 @@ Deno.serve(async (req) => {
   const uid = ud?.user?.id
   if (!uid) return json({ error: 'unauthorized' }, 401)
 
-  const form = await req.formData().catch(() => null)
-  if (!form) return json({ error: 'bad_form' }, 400)
-  const file = form.get('file')
-  const mediaId = String(form.get('media_id') ?? '')
-  if (!(file instanceof File) || !mediaId) return json({ error: 'missing_params' }, 400)
+  // Due modalità: (A) multipart con `file` = ri-sostituzione con la ricolorata caricata dal browser;
+  // (B) JSON {media_id} = migrazione su Drive di una foto già su storage (album:), senza re-upload.
+  let mediaId = ''
+  let file: File | null = null
+  if ((req.headers.get('content-type') ?? '').includes('multipart/form-data')) {
+    const form = await req.formData().catch(() => null)
+    if (!form) return json({ error: 'bad_form' }, 400)
+    const f = form.get('file'); if (f instanceof File) file = f
+    mediaId = String(form.get('media_id') ?? '')
+  } else {
+    const body = await req.json().catch(() => ({})) as { media_id?: string }
+    mediaId = String(body.media_id ?? '')
+  }
+  if (!mediaId) return json({ error: 'missing_media_id' }, 400)
 
-  const { data: media } = await admin.from('gallery_media').select('id, gallery_id, drive_file_id, media_type').eq('id', mediaId).maybeSingle()
+  const { data: media } = await admin.from('gallery_media').select('id, gallery_id, drive_file_id, media_type, source_name').eq('id', mediaId).maybeSingle()
   if (!media) return json({ error: 'media_not_found' }, 404)
   const { data: gal } = await admin.from('event_galleries').select('owner_id, drive_folder_id').eq('id', media.gallery_id).maybeSingle()
   if (!gal) return json({ error: 'gallery_not_found' }, 404)
@@ -78,9 +87,21 @@ Deno.serve(async (req) => {
     } catch { /* uso il fallback */ }
   }
 
+  // Sorgente dei byte: dal file caricato (ri-sostituzione) oppure dall'oggetto storage (migrazione).
+  let bytes: Uint8Array, name: string, ctype: string
+  if (file) {
+    bytes = new Uint8Array(await file.arrayBuffer()); name = file.name || 'ricolorata.jpg'; ctype = file.type || 'image/jpeg'
+  } else if (oldId.startsWith('album:')) {
+    const dl = await admin.storage.from(BUCKET).download(oldId.slice('album:'.length))
+    if (dl.error || !dl.data) return json({ error: 'storage_download_failed', detail: dl.error?.message }, 502)
+    bytes = new Uint8Array(await dl.data.arrayBuffer())
+    name = (media.source_name as string | null) || (oldId.split('/').pop() || 'foto.jpg')
+    ctype = dl.data.type || 'image/jpeg'
+  } else {
+    return json({ error: 'nothing_to_upload' }, 400) // già su Drive: niente da migrare/sostituire
+  }
+
   // 1) CREA il nuovo file su Drive (resumable) — supporta anche file > 5 MB.
-  const name = file.name || 'ricolorata.jpg'
-  const ctype = file.type || 'image/jpeg'
   const meta: Record<string, unknown> = { name, ...(parent ? { parents: [parent] } : {}) }
   const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id', {
     method: 'POST',
@@ -91,7 +112,6 @@ Deno.serve(async (req) => {
   const session = initRes.headers.get('location')
   if (!session) return json({ error: 'no_upload_session' }, 502)
 
-  const bytes = new Uint8Array(await file.arrayBuffer())
   const put = await fetch(session, { method: 'PUT', headers: { 'Content-Type': ctype }, body: bytes })
   if (!put.ok) return json({ error: 'drive_upload_failed', status: put.status, detail: (await put.text()).slice(0, 300) }, 502)
   const created = await put.json().catch(() => null)

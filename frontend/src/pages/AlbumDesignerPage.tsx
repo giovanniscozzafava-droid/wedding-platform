@@ -631,6 +631,35 @@ function AlbumDesignerInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kept])
 
+  // AUTO-ALLEGGERIMENTO: le foto sostituite in passato sono su storage a piena risoluzione (pesanti).
+  // All'apertura le spostiamo SU GOOGLE DRIVE in background, una alla volta (come le altre foto →
+  // miniatura leggera sz=w800). Stesso media id → posto/ritaglio/selezione invariati. Nessun pulsante.
+  // Solo il fotografo (proprietario del Drive) può farlo; se non è il suo Drive, si ferma da sé.
+  const autoMigratedRef = useRef(false)
+  useEffect(() => {
+    if (lite || isCouple || autoMigratedRef.current) return
+    const targets = media.filter((m) => m.media_type === 'PHOTO' && (m.drive_file_id ?? '').startsWith('album:'))
+    if (!targets.length) return
+    autoMigratedRef.current = true
+    void (async () => {
+      let ok = 0, fails = 0
+      for (const m of targets) {
+        try {
+          const { data: res, error } = await supabase.functions.invoke('album-replace-photo', { body: { media_id: m.id } })
+          if (error) throw error
+          const r = res as { ok?: boolean; error?: string; drive_file_id?: string; thumbnail_link?: string }
+          if (!r?.ok || !r.drive_file_id) throw new Error(r?.error || 'x')
+          const nId = r.drive_file_id
+          const nThumb = r.thumbnail_link ?? `https://drive.google.com/thumbnail?id=${nId}&sz=w800`
+          setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, drive_file_id: nId, thumbnail_link: nThumb } : x)))
+          ok++; fails = 0
+        } catch { if (++fails >= 3) break } // 3 errori di fila (es. Drive non collegato) → stop silenzioso
+      }
+      if (ok) toast.success(`Album alleggerito: ${ok} ${ok === 1 ? 'foto spostata' : 'foto spostate'} su Drive`)
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [media.length, lite, isCouple])
+
   // Pagina aperta nel canvas grande: default alla prima, sempre valida.
   useEffect(() => {
     if (step !== 'design') return
