@@ -2740,7 +2740,7 @@ function AlbumDesignerInner() {
 
                 {/* Album sposi: modalità + modello dal catalogo */}
                 <div className="rounded-lg border border-[rgb(var(--border))] p-3 space-y-3">
-                  <p className="text-xs uppercase tracking-wide text-[rgb(var(--fg-muted))]">Album sposi · {getFormat(format).label.replace(/ ·.*/, '')}</p>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--fg-muted))]">Album sposi · {getFormat(format).label.replace(/ ·.*/, '')}</p>
 
                   {/* modalità: base preventivata (differenza) vs da zero (prezzo pieno) */}
                   <div className="flex items-center gap-1.5">
@@ -2785,7 +2785,7 @@ function AlbumDesignerInner() {
 
                 {/* Album famiglia */}
                 <div className="rounded-lg border border-[rgb(var(--border))] p-3 space-y-3">
-                  <p className="text-xs uppercase tracking-wide text-[rgb(var(--fg-muted))]">Album famiglia (mini per i genitori)</p>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--fg-muted))]">Album famiglia (mini per i genitori)</p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <label className="flex items-center gap-2 text-sm">Quantità {num(pc.family.qty, (n) => patchFamily({ qty: n }), { w: 'w-16' })}</label>
                     <label className="flex items-center gap-2 text-sm">Prezzo cad. {num(pc.family.base, (n) => patchFamily({ base: n }), { step: 10 })} €</label>
@@ -2903,17 +2903,20 @@ function AlbumDesignerInner() {
             <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
             {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
             {/* Carosello spostato FUORI dall'impaginatore: ora è una voce a sé in Foto (dopo «Stampe d'autore»). */}
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => { if (action.next === 'FINAL') { setFinalNote(''); setFinalDialog(true) } else void save(action.next) }}>{action.label}</Button>
+            <Button variant={action.next === 'FINAL' ? 'gold' : 'outline'} size="sm" disabled={busy} onClick={() => { if (action.next === 'FINAL') { setFinalNote(''); setFinalDialog(true) } else void save(action.next) }}>{action.label}</Button>
             <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
-            <span className="text-xs text-[rgb(var(--fg-muted))] ml-auto">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))]">{statusLabel(status)}</span></span>
+            <span className="font-mono text-[11px] uppercase tracking-wide text-[rgb(var(--fg-muted))] ml-auto">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))] normal-case tracking-normal">{statusLabel(status)}</span></span>
           </div>
 
           {/* workspace a 3 colonne + filmstrip */}
           <div className="flex h-[calc(100vh-104px)]">
             {/* foto */}
             <aside className="shrink-0 border-r border-[rgb(var(--border))] overflow-auto p-2" style={{ width: libW }}>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[11px] font-medium text-[rgb(var(--fg-muted))]" title="Foto della libreria già inserite nell'album / totale">Usate {trayMedia.filter((m) => placedIds.has(m.id)).length}/{trayMedia.length}</p>
+              <div className="flex items-end justify-between mb-1.5">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))] leading-none mb-1">Fotografie</p>
+                  <p className="font-mono text-[11px] text-[rgb(var(--fg-muted))]" title="Foto della libreria già inserite nell'album / totale">{trayMedia.length} · {trayMedia.filter((m) => placedIds.has(m.id)).length} usate</p>
+                </div>
                 {!lite && <>
                   <input ref={trayFileRef} type="file" accept="image/*,video/*" multiple className="hidden"
                     onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; if (fs.length) void importPhotos(fs) }} />
@@ -4764,7 +4767,7 @@ function PropsPanel(props: {
     <div className="space-y-4 text-sm">
       {slotMedia ? (
         <div>
-          <p className="font-medium flex items-center gap-1.5 mb-2"><Crop size={14} /> Foto</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[rgb(var(--fg-muted))] flex items-center gap-1.5 mb-2"><Crop size={14} /> Foto</p>
           <img src={slotMedia.thumbnail_link ?? ''} alt="" className="w-full rounded-lg mb-2 object-cover max-h-28" />
           <Button variant="gold" size="sm" className="w-full mb-2" onClick={() => onCrop(activeSlot!)}><Crop size={14} /> Ritaglia foto</Button>
           <label className="text-xs text-[rgb(var(--fg-muted))]">Zoom <strong>{Math.round(cell.z * 100)}%</strong></label>
@@ -4792,7 +4795,7 @@ function PropsPanel(props: {
       )}
 
       <div className="border-t border-[rgb(var(--border))] pt-3">
-        <p className="font-medium mb-2 flex items-center gap-1.5"><LayoutGrid size={14} /> Layout pagina {moment && <span className={`text-[10px] px-1.5 py-0.5 rounded ${moment.color}`}>{moment.label}</span>}</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[rgb(var(--fg-muted))] mb-2 flex items-center gap-1.5"><LayoutGrid size={14} /> Layout pagina {moment && <span className={`text-[10px] px-1.5 py-0.5 rounded ${moment.color}`}>{moment.label}</span>}</p>
         <p className="text-xs text-[rgb(var(--fg-muted))] mb-1.5">Preset per {nPhotos || 1} foto — tocca per applicare{isFrozenFree ? ' (sovrascrive la composizione)' : ''}</p>
         <div className="grid grid-cols-3 gap-1.5">
           {alts.map((t) => {
@@ -4893,7 +4896,7 @@ function FreePanel(props: {
   return (
     <div className="space-y-4 text-sm">
       <div>
-        <p className="font-medium mb-2 flex items-center gap-1.5"><Square size={14} /> Sfondo pagina</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[rgb(var(--fg-muted))] mb-2 flex items-center gap-1.5"><Square size={14} /> Sfondo pagina</p>
         <div className="flex items-center gap-2 flex-wrap">
           {SWATCHES.map((c) => <button key={c} onClick={() => onBg(c)} title={c} className={`h-6 w-6 rounded-full border ${page.bg === c ? 'ring-2 ring-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />)}
           <input type="color" value={page.bg ?? '#ffffff'} onChange={(e) => onBg(e.target.value)} className="h-7 w-7 rounded cursor-pointer" title="Colore personalizzato" />
@@ -4903,7 +4906,7 @@ function FreePanel(props: {
       {/* LIVELLI: pila delle foto della tavola (in alto = davanti). Seleziona, riordina, elimina. */}
       {!lite && layers && layers.length > 0 && (
         <div className="border-t border-[rgb(var(--border))] pt-3">
-          <p className="font-medium mb-1.5 flex items-center gap-1.5"><LayoutGrid size={14} /> Livelli <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({layers.length})</span></p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[rgb(var(--fg-muted))] mb-1.5 flex items-center gap-1.5"><LayoutGrid size={14} /> Livelli <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({layers.length})</span></p>
           <ul className="space-y-1 max-h-64 overflow-auto">
             {layers.map((l, i) => (
               <li key={l.id} className={`flex items-center gap-1.5 rounded px-1 py-1 ${selEl === l.id ? 'bg-[rgb(var(--gold-100))] ring-1 ring-[rgb(var(--gold-400))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>
@@ -4923,7 +4926,7 @@ function FreePanel(props: {
       {/* ALLINEA / DISTRIBUISCI la selezione multipla (impaginatore pro) */}
       {!lite && onAlign && (selCount ?? 0) >= 2 && (
         <div className="border-t border-[rgb(var(--border))] pt-3">
-          <p className="font-medium mb-1.5 flex items-center gap-1.5"><Grid3x3 size={14} /> Allinea <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({selCount} foto)</span></p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[rgb(var(--fg-muted))] mb-1.5 flex items-center gap-1.5"><Grid3x3 size={14} /> Allinea <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({selCount} foto)</span></p>
           <div className="grid grid-cols-3 gap-1">
             {([['left', '⊣ Sx'], ['hcenter', '╪ Centro'], ['right', '⊢ Dx'], ['top', '⊤ Alto'], ['vmiddle', '╫ Mezzo'], ['bottom', '⊥ Basso']] as const).map(([k, lbl]) => (
               <button key={k} onClick={() => onAlign(k)} className="text-[11px] px-1.5 py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]">{lbl}</button>
@@ -4955,7 +4958,7 @@ function FreePanel(props: {
       {!lite && onApplyTavolaLayout && (page.elements ?? []).length > 0 && (
         <div className="border-t border-[rgb(var(--border))] pt-3">
           <div className="flex items-center justify-between mb-1.5">
-            <p className="font-medium flex items-center gap-1.5"><Grid3x3 size={14} /> Disposizioni <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({presets?.length ?? 0} · {(page.elements ?? []).length} foto)</span></p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[rgb(var(--fg-muted))] flex items-center gap-1.5"><Grid3x3 size={14} /> Disposizioni <span className="text-[10px] text-[rgb(var(--fg-subtle))]">({presets?.length ?? 0} · {(page.elements ?? []).length} foto)</span></p>
             {onSaveLayout && <button onClick={onSaveLayout} title="Salva la composizione attuale tra i tuoi preset" className="text-[11px] inline-flex items-center gap-1 text-[rgb(var(--gold-700))] hover:underline"><Save size={12} /> Salva questa</button>}
           </div>
           {myPresets && myPresets.length > 0 && (
@@ -4992,7 +4995,7 @@ function FreePanel(props: {
 
       {el ? (
         <div className="border-t border-[rgb(var(--border))] pt-3 space-y-2">
-          <p className="font-medium flex items-center gap-1.5"><Move size={14} /> Foto</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[rgb(var(--fg-muted))] flex items-center gap-1.5"><Move size={14} /> Foto</p>
           <Button variant="outline" size="sm" className="w-full" onClick={() => onElUpdate(el.id, { x: 0, y: 0, w: 1, h: 1, rot: 0 })}><Maximize size={14} /> Riempi tutta la tavola</Button>
           <label className="text-xs text-[rgb(var(--fg-muted))] flex items-center gap-1"><RotateCw size={12} /> Rotazione <strong>{Math.round(el.rot)}°</strong></label>
           <input type="range" min={0} max={360} value={Math.round(el.rot)} onChange={(e) => onElUpdate(el.id, { rot: +e.target.value })} className="w-full accent-[rgb(var(--gold-600))]" />
