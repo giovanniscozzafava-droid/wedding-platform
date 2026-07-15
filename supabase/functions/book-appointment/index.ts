@@ -4,6 +4,7 @@
 // professionista, e restituisce link WhatsApp + Google Calendar.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/ses.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -76,27 +77,24 @@ Deno.serve(async (req) => {
   const waClient = digits(b.phone) ? `https://wa.me/${digits(b.phone)}?text=${encodeURIComponent(`Ciao ${name}, confermo il nostro appuntamento di ${whenIt}. — ${proName}`)}` : null
 
   // email al cliente
-  const clientHtml = `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
-    <div style="background:#1a2e4f;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0"><h1 style="margin:0;font-size:22px">Prenotazione confermata</h1></div>
-    <div style="border:1px solid #e6e8ec;border-top:none;border-radius:0 0 14px 14px;padding:24px">
-      <p>Ciao ${esc(name.split(' ')[0] ?? name)}, il tuo appuntamento con <strong>${esc(proName)}</strong> è confermato:</p>
-      <p style="font-size:16px;margin:14px 0"><strong>${esc(whenIt)}</strong><br><span style="color:#64748b">${esc(locTxt)}</span></p>
-      <p style="margin:20px 0"><a href="${gcal}" style="display:inline-block;background:#c9a227;color:#1a2e4f;font-weight:700;text-decoration:none;padding:11px 22px;border-radius:9px">Aggiungi al calendario</a>${waPro ? ` &nbsp; <a href="${waPro}" style="display:inline-block;background:#25D366;color:#fff;font-weight:700;text-decoration:none;padding:11px 22px;border-radius:9px">Scrivi su WhatsApp</a>` : ''}</p>
-      <p style="font-size:12px;color:#94a3b8">Per disdire o spostare, rispondi a questa email.</p>
-    </div></div>`
+  const clientHtml = emailShell({
+    eyebrow: 'Prenotazione confermata',
+    title: 'Il tuo appuntamento è confermato',
+    subtitleHtml: `Con <strong>${esc(proName)}</strong>`,
+    bodyHtml: `<p style="margin:0">Ciao ${esc(name.split(' ')[0] ?? name)}, ecco i dettagli.</p><p style="font-size:16px;margin:14px 0"><strong>${esc(whenIt)}</strong><br><span style="color:#787164">${esc(locTxt)}</span></p>${waPro ? `<p style="margin:14px 0 0;font-size:13px"><a href="${waPro}" style="color:#1A1714;text-decoration:underline">Scrivi su WhatsApp</a></p>` : ''}<p style="font-size:12px;color:#A59C8E;margin:16px 0 0">Per disdire o spostare, rispondi a questa email.</p>`,
+    cta: { href: gcal, label: 'Aggiungi al calendario' },
+  })
   await sendEmail({ to: email, subject: `Prenotazione confermata · ${proName} · ${whenIt}`, html: clientHtml })
 
   // email al professionista
   if (proEmail) {
-    const proHtml = `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
-      <div style="background:#1a2e4f;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0"><h1 style="margin:0;font-size:22px">Nuova prenotazione</h1></div>
-      <div style="border:1px solid #e6e8ec;border-top:none;border-radius:0 0 14px 14px;padding:24px">
-        <p style="font-size:16px;margin:0 0 12px"><strong>${esc(whenIt)}</strong> · ${esc(locTxt)}</p>
-        <p style="margin:0"><strong>${esc(name)}</strong><br>${esc(email)}${b.phone ? '<br>' + esc(b.phone) : ''}</p>
-        ${b.note ? `<p style="margin:12px 0;padding:10px;background:#f6f4ef;border-radius:8px">${esc(b.note)}</p>` : ''}
-        <p style="margin:18px 0"><a href="${gcal}" style="display:inline-block;background:#1a2e4f;color:#fff;text-decoration:none;padding:10px 20px;border-radius:9px">Aggiungi al calendario</a>${waClient ? ` &nbsp; <a href="${waClient}" style="display:inline-block;background:#25D366;color:#fff;font-weight:700;text-decoration:none;padding:10px 20px;border-radius:9px">WhatsApp al cliente</a>` : ''}</p>
-        <p style="font-size:12px;color:#94a3b8">È già nel tuo calendario (slot occupato).</p>
-      </div></div>`
+    const proHtml = emailShell({
+      eyebrow: 'Nuova prenotazione',
+      title: name,
+      subtitleHtml: `<strong>${esc(whenIt)}</strong> · ${esc(locTxt)}`,
+      bodyHtml: `<p style="margin:0">${esc(email)}${b.phone ? '<br>' + esc(b.phone) : ''}</p>${b.note ? `<p style="margin:12px 0;padding:10px;background:#F3F0E9;border-radius:8px">${esc(b.note)}</p>` : ''}${waClient ? `<p style="margin:14px 0 0;font-size:13px"><a href="${waClient}" style="color:#1A1714;text-decoration:underline">WhatsApp al cliente</a></p>` : ''}<p style="font-size:12px;color:#A59C8E;margin:16px 0 0">È già nel tuo calendario (slot occupato).</p>`,
+      cta: { href: gcal, label: 'Aggiungi al calendario' },
+    })
     await sendEmail({ to: proEmail, subject: `Nuova prenotazione · ${name} · ${whenIt}`, html: proHtml })
   }
 

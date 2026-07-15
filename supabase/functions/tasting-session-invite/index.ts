@@ -3,6 +3,7 @@
 // Il WhatsApp lo apre il gestore lato frontend (wa.me con testo precompilato).
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/ses.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -47,15 +48,13 @@ Deno.serve(async (req) => {
     await sendEmail({
       to: inv.email,
       subject: `Invito alla prova menu — ${esc(session?.name || 'Degustazione')} · ${esc(locName)}`,
-      html: `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1a1714;max-width:560px">
-        <p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#c9a227;margin:0 0 6px">Prova menu · ${esc(locName)}</p>
-        <h2 style="font-size:20px;margin:0 0 6px">${esc(inv.client_name)}, siete invitati alla degustazione</h2>
-        <p style="color:#6b6b6b;margin:0 0 14px">${esc(session?.name || '')}${session?.notes ? ` — ${esc(session.notes)}` : ''}. Scegliete una delle date e confermate: da lì si sblocca la scelta del vostro menu.</p>
-        <p style="font-weight:600;margin:0 0 4px">Date disponibili</p>
-        <ul style="font-size:14px;color:#333;margin:0 0 18px;padding-left:18px">${datesHtml || '<li>Date in via di definizione</li>'}</ul>
-        <p style="margin:18px 0"><a href="${link}" style="display:inline-block;background:#c9a227;color:#1a2e4f;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:9px">Conferma la tua presenza</a></p>
-        <p style="font-size:12px;color:#9a9a9a">Se il pulsante non funziona, apri: ${link}</p>
-      </div>`,
+      html: emailShell({
+        eyebrow: `Prova menu · ${locName}`,
+        title: `${inv.client_name ?? ''}, siete invitati alla degustazione`,
+        subtitleHtml: `${esc(session?.name || '')}${session?.notes ? ` — ${esc(session.notes)}` : ''}`,
+        bodyHtml: `<p style="margin:0 0 14px">Scegliete una delle date e confermate: da lì si sblocca la scelta del vostro menu.</p><p style="font-weight:600;margin:0 0 4px">Date disponibili</p><ul style="font-size:14px;color:#333;margin:0 0 4px;padding-left:18px">${datesHtml || '<li>Date in via di definizione</li>'}</ul>`,
+        cta: { href: link, label: 'Conferma la tua presenza' },
+      }),
     }).catch(() => {})
     await admin.from('fb_tasting_invites').update({ invited_at: new Date().toISOString() }).eq('id', inv.id)
     sent++
