@@ -2857,55 +2857,76 @@ function AlbumDesignerInner() {
               ]} />
             </div>
           )}
-          {/* barra strumenti impaginatore */}
-          <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
+          {/* barra strumenti impaginatore — raggruppata in segmenti: Genera · File · Vista · Tavola · Output */}
+          <div className="border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 flex items-center gap-1.5 flex-wrap text-sm">
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
+
+            {/* GENERA: azione principale + assistenti AI */}
             {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
-            {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy || curateBusy} onClick={() => void aiCurate()} title="Troppe foto o momenti ripetuti? L'AI cura la selezione: taglia doppioni e ripetizioni, tiene il meglio del racconto con più respiro. Poi rivedi e applichi.">{curateBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} AI seleziona</Button>}
-            {!lite && <Button variant="outline" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>}
-            {!lite && <Button variant="outline" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché e cosa fare">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>}
-            {!lite && Object.keys(qualityScores).length > 0 && <Button variant="outline" size="sm" onClick={() => setQualityOpen(true)} title="Riapri il report qualità di stampa"><FileText size={14} /> Report</Button>}
-            {!lite && <Button variant="outline" size="sm" disabled={busy} onClick={() => setStyleOpen(true)} title="Carica i tuoi album PDF: l'AI impara COME impagini (foto per tavola, respiro, doppia pagina) e 'Impagina con AI' comporrà nel tuo stile"><Frame size={14} /> Il mio stile</Button>}
-            {!lite && <>
-              <input ref={replaceFileRef} type="file" accept="image/*" multiple className="hidden"
-                onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; if (fs.length) void replacePhotosByName(fs) }} />
-              <Button variant="outline" size="sm" disabled={busy || !!importing} onClick={() => replaceFileRef.current?.click()} title="Hai rifatto la color dopo la selezione? Ri-carica i file ricolorati (STESSO NOME): ogni foto rimpiazza la sua gemella nell'impaginato mantenendo posizione e ritaglio. Una o più insieme.">{importing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sostituisci foto</Button>
-            </>}
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
-            <span className="text-[11px] text-[rgb(var(--emerald-600))]">{savedAt ? '✓ salvato' : ''}</span>
-            <Button variant="outline" size="sm" disabled={!histPast.current.length} onClick={undo} title="Annulla (⌘Z)"><Undo2 size={14} /></Button>
-            <Button variant="outline" size="sm" disabled={!histFuture.current.length} onClick={redo} title="Ripeti (⌘⇧Z)"><Redo2 size={14} /></Button>
-            <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
-            <ToolToggle on={gridOn} onClick={() => setGridOn((v) => !v)} icon={<Grid3x3 size={14} />} label="Griglia" />
-            <ToolToggle on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
-            <ToolToggle on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
-            <ToolToggle on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
-            {!lite && <ToolToggle on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
-            {!lite && Object.keys(faceMap).length > 0 && <ToolToggle on={showFaces} onClick={() => setShowFaces((v) => !v)} icon={<Eye size={14} />} label="Volti" />}
+            {!lite && (
+              <div className="inline-flex items-center gap-0.5 rounded-lg border border-[rgb(var(--border))] p-0.5">
+                <Button variant="ghost" size="sm" disabled={busy || aiBusy || curateBusy} onClick={() => void aiCurate()} title="Troppe foto o momenti ripetuti? L'AI cura la selezione: taglia doppioni e ripetizioni, tiene il meglio del racconto con più respiro. Poi rivedi e applichi.">{curateBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} AI seleziona</Button>
+                <Button variant="ghost" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>
+                <Button variant="ghost" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché e cosa fare">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>
+                {Object.keys(qualityScores).length > 0 && <Button variant="ghost" size="sm" onClick={() => setQualityOpen(true)} title="Riapri il report qualità di stampa"><FileText size={14} /> Report</Button>}
+                <Button variant="ghost" size="sm" disabled={busy} onClick={() => setStyleOpen(true)} title="Carica i tuoi album PDF: l'AI impara COME impagini (foto per tavola, respiro, doppia pagina) e 'Impagina con AI' comporrà nel tuo stile"><Frame size={14} /> Il mio stile</Button>
+              </div>
+            )}
+
+            {/* FILE / MODIFICA */}
+            <div className="inline-flex items-center gap-0.5 rounded-lg border border-[rgb(var(--border))] p-0.5">
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => void save()}><Save size={14} /> Salva</Button>
+              {!lite && <>
+                <input ref={replaceFileRef} type="file" accept="image/*" multiple className="hidden"
+                  onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; if (fs.length) void replacePhotosByName(fs) }} />
+                <Button variant="ghost" size="sm" disabled={busy || !!importing} onClick={() => replaceFileRef.current?.click()} title="Hai rifatto la color dopo la selezione? Ri-carica i file ricolorati (STESSO NOME): ogni foto rimpiazza la sua gemella nell'impaginato mantenendo posizione e ritaglio. Una o più insieme.">{importing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sostituisci foto</Button>
+              </>}
+              <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
+              <Button variant="ghost" size="sm" className="px-2" disabled={!histPast.current.length} onClick={undo} title="Annulla (⌘Z)"><Undo2 size={14} /></Button>
+              <Button variant="ghost" size="sm" className="px-2" disabled={!histFuture.current.length} onClick={redo} title="Ripeti (⌘⇧Z)"><Redo2 size={14} /></Button>
+            </div>
+            {savedAt && <span className="text-[11px] text-[rgb(var(--emerald-600))]">✓ salvato</span>}
+
+            {/* VISTA: interruttori di visualizzazione */}
+            <div className="inline-flex items-center gap-0.5 rounded-lg border border-[rgb(var(--border))] p-0.5">
+              <ToolToggle grouped on={gridOn} onClick={() => setGridOn((v) => !v)} icon={<Grid3x3 size={14} />} label="Griglia" />
+              <ToolToggle grouped on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
+              <ToolToggle grouped on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
+              <ToolToggle grouped on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
+              {!lite && <ToolToggle grouped on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
+              {!lite && Object.keys(faceMap).length > 0 && <ToolToggle grouped on={showFaces} onClick={() => setShowFaces((v) => !v)} icon={<Eye size={14} />} label="Volti" />}
+            </div>
+
+            {/* TAVOLA · ZOOM · SCHERMO.
+                "Libera": ON = editi a mano (handle); spegnendola ESCI → la composizione resta
+                CONGELATA IDENTICA (stesse posizioni/ritagli/rotazioni), solo non più editabile a
+                mano. Riaccendendola rientri in modifica. Un preset/griglia la SOVRASCRIVE. */}
+            <div className="inline-flex items-center gap-0.5 rounded-lg border border-[rgb(var(--border))] p-0.5">
+              {!lite && spreadPages[0] && (() => { const lp = spreadPages[0]!; const isFree = !!lp.tavolaFree; return <ToolToggle grouped on={isFree && !lp.frozen} onClick={() => { if (!isFree) convertTavolaToFree(lp.id); else updatePage(lp.id, (p) => ({ ...p, frozen: !p.frozen })) }} icon={<Move size={14} />} label="Libera" /> })()}
+              {!lite && spreadPages[0] && <ToolToggle grouped on={false} onClick={() => fillElToTavola(spreadPages[0]!.id)} icon={<Maximize size={14} />} label="Piena tavola" />}
+              {!lite && spreadPages[0] && <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />}
+              <button title="Riduci" className="p-1.5 rounded-md text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
+              <span className="text-[11px] w-9 text-center text-[rgb(var(--fg-muted))]">{Math.round(zoom * 100)}%</span>
+              <button title="Ingrandisci" className="p-1.5 rounded-md text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]" onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.1).toFixed(2)))}><ZoomIn size={13} /></button>
+              <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
+              <ToolToggle grouped on={fullscreen} onClick={toggleFullscreen} icon={fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />} label={fullscreen ? 'Esci pieno' : 'Piena pagina'} />
+            </div>
+
             {(lowResFlags.low > 0 || lowResFlags.warn > 0) && (
               <span title="Alcune foto piazzate sono a risoluzione troppo bassa per la dimensione di stampa: in album risulterebbero sgranate. Cercale (bordo/badge arancione sulla tavola), rimpiccioliscile o sostituiscile con una versione a risoluzione più alta."
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${lowResFlags.low > 0 ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
                 <AlertTriangle size={13} /> {lowResFlags.low + lowResFlags.warn} a bassa risoluzione
               </span>
             )}
-            {/* "Libera": ON = editi a mano (handle); spegnendola ESCI → la composizione resta
-                CONGELATA IDENTICA (stesse posizioni/ritagli/rotazioni), solo non più editabile a
-                mano. Riaccendendola rientri in modifica. Un preset/griglia la SOVRASCRIVE. */}
-            {!lite && spreadPages[0] && (() => { const lp = spreadPages[0]!; const isFree = !!lp.tavolaFree; return <ToolToggle on={isFree && !lp.frozen} onClick={() => { if (!isFree) convertTavolaToFree(lp.id); else updatePage(lp.id, (p) => ({ ...p, frozen: !p.frozen })) }} icon={<Move size={14} />} label="Libera" /> })()}
-            {!lite && spreadPages[0] && <ToolToggle on={false} onClick={() => fillElToTavola(spreadPages[0]!.id)} icon={<Maximize size={14} />} label="Piena tavola" />}
-            <div className="inline-flex items-center gap-0.5 ml-0.5">
-              <button title="Riduci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}><ZoomOut size={13} /></button>
-              <span className="text-[11px] w-9 text-center text-[rgb(var(--fg-muted))]">{Math.round(zoom * 100)}%</span>
-              <button title="Ingrandisci" className="p-1 rounded border border-[rgb(var(--border))]" onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.1).toFixed(2)))}><ZoomIn size={13} /></button>
+
+            {/* OUTPUT + stato (a destra). Carosello spostato FUORI: ora è voce a sé in Foto. */}
+            <div className="ml-auto flex items-center gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
+              {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
+              <Button variant={action.next === 'FINAL' ? 'gold' : 'outline'} size="sm" disabled={busy} onClick={() => { if (action.next === 'FINAL') { setFinalNote(''); setFinalDialog(true) } else void save(action.next) }}>{action.label}</Button>
+              <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
+              <span className="font-mono text-[11px] uppercase tracking-wide text-[rgb(var(--fg-muted))]">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))] normal-case tracking-normal">{statusLabel(status)}</span></span>
             </div>
-            <div className="h-5 w-px bg-[rgb(var(--border))] mx-0.5" />
-            <ToolToggle on={fullscreen} onClick={toggleFullscreen} icon={fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />} label={fullscreen ? 'Esci pieno' : 'Piena pagina'} />
-            <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
-            {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
-            {/* Carosello spostato FUORI dall'impaginatore: ora è una voce a sé in Foto (dopo «Stampe d'autore»). */}
-            <Button variant={action.next === 'FINAL' ? 'gold' : 'outline'} size="sm" disabled={busy} onClick={() => { if (action.next === 'FINAL') { setFinalNote(''); setFinalDialog(true) } else void save(action.next) }}>{action.label}</Button>
-            <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
-            <span className="font-mono text-[11px] uppercase tracking-wide text-[rgb(var(--fg-muted))] ml-auto">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))] normal-case tracking-normal">{statusLabel(status)}</span></span>
           </div>
 
           {/* workspace a 3 colonne + filmstrip */}
@@ -4086,10 +4107,14 @@ function SelectStep(props: {
 const TPL_LABEL: Record<TemplateKey, string> = { '1': '1', '2h': '2 │', '2hL': '2 ◧', '2v': '2 ─', '2vT': '2 ⊟', '3l': '3 ◧', '3t': '3 ⊟', '3r': '3 ◨', '3col': '3 │││', '3v': '3 ☰', '4': '4 ⊞', '4l': '4 ◧', '4r': '4 ◨', '4row': '4 ││││', '4col': '4 ☰', '5l': '5 ◧', '5t': '5 ⊟', '6band': '6 ▤', grid: 'griglia', custom: 'salvato' }
 function clampN(v: number) { return Math.min(1, Math.max(0, v)) }
 
-function ToolToggle({ on, onClick, icon, label }: { on: boolean; onClick: () => void; icon: ReactNode; label: string }) {
+// `grouped` = dentro una pill segmentata (niente bordo del singolo, lo dà il contenitore).
+function ToolToggle({ on, onClick, icon, label, grouped }: { on: boolean; onClick: () => void; icon: ReactNode; label: string; grouped?: boolean }) {
+  const base = 'inline-flex items-center gap-1 text-xs px-2 py-1.5 rounded-md transition-colors'
+  const cls = grouped
+    ? (on ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]')
+    : (on ? 'border bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))] text-[rgb(var(--gold-700))]' : 'border border-[rgb(var(--border))] text-[rgb(var(--fg-muted))]')
   return (
-    <button onClick={onClick} title={label}
-      className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border ${on ? 'bg-[rgb(var(--gold-100))] border-[rgb(var(--gold-300))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] text-[rgb(var(--fg-muted))]'}`}>
+    <button onClick={onClick} title={label} className={`${base} ${cls}`}>
       {icon} {label}
     </button>
   )
