@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Heart, MapPin, Calendar, Plane, Gift, Sparkles, BedDouble, Bus, ExternalLink, CheckCircle2 } from 'lucide-react'
+import { Heart, MapPin, Calendar, Plane, Gift, BedDouble, Bus, Car, Train, Ship, ExternalLink, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
@@ -67,35 +67,36 @@ export default function WeddingSitePage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
-      {/* Hero */}
-      <header className="relative overflow-hidden" style={{ background: primary }}>
-        <img src={w.data?.couple_photo_url ?? '/hero/preview.jpg'} alt=""
-          className="absolute inset-0 w-full h-full object-cover opacity-40"
+      {/* Hero fotografico full-bleed con velo scuro NEUTRO (mai gradienti colorati sopra le foto). */}
+      <header className="relative overflow-hidden" style={{ background: '#1A1408' }}>
+        <img src={w.data?.couple_photo_url ?? '/hero/preview.jpg'} alt={`${w.title} — foto`}
+          className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: `center ${w.data?.couple_photo_focal_y ?? 30}%` }} />
-        <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primary}EE 0%, ${secondary}88 100%)` }} />
-        <div className="relative max-w-4xl mx-auto px-6 sm:px-10 py-24 sm:py-32 text-center text-white">
+        <div className="absolute inset-0" style={{ background: 'rgba(20,16,8,.35)' }} />
+        <div className="relative max-w-4xl mx-auto px-6 sm:px-10 py-24 sm:py-32 text-center" style={{ color: '#FAF5EA' }}>
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-white/80 mb-4">
-              <Heart size={12} /> Save the date <Heart size={12} />
+            <span className="block text-[11px] font-mono uppercase tracking-[0.3em] mb-5" style={{ color: '#FAF5EA', opacity: 0.85 }}>
+              Save the date
             </span>
-            <h1 className="font-display text-5xl sm:text-6xl xl:text-7xl tracking-tight leading-none mb-4">
+            <h1 className="font-display text-5xl sm:text-6xl xl:text-7xl tracking-tight leading-[1.02] mb-5">
               {w.title}
             </h1>
-            <p className="text-lg sm:text-xl text-white/90 mb-6">
+            <div className="w-14 h-px mx-auto mb-5" style={{ background: '#FAF5EA', opacity: 0.5 }} />
+            <p className="font-mono text-sm sm:text-base uppercase tracking-[0.15em]" style={{ opacity: 0.9 }}>
               {eventDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
             {w.is_destination && w.destination_location && (
-              <p className="text-base flex items-center justify-center gap-2 text-white/85 mb-4">
-                <Plane size={16} /> {w.destination_location}{w.destination_country ? `, ${w.destination_country}` : ''}
+              <p className="text-base flex items-center justify-center gap-2 mt-3" style={{ opacity: 0.85 }}>
+                <Plane size={16} strokeWidth={1.5} /> {w.destination_location}{w.destination_country ? `, ${w.destination_country}` : ''}
               </p>
             )}
             {daysLeft > 0 && (
-              <div className="inline-flex items-center gap-3 rounded-full bg-white/15 backdrop-blur px-5 py-2 text-sm">
-                <Sparkles size={14} /> Mancano <strong>{daysLeft} giorni</strong>
-              </div>
+              <p className="mt-6 font-mono text-sm tracking-wide" style={{ opacity: 0.9 }}>
+                mancano <strong>{daysLeft}</strong> giorni
+              </p>
             )}
             {w.data?.hashtag && (
-              <p className="mt-6 text-white/70 text-sm">{w.data.hashtag}</p>
+              <p className="mt-6 font-mono text-xs" style={{ opacity: 0.65 }}>{w.data.hashtag}</p>
             )}
           </motion.div>
         </div>
@@ -156,7 +157,7 @@ export default function WeddingSitePage() {
             <ul className="space-y-3">
               {data.transport.map((t: any) => (
                 <li key={t.id} className="rounded-lg border p-4 flex items-start gap-3" style={{ borderColor: 'rgb(var(--border))' }}>
-                  <span className="text-2xl">{t.kind === 'VOLO_GRUPPO' ? '✈️' : t.kind.includes('AUTO') ? '🚗' : t.kind === 'TRENO_GRUPPO' ? '🚆' : t.kind === 'BARCA' ? '🚤' : '🚌'}</span>
+                  {(() => { const k = String(t.kind); const I = k === 'VOLO_GRUPPO' ? Plane : k.includes('AUTO') ? Car : k === 'TRENO_GRUPPO' ? Train : k === 'BARCA' ? Ship : Bus; return <I size={20} strokeWidth={1.5} className="mt-0.5 shrink-0 text-[rgb(var(--gold-700))]" /> })()}
                   <div className="flex-1">
                     <p className="font-medium">{t.label}</p>
                     {t.depart_at && <p className="text-sm text-[rgb(var(--fg-muted))]">
@@ -193,11 +194,13 @@ export default function WeddingSitePage() {
 
         {w.data?.gift_registry_url && (
           <Section title="Lista regali" primary={primary} icon={Gift}>
-            <a href={w.data.gift_registry_url} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg px-5 py-3 text-white font-medium"
-              style={{ background: primary }}>
-              Apri la lista regali <ExternalLink size={14} />
-            </a>
+            <div className="text-center">
+              <a href={w.data.gift_registry_url} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium uppercase tracking-[0.12em] underline decoration-[1.5px] underline-offset-4 hover:opacity-70"
+                style={{ color: 'rgb(var(--fg))' }}>
+                Apri la lista regali <ExternalLink size={14} strokeWidth={1.5} />
+              </a>
+            </div>
           </Section>
         )}
 
@@ -238,25 +241,31 @@ export default function WeddingSitePage() {
               <Textarea rows={2} placeholder="Lascia un messaggio" value={rsvp.notes}
                 onChange={(e) => setRsvp((r) => ({ ...r, notes: e.target.value }))} />
               {err && <p className="text-sm text-[rgb(var(--rose-500))]">{err}</p>}
-              <Button type="submit" className="w-full text-white" style={{ background: primary }}>Conferma RSVP</Button>
+              <Button type="submit" variant="gold" className="w-full">Conferma RSVP</Button>
             </form>
           )}
         </Section>
       </main>
 
-      <footer className="border-t mt-12 py-8 text-center text-xs text-[rgb(var(--fg-subtle))]" style={{ borderColor: 'rgb(var(--border))' }}>
-        Planfully · Sito personalizzato per il tuo evento.
+      <footer className="border-t mt-12 py-10 text-center" style={{ borderColor: 'rgb(var(--border))' }}>
+        <span className="inline-flex items-center gap-2 text-xs text-[rgb(var(--fg-subtle))]">
+          <img src="/brand/planfully-symbol.svg" alt="" className="h-4 w-4" style={{ color: 'rgb(var(--fg))' }} />
+          Realizzato con Planfully
+        </span>
       </footer>
     </div>
   )
 }
 
-function Section({ title, primary, icon: Icon, children }: { title: string; primary: string; icon?: any; children: React.ReactNode }) {
+// Sezione come articolo di rivista: filetto oro + titolo Bodoni corsivo in inchiostro (carta+inchiostro;
+// il colore brand del planner resta solo come accento altrove). L'icona non si mostra più nel titolo.
+function Section({ title, children }: { title: string; primary?: string; icon?: any; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="font-display text-3xl mb-4 flex items-center gap-2" style={{ color: primary }}>
-        {Icon && <Icon size={20} />} {title}
-      </h2>
+      <div className="text-center mb-6">
+        <span className="block w-10 h-px mx-auto mb-3" style={{ background: 'rgb(var(--gold-600))' }} />
+        <h2 className="font-display italic text-3xl sm:text-4xl" style={{ color: 'rgb(var(--fg))' }}>{title}</h2>
+      </div>
       {children}
     </section>
   )
