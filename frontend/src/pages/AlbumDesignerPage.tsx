@@ -883,23 +883,29 @@ function AlbumDesignerInner() {
       const file = imgs[i]!; setImporting({ done: i, total: imgs.length })
       const twins = byName.get(norm(file.name))
       if (!twins || !twins.length) { notFound.push(file.name); continue }
-      try {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-        const path = `${entryId}/album/${crypto.randomUUID()}.${ext}`
-        const up = await supabase.storage.from('event-guest-uploads').upload(path, file, { upsert: false, contentType: file.type || undefined })
-        if (up.error) throw up.error
-        const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
-        const newId = await addAlbumMedia(path, pub, 'PHOTO', twins[0]!.album_moment ?? null, file.name)
-        if (!newId) throw new Error('upload non riuscito')
-        setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: twins[0]!.album_moment ?? null, source_name: file.name }])
-        replaceMediaIds(new Set(twins.map((t) => t.id)), newId) // swap OVUNQUE, ritaglio invariato → resta al suo posto
-        replaced += twins.length
-      } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
+      // Sostituzione SU DRIVE: la ricolorata diventa un NUOVO file Drive (leggero come le altre foto),
+      // il media ripunta lì (STESSO id → ritaglio/posizione invariati), il vecchio va nel cestino di Drive
+      // (o l'oggetto storage di una vecchia sostituzione viene eliminato). Lato server: album-replace-photo.
+      for (const twin of twins) {
+        try {
+          const fd = new FormData()
+          fd.append('file', file, file.name)
+          fd.append('media_id', twin.id)
+          const { data: res, error } = await supabase.functions.invoke('album-replace-photo', { body: fd })
+          if (error) throw error
+          const r = res as { ok?: boolean; error?: string; drive_file_id?: string; thumbnail_link?: string }
+          if (!r?.ok || !r.drive_file_id) throw new Error(r?.error || 'sostituzione non riuscita')
+          const nId = r.drive_file_id
+          const nThumb = r.thumbnail_link ?? `https://drive.google.com/thumbnail?id=${nId}&sz=w800`
+          setMedia((arr) => arr.map((x) => (x.id === twin.id ? { ...x, drive_file_id: nId, thumbnail_link: nThumb } : x)))
+          replaced += 1
+        } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
+      }
     }
     setImporting(null)
-    if (replaced) toast.success(`${replaced} foto sostituite (posizione e ritaglio invariati)`)
+    if (replaced) toast.success(`${replaced} foto sostituite su Drive (posizione e ritaglio invariati)`)
     if (notFound.length) toast.warning(`${notFound.length} non impaginate, saltate: ${notFound.slice(0, 3).join(', ')}${notFound.length > 3 ? '…' : ''}`, { duration: 9000 })
-    if (fails.length) toast.error(`${fails.length} non caricate — ${fails[0]}`)
+    if (fails.length) toast.error(`${fails.length} non sostituite — ${fails[0]}`, { duration: 12000 })
   }
 
   const perMoment = useMemo(() => {
@@ -1212,20 +1218,6 @@ function AlbumDesignerInner() {
       return np
     }))
     toast.success('Foto scambiate')
-  }
-  // SOSTITUISCI OVUNQUE: rimpiazza ogni occorrenza delle vecchie foto (oldIds) con la nuova (newId),
-  // in elementi liberi / slot template / foto a doppia pagina. A differenza di freeReplace NON azzera
-  // il ritaglio: è la STESSA immagine ricolorata, quindi posizione/zoom/ritaglio restano identici.
-  function replaceMediaIds(oldIds: Set<string>, newId: string) {
-    if (!oldIds.size) return
-    const sw = (id: string) => (oldIds.has(id) ? newId : id)
-    setPages((arr) => arr.map((p) => {
-      let np: AlbumPage = p
-      if ((p.elements?.length ?? 0) > 0) np = { ...np, elements: (np.elements ?? []).map((e) => (oldIds.has(e.mediaId) ? { ...e, mediaId: newId } : e)) }
-      if ((p.mediaIds?.length ?? 0) > 0) np = { ...np, mediaIds: (np.mediaIds ?? []).map(sw) }
-      if (p.spreadImage && oldIds.has(p.spreadImage.mediaId)) np = { ...np, spreadImage: { ...p.spreadImage, mediaId: newId } }
-      return np
-    }))
   }
   function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
   function moveSpread(si: number, dir: -1 | 1) {
