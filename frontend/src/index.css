@@ -159,6 +159,18 @@ body { margin: 0; }
    sulla larghezza del telefono, anche se un elemento sfora. */
 html, body { max-width: 100%; overflow-x: hidden; }
 
+/* iOS Safari fa AUTO-ZOOM dentro i campi con testo < 16px quando li tocchi, e la pagina resta
+   ingrandita: sembra che la shell "non fitti" e tocca pizzicare per rimetterla a posto. Sui
+   dispositivi touch portiamo i controlli di form ad almeno 16px → niente più zoom al focus.
+   Il desktop resta invariato (pointer fine). !important per battere le utility Tailwind (text-xs/sm). */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 ::selection { background: rgb(var(--gold-300) / 0.4); color: rgb(var(--fg)); }
 
 .font-display { font-family: var(--font-display); font-feature-settings: 'ss01'; }
