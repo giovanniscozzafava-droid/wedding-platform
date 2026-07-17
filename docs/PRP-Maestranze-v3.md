@@ -2,6 +2,14 @@
 ### Area collaboratori: miniprofili ricercabili, richieste di ingaggio dirette
 ### v3 — scope v1 ridotto (Giovanni, 13/07): niente bacheca pubblica di offerte al lancio
 
+> ⚠️ **SUPERATO (17/07/2026) da [PRP-Maestranze-Bacheca-v1.1.md](PRP-Maestranze-Bacheca-v1.1.md) — non eseguire questo.**
+> Il matching semantico (pgvector + gte-small, ~85h) è eliminato by design: l'architettura legale
+> "bacheca informativa, non intermediazione" richiede che Planfully non selezioni, non ordini per
+> rilevanza, non suggerisca candidati. Resta qui solo come storia della decisione.
+> **Nota:** la §8 qui sotto ("la banca dati ricercabile È intermediazione tanto quanto la bacheca")
+> resta un'osservazione valida e non risolta dal nuovo PRP — è materia del parere giuslavorista,
+> non del design. Portarla nella lettera al legale.
+
 > STATO: **CONGELATO / GATED** — non costruire prima del gate (vedi Sequenza).
 > Gate tecnico calendario P0 ✅ fatto 13/07. Restano: Stripe, giuslavorista D-M-1, ≥3 capostipiti attivi.
 
