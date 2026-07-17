@@ -1,6 +1,6 @@
 // Notifica sui pin del catalogo: quando il CLIENTE scrive (nuovo pin o messaggio), avvisa il fotografo.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail } from '../_shared/ses.ts'
+import { sendEmail } from '../_shared/resend.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

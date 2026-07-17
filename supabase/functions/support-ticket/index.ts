@@ -2,7 +2,7 @@
 // Apertura ticket di assistenza: salva il ticket e NOTIFICA lo staff via email,
 // così la richiesta "arriva" davvero (non resta solo nel database).
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/ses.ts'
+import { sendEmail, htmlToText } from '../_shared/resend.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

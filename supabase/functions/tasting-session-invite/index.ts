@@ -2,7 +2,7 @@
 // { sessionId } (tutti i clienti in PENDING con email). Manda una email con le date + link RSVP.
 // Il WhatsApp lo apre il gestore lato frontend (wa.me con testo precompilato).
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail } from '../_shared/ses.ts'
+import { sendEmail } from '../_shared/resend.ts'
 import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!

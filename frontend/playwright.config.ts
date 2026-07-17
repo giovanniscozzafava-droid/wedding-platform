@@ -14,11 +14,20 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    { name: 'setup', testMatch: /auth\.setup\.ts/, testIgnore: /.*-mobile\.spec\.ts/ },
     {
       name: 'chromium',
+      testIgnore: /.*-mobile\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' },
       dependencies: ['setup'],
+    },
+    // Pagine PUBBLICHE su telefono (es. la lista d'attesa Maestranze, che arriva da
+    // Instagram): niente login e niente storageState — vanno viste come le vede uno
+    // che non ha un account, su un telefono vero.
+    {
+      name: 'mobile-noauth',
+      testMatch: /.*-mobile\.spec\.ts/,
+      use: { ...devices['iPhone 13'] },
     },
   ],
   // Avvia il dev server se non gira già (salta se PLAYWRIGHT_BASE_URL punta a prod/anteprima).

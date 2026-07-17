@@ -7,7 +7,7 @@
 //      quel singolo utente (chiamata da invia_digest_giornaliero() via pg_net).
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail } from '../_shared/ses.ts'
+import { sendEmail } from '../_shared/resend.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

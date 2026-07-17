@@ -5,7 +5,7 @@
 **17 luglio 2026 — Fuyue Srl / Planfully** (v1.0: 16/07/2026 — vedi §0.2)
 **Stato: SPECIFICATO, CONGELATO DIETRO GATE (blocker residui: SEC-00 rotazione key, staging, SEC-02)**
 **Riferimento business: [BUSINESS-PLAN-Maestranze-In-Pancia-v1.md](BUSINESS-PLAN-Maestranze-In-Pancia-v1.md) (v1.1)**
-**Prerequisito di lancio: parere giuslavorista favorevole (non prerequisito di build)**
+**Lancio con architettura legale conservativa by-design + monitoraggio continuo dei paletti (no ranking, no commissioni, no verifica credenziali, no transazioni, dichiarazioni immutabili). Rischio residuo accettato dal titolare in data 17/07/2026.**
 
 ---
 
@@ -607,4 +607,4 @@ Sequenza vincolata: **M-0 → M-1 → M-2 → M-3 prima di qualsiasi UI**. M-2 n
 
 ---
 
-*PRP v1.1 — congelato dietro gate. Build subordinato a: chiusura blocker SEC-00/staging (SEC-02 vedi [DECISIONE] 8). Lancio subordinato a: parere giuslavorista. Documento pronto per Claude Code una volta chiuse le [DECISIONE] 1-8. Verifiche di §0.2 eseguite contro il repo il 17/07/2026: se il codice citato cambia, ri-verificare prima di eseguire.*
+*PRP v1.1 — congelato dietro gate. Build subordinato a: chiusura blocker SEC-00/staging (SEC-02 vedi [DECISIONE] 8). Lancio con architettura legale conservativa by-design + monitoraggio continuo dei paletti (no ranking, no commissioni, no verifica credenziali, no transazioni, dichiarazioni immutabili); rischio residuo accettato dal titolare in data 17/07/2026. Documento pronto per Claude Code una volta chiuse le [DECISIONE] 1-8. Verifiche di §0.2 eseguite contro il repo il 17/07/2026: se il codice citato cambia, ri-verificare prima di eseguire.*

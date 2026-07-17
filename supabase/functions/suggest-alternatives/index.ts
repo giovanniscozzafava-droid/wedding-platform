@@ -3,7 +3,7 @@
 // un'email che ringrazia e suggerisce 2 colleghi dello stesso settore, iscritti
 // e disponibili, con i loro contatti. Da lì il cliente riparte.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/ses.ts'
+import { sendEmail, htmlToText } from '../_shared/resend.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

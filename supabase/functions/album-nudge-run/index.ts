@@ -2,7 +2,7 @@
 // NON ha ancora chiuso la selezione album (nessuna approvazione) e gli manda una email che lo spinge
 // a completarla. Ri-nudge al massimo ogni 30 giorni. Best-effort, niente PII nei log.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail } from '../_shared/ses.ts'
+import { sendEmail } from '../_shared/resend.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

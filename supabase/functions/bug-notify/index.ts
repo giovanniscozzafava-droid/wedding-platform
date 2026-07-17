@@ -2,7 +2,7 @@
 // Avvisa lo staff via email quando arriva una segnalazione ALTA/BLOCCANTE,
 // così non deve controllare il pannello per accorgersi dei problemi gravi.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/ses.ts'
+import { sendEmail, htmlToText } from '../_shared/resend.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

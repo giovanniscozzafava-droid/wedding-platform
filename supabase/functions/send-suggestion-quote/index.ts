@@ -5,7 +5,7 @@
 // Nessun dato cliente finisce in tabelle di proprietà del fornitore (nessun leak).
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail as sendEmailSES } from '../_shared/ses.ts'
+import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
 import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!

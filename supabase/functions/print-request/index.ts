@@ -1,7 +1,7 @@
 // Richiesta di stampa di un cliente (beta, no pagamento). Risolve il fotografo (da entry_id o slug),
 // salva la richiesta e gli manda una email. Il fotografo poi la evade come preferisce.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail } from '../_shared/ses.ts'
+import { sendEmail } from '../_shared/resend.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

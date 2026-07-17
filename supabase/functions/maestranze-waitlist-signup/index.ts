@@ -9,7 +9,7 @@
 //  - honeypot + rate limit per IP al posto del captcha (che su mobile fa perdere gente)
 // ============================================================================
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/ses.ts'
+import { sendEmail, htmlToText } from '../_shared/resend.ts'
 import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!

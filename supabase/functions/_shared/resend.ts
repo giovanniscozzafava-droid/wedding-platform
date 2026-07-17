@@ -1,14 +1,12 @@
-// Centralizzato invio email — implementato adesso con Resend (sandbox SES
-// di AWS in attesa di production access). Mantiene la stessa firma del
-// vecchio helper SES per non toccare le 6 edge functions che lo importano.
-//
-// Quando AWS approva production access, basta swappare l'implementazione
-// interna a SES (codice precedente in git history).
+// Centralizzato invio email — implementato con RESEND. (Un tempo si chiamava
+// ses.ts perché nato come helper AWS SES; il nome sbagliato inganna chi legge, quindi
+// il file è stato rinominato resend.ts il 17/07/2026. Il codice SES sta in git history,
+// se un giorno AWS desse production access.)
 //
 // Required env vars (Supabase Edge Function Secrets):
 //   RESEND_API_KEY    — API key da https://resend.com/api-keys
-//   SES_FROM_EMAIL    — mittente default (riusiamo lo stesso nome del SES helper)
-//                       formato: "Planfully <noreply@planfully.it>"
+//   SES_FROM_EMAIL    — mittente default (nome storico, tenuto per compatibilità con i
+//                       secret già impostati); formato: "Planfully <noreply@planfully.it>"
 
 const RESEND_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM = Deno.env.get('SES_FROM_EMAIL')

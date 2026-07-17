@@ -2,7 +2,7 @@
 // Il proprietario della galleria/evento (es. il fotografo) invia un'email agli sposi con un link
 // (/invito-coppia/:token): da lì si registrano (lato CLIENTE, non fornitore) o accedono, e vedono le foto.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail } from '../_shared/ses.ts'
+import { sendEmail } from '../_shared/resend.ts'
 import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!

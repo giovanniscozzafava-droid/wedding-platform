@@ -3,7 +3,7 @@
 // (supplier_availability_slots → UN SOLO calendario), invia email di conferma a cliente e
 // professionista, e restituisce link WhatsApp + Google Calendar.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail } from '../_shared/ses.ts'
+import { sendEmail } from '../_shared/resend.ts'
 import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
