@@ -2,26 +2,13 @@
 ## Modulo Maestranze + Sistema "In Pancia"
 ### Pricing, posizionamento, architettura legale, proiezioni
 
-**Versione 1.0 — 16 luglio 2026**
+**Versione 1.1 — 17 luglio 2026** (corregge la 1.0 del 16/07: vedi §0.1)
 **Documento interno — Fuyue Srl**
 
 > STATO: **CONGELATO / GATED** — documento di strategia, non un ordine di build.
 > Non costruire nulla prima dei gate: Maestranze = parere giuslavorista (bloccante,
 > §5.1); In Pancia = decisione prezzi post-interviste settembre + struttura incasso
 > (§11.5). Vedi [PRP-Maestranze-v3.md](PRP-Maestranze-v3.md) per lo scope tecnico.
->
-> **NOTA DI VERIFICA (archiviazione, 16/07/2026).** Aritmetica ricontrollata: tornano
-> 173.272/107 = 1.619 matrimoni/provincia; mercato 4,12 mld; MRR M3/M6/M12 =
-> 1.115/3.993/7.110; mix paganti 70/24/6 su 150; 0,25 e 0,64 eventi per ripagare
-> Provinciale/Nazionale; 468€ = 1,56% di 30.000€; scenari -40%/+60% = 4.266/11.376;
-> 300–800 posti per categoria. **UNICO NUMERO NON RICONCILIATO: "Revenue Year 1
-> ~64.000€" (§1, §7).** Integrando la rampa MRR dichiarata (0 → 1.100 a M3 → 4.000 a
-> M6 → 7.110 a M12) la cumulata per competenza è **~46.200€**, non 64.000 (scarto
-> +17.800, +39%). I 64.000 tornano solo ipotizzando una quota di **pagamenti annuali
-> anticipati** (se tutti annuali: 85.320€ di cassa) — ipotesi non dichiarata nel
-> documento. Da chiudere prima di usare il piano: o si dichiara il mix di fatturazione
-> annuale/mensile, o la cifra va corretta a ~46k (e con essa i derivati -40%/+60%,
-> oggi 38k/102k). Nota valida anche per la soglia di §7 "break-even sul tempo".
 
 ---
 
@@ -37,6 +24,18 @@ Questo documento sostituisce la bozza discussa in chat. Prima di tutto, tre corr
 
 Tutti i numeri di mercato citati hanno fonte esplicita. Tutte le assunzioni sono marcate **[ASSUNZIONE]**. Tutte le decisioni ancora aperte sono marcate **[DECISIONE]**.
 
+### 0.1 Correzioni della v1.1 (17/07/2026)
+
+La v1.0 è stata sottoposta a verifica aritmetica riga per riga. **Reggono**: tutti i dati di mercato (§2.1), gli MRR di scenario (1.115 / 3.993 / 7.110), il mix paganti 70/24/6, il test del mezzo evento (0,25 e 0,64), il 468€ = 1,56%, i 300-800 posti provinciali, gli scenari MRR a M12 (4.266 / 11.376). Quattro cose no:
+
+**Correzione 4 — Revenue Year 1: ~46.200€, non ~64.000€.** Integrando la rampa MRR dichiarata dal documento stesso (0 → 1.115 a M3 → 3.993 a M6 → 7.110 a M12), la cumulata per competenza del primo anno è **46.149€**. La v1.0 dichiarava 64.000€: **+39% di scarto**, cioè 17.851€ che non esistono. L'errore è concettuale, non di calcolo: un anno di ramp-up rende **circa metà** del run-rate d'uscita (7.110 × 12 = 85.320€ → ~46k), non tre quarti. Corretto in §1 e §7, con la tabella mese per mese che prima mancava — ed è proprio la sua assenza ad aver reso l'errore invisibile.
+
+**Correzione 5 — Break-even operativo: mese 1, non "mese 8-10".** La v1.0 si contraddiceva: §1 diceva "mese 8-10", §7 diceva "praticamente immediato". Ha ragione §7. Con costi <200€/mese, il MRR di break-even (250€) è superato **al primo mese** (332€ già a ottobre). Il numero sbagliato stava nell'executive summary, cioè nell'unica pagina che un lettore esterno legge davvero.
+
+**Correzione 6 — La conversione free→paid al 50% ora è marcata [ASSUNZIONE].** 150 paganti su 300 registrati = **50%**, che la v1.0 presentava come dato di piano senza marcarlo. È l'assunzione più fragile del documento — più della densità capostipiti — e §10 stessa elenca "nessuno converte" tra i rischi Media/Alto. Ora è dichiarata e sottoposta a sensitivity (§7.4).
+
+**Correzione 7 — Lo scenario conservativo ha un meccanismo, non un -40% arbitrario.** Scoperto durante la verifica: una conversione al **30%** invece che al 50% produce un MRR M12 di **4.266€** — cioè *esattamente* lo scenario conservativo della v1.0. Il "-40%" non era una sensitivity generica: era, senza saperlo, l'ipotesi "la conversione è 30%". Riscritto in §7.3 come tale, così lo scenario diventa falsificabile invece che decorativo.
+
 ---
 
 ## 1. EXECUTIVE SUMMARY
@@ -50,7 +49,7 @@ Tutti i numeri di mercato citati hanno fonte esplicita. Tutte le assunzioni sono
 
 **Modello di ricavo.** SaaS B2B a tier geografici per i fornitori (39/59/99€ mese), upgrade opzionale per capostipiti (fase 2), Maestranze free-to-paid (fase 2). Nessuna commissione sulle transazioni: questo è il pilastro del posizionamento anti-marketplace e anche il pilastro della difesa legale (§5).
 
-**Numeri chiave Year 1 (scenario base):** ~300 fornitori registrati, ~150 paganti, revenue ~64.000€. Break-even operativo raggiungibile nel mese 8-10 con struttura costi attuale (infra < 200€/mese).
+**Numeri chiave Year 1 (scenario base):** ~300 fornitori registrati, ~150 paganti **[ASSUNZIONE: conversione 50%, §7.4]**, revenue per competenza **~46.000€**, MRR d'uscita 7.110€ (run-rate ~85.000€/anno). Break-even operativo **al primo mese** (costi <200€/mese, MRR di pareggio 250€): la struttura costi rende il break-even un non-problema. Il vincolo vero non è la cassa, è il tempo (§7.5).
 
 **Il vero asset non è il revenue Year 1.** È il network effect: ogni capostipite firmato porta 15-40 fornitori, ogni fornitore in pancia ha uno switching cost crescente (perdere la pancia = perdere il flusso preventivi). Il moat è la rete firmata, non il codice.
 
@@ -92,7 +91,7 @@ Tutti i numeri di mercato citati hanno fonte esplicita. Tutte le assunzioni sono
 - Wedding planner strutturati per provincia: 10–30
 - **Totale capostipiti indirizzabili per provincia: 30–80**
 
-Questa assunzione va **validata con le 50 interviste di settembre**. Se il numero reale è più basso (es. 15-25), il tier Provinciale va riprezzato al ribasso o il valore va comunicato diversamente. È il singolo dato più importante da verificare prima di finalizzare i prezzi.
+Questa assunzione va **validata con le 50 interviste di settembre**. Se il numero reale è più basso (es. 15-25), il tier Provinciale va riprezzato al ribasso o il valore va comunicato diversamente. È il singolo dato più importante da verificare prima di finalizzare i prezzi — **secondo solo alla conversione free→paid (§7.4)**, che è però verificabile solo sul campo, non in intervista.
 
 ---
 
@@ -105,7 +104,7 @@ Il fornitore in pancia appare **automaticamente** nel catalogo preventivi di tut
 Tre proprietà che nessun competitor offre:
 
 1. **La pancia segue il capostipite, non il territorio dell'evento.** Un fotografo in pancia ai capostipiti di Catanzaro appare nei loro preventivi anche quando organizzano un evento a Milano. Il fornitore compra la *relazione*, non la geografia dell'evento.
-2. **Irremovibilità.** Una volta in pancia, il fornitore non può essere rimosso dal capostipite (salvo violazione dei termini). Questo è controintuitivo — e va gestito con attenzione (§3.3) — ma è ciò che rende l'abbonamento un *asset* e non una spesa.
+2. **Irremovibilità.** Una volta in pancia, il fornitore non può essere rimosso dal capostipite (salvo violazione dei termini). Questo è controintuitivo — e va gestito con attenzione (§3.2) — ma è ciò che rende l'abbonamento un *asset* e non una spesa.
 3. **Massimale 10 per categoria.** Ogni capostipite ha al massimo 10 fornitori in pancia per categoria. Chi entra, occupa un posto finito.
 
 ### 3.2 Il conflitto strutturale da gestire subito
@@ -235,6 +234,8 @@ L'In Pancia è B2B puro (fornitura di servizi tra imprese): niente intermediazio
 | **In Pancia Regionale** | **59** | 708 | Idem, tutta la regione |
 | **In Pancia Nazionale** | **99** | 1.188 | Idem, tutta Italia |
 
+**Nota v1.1 — i prezzi annuali sono 12× il mensile esatto, cioè sconto zero.** Così com'è, il piano annuale non ha alcuna ragione di essere scelto da nessuno: è il mensile con un vincolo in più. O si toglie la colonna, o si decide uno sconto annuale — che è una **[DECISIONE]** aperta, non un dettaglio di listino, perché è l'unica leva di cassa disponibile a un bootstrap (§7.6, §11.6).
+
 **Maestranze:** free al lancio. Fase 2 (6-12 mesi): 5-10€/mese, **solo con parere legale favorevole** (§5.1).
 
 **Capostipiti:** free per sempre sul core (coerente col GTM: sono loro il moat). Upgrade fase 2 per telefono diretto maestranze: 19-29€/mese, stessa condizione legale.
@@ -267,35 +268,89 @@ Il grandfathering va **annunciato dal giorno uno**: "il prezzo a cui entri è il
 
 ## 7. PROIEZIONI REVENUE — TRE SCENARI
 
-**[ASSUNZIONE]** Tutte le proiezioni assumono: lancio commerciale ottobre 2026 (post-interviste), 5 capostipiti attivi entro dicembre (da GTM esistente), conversione free→paid guidata dal riempimento pance.
+**[ASSUNZIONE]** Tutte le proiezioni assumono: lancio commerciale ottobre 2026 (post-interviste), 5 capostipiti attivi entro dicembre (da GTM esistente), conversione free→paid guidata dal riempimento pance, churn trascurabile nel primo anno (l'endowment regge — se non regge, vedi §9 KPI churn).
 
-### Scenario Base (quello del piano)
+### 7.1 Scenario Base — la rampa mese per mese
 
-| | M3 (dic '26) | M6 (mar '27) | M12 (set '27) |
+La v1.0 dichiarava solo tre punti (M3, M6, M12) e una cumulata. Era proprio l'assenza della tabella mensile a nascondere l'errore dei 64.000€. Qui la rampa completa, con interpolazione lineare tra i punti dichiarati:
+
+| M | Mese | Prov. | Reg. | Naz. | MRR | Cumulata |
+|---|---|---|---|---|---|---|
+| 1 | ott 26 | 7 | 1 | 0 | 332€ | 332€ |
+| 2 | nov 26 | 13 | 3 | 1 | 783€ | 1.115€ |
+| 3 | **dic 26** | **20** | **4** | **1** | **1.115€** | 2.230€ |
+| 4 | gen 27 | 35 | 9 | 2 | 2.094€ | 4.324€ |
+| 5 | feb 27 | 50 | 13 | 3 | 3.014€ | 7.338€ |
+| 6 | **mar 27** | **65** | **18** | **4** | **3.993€** | 11.331€ |
+| 7 | apr 27 | 72 | 21 | 5 | 4.542€ | 15.873€ |
+| 8 | mag 27 | 78 | 24 | 6 | 5.052€ | 20.925€ |
+| 9 | giu 27 | 85 | 27 | 6 | 5.502€ | 26.427€ |
+| 10 | lug 27 | 92 | 30 | 7 | 6.051€ | 32.478€ |
+| 11 | ago 27 | 98 | 33 | 8 | 6.561€ | 39.039€ |
+| 12 | **set 27** | **105** | **36** | **9** | **7.110€** | **46.149€** |
+
+**Revenue Year 1 per competenza: ~46.100€.** (La v1.0 diceva 64.000€: sbagliato di +39%, vedi §0.1 Correzione 4.) **MRR d'uscita 7.110€ = run-rate annuo ~85.300€**: è questo il numero che descrive l'azienda a settembre 2027, non la cumulata. La cumulata dice quanto hai incassato *mentre* costruivi; il run-rate dice cosa hai costruito.
+
+### 7.2 I tre scenari, corretti
+
+| Scenario | Ipotesi sottostante | MRR M12 | Run-rate | **Revenue Y1** | (v1.0 diceva) |
+|---|---|---|---|---|---|
+| **Conservativo** | conversione 30% (§7.3) | 4.266€ | 51.200€ | **~27.700€** | ~38.000€ |
+| **Base** | conversione 50% | 7.110€ | 85.300€ | **~46.100€** | ~64.000€ |
+| **Ottimistico** | Rapporto genera traction, 2-3 province piene | 11.376€ | 136.500€ | **~73.800€** | ~102.000€ |
+
+Gli MRR erano giusti; erano le cumulate a essere gonfiate, tutte e tre dallo stesso errore di integrazione.
+
+### 7.3 Lo scenario conservativo non è un "-40%": è un'ipotesi precisa
+
+Scoperta della verifica v1.1: **una conversione free→paid al 30% (invece del 50% del base) produce un MRR M12 di 4.266€ — cioè esattamente lo scenario conservativo della v1.0.** Il "-40%" non era una sensitivity a caso: era, senza dichiararlo, l'ipotesi "la conversione è 30% e non 50%".
+
+Questo è un miglioramento sostanziale del piano, non un dettaglio: uno scenario con un meccanismo dichiarato è **falsificabile in corso d'opera** (a M6 guardi la conversione e sai in quale scenario sei), mentre un "-40% generico" si può solo constatare a fine anno.
+
+### 7.4 [ASSUNZIONE] Conversione free→paid al 50% — il numero più fragile del piano
+
+La v1.0 dava per scontati 150 paganti su 300 registrati senza marcarlo. Va marcato, perché **50% è un valore fuori scala per un freemium** (il benchmark tipico è 2-5%) e perché la rampa lo assume già alta fin da subito (31% a M3, 48% a M6).
+
+La difesa dell'assunzione esiste ed è seria: il nostro free **non è un freemium classico**. Il fornitore non arriva da un annuncio ma dall'invito del capostipite con cui già lavora (§8.1, conversione attesa su quel canale 30-50%), e il free **non dà la pancia**, cioè non dà la cosa per cui uno si iscrive. Non stiamo convertendo curiosi: stiamo convertendo persone mandate dal proprio cliente principale.
+
+Ma la difesa vale solo se **quasi tutti i registrati arrivano dal canale caldo** e convertono **al massimo** del range dichiarato. Basta che una delle due condizioni si allenti perché il 50% diventi 30%. Il 50% va quindi trattato come **tetto dello scenario base, non come base**:
+
+| Conversione (su 300 registrati) | Paganti | MRR M12 | Run-rate |
 |---|---|---|---|
-| Fornitori registrati | 80 | 180 | 300 |
-| Paganti Provinciale | 20 | 65 | 105 |
-| Paganti Regionale | 4 | 18 | 36 |
-| Paganti Nazionale | 1 | 4 | 9 |
-| **MRR** | **~1.100€** | **~4.000€** | **~7.110€** |
+| 10% | 30 | 1.422€ | 17.100€ |
+| 20% | 60 | 2.844€ | 34.100€ |
+| **30%** (= scenario conservativo) | 90 | 4.266€ | 51.200€ |
+| **50%** (= scenario base) | 150 | 7.110€ | 85.300€ |
 
-Revenue Year 1 cumulata: **~64.000€** (ramp-up incluso).
+Sotto il 20% il piano non regge come progetto full-time e va ripensato prima di settembre 2027, non dopo. Nota che §10 elenca già "Free è abbastanza, nessuno converte" tra i rischi **Media/Alto**: il piano base assume il 50% e il registro rischi dice che potrebbe non convertire nessuno. Le due cose convivono solo se il 50% è dichiarato come tetto — è quello che fa questa versione.
 
-### Scenario Conservativo (-40%)
+### 7.5 Break-even
 
-Ipotesi: le interviste rivelano meno capostipiti indirizzabili del previsto, o conversione free→paid lenta. MRR M12: ~4.300€, Year 1: ~38.000€. **Il piano regge comunque:** i costi infrastrutturali sono <200€/mese e non c'è personale da pagare. Il rischio non è il cash, è il tempo.
+Con costi correnti (~200€/mese infra + tooling) il break-even operativo è al MRR ~250€, superato **al primo mese** (332€ già a ottobre). La v1.0 diceva "mese 8-10" nell'executive summary contraddicendo il proprio §7: era sbagliata. Con questa struttura costi, il break-even non è un evento — è un non-problema, e va tolto dai numeri che presentiamo come traguardi.
 
-### Scenario Ottimistico (+60%)
+**Il break-even vero è sul tuo tempo.** Il piano ha senso se a M12 il MRR (~7.000€) giustifica un anno di lavoro full-time. Nello scenario conservativo (4.266€ MRR) siamo al limite: quel numero è la soglia sotto la quale a settembre 2027 va riaperta la discussione strategica, non prolungata l'agonia. **La soglia resta valida ed è invariata** rispetto alla v1.0, perché è definita sull'MRR — che era corretto. Cambia però il contesto di cassa: nel conservativo il primo anno porta **~27.700€**, non 38.000. Sono ~10.000€ in meno di ossigeno per una decisione che va presa comunque.
 
-Ipotesi: il Rapporto di novembre genera il traction previsto e 2-3 province si riempiono. MRR M12: ~11.400€, Year 1: ~102.000€. In questo scenario si anticipa la revisione prezzi Anno 2.
+### 7.6 Competenza vs cassa — e l'unica leva disponibile
 
-### Cosa NON è in questi numeri
+I 46.100€ sono **competenza**. La cassa dipende da come fatturi:
+
+| Quota che paga annuale anticipato | Cassa incassata in Y1 |
+|---|---|
+| 0% (tutti mensili) | 46.198€ |
+| 25% | 55.979€ |
+| 50% | 65.759€ |
+| 100% | 85.320€ |
+
+Va detto per onestà: **i 64.000€ della v1.0 sarebbero raggiungibili come cassa se ~46% dei paganti pagasse annuale anticipato.** Ma (a) la v1.0 non lo dichiarava da nessuna parte, quindi non era quello il calcolo; (b) il listino annuale è 12× esatto, sconto zero — nessuno sceglie l'annuale a queste condizioni; (c) sarebbe comunque cassa, non ricavo, e presentarla come "revenue" in un piano è esattamente il tipo di scivolone che rende un business plan inattendibile.
+
+**Ma la leva è reale ed è l'unica che abbiamo** (niente investitori, niente debito): un annuale scontato porta cassa avanti di mesi. E ha una coerenza col resto del modello che il mensile non ha — l'annuale **è** l'endowment (§4.2) tradotto in contratto, e si sposa col grandfathering ("blocchi il prezzo per sempre, paghi 12 mesi"). Da qui la **[DECISIONE] §11.6**.
+
+### 7.7 Cosa NON è in questi numeri
 
 - Ricavi Maestranze fase 2 (condizionati al parere legale)
 - Ricavi upgrade capostipiti (idem)
 - Il tier premium capostipiti esistente da Dossier (preventivi illimitati, PDF brandizzati) — che è un ricavo separato, non lo mischio qui per non gonfiare il piano
-
-**Break-even:** con costi correnti (~200€/mese infra + tooling), il break-even operativo è al MRR ~250€ — praticamente immediato. Il break-even *vero* è sul tuo tempo: il piano ha senso se a M12 il MRR (~7.000€) giustifica un anno di lavoro full-time. Nello scenario conservativo (4.300€ MRR a M12) siamo al limite: quel numero è la soglia sotto la quale a settembre 2027 va riaperta la discussione strategica, non prolungata l'agonia.
+- Qualsiasi churn (assunto trascurabile in Y1 — se l'endowment non regge, la rampa va rifatta)
 
 ---
 
@@ -305,9 +360,9 @@ Ipotesi: il Rapporto di novembre genera il traction previsto e 2-3 province si r
 
 Il GTM di Maestranze/In Pancia **non è un GTM nuovo**: si aggancia alla sequenza già decisa (gate → interviste → Rapporto → 250 contatti → 10 founders → 5 capostipiti). L'ordine è vincolante:
 
-**Fase 0 — Riempire le pance dei capostipiti firmati (ott-nov 2026).** Nessuna vendita fredda ai fornitori. Ogni capostipite firmato porta la lista dei suoi 15-40 fornitori abituali: sono loro i primi invitati, con un messaggio che non è "prova Planfully" ma "*[La Baronella]* usa Planfully per i preventivi: entra nel suo catalogo". Conversione attesa su questo canale: 30-50% (contro il 2-5% del cold outreach), perché la prova sociale è gerarchica (§4.2).
+**Fase 0 — Riempire le pance dei capostipiti firmati (ott-nov 2026).** Nessuna vendita fredda ai fornitori. Ogni capostipite firmato porta la lista dei suoi 15-40 fornitori abituali: sono loro i primi invitati, con un messaggio che non è "prova Planfully" ma "*[La Baronella]* usa Planfully per i preventivi: entra nel suo catalogo". Conversione attesa su questo canale: 30-50% (contro il 2-5% del cold outreach), perché la prova sociale è gerarchica (§4.2). **È questo canale a reggere l'intera assunzione di conversione del piano (§7.4): se i registrati smettono di arrivare da qui, la conversione crolla verso i benchmark di mercato.**
 
-**Fase 1 — Il Rapporto come artiglieria (nov 2026-gen 2027).** Il Rapporto sul lavoro invisibile documenta esattamente il problema che Maestranze risolve. Ogni uscita stampa/social del Rapporto termina con la stessa CTA: la bacheca esiste, è gratuita, iscriviti. Le maestranze si acquisiscono qui, a costo zero, nel momento dell'anno (nov-feb) in cui il settore pianifica la stagione.
+**Fase 1 — Il Rapporto come artiglieria (nov 2026-gen 2027).** Il Rapporto sul lavoro invisibile documenta esattamente il problema che Maestranze risolve. Ogni uscita stampa/social del Rapporto termina con la stessa CTA: la bacheca esiste, è gratuita, iscriviti. Le maestranze si acquisiscono qui, a costo zero, nel momento dell'anno (nov-feb) in cui il settore pianifica la stagione. **Attenzione al lato B:** il Rapporto porta registrati *freddi*, che convertono come il mercato (2-5%), non come gli invitati. Ottimo per le maestranze (che sono free), ma diluisce la conversione media dei fornitori — cioè il KPI di §7.4 va letto **segmentato per canale**, o il successo del Rapporto sembrerà un peggioramento.
 
 **Fase 2 — Scarsità comunicata (feb-mag 2027).** Quando le prime pance si riempiono, la comunicazione cambia da "entra" a "restano N posti". Solo numeri veri, verificabili in piattaforma. Prima campagna paid solo qui (500€/mese test), quando c'è un meccanismo di urgenza reale da amplificare.
 
@@ -323,7 +378,7 @@ Il GTM di Maestranze/In Pancia **non è un GTM nuovo**: si aggancia alla sequenz
 ### 8.3 Cosa non fare
 
 - **Non vendere In Pancia prima di avere 5 capostipiti attivi.** Un fornitore che paga 39€ per una pancia vuota churna in 60 giorni e brucia il passaparola nella provincia — che è piccola e parla.
-- **Non fare sconti.** Il grandfathering È lo sconto. Aggiungere -20% promozionali distrugge sia l'ancoraggio sia la credibilità della scarsità.
+- **Non fare sconti** (sul prezzo di listino). Il grandfathering È lo sconto. Aggiungere -20% promozionali distrugge sia l'ancoraggio sia la credibilità della scarsità. *Nota: lo sconto annuale di §7.6 non è uno sconto sul prezzo, è un prezzo diverso per un impegno diverso — non tocca l'ancoraggio del mensile.*
 - **Non promettere lead.** Mai, in nessun materiale. Vendiamo presenza nel flusso di lavoro, non risultati (coerenza legale §5.4 e di posizionamento).
 
 ---
@@ -334,13 +389,17 @@ Il GTM di Maestranze/In Pancia **non è un GTM nuovo**: si aggancia alla sequenz
 |---|---|---|---|---|
 | Capostipiti attivi (≥1 preventivo/mese) | 5 | 8 | 15 | Il moat. Tutto il resto deriva da qui |
 | Fornitori per capostipite (media in pancia) | 4 | 7 | 9 | Misura il riempimento → pricing power |
+| **Conversione free→paid, per canale** | **31%** | **48%** | **50%** | **L'assunzione su cui poggia il piano (§7.4). Da leggere segmentata: invitati vs freddi** |
 | % pance piene (10/10) per categoria top | 0% | 15% | 40% | Trigger della revisione prezzi |
-| MRR | 1.100€ | 4.000€ | 7.110€ | |
+| MRR | 1.115€ | 3.993€ | 7.110€ | |
+| Cumulata (competenza) | 2.230€ | 11.331€ | 46.149€ | Corretta in v1.1 (era 64k) |
 | Churn mensile paganti | <5% | <3% | <2% | L'endowment funziona? Si vede qui |
 | Maestranze registrate | 50 | 200 | 500 | Densità minima utile: ~30/provincia attiva |
 | Contatti maestranze/mese | 20 | 80 | 250 | La bacheca vive o è un cimitero di profili? |
 
-Il KPI-guida è il **secondo** (fornitori per capostipite): se a M6 la media è sotto 5, il problema non è il marketing, è la value proposition — e va capito prima di spendere in acquisizione.
+Il KPI-guida resta il **secondo** (fornitori per capostipite): se a M6 la media è sotto 5, il problema non è il marketing, è la value proposition — e va capito prima di spendere in acquisizione.
+
+Il KPI-**sentinella** è il terzo (conversione). È nuovo in v1.1 e serve a sapere *in corso d'opera* in quale scenario sei: a M6, conversione ≥45% = scenario base, ~30% = conservativo, <20% = il modello va ripensato. Senza questo KPI la differenza tra gli scenari si scopre a settembre 2027, cioè troppo tardi per farci qualcosa.
 
 ---
 
@@ -350,11 +409,12 @@ Il KPI-guida è il **secondo** (fornitori per capostipite): se a M6 la media è 
 |---|---|---|---|
 | Parere giuslavorista negativo su Maestranze | Bassa | Alto | Design già conservativo; se negativo, lancio solo In Pancia (B2B, nessun problema) e Maestranze si ridisegna col legale |
 | Capostipiti rifiutano l'irremovibilità | Media | Alto | Controllo vista (§3.2) + accettazione esplicita al signup + niente notifiche. Da testare nelle interviste di settembre |
-| Free è abbastanza, nessuno converte | Media | Alto | Il free NON dà la pancia. La conversione è guidata dal riempimento, non da feature gating artificiale |
+| **Free è abbastanza, nessuno converte** | Media | Alto | Il free NON dà la pancia. La conversione è guidata dal riempimento, non da feature gating artificiale. **v1.1: quantificato in §7.4 — il piano base assume 50%, il conservativo è il 30%. KPI sentinella a M6 (§9): sotto il 20% si ripensa il modello, non si insiste** |
 | Densità capostipiti/provincia sotto stima | Media | Alto | Validazione a settembre (§2.3). Piano B: tier Provinciale→"Territoriale" multi-provincia allo stesso prezzo |
 | Matrimonio.com copia il modello | Bassa | Medio | Il loro modello di ricavo (commissioni+ads) è incompatibile con "nessuna commissione". Copiarci = cannibalizzarsi. E il moat è la rete firmata, non la feature |
 | Mercato in contrazione accelera (-8%+/anno) | Media | Medio | Rafforza paradossalmente il pitch (§2.1); ma comprime i budget: monitorare il churn di gennaio come segnale |
 | Lavoro nero passa dalla bacheca e diventa caso stampa | Bassa | Alto | 6 strati (§5.2) + risposta preparata: siamo l'unico attore del settore che documenta e promuove attivamente la regolarizzazione (il Rapporto è la prova) |
+| **Il piano viene usato con numeri gonfiati** | — | Alto | **v1.1: l'errore dei 64k è stato trovato dopo un giorno solo perché mancava la tabella mensile. Regola: ogni cifra cumulata in questo documento deve avere sotto la rampa che la genera (§7.1), o non entra** |
 
 ---
 
@@ -365,6 +425,8 @@ Il KPI-guida è il **secondo** (fornitori per capostipite): se a M6 la media è 
 3. **[DECISIONE] Invio domanda al giuslavorista** — la domanda è formulata, va inviata ora. Bloccante per il lancio Maestranze, non per In Pancia.
 4. **[DECISIONE] Grandfathering annunciato dal giorno uno** — raccomando sì, è il motore di urgenza e retention.
 5. **[DECISIONE] D-8 (Stripe Connect vs netto)** — irrilevante per questo modulo (niente flussi di denaro tra parti), ma la scelta della struttura societaria che lo risolve va fatta prima di attivare gli abbonamenti: chi incassa i 39€, Fuyue Srl con che regime IVA, fatturazione automatica da Stripe Billing.
+6. **[DECISIONE — nuova in v1.1] Piano annuale: toglierlo o scontarlo?** (§6.1, §7.6) Oggi il listino annuale è 12× il mensile, cioè un piano che nessuno ha motivo di scegliere: va deciso, non lasciato lì. Raccomando **annuale a 10 mesi di prezzo** (390/590/990€, ~17% di sconto): porta la cassa avanti di mesi in un progetto senza investitori né debito, è coerente con l'endowment e col grandfathering ("blocchi il prezzo per sempre, paghi 12 mesi"), e non intacca l'ancoraggio del mensile perché non è uno sconto sul prezzo ma un prezzo per un impegno diverso. Costo: ~17% di ricavo per chi lo sceglie. **Da decidere insieme ai prezzi (§11.1), non prima** — con la stessa domanda in intervista: "i tuoi abbonamenti di lavoro li paghi a mese o ad anno?".
+7. **[DECISIONE — nuova in v1.1] Il numero da usare fuori da qui.** Se il piano serve a te per decidere, il numero è il **run-rate a M12 (85.300€)** più la conversione osservata. Se dovesse mai servire a un terzo (banca, bando, socio), il numero è la **cumulata per competenza (46.100€)** — e la differenza tra i due va spiegata, non scelta a convenienza. Il modo più veloce per perdere credibilità con questo documento è citare 85k dove serve 46k.
 
 ---
 
@@ -376,7 +438,9 @@ Il KPI-guida è il **secondo** (fornitori per capostipite): se a M6 la media è 
 - Kahneman & Tversky, Prospect Theory (loss aversion ~2:1)
 - D.Lgs. 276/2003 (regime intermediazione) — **da validare con giuslavorista, non è parere legale**
 - Densità capostipiti/provincia: **[ASSUNZIONE INTERNA]** da validare a settembre
+- Conversione free→paid 50%: **[ASSUNZIONE INTERNA]** (§7.4), non validabile in intervista — solo sul campo, KPI sentinella a M6
+- Proiezioni §7: rampa ricalcolata in v1.1 per interpolazione lineare tra i punti M3/M6/M12 dichiarati in v1.0. Script di verifica riproducibili (`python3 <file>`): [business-plan-verifica/rampa-mrr.py](business-plan-verifica/rampa-mrr.py) (tabella §7.1, cumulate §7.2, sensitivity §7.4) e [business-plan-verifica/cassa-vs-competenza.py](business-plan-verifica/cassa-vs-competenza.py) (tabella §7.6). Se cambi un'ipotesi, cambia lo script e rigenera le tabelle — non correggere i numeri a mano.
 
 ---
 
-*Documento interno Fuyue Srl — non distribuire. Versione 1.0, 16/07/2026. Le sezioni legali richiedono validazione professionale prima di qualsiasi implementazione.*
+*Documento interno Fuyue Srl — non distribuire. Versione 1.1, 17/07/2026 (v1.0: 16/07/2026). Le sezioni legali richiedono validazione professionale prima di qualsiasi implementazione.*
