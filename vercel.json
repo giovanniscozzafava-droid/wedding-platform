@@ -7,6 +7,7 @@
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/sitemap-xml" },
     { "source": "/galleria/:id", "destination": "/api/galleria?id=:id" },
+    { "source": "/g/:token", "destination": "/api/g?token=:token" },
     { "source": "/embed/lead/:slug", "destination": "/api/lead-preview?slug=:slug" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
