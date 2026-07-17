@@ -7,7 +7,6 @@ import {
   CalendarDays,
   FileText,
   UserRound,
-  Users as UsersIcon,
   Gem,
   Sun,
   Moon,
@@ -19,7 +18,7 @@ import {
   FileSignature,
   HelpCircle,
   LifeBuoy,
-  Sparkles,
+  Handshake,
   Newspaper,
   Inbox,
   LayoutGrid,
@@ -64,7 +63,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
   { section: 'Studio', items: [
     { to: '/calendar',  label: 'Calendario', icon: CalendarDays },
     { to: '/catalog',   label: 'Catalogo',   icon: PackageSearch },
-    { to: '/suppliers', label: 'Rete',       icon: UsersIcon },
+    { to: '/suppliers', label: 'Rete',       icon: Handshake },
   ]},
   { section: null, items: [
     { to: '/strumenti',   label: 'Strumenti',    icon: LayoutGrid },
@@ -88,7 +87,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   { section: 'Studio', items: [
     { to: '/calendar',    label: 'Calendario',  icon: CalendarDays },
     { to: '/catalog',     label: 'Catalogo',    icon: PackageSearch },
-    { to: '/scopri',      label: 'Rete',        icon: Sparkles },
+    { to: '/scopri',      label: 'Rete',        icon: Handshake },
   ]},
   { section: null, items: [
     { to: '/strumenti',   label: 'Strumenti',    icon: LayoutGrid },

@@ -16839,6 +16839,28 @@ export type Database = {
         }[]
       }
       maestranze_waitlist_count: { Args: never; Returns: number }
+      maestranze_waitlist_list: {
+        Args: never
+        Returns: {
+          confermato: boolean
+          created_at: string
+          disponibilita: string[]
+          email: string
+          email_confirmed_at: string
+          famiglia: string
+          id: string
+          instagram: string
+          mestiere: string
+          nome: string
+          portfolio: string
+          privacy_accepted_at: string
+          privacy_version: string
+          provincia_nome: string
+          regione: string
+          source: string
+          telefono: string
+        }[]
+      }
       maestranze_waitlist_stats: { Args: never; Returns: Json }
       mark_entry_notifications_read: {
         Args: { p_entry: string; p_types: string[] }
