@@ -73,6 +73,11 @@ const CoupleInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/Couple
 const PrivacyPage = lazyWithRetry(() => import('@/pages/public/PrivacyPage'))
 const CookiePage = lazyWithRetry(() => import('@/pages/public/CookiePage'))
 const DiscoverPage = lazyWithRetry(() => import('@/pages/public/DiscoverPage'))
+// Maestranze: sottosezione di Rete. Bacheca CHIUSA → tutte le rotte dietro RequireAuth.
+const MaestranzePage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzePage'))
+const MaestranzaProfilePage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzaProfilePage'))
+const MaestranzaSignupPage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzaSignupPage'))
+const MaestranzaMePage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzaMePage'))
 const WaitlistPage = lazyWithRetry(() => import('@/pages/public/WaitlistPage'))
 const PublicSupplierPage = lazyWithRetry(() => import('@/pages/public/PublicSupplierPage'))
 const BlogListPage = lazyWithRetry(() => import('@/pages/public/BlogListPage'))
@@ -312,6 +317,15 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookie" element={<CookiePage />} />
           <Route path="/scopri" element={<DiscoverPage />} />
+          {/* Maestranze — sottosezione di Rete.
+              L'ISCRIZIONE è pubblica: è il link che si manda alla persona, che un account
+              ancora non ce l'ha. Tutto il resto (bacheca, profili) è CHIUSO ai registrati:
+              è la promessa su cui poggia l'intero impianto legale del modulo.
+              NB: /iscriviti e /profilo prima di /:id, o li mangia la rotta dinamica. */}
+          <Route path="/maestranze/iscriviti" element={<MaestranzaSignupPage />} />
+          <Route path="/maestranze/profilo" element={<RequireAuth><MaestranzaMePage /></RequireAuth>} />
+          <Route path="/maestranze" element={<RequireAuth><MaestranzePage /></RequireAuth>} />
+          <Route path="/maestranze/:id" element={<RequireAuth><MaestranzaProfilePage /></RequireAuth>} />
           <Route path="/p/fornitore/:slug" element={<PublicSupplierPage />} />
           <Route path="/feed" element={<RequireAuth><HomeFeedPage /></RequireAuth>} />
           <Route path="/feed/nuovo-articolo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><FeedArticleEditorPage /></RequireAuth>} />

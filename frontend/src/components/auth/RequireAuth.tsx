@@ -15,6 +15,7 @@ function homeFor(role: AppRole): string {
   if (role === 'COUPLE') return '/couple'
   if (role === 'CLIENT') return '/area-cliente'
   if (role === 'FOTOLAB') return '/album-lab'
+  if (role === 'MAESTRANZA') return '/maestranze/profilo'
   return '/'
 }
 
@@ -44,11 +45,23 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
   if (profile?.role === 'GUEST') {
     return <Navigate to="/" replace />
   }
+  // MAESTRANZA: è un professionista OPERATIVO, non un capostipite. Il questionario di
+  // profilazione è per chi vende eventi, non per chi ci lavora: la sua "profilazione" è il
+  // wizard della bacheca (/maestranze/iscriviti). Senza questa esclusione finirebbe
+  // sull'onboarding dei capostipiti e il wizard non partirebbe mai.
   if (profile && !profile.onboarding_complete
     && profile.role !== 'COUPLE' && profile.role !== 'CLIENT' && profile.role !== 'FOTOLAB'
+    && profile.role !== 'MAESTRANZA'
     && location.pathname !== '/onboarding'
     && !location.pathname.startsWith('/couple/accept')) {
     return <Navigate to="/onboarding" replace />
+  }
+  // Confinata alla bacheca + il proprio profilo, come COUPLE/CLIENT/FOTOLAB: niente
+  // sidebar da capostipite, niente /weddings, niente /quotes.
+  if (profile?.role === 'MAESTRANZA'
+    && !location.pathname.startsWith('/maestranze')
+    && location.pathname !== '/profile') {
+    return <Navigate to="/maestranze/profilo" replace />
   }
   // FotoLab è un SERVICE della piattaforma: console dedicata, niente UI da professionista.
   // Confinato alla sua area (ordini stampa + visualizzazione album), come COUPLE/CLIENT.

@@ -7,6 +7,36 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       access_audit_log: {
@@ -83,6 +113,783 @@ export type Database = {
           target_label?: string | null
         }
         Relationships: []
+      }
+      album_catalog_hotspots: {
+        Row: {
+          catalog_id: string | null
+          cost: number | null
+          created_at: string
+          default_format: string | null
+          default_pages: number | null
+          h: number
+          id: string
+          image_path: string | null
+          label: string
+          options: Json
+          owner_id: string | null
+          page: number
+          price: number | null
+          sort_order: number
+          w: number
+          x: number
+          y: number
+        }
+        Insert: {
+          catalog_id?: string | null
+          cost?: number | null
+          created_at?: string
+          default_format?: string | null
+          default_pages?: number | null
+          h: number
+          id?: string
+          image_path?: string | null
+          label?: string
+          options?: Json
+          owner_id?: string | null
+          page?: number
+          price?: number | null
+          sort_order?: number
+          w: number
+          x: number
+          y: number
+        }
+        Update: {
+          catalog_id?: string | null
+          cost?: number | null
+          created_at?: string
+          default_format?: string | null
+          default_pages?: number | null
+          h?: number
+          id?: string
+          image_path?: string | null
+          label?: string
+          options?: Json
+          owner_id?: string | null
+          page?: number
+          price?: number | null
+          sort_order?: number
+          w?: number
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_catalog_hotspots_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "album_catalogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_catalog_hotspots_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_catalog_hotspots_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      album_catalogs: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          markup_percent: number
+          name: string
+          owner_id: string
+          page_count: number
+          pdf_path: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          markup_percent?: number
+          name?: string
+          owner_id: string
+          page_count?: number
+          pdf_path: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          markup_percent?: number
+          name?: string
+          owner_id?: string
+          page_count?: number
+          pdf_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_catalogs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_catalogs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      album_export_grants: {
+        Row: {
+          created_at: string
+          entry_id: string
+          expires_at: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          expires_at?: string
+          token: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          expires_at?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_export_grants_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_export_grants_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_export_grants_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_export_grants_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_export_grants_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      album_layout_approval: {
+        Row: {
+          approved_at: string
+          approved_by: string | null
+          entry_id: string
+          layout_snapshot: Json | null
+          pages_count: number | null
+        }
+        Insert: {
+          approved_at?: string
+          approved_by?: string | null
+          entry_id: string
+          layout_snapshot?: Json | null
+          pages_count?: number | null
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string | null
+          entry_id?: string
+          layout_snapshot?: Json | null
+          pages_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_layout_approval_entry_fk"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_layout_approval_entry_fk"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_layout_approval_entry_fk"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_layout_approval_entry_fk"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_layout_approval_entry_fk"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      album_nudges: {
+        Row: {
+          count: number
+          entry_id: string
+          last_nudge_at: string
+        }
+        Insert: {
+          count?: number
+          entry_id: string
+          last_nudge_at?: string
+        }
+        Update: {
+          count?: number
+          entry_id?: string
+          last_nudge_at?: string
+        }
+        Relationships: []
+      }
+      album_orders: {
+        Row: {
+          album_project_id: string | null
+          copies: number
+          couple_label: string | null
+          cover: Json
+          created_at: string
+          entry_id: string
+          file_link: string | null
+          format_key: string
+          id: string
+          notes: string | null
+          pages: number
+          photographer_id: string
+          queue_order: number
+          reject_reason: string | null
+          share_token: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          album_project_id?: string | null
+          copies?: number
+          couple_label?: string | null
+          cover?: Json
+          created_at?: string
+          entry_id: string
+          file_link?: string | null
+          format_key?: string
+          id?: string
+          notes?: string | null
+          pages?: number
+          photographer_id: string
+          queue_order?: number
+          reject_reason?: string | null
+          share_token?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          album_project_id?: string | null
+          copies?: number
+          couple_label?: string | null
+          cover?: Json
+          created_at?: string
+          entry_id?: string
+          file_link?: string | null
+          format_key?: string
+          id?: string
+          notes?: string | null
+          pages?: number
+          photographer_id?: string
+          queue_order?: number
+          reject_reason?: string | null
+          share_token?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_orders_album_project_id_fkey"
+            columns: ["album_project_id"]
+            isOneToOne: false
+            referencedRelation: "album_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_orders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_orders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_orders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_orders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_orders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_orders_photographer_id_fkey"
+            columns: ["photographer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_orders_photographer_id_fkey"
+            columns: ["photographer_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      album_pin_messages: {
+        Row: {
+          author_id: string | null
+          author_role: string
+          body: string
+          created_at: string
+          entry_id: string
+          id: string
+          pin_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_role: string
+          body: string
+          created_at?: string
+          entry_id: string
+          id?: string
+          pin_id: string
+        }
+        Update: {
+          author_id?: string | null
+          author_role?: string
+          body?: string
+          created_at?: string
+          entry_id?: string
+          id?: string
+          pin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_pin_messages_pin_id_fkey"
+            columns: ["pin_id"]
+            isOneToOne: false
+            referencedRelation: "album_pins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      album_pins: {
+        Row: {
+          catalog_id: string | null
+          color: string | null
+          comment: string | null
+          cover_photo: boolean | null
+          created_at: string
+          created_by: string | null
+          entry_id: string
+          id: string
+          logo: string | null
+          material: string | null
+          page: number
+          pages: number | null
+          status: string
+          updated_at: string
+          x: number
+          y: number
+        }
+        Insert: {
+          catalog_id?: string | null
+          color?: string | null
+          comment?: string | null
+          cover_photo?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          entry_id: string
+          id?: string
+          logo?: string | null
+          material?: string | null
+          page?: number
+          pages?: number | null
+          status?: string
+          updated_at?: string
+          x: number
+          y: number
+        }
+        Update: {
+          catalog_id?: string | null
+          color?: string | null
+          comment?: string | null
+          cover_photo?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          entry_id?: string
+          id?: string
+          logo?: string | null
+          material?: string | null
+          page?: number
+          pages?: number | null
+          status?: string
+          updated_at?: string
+          x?: number
+          y?: number
+        }
+        Relationships: []
+      }
+      album_price_settings: {
+        Row: {
+          config: Json
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      album_projects: {
+        Row: {
+          created_at: string
+          entry_id: string
+          final_note: string | null
+          format_key: string
+          gallery_id: string | null
+          id: string
+          layout: Json
+          owner_id: string
+          price_config: Json | null
+          status: string
+          target_max: number
+          target_min: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          final_note?: string | null
+          format_key?: string
+          gallery_id?: string | null
+          id?: string
+          layout?: Json
+          owner_id: string
+          price_config?: Json | null
+          status?: string
+          target_max?: number
+          target_min?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          final_note?: string | null
+          format_key?: string
+          gallery_id?: string | null
+          id?: string
+          layout?: Json
+          owner_id?: string
+          price_config?: Json | null
+          status?: string
+          target_max?: number
+          target_min?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_projects_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: false
+            referencedRelation: "event_galleries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      album_revision_requests: {
+        Row: {
+          anchor_x: number | null
+          anchor_y: number | null
+          author_name: string | null
+          body: string
+          created_at: string
+          entry_id: string
+          id: string
+          kind: string
+          media_id: string | null
+          page_index: number | null
+          replace_media_id: string | null
+          replied_by: string | null
+          reply: string | null
+          reply_at: string | null
+          reply_reason: string | null
+          status: string
+          tavola_index: number | null
+          user_id: string
+        }
+        Insert: {
+          anchor_x?: number | null
+          anchor_y?: number | null
+          author_name?: string | null
+          body: string
+          created_at?: string
+          entry_id: string
+          id?: string
+          kind?: string
+          media_id?: string | null
+          page_index?: number | null
+          replace_media_id?: string | null
+          replied_by?: string | null
+          reply?: string | null
+          reply_at?: string | null
+          reply_reason?: string | null
+          status?: string
+          tavola_index?: number | null
+          user_id?: string
+        }
+        Update: {
+          anchor_x?: number | null
+          anchor_y?: number | null
+          author_name?: string | null
+          body?: string
+          created_at?: string
+          entry_id?: string
+          id?: string
+          kind?: string
+          media_id?: string | null
+          page_index?: number | null
+          replace_media_id?: string | null
+          replied_by?: string | null
+          reply?: string | null
+          reply_at?: string | null
+          reply_reason?: string | null
+          status?: string
+          tavola_index?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_revision_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_revision_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_revision_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_revision_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_revision_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_revision_requests_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_revision_requests_replace_media_id_fkey"
+            columns: ["replace_media_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      album_style_pdfs: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          samples: number
+          spreads: Json
+          thumb: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id: string
+          samples?: number
+          spreads?: Json
+          thumb?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          samples?: number
+          spreads?: Json
+          thumb?: string | null
+        }
+        Relationships: []
+      }
+      album_style_profiles: {
+        Row: {
+          owner_id: string
+          profile: Json
+          samples: number
+          spreads: Json
+          updated_at: string
+        }
+        Insert: {
+          owner_id: string
+          profile?: Json
+          samples?: number
+          spreads?: Json
+          updated_at?: string
+        }
+        Update: {
+          owner_id?: string
+          profile?: Json
+          samples?: number
+          spreads?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_style_profiles_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_style_profiles_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: true
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
       }
       app_settings: {
         Row: {
@@ -283,6 +1090,141 @@ export type Database = {
           },
         ]
       }
+      booking_settings: {
+        Row: {
+          advance_days: number
+          buffer_minutes: number
+          color: string
+          created_at: string
+          description: string | null
+          enabled: boolean
+          feed_linked_at: string | null
+          feed_token: string
+          location_detail: string | null
+          location_type: string
+          min_notice_hours: number
+          professional_id: string
+          slot_minutes: number
+          timezone: string
+          title: string
+          updated_at: string
+          weekly: Json
+          whatsapp: string | null
+        }
+        Insert: {
+          advance_days?: number
+          buffer_minutes?: number
+          color?: string
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          feed_linked_at?: string | null
+          feed_token?: string
+          location_detail?: string | null
+          location_type?: string
+          min_notice_hours?: number
+          professional_id: string
+          slot_minutes?: number
+          timezone?: string
+          title?: string
+          updated_at?: string
+          weekly?: Json
+          whatsapp?: string | null
+        }
+        Update: {
+          advance_days?: number
+          buffer_minutes?: number
+          color?: string
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          feed_linked_at?: string | null
+          feed_token?: string
+          location_detail?: string | null
+          location_type?: string
+          min_notice_hours?: number
+          professional_id?: string
+          slot_minutes?: number
+          timezone?: string
+          title?: string
+          updated_at?: string
+          weekly?: Json
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_settings_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_settings_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: true
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      bookings: {
+        Row: {
+          avail_slot_id: string | null
+          client_email: string
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          ends_at: string
+          id: string
+          note: string | null
+          professional_id: string
+          starts_at: string
+          status: string
+        }
+        Insert: {
+          avail_slot_id?: string | null
+          client_email: string
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          ends_at: string
+          id?: string
+          note?: string | null
+          professional_id: string
+          starts_at: string
+          status?: string
+        }
+        Update: {
+          avail_slot_id?: string | null
+          client_email?: string
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          ends_at?: string
+          id?: string
+          note?: string | null
+          professional_id?: string
+          starts_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       budget_categories: {
         Row: {
           color: string | null
@@ -317,6 +1259,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_categories_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -392,6 +1341,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_entries_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -491,6 +1447,7 @@ export type Database = {
           destination_location: string | null
           event_kind: string
           evento_stato: Database["public"]["Enums"]["evento_stato"]
+          guest_count: number | null
           honeymoon_destination: string | null
           honeymoon_end: string | null
           honeymoon_notes: string | null
@@ -500,6 +1457,8 @@ export type Database = {
           modalita_incasso:
             | Database["public"]["Enums"]["modalita_incasso"]
             | null
+          option_expires_at: string | null
+          option_requested_by: string | null
           owner_id: string
           quote_id: string | null
           status: Database["public"]["Enums"]["entry_status"]
@@ -534,6 +1493,7 @@ export type Database = {
           destination_location?: string | null
           event_kind?: string
           evento_stato?: Database["public"]["Enums"]["evento_stato"]
+          guest_count?: number | null
           honeymoon_destination?: string | null
           honeymoon_end?: string | null
           honeymoon_notes?: string | null
@@ -543,6 +1503,8 @@ export type Database = {
           modalita_incasso?:
             | Database["public"]["Enums"]["modalita_incasso"]
             | null
+          option_expires_at?: string | null
+          option_requested_by?: string | null
           owner_id: string
           quote_id?: string | null
           status?: Database["public"]["Enums"]["entry_status"]
@@ -577,6 +1539,7 @@ export type Database = {
           destination_location?: string | null
           event_kind?: string
           evento_stato?: Database["public"]["Enums"]["evento_stato"]
+          guest_count?: number | null
           honeymoon_destination?: string | null
           honeymoon_end?: string | null
           honeymoon_notes?: string | null
@@ -586,6 +1549,8 @@ export type Database = {
           modalita_incasso?:
             | Database["public"]["Enums"]["modalita_incasso"]
             | null
+          option_expires_at?: string | null
+          option_requested_by?: string | null
           owner_id?: string
           quote_id?: string | null
           status?: Database["public"]["Enums"]["entry_status"]
@@ -658,6 +1623,13 @@ export type Database = {
             foreignKeyName: "calendar_entries_private_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: true
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_entries_private_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -708,6 +1680,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_entry_participants_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -789,6 +1768,78 @@ export type Database = {
           },
         ]
       }
+      carousel_projects: {
+        Row: {
+          created_at: string
+          entry_id: string
+          format_key: string
+          layout: Json
+          owner_id: string | null
+          slides: number
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          format_key?: string
+          layout?: Json
+          owner_id?: string | null
+          slides?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          format_key?: string
+          layout?: Json
+          owner_id?: string | null
+          slides?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carousel_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carousel_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carousel_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carousel_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "carousel_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
       chat_messaggi: {
         Row: {
           allegato_url: string | null
@@ -826,6 +1877,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messaggi_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -1042,6 +2100,13 @@ export type Database = {
             foreignKeyName: "collaboration_ratings_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_ratings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -1229,6 +2294,13 @@ export type Database = {
             foreignKeyName: "consenso_segnalazione_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consenso_segnalazione_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -1394,6 +2466,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_addendums_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -1591,6 +2670,13 @@ export type Database = {
             foreignKeyName: "contracts_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -1764,6 +2850,13 @@ export type Database = {
             foreignKeyName: "couple_change_requests_wedding_id_fkey"
             columns: ["wedding_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_change_requests_wedding_id_fkey"
+            columns: ["wedding_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -1877,6 +2970,13 @@ export type Database = {
             foreignKeyName: "couple_preferences_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_preferences_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -1893,6 +2993,215 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_salute_evento"
             referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      deletion_log: {
+        Row: {
+          consent_lose_all: boolean | null
+          consent_no_backup: boolean | null
+          created_at: string
+          deleted_by: string | null
+          entry_id: string | null
+          entry_title: string | null
+          id: string
+          typed_phrase: string | null
+        }
+        Insert: {
+          consent_lose_all?: boolean | null
+          consent_no_backup?: boolean | null
+          created_at?: string
+          deleted_by?: string | null
+          entry_id?: string | null
+          entry_title?: string | null
+          id?: string
+          typed_phrase?: string | null
+        }
+        Update: {
+          consent_lose_all?: boolean | null
+          consent_no_backup?: boolean | null
+          created_at?: string
+          deleted_by?: string | null
+          entry_id?: string | null
+          entry_title?: string | null
+          id?: string
+          typed_phrase?: string | null
+        }
+        Relationships: []
+      }
+      design_docs: {
+        Row: {
+          created_at: string
+          doc: string | null
+          entry_id: string | null
+          height: number
+          id: string
+          owner_id: string
+          thumbnail: string | null
+          title: string
+          updated_at: string
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          doc?: string | null
+          entry_id?: string | null
+          height?: number
+          id?: string
+          owner_id: string
+          thumbnail?: string | null
+          title?: string
+          updated_at?: string
+          width?: number
+        }
+        Update: {
+          created_at?: string
+          doc?: string | null
+          entry_id?: string | null
+          height?: number
+          id?: string
+          owner_id?: string
+          thumbnail?: string | null
+          title?: string
+          updated_at?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_docs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_docs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_docs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_docs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "design_docs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "design_docs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_docs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      drive_connections: {
+        Row: {
+          access_token_enc: string | null
+          connected_at: string
+          drive_root_folder_id: string | null
+          email: string | null
+          id: string
+          professional_id: string
+          provider: string
+          refresh_token_enc: string | null
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          access_token_enc?: string | null
+          connected_at?: string
+          drive_root_folder_id?: string | null
+          email?: string | null
+          id?: string
+          professional_id: string
+          provider?: string
+          refresh_token_enc?: string | null
+          scope?: string
+          updated_at?: string
+        }
+        Update: {
+          access_token_enc?: string | null
+          connected_at?: string
+          drive_root_folder_id?: string | null
+          email?: string | null
+          id?: string
+          professional_id?: string
+          provider?: string
+          refresh_token_enc?: string | null
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_connections_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drive_connections_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      drive_oauth_states: {
+        Row: {
+          created_at: string
+          professional_id: string
+          state: string
+        }
+        Insert: {
+          created_at?: string
+          professional_id: string
+          state: string
+        }
+        Update: {
+          created_at?: string
+          professional_id?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_oauth_states_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drive_oauth_states_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
           },
         ]
       }
@@ -1993,6 +3302,13 @@ export type Database = {
             foreignKeyName: "event_accommodations_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_accommodations_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -2012,6 +3328,321 @@ export type Database = {
           },
         ]
       }
+      event_audio_wishes: {
+        Row: {
+          author_name: string | null
+          created_at: string
+          entry_id: string
+          id: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          storage_path: string
+          user_id?: string
+        }
+        Update: {
+          author_name?: string | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_audio_wishes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_audio_wishes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_audio_wishes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_audio_wishes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_audio_wishes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      event_circle_suggestions: {
+        Row: {
+          created_at: string
+          data_passage: boolean
+          entry_id: string
+          id: string
+          kind: string
+          role_key: string | null
+          signed_at: string | null
+          signed_by: string | null
+          signed_name: string | null
+          status: string
+          suggested_by: string
+          supplier_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_passage?: boolean
+          entry_id: string
+          id?: string
+          kind?: string
+          role_key?: string | null
+          signed_at?: string | null
+          signed_by?: string | null
+          signed_name?: string | null
+          status?: string
+          suggested_by: string
+          supplier_id: string
+        }
+        Update: {
+          created_at?: string
+          data_passage?: boolean
+          entry_id?: string
+          id?: string
+          kind?: string
+          role_key?: string | null
+          signed_at?: string | null
+          signed_by?: string | null
+          signed_name?: string | null
+          status?: string
+          suggested_by?: string
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_circle_suggestions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_circle_suggestions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_circle_suggestions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_circle_suggestions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_circle_suggestions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_circle_suggestions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_circle_suggestions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      event_corner_items: {
+        Row: {
+          checked: boolean
+          corner_id: string
+          created_at: string
+          entry_id: string
+          id: string
+          label: string
+          note: string | null
+          qty: number
+          sort_order: number
+          unit_cost: number | null
+        }
+        Insert: {
+          checked?: boolean
+          corner_id: string
+          created_at?: string
+          entry_id: string
+          id?: string
+          label: string
+          note?: string | null
+          qty?: number
+          sort_order?: number
+          unit_cost?: number | null
+        }
+        Update: {
+          checked?: boolean
+          corner_id?: string
+          created_at?: string
+          entry_id?: string
+          id?: string
+          label?: string
+          note?: string | null
+          qty?: number
+          sort_order?: number
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_corner_items_corner_id_fkey"
+            columns: ["corner_id"]
+            isOneToOne: false
+            referencedRelation: "event_corners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_corner_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_corner_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_corner_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_corner_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_corner_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      event_corners: {
+        Row: {
+          assignee: string | null
+          created_at: string
+          created_by: string
+          entry_id: string
+          id: string
+          kind: string
+          name: string
+          note: string | null
+          sort_order: number
+          status: string
+        }
+        Insert: {
+          assignee?: string | null
+          created_at?: string
+          created_by?: string
+          entry_id: string
+          id?: string
+          kind?: string
+          name: string
+          note?: string | null
+          sort_order?: number
+          status?: string
+        }
+        Update: {
+          assignee?: string | null
+          created_at?: string
+          created_by?: string
+          entry_id?: string
+          id?: string
+          kind?: string
+          name?: string
+          note?: string | null
+          sort_order?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_corners_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_corners_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_corners_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_corners_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_corners_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
       event_documents: {
         Row: {
           created_at: string
@@ -2020,6 +3651,7 @@ export type Database = {
           kind: string
           mime: string | null
           name: string
+          shared_with_couple: boolean
           size_bytes: number | null
           storage_path: string
           uploaded_by: string | null
@@ -2032,6 +3664,7 @@ export type Database = {
           kind?: string
           mime?: string | null
           name: string
+          shared_with_couple?: boolean
           size_bytes?: number | null
           storage_path: string
           uploaded_by?: string | null
@@ -2044,6 +3677,7 @@ export type Database = {
           kind?: string
           mime?: string | null
           name?: string
+          shared_with_couple?: boolean
           size_bytes?: number | null
           storage_path?: string
           uploaded_by?: string | null
@@ -2055,6 +3689,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_documents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -2091,6 +3732,88 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      event_floor_plans: {
+        Row: {
+          entry_id: string
+          floor_plan_id: string | null
+          image_url: string | null
+          length_m: number | null
+          name: string | null
+          ratio: number
+          room_name: string | null
+          updated_at: string
+          venue_name: string | null
+          width_m: number | null
+        }
+        Insert: {
+          entry_id: string
+          floor_plan_id?: string | null
+          image_url?: string | null
+          length_m?: number | null
+          name?: string | null
+          ratio?: number
+          room_name?: string | null
+          updated_at?: string
+          venue_name?: string | null
+          width_m?: number | null
+        }
+        Update: {
+          entry_id?: string
+          floor_plan_id?: string | null
+          image_url?: string | null
+          length_m?: number | null
+          name?: string | null
+          ratio?: number
+          room_name?: string | null
+          updated_at?: string
+          venue_name?: string | null
+          width_m?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_floor_plans_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_floor_plans_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_floor_plans_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_floor_plans_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_floor_plans_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_floor_plans_floor_plan_id_fkey"
+            columns: ["floor_plan_id"]
+            isOneToOne: false
+            referencedRelation: "floor_plans"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2167,6 +3890,13 @@ export type Database = {
             foreignKeyName: "event_gadgets_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_gadgets_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -2197,6 +3927,180 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      event_galleries: {
+        Row: {
+          couple_label: string | null
+          created_at: string
+          drive_folder_id: string | null
+          entry_id: string
+          guest_token: string | null
+          id: string
+          kind: string
+          owner_id: string
+          share_expires_at: string | null
+          share_token: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          couple_label?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          entry_id: string
+          guest_token?: string | null
+          id?: string
+          kind?: string
+          owner_id: string
+          share_expires_at?: string | null
+          share_token?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          couple_label?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          entry_id?: string
+          guest_token?: string | null
+          id?: string
+          kind?: string
+          owner_id?: string
+          share_expires_at?: string | null
+          share_token?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_galleries_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_galleries_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_galleries_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_galleries_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_galleries_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_galleries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_galleries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      event_gifts: {
+        Row: {
+          amount: number | null
+          created_at: string
+          created_by: string
+          description: string | null
+          entry_id: string
+          group_id: string | null
+          id: string
+          kind: string
+          note: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          entry_id: string
+          group_id?: string | null
+          id?: string
+          kind: string
+          note?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          entry_id?: string
+          group_id?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_gifts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_gifts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_gifts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_gifts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_gifts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_gifts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "guest_gift_groups"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2247,6 +4151,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guest_accommodation_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -2316,6 +4227,13 @@ export type Database = {
             foreignKeyName: "event_guest_transport_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guest_transport_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -2349,6 +4267,72 @@ export type Database = {
           },
         ]
       }
+      event_guestbook: {
+        Row: {
+          author_name: string | null
+          created_at: string
+          entry_id: string
+          id: string
+          message: string | null
+          signature_path: string | null
+          user_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          message?: string | null
+          signature_path?: string | null
+          user_id?: string
+        }
+        Update: {
+          author_name?: string | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          message?: string | null
+          signature_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_guestbook_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guestbook_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guestbook_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guestbook_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_guestbook_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
       event_guests: {
         Row: {
           accessibility_needs: string[]
@@ -2362,9 +4346,11 @@ export type Database = {
           email: string | null
           entry_id: string
           full_name: string
+          gift_group_id: string | null
           group_label: string | null
           high_chair_needed: boolean
           id: string
+          is_close_family: boolean
           needs_transport: boolean
           nights_count: number | null
           notes: string | null
@@ -2374,6 +4360,7 @@ export type Database = {
           rsvp: Database["public"]["Enums"]["rsvp_status"]
           seat_no: number | null
           side: string | null
+          sort_order: number | null
           table_id: string | null
           travel_origin: string | null
           updated_at: string
@@ -2390,9 +4377,11 @@ export type Database = {
           email?: string | null
           entry_id: string
           full_name: string
+          gift_group_id?: string | null
           group_label?: string | null
           high_chair_needed?: boolean
           id?: string
+          is_close_family?: boolean
           needs_transport?: boolean
           nights_count?: number | null
           notes?: string | null
@@ -2402,6 +4391,7 @@ export type Database = {
           rsvp?: Database["public"]["Enums"]["rsvp_status"]
           seat_no?: number | null
           side?: string | null
+          sort_order?: number | null
           table_id?: string | null
           travel_origin?: string | null
           updated_at?: string
@@ -2418,9 +4408,11 @@ export type Database = {
           email?: string | null
           entry_id?: string
           full_name?: string
+          gift_group_id?: string | null
           group_label?: string | null
           high_chair_needed?: boolean
           id?: string
+          is_close_family?: boolean
           needs_transport?: boolean
           nights_count?: number | null
           notes?: string | null
@@ -2430,6 +4422,7 @@ export type Database = {
           rsvp?: Database["public"]["Enums"]["rsvp_status"]
           seat_no?: number | null
           side?: string | null
+          sort_order?: number | null
           table_id?: string | null
           travel_origin?: string | null
           updated_at?: string
@@ -2453,6 +4446,13 @@ export type Database = {
             foreignKeyName: "event_guests_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_guests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -2469,6 +4469,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_salute_evento"
             referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_guests_gift_group_id_fkey"
+            columns: ["gift_group_id"]
+            isOneToOne: false
+            referencedRelation: "guest_gift_groups"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "event_guests_table_id_fkey"
@@ -2543,6 +4550,13 @@ export type Database = {
             foreignKeyName: "event_menu_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_menu_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -2573,6 +4587,60 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      event_plan_zones: {
+        Row: {
+          entry_id: string
+          updated_at: string
+          zones: Json
+        }
+        Insert: {
+          entry_id: string
+          updated_at?: string
+          zones?: Json
+        }
+        Update: {
+          entry_id?: string
+          updated_at?: string
+          zones?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_plan_zones_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_plan_zones_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_plan_zones_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_plan_zones_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_plan_zones_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
           },
         ]
       }
@@ -2622,6 +4690,13 @@ export type Database = {
             foreignKeyName: "event_playlist_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_playlist_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -2634,6 +4709,72 @@ export type Database = {
           },
           {
             foreignKeyName: "event_playlist_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      event_ring_roles: {
+        Row: {
+          active: boolean
+          created_at: string
+          entry_id: string
+          id: string
+          label: string
+          role_key: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          entry_id: string
+          id?: string
+          label: string
+          role_key: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          entry_id?: string
+          id?: string
+          label?: string
+          role_key?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_ring_roles_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ring_roles_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ring_roles_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ring_roles_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "event_ring_roles_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "v_salute_evento"
@@ -2714,6 +4855,13 @@ export type Database = {
             foreignKeyName: "event_subevents_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_subevents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -2738,9 +4886,11 @@ export type Database = {
           created_at: string
           entry_id: string
           id: string
+          is_staff: boolean
           label: string | null
           pos_x: number | null
           pos_y: number | null
+          rotation: number
           seats: number
           shape: string
           table_no: number
@@ -2749,9 +4899,11 @@ export type Database = {
           created_at?: string
           entry_id: string
           id?: string
+          is_staff?: boolean
           label?: string | null
           pos_x?: number | null
           pos_y?: number | null
+          rotation?: number
           seats?: number
           shape?: string
           table_no: number
@@ -2760,9 +4912,11 @@ export type Database = {
           created_at?: string
           entry_id?: string
           id?: string
+          is_staff?: boolean
           label?: string | null
           pos_x?: number | null
           pos_y?: number | null
+          rotation?: number
           seats?: number
           shape?: string
           table_no?: number
@@ -2773,6 +4927,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_tables_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -2847,6 +5008,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_timeline_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -2968,6 +5136,13 @@ export type Database = {
             foreignKeyName: "event_transport_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_transport_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -3066,6 +5241,13 @@ export type Database = {
             foreignKeyName: "eventi_cambiamento_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventi_cambiamento_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -3093,6 +5275,2136 @@ export type Database = {
           {
             foreignKeyName: "eventi_cambiamento_eseguito_da_fkey"
             columns: ["eseguito_da"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_ai_pricing: {
+        Row: {
+          id: number
+          input_eur_per_mtok: number
+          output_eur_per_mtok: number
+        }
+        Insert: {
+          id?: number
+          input_eur_per_mtok: number
+          output_eur_per_mtok: number
+        }
+        Update: {
+          id?: number
+          input_eur_per_mtok?: number
+          output_eur_per_mtok?: number
+        }
+        Relationships: []
+      }
+      fb_ai_usage: {
+        Row: {
+          cost_eur: number
+          created_at: string
+          fn: string
+          id: string
+          input_tokens: number
+          location_id: string
+          output_tokens: number
+        }
+        Insert: {
+          cost_eur?: number
+          created_at?: string
+          fn: string
+          id?: string
+          input_tokens?: number
+          location_id: string
+          output_tokens?: number
+        }
+        Update: {
+          cost_eur?: number
+          created_at?: string
+          fn?: string
+          id?: string
+          input_tokens?: number
+          location_id?: string
+          output_tokens?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_ai_usage_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_ai_usage_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_ai_wallet: {
+        Row: {
+          active: boolean
+          balance_eur: number
+          location_id: string
+          monthly_min_eur: number
+          trial_granted: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          balance_eur?: number
+          location_id: string
+          monthly_min_eur?: number
+          trial_granted?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          balance_eur?: number
+          location_id?: string
+          monthly_min_eur?: number
+          trial_granted?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_ai_wallet_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_ai_wallet_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: true
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_brigade_members: {
+        Row: {
+          active: boolean
+          created_at: string
+          full_name: string
+          hourly_cost: number
+          id: string
+          location_id: string
+          phone: string | null
+          reparto: string
+          role: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          full_name: string
+          hourly_cost?: number
+          id?: string
+          location_id: string
+          phone?: string | null
+          reparto?: string
+          role: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          full_name?: string
+          hourly_cost?: number
+          id?: string
+          location_id?: string
+          phone?: string | null
+          reparto?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_brigade_members_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_brigade_members_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_cantina: {
+        Row: {
+          bottle_ml: number
+          category: string
+          cost_per_bottle: number
+          covers_per_bottle: number
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          location_id: string
+          name: string
+          stock_bottles: number
+          updated_at: string
+        }
+        Insert: {
+          bottle_ml?: number
+          category?: string
+          cost_per_bottle?: number
+          covers_per_bottle?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          location_id: string
+          name: string
+          stock_bottles?: number
+          updated_at?: string
+        }
+        Update: {
+          bottle_ml?: number
+          category?: string
+          cost_per_bottle?: number
+          covers_per_bottle?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          location_id?: string
+          name?: string
+          stock_bottles?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_cantina_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_cantina_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_cantina_consumption: {
+        Row: {
+          bottles: number
+          cantina_id: string
+          consumed_at: string
+          entry_id: string
+          id: string
+          location_id: string
+        }
+        Insert: {
+          bottles: number
+          cantina_id: string
+          consumed_at?: string
+          entry_id: string
+          id?: string
+          location_id: string
+        }
+        Update: {
+          bottles?: number
+          cantina_id?: string
+          consumed_at?: string
+          entry_id?: string
+          id?: string
+          location_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_cantina_consumption_cantina_id_fkey"
+            columns: ["cantina_id"]
+            isOneToOne: false
+            referencedRelation: "fb_cantina"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_cantina_consumption_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_cantina_consumption_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_cantina_consumption_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_cantina_consumption_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_cantina_consumption_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_cantina_consumption_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_cantina_consumption_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_dish_passed_over: {
+        Row: {
+          chosen_instead: string | null
+          created_at: string
+          entry_id: string
+          id: string
+          menu_item_id: string
+        }
+        Insert: {
+          chosen_instead?: string | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          menu_item_id: string
+        }
+        Update: {
+          chosen_instead?: string | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          menu_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_dish_passed_over_chosen_instead_fkey"
+            columns: ["chosen_instead"]
+            isOneToOne: false
+            referencedRelation: "fb_menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_dish_passed_over_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_dish_passed_over_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_dish_passed_over_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_dish_passed_over_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_dish_passed_over_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_dish_passed_over_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "fb_menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_dish_votes: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          menu_item_id: string
+          score: number
+          updated_at: string
+          voter_id: string | null
+          voter_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          menu_item_id: string
+          score: number
+          updated_at?: string
+          voter_id?: string | null
+          voter_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          menu_item_id?: string
+          score?: number
+          updated_at?: string
+          voter_id?: string | null
+          voter_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_dish_votes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_dish_votes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_dish_votes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_dish_votes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_dish_votes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_dish_votes_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "fb_menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_event_brigade: {
+        Row: {
+          call_time: string | null
+          created_at: string
+          end_time: string | null
+          entry_id: string
+          id: string
+          location_id: string
+          member_id: string
+          note: string | null
+          station: string | null
+        }
+        Insert: {
+          call_time?: string | null
+          created_at?: string
+          end_time?: string | null
+          entry_id: string
+          id?: string
+          location_id: string
+          member_id: string
+          note?: string | null
+          station?: string | null
+        }
+        Update: {
+          call_time?: string | null
+          created_at?: string
+          end_time?: string | null
+          entry_id?: string
+          id?: string
+          location_id?: string
+          member_id?: string
+          note?: string | null
+          station?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_event_brigade_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_brigade_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_brigade_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_brigade_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_event_brigade_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_event_brigade_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_brigade_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_event_brigade_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "fb_brigade_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_event_cantina: {
+        Row: {
+          cantina_id: string
+          covers_override: number | null
+          covers_per_bottle: number | null
+          entry_id: string
+          id: string
+          location_id: string
+        }
+        Insert: {
+          cantina_id: string
+          covers_override?: number | null
+          covers_per_bottle?: number | null
+          entry_id: string
+          id?: string
+          location_id: string
+        }
+        Update: {
+          cantina_id?: string
+          covers_override?: number | null
+          covers_per_bottle?: number | null
+          entry_id?: string
+          id?: string
+          location_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_event_cantina_cantina_id_fkey"
+            columns: ["cantina_id"]
+            isOneToOne: false
+            referencedRelation: "fb_cantina"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_cantina_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_cantina_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_cantina_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_cantina_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_event_cantina_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_event_cantina_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_cantina_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_event_dish: {
+        Row: {
+          confirmed_at: string
+          confirmed_by: string | null
+          entry_id: string
+          id: string
+          menu_item_id: string
+          snapshot: Json | null
+        }
+        Insert: {
+          confirmed_at?: string
+          confirmed_by?: string | null
+          entry_id: string
+          id?: string
+          menu_item_id: string
+          snapshot?: Json | null
+        }
+        Update: {
+          confirmed_at?: string
+          confirmed_by?: string | null
+          entry_id?: string
+          id?: string
+          menu_item_id?: string
+          snapshot?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_event_dish_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_dish_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_dish_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_dish_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_event_dish_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_event_dish_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "fb_menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_event_menus: {
+        Row: {
+          covers: number | null
+          created_at: string
+          entry_id: string
+          id: string
+          label: string | null
+          location_id: string
+          menu_id: string
+          role: string
+        }
+        Insert: {
+          covers?: number | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          label?: string | null
+          location_id: string
+          menu_id: string
+          role?: string
+        }
+        Update: {
+          covers?: number | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          label?: string | null
+          location_id?: string
+          menu_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_event_menus_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_menus_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_menus_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_menus_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_event_menus_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_event_menus_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_event_menus_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_event_menus_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "fb_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_ingredient_cost_versions: {
+        Row: {
+          cost_per_unit: number
+          id: string
+          ingredient_id: string
+          source: string
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          cost_per_unit: number
+          id?: string
+          ingredient_id: string
+          source?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          cost_per_unit?: number
+          id?: string
+          ingredient_id?: string
+          source?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_ingredient_cost_versions_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "fb_ingredients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_ingredients: {
+        Row: {
+          allergens: string[] | null
+          category: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          location_id: string
+          name: string
+          stock_unit: string
+          updated_at: string
+          yield_percent: number
+        }
+        Insert: {
+          allergens?: string[] | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_id: string
+          name: string
+          stock_unit: string
+          updated_at?: string
+          yield_percent?: number
+        }
+        Update: {
+          allergens?: string[] | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_id?: string
+          name?: string
+          stock_unit?: string
+          updated_at?: string
+          yield_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_ingredients_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_ingredients_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_menu_courses: {
+        Row: {
+          course: string
+          id: string
+          max_select: number
+          menu_id: string
+          min_select: number
+        }
+        Insert: {
+          course: string
+          id?: string
+          max_select?: number
+          menu_id: string
+          min_select?: number
+        }
+        Update: {
+          course?: string
+          id?: string
+          max_select?: number
+          menu_id?: string
+          min_select?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_menu_courses_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "fb_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_menu_items: {
+        Row: {
+          course: string | null
+          id: string
+          menu_id: string
+          photo_url: string | null
+          qty_per_cover: number
+          recipe_id: string
+          season_from: number | null
+          season_to: number | null
+          sort_order: number
+        }
+        Insert: {
+          course?: string | null
+          id?: string
+          menu_id: string
+          photo_url?: string | null
+          qty_per_cover?: number
+          recipe_id: string
+          season_from?: number | null
+          season_to?: number | null
+          sort_order?: number
+        }
+        Update: {
+          course?: string | null
+          id?: string
+          menu_id?: string
+          photo_url?: string | null
+          qty_per_cover?: number
+          recipe_id?: string
+          season_from?: number | null
+          season_to?: number | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_menu_items_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "fb_menus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_menu_items_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "fb_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_menu_proposals: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          is_chosen: boolean
+          location_id: string
+          menu_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          is_chosen?: boolean
+          location_id: string
+          menu_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          is_chosen?: boolean
+          location_id?: string
+          menu_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_menu_proposals_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_menu_proposals_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_menu_proposals_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_menu_proposals_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_menu_proposals_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_menu_proposals_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_menu_proposals_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_menu_proposals_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "fb_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_menus: {
+        Row: {
+          basis: string
+          created_at: string
+          id: string
+          is_active: boolean
+          location_id: string
+          name: string
+          service_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          basis?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_id: string
+          name: string
+          service_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          basis?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_id?: string
+          name?: string
+          service_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_menus_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_menus_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_menus_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_package_items: {
+        Row: {
+          created_at: string
+          id: string
+          menu_item_id: string
+          package_id: string
+          role: string
+          surcharge: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          menu_item_id: string
+          package_id: string
+          role?: string
+          surcharge?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          menu_item_id?: string
+          package_id?: string
+          role?: string
+          surcharge?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_package_items_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "fb_menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_package_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "fb_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_packages: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          location_id: string
+          name: string
+          notes: string | null
+          price_per_guest: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_id: string
+          name: string
+          notes?: string | null
+          price_per_guest?: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_id?: string
+          name?: string
+          notes?: string | null
+          price_per_guest?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_packages_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_packages_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_purchase_order_items: {
+        Row: {
+          expiry_date: string | null
+          id: string
+          order_id: string
+          qty_packs: number
+          qty_received_packs: number
+          supplier_product_id: string
+          unit_price: number
+        }
+        Insert: {
+          expiry_date?: string | null
+          id?: string
+          order_id: string
+          qty_packs: number
+          qty_received_packs?: number
+          supplier_product_id: string
+          unit_price: number
+        }
+        Update: {
+          expiry_date?: string | null
+          id?: string
+          order_id?: string
+          qty_packs?: number
+          qty_received_packs?: number
+          supplier_product_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_purchase_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fb_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_purchase_order_items_supplier_product_id_fkey"
+            columns: ["supplier_product_id"]
+            isOneToOne: false
+            referencedRelation: "fb_supplier_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_purchase_orders: {
+        Row: {
+          created_at: string
+          expected_date: string | null
+          id: string
+          location_id: string
+          notes: string | null
+          status: string
+          supplier_id: string
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expected_date?: string | null
+          id?: string
+          location_id: string
+          notes?: string | null
+          status?: string
+          supplier_id: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expected_date?: string | null
+          id?: string
+          location_id?: string
+          notes?: string | null
+          status?: string
+          supplier_id?: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_purchase_orders_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_purchase_orders_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "fb_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_recipe_items: {
+        Row: {
+          id: string
+          ingredient_id: string | null
+          qty: number
+          recipe_id: string
+          subrecipe_id: string | null
+          unit: string
+          yield_percent_override: number | null
+        }
+        Insert: {
+          id?: string
+          ingredient_id?: string | null
+          qty: number
+          recipe_id: string
+          subrecipe_id?: string | null
+          unit: string
+          yield_percent_override?: number | null
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string | null
+          qty?: number
+          recipe_id?: string
+          subrecipe_id?: string | null
+          unit?: string
+          yield_percent_override?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_recipe_items_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "fb_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_recipe_items_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "fb_recipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_recipe_items_subrecipe_id_fkey"
+            columns: ["subrecipe_id"]
+            isOneToOne: false
+            referencedRelation: "fb_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_recipes: {
+        Row: {
+          created_at: string
+          id: string
+          is_subrecipe: boolean
+          location_id: string
+          name: string
+          notes: string | null
+          updated_at: string
+          yield_qty: number
+          yield_unit: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_subrecipe?: boolean
+          location_id: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+          yield_qty: number
+          yield_unit: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_subrecipe?: boolean
+          location_id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          yield_qty?: number
+          yield_unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_recipes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_recipes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_stock_lots: {
+        Row: {
+          created_at: string
+          expiry_date: string | null
+          id: string
+          ingredient_id: string
+          location_id: string
+          lot_code: string | null
+          qty_received: number
+          qty_remaining: number
+          received_at: string
+          supplier_id: string | null
+          unit_cost: number
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          ingredient_id: string
+          location_id: string
+          lot_code?: string | null
+          qty_received: number
+          qty_remaining: number
+          received_at?: string
+          supplier_id?: string | null
+          unit_cost: number
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          ingredient_id?: string
+          location_id?: string
+          lot_code?: string | null
+          qty_received?: number
+          qty_remaining?: number
+          received_at?: string
+          supplier_id?: string | null
+          unit_cost?: number
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_stock_lots_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "fb_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_lots_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_lots_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_stock_lots_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "fb_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_lots_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "fb_warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string
+          event_id: string | null
+          id: string
+          ingredient_id: string
+          location_id: string
+          lot_id: string | null
+          order_id: string | null
+          qty: number
+          reason: string | null
+          type: string
+          unit_cost: number | null
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          event_id?: string | null
+          id?: string
+          ingredient_id: string
+          location_id: string
+          lot_id?: string | null
+          order_id?: string | null
+          qty: number
+          reason?: string | null
+          type: string
+          unit_cost?: number | null
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          event_id?: string | null
+          id?: string
+          ingredient_id?: string
+          location_id?: string
+          lot_id?: string | null
+          order_id?: string | null
+          qty?: number
+          reason?: string | null
+          type?: string
+          unit_cost?: number | null
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_stock_movements_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "fb_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "fb_lots_expiring"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "fb_stock_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fb_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "fb_warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_stocktake: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          location_id: string
+          note: string | null
+          status: string
+          warehouse_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_id: string
+          note?: string | null
+          status?: string
+          warehouse_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_id?: string
+          note?: string | null
+          status?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_stocktake_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stocktake_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_stocktake_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "fb_warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_stocktake_lines: {
+        Row: {
+          counted_at: string | null
+          counted_qty: number | null
+          id: string
+          ingredient_id: string
+          location_id: string
+          stocktake_id: string
+          theoretical_qty: number
+          unit_cost: number
+        }
+        Insert: {
+          counted_at?: string | null
+          counted_qty?: number | null
+          id?: string
+          ingredient_id: string
+          location_id: string
+          stocktake_id: string
+          theoretical_qty?: number
+          unit_cost?: number
+        }
+        Update: {
+          counted_at?: string | null
+          counted_qty?: number | null
+          id?: string
+          ingredient_id?: string
+          location_id?: string
+          stocktake_id?: string
+          theoretical_qty?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_stocktake_lines_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "fb_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stocktake_lines_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stocktake_lines_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_stocktake_lines_stocktake_id_fkey"
+            columns: ["stocktake_id"]
+            isOneToOne: false
+            referencedRelation: "fb_stocktake"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_supplier_products: {
+        Row: {
+          id: string
+          ingredient_id: string
+          is_active: boolean
+          is_preferred: boolean
+          pack_label: string
+          pack_price: number
+          pack_qty_stock_unit: number
+          supplier_id: string
+        }
+        Insert: {
+          id?: string
+          ingredient_id: string
+          is_active?: boolean
+          is_preferred?: boolean
+          pack_label: string
+          pack_price: number
+          pack_qty_stock_unit: number
+          supplier_id: string
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string
+          is_active?: boolean
+          is_preferred?: boolean
+          pack_label?: string
+          pack_price?: number
+          pack_qty_stock_unit?: number
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_supplier_products_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "fb_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_supplier_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "fb_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_suppliers: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          lead_time_days: number
+          location_id: string
+          min_order_value: number
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          lead_time_days?: number
+          location_id: string
+          min_order_value?: number
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          lead_time_days?: number
+          location_id?: string
+          min_order_value?: number
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_suppliers_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_suppliers_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_tasting_invites: {
+        Row: {
+          chosen_date_id: string | null
+          client_name: string
+          created_at: string
+          email: string | null
+          entry_id: string | null
+          id: string
+          invited_at: string | null
+          note: string | null
+          phone: string | null
+          responded_at: string | null
+          rsvp: string
+          session_id: string
+          token: string
+        }
+        Insert: {
+          chosen_date_id?: string | null
+          client_name: string
+          created_at?: string
+          email?: string | null
+          entry_id?: string | null
+          id?: string
+          invited_at?: string | null
+          note?: string | null
+          phone?: string | null
+          responded_at?: string | null
+          rsvp?: string
+          session_id: string
+          token?: string
+        }
+        Update: {
+          chosen_date_id?: string | null
+          client_name?: string
+          created_at?: string
+          email?: string | null
+          entry_id?: string | null
+          id?: string
+          invited_at?: string | null
+          note?: string | null
+          phone?: string | null
+          responded_at?: string | null
+          rsvp?: string
+          session_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_tasting_invites_chosen_date_id_fkey"
+            columns: ["chosen_date_id"]
+            isOneToOne: false
+            referencedRelation: "fb_tasting_session_dates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tasting_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tasting_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tasting_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tasting_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_tasting_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_tasting_invites_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "fb_tasting_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_tasting_session_dates: {
+        Row: {
+          capacity: number | null
+          created_at: string
+          id: string
+          sala: string | null
+          scheduled_at: string
+          session_id: string
+          sort_order: number
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string
+          id?: string
+          sala?: string | null
+          scheduled_at: string
+          session_id: string
+          sort_order?: number
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string
+          id?: string
+          sala?: string | null
+          scheduled_at?: string
+          session_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_tasting_session_dates_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "fb_tasting_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fb_tasting_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          location_id: string
+          name: string
+          notes: string | null
+          season: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location_id: string
+          name: string
+          notes?: string | null
+          season?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location_id?: string
+          name?: string
+          notes?: string | null
+          season?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_tasting_sessions_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tasting_sessions_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_tastings: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          location_id: string
+          notes: string | null
+          sala: string | null
+          scheduled_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          location_id: string
+          notes?: string | null
+          sala?: string | null
+          scheduled_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          location_id?: string
+          notes?: string | null
+          sala?: string | null
+          scheduled_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_tastings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tastings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tastings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tastings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_tastings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "fb_tastings_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_tastings_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fb_warehouses: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          kind: string
+          location_id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          kind?: string
+          location_id: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          kind?: string
+          location_id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_warehouses_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_warehouses_location_id_fkey"
+            columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
@@ -3276,6 +7588,63 @@ export type Database = {
         }
         Relationships: []
       }
+      floor_plans: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          length_m: number | null
+          name: string
+          owner_id: string
+          ratio: number
+          sort_order: number
+          visibility: string
+          width_m: number | null
+          zones: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          length_m?: number | null
+          name?: string
+          owner_id: string
+          ratio?: number
+          sort_order?: number
+          visibility?: string
+          width_m?: number | null
+          zones?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          length_m?: number | null
+          name?: string
+          owner_id?: string
+          ratio?: number
+          sort_order?: number
+          visibility?: string
+          width_m?: number | null
+          zones?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "floor_plans_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "floor_plans_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       follows: {
         Row: {
           created_at: string
@@ -3329,6 +7698,750 @@ export type Database = {
           },
         ]
       }
+      gallery_consents: {
+        Row: {
+          entry_id: string
+          granted_at: string
+          granted_by: string | null
+          id: string
+          revoked_at: string | null
+          revoked_by: string | null
+          scope: Database["public"]["Enums"]["gallery_folder_level"]
+        }
+        Insert: {
+          entry_id: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          scope?: Database["public"]["Enums"]["gallery_folder_level"]
+        }
+        Update: {
+          entry_id?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          scope?: Database["public"]["Enums"]["gallery_folder_level"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_consents_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_consents_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "gallery_consents_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_consents_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      gallery_folders: {
+        Row: {
+          assigned_subrole: string | null
+          assigned_to: string | null
+          created_at: string
+          drive_folder_id: string | null
+          entry_id: string
+          gallery_id: string
+          guest_visible: boolean
+          id: string
+          is_for_sale: boolean
+          level: Database["public"]["Enums"]["gallery_folder_level"]
+          name: string
+          price_cents: number | null
+          shared: boolean
+          sort_order: number
+        }
+        Insert: {
+          assigned_subrole?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          entry_id: string
+          gallery_id: string
+          guest_visible?: boolean
+          id?: string
+          is_for_sale?: boolean
+          level: Database["public"]["Enums"]["gallery_folder_level"]
+          name: string
+          price_cents?: number | null
+          shared?: boolean
+          sort_order?: number
+        }
+        Update: {
+          assigned_subrole?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          entry_id?: string
+          gallery_id?: string
+          guest_visible?: boolean
+          id?: string
+          is_for_sale?: boolean
+          level?: Database["public"]["Enums"]["gallery_folder_level"]
+          name?: string
+          price_cents?: number | null
+          shared?: boolean
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_folders_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_folders_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "gallery_folders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_folders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_folders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_folders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_folders_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_folders_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: false
+            referencedRelation: "event_galleries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_guests: {
+        Row: {
+          entry_id: string
+          full_name_searched: string | null
+          guest_user_id: string
+          id: string
+          registered_at: string
+        }
+        Insert: {
+          entry_id: string
+          full_name_searched?: string | null
+          guest_user_id: string
+          id?: string
+          registered_at?: string
+        }
+        Update: {
+          entry_id?: string
+          full_name_searched?: string | null
+          guest_user_id?: string
+          id?: string
+          registered_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_guests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_guests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_guests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_guests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_guests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_guests_guest_user_id_fkey"
+            columns: ["guest_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_guests_guest_user_id_fkey"
+            columns: ["guest_user_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      gallery_media: {
+        Row: {
+          album_choice: string | null
+          album_moment: string | null
+          carousel_pick: boolean
+          created_at: string
+          drive_file_id: string
+          entry_id: string
+          folder_id: string
+          gallery_id: string
+          guest_tag_name: string | null
+          guest_tags: string[]
+          id: string
+          is_for_sale: boolean
+          media_type: Database["public"]["Enums"]["gallery_media_type"]
+          no_minors: boolean
+          price_cents: number | null
+          promo_consent: boolean
+          source_name: string | null
+          thumbnail_link: string | null
+          uploaded_by: string | null
+          uploader_name: string | null
+        }
+        Insert: {
+          album_choice?: string | null
+          album_moment?: string | null
+          carousel_pick?: boolean
+          created_at?: string
+          drive_file_id: string
+          entry_id: string
+          folder_id: string
+          gallery_id: string
+          guest_tag_name?: string | null
+          guest_tags?: string[]
+          id?: string
+          is_for_sale?: boolean
+          media_type?: Database["public"]["Enums"]["gallery_media_type"]
+          no_minors?: boolean
+          price_cents?: number | null
+          promo_consent?: boolean
+          source_name?: string | null
+          thumbnail_link?: string | null
+          uploaded_by?: string | null
+          uploader_name?: string | null
+        }
+        Update: {
+          album_choice?: string | null
+          album_moment?: string | null
+          carousel_pick?: boolean
+          created_at?: string
+          drive_file_id?: string
+          entry_id?: string
+          folder_id?: string
+          gallery_id?: string
+          guest_tag_name?: string | null
+          guest_tags?: string[]
+          id?: string
+          is_for_sale?: boolean
+          media_type?: Database["public"]["Enums"]["gallery_media_type"]
+          no_minors?: boolean
+          price_cents?: number | null
+          promo_consent?: boolean
+          source_name?: string | null
+          thumbnail_link?: string | null
+          uploaded_by?: string | null
+          uploader_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_media_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_media_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_media_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_media_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_media_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_media_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_media_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: false
+            referencedRelation: "event_galleries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_media_comments: {
+        Row: {
+          author_name: string | null
+          body: string
+          created_at: string
+          id: string
+          media_id: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          media_id: string
+          user_id?: string
+        }
+        Update: {
+          author_name?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          media_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_media_comments_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_media_likes: {
+        Row: {
+          created_at: string
+          media_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          media_id: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          media_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_media_likes_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_selection: {
+        Row: {
+          entry_id: string
+          gallery_id: string
+          round: number
+          status: string
+          submitted_at: string | null
+          target_max: number
+          target_min: number
+          updated_at: string
+        }
+        Insert: {
+          entry_id: string
+          gallery_id: string
+          round?: number
+          status?: string
+          submitted_at?: string | null
+          target_max?: number
+          target_min?: number
+          updated_at?: string
+        }
+        Update: {
+          entry_id?: string
+          gallery_id?: string
+          round?: number
+          status?: string
+          submitted_at?: string | null
+          target_max?: number
+          target_min?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_selection_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_selection_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_selection_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_selection_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_selection_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "gallery_selection_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: true
+            referencedRelation: "event_galleries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_selection_decisions: {
+        Row: {
+          decided_at: string
+          gallery_id: string
+          keep: boolean
+          media_id: string
+          round: number
+        }
+        Insert: {
+          decided_at?: string
+          gallery_id: string
+          keep: boolean
+          media_id: string
+          round: number
+        }
+        Update: {
+          decided_at?: string
+          gallery_id?: string
+          keep?: boolean
+          media_id?: string
+          round?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_selection_decisions_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: false
+            referencedRelation: "event_galleries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_selection_decisions_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_settings: {
+        Row: {
+          allow_comments: boolean
+          allow_download_all: boolean
+          allow_favorites: boolean
+          allow_social: boolean
+          download_hd: boolean
+          favorites_color: string
+          favorites_download: string
+          favorites_limit: number | null
+          gallery_id: string
+          pin_icons: boolean
+          show_favorites_count: boolean
+          show_filename: boolean
+          updated_at: string
+          watermark_enabled: boolean
+          watermark_text: string | null
+        }
+        Insert: {
+          allow_comments?: boolean
+          allow_download_all?: boolean
+          allow_favorites?: boolean
+          allow_social?: boolean
+          download_hd?: boolean
+          favorites_color?: string
+          favorites_download?: string
+          favorites_limit?: number | null
+          gallery_id: string
+          pin_icons?: boolean
+          show_favorites_count?: boolean
+          show_filename?: boolean
+          updated_at?: string
+          watermark_enabled?: boolean
+          watermark_text?: string | null
+        }
+        Update: {
+          allow_comments?: boolean
+          allow_download_all?: boolean
+          allow_favorites?: boolean
+          allow_social?: boolean
+          download_hd?: boolean
+          favorites_color?: string
+          favorites_download?: string
+          favorites_limit?: number | null
+          gallery_id?: string
+          pin_icons?: boolean
+          show_favorites_count?: boolean
+          show_filename?: boolean
+          updated_at?: string
+          watermark_enabled?: boolean
+          watermark_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_settings_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: true
+            referencedRelation: "event_galleries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_calendar_busy: {
+        Row: {
+          ends_at: string
+          id: string
+          professional_id: string
+          starts_at: string
+          synced_at: string
+        }
+        Insert: {
+          ends_at: string
+          id?: string
+          professional_id: string
+          starts_at: string
+          synced_at?: string
+        }
+        Update: {
+          ends_at?: string
+          id?: string
+          professional_id?: string
+          starts_at?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      google_calendar_connections: {
+        Row: {
+          created_at: string
+          google_email: string | null
+          last_sync_at: string | null
+          professional_id: string
+          refresh_token_enc: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          google_email?: string | null
+          last_sync_at?: string | null
+          professional_id: string
+          refresh_token_enc: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          google_email?: string | null
+          last_sync_at?: string | null
+          professional_id?: string
+          refresh_token_enc?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      guest_gift_groups: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          kind: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          kind?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          kind?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_gift_groups_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_gift_groups_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_gift_groups_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_gift_groups_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "guest_gift_groups_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
       inbound_emails: {
         Row: {
           assigned_to: string | null
@@ -3379,84 +8492,6 @@ export type Database = {
           to_addr?: string | null
         }
         Relationships: []
-      }
-      instagram_connections: {
-        Row: {
-          access_token: string
-          created_at: string
-          ig_user_id: string | null
-          profile_id: string
-          token_expires_at: string | null
-          updated_at: string
-          username: string | null
-        }
-        Insert: {
-          access_token: string
-          created_at?: string
-          ig_user_id?: string | null
-          profile_id: string
-          token_expires_at?: string | null
-          updated_at?: string
-          username?: string | null
-        }
-        Update: {
-          access_token?: string
-          created_at?: string
-          ig_user_id?: string | null
-          profile_id?: string
-          token_expires_at?: string | null
-          updated_at?: string
-          username?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "instagram_connections_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "instagram_connections_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: true
-            referencedRelation: "supplier_trial_status"
-            referencedColumns: ["supplier_id"]
-          },
-        ]
-      }
-      instagram_oauth_states: {
-        Row: {
-          created_at: string
-          profile_id: string
-          state: string
-        }
-        Insert: {
-          created_at?: string
-          profile_id: string
-          state: string
-        }
-        Update: {
-          created_at?: string
-          profile_id?: string
-          state?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "instagram_oauth_states_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "instagram_oauth_states_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_trial_status"
-            referencedColumns: ["supplier_id"]
-          },
-        ]
       }
       insurance_offers: {
         Row: {
@@ -3549,6 +8584,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "insurance_policies_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -3710,6 +8752,246 @@ export type Database = {
         }
         Relationships: []
       }
+      location_inventory: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          location_id: string
+          low_threshold: number | null
+          name: string
+          notes: string | null
+          qty: number
+          sort_order: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          location_id: string
+          low_threshold?: number | null
+          name: string
+          notes?: string | null
+          qty?: number
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          location_id?: string
+          low_threshold?: number | null
+          name?: string
+          notes?: string | null
+          qty?: number
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_inventory_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_inventory_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      maestranze_declarations: {
+        Row: {
+          checkbox_text: string
+          declared_at: string
+          id: string
+          profile_id: string
+          regime: string
+          tos_version: string
+        }
+        Insert: {
+          checkbox_text: string
+          declared_at?: string
+          id?: string
+          profile_id: string
+          regime: string
+          tos_version: string
+        }
+        Update: {
+          checkbox_text?: string
+          declared_at?: string
+          id?: string
+          profile_id?: string
+          regime?: string
+          tos_version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maestranze_declarations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "maestranze_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maestranze_profile_skills: {
+        Row: {
+          profile_id: string
+          skill_id: string
+        }
+        Insert: {
+          profile_id: string
+          skill_id: string
+        }
+        Update: {
+          profile_id?: string
+          skill_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maestranze_profile_skills_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "maestranze_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maestranze_profile_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "maestranze_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maestranze_profiles: {
+        Row: {
+          anni_esperienza: number | null
+          anonymized_at: string | null
+          bio: string | null
+          created_at: string
+          display_name: string
+          disponibilita_note: string | null
+          fascia_prezzo: string | null
+          id: string
+          is_published: boolean
+          photo_path: string | null
+          provincia: string
+          published_at: string | null
+          raggio_disponibilita: string
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          anni_esperienza?: number | null
+          anonymized_at?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name: string
+          disponibilita_note?: string | null
+          fascia_prezzo?: string | null
+          id: string
+          is_published?: boolean
+          photo_path?: string | null
+          provincia: string
+          published_at?: string | null
+          raggio_disponibilita?: string
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          anni_esperienza?: number | null
+          anonymized_at?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string
+          disponibilita_note?: string | null
+          fascia_prezzo?: string | null
+          id?: string
+          is_published?: boolean
+          photo_path?: string | null
+          provincia?: string
+          published_at?: string | null
+          raggio_disponibilita?: string
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maestranze_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maestranze_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "maestranze_profiles_provincia_fkey"
+            columns: ["provincia"]
+            isOneToOne: false
+            referencedRelation: "province_regioni"
+            referencedColumns: ["provincia"]
+          },
+        ]
+      }
+      maestranze_skills: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          famiglia: string
+          id: string
+          is_standard: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          famiglia: string
+          id?: string
+          is_standard?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          famiglia?: string
+          id?: string
+          is_standard?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maestranze_skills_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maestranze_skills_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       market_prices: {
         Row: {
           id: string
@@ -3752,6 +9034,81 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_consents: {
+        Row: {
+          commercial: boolean
+          consent_text: string | null
+          email: string
+          entry_id: string | null
+          full_name: string | null
+          granted_at: string
+          id: string
+          recontact: boolean
+          source: string
+          user_id: string | null
+        }
+        Insert: {
+          commercial?: boolean
+          consent_text?: string | null
+          email: string
+          entry_id?: string | null
+          full_name?: string | null
+          granted_at?: string
+          id?: string
+          recontact?: boolean
+          source?: string
+          user_id?: string | null
+        }
+        Update: {
+          commercial?: boolean
+          consent_text?: string | null
+          email?: string
+          entry_id?: string | null
+          full_name?: string | null
+          granted_at?: string
+          id?: string
+          recontact?: boolean
+          source?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "marketing_consents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
       menu_presets: {
         Row: {
           allergens: string[]
@@ -3793,6 +9150,60 @@ export type Database = {
           typical_price_per_guest?: number | null
         }
         Relationships: []
+      }
+      mood_boards: {
+        Row: {
+          data: Json
+          entry_id: string
+          updated_at: string
+        }
+        Insert: {
+          data?: Json
+          entry_id: string
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          entry_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mood_boards_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mood_boards_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mood_boards_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mood_boards_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "mood_boards_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
       }
       mood_images: {
         Row: {
@@ -3837,6 +9248,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mood_images_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -3908,6 +9326,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mood_inspirations_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -4078,6 +9503,30 @@ export type Database = {
           },
         ]
       }
+      notification_dispatch_failures: {
+        Row: {
+          created_at: string
+          entity_id: string | null
+          hook: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id?: string | null
+          hook: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string | null
+          hook?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       notification_queue: {
         Row: {
           attempts: number
@@ -4204,6 +9653,13 @@ export type Database = {
             foreignKeyName: "notifiche_evento_id_fkey"
             columns: ["evento_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifiche_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -4231,6 +9687,84 @@ export type Database = {
           {
             foreignKeyName: "notifiche_owner_della_mossa_fkey"
             columns: ["owner_della_mossa"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount_cents: number
+          application_fee_cents: number
+          checkout_session_id: string | null
+          connected_account_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          id: string
+          kind: string
+          paid_at: string | null
+          payee_id: string
+          payer_email: string | null
+          payer_name: string | null
+          payment_intent_id: string | null
+          ref_id: string | null
+          ref_type: string | null
+          status: string
+        }
+        Insert: {
+          amount_cents: number
+          application_fee_cents?: number
+          checkout_session_id?: string | null
+          connected_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          id?: string
+          kind: string
+          paid_at?: string | null
+          payee_id: string
+          payer_email?: string | null
+          payer_name?: string | null
+          payment_intent_id?: string | null
+          ref_id?: string | null
+          ref_type?: string | null
+          status?: string
+        }
+        Update: {
+          amount_cents?: number
+          application_fee_cents?: number
+          checkout_session_id?: string | null
+          connected_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          paid_at?: string | null
+          payee_id?: string
+          payer_email?: string | null
+          payer_name?: string | null
+          payment_intent_id?: string | null
+          ref_id?: string | null
+          ref_type?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_payee_id_fkey"
+            columns: ["payee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_payee_id_fkey"
+            columns: ["payee_id"]
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
@@ -4500,6 +10034,13 @@ export type Database = {
             foreignKeyName: "posts_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -4516,6 +10057,57 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_salute_evento"
             referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      price_surcharges: {
+        Row: {
+          active: boolean
+          created_at: string
+          date_from: string | null
+          date_to: string | null
+          fornitore_id: string
+          id: string
+          kind: string
+          label: string
+          percent: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          fornitore_id: string
+          id?: string
+          kind: string
+          label: string
+          percent: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          fornitore_id?: string
+          id?: string
+          kind?: string
+          label?: string
+          percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_surcharges_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_surcharges_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
           },
         ]
       }
@@ -4554,6 +10146,179 @@ export type Database = {
           },
         ]
       }
+      prima_nota_entries: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          description: string
+          direction: string
+          entry_date: string
+          event_id: string | null
+          id: string
+          method: string | null
+          note: string | null
+          owner_id: string
+          source: string
+          source_ref_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          description: string
+          direction: string
+          entry_date?: string
+          event_id?: string | null
+          id?: string
+          method?: string | null
+          note?: string | null
+          owner_id: string
+          source?: string
+          source_ref_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          description?: string
+          direction?: string
+          entry_date?: string
+          event_id?: string | null
+          id?: string
+          method?: string | null
+          note?: string | null
+          owner_id?: string
+          source?: string
+          source_ref_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prima_nota_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "prima_nota_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "prima_nota_entries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_entries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      print_requests: {
+        Row: {
+          buyer_email: string
+          buyer_name: string
+          buyer_phone: string | null
+          created_at: string
+          entry_id: string | null
+          format_key: string
+          id: string
+          note: string | null
+          photo_drive_id: string | null
+          photo_thumb: string | null
+          product_key: string
+          professional_id: string
+          status: string
+        }
+        Insert: {
+          buyer_email: string
+          buyer_name: string
+          buyer_phone?: string | null
+          created_at?: string
+          entry_id?: string | null
+          format_key: string
+          id?: string
+          note?: string | null
+          photo_drive_id?: string | null
+          photo_thumb?: string | null
+          product_key: string
+          professional_id: string
+          status?: string
+        }
+        Update: {
+          buyer_email?: string
+          buyer_name?: string
+          buyer_phone?: string | null
+          created_at?: string
+          entry_id?: string | null
+          format_key?: string
+          id?: string
+          note?: string | null
+          photo_drive_id?: string | null
+          photo_thumb?: string | null
+          product_key?: string
+          professional_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      print_shop_settings: {
+        Row: {
+          enabled: boolean
+          intro: string | null
+          products: string[]
+          professional_id: string
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          intro?: string | null
+          products?: string[]
+          professional_id: string
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          intro?: string | null
+          products?: string[]
+          professional_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_interest_requests: {
         Row: {
           created_at: string
@@ -4585,6 +10350,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_interest_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -4682,7 +10454,11 @@ export type Database = {
           cover_image_url: string | null
           created_at: string
           daily_capacity: number | null
+          default_ambito_capostipite:
+            | Database["public"]["Enums"]["ambito_capostipite"]
+            | null
           default_markup_percent: number
+          default_stop_at_quote: boolean
           deletion_requested_at: string | null
           discover_tier: string | null
           dismissed_hints: Json
@@ -4692,6 +10468,7 @@ export type Database = {
           full_name: string | null
           id: string
           instagram: string | null
+          is_album_lab: boolean
           is_discoverable: boolean
           is_founding_member: boolean
           is_support_staff: boolean
@@ -4758,7 +10535,11 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string
           daily_capacity?: number | null
+          default_ambito_capostipite?:
+            | Database["public"]["Enums"]["ambito_capostipite"]
+            | null
           default_markup_percent?: number
+          default_stop_at_quote?: boolean
           deletion_requested_at?: string | null
           discover_tier?: string | null
           dismissed_hints?: Json
@@ -4768,6 +10549,7 @@ export type Database = {
           full_name?: string | null
           id: string
           instagram?: string | null
+          is_album_lab?: boolean
           is_discoverable?: boolean
           is_founding_member?: boolean
           is_support_staff?: boolean
@@ -4834,7 +10616,11 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string
           daily_capacity?: number | null
+          default_ambito_capostipite?:
+            | Database["public"]["Enums"]["ambito_capostipite"]
+            | null
           default_markup_percent?: number
+          default_stop_at_quote?: boolean
           deletion_requested_at?: string | null
           discover_tier?: string | null
           dismissed_hints?: Json
@@ -4844,6 +10630,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           instagram?: string | null
+          is_album_lab?: boolean
           is_discoverable?: boolean
           is_founding_member?: boolean
           is_support_staff?: boolean
@@ -4902,6 +10689,24 @@ export type Database = {
           },
         ]
       }
+      province_regioni: {
+        Row: {
+          nome: string
+          provincia: string
+          regione: string
+        }
+        Insert: {
+          nome: string
+          provincia: string
+          regione: string
+        }
+        Update: {
+          nome?: string
+          provincia?: string
+          regione?: string
+        }
+        Relationships: []
+      }
       quote_acceptances: {
         Row: {
           acceptance_pdf_url: string | null
@@ -4921,7 +10726,8 @@ export type Database = {
           consent_terms: boolean
           created_at: string
           doc_issued_by: string | null
-          doc_number: string
+          doc_last4: string | null
+          doc_number: string | null
           doc_type: string
           id: string
           ip_address: string | null
@@ -4952,7 +10758,8 @@ export type Database = {
           consent_terms?: boolean
           created_at?: string
           doc_issued_by?: string | null
-          doc_number: string
+          doc_last4?: string | null
+          doc_number?: string | null
           doc_type: string
           id?: string
           ip_address?: string | null
@@ -4983,7 +10790,8 @@ export type Database = {
           consent_terms?: boolean
           created_at?: string
           doc_issued_by?: string | null
-          doc_number?: string
+          doc_last4?: string | null
+          doc_number?: string | null
           doc_type?: string
           id?: string
           ip_address?: string | null
@@ -5238,6 +11046,109 @@ export type Database = {
           },
         ]
       }
+      quote_option_requests: {
+        Row: {
+          client_email: string
+          created_at: string
+          entry_id: string
+          granted_days: number | null
+          id: string
+          option_id: string | null
+          owner_id: string
+          quote_id: string
+          requested_at: string
+          status: string
+        }
+        Insert: {
+          client_email: string
+          created_at?: string
+          entry_id: string
+          granted_days?: number | null
+          id?: string
+          option_id?: string | null
+          owner_id: string
+          quote_id: string
+          requested_at?: string
+          status?: string
+        }
+        Update: {
+          client_email?: string
+          created_at?: string
+          entry_id?: string
+          granted_days?: number | null
+          id?: string
+          option_id?: string | null
+          owner_id?: string
+          quote_id?: string
+          requested_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_option_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_option_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_option_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_option_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "quote_option_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "quote_option_requests_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_date_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_option_requests_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_option_requests_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "quote_option_requests_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_questionnaire_answers: {
         Row: {
           answers: Json
@@ -5471,6 +11382,7 @@ export type Database = {
           access_token: string | null
           access_token_expires_at: string | null
           archived_at: string | null
+          client_country: string | null
           client_email: string | null
           client_name: string | null
           client_response_log: Json
@@ -5494,6 +11406,8 @@ export type Database = {
           margin_mode: Database["public"]["Enums"]["margin_mode"]
           margin_percent: number
           open_count: number
+          option_allowed: boolean
+          option_days: number
           owner_id: string
           pdf_url: string | null
           pdf_variant: Database["public"]["Enums"]["pdf_variant"]
@@ -5506,6 +11420,8 @@ export type Database = {
           sent_email_log: Json
           status: Database["public"]["Enums"]["quote_status"]
           subtotal_client: number | null
+          surcharge_detail: Json
+          surcharge_percent: number
           table_count: number | null
           title: string
           token_consumed_at: string | null
@@ -5516,12 +11432,14 @@ export type Database = {
           total_discount_amount: number
           total_discount_percent: number
           updated_at: string
+          version: number
         }
         Insert: {
           accepted_at?: string | null
           access_token?: string | null
           access_token_expires_at?: string | null
           archived_at?: string | null
+          client_country?: string | null
           client_email?: string | null
           client_name?: string | null
           client_response_log?: Json
@@ -5545,6 +11463,8 @@ export type Database = {
           margin_mode?: Database["public"]["Enums"]["margin_mode"]
           margin_percent?: number
           open_count?: number
+          option_allowed?: boolean
+          option_days?: number
           owner_id: string
           pdf_url?: string | null
           pdf_variant?: Database["public"]["Enums"]["pdf_variant"]
@@ -5557,6 +11477,8 @@ export type Database = {
           sent_email_log?: Json
           status?: Database["public"]["Enums"]["quote_status"]
           subtotal_client?: number | null
+          surcharge_detail?: Json
+          surcharge_percent?: number
           table_count?: number | null
           title: string
           token_consumed_at?: string | null
@@ -5567,12 +11489,14 @@ export type Database = {
           total_discount_amount?: number
           total_discount_percent?: number
           updated_at?: string
+          version?: number
         }
         Update: {
           accepted_at?: string | null
           access_token?: string | null
           access_token_expires_at?: string | null
           archived_at?: string | null
+          client_country?: string | null
           client_email?: string | null
           client_name?: string | null
           client_response_log?: Json
@@ -5596,6 +11520,8 @@ export type Database = {
           margin_mode?: Database["public"]["Enums"]["margin_mode"]
           margin_percent?: number
           open_count?: number
+          option_allowed?: boolean
+          option_days?: number
           owner_id?: string
           pdf_url?: string | null
           pdf_variant?: Database["public"]["Enums"]["pdf_variant"]
@@ -5608,6 +11534,8 @@ export type Database = {
           sent_email_log?: Json
           status?: Database["public"]["Enums"]["quote_status"]
           subtotal_client?: number | null
+          surcharge_detail?: Json
+          surcharge_percent?: number
           table_count?: number | null
           title?: string
           token_consumed_at?: string | null
@@ -5618,6 +11546,7 @@ export type Database = {
           total_discount_amount?: number
           total_discount_percent?: number
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -5978,6 +11907,13 @@ export type Database = {
             foreignKeyName: "scadenzario_voci_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scadenzario_voci_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -6092,6 +12028,8 @@ export type Database = {
       service_modifiers: {
         Row: {
           created_at: string
+          date_from: string | null
+          date_to: string | null
           description: string | null
           id: string
           modifier_type: Database["public"]["Enums"]["modifier_type"]
@@ -6102,6 +12040,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          date_from?: string | null
+          date_to?: string | null
           description?: string | null
           id?: string
           modifier_type: Database["public"]["Enums"]["modifier_type"]
@@ -6112,6 +12052,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          date_from?: string | null
+          date_to?: string | null
           description?: string | null
           id?: string
           modifier_type?: Database["public"]["Enums"]["modifier_type"]
@@ -6231,6 +12173,7 @@ export type Database = {
       }
       services: {
         Row: {
+          album_ref: string | null
           base_price: number
           category_id: string
           created_at: string
@@ -6245,6 +12188,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          album_ref?: string | null
           base_price: number
           category_id: string
           created_at?: string
@@ -6259,6 +12203,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          album_ref?: string | null
           base_price?: number
           category_id?: string
           created_at?: string
@@ -6439,6 +12384,168 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_connect_accounts: {
+        Row: {
+          account_id: string
+          charges_enabled: boolean
+          country: string | null
+          created_at: string
+          details_submitted: boolean
+          payouts_enabled: boolean
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          charges_enabled?: boolean
+          country?: string | null
+          created_at?: string
+          details_submitted?: boolean
+          payouts_enabled?: boolean
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          charges_enabled?: boolean
+          country?: string | null
+          created_at?: string
+          details_submitted?: boolean
+          payouts_enabled?: boolean
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_connect_accounts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_connect_accounts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      stripe_customers: {
+        Row: {
+          created_at: string
+          profile_id: string
+          stripe_customer_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+          stripe_customer_id: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+          stripe_customer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_customers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_customers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      stripe_events: {
+        Row: {
+          created_at: string
+          id: string
+          type: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          type?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          type?: string | null
+        }
+        Relationships: []
+      }
+      stripe_price_map: {
+        Row: {
+          note: string | null
+          price_id: string
+          tier: string
+        }
+        Insert: {
+          note?: string | null
+          price_id: string
+          tier: string
+        }
+        Update: {
+          note?: string | null
+          price_id?: string
+          tier?: string
+        }
+        Relationships: []
+      }
+      stripe_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          current_period_end: string | null
+          price_id: string | null
+          profile_id: string
+          status: string | null
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          current_period_end?: string | null
+          price_id?: string | null
+          profile_id: string
+          status?: string | null
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          current_period_end?: string | null
+          price_id?: string | null
+          profile_id?: string
+          status?: string | null
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       suggest_attempts: {
         Row: {
           attempted_at: string
@@ -6596,6 +12703,69 @@ export type Database = {
           },
         ]
       }
+      supplier_assets: {
+        Row: {
+          caption: string | null
+          created_at: string
+          event_kind: string | null
+          id: string
+          image_url: string | null
+          is_public: boolean
+          kind: string
+          sort_order: number
+          source_url: string | null
+          storage_path: string | null
+          supplier_id: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          event_kind?: string | null
+          id?: string
+          image_url?: string | null
+          is_public?: boolean
+          kind?: string
+          sort_order?: number
+          source_url?: string | null
+          storage_path?: string | null
+          supplier_id: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          event_kind?: string | null
+          id?: string
+          image_url?: string | null
+          is_public?: boolean
+          kind?: string
+          sort_order?: number
+          source_url?: string | null
+          storage_path?: string | null
+          supplier_id?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_assets_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_assets_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       supplier_availability: {
         Row: {
           created_at: string
@@ -6648,6 +12818,54 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "quotes"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_availability_slots: {
+        Row: {
+          created_at: string
+          date: string
+          end_time: string | null
+          fornitore_id: string
+          id: string
+          label: string | null
+          start_time: string | null
+          status: Database["public"]["Enums"]["supplier_avail_status"]
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          end_time?: string | null
+          fornitore_id: string
+          id?: string
+          label?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["supplier_avail_status"]
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          end_time?: string | null
+          fornitore_id?: string
+          id?: string
+          label?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["supplier_avail_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_availability_slots_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_availability_slots_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
           },
         ]
       }
@@ -7015,6 +13233,7 @@ export type Database = {
           creditor_id: string
           currency: string
           debtor_id: string
+          entry_id: string | null
           event_kind: string | null
           id: string
           offset_credit_id: string | null
@@ -7033,6 +13252,7 @@ export type Database = {
           creditor_id: string
           currency?: string
           debtor_id: string
+          entry_id?: string | null
           event_kind?: string | null
           id?: string
           offset_credit_id?: string | null
@@ -7051,6 +13271,7 @@ export type Database = {
           creditor_id?: string
           currency?: string
           debtor_id?: string
+          entry_id?: string | null
           event_kind?: string | null
           id?: string
           offset_credit_id?: string | null
@@ -7103,6 +13324,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "supplier_credits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_credits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_credits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_credits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "supplier_credits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
           },
           {
             foreignKeyName: "supplier_credits_offset_credit_id_fkey"
@@ -7317,10 +13573,12 @@ export type Database = {
           capostipite_id: string
           created_at: string
           email: string
+          entry_id: string | null
           expires_at: string
           id: string
           invited_at: string
           message: string | null
+          role_key: string | null
           status: string
           subrole_hint: string | null
           target_role: string
@@ -7332,10 +13590,12 @@ export type Database = {
           capostipite_id: string
           created_at?: string
           email: string
+          entry_id?: string | null
           expires_at?: string
           id?: string
           invited_at?: string
           message?: string | null
+          role_key?: string | null
           status?: string
           subrole_hint?: string | null
           target_role?: string
@@ -7347,10 +13607,12 @@ export type Database = {
           capostipite_id?: string
           created_at?: string
           email?: string
+          entry_id?: string | null
           expires_at?: string
           id?: string
           invited_at?: string
           message?: string | null
+          role_key?: string | null
           status?: string
           subrole_hint?: string | null
           target_role?: string
@@ -7371,6 +13633,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "supplier_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "supplier_invites_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
           },
         ]
       }
@@ -7489,6 +13786,11 @@ export type Database = {
         Row: {
           client_email: string
           client_name: string | null
+          contact_ip: string | null
+          contact_lead_id: string | null
+          contact_ref: string | null
+          contact_user_agent: string | null
+          contacted_at: string | null
           contract_id: string | null
           converted_at: string | null
           created_at: string
@@ -7503,6 +13805,11 @@ export type Database = {
         Insert: {
           client_email: string
           client_name?: string | null
+          contact_ip?: string | null
+          contact_lead_id?: string | null
+          contact_ref?: string | null
+          contact_user_agent?: string | null
+          contacted_at?: string | null
           contract_id?: string | null
           converted_at?: string | null
           created_at?: string
@@ -7517,6 +13824,11 @@ export type Database = {
         Update: {
           client_email?: string
           client_name?: string | null
+          contact_ip?: string | null
+          contact_lead_id?: string | null
+          contact_ref?: string | null
+          contact_user_agent?: string | null
+          contacted_at?: string | null
           contract_id?: string | null
           converted_at?: string | null
           created_at?: string
@@ -7637,6 +13949,126 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      supplier_suggestions: {
+        Row: {
+          created_at: string
+          event_date: string | null
+          event_kind: string
+          event_location: string | null
+          guest_count: number | null
+          id: string
+          quote_id: string | null
+          referrer_id: string
+          source_quote_id: string | null
+          status: string
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_date?: string | null
+          event_kind?: string
+          event_location?: string | null
+          guest_count?: number | null
+          id?: string
+          quote_id?: string | null
+          referrer_id: string
+          source_quote_id?: string | null
+          status?: string
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_date?: string | null
+          event_kind?: string
+          event_location?: string | null
+          guest_count?: number | null
+          id?: string
+          quote_id?: string | null
+          referrer_id?: string
+          source_quote_id?: string | null
+          status?: string
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_suggestions_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_suggestions_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_suggestions_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "supplier_suggestions_source_quote_id_fkey"
+            columns: ["source_quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_suggestions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_suggestions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      supplier_suggestions_private: {
+        Row: {
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          message: string | null
+          suggestion_id: string
+        }
+        Insert: {
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          message?: string | null
+          suggestion_id: string
+        }
+        Update: {
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          message?: string | null
+          suggestion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_suggestions_private_suggestion_id_fkey"
+            columns: ["suggestion_id"]
+            isOneToOne: true
+            referencedRelation: "supplier_suggestions"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -7845,6 +14277,7 @@ export type Database = {
         Row: {
           call_time: string | null
           created_at: string
+          entry_id: string | null
           event_date: string | null
           id: string
           location: string | null
@@ -7857,6 +14290,7 @@ export type Database = {
         Insert: {
           call_time?: string | null
           created_at?: string
+          entry_id?: string | null
           event_date?: string | null
           id?: string
           location?: string | null
@@ -7869,6 +14303,7 @@ export type Database = {
         Update: {
           call_time?: string | null
           created_at?: string
+          entry_id?: string | null
           event_date?: string | null
           id?: string
           location?: string | null
@@ -7879,6 +14314,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_team_events_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_team_events_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_team_events_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_team_events_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "supplier_team_events_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
           {
             foreignKeyName: "supplier_team_events_quote_id_fkey"
             columns: ["quote_id"]
@@ -8078,6 +14548,180 @@ export type Database = {
           },
         ]
       }
+      video_comments: {
+        Row: {
+          author_name: string | null
+          body: string
+          created_at: string
+          entry_id: string
+          id: string
+          kind: string
+          status: string
+          t_seconds: number
+          target: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          body: string
+          created_at?: string
+          entry_id: string
+          id?: string
+          kind?: string
+          status?: string
+          t_seconds?: number
+          target?: string
+          user_id?: string
+        }
+        Update: {
+          author_name?: string | null
+          body?: string
+          created_at?: string
+          entry_id?: string
+          id?: string
+          kind?: string
+          status?: string
+          t_seconds?: number
+          target?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_comments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_comments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_comments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_comments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "video_comments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      video_projects: {
+        Row: {
+          created_at: string
+          draft_url: string | null
+          entry_id: string
+          final_url: string | null
+          id: string
+          owner_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          draft_url?: string | null
+          entry_id: string
+          final_url?: string | null
+          id?: string
+          owner_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          draft_url?: string | null
+          entry_id?: string
+          final_url?: string | null
+          id?: string
+          owner_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "video_projects_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      waitlist_signups: {
+        Row: {
+          activity_type: string | null
+          city: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          source: string | null
+        }
+        Insert: {
+          activity_type?: string | null
+          city?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          source?: string | null
+        }
+        Update: {
+          activity_type?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          source?: string | null
+        }
+        Relationships: []
+      }
       wedding_couple_members: {
         Row: {
           accepted_at: string | null
@@ -8121,6 +14765,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wedding_couple_members_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
             referencedColumns: ["id"]
           },
           {
@@ -8215,6 +14866,13 @@ export type Database = {
             foreignKeyName: "wedding_tasks_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wedding_tasks_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "calendar_entries_for_participants"
             referencedColumns: ["id"]
           },
@@ -8250,6 +14908,67 @@ export type Database = {
       }
     }
     Views: {
+      calendar_entries_collab: {
+        Row: {
+          created_at: string | null
+          date_from: string | null
+          date_to: string | null
+          event_kind: string | null
+          id: string | null
+          owner_id: string | null
+          quote_id: string | null
+          status: Database["public"]["Enums"]["entry_status"] | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          event_kind?: string | null
+          id?: string | null
+          owner_id?: string | null
+          quote_id?: string | null
+          status?: Database["public"]["Enums"]["entry_status"] | null
+          title?: never
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          event_kind?: string | null
+          id?: string | null
+          owner_id?: string | null
+          quote_id?: string | null
+          status?: Database["public"]["Enums"]["entry_status"] | null
+          title?: never
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_entries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_entries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "calendar_entries_quote_fk"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_entries_for_participants: {
         Row: {
           created_at: string | null
@@ -8308,12 +15027,95 @@ export type Database = {
           },
         ]
       }
+      fb_lots_expiring: {
+        Row: {
+          created_at: string | null
+          days_to_expiry: number | null
+          expiry_date: string | null
+          id: string | null
+          ingredient_id: string | null
+          location_id: string | null
+          lot_code: string | null
+          qty_received: number | null
+          qty_remaining: number | null
+          received_at: string | null
+          supplier_id: string | null
+          unit_cost: number | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          days_to_expiry?: never
+          expiry_date?: string | null
+          id?: string | null
+          ingredient_id?: string | null
+          location_id?: string | null
+          lot_code?: string | null
+          qty_received?: number | null
+          qty_remaining?: number | null
+          received_at?: string | null
+          supplier_id?: string | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          days_to_expiry?: never
+          expiry_date?: string | null
+          id?: string | null
+          ingredient_id?: string | null
+          location_id?: string | null
+          lot_code?: string | null
+          qty_received?: number | null
+          qty_remaining?: number | null
+          received_at?: string | null
+          supplier_id?: string | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fb_stock_lots_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "fb_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_lots_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_lots_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "fb_stock_lots_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "fb_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fb_stock_lots_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "fb_warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_clients_dashboard: {
         Row: {
           created_at: string | null
           email: string | null
           event_date: string | null
-          event_entry_id: string | null
           event_kind: string | null
           full_name: string | null
           id: string | null
@@ -8330,7 +15132,6 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           event_date?: string | null
-          event_entry_id?: never
           event_kind?: string | null
           full_name?: string | null
           id?: string | null
@@ -8347,7 +15148,6 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           event_date?: string | null
-          event_entry_id?: never
           event_kind?: string | null
           full_name?: string | null
           id?: string | null
@@ -8480,6 +15280,50 @@ export type Database = {
     }
     Functions: {
       _addendum_build: { Args: { p_quote_id: string }; Returns: Json }
+      _entry_has_signed_act: { Args: { p_entry_id: string }; Returns: boolean }
+      _event_ring_seed: { Args: { p_entry: string }; Returns: undefined }
+      _gallery_base_media: {
+        Args: { p_gallery: string }
+        Returns: {
+          media_id: string
+        }[]
+      }
+      _gallery_ensure_selection: {
+        Args: { p_entry: string; p_gallery: string }
+        Returns: {
+          entry_id: string
+          gallery_id: string
+          round: number
+          status: string
+          submitted_at: string | null
+          target_max: number
+          target_min: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gallery_selection"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      _gallery_pool: {
+        Args: { p_gallery: string; p_round: number }
+        Returns: {
+          media_id: string
+        }[]
+      }
+      _gallery_state_json: { Args: { p_gallery: string }; Returns: Json }
+      _grant_referral_credit: {
+        Args: { p_creditor: string; p_entry: string; p_supplier: string }
+        Returns: undefined
+      }
+      _photo_circle_member: { Args: { p_entry: string }; Returns: boolean }
+      _photo_gallery_owner: { Args: { p_gallery: string }; Returns: boolean }
+      _photo_is_guest: { Args: { p_entry: string }; Returns: boolean }
+      _photo_lavoro_consented: { Args: { p_entry: string }; Returns: boolean }
+      _photo_my_subrole: { Args: never; Returns: string }
+      _quote_has_signed_act: { Args: { p_quote_id: string }; Returns: boolean }
       _quote_storage_paths: {
         Args: { p_quote_id: string }
         Returns: {
@@ -8494,6 +15338,7 @@ export type Database = {
           path: string
         }[]
       }
+      _wp_seed_parcelle_for: { Args: { p_uid: string }; Returns: number }
       accept_platform_agreement: { Args: never; Returns: Json }
       accept_supplier_credit: { Args: { p_id: string }; Returns: Json }
       accept_supplier_invite: { Args: { p_token: string }; Returns: boolean }
@@ -8696,6 +15541,9 @@ export type Database = {
           role: string
         }[]
       }
+      admin_obs_access: { Args: { p_limit?: number }; Returns: Json }
+      admin_obs_activity: { Args: { p_limit?: number }; Returns: Json }
+      admin_obs_growth: { Args: { p_days?: number }; Returns: Json }
       admin_overview: { Args: never; Returns: Json }
       admin_pause_quote_funnel: {
         Args: { p_paused: boolean; p_quote_id: string }
@@ -8758,12 +15606,112 @@ export type Database = {
         Returns: Json
       }
       admin_subscriptions: { Args: never; Returns: Json }
+      album_add_media: {
+        Args: {
+          p_entry: string
+          p_media_type: string
+          p_moment: string
+          p_source_name?: string
+          p_storage_path: string
+          p_thumb: string
+        }
+        Returns: Json
+      }
+      album_approve_layout: { Args: { p_entry: string }; Returns: Json }
+      album_can_edit: { Args: { p_entry: string }; Returns: boolean }
+      album_catalog_for_entry: { Args: { p_entry: string }; Returns: Json }
+      album_commission_by_token: { Args: { p_token: string }; Returns: Json }
+      album_commission_create: {
+        Args: { p_entry: string; p_payload: Json }
+        Returns: Json
+      }
+      album_commission_share: {
+        Args: {
+          p_copies?: number
+          p_cover: Json
+          p_entry: string
+          p_file_link?: string
+          p_notes?: string
+        }
+        Returns: Json
+      }
+      album_export_grant: { Args: { p_entry: string }; Returns: string }
+      album_lab_list: {
+        Args: never
+        Returns: {
+          copies: number
+          couple_label: string
+          cover: Json
+          created_at: string
+          entry_id: string
+          format_key: string
+          id: string
+          pages: number
+          photographer: string
+          queue_order: number
+          reject_reason: string
+          selection_count: number
+          status: string
+        }[]
+      }
+      album_lab_selection: {
+        Args: { p_entry: string }
+        Returns: {
+          drive_file_id: string
+          media_type: string
+          thumbnail_link: string
+        }[]
+      }
+      album_lab_update: {
+        Args: {
+          p_order: string
+          p_queue?: number
+          p_reason?: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      album_nudge_kick: { Args: never; Returns: undefined }
+      album_price_config_save: {
+        Args: { p_config: Json; p_entry: string }
+        Returns: Json
+      }
+      album_price_settings_save: { Args: { p_config: Json }; Returns: Json }
+      album_project_save: {
+        Args: {
+          p_entry: string
+          p_format: string
+          p_gallery: string
+          p_layout: Json
+          p_status: string
+        }
+        Returns: Json
+      }
+      album_reopen_layout: { Args: { p_entry: string }; Returns: Json }
+      album_request_layout: { Args: { p_entry: string }; Returns: Json }
+      album_send_to_print: {
+        Args: { p_copies?: number; p_cover: Json; p_entry: string }
+        Returns: Json
+      }
+      album_set_choices: {
+        Args: { p_choice: string; p_ids: string[] }
+        Returns: Json
+      }
+      album_set_final_note: {
+        Args: { p_entry: string; p_note: string }
+        Returns: Json
+      }
+      album_set_moments: { Args: { p_items: Json }; Returns: Json }
       annulla_evento: {
         Args: { p_entry_id: string; p_motivo: string }
         Returns: Json
       }
       approve_candidacy: { Args: { p_follower: string }; Returns: boolean }
       approve_follow: { Args: { p_follower: string }; Returns: boolean }
+      blocca_data_preventivo: {
+        Args: { p_days: number; p_quote_id: string }
+        Returns: Json
+      }
       blog_get_by_slug: { Args: { p_slug: string }; Returns: Json }
       blog_list_published: {
         Args: {
@@ -8792,6 +15740,11 @@ export type Database = {
           view_count: number
         }[]
       }
+      booking_free_slots: {
+        Args: { p_from: string; p_slug: string; p_to: string }
+        Returns: Json
+      }
+      booking_public_config: { Args: { p_slug: string }; Returns: Json }
       build_contract_sections: { Args: { p_quote_id: string }; Returns: Json }
       build_default_contract_sections: {
         Args: {
@@ -8822,6 +15775,31 @@ export type Database = {
       }
       capostipite_event_supplier_contracts: {
         Args: { p_entry_id: string }
+        Returns: Json
+      }
+      carousel_project_get: { Args: { p_entry: string }; Returns: Json }
+      carousel_project_save: {
+        Args: {
+          p_entry: string
+          p_format: string
+          p_layout: Json
+          p_slides: number
+          p_status: string
+        }
+        Returns: Json
+      }
+      carousel_toggle_pick: {
+        Args: { p_media: string; p_pick: boolean }
+        Returns: boolean
+      }
+      certify_referral_contact: {
+        Args: {
+          p_ip: string
+          p_lead_id: string
+          p_ref_id: string
+          p_suggested_slug: string
+          p_ua: string
+        }
         Returns: Json
       }
       check_owner_date_busy: { Args: { p_date: string }; Returns: Json }
@@ -8858,11 +15836,17 @@ export type Database = {
         Args: { p_subrole?: string }
         Returns: Json
       }
+      concedi_opzione: {
+        Args: { p_days: number; p_request_id: string }
+        Returns: Json
+      }
+      contract_countersign_context: { Args: { p_token: string }; Returns: Json }
       contract_fill_text: {
         Args: { p_entry_id: string; p_supplier_id?: string; p_text: string }
         Returns: string
       }
       contract_get_by_token: { Args: { p_token: string }; Returns: Json }
+      contract_mark_signed_paper: { Args: { p_id: string }; Returns: boolean }
       contract_sign_by_token: {
         Args: {
           p_signer_fiscal: string
@@ -8873,6 +15857,8 @@ export type Database = {
       }
       contract_sign_full: {
         Args: {
+          p_birth_date?: string
+          p_birth_place?: string
           p_consent_privacy?: boolean
           p_consent_terms?: boolean
           p_doc_issued_by?: string
@@ -8885,6 +15871,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      corner_can_manage: { Args: { p_entry: string }; Returns: boolean }
       countersign_contract: {
         Args: {
           p_contract_id: string
@@ -8945,6 +15932,7 @@ export type Database = {
         }
       }
       couple_accept_invite: { Args: { p_token: string }; Returns: boolean }
+      couple_access_link: { Args: { p_entry: string }; Returns: Json }
       couple_get_quote_for_entry: {
         Args: { p_entry_id: string }
         Returns: Json
@@ -9052,7 +16040,21 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_direct_event: {
+        Args: {
+          p_couple_email: string
+          p_couple_name: string
+          p_date: string
+          p_event_kind?: string
+          p_title?: string
+        }
+        Returns: Json
+      }
       create_event_from_lead: { Args: { p_lead_id: string }; Returns: Json }
+      create_quote_from_suggestion: {
+        Args: { p_suggestion_id: string }
+        Returns: Json
+      }
       create_quote_from_supplier_lead: {
         Args: { p_lead_id: string }
         Returns: Json
@@ -9118,6 +16120,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_event_with_consent: {
+        Args: {
+          p_entry: string
+          p_lose_all: boolean
+          p_no_backup: boolean
+          p_phrase: string
+        }
+        Returns: {
+          bucket: string
+          path: string
+        }[]
+      }
+      delete_guest_media: { Args: { p_media: string }; Returns: Json }
       delete_quote_cascade: {
         Args: { p_quote_id: string }
         Returns: {
@@ -9132,7 +16147,6 @@ export type Database = {
           path: string
         }[]
       }
-      disconnect_instagram: { Args: never; Returns: Json }
       discover_suppliers: {
         Args: {
           p_city?: string
@@ -9191,7 +16205,216 @@ export type Database = {
         Args: { p_motivo: string; p_quote_item_id: string }
         Returns: Json
       }
+      event_add_capostipite: {
+        Args: { p_email: string; p_entry: string }
+        Returns: Json
+      }
+      event_add_capostipite_id: {
+        Args: { p_entry: string; p_user: string }
+        Returns: Json
+      }
+      event_collaborators_named: {
+        Args: { p_event_id: string }
+        Returns: {
+          can_edit: boolean
+          collaborator_id: string
+          id: string
+          name: string
+          status: string
+        }[]
+      }
+      event_gifts_summary: { Args: { p_entry: string }; Returns: Json }
       event_imported_team: { Args: { p_event_id: string }; Returns: Json }
+      event_supplier_data_passage: {
+        Args: { p_entry: string; p_supplier: string }
+        Returns: boolean
+      }
+      fb_ai_charge: {
+        Args: {
+          p_cost: number
+          p_fn: string
+          p_in: number
+          p_location: string
+          p_out: number
+        }
+        Returns: number
+      }
+      fb_ai_precheck: { Args: { p_location: string }; Returns: number }
+      fb_ai_topup: {
+        Args: { p_amount: number; p_location: string }
+        Returns: number
+      }
+      fb_all_menus_foodcost: {
+        Args: never
+        Returns: {
+          cost_per_cover: number
+          menu_id: string
+          name: string
+          total_cost: number
+        }[]
+      }
+      fb_cantina_consume_event: { Args: { p_entry: string }; Returns: Json }
+      fb_choose_menu: {
+        Args: { p_covers: number; p_entry: string; p_menu_id: string }
+        Returns: Json
+      }
+      fb_compute_requirements: {
+        Args: { p_from: string; p_net?: boolean; p_to: string }
+        Returns: {
+          ingredient_id: string
+          ingredient_name: string
+          line_cost: number
+          pack_label: string
+          pack_price: number
+          pack_qty: number
+          packs_needed: number
+          qty_needed: number
+          stock_unit: string
+          supplier_id: string
+          supplier_name: string
+          supplier_product_id: string
+        }[]
+      }
+      fb_consume_event: { Args: { p_entry: string }; Returns: Json }
+      fb_consume_fefo: {
+        Args: {
+          p_event?: string
+          p_ingredient: string
+          p_qty: number
+          p_warehouse: string
+        }
+        Returns: undefined
+      }
+      fb_dish_confirm: {
+        Args: { p_entry: string; p_menu_item_id: string; p_on?: boolean }
+        Returns: Json
+      }
+      fb_dish_set_photo: {
+        Args: { p_menu_item_id: string; p_url: string }
+        Returns: Json
+      }
+      fb_dish_update: {
+        Args: {
+          p_course?: string
+          p_menu_item_id: string
+          p_name?: string
+          p_season_from?: number
+          p_season_to?: number
+        }
+        Returns: Json
+      }
+      fb_dish_vote: {
+        Args: {
+          p_entry: string
+          p_menu_item_id: string
+          p_score: number
+          p_voter?: string
+        }
+        Returns: Json
+      }
+      fb_drinking_covers: { Args: { p_entry: string }; Returns: number }
+      fb_event_cantina_plan: { Args: { p_entry: string }; Returns: Json }
+      fb_event_choice_view: { Args: { p_entry: string }; Returns: Json }
+      fb_event_costing: { Args: { p_entry: string }; Returns: Json }
+      fb_event_foodcost: { Args: { p_entry: string }; Returns: Json }
+      fb_event_menu_final: { Args: { p_entry: string }; Returns: Json }
+      fb_event_packages: { Args: { p_entry: string }; Returns: Json }
+      fb_event_sheet: { Args: { p_entry: string }; Returns: Json }
+      fb_explode_event: {
+        Args: { p_covers: number; p_entry: string }
+        Returns: {
+          ingredient_id: string
+          qty_stock_unit: number
+        }[]
+      }
+      fb_explode_event_menu: {
+        Args: { p_covers: number; p_entry: string; p_menu_id: string }
+        Returns: {
+          ingredient_id: string
+          qty_stock_unit: number
+        }[]
+      }
+      fb_explode_menu: {
+        Args: { p_covers: number; p_menu_id: string }
+        Returns: {
+          ingredient_id: string
+          qty_stock_unit: number
+        }[]
+      }
+      fb_generate_event_menu: { Args: { p_entry: string }; Returns: Json }
+      fb_generate_purchase_orders: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      fb_load_isole_preset: { Args: never; Returns: Json }
+      fb_member_choose: {
+        Args: { p_entry: string; p_menu_id: string }
+        Returns: Json
+      }
+      fb_menu_course_set: {
+        Args: {
+          p_course: string
+          p_max: number
+          p_menu_id: string
+          p_min: number
+        }
+        Returns: Json
+      }
+      fb_menu_foodcost: {
+        Args: { p_covers: number; p_menu_id: string }
+        Returns: {
+          cost_per_cover: number
+          total_cost: number
+        }[]
+      }
+      fb_menu_item_cost: { Args: { p_menu_item_id: string }; Returns: number }
+      fb_menu_item_snapshot: { Args: { p_menu_item_id: string }; Returns: Json }
+      fb_menu_unlocked: { Args: { p_entry: string }; Returns: boolean }
+      fb_package_delete: { Args: { p_id: string }; Returns: Json }
+      fb_package_save: {
+        Args: {
+          p_id: string
+          p_name: string
+          p_notes?: string
+          p_price: number
+        }
+        Returns: Json
+      }
+      fb_package_set_item: {
+        Args: {
+          p_menu_item_id: string
+          p_package_id: string
+          p_role?: string
+          p_surcharge?: number
+        }
+        Returns: Json
+      }
+      fb_procure_event: { Args: { p_entry: string }; Returns: number }
+      fb_propose_menus: {
+        Args: { p_entry: string; p_menu_ids: Json }
+        Returns: Json
+      }
+      fb_receive_from_bolla: { Args: { p_lines: Json }; Returns: Json }
+      fb_receive_order: {
+        Args: { p_order: string; p_rows: Json }
+        Returns: Json
+      }
+      fb_run_season: { Args: never; Returns: Json }
+      fb_seed_brigade: { Args: never; Returns: Json }
+      fb_seed_structured_menus: { Args: never; Returns: Json }
+      fb_seed_wedding_demo: { Args: never; Returns: Json }
+      fb_stocktake_close: { Args: { p_stocktake: string }; Returns: Json }
+      fb_stocktake_open: { Args: { p_warehouse?: string }; Returns: Json }
+      fb_tasting_invite_public: { Args: { p_token: string }; Returns: Json }
+      fb_tasting_invite_respond: {
+        Args: {
+          p_date_id?: string
+          p_note?: string
+          p_rsvp: string
+          p_token: string
+        }
+        Returns: Json
+      }
       feature_enabled: { Args: { p_key: string }; Returns: boolean }
       feed_discover_trending: {
         Args: { p_limit?: number; p_offset?: number }
@@ -9254,15 +16477,86 @@ export type Database = {
           visibility: string
         }[]
       }
+      filo_brief: { Args: never; Returns: Json }
       fmt_eur_it: { Args: { v: number }; Returns: string }
       follow_stats: { Args: { p_user_id: string }; Returns: Json }
       followed_colleagues: { Args: never; Returns: Json }
       followed_suppliers: { Args: never; Returns: Json }
+      gallery_enable_guest_link: {
+        Args: { p_gallery_id: string }
+        Returns: Json
+      }
+      gallery_get_by_token: { Args: { p_token: string }; Returns: Json }
+      gallery_like_counts: {
+        Args: { p_entry: string }
+        Returns: {
+          media_id: string
+          n: number
+        }[]
+      }
+      gallery_selection_advance: { Args: { p_token: string }; Returns: Json }
+      gallery_selection_decide: {
+        Args: { p_keep: boolean; p_media: string; p_token: string }
+        Returns: Json
+      }
+      gallery_selection_submit: { Args: { p_token: string }; Returns: Json }
+      gallery_selection_undo: {
+        Args: { p_media: string; p_token: string }
+        Returns: Json
+      }
       gen_referral_code: { Args: never; Returns: string }
+      get_event_completion: { Args: { p_entry: string }; Returns: Json }
+      get_event_ring: { Args: { p_entry: string }; Returns: Json }
       get_feed_article_by_slug: { Args: { p_slug: string }; Returns: Json }
+      get_maestranza: {
+        Args: { p_id: string }
+        Returns: {
+          anni_esperienza: number
+          bio: string
+          display_name: string
+          disponibilita_note: string
+          fascia_prezzo: string
+          id: string
+          photo_path: string
+          provincia: string
+          provincia_nome: string
+          published_at: string
+          raggio_disponibilita: string
+          regione: string
+          skills: string[]
+        }[]
+      }
       get_referral_tier: { Args: { p_referrer_id: string }; Returns: Json }
+      get_supplier_assets: {
+        Args: { p_event_kind?: string; p_limit?: number; p_slug: string }
+        Returns: Json
+      }
       get_supplier_public_profile: { Args: { p_slug: string }; Returns: Json }
       get_wp_public_profile: { Args: { p_slug: string }; Returns: Json }
+      gift_can_manage: { Args: { p_entry: string }; Returns: boolean }
+      guest_add_media:
+        | {
+            Args: {
+              p_entry: string
+              p_media_type: string
+              p_promo: boolean
+              p_storage_path: string
+              p_thumb: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_entry: string
+              p_media_type: string
+              p_no_minors: boolean
+              p_promo: boolean
+              p_storage_path: string
+              p_tags: string[]
+              p_thumb: string
+            }
+            Returns: Json
+          }
       has_active_collab_with_supplier: {
         Args: { p_supplier: string }
         Returns: boolean
@@ -9290,6 +16584,11 @@ export type Database = {
       is_support_staff: { Args: never; Returns: boolean }
       is_token_valid: { Args: { p_expires_at: string }; Returns: boolean }
       is_wedding_couple: { Args: { p_entry: string }; Returns: boolean }
+      it_macro_area: { Args: { p_province: string }; Returns: string }
+      join_event_as_guest: {
+        Args: { p_gallery_id: string; p_token: string }
+        Returns: Json
+      }
       lead_transition: {
         Args: {
           p_close_amount?: number
@@ -9299,6 +16598,9 @@ export type Database = {
         }
         Returns: Json
       }
+      leave_event_circle: { Args: { p_entry: string }; Returns: Json }
+      list_addable_capostipiti: { Args: { p_entry: string }; Returns: Json }
+      list_circle_suggestions: { Args: { p_entry: string }; Returns: Json }
       list_contracts_for_entry: {
         Args: { p_entry_id: string }
         Returns: {
@@ -9349,6 +16651,10 @@ export type Database = {
           sort_order: number
           title: string
         }[]
+      }
+      list_suggestable_suppliers: {
+        Args: { p_entry: string; p_role_key?: string }
+        Returns: Json
       }
       list_supplier_contracts: {
         Args: never
@@ -9427,6 +16733,10 @@ export type Database = {
         }
         Returns: Json
       }
+      mark_entry_notifications_read: {
+        Args: { p_entry: string; p_types: string[] }
+        Returns: undefined
+      }
       mark_notifications_read: {
         Args: { p_ids?: string[] }
         Returns: undefined
@@ -9436,7 +16746,6 @@ export type Database = {
         Args: { p_action: string; p_note?: string; p_post_id: string }
         Returns: Json
       }
-      my_instagram: { Args: never; Returns: Json }
       my_quote_conflict_alerts: {
         Args: never
         Returns: {
@@ -9475,13 +16784,19 @@ export type Database = {
       }
       network_prospects_list: { Args: never; Returns: Json }
       network_recall_due_count: { Args: never; Returns: number }
+      notifications_healthcheck: { Args: never; Returns: Json }
       notifiche_genera_promemoria_per_evento: {
         Args: { p_entry_id: string }
         Returns: number
       }
+      notifiche_rigenera_promemoria_futuri: { Args: never; Returns: number }
       notify_couple_quote_forced_edit: {
         Args: { p_quote_id: string; p_reason: string }
         Returns: number
+      }
+      notify_guc_ready: {
+        Args: { p_entity: string; p_hook: string }
+        Returns: boolean
       }
       notify_quote_client: {
         Args: {
@@ -9534,7 +16849,16 @@ export type Database = {
         }[]
       }
       post_toggle_like: { Args: { p_post_id: string }; Returns: Json }
+      prima_nota_pending_count: { Args: never; Returns: number }
+      prima_nota_sync: { Args: never; Returns: number }
+      print_shop_for_entry: { Args: { p_entry: string }; Returns: Json }
+      print_shop_public: { Args: { p_slug: string }; Returns: Json }
       professional_funnel_metrics: { Args: never; Returns: Json }
+      proroga_opzione: {
+        Args: { p_days: number; p_token: string }
+        Returns: Json
+      }
+      public_brand_kit: { Args: { p_slug: string }; Returns: Json }
       public_check_availability: {
         Args: { p_date: string; p_slug: string }
         Returns: Json
@@ -9543,6 +16867,7 @@ export type Database = {
         Args: { p_date: string; p_slug: string }
         Returns: Json
       }
+      purge_old_signing_pii: { Args: { p_months?: number }; Returns: number }
       push_user_notification: {
         Args: {
           p_body: string
@@ -9558,9 +16883,14 @@ export type Database = {
       quote_activity: { Args: { p_quote_id: string }; Returns: Json }
       quote_budget_readiness: { Args: { p_quote_id: string }; Returns: Json }
       quote_close: { Args: { p_quote_id: string }; Returns: boolean }
+      quote_compute_surcharge: {
+        Args: { p_date: string; p_owner: string }
+        Returns: Json
+      }
       quote_conclude_by_client: { Args: { p_quote_id: string }; Returns: Json }
       quote_consent_clauses: { Args: never; Returns: Json }
       quote_get_by_token: { Args: { p_token: string }; Returns: Json }
+      quote_option_status: { Args: { p_token: string }; Returns: Json }
       quote_pick_alternative: {
         Args: { p_item_id: string; p_token: string }
         Returns: boolean
@@ -9579,6 +16909,10 @@ export type Database = {
         Returns: boolean
       }
       quote_reopen: { Args: { p_quote_id: string }; Returns: boolean }
+      quote_save_guarded: {
+        Args: { p_expected_version: number; p_id: string; p_patch: Json }
+        Returns: Json
+      }
       quote_toggle_option: {
         Args: { p_item_id: string; p_selected: boolean; p_token: string }
         Returns: boolean
@@ -9591,6 +16925,7 @@ export type Database = {
         Args: { p_quote_ids: string[] }
         Returns: Json
       }
+      quotes_monthly_report: { Args: never; Returns: Json }
       quotes_recalc_totals: { Args: { p_quote_id: string }; Returns: undefined }
       rate_user: {
         Args: {
@@ -9709,6 +17044,24 @@ export type Database = {
       resolve_couple_invite: { Args: { p_token: string }; Returns: Json }
       resolve_public_slug: { Args: { p_slug: string }; Returns: Json }
       resolve_supplier_invite: { Args: { p_token: string }; Returns: Json }
+      respond_circle_suggestion:
+        | {
+            Args: {
+              p_accept: boolean
+              p_signed_name?: string
+              p_suggestion: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_accept: boolean
+              p_data_passage?: boolean
+              p_signed_name?: string
+              p_suggestion: string
+            }
+            Returns: Json
+          }
       respond_event_invite: {
         Args: { p_accept: boolean; p_collab_id: string }
         Returns: Json
@@ -9716,6 +17069,10 @@ export type Database = {
       restore_hint: { Args: { p_key: string }; Returns: Json }
       revoke_access_token: {
         Args: { p_id: string; p_kind: string }
+        Returns: Json
+      }
+      richiedi_opzione_da_preventivo: {
+        Args: { p_token: string }
         Returns: Json
       }
       riconciliazione_allinea_menu: {
@@ -9733,6 +17090,33 @@ export type Database = {
       save_quote_inspirations: {
         Args: { p_inspirations: Json; p_token: string }
         Returns: Json
+      }
+      sblocca_data_preventivo: { Args: { p_quote_id: string }; Returns: Json }
+      scadi_opzioni: { Args: never; Returns: number }
+      search_maestranze: {
+        Args: {
+          p_limit?: number
+          p_min_esperienza?: number
+          p_offset?: number
+          p_provincia?: string
+          p_seed?: number
+          p_skill_ids?: string[]
+        }
+        Returns: {
+          anni_esperienza: number
+          bio: string
+          display_name: string
+          disponibilita_note: string
+          fascia_prezzo: string
+          id: string
+          photo_path: string
+          provincia: string
+          provincia_nome: string
+          raggio_disponibilita: string
+          regione: string
+          skills: string[]
+          total_count: number
+        }[]
       }
       search_suppliers_for_tag: {
         Args: { p_limit?: number; p_query: string }
@@ -9753,11 +17137,28 @@ export type Database = {
         }
         Returns: undefined
       }
+      service_modifiers_for_date: {
+        Args: { p_date: string; p_service_id: string }
+        Returns: Json
+      }
       set_accept_referrals: {
         Args: { p_credit?: number; p_value: boolean }
         Returns: Json
       }
+      set_album_choice: {
+        Args: { p_choice: string; p_media: string }
+        Returns: Json
+      }
       set_daily_capacity: { Args: { p_value: number }; Returns: Json }
+      set_event_ring_role: {
+        Args: {
+          p_active: boolean
+          p_entry: string
+          p_label?: string
+          p_role_key: string
+        }
+        Returns: Json
+      }
       settle_supplier_credit: {
         Args: { p_id: string; p_offset_id?: string; p_type: string }
         Returns: Json
@@ -9773,6 +17174,17 @@ export type Database = {
         Returns: Json
       }
       slugify: { Args: { p_text: string }; Returns: string }
+      stripe_apply_subscription: {
+        Args: {
+          p_cancel_at_end: boolean
+          p_period_end: string
+          p_price: string
+          p_profile: string
+          p_status: string
+          p_sub_id: string
+        }
+        Returns: Json
+      }
       submit_lead_request:
         | {
             Args: {
@@ -9831,6 +17243,10 @@ export type Database = {
         Args: { p_date: string; p_slug: string }
         Returns: Json
       }
+      suggest_supplier_to_event: {
+        Args: { p_entry: string; p_kind?: string; p_supplier: string }
+        Returns: Json
+      }
       suggest_suppliers_to_client: {
         Args: { p_quote_id: string; p_suggested_ids: string[] }
         Returns: Json
@@ -9883,6 +17299,16 @@ export type Database = {
         }
       }
       supplier_credit_balances: { Args: never; Returns: Json }
+      supplier_day_slots: {
+        Args: { p_date: string; p_ids: string[] }
+        Returns: {
+          end_time: string
+          fornitore_id: string
+          label: string
+          start_time: string
+          status: string
+        }[]
+      }
       supplier_event_program: { Args: { p_event_id: string }; Returns: Json }
       supplier_invite_capostipite: { Args: { p_email: string }; Returns: Json }
       supplier_items_to_review: { Args: never; Returns: Json }
@@ -9909,10 +17335,25 @@ export type Database = {
         }[]
       }
       toggle_follow: { Args: { p_followed_id: string }; Returns: Json }
-      track_quote_open: { Args: { p_token: string }; Returns: undefined }
+      track_couple_quote_open: {
+        Args: { p_entry_id: string; p_ua?: string }
+        Returns: undefined
+      }
+      track_quote_open: {
+        Args: { p_token: string; p_ua?: string }
+        Returns: undefined
+      }
       track_quote_open_by_invite: {
         Args: { p_invite_token: string }
         Returns: undefined
+      }
+      unread_by_entry: {
+        Args: never
+        Returns: {
+          entry_id: string
+          n: number
+          types: string[]
+        }[]
       }
       unread_notifications_count: { Args: never; Returns: number }
       upsert_quote_client_brief: {
@@ -9924,6 +17365,27 @@ export type Database = {
           p_note: string
           p_quote_id: string
           p_share?: boolean
+        }
+        Returns: Json
+      }
+      video_can_edit: { Args: { p_entry: string }; Returns: boolean }
+      video_can_view: { Args: { p_entry: string }; Returns: boolean }
+      video_project_save: {
+        Args: {
+          p_draft: string
+          p_entry: string
+          p_final: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      waitlist_submit: {
+        Args: {
+          p_activity?: string
+          p_city?: string
+          p_email: string
+          p_name: string
+          p_source?: string
         }
         Returns: Json
       }
@@ -9940,6 +17402,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      wp_add_location_to_team: {
+        Args: { p_location_id: string }
+        Returns: Json
+      }
+      wp_ensure_parcelle: { Args: never; Returns: Json }
       wp_invite_capostipite: {
         Args: {
           p_email: string
@@ -9952,10 +17419,12 @@ export type Database = {
           capostipite_id: string
           created_at: string
           email: string
+          entry_id: string | null
           expires_at: string
           id: string
           invited_at: string
           message: string | null
+          role_key: string | null
           status: string
           subrole_hint: string | null
           target_role: string
@@ -10066,6 +17535,12 @@ export type Database = {
         | "RINGRAZIAMENTO"
         | "GADGET"
         | "ALTRO"
+      gallery_folder_level:
+        | "LAVORO_INTERO"
+        | "LAVORAZIONE"
+        | "INVITATI"
+        | "EXTRA"
+      gallery_media_type: "PHOTO" | "VIDEO"
       guest_age_group: "ADULT" | "CHILD" | "INFANT"
       legal_form:
         | "INDIVIDUAL"
@@ -10162,6 +17637,9 @@ export type Database = {
         | "ADMIN"
         | "COUPLE"
         | "CLIENT"
+        | "GUEST"
+        | "FOTOLAB"
+        | "MAESTRANZA"
       wedding_style:
         | "CLASSICO"
         | "MODERNO"
@@ -10300,6 +17778,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       accommodation_kind: [
@@ -10408,6 +17889,13 @@ export const Constants = {
         "GADGET",
         "ALTRO",
       ],
+      gallery_folder_level: [
+        "LAVORO_INTERO",
+        "LAVORAZIONE",
+        "INVITATI",
+        "EXTRA",
+      ],
+      gallery_media_type: ["PHOTO", "VIDEO"],
       guest_age_group: ["ADULT", "CHILD", "INFANT"],
       legal_form: [
         "INDIVIDUAL",
@@ -10510,6 +17998,9 @@ export const Constants = {
         "ADMIN",
         "COUPLE",
         "CLIENT",
+        "GUEST",
+        "FOTOLAB",
+        "MAESTRANZA",
       ],
       wedding_style: [
         "CLASSICO",
@@ -10528,4 +18019,3 @@ export const Constants = {
     },
   },
 } as const
-

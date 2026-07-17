@@ -100,6 +100,14 @@ export default function DiscoverPage() {
             Fotografi, fioriai, catering, location, light designer, pasticceri e tanto altro.
             Tutti collegati nei network privati dei migliori Wedding Planner e Location d'Italia.
           </p>
+          {/* Le maestranze sono l'altra metà della rete: non chi vende l'evento, chi lo fa.
+              La bacheca è chiusa (serve un account), per questo è un link e non una vetrina. */}
+          <p className="text-sm mt-5 text-[rgb(var(--fg-muted))]">
+            Cerchi chi lavora agli eventi — camerieri, secondi fotografi, musicisti, fonici?{' '}
+            <Link to="/maestranze" className="underline underline-offset-4 text-[rgb(var(--fg))]">
+              Vai alle Maestranze
+            </Link>
+          </p>
         </div>
       </section>
 
