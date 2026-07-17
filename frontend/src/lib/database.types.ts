@@ -8992,6 +8992,96 @@ export type Database = {
           },
         ]
       }
+      maestranze_waitlist: {
+        Row: {
+          confirm_token: string
+          created_at: string
+          disponibilita: string[]
+          email: string
+          email_confirmed_at: string | null
+          id: string
+          instagram: string | null
+          nome: string
+          portfolio: string | null
+          privacy_accepted_at: string
+          privacy_version: string
+          professione_altro: string | null
+          provincia: string
+          skill_id: string | null
+          source: string | null
+          telefono: string
+        }
+        Insert: {
+          confirm_token?: string
+          created_at?: string
+          disponibilita?: string[]
+          email: string
+          email_confirmed_at?: string | null
+          id?: string
+          instagram?: string | null
+          nome: string
+          portfolio?: string | null
+          privacy_accepted_at?: string
+          privacy_version: string
+          professione_altro?: string | null
+          provincia: string
+          skill_id?: string | null
+          source?: string | null
+          telefono: string
+        }
+        Update: {
+          confirm_token?: string
+          created_at?: string
+          disponibilita?: string[]
+          email?: string
+          email_confirmed_at?: string | null
+          id?: string
+          instagram?: string | null
+          nome?: string
+          portfolio?: string | null
+          privacy_accepted_at?: string
+          privacy_version?: string
+          professione_altro?: string | null
+          provincia?: string
+          skill_id?: string | null
+          source?: string | null
+          telefono?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maestranze_waitlist_provincia_fkey"
+            columns: ["provincia"]
+            isOneToOne: false
+            referencedRelation: "province_regioni"
+            referencedColumns: ["provincia"]
+          },
+          {
+            foreignKeyName: "maestranze_waitlist_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "maestranze_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maestranze_waitlist_attempts: {
+        Row: {
+          created_at: string
+          id: number
+          ip: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          ip: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          ip?: string
+        }
+        Relationships: []
+      }
       market_prices: {
         Row: {
           id: string
@@ -16733,6 +16823,23 @@ export type Database = {
         }
         Returns: Json
       }
+      maestranze_vocabolario: {
+        Args: never
+        Returns: {
+          famiglia: string
+          id: string
+          name: string
+        }[]
+      }
+      maestranze_waitlist_confirm: {
+        Args: { p_token: string }
+        Returns: {
+          gia_confermata: boolean
+          nome: string
+        }[]
+      }
+      maestranze_waitlist_count: { Args: never; Returns: number }
+      maestranze_waitlist_stats: { Args: never; Returns: Json }
       mark_entry_notifications_read: {
         Args: { p_entry: string; p_types: string[] }
         Returns: undefined
@@ -16857,6 +16964,14 @@ export type Database = {
       proroga_opzione: {
         Args: { p_days: number; p_token: string }
         Returns: Json
+      }
+      province_elenco: {
+        Args: never
+        Returns: {
+          nome: string
+          provincia: string
+          regione: string
+        }[]
       }
       public_brand_kit: { Args: { p_slug: string }; Returns: Json }
       public_check_availability: {

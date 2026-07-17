@@ -37,6 +37,21 @@ export const REGIMI = [
 
 export const TOS_VERSION = '2026-07'
 
+/**
+ * La bacheca è APERTA alle iscrizioni dirette?
+ *
+ * false = fase lista d'attesa: /maestranze/iscriviti rimanda a /maestranze/lista-attesa.
+ *
+ * Perché serve: le Stories dicono "apre dopo l'estate, mettiti in lista", ma l'iscrizione
+ * diretta è pubblica e funzionante. Due porte aperte insieme = la lista d'attesa è una
+ * finzione (chi trova l'altra porta entra subito) e il conteggio dato ai capostipiti non
+ * vuol dire più niente. Una porta sola, alla volta.
+ *
+ * A settembre: metti true. È l'unica riga da toccare — il wizard, il profilo e la bacheca
+ * sono già costruiti e testati, aspettano solo questa.
+ */
+export const BACHECA_APERTA = false
+
 export const DISCLAIMER =
   'Planfully è una bacheca informativa. Non siamo un’agenzia per il lavoro e non intermediamo ' +
   'rapporti di lavoro: non selezioniamo, non ordiniamo per merito, non verifichiamo. La ' +
@@ -70,16 +85,17 @@ export function sessionSeed(): number {
   return s
 }
 
+/** Via RPC e non `from()`: la lista d'attesa è PUBBLICA e le tabelle hanno RLS
+ *  `to authenticated`. Le RPC restituiscono solo dati di riferimento (mestieri,
+ *  province) — nessun dato personale — così non serve aprire policy ad anon. */
 export async function loadSkills(): Promise<Skill[]> {
-  const { data, error } = await supabase.from('maestranze_skills')
-    .select('id, name, famiglia').order('famiglia').order('name')
+  const { data, error } = await supabase.rpc('maestranze_vocabolario')
   if (error) throw error
   return (data ?? []) as Skill[]
 }
 
 export async function loadProvince(): Promise<Provincia[]> {
-  const { data, error } = await supabase.from('province_regioni')
-    .select('provincia, nome, regione').order('nome')
+  const { data, error } = await supabase.rpc('province_elenco')
   if (error) throw error
   return (data ?? []) as Provincia[]
 }

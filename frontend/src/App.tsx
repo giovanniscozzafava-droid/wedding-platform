@@ -78,6 +78,12 @@ const MaestranzePage = lazyWithRetry(() => import('@/pages/maestranze/Maestranze
 const MaestranzaProfilePage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzaProfilePage'))
 const MaestranzaSignupPage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzaSignupPage'))
 const MaestranzaMePage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzaMePage'))
+// NB: WaitlistPage (senza prefisso) esiste già ed è la waitlist pubblica di Planfully:
+// questi sono quelli delle Maestranze, tenuti distinti apposta.
+const MaestranzeWaitlistPage = lazyWithRetry(() => import('@/pages/maestranze/WaitlistPage'))
+const MaestranzeWaitlistConfirmPage = lazyWithRetry(() => import('@/pages/maestranze/WaitlistConfirmPage'))
+const MaestranzeWaitlistWelcomePage = lazyWithRetry(() => import('@/pages/maestranze/WaitlistWelcomePage'))
+const MaestranzeWaitlistAdminPage = lazyWithRetry(() => import('@/pages/maestranze/WaitlistAdminPage'))
 const WaitlistPage = lazyWithRetry(() => import('@/pages/public/WaitlistPage'))
 const PublicSupplierPage = lazyWithRetry(() => import('@/pages/public/PublicSupplierPage'))
 const BlogListPage = lazyWithRetry(() => import('@/pages/public/BlogListPage'))
@@ -322,6 +328,10 @@ export default function App() {
               ancora non ce l'ha. Tutto il resto (bacheca, profili) è CHIUSO ai registrati:
               è la promessa su cui poggia l'intero impianto legale del modulo.
               NB: /iscriviti e /profilo prima di /:id, o li mangia la rotta dinamica. */}
+          {/* LISTA D'ATTESA (pubblica, è la porta di Instagram) */}
+          <Route path="/maestranze/lista-attesa" element={<MaestranzeWaitlistPage />} />
+          <Route path="/maestranze/conferma" element={<MaestranzeWaitlistConfirmPage />} />
+          <Route path="/maestranze/benvenuto" element={<MaestranzeWaitlistWelcomePage />} />
           <Route path="/maestranze/iscriviti" element={<MaestranzaSignupPage />} />
           <Route path="/maestranze/profilo" element={<RequireAuth><MaestranzaMePage /></RequireAuth>} />
           <Route path="/maestranze" element={<RequireAuth><MaestranzePage /></RequireAuth>} />
@@ -368,6 +378,7 @@ export default function App() {
           <Route path="/admin/assistenza" element={<RequireAuth><AdminSupportPage /></RequireAuth>} />
           <Route path="/admin/finance" element={<RequireAuth><AdminFinancePage /></RequireAuth>} />
           <Route path="/admin/osservatorio" element={<RequireAuth roles={['ADMIN']}><ObservatoryPage /></RequireAuth>} />
+          <Route path="/admin/maestranze/waitlist" element={<RequireAuth roles={['ADMIN']}><MaestranzeWaitlistAdminPage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
           <Route path="/strumenti" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><StrumentiHubPage /></RequireAuth>} />
           <Route path="/prima-nota" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><PrimaNotaPage /></RequireAuth>} />

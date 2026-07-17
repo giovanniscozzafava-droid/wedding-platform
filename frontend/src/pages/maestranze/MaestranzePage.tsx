@@ -9,11 +9,14 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import {
-  type Maestranza, type Skill, type Provincia, RAGGIO_LABEL, DISCLAIMER,
+  type Maestranza, type Skill, type Provincia, RAGGIO_LABEL, DISCLAIMER, BACHECA_APERTA,
   signedPhotos, sessionSeed, loadSkills, loadProvince, groupByFamiglia,
 } from '@/lib/maestranze'
 
 const PAGE = 24
+/** In fase lista d'attesa la porta è una sola: il link che il professionista gira
+ *  a un collega è quello della lista, non quello dell'iscrizione diretta. */
+const ISCRIZIONE_URL = BACHECA_APERTA ? '/maestranze/iscriviti' : '/maestranze/lista-attesa'
 
 export default function MaestranzePage() {
   const { profile } = useAuth()
@@ -83,7 +86,7 @@ export default function MaestranzePage() {
           description="Le persone che fanno funzionare gli eventi: camerieri, secondi fotografi, musicisti, truccatori, fonici. Cerca per zona e mestiere."
           actions={
             <Button variant="outline" asChild>
-              <Link to="/maestranze/iscriviti"><UserPlus /> Iscriviti alla bacheca</Link>
+              <Link to={ISCRIZIONE_URL}><UserPlus /> Invita una maestranza</Link>
             </Button>
           }
         />

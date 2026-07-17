@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { Search, Camera, Check, ChevronRight, ChevronLeft, ShieldAlert, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import {
-  type Skill, type Provincia, REGIMI, TOS_VERSION, DISCLAIMER,
+  type Skill, type Provincia, REGIMI, TOS_VERSION, DISCLAIMER, BACHECA_APERTA,
   loadSkills, loadProvince, groupByFamiglia, signedPhoto,
 } from '@/lib/maestranze'
 
@@ -164,6 +164,9 @@ export default function MaestranzaSignupPage() {
   }, [skills, skillQuery])
   const skillById = useMemo(() => new Map(skills.map((s) => [s.id, s])), [skills])
 
+  // Fase lista d'attesa: una porta sola. Chi arriva qui va in lista come tutti.
+  // Chi ha GIÀ un profilo (es. i test, o chi si è iscritto prima) continua a gestirlo.
+  if (!BACHECA_APERTA && !session) return <Navigate to="/maestranze/lista-attesa" replace />
   if (!session) return <CreaAccount />
 
 
