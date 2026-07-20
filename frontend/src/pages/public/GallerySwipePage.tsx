@@ -127,15 +127,15 @@ export default function GallerySwipePage() {
           ? <RoundEnd sel={sel} studio={studio} busy={busy} onAdvance={doAdvance} onSubmit={doSubmit} onRescue={doRescue} />
           : <>
               <Deck queue={queue} onDecide={decide} onUndo={undo} canUndo={history.length > 0} onZoom={setZoom} />
-              {/* RIPESCA: rivedi le scartate in qualsiasi momento (per arrivare al traguardo o cambiare idea) */}
-              {discardedCount > 0 && (
+              {/* RIPESCA: rivedi le scartate — MA non quando sei OLTRE il tetto: lì devi togliere, non aggiungere. */}
+              {discardedCount > 0 && sel.kept <= sel.target_max && (
                 <button onClick={ripesca} className="mt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] underline underline-offset-4">
                   Ripesca dalle scartate ({discardedCount})
                 </button>
               )}
-              {/* oltre il tetto: invito a sfoltire; la conferma resta nascosta finché non si rientra nel range */}
+              {/* OLTRE il tetto: devi continuare a scartare finché rientri; la conferma resta nascosta. */}
               {sel.status === 'ACTIVE' && sel.kept > sel.target_max && (
-                <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-[rgb(var(--rose-600))]">Troppe ({sel.kept}) · il traguardo è {sel.target_min}–{sel.target_max}</p>
+                <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-[rgb(var(--rose-600))]">Troppe ({sel.kept}) · scartatene ancora {sel.kept - sel.target_max} per rientrare (max {sel.target_max})</p>
               )}
               {/* CONFERMA: appare appena raggiunto il numero (tenute nel range), anche senza scorrere tutto */}
               {sel.status === 'ACTIVE' && sel.kept >= sel.target_min && sel.kept <= sel.target_max && (
@@ -297,8 +297,8 @@ function RoundEnd({ sel, studio, busy, onAdvance, onSubmit, onRescue }: {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--fg-subtle))]">Giro {sel.round} completato</p>
       <h2 className="font-display text-4xl mt-3">Ne avete tenute <span className="text-[rgb(var(--gold-700))]">{kept}</span></h2>
       {above && <>
-        <p className="text-[rgb(var(--fg-muted))] mt-3">Sono ancora tante: per l'album ne servono al massimo {max}. Fatene un altro giro, solo sulle vostre {kept} — sarà più facile.</p>
-        <button onClick={onAdvance} disabled={busy} className="mt-6 inline-flex items-center gap-2 rounded-full h-12 px-7 bg-[rgb(var(--gold-500))] text-white font-mono text-xs uppercase tracking-[0.16em] disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={16} /> : null} Fai un altro giro</button>
+        <p className="text-[rgb(var(--fg-muted))] mt-3">Sono ancora troppe: per l'album ne servono al massimo <b>{max}</b>. Si continua con lo stesso giro sulle vostre <b>{kept}</b> — dovete scartarne ancora <b>{kept - max}</b> per rientrare nel traguardo.</p>
+        <button onClick={onAdvance} disabled={busy} className="mt-6 inline-flex items-center gap-2 rounded-full h-12 px-7 bg-[rgb(var(--gold-500))] text-white font-mono text-xs uppercase tracking-[0.16em] disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={16} /> : null} Continua a scegliere</button>
       </>}
       {below && <>
         <p className="text-[rgb(var(--fg-muted))] mt-3">Per l'album servono almeno {min} fotografie — ripescatene ancora <b>{min - kept}</b> tra quelle lasciate.</p>
