@@ -419,11 +419,14 @@ function AlbumDesignerInner() {
   const [aspects, setAspects] = useState<Record<string, number>>({}) // aspetto naturale per crop
   const [realDims, setRealDims] = useState<Record<string, RealDim>>({}) // px reali (per avviso bassa risoluzione)
   const [currentPageId, setCurrentPageId] = useState<string | null>(null) // pagina aperta nel canvas grande
-  const [gridOn, setGridOn] = useState(false)          // griglia stile Photoshop
+  // griglia e righello: PERSISTITI in localStorage → restano attivi dopo reload / cambio pagina.
+  const [gridOn, setGridOn] = useState(() => { try { return localStorage.getItem('album:gridOn') === '1' } catch { return false } })          // griglia stile Photoshop
   const [marginsOn, setMarginsOn] = useState(true)     // guide margini
   const [pageNums, setPageNums] = useState(false)      // numeri di pagina
   const [zoom, setZoom] = useState(1)                  // zoom del canvas
-  const [rulerOn, setRulerOn] = useState(false)        // righello (cm) attorno alla tavola
+  const [rulerOn, setRulerOn] = useState(() => { try { return localStorage.getItem('album:rulerOn') === '1' } catch { return false } })        // righello (cm) attorno alla tavola
+  useEffect(() => { try { localStorage.setItem('album:gridOn', gridOn ? '1' : '0') } catch { /* no-op */ } }, [gridOn])
+  useEffect(() => { try { localStorage.setItem('album:rulerOn', rulerOn ? '1' : '0') } catch { /* no-op */ } }, [rulerOn])
   const [guidesV, setGuidesV] = useState<number[]>([]) // guide verticali (frazione larghezza tavola) stile Photoshop
   const [guidesH, setGuidesH] = useState<number[]>([]) // guide orizzontali (frazione altezza tavola)
   const [fullscreen, setFullscreen] = useState(false)  // lavoro a piena pagina (nasconde la barra menu)
