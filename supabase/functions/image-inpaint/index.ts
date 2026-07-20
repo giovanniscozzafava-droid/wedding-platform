@@ -22,6 +22,19 @@ const QWEN_MODEL = Deno.env.get('QWEN_IMAGE_MODEL') ?? 'qwen-image-edit'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const rawB64 = (d: string) => { const i = d.indexOf(','); return i >= 0 ? d.slice(i + 1) : d }
 
+// una passata Qwen-Image-Edit → URL immagine (o null). seed diverso = ipotesi diversa.
+async function qwenOnce(srcImg: string, instr: string, seed: number): Promise<string | null> {
+  try {
+    const r = await fetch(QWEN_URL, {
+      method: 'POST', headers: { Authorization: `Bearer ${DS_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: QWEN_MODEL, input: { messages: [{ role: 'user', content: [{ image: srcImg }, { text: instr }] }] }, parameters: { n: 1, seed, prompt_extend: false, watermark: false } }),
+    })
+    const d = await r.json().catch(() => ({}))
+    const url = d?.output?.choices?.[0]?.message?.content?.find((c: any) => c?.image)?.image
+    return (r.ok && url) ? url : null
+  } catch { return null }
+}
+
 async function urlToDataUrl(url: string): Promise<string> {
   const r = await fetch(url); if (!r.ok) throw new Error(`fetch output ${r.status}`)
   const bytes = new Uint8Array(await r.arrayBuffer())
@@ -53,7 +66,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!DS_KEY && !BFL_API_KEY && !REPLICATE_TOKEN && !OPENAI_API_KEY) return json({ error: 'no_engine', hint: 'Imposta DASHSCOPE_API_KEY (Qwen) / BFL_API_KEY / REPLICATE_API_TOKEN / OPENAI_API_KEY' }, 503)
 
-  let body: { image?: string; mask?: string; marked?: string; prompt?: string; size?: string }
+  let body: { image?: string; mask?: string; marked?: string; prompt?: string; size?: string; variants?: number }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   if (!body.image || typeof body.image !== 'string' || !body.image.startsWith('data:')) return json({ error: 'no_image' }, 400)
 
@@ -72,15 +85,14 @@ Then make it blend TOTALLY and INVISIBLY: continue the surrounding floor, tiles,
 
 Absolutely no magenta or pink may remain anywhere. Keep every other part of the photo pixel-for-pixel identical, same framing and same resolution.${KEEP}`
       : `${userText || 'Enhance this photo naturally'}. Keep everything else exactly identical.${KEEP} Photorealistic.`
+    // N ipotesi in parallelo (seed diversi) → l'utente sceglie la migliore lato client
+    const n = Math.min(4, Math.max(1, Math.round(Number(body.variants) || 1)))
     try {
-      const r = await fetch(QWEN_URL, {
-        method: 'POST', headers: { Authorization: `Bearer ${DS_KEY}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ model: QWEN_MODEL, input: { messages: [{ role: 'user', content: [{ image: srcImg }, { text: instr }] }] }, parameters: { n: 1, prompt_extend: false, watermark: false } }),
-      })
-      const d = await r.json().catch(() => ({}))
-      const url = d?.output?.choices?.[0]?.message?.content?.find((c: any) => c?.image)?.image
-      if (r.ok && url) return json({ image: await urlToDataUrl(url), engine: 'qwen' })
-      return json({ error: 'qwen_failed', detail: String(d?.message ?? d?.code ?? r.status) }, 200)
+      const seeds = Array.from({ length: n }, (_, i) => 137 + i * 7919)
+      const urls = (await Promise.all(seeds.map((s) => qwenOnce(srcImg, instr, s)))).filter((u): u is string => !!u)
+      if (!urls.length) return json({ error: 'qwen_failed', detail: 'nessun output dal motore' }, 200)
+      const images = await Promise.all(urls.map((u) => urlToDataUrl(u)))
+      return json({ image: images[0], images, engine: 'qwen' })
     } catch (e) { return json({ error: 'qwen_error', detail: String((e as Error).message ?? e) }, 200) }
   }
 
