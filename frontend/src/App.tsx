@@ -47,6 +47,8 @@ const ObservatoryPage = lazyWithRetry(() => import('@/pages/ObservatoryPage'))
 const InsurancePage = lazyWithRetry(() => import('@/pages/InsurancePage'))
 const BrandSettingsPage = lazyWithRetry(() => import('@/pages/BrandSettingsPage'))
 const AlbumPricingSettingsPage = lazyWithRetry(() => import('@/pages/AlbumPricingSettingsPage'))
+const ProvaLookPage = lazyWithRetry(() => import('@/pages/ProvaLookPage'))
+const ProvaLookClientPage = lazyWithRetry(() => import('@/pages/public/ProvaLookClientPage'))
 const IncassiSettingsPage = lazyWithRetry(() => import('@/pages/IncassiSettingsPage'))
 const BillingPage = lazyWithRetry(() => import('@/pages/BillingPage'))
 const MaggiorazioniSettingsPage = lazyWithRetry(() => import('@/pages/MaggiorazioniSettingsPage'))
@@ -168,6 +170,7 @@ export default function App() {
             }
           />
           <Route path="/food-cost" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><FoodCostPage /></RequireAuth>} />
+          <Route path="/prova" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><ProvaLookPage /></RequireAuth>} />
           <Route path="/prove-menu" element={<RequireAuth roles={['LOCATION', 'WEDDING_PLANNER', 'ADMIN']}><TastingSessionsPage /></RequireAuth>} />
           <Route path="/magazzino" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><MagazzinoPage /></RequireAuth>} />
           <Route path="/ragioniere" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><RagionierePage /></RequireAuth>} />
@@ -319,6 +322,8 @@ export default function App() {
           <Route path="/galleria/:galleryId" element={<GuestGalleryPage />} />
           {/* Galleria sposi pubblica (link con token, senza login) + selezione swipe a giri */}
           <Route path="/g/:token" element={<PublicGalleryPage />} />
+          {/* Prova look (Beta): vista cliente delle proposte acconciatura/trucco */}
+          <Route path="/prova/:token" element={<ProvaLookClientPage />} />
           <Route path="/g/:token/selezione" element={<GallerySwipePage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookie" element={<CookiePage />} />

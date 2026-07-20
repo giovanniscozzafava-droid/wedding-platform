@@ -24,6 +24,7 @@ const GROUPS: Group[] = [
     { to: '/studio', label: 'Studio disegno', desc: 'Disegna a mano libera su tavola grafica a livelli.', icon: Brush, show: (r) => cap(r) || forn(r) },
     { to: '/stili', label: 'Portfolio', desc: 'Cura la vetrina dei tuoi lavori per i clienti.', icon: Images, show: (r) => cap(r) || forn(r) },
     { to: '/album-catalogo', label: 'Catalogo album', desc: 'Carica i PDF dei modelli album e marcali per i clienti.', icon: BookImage, show: (r, _s, p) => forn(r) && p },
+    { to: '/prova', label: 'Prova look · Beta', desc: 'Applica acconciatura o trucco sulla foto della cliente (AI) e inviale le proposte.', icon: Brush, show: (r, s) => s === 'parrucchiere' || s === 'make_up' || r === 'ADMIN' },
   ]},
   { key: 'cucina', title: 'Cucina & sala', tools: [
     { to: '/food-cost', label: 'Food cost', desc: 'Calcola il costo piatto e i margini del menu.', icon: Carrot, show: (r) => loc(r) },

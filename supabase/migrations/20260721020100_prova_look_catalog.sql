@@ -1,0 +1,93 @@
+-- Catalogo di SISTEMA per Prova Look (owner_id null). IDEMPOTENTE: pulisce e reinserisce, così è
+-- sicura anche se un tentativo precedente aveva già seminato (evita doppioni). Timestamp alto per
+-- non collidere col churn di migration della sessione parallela.
+delete from public.look_styles where owner_id is null;
+
+insert into public.look_styles (owner_id, kind, category, label, prompt_fragment, sort) values
+-- ══════════════ TRUCCO (makeup) ══════════════
+(null,'makeup','occhi','Naturale','soft neutral eyeshadow, natural defined eyes',10),
+(null,'makeup','occhi','Smoky nero','soft black smoky eyes, blended',11),
+(null,'makeup','occhi','Smoky bronzo','warm bronze smoky eyes',12),
+(null,'makeup','occhi','Cat-eye','elegant cat-eye winged eyeliner',13),
+(null,'makeup','occhi','Eyeliner grafico','graphic modern eyeliner',14),
+(null,'makeup','occhi','Sfumato oro','shimmering gold eyeshadow',15),
+(null,'makeup','occhi','Sfumato rame','copper shimmer eyeshadow',16),
+(null,'makeup','occhi','Rosato','soft rosy pink eyeshadow',17),
+(null,'makeup','occhi','Cut-crease','defined cut-crease eyeshadow',18),
+(null,'makeup','occhi','Glitter leggero','subtle glitter on the eyelids',19),
+(null,'makeup','labbra','Nude','soft nude lips',30),
+(null,'makeup','labbra','Rosso classico','classic red lipstick',31),
+(null,'makeup','labbra','Rosso mattone','brick-red lips',32),
+(null,'makeup','labbra','Malva','mauve lipstick',33),
+(null,'makeup','labbra','Pesca','peachy lips',34),
+(null,'makeup','labbra','Berry','berry-toned lips',35),
+(null,'makeup','labbra','Gloss','glossy natural lips',36),
+(null,'makeup','labbra','Mat','matte lips',37),
+(null,'makeup','labbra','Ombré','ombre gradient lips',38),
+(null,'makeup','incarnato','Glow dewy','dewy glowing skin',50),
+(null,'makeup','incarnato','Mat','matte natural skin finish',51),
+(null,'makeup','incarnato','Effetto no-makeup','skin-like no-makeup finish',52),
+(null,'makeup','incarnato','Abbronzato luminoso','sun-kissed luminous skin',53),
+(null,'makeup','incarnato','Porcellana','porcelain luminous complexion',54),
+(null,'makeup','blush','Pesca','peach blush',60),
+(null,'makeup','blush','Rosa freddo','cool pink blush',61),
+(null,'makeup','blush','Corallo','coral blush',62),
+(null,'makeup','blush','Contouring soft','soft natural contouring',63),
+(null,'makeup','ciglia','Ciglia naturali','natural lashes',70),
+(null,'makeup','ciglia','Ciglia definite','defined lengthened lashes',71),
+(null,'makeup','ciglia','Effetto extension','full false-lash effect',72),
+(null,'makeup','ciglia','Sopracciglia laminate','groomed laminated eyebrows',73),
+(null,'makeup','occasione','Sposa classica','classic bridal makeup',80),
+(null,'makeup','occasione','Sposa boho','boho bridal makeup',81),
+(null,'makeup','occasione','Cerimonia','elegant ceremony makeup',82),
+(null,'makeup','occasione','Sera','evening glam makeup',83),
+(null,'makeup','occasione','Servizio foto','editorial photoshoot makeup',84),
+(null,'makeup','intensita','Naturale','soft natural intensity',90),
+(null,'makeup','intensita','Soft glam','soft glam intensity',91),
+(null,'makeup','intensita','Full glam','full glam intensity',92),
+(null,'makeup','preset','Sposa naturale luminosa','natural luminous bridal makeup: soft neutral eyes, defined lashes, dewy glowing skin, soft nude-pink lips',1),
+(null,'makeup','preset','Soft glam romantico','soft glam bridal makeup: rosy shimmer eyes, defined lashes, peach blush, glossy mauve lips, luminous skin',2),
+(null,'makeup','preset','Smoky bronzo sera','evening makeup: warm bronze smoky eyes, cat-eye liner, contoured cheeks, nude-mauve lips',3),
+(null,'makeup','preset','Boho pesca','boho bridal makeup: soft peach eyeshadow, freckled dewy skin, peach blush, peachy nude lips',4),
+(null,'makeup','preset','Rosso classico','timeless makeup: soft neutral eyes, winged liner, classic red matte lips, flawless skin',5),
+-- ══════════════ ACCONCIATURA (hair) ══════════════
+(null,'hair','acconciatura','Chignon basso','elegant low chignon updo',10),
+(null,'hair','acconciatura','Chignon alto','elegant high chignon',11),
+(null,'hair','acconciatura','Raccolto morbido','soft romantic updo with loose strands',12),
+(null,'hair','acconciatura','Semi-raccolto','half-up half-down style',13),
+(null,'hair','acconciatura','Onde morbide','soft loose waves worn down',14),
+(null,'hair','acconciatura','Boccoli','defined curls worn down',15),
+(null,'hair','acconciatura','Liscio setoso','sleek smooth straight hair',16),
+(null,'hair','acconciatura','Coda elegante','elegant low ponytail',17),
+(null,'hair','acconciatura','Treccia laterale','soft side braid',18),
+(null,'hair','acconciatura','Treccia a corona','crown braid',19),
+(null,'hair','acconciatura','Updo texturizzato','modern textured updo',20),
+(null,'hair','acconciatura','Mezza coda','half-up ponytail',21),
+(null,'hair','volume','Naturale','natural volume',30),
+(null,'hair','volume','Voluminoso','voluminous full-bodied hair',31),
+(null,'hair','volume','Sleek','sleek smooth finish',32),
+(null,'hair','accessori','Fermaglio gioiello','with a jewelled hair clip',40),
+(null,'hair','accessori','Velo','with a bridal veil',41),
+(null,'hair','accessori','Coroncina di fiori','with a flower crown',42),
+(null,'hair','accessori','Spilla di perle','with pearl hairpins',43),
+(null,'hair','colore','Invariato','keep the current hair color',50),
+(null,'hair','colore','Biondo miele','honey-blonde hair color',51),
+(null,'hair','colore','Castano caldo','warm brown hair color',52),
+(null,'hair','colore','Rame','copper red hair color',53),
+(null,'hair','colore','Balayage','sun-kissed balayage highlights',54),
+(null,'hair','occasione','Sposa','bridal hairstyle',60),
+(null,'hair','occasione','Cerimonia','elegant ceremony hairstyle',61),
+(null,'hair','occasione','Sera','evening event hairstyle',62),
+(null,'hair','preset','Chignon sposa romantico','romantic bridal low chignon with soft face-framing strands',1),
+(null,'hair','preset','Onde Hollywood','glamorous Hollywood soft waves worn down',2),
+(null,'hair','preset','Boho semi-raccolto','boho half-up style with textured waves and loose strands',3),
+(null,'hair','preset','Liscio glossy elegante','sleek glossy straight elegant hairstyle',4),
+(null,'hair','preset','Raccolto texturizzato moderno','modern textured messy updo',5);
+
+do $$
+declare v_m int; v_h int;
+begin
+  select count(*) into v_m from public.look_styles where kind='makeup' and owner_id is null;
+  select count(*) into v_h from public.look_styles where kind='hair' and owner_id is null;
+  raise notice 'CATALOGO PROVA LOOK ok: makeup=% hair=%', v_m, v_h;
+end $$;
