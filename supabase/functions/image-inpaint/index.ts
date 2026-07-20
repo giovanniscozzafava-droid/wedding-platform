@@ -60,10 +60,12 @@ Deno.serve(async (req) => {
       const userText = (typeof body.prompt === 'string' && body.prompt.trim()) ? body.prompt.trim().slice(0, 400) : ''
       const hasMarker = !!(body.marked && body.marked.startsWith('data:'))
       const src = hasMarker ? body.marked! : body.image
+      // Preserva colori/B&N/viraggio: Qwen tende a colorare le foto in bianco e nero e a virare i toni.
+      const KEEP = ' Preserve the EXACT original colors, tones and color grading. If the photo is black-and-white or monochrome, KEEP it black-and-white — do NOT colorize it. Do not change exposure, contrast, saturation or white balance.'
       let instr: string
-      if (hasMarker && userText) instr = `Replace the area covered by the solid magenta marker with: ${userText}. Blend it in seamlessly, matching perspective, light and colors. Leave NO magenta anywhere. Keep everything else in the photo exactly identical. Photorealistic.`
-      else if (hasMarker) instr = `The image has an area covered by a solid magenta marker. Remove whatever is under the magenta and reconstruct the background seamlessly to match the surroundings (texture, light, colors). Leave NO magenta anywhere. Keep everything else in the photo exactly identical. Photorealistic, no artifacts.`
-      else instr = `${userText || 'Enhance this photo naturally'}. Keep everything else in the photo exactly identical. Photorealistic.`
+      if (hasMarker && userText) instr = `Replace the area covered by the solid magenta marker with: ${userText}. Blend it in seamlessly, matching perspective, light and colors. Leave NO magenta anywhere. Keep everything else in the photo exactly identical.${KEEP} Photorealistic.`
+      else if (hasMarker) instr = `The image has an area covered by a solid magenta marker. Remove whatever is under the magenta and reconstruct the background seamlessly to match the surroundings (texture, light, colors). Leave NO magenta anywhere. Keep everything else in the photo exactly identical.${KEEP} Photorealistic, no artifacts.`
+      else instr = `${userText || 'Enhance this photo naturally'}. Keep everything else in the photo exactly identical.${KEEP} Photorealistic.`
       const r = await fetch(QWEN_URL, {
         method: 'POST', headers: { Authorization: `Bearer ${DS_KEY}`, 'content-type': 'application/json' },
         body: JSON.stringify({ model: QWEN_MODEL, input: { messages: [{ role: 'user', content: [{ image: src }, { text: instr }] }] }, parameters: { n: 1, prompt_extend: false, watermark: false } }),

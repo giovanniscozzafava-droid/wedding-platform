@@ -123,9 +123,30 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
       }
       const outUrl = (data as { image?: string }).image
       if (!outUrl) { toast.error('Nessuna immagine restituita'); return }
-      const blob = await (await fetch(outUrl)).blob()
-      const file = new File([blob], `ai-edit-${Date.now()}.png`, { type: 'image/png' })
-      onResult(file)
+      // Il motore restituisce l'INTERA immagine, spesso a risoluzione/colore diversi (può perdere il B&N,
+      // cambiare tono, ridurre i dpi). Per non alterare tutta la foto RICOMPONGO: originale a piena
+      // risoluzione + SOLO la regione mascherata dal risultato AI (bordo sfumato). Se non c'è maschera
+      // (edit a parole) uso il risultato così com'è.
+      const resImg = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => rej(new Error('out_img')); i.src = outUrl })
+      let outFile: File
+      if (hasPaint && paint) {
+        const W = img.naturalWidth, H = img.naturalHeight
+        const comp = document.createElement('canvas'); comp.width = W; comp.height = H
+        const cx = comp.getContext('2d')!
+        cx.drawImage(img, 0, 0, W, H)                                   // ORIGINALE a piena risoluzione
+        const patch = document.createElement('canvas'); patch.width = W; patch.height = H
+        const px = patch.getContext('2d')!
+        px.drawImage(resImg, 0, 0, W, H)                                // risultato AI scalato a full-res
+        px.globalCompositeOperation = 'destination-in'                 // tieni SOLO dove la maschera è dipinta
+        px.filter = 'blur(2px)'; px.drawImage(paint, 0, 0, W, H); px.filter = 'none' // bordo sfumato
+        cx.drawImage(patch, 0, 0)
+        const b = await new Promise<Blob>((r) => comp.toBlob((x) => r(x!), 'image/jpeg', 0.95))
+        outFile = new File([b], `ai-edit-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      } else {
+        const blob = await (await fetch(outUrl)).blob()
+        outFile = new File([blob], `ai-edit-${Date.now()}.png`, { type: 'image/png' })
+      }
+      onResult(outFile)
     } catch (e) {
       toast.error(`Non riuscito: ${String((e as Error)?.message ?? e).slice(0, 140)}`)
     } finally { setBusy(false) }
