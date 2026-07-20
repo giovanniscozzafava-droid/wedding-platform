@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
+import { eventTerm } from '@/lib/eventKind'
 import { MOMENTS, getMoment } from '@/lib/albumMoments'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,53 @@ import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null }
 type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string; share_token: string | null }
+
+// RANGE DI SELEZIONE (min/max foto): il fotografo decide quante foto la coppia deve scegliere per
+// l'album. Salvarlo qui vale per QUESTA galleria e diventa il DEFAULT per il tipo di evento. La
+// coppia lo vede già (traguardo min–max) e può confermare solo dentro il range.
+function SelectionRangeControl({ galleryId }: { galleryId: string }) {
+  const [min, setMin] = useState<number | ''>('')
+  const [max, setMax] = useState<number | ''>('')
+  const [kind, setKind] = useState('matrimonio')
+  const [submitted, setSubmitted] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const { data } = await (supabase.rpc as any)('gallery_get_range', { p_gallery: galleryId })
+      if (!alive) return
+      const d = data as { min?: number; max?: number; event_kind?: string; submitted?: boolean; error?: string } | null
+      if (d && !d.error && typeof d.min === 'number') { setMin(d.min); setMax(d.max ?? d.min); setKind(d.event_kind ?? 'matrimonio'); setSubmitted(!!d.submitted) }
+      setLoaded(true)
+    })()
+    return () => { alive = false }
+  }, [galleryId])
+  async function save() {
+    const mn = Number(min), mx = Number(max)
+    if (!mn || !mx || mn < 1 || mx < mn) { toast.error('Controlla i numeri: minimo ≥ 1 e massimo ≥ minimo.'); return }
+    setSaving(true)
+    try {
+      const { data, error } = await (supabase.rpc as any)('gallery_set_range', { p_gallery: galleryId, p_min: mn, p_max: mx })
+      const err = (data as { error?: string } | null)?.error
+      if (error || err) throw new Error(err ?? error?.message ?? 'errore')
+      toast.success(`Traguardo salvato: ${mn}–${mx} foto · default per «${eventTerm(kind).label}»`)
+    } catch (e) { toast.error(`Non salvato: ${(e as Error).message}`) } finally { setSaving(false) }
+  }
+  if (!loaded) return null
+  return (
+    <div className="w-full mt-1 border-t border-[rgb(var(--border))] pt-3">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-[rgb(var(--fg))]"><Check size={13} className="text-[rgb(var(--gold-600))]" /> Quante foto devono scegliere</p>
+      <p className="mt-0.5 text-[11px] text-[rgb(var(--fg-muted))]">Alla coppia mostriamo il traguardo: possono confermare la selezione solo tra il <b>minimo</b> e il <b>massimo</b>. Diventa il default per gli eventi «{eventTerm(kind).label}».</p>
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Minimo<Input type="number" min={1} value={min} onChange={(e) => setMin(e.target.value === '' ? '' : Math.max(1, Math.floor(Number(e.target.value))))} className="mt-0.5 w-20" /></label>
+        <label className="text-[11px] text-[rgb(var(--fg-muted))]">Massimo<Input type="number" min={1} value={max} onChange={(e) => setMax(e.target.value === '' ? '' : Math.max(1, Math.floor(Number(e.target.value))))} className="mt-0.5 w-20" /></label>
+        <Button variant="outline" size="sm" disabled={saving} onClick={() => void save()}><Check size={14} /> {saving ? 'Salvo…' : 'Salva traguardo'}</Button>
+        {submitted && <span className="text-[10px] text-[rgb(var(--fg-subtle))]">La coppia ha già inviato: aggiornarlo vale per un eventuale nuovo giro.</span>}
+      </div>
+    </div>
+  )
+}
 
 const LEVELS = [
   { v: 'LAVORO_INTERO', l: 'Lavoro intero (sposi)', icon: Lock },
@@ -626,6 +674,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <Button variant="gold" size="sm" onClick={() => { const url = `${window.location.origin}/g/${gallery.share_token}`; void navigator.clipboard.writeText(url).then(() => toast.success('Link galleria sposi copiato')).catch(() => toast.message(url)) }}><Link2 size={14} /> Copia link sposi</Button>
             <a href={`/g/${gallery.share_token}`} target="_blank" rel="noreferrer"><Button variant="outline" size="sm"><Globe size={14} /> Anteprima</Button></a>
           </div>
+          <SelectionRangeControl galleryId={gallery.id} />
         </Card>
       )}
 
