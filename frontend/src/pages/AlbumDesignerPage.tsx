@@ -388,6 +388,7 @@ function AlbumDesignerInner() {
   const [checkNotes, setCheckNotes] = useState('')
   const [checklistOpen, setChecklistOpen] = useState(false)
   const [newCheck, setNewCheck] = useState('')
+  const [coupleChecks, setCoupleChecks] = useState<Record<string, boolean>>({}) // spunte fatte dalla COPPIA (persistite lato server)
   const [pages, setPages] = useState<AlbumPage[]>([])
   const [title, setTitle] = useState('')
   const [step, setStep] = useState<'select' | 'design'>('select')
@@ -800,6 +801,23 @@ function AlbumDesignerInner() {
     return () => { if (autoTimer.current) window.clearTimeout(autoTimer.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pages, format, bleed, frozenMedia, checklist, checkNotes, step, entryId])
+
+  // CHECKLIST lato COPPIA: in consegna la coppia spunta le voci; lo stato è persistito lato server
+  // (album_checklist_state) così resta e il fotografo può vederlo. Caricato solo nella vista consegna.
+  useEffect(() => {
+    if (!lite || !entryId) return
+    void (async () => {
+      const { data } = await (supabase.rpc as any)('album_checklist_get', { p_entry: entryId })
+      if (data && !(data as { error?: string }).error) setCoupleChecks(data as Record<string, boolean>)
+    })()
+  }, [lite, entryId])
+  async function toggleCoupleCheck(itemId: string) {
+    const next = !coupleChecks[itemId]
+    setCoupleChecks((s) => ({ ...s, [itemId]: next }))
+    if (!entryId) return
+    const { data, error } = await (supabase.rpc as any)('album_checklist_toggle', { p_entry: entryId, p_item: itemId, p_done: next })
+    if (error || (data as { error?: string } | null)?.error) setCoupleChecks((s) => ({ ...s, [itemId]: !next })) // rollback
+  }
 
   // ── selezione guidata ──────────────────────────────────────────────────────
   async function toggleKeep(m: M) {
@@ -2623,6 +2641,9 @@ function AlbumDesignerInner() {
             <p className="font-display text-base truncate leading-tight">{title}</p>
             <p className="text-[11px] text-[rgb(var(--fg-muted))]">Il tuo album · {statusLabel(status)}</p>
           </div>
+          {checklist.length > 0 && (() => { const cc = checklist.filter((c) => coupleChecks[c.id]).length; return (
+            <button onClick={() => setChecklistOpen(true)} className="relative text-xs px-2.5 py-1.5 rounded-full border border-[rgb(var(--border))] flex items-center gap-1" title="C'è tutto? Spunta man mano che verifichi"><ListChecks size={13} /> Checklist<span className={`ml-0.5 h-4 min-w-4 px-1 rounded-full text-[10px] flex items-center justify-center ${cc >= checklist.length ? 'bg-[rgb(var(--emerald-500))] text-white' : 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]'}`}>{cc}/{checklist.length}</span></button>
+          ) })()}
           <button onClick={() => setReqListOpen(true)} className="relative text-xs px-2.5 py-1.5 rounded-full border border-[rgb(var(--border))] flex items-center gap-1"><MessageSquare size={13} /> Richieste{myOpen ? <span className="ml-0.5 h-4 min-w-4 px-1 rounded-full bg-[rgb(var(--gold-500))] text-white text-[10px] flex items-center justify-center">{myOpen}</span> : null}</button>
         </header>
 
@@ -2755,6 +2776,31 @@ function AlbumDesignerInner() {
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setClientReqOpen(false)}>Annulla</Button>
                 <Button variant="gold" size="sm" disabled={!revBody.trim()} onClick={() => void sendClientReq()}>Invia al fotografo</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CHECKLIST della COPPIA: "c'è tutto?" — la coppia spunta man mano che verifica. */}
+        {checklistOpen && (
+          <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setChecklistOpen(false)}>
+            <div className="bg-[rgb(var(--bg))] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-[rgb(var(--border))]">
+                <p className="font-display text-lg flex items-center gap-2"><ListChecks size={18} className="text-[rgb(var(--gold-600))]" /> C'è tutto?</p>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">Spuntate man mano che controllate. Se manca qualcosa (una foto di gruppo, i nonni, i testimoni…), toccate la pagina e usate «Richiedi modifica».</p>
+              </div>
+              <div className="p-3 overflow-auto space-y-1">
+                {checklist.map((c) => { const done = !!coupleChecks[c.id]; return (
+                  <button key={c.id} onClick={() => void toggleCoupleCheck(c.id)} className="w-full flex items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-[rgb(var(--bg-sunken))]">
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${done ? 'bg-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))] text-white' : 'border-[rgb(var(--border-strong))]'}`}>{done && <Check size={15} />}</span>
+                    <span className={`text-sm ${done ? 'text-[rgb(var(--fg-subtle))] line-through' : 'text-[rgb(var(--fg))]'}`}>{c.label}</span>
+                  </button>
+                )})}
+                {checklist.length === 0 && <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-4">Nessuna voce da controllare.</p>}
+              </div>
+              <div className="p-3 border-t border-[rgb(var(--border))] flex items-center justify-between gap-2">
+                <span className="text-xs text-[rgb(var(--fg-muted))]">{checklist.filter((c) => coupleChecks[c.id]).length}/{checklist.length} confermate</span>
+                <Button variant="gold" size="sm" onClick={() => setChecklistOpen(false)}>Fatto</Button>
               </div>
             </div>
           </div>
@@ -3077,7 +3123,7 @@ function AlbumDesignerInner() {
               <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
               {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
               <Button variant={action.next === 'FINAL' ? 'gold' : 'outline'} size="sm" disabled={busy} onClick={() => { if (action.next === 'FINAL') { setFinalNote(''); setFinalDialog(true) } else void save(action.next) }}>{action.label}</Button>
-              {!lite && <Button variant="outline" size="sm" onClick={() => setChecklistOpen(true)} title="Checklist di consegna: spunta cosa hai verificato (foto di gruppo, testimoni, genitori, nonni, pagine extra…) e annota cosa dire."><ListChecks size={14} /> Checklist {checklist.filter((c) => c.done).length < checklist.length ? `${checklist.filter((c) => c.done).length}/${checklist.length}` : '✓'}</Button>}
+              {!lite && <Button variant="outline" size="sm" onClick={() => setChecklistOpen(true)} title="Imposta le voci che la coppia spunterà in consegna (foto di gruppo, testimoni, genitori, nonni, pagine extra…)"><ListChecks size={14} /> Checklist</Button>}
               <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
               <span className="font-mono text-[11px] uppercase tracking-wide text-[rgb(var(--fg-muted))]">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))] normal-case tracking-normal">{statusLabel(status)}</span></span>
             </div>
@@ -3720,9 +3766,9 @@ function AlbumDesignerInner() {
               <div className="w-[min(94vw,460px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-2 mb-1"><Check size={18} className="text-[rgb(var(--gold-600))]" /><h3 className="font-display text-xl">Segna come finale</h3></div>
                 <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">La coppia riceve email e notifica con il link per vedere l'album. Puoi aggiungere una nota per spiegare le tue scelte (facoltativa).</p>
-                {checklist.some((c) => !c.done) && (
-                  <button onClick={() => { setFinalDialog(false); setChecklistOpen(true) }} className="mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-[12px] text-amber-800 hover:bg-amber-100">
-                    <ListChecks size={15} className="shrink-0" /> Checklist: {checklist.filter((c) => c.done).length}/{checklist.length} verificati · {checklist.filter((c) => !c.done).length} da controllare <span className="ml-auto underline">Apri</span>
+                {checklist.length > 0 && (
+                  <button onClick={() => { setFinalDialog(false); setChecklistOpen(true) }} className="mb-3 flex w-full items-center gap-2 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] px-3 py-2 text-left text-[12px] text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-elev))]">
+                    <ListChecks size={15} className="shrink-0" /> In consegna la coppia troverà una checklist da confermare ({checklist.length} voci). <span className="ml-auto underline">Modifica voci</span>
                   </button>
                 )}
                 <textarea rows={4} value={finalNote} maxLength={800} onChange={(e) => setFinalNote(e.target.value)}
@@ -3743,19 +3789,17 @@ function AlbumDesignerInner() {
               <div className="flex max-h-[92vh] w-[min(94vw,560px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start justify-between gap-3 border-b border-[rgb(var(--border))] p-4">
                   <div>
-                    <h3 className="flex items-center gap-2 font-display text-xl"><ListChecks size={18} className="text-[rgb(var(--gold-600))]" /> Checklist di consegna</h3>
-                    <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Spunta cosa hai verificato prima di consegnare · {checklist.filter((c) => c.done).length}/{checklist.length} fatti.</p>
+                    <h3 className="flex items-center gap-2 font-display text-xl"><ListChecks size={18} className="text-[rgb(var(--gold-600))]" /> Checklist per la coppia</h3>
+                    <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Le voci che la <b>coppia</b> spunterà in consegna per confermare che c'è tutto (foto di gruppo, testimoni, genitori, nonni…). {checklist.length} voci.</p>
                   </div>
                   <button onClick={() => setChecklistOpen(false)} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
                 </div>
                 <div className="min-h-0 flex-1 space-y-1 overflow-auto p-4">
                   {checklist.map((c) => (
-                    <div key={c.id} className="group flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-[rgb(var(--bg-sunken))]">
-                      <button onClick={() => setChecklist((prev) => prev.map((x) => (x.id === c.id ? { ...x, done: !x.done } : x)))}
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${c.done ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-500))] text-white' : 'border-[rgb(var(--border-strong))]'}`}>
-                        {c.done && <Check size={13} />}
-                      </button>
-                      <span className={`flex-1 text-sm ${c.done ? 'text-[rgb(var(--fg-subtle))] line-through' : 'text-[rgb(var(--fg))]'}`}>{c.label}</span>
+                    <div key={c.id} className="group flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-[rgb(var(--bg-sunken))]">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[rgb(var(--gold-500))]" />
+                      <input value={c.label} onChange={(e) => setChecklist((prev) => prev.map((x) => (x.id === c.id ? { ...x, label: e.target.value } : x)))}
+                        className="flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm hover:border-[rgb(var(--border))] focus:border-[rgb(var(--border-strong))] focus:bg-[rgb(var(--bg))]" />
                       <button onClick={() => setChecklist((prev) => prev.filter((x) => x.id !== c.id))} title="Rimuovi voce" className="text-[rgb(var(--fg-subtle))] opacity-0 transition-opacity hover:text-rose-500 group-hover:opacity-100"><X size={13} /></button>
                     </div>
                   ))}
