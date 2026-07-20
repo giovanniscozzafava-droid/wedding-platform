@@ -15,7 +15,6 @@ const INCHIOSTRO = '#181F1B'
 const CIPRESSO = '#25402F'
 const LACCA = '#C03B2A'
 const BORDO_DARK = '#3D5C46'
-const ARC_OPACITY = 0.11
 const CAPOSTIPITI = 5   // appare in 2 punti (nota CTA hero + numerale Accesso): fonte unica
 
 const JOST = "'Jost', sans-serif"
@@ -49,11 +48,9 @@ export default function PublicHomePage() {
         `}</style>
       </Helmet>
 
-      {/* archi hero, fuori taglio */}
-      <svg viewBox="0 0 1200 1200" style={{ position: 'absolute', top: -420, right: -380, width: 1100, height: 1100, pointerEvents: 'none' }} aria-hidden="true">
-        <circle cx="600" cy="600" r="520" fill="none" stroke={CIPRESSO} strokeWidth={1.5} opacity={ARC_OPACITY} />
-        <circle cx="600" cy="600" r="430" fill="none" stroke={CIPRESSO} strokeWidth={1} opacity={ARC_OPACITY} />
-      </svg>
+      {/* archi hero, fuori taglio — pattern dal set (assets/svg/pattern) */}
+      <img src="/assets/svg/pattern/archi-carta.svg" alt="" aria-hidden="true"
+        style={{ position: 'absolute', top: -420, right: -380, width: 1100, height: 1100, pointerEvents: 'none' }} />
 
       {/* TESTATA */}
       <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 24, padding: '28px clamp(20px,5vw,64px) 24px', borderBottom: `1px solid ${INCHIOSTRO}`, position: 'relative' }}>
@@ -100,10 +97,8 @@ export default function PublicHomePage() {
 
       {/* ACCESSO */}
       <section id="accesso" style={{ background: INCHIOSTRO, color: CARTA, position: 'relative', overflow: 'hidden', padding: 'clamp(64px,8vw,140px) clamp(20px,5vw,64px)' }}>
-        <svg viewBox="0 0 1200 1200" style={{ position: 'absolute', bottom: -560, left: -420, width: 1100, height: 1100, pointerEvents: 'none' }} aria-hidden="true">
-          <circle cx="600" cy="600" r="520" fill="none" stroke={BORDO_DARK} strokeWidth={1.5} opacity={0.5} />
-          <circle cx="600" cy="600" r="430" fill="none" stroke={BORDO_DARK} strokeWidth={1} opacity={0.35} />
-        </svg>
+        <img src="/assets/svg/pattern/archi-inchiostro.svg" alt="" aria-hidden="true"
+          style={{ position: 'absolute', bottom: -560, left: -420, width: 1100, height: 1100, pointerEvents: 'none' }} />
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'clamp(32px,6vw,110px)', position: 'relative' }}>
           <div style={{ fontFamily: MONO, fontWeight: 500, fontSize: 'clamp(140px,22vw,340px)', lineHeight: 0.8, color: LACCA, fontFeatureSettings: "'tnum'", flex: '0 0 auto' }}>{CAPOSTIPITI}</div>
           <div style={{ flex: '1 1 300px', maxWidth: '46ch' }}>
@@ -119,7 +114,7 @@ export default function PublicHomePage() {
       <footer style={{ borderTop: `1px solid ${INCHIOSTRO}`, padding: '36px clamp(20px,5vw,64px) 44px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {/* marchio dal file del set (non SVG inline), come da handoff §Assets */}
-          <img src="/brand/planfully-symbol-cipresso.svg" width={30} height={30} alt="" aria-hidden="true" />
+          <img src="/assets/svg/marchio/planfully-symbol-cipresso.svg" width={30} height={30} alt="" aria-hidden="true" />
           <span style={{ fontFamily: JOST, fontWeight: 500, fontSize: 14, letterSpacing: '0.16em' }}>PLANFULLY</span>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'clamp(16px,3vw,36px)', fontFamily: MONO, fontSize: 11, letterSpacing: '0.08em', color: CIPRESSO, fontFeatureSettings: "'tnum'" }}>
