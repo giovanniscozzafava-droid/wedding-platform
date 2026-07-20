@@ -1,4 +1,4 @@
-import { Component, Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Component, Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import HTMLFlipBook from 'react-pageflip'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { useParams, Link } from 'react-router-dom'
@@ -156,35 +156,35 @@ function spreadFrameOf(sp?: { frame?: { x: number; y: number; w: number; h: numb
   return sp?.frame ?? { x: 0, y: 0, w: 1, h: 1 }
 }
 // Render della foto-spread alla sua cornice (riusato in miniature/anteprima/cliente).
-function SpreadImg({ src, cell, frame, pointerNone }: { src: string; cell: Cell; frame: { x: number; y: number; w: number; h: number }; pointerNone?: boolean }) {
+const SpreadImg = memo(function SpreadImg({ src, cell, frame, pointerNone }: { src: string; cell: Cell; frame: { x: number; y: number; w: number; h: number }; pointerNone?: boolean }) {
   return (
     <div className={`absolute overflow-hidden ${pointerNone ? 'pointer-events-none' : ''}`} style={{ left: `${frame.x * 100}%`, top: `${frame.y * 100}%`, width: `${frame.w * 100}%`, height: `${frame.h * 100}%` }}>
-      <img src={src} alt="" draggable={false} style={coverImgStyle(cell)} />
+      <img src={src} alt="" draggable={false} loading="lazy" decoding="async" style={coverImgStyle(cell)} />
     </div>
   )
-}
+})
 
 // TAVOLA UNICA (sola lettura): rende gli elementi liberi su tutta la superficie. Il contenitore
 // padre deve avere l'aspetto della tavola (2×W × H). Usato in anteprima, vista cliente, miniatura.
-function FreeSurface({ page, mediaById, thumb }: { page: AlbumPage; mediaById: Map<string, M>; thumb: (m: M) => string }) {
+const FreeSurface = memo(function FreeSurface({ page, mediaById, thumb }: { page: AlbumPage; mediaById: Map<string, M>; thumb: (m: M) => string }) {
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: page.bg ?? '#ffffff' }}>
       {(page.elements ?? []).map((el) => {
         const m = mediaById.get(el.mediaId)
         return (
           <div key={el.id} className="absolute overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>
-            {m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}
+            {m && <img src={thumb(m)} alt="" draggable={false} loading="lazy" decoding="async" style={coverImgStyle(el.cell)} />}
           </div>
         )
       })}
     </div>
   )
-}
+})
 
 // MEZZA tavola (pagina SINISTRA o DESTRA) della superficie unica: renderizza l'intera tavola (2W)
 // in un wrapper largo il doppio e ne clippa la metà richiesta → usata come "foglio" del libro
 // sfogliabile lato cliente (react-pageflip), così lo sfoglio è pagina-per-pagina come un vero album.
-function HalfSurface({ page, side, mediaById, thumb }: { page: AlbumPage; side: 'L' | 'R'; mediaById: Map<string, M>; thumb: (m: M) => string }) {
+const HalfSurface = memo(function HalfSurface({ page, side, mediaById, thumb }: { page: AlbumPage; side: 'L' | 'R'; mediaById: Map<string, M>; thumb: (m: M) => string }) {
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: page.bg ?? '#ffffff' }}>
       <div className="absolute top-0 h-full" style={{ width: '200%', left: side === 'L' ? '0%' : '-100%' }}>
@@ -192,7 +192,7 @@ function HalfSurface({ page, side, mediaById, thumb }: { page: AlbumPage; side: 
       </div>
     </div>
   )
-}
+})
 
 // Miniatura SCHEMATICA di una disposizione (solo griglia/riquadri vuoti, niente foto). aspect = 2W/H.
 function Wireframe({ slots, aspect }: { slots: { x: number; y: number; w: number; h: number; rot?: number }[]; aspect: number }) {
@@ -620,14 +620,33 @@ function AlbumDesignerInner() {
 
   // Misura l'aspetto naturale delle foto KEPT (serve al crop fedele in anteprima).
   useEffect(() => {
-    for (const m of kept) {
-      if (aspects[m.id]) continue
-      const url = m.thumbnail_link && !m.drive_file_id.startsWith('demo-') ? thumbUrl(m) : (m.thumbnail_link ?? thumbUrl(m))
-      if (!url) continue
-      const img = new Image()
-      img.onload = () => setAspects((a) => (a[m.id] ? a : { ...a, [m.id]: img.naturalWidth / Math.max(1, img.naturalHeight) }))
-      img.src = url
+    const todo = kept.filter((m) => !aspects[m.id])
+    if (!todo.length) return
+    let cancelled = false
+    const pending: Record<string, number> = {}
+    let flushT: ReturnType<typeof setTimeout> | null = null
+    const flush = () => {
+      flushT = null
+      const keys = Object.keys(pending); if (cancelled || !keys.length) return
+      const batch: Record<string, number> = {}; for (const k of keys) { batch[k] = pending[k]!; delete pending[k] }
+      setAspects((a) => { let ch = false; const n = { ...a }; for (const k in batch) if (!n[k]) { n[k] = batch[k]!; ch = true } return ch ? n : a })
     }
+    const schedule = () => { if (flushT == null) flushT = setTimeout(flush, 140) }
+    let i = 0, active = 0; const CONC = 6
+    const pump = () => {
+      while (!cancelled && active < CONC && i < todo.length) {
+        const m = todo[i++]!
+        const url = m.thumbnail_link && !m.drive_file_id.startsWith('demo-') ? thumbUrl(m) : (m.thumbnail_link ?? thumbUrl(m))
+        if (!url) continue
+        active++
+        const img = new Image()
+        img.onload = () => { active--; pending[m.id] = img.naturalWidth / Math.max(1, img.naturalHeight); schedule(); pump() }
+        img.onerror = () => { active--; pump() }
+        img.src = url
+      }
+    }
+    pump()
+    return () => { cancelled = true; if (flushT != null) clearTimeout(flushT) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kept])
 
@@ -1002,21 +1021,34 @@ function AlbumDesignerInner() {
   // Drive non ingrandisce: thumb < 1600px ⇒ originale piccolo certo; cappata a 1600 ⇒ grande/ignoto.
   // Misuriamo solo le piazzate per non scaricare a vuoto tutta la libreria a piena risoluzione.
   useEffect(() => {
-    for (const id of placedIds) {
-      if (realDims[id]) continue
-      const m = mediaById.get(id)
-      if (!m || m.media_type !== 'PHOTO') continue
-      const url = hiUrl(m)
-      if (!url) continue
-      const img = new Image()
-      img.onload = () => {
-        const w = img.naturalWidth, h = img.naturalHeight
-        if (!w || !h) return
-        const capped = isDrive(m) && Math.max(w, h) >= HIURL_CAP - 10 // Drive ha cappato → originale ≥1600, ignoto
-        setRealDims((d) => (d[id] ? d : { ...d, [id]: { w, h, capped } }))
-      }
-      img.src = url
+    const todo = [...placedIds].filter((id) => !realDims[id] && mediaById.get(id)?.media_type === 'PHOTO')
+    if (!todo.length) return
+    let cancelled = false
+    // batch: un solo setState ogni ~140ms invece di uno per immagine (evita lo storm di re-render).
+    const pending: Record<string, RealDim> = {}
+    let flushT: ReturnType<typeof setTimeout> | null = null
+    const flush = () => {
+      flushT = null
+      const keys = Object.keys(pending); if (cancelled || !keys.length) return
+      const batch: Record<string, RealDim> = {}; for (const k of keys) { batch[k] = pending[k]!; delete pending[k] }
+      setRealDims((d) => { let ch = false; const n = { ...d }; for (const k in batch) if (!n[k]) { n[k] = batch[k]!; ch = true } return ch ? n : d })
     }
+    const schedule = () => { if (flushT == null) flushT = setTimeout(flush, 140) }
+    // concorrenza limitata: mai decine di download w1600 in parallelo (era il picco che bloccava).
+    let i = 0, active = 0; const CONC = 5
+    const pump = () => {
+      while (!cancelled && active < CONC && i < todo.length) {
+        const id = todo[i++]!; const m = mediaById.get(id); if (!m) continue
+        const url = hiUrl(m); if (!url) continue
+        active++
+        const img = new Image()
+        img.onload = () => { active--; const w = img.naturalWidth, h = img.naturalHeight; if (w && h) { pending[id] = { w, h, capped: isDrive(m) && Math.max(w, h) >= HIURL_CAP - 10 }; schedule() } pump() }
+        img.onerror = () => { active--; pump() }
+        img.src = url
+      }
+    }
+    pump()
+    return () => { cancelled = true; if (flushT != null) clearTimeout(flushT) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placedIds, mediaById])
 
@@ -3242,7 +3274,7 @@ function AlbumDesignerInner() {
                   <Fragment key={si}>
                     {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} onInsert={() => insertEmptyTavola(si)} gapIndex={si} h={stripH} />}
                     <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
-                      mediaById={mediaById} thumb={thumbUrl} formatKey={format} aspects={aspects}
+                      mediaById={mediaById} thumb={thumbUrl} formatKey={format}
                       onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
                       onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
                       onMovePhotos={(pageId, move) => movePhotosToTavola(pageId, move)}
@@ -4600,16 +4632,16 @@ function FreeStage(props: {
 
 // Miniatura nella filmstrip in basso.
 // rendering compatto di una pagina (per le miniature delle tavole)
-function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; formatKey: string; aspects?: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string }) {
+const MiniPage = memo(function MiniPage({ page, formatKey, mediaById, thumb }: { page: AlbumPage; formatKey: string; mediaById: Map<string, M>; thumb: (m: M) => string }) {
   const fmt = getFormat(formatKey); const frames = framesForPage(page)
   return (
     <div className="relative h-full overflow-hidden" style={{ aspectRatio: String(fmt.w / fmt.h), background: page.mode === 'free' ? (page.bg ?? '#fff') : '#fff' }}>
       {page.mode === 'free'
-        ? (page.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); return <div key={el.id} className="absolute bg-black/5 overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)` }}>{m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(el.cell)} />}</div> })
-        : frames.map((fr, i) => { const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))] overflow-hidden" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%` }}>{m && <img src={thumb(m)} alt="" draggable={false} style={coverImgStyle(page.cells?.[i] ?? DEFAULT_CELL)} />}</div> })}
+        ? (page.elements ?? []).map((el) => { const m = mediaById.get(el.mediaId); return <div key={el.id} className="absolute bg-black/5 overflow-hidden" style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)` }}>{m && <img src={thumb(m)} alt="" draggable={false} loading="lazy" decoding="async" style={coverImgStyle(el.cell)} />}</div> })
+        : frames.map((fr, i) => { const id = page.mediaIds[i]; const m = id ? mediaById.get(id) : undefined; return <div key={i} className="absolute bg-[rgb(var(--bg-sunken))] overflow-hidden" style={{ left: `${fr.x * 100}%`, top: `${fr.y * 100}%`, width: `${fr.w * 100}%`, height: `${fr.h * 100}%` }}>{m && <img src={thumb(m)} alt="" draggable={false} loading="lazy" decoding="async" style={coverImgStyle(page.cells?.[i] ?? DEFAULT_CELL)} />}</div> })}
     </div>
   )
-}
+})
 
 // Zona di rilascio TRA due tavole nella filmstrip: ci trascini una foto (dalla libreria o dal
 // navigatore) e crea una NUOVA tavola in quel punto, intersecando tra le pagine.
@@ -4637,12 +4669,12 @@ function GapDrop({ onDropPhoto, onMoveNewTavola, onInsert, gapIndex, h }: { onDr
 // Miniatura di una TAVOLA (2 pagine) con la filigrana del dorso al centro.
 function SpreadThumb(props: {
   pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string; thumbH?: number
-  aspects: Record<string, number>; mediaById: Map<string, M>; thumb: (m: M) => string
+  mediaById: Map<string, M>; thumb: (m: M) => string
   onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
   onMovePhotos?: (targetPageId: string, move: MovePayload) => void
   onReorder: (from: number, to: number) => void; onContext?: (x: number, y: number) => void
 }) {
-  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, aspects, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onMovePhotos, onReorder, onContext } = props
+  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onMovePhotos, onReorder, onContext } = props
   // drop di una foto trascinata dal navigatore: se ha il marcatore "move" la SPOSTA in questa tavola.
   const handleMediaDrop = (pageId: string, e: import('react').DragEvent) => {
     const mv = e.dataTransfer.getData('text/move')
@@ -4669,7 +4701,7 @@ function SpreadThumb(props: {
         ) : pair.map((p) => (
           <div key={p.id} className="h-full" style={{ aspectRatio: String(aspect) }}
             onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => handleMediaDrop(p.id, e)}>
-            <MiniPage page={p} formatKey={formatKey} aspects={aspects} mediaById={mediaById} thumb={thumb} />
+            <MiniPage page={p} formatKey={formatKey} mediaById={mediaById} thumb={thumb} />
           </div>
         ))}
         {!pair[0]?.tavolaFree && pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={thumb(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} pointerNone /> : null })()}
