@@ -4343,7 +4343,7 @@ function FreeStage(props: {
   spread?: boolean   // TAVOLA UNICA: superficie larga 2×W (la riga centrale è solo la piega)
   onStartMove?: (fromPageId: string, items: { elId: string; mediaId: string }[], e: import('react').PointerEvent) => void // trascina la foto verso il navigatore (sposta tra tavole)
 }) {
-  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, realDims, onSelect, onUpdateEl, onUpdateMany, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, onContext, locked, spread, onStartMove } = props
+  const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, realDims, onSelect, onUpdateMany, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, onContext, locked, spread, onStartMove } = props
   const fmt = getFormat(formatKey)
   const effW = spread ? fmt.w * 2 : fmt.w
   const aspect = effW / fmt.h
@@ -4358,6 +4358,16 @@ function FreeStage(props: {
   const [swapSrc, setSwapSrc] = useState<string | null>(null)
   const [swapTarget, setSwapTarget] = useState<string | null>(null)
   const els = page.elements ?? []
+  // DRAG PERFORMANTE: durante trascinamento/resize/rotate aggiorno solo uno stato LOCALE (`live`) e
+  // committo al padre UNA volta al rilascio → con tante foto sulla tavola non ri-renderizzo l'intera
+  // pagina (da 5000 righe) ad ogni frame. Era la causa del blocco con molte foto su una tavola.
+  const [live, setLive] = useState<Record<string, Partial<FreeEl>>>({})
+  const pendingRef = useRef<Record<string, Partial<FreeEl>>>({})
+  const applyLive = (patches: { id: string; patch: Partial<FreeEl> }[]) => {
+    setLive((prev) => { const n = { ...prev }; for (const p of patches) n[p.id] = { ...n[p.id], ...p.patch }; return n })
+    for (const p of patches) pendingRef.current[p.id] = { ...pendingRef.current[p.id], ...p.patch }
+  }
+  useEffect(() => { setLive((l) => (Object.keys(l).length ? {} : l)) }, [page]) // il padre ha recepito il commit → azzero l'override
 
   function frac(e: React.PointerEvent) {
     const r = boxRef.current!.getBoundingClientRect()
@@ -4415,8 +4425,8 @@ function FreeStage(props: {
       const fx = snap.vGuides.length ? snap.x : sp.x
       const fy = snap.hGuides.length ? snap.y : sp.y
       const dx = fx - d.el.x, dy = fy - d.el.y
-      if (d.group.length > 1) onUpdateMany(d.group.map((g) => ({ id: g.id, patch: moveEl(g, g.x + dx, g.y + dy) })))
-      else onUpdateEl(d.id, { x: fx, y: fy })
+      if (d.group.length > 1) applyLive(d.group.map((g) => ({ id: g.id, patch: moveEl(g, g.x + dx, g.y + dy) })))
+      else applyLive([{ id: d.id, patch: { x: fx, y: fy } }])
       setGuides({ v: snap.vGuides, h: snap.hGuides })
       // righelli di distanza SEMPRE visibili verso i vicini (+ evidenzia la spaziatura uguale quando aggancia)
       const finalEl = { ...moved, x: fx, y: fy }
@@ -4445,7 +4455,7 @@ function FreeStage(props: {
           r = { ...d.el, x: c.includes('e') ? ax : ax - nw, y: c.includes('s') ? ay : ay - nh, w: nw, h: nh }
         }
       }
-      onUpdateEl(d.id, { x: r.x, y: r.y, w: r.w, h: r.h })
+      applyLive([{ id: d.id, patch: { x: r.x, y: r.y, w: r.w, h: r.h } }])
       const otherEls = els.filter((x) => x.id !== d.id)
       const snap = snapMove(r, otherEls, mx, my)
       setGuides({ v: snap.vGuides, h: snap.hGuides })
@@ -4462,14 +4472,14 @@ function FreeStage(props: {
         const denom = dx * dx + dy * dy; if (denom < 1e-7) return
         const maxS = Math.max(0.2, Math.min(lim(a.x, h0.x), lim(a.y, h0.y)))
         const s = Math.max(0.12, Math.min(((f.x - a.x) * dx + (f.y - a.y) * dy) / denom, maxS, 8))
-        onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * s, y: a.y + (g.y - a.y) * s, w: Math.max(0.02, g.w * s), h: Math.max(0.02, g.h * s) } })))
+        applyLive(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * s, y: a.y + (g.y - a.y) * s, w: Math.max(0.02, g.w * s), h: Math.max(0.02, g.h * s) } })))
         nx2 = a.x + dx * s; ny2 = a.y + dy * s
       } else {
         let sx = ax && Math.abs(dx) >= 1e-6 ? (f.x - a.x) / dx : 1
         let sy = ay && Math.abs(dy) >= 1e-6 ? (f.y - a.y) / dy : 1
         if (ax) sx = Math.max(0.12, Math.min(sx, Math.max(0.2, lim(a.x, h0.x)), 8))
         if (ay) sy = Math.max(0.12, Math.min(sy, Math.max(0.2, lim(a.y, h0.y)), 8))
-        onUpdateMany(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * sx, y: a.y + (g.y - a.y) * sy, w: Math.max(0.02, g.w * sx), h: Math.max(0.02, g.h * sy) } })))
+        applyLive(d.group.map((g) => ({ id: g.id, patch: { x: a.x + (g.x - a.x) * sx, y: a.y + (g.y - a.y) * sy, w: Math.max(0.02, g.w * sx), h: Math.max(0.02, g.h * sy) } })))
         nx2 = a.x + dx * (ax ? sx : 1); ny2 = a.y + dy * (ay ? sy : 1)
       }
       const others = els.filter((x) => !d.group.some((gg) => gg.id === x.id))
@@ -4480,15 +4490,21 @@ function FreeStage(props: {
     } else if (d.kind === 'rotate') {
       const cx = d.el.x + d.el.w / 2, cy = d.el.y + d.el.h / 2
       const deg = (Math.atan2(f.y - cy, f.x - cx) * 180) / Math.PI + 90
-      onUpdateEl(d.id, { rot: snapAngle(deg) })
+      applyLive([{ id: d.id, patch: { rot: snapAngle(deg) } }])
     }
   }
   function up() {
     const d = drag.current
     if (d?.swap && d.swapTo && d.swapTo !== d.id) onSwapEls?.(d.id, d.swapTo)
+    // COMMIT una sola volta al rilascio (durante il drag ho aggiornato solo `live`, non il padre).
+    const pend = pendingRef.current; pendingRef.current = {}
+    const ids = Object.keys(pend)
+    if (ids.length) onUpdateMany(ids.map((id) => ({ id, patch: pend[id]! })))
     drag.current = null; setGuides({ v: [], h: [] }); setGapMarks([]); setSwapSrc(null); setSwapTarget(null)
   }
 
+  // durante il drag mostro le posizioni LIVE (override locale) senza aver ancora committato al padre
+  const elsEff = Object.keys(live).length ? els.map((e) => (live[e.id] ? { ...e, ...live[e.id] } : e)) : els
   return (
     <div ref={boxRef} className="relative shadow-[var(--shadow-lift)] h-full max-h-full max-w-full overflow-hidden"
       style={{ aspectRatio: String(aspect), background: page.bg ?? '#ffffff' }}
@@ -4497,7 +4513,7 @@ function FreeStage(props: {
       onDragOver={locked ? undefined : (e) => e.preventDefault()}
       onDrop={locked ? undefined : (e) => { e.preventDefault(); const mid = e.dataTransfer.getData('text/media'); if (mid) onDropMedia(mid) }}>
       {spread && <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-px bg-[rgba(184,146,63,.5)] pointer-events-none z-[48]" title="Piega (non stampata)" />}
-      {els.map((el) => {
+      {elsEff.map((el) => {
         const m = mediaById.get(el.mediaId)
         const sel = selEl === el.id
         const inSel = multiSel.includes(el.id)
@@ -4573,7 +4589,7 @@ function FreeStage(props: {
 
       {/* BOX DI GRUPPO: con più foto selezionate, le maniglie le ridimensionano INSIEME */}
       {multiSel.length > 1 && (() => {
-        const g = els.filter((x) => multiSel.includes(x.id)); if (g.length < 2) return null
+        const g = elsEff.filter((x) => multiSel.includes(x.id)); if (g.length < 2) return null
         const bx = Math.min(...g.map((x) => x.x)), by = Math.min(...g.map((x) => x.y))
         const ex = Math.max(...g.map((x) => x.x + x.w)), ey = Math.max(...g.map((x) => x.y + x.h))
         return (

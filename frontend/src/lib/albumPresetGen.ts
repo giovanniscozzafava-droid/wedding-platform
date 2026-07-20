@@ -97,33 +97,63 @@ function placeInRegion(slots: Slot[], R: Slot): Slot[] {
   return slots.map((s) => ({ x: R.x + s.x * R.w, y: R.y + s.y * R.h, w: s.w * R.w, h: s.h * R.h }))
 }
 
+// GRIGLIE pulite righe×colonne per N foto: VELOCI e ordinate (le guillotine esplodono con molte foto).
+// Includo varianti "orizzontali" (più colonne che righe) e la fascia a riga unica → gestiscono bene >8 foto.
+function gridLayouts(n: number): Slot[][] {
+  const cols = new Set<number>()
+  const s = Math.round(Math.sqrt(n))
+  ;[s, s + 1, s - 1, Math.ceil(n / 2), Math.ceil(n / 3), n].forEach((c) => { if (c >= 1 && c <= n) cols.add(c) })
+  const out: Slot[][] = []
+  for (const c of cols) {
+    const rows = Math.ceil(n / c)
+    const cellW = 1 / c, cellH = 1 / rows
+    const slots: Slot[] = []
+    for (let i = 0; i < n; i++) {
+      const r = Math.floor(i / c)
+      const inRow = r === rows - 1 ? n - c * (rows - 1) : c   // celle nell'ultima riga (può essere più corta)
+      const col = i - r * c
+      const offX = (1 - inRow * cellW) / 2                    // ultima riga più corta → centrata
+      slots.push({ x: offX + col * cellW, y: r * cellH, w: cellW, h: cellH })
+    }
+    out.push(slots)
+  }
+  return out
+}
+
 // API: genera MOLTE disposizioni per N foto (orientamenti dati), ordinate dalla migliore. Include
 // varianti a vivo, con cornice bianca e a fascia (più creative). `max` = preset restituiti.
 export function genTavolaLayouts(photoOrients: Orient[], tavW: number, tavH: number, max = 48): GenLayout[] {
   const n = Math.max(1, photoOrients.length)
-  const cap = n <= 4 ? 360 : n <= 6 ? 640 : 900
-  const raw = gen({ x: 0, y: 0, w: 1, h: 1 }, n, cap)
-  // 1) SCHEMI BASE puliti (celle equilibrate), soglia di estremità rilassata se servono di più.
-  let base: { slots: Slot[]; q: number }[] = []
-  for (const lim of [2.6, 3.2, 4.2, 99]) {
-    const seen = new Set<string>(); base = []
-    for (const slots of raw) {
-      if (slots.length !== n) continue
-      let bad = false
-      for (const s of slots) {
-        const a = (s.w * tavW) / (s.h * tavH)
-        if (a > lim || a < 1 / lim) { bad = true; break }
-        if (s.w < 0.05 || s.h < 0.07) { bad = true; break }
+  // GRIGLIE sempre incluse (veloci e pulite, perfette per >8 foto anche in orizzontale).
+  let base: { slots: Slot[]; q: number }[] = gridLayouts(n).map((slots) => ({ slots, q: uglyPenalty(slots, tavW, tavH) + balancePenalty(slots) }))
+  // GUILLOTINE (disposizioni creative a celle diverse) SOLO per N gestibile: con molte foto è
+  // esponenziale (bloccava l'apertura del pannello) e le griglie coprono già il caso.
+  if (n <= 8) {
+    const cap = n <= 4 ? 360 : n <= 6 ? 640 : 900
+    const raw = gen({ x: 0, y: 0, w: 1, h: 1 }, n, cap)
+    for (const lim of [2.6, 3.2, 4.2, 99]) {
+      const seen = new Set<string>(); const acc: { slots: Slot[]; q: number }[] = []
+      for (const slots of raw) {
+        if (slots.length !== n) continue
+        let bad = false
+        for (const s of slots) {
+          const a = (s.w * tavW) / (s.h * tavH)
+          if (a > lim || a < 1 / lim) { bad = true; break }
+          if (s.w < 0.05 || s.h < 0.07) { bad = true; break }
+        }
+        if (bad) continue
+        const sig = sigOf(slots); if (seen.has(sig)) continue; seen.add(sig)
+        acc.push({ slots, q: uglyPenalty(slots, tavW, tavH) + balancePenalty(slots) })
       }
-      if (bad) continue
-      const sig = sigOf(slots); if (seen.has(sig)) continue; seen.add(sig)
-      base.push({ slots, q: uglyPenalty(slots, tavW, tavH) + balancePenalty(slots) })
+      if (acc.length >= 10 || lim === 99) { base = base.concat(acc); break }
     }
-    if (base.length >= 10 || lim === 99) break
   }
+  // dedup + migliori schemi base
+  const seenB = new Set<string>()
+  base = base.filter((b) => { const sg = sigOf(b.slots); if (seenB.has(sg)) return false; seenB.add(sg); return true })
   base.sort((a, b) => a.q - b.q)
   base = base.slice(0, 16)
-  // 2) VARIANTI: ogni schema base collocato nelle varie regioni (pieno / cornice / fascia).
+  // VARIANTI: ogni schema base collocato nelle varie regioni (pieno / cornice / fascia).
   const seen2 = new Set<string>(); const out: GenLayout[] = []
   for (const b of base) {
     for (const R of REGIONS) {
