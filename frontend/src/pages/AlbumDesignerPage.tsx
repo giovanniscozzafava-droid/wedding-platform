@@ -389,6 +389,8 @@ function AlbumDesignerInner() {
   const [checklistOpen, setChecklistOpen] = useState(false)
   const [newCheck, setNewCheck] = useState('')
   const [coupleChecks, setCoupleChecks] = useState<Record<string, boolean>>({}) // spunte fatte dalla COPPIA (persistite lato server)
+  const [cutOpen, setCutOpen] = useState(false)                 // strumento coppia "taglia i costi"
+  const [cutTav, setCutTav] = useState<Set<number>>(() => new Set()) // tavole (spread index) che la coppia chiede di togliere
   const [pages, setPages] = useState<AlbumPage[]>([])
   const [title, setTitle] = useState('')
   const [step, setStep] = useState<'select' | 'design'>('select')
@@ -1807,6 +1809,28 @@ function AlbumDesignerInner() {
     await loadRevs()
     toast.success(`${done} foto tolte dall'album`)
   }
+  // FOTOGRAFO: toglie in blocco le TAVOLE che il cliente ha chiesto di eliminare (taglio costi).
+  async function removeRequestedPages() {
+    const reqs = revList.filter((r) => r.status === 'OPEN' && r.kind === 'REMOVE_PAGE' && r.tavola_index != null)
+    if (!reqs.length) { toast('Nessuna tavola da togliere'); return }
+    const sis = [...new Set(reqs.map((r) => r.tavola_index as number))]
+    if (!window.confirm(`Togliere ${sis.length} tavole richieste dal cliente? L'album si accorcerà (meno pagine, meno costo).`)) return
+    const pageIdx = new Set<number>(); for (const si of sis) { pageIdx.add(si * 2); pageIdx.add(si * 2 + 1) }
+    setPages((arr) => arr.filter((_, i) => !pageIdx.has(i))); setCurrentPageId(null)
+    await (supabase.from as any)('album_revision_requests').update({ status: 'DONE' }).in('id', reqs.map((r) => r.id))
+    await loadRevs()
+    toast.success(`${sis.length} tavole tolte dall'album`)
+  }
+  // COPPIA: "taglia i costi" → invia una richiesta di rimozione per ogni tavola selezionata.
+  function toggleCut(si: number) { setCutTav((prev) => { const n = new Set(prev); n.has(si) ? n.delete(si) : n.add(si); return n }) }
+  async function sendCutRequest() {
+    if (!entryId || !cutTav.size) return
+    const rows = [...cutTav].sort((a, b) => a - b).map((si) => ({ entry_id: entryId, body: `Per ridurre i costi: togliere la tavola ${si + 1}`, page_index: si * 2 + 1, tavola_index: si, kind: 'REMOVE_PAGE' }))
+    const { error } = await (supabase.from as any)('album_revision_requests').insert(rows)
+    if (error) { toast.error(error.message); return }
+    toast.success(`Richiesta inviata: ${cutTav.size} ${cutTav.size === 1 ? 'tavola' : 'tavole'} da togliere`)
+    setCutTav(new Set()); setCutOpen(false); await loadRevs()
+  }
   // fotografo: risponde "perché meglio di no" → la richiesta passa a DECLINED con la motivazione
   // (tecnica: proporzioni, pagine, risoluzione, taglio, dorso…) e la coppia viene avvisata.
   async function replyRev(id: string, reason: string, text: string) {
@@ -2644,6 +2668,7 @@ function AlbumDesignerInner() {
           {checklist.length > 0 && (() => { const cc = checklist.filter((c) => coupleChecks[c.id]).length; return (
             <button onClick={() => setChecklistOpen(true)} className="relative text-xs px-2.5 py-1.5 rounded-full border border-[rgb(var(--border))] flex items-center gap-1" title="C'è tutto? Spunta man mano che verifichi"><ListChecks size={13} /> Checklist<span className={`ml-0.5 h-4 min-w-4 px-1 rounded-full text-[10px] flex items-center justify-center ${cc >= checklist.length ? 'bg-[rgb(var(--emerald-500))] text-white' : 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]'}`}>{cc}/{checklist.length}</span></button>
           ) })()}
+          {isCouple && spreads.length > 0 && <button onClick={() => setCutOpen(true)} className="text-xs px-2.5 py-1.5 rounded-full border border-[rgb(var(--border))] flex items-center gap-1" title="Riduci l'album per contenere i costi"><Scissors size={13} /> Taglia costi</button>}
           <button onClick={() => setReqListOpen(true)} className="relative text-xs px-2.5 py-1.5 rounded-full border border-[rgb(var(--border))] flex items-center gap-1"><MessageSquare size={13} /> Richieste{myOpen ? <span className="ml-0.5 h-4 min-w-4 px-1 rounded-full bg-[rgb(var(--gold-500))] text-white text-[10px] flex items-center justify-center">{myOpen}</span> : null}</button>
         </header>
 
@@ -2776,6 +2801,41 @@ function AlbumDesignerInner() {
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setClientReqOpen(false)}>Annulla</Button>
                 <Button variant="gold" size="sm" disabled={!revBody.trim()} onClick={() => void sendClientReq()}>Invia al fotografo</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAGLIA I COSTI (coppia): seleziona le TAVOLE da togliere → richiesta al fotografo + stima risparmio. */}
+        {cutOpen && (
+          <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setCutOpen(false)}>
+            <div className="bg-[rgb(var(--bg))] w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-[rgb(var(--border))]">
+                <p className="font-display text-lg flex items-center gap-2"><Scissors size={18} className="text-[rgb(var(--gold-600))]" /> Taglia i costi</p>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">Scegli le <b>tavole</b> da togliere: meno pagine = meno costo. Le toglie il fotografo. Per una <b>sola foto</b> (non tutta la tavola): chiudi qui, apri la tavola e tocca la foto → «Togli».</p>
+              </div>
+              <div className="p-3 overflow-auto grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {spreads.map((pair, si) => { const sel = cutTav.has(si); return (
+                  <button key={si} onClick={() => toggleCut(si)} className={`relative overflow-hidden rounded-lg border-2 bg-white ${sel ? 'border-rose-500 ring-2 ring-rose-300' : 'border-[rgb(var(--border))]'}`} style={{ aspectRatio: String(asp * pair.length) }}>
+                    <div className="absolute inset-0 flex">
+                      {pair[0]?.tavolaFree ? <FreeSurface page={pair[0]} mediaById={mediaById} thumb={thumbUrl} /> : pair.map((p) => <div key={p.id} className="h-full" style={{ aspectRatio: String(asp) }}><MiniPage page={p} formatKey={format} mediaById={mediaById} thumb={thumbUrl} /></div>)}
+                    </div>
+                    <span className="absolute top-1 left-1 text-[10px] bg-black/60 text-white rounded px-1">Tav. {si + 1}</span>
+                    {sel && <div className="absolute inset-0 bg-rose-500/25 grid place-items-center"><span className="inline-flex items-center gap-1 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-medium text-white"><Trash2 size={11} /> Da togliere</span></div>}
+                  </button>
+                )})}
+              </div>
+              <div className="p-3 border-t border-[rgb(var(--border))] space-y-2">
+                {cutTav.size > 0 && (() => {
+                  const removedPages = [...cutTav].reduce((s, si) => s + (spreads[si]?.length ?? 0), 0)
+                  const newPages = Math.max(0, pages.length - removedPages)
+                  const saving = priceCfg?.showCouple ? Math.max(0, priceBreakdown.total - computeAlbumPrice(priceCfg, newPages).total) : 0
+                  return <p className="text-xs text-[rgb(var(--fg-muted))]">Togli <b>{cutTav.size}</b> {cutTav.size === 1 ? 'tavola' : 'tavole'} · l'album passa da <b>{pages.length}</b> a <b>{newPages}</b> pagine{saving > 0 ? <> · risparmio stimato <b className="text-[rgb(var(--emerald-600))]">€{Math.round(saving)}</b></> : ''}.</p>
+                })()}
+                <div className="flex items-center justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setCutTav(new Set()); setCutOpen(false) }}>Annulla</Button>
+                  <Button variant="gold" size="sm" disabled={!cutTav.size} onClick={() => void sendCutRequest()}><Scissors size={14} /> Chiedi di togliere{cutTav.size ? ` (${cutTav.size})` : ''}</Button>
+                </div>
               </div>
             </div>
           </div>
@@ -4053,6 +4113,12 @@ function AlbumDesignerInner() {
                     <div className="rounded-lg border border-rose-300 bg-rose-50 p-2.5 flex items-center justify-between gap-2">
                       <p className="text-[13px] text-rose-700 flex items-center gap-1.5"><ThumbsDown size={14} /> Il cliente vuole togliere <strong>{dis.length}</strong> foto dall'album</p>
                       <button onClick={() => void removeAllDisliked()} className="shrink-0 text-[12px] px-2.5 py-1 rounded-md bg-rose-500 text-white font-medium hover:bg-rose-600">Togli tutte</button>
+                    </div>
+                  ) : null })()}
+                  {!isCouple && (() => { const dp = revList.filter((r) => r.status === 'OPEN' && r.kind === 'REMOVE_PAGE'); const n = new Set(dp.map((r) => r.tavola_index)).size; return dp.length > 0 ? (
+                    <div className="rounded-lg border border-rose-300 bg-rose-50 p-2.5 flex items-center justify-between gap-2">
+                      <p className="text-[13px] text-rose-700 flex items-center gap-1.5"><Scissors size={14} /> Il cliente vuole togliere <strong>{n}</strong> {n === 1 ? 'tavola' : 'tavole'} (per ridurre i costi)</p>
+                      <button onClick={() => void removeRequestedPages()} className="shrink-0 text-[12px] px-2.5 py-1 rounded-md bg-rose-500 text-white font-medium hover:bg-rose-600">Togli tavole</button>
                     </div>
                   ) : null })()}
                   {revList.length === 0 && <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Nessuna richiesta ancora.</p>}
