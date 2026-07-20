@@ -75,6 +75,8 @@ const CoupleInviteAcceptPage = lazyWithRetry(() => import('@/pages/public/Couple
 const PrivacyPage = lazyWithRetry(() => import('@/pages/public/PrivacyPage'))
 const CookiePage = lazyWithRetry(() => import('@/pages/public/CookiePage'))
 const DiscoverPage = lazyWithRetry(() => import('@/pages/public/DiscoverPage'))
+const AccessRequestPage = lazyWithRetry(() => import('@/pages/public/AccessRequestPage'))
+const AccessRequestsAdminPage = lazyWithRetry(() => import('@/pages/AccessRequestsAdminPage'))
 // Maestranze: sottosezione di Rete. Bacheca CHIUSA → tutte le rotte dietro RequireAuth.
 const MaestranzePage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzePage'))
 const MaestranzaProfilePage = lazyWithRetry(() => import('@/pages/maestranze/MaestranzaProfilePage'))
@@ -328,6 +330,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookie" element={<CookiePage />} />
           <Route path="/scopri" element={<DiscoverPage />} />
+          <Route path="/richiedi-accesso" element={<AccessRequestPage />} />
           {/* Maestranze — sottosezione di Rete.
               L'ISCRIZIONE è pubblica: è il link che si manda alla persona, che un account
               ancora non ce l'ha. Tutto il resto (bacheca, profili) è CHIUSO ai registrati:
@@ -384,6 +387,7 @@ export default function App() {
           <Route path="/admin/finance" element={<RequireAuth><AdminFinancePage /></RequireAuth>} />
           <Route path="/admin/osservatorio" element={<RequireAuth roles={['ADMIN']}><ObservatoryPage /></RequireAuth>} />
           <Route path="/admin/maestranze/waitlist" element={<RequireAuth roles={['ADMIN']}><MaestranzeWaitlistAdminPage /></RequireAuth>} />
+          <Route path="/admin/richieste-accesso" element={<RequireAuth roles={['ADMIN']}><AccessRequestsAdminPage /></RequireAuth>} />
           <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
           <Route path="/strumenti" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><StrumentiHubPage /></RequireAuth>} />
           <Route path="/prima-nota" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><PrimaNotaPage /></RequireAuth>} />

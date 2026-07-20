@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet-async'
+import { Link } from 'react-router-dom'
 import '@fontsource/jost/400.css'
 import '@fontsource/jost/500.css'
 import '@fontsource/ibm-plex-mono/400.css'
@@ -62,6 +63,7 @@ export default function PublicHomePage() {
         <nav style={{ display: 'flex', gap: 'clamp(16px,3vw,40px)', fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', fontFeatureSettings: "'tnum'" }}>
           <a href="#metodo">METODO</a>
           <a href="#accesso">ACCESSO</a>
+          <Link to="/login">ACCEDI</Link>
         </nav>
       </header>
 
@@ -72,7 +74,7 @@ export default function PublicHomePage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 40, marginTop: 'clamp(40px,5vw,80px)' }}>
           <p style={{ fontFamily: JOST, fontWeight: 400, fontSize: 'clamp(17px,1.5vw,21px)', lineHeight: 1.55, maxWidth: '44ch', margin: '0 0 0 clamp(0px,14vw,260px)', color: INCHIOSTRO, textWrap: 'pretty' }}>Cataloghi, calendario condiviso e preventivi che si parlano — il dato entra una volta sola e fluisce dalla filiera al cliente. Niente vetrine, niente sposi: solo il mestiere.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <a href="#accesso" className="pf-cta-hero" style={{ display: 'inline-block', background: LACCA, color: CARTA, fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.06em', padding: '18px 40px', textAlign: 'center' }}>Richiedi accesso</a>
+            <Link to="/richiedi-accesso" className="pf-cta-hero" style={{ display: 'inline-block', background: LACCA, color: CARTA, fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.06em', padding: '18px 40px', textAlign: 'center' }}>Richiedi accesso</Link>
             <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.06em', color: CIPRESSO, fontFeatureSettings: "'tnum'" }}>Su invito · {CAPOSTIPITI} capostipiti fondatori</div>
           </div>
         </div>
@@ -110,7 +112,7 @@ export default function PublicHomePage() {
             <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.18em', color: BORDO_DARK, marginBottom: 20 }}>ACCESSO SU INVITO</div>
             <h2 style={{ fontFamily: JOST, fontWeight: 400, fontSize: 'clamp(26px,3vw,44px)', lineHeight: 1.15, margin: '0 0 20px', textWrap: 'pretty' }}>Capostipiti fondatori. Chi entra ora definisce lo strumento con noi.</h2>
             <p style={{ fontSize: 'clamp(16px,1.3vw,19px)', lineHeight: 1.6, margin: '0 0 36px', color: CARTA, opacity: 0.85, textWrap: 'pretty' }}>Apriamo la piattaforma a un numero ristretto di location, planner e fornitori che lavorano già insieme. Una filiera vera, non una lista d'attesa.</p>
-            <a href="mailto:accesso@planfully.it" className="pf-cta-outline" style={{ display: 'inline-block', border: `1px solid ${CARTA}`, color: CARTA, fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.06em', padding: '16px 38px' }}>Richiedi accesso</a>
+            <Link to="/richiedi-accesso" className="pf-cta-outline" style={{ display: 'inline-block', border: `1px solid ${CARTA}`, color: CARTA, fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.06em', padding: '16px 38px' }}>Richiedi accesso</Link>
           </div>
         </div>
       </section>

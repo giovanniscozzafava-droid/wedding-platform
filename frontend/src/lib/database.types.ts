@@ -81,6 +81,59 @@ export type Database = {
         }
         Relationships: []
       }
+      access_requests: {
+        Row: {
+          attivita: string
+          created_at: string
+          email: string
+          id: string
+          messaggio: string | null
+          nome: string
+          provincia: string | null
+          ruolo: string
+          ruolo_altro: string | null
+          source: string | null
+          stato: string
+          telefono: string | null
+        }
+        Insert: {
+          attivita: string
+          created_at?: string
+          email: string
+          id?: string
+          messaggio?: string | null
+          nome: string
+          provincia?: string | null
+          ruolo: string
+          ruolo_altro?: string | null
+          source?: string | null
+          stato?: string
+          telefono?: string | null
+        }
+        Update: {
+          attivita?: string
+          created_at?: string
+          email?: string
+          id?: string
+          messaggio?: string | null
+          nome?: string
+          provincia?: string | null
+          ruolo?: string
+          ruolo_altro?: string | null
+          source?: string | null
+          stato?: string
+          telefono?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_requests_provincia_fkey"
+            columns: ["provincia"]
+            isOneToOne: false
+            referencedRelation: "province_regioni"
+            referencedColumns: ["provincia"]
+          },
+        ]
+      }
       admin_audit: {
         Row: {
           action: string
@@ -8809,6 +8862,210 @@ export type Database = {
           },
         ]
       }
+      look_proposals: {
+        Row: {
+          client_favorite: boolean
+          created_at: string
+          id: string
+          image_url: string | null
+          owner_id: string
+          prompt: string | null
+          session_id: string
+          spec: Json | null
+          status: string
+          title: string | null
+        }
+        Insert: {
+          client_favorite?: boolean
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          owner_id: string
+          prompt?: string | null
+          session_id: string
+          spec?: Json | null
+          status?: string
+          title?: string | null
+        }
+        Update: {
+          client_favorite?: boolean
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          owner_id?: string
+          prompt?: string | null
+          session_id?: string
+          spec?: Json | null
+          status?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "look_proposals_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "look_proposals_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "look_proposals_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "look_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      look_sessions: {
+        Row: {
+          client_label: string | null
+          created_at: string
+          entry_id: string | null
+          id: string
+          kind: string
+          owner_id: string
+          selfie_path: string | null
+          selfie_url: string | null
+          share_token: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_label?: string | null
+          created_at?: string
+          entry_id?: string | null
+          id?: string
+          kind: string
+          owner_id: string
+          selfie_path?: string | null
+          selfie_url?: string | null
+          share_token?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_label?: string | null
+          created_at?: string
+          entry_id?: string | null
+          id?: string
+          kind?: string
+          owner_id?: string
+          selfie_path?: string | null
+          selfie_url?: string | null
+          share_token?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "look_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "look_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "look_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "look_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "look_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "look_sessions_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "look_sessions_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      look_styles: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          owner_id: string | null
+          prompt_fragment: string
+          sort: number
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          created_at?: string
+          id?: string
+          kind: string
+          label: string
+          owner_id?: string | null
+          prompt_fragment: string
+          sort?: number
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          owner_id?: string | null
+          prompt_fragment?: string
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "look_styles_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "look_styles_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       maestranze_declarations: {
         Row: {
           checkbox_text: string
@@ -9782,6 +10039,27 @@ export type Database = {
             referencedColumns: ["supplier_id"]
           },
         ]
+      }
+      notify_config: {
+        Row: {
+          anon_key: string
+          base_url: string
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          anon_key: string
+          base_url: string
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          anon_key?: string
+          base_url?: string
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -15370,6 +15648,15 @@ export type Database = {
     }
     Functions: {
       _addendum_build: { Args: { p_quote_id: string }; Returns: Json }
+      _circle_email: {
+        Args: {
+          p_by: string
+          p_entry: string
+          p_phase: string
+          p_supplier: string
+        }
+        Returns: undefined
+      }
       _entry_has_signed_act: { Args: { p_entry_id: string }; Returns: boolean }
       _event_ring_seed: { Args: { p_entry: string }; Returns: undefined }
       _gallery_base_media: {
@@ -15408,6 +15695,7 @@ export type Database = {
         Args: { p_creditor: string; p_entry: string; p_supplier: string }
         Returns: undefined
       }
+      _notify_load_config: { Args: never; Returns: boolean }
       _photo_circle_member: { Args: { p_entry: string }; Returns: boolean }
       _photo_gallery_owner: { Args: { p_gallery: string }; Returns: boolean }
       _photo_is_guest: { Args: { p_entry: string }; Returns: boolean }
@@ -15432,6 +15720,27 @@ export type Database = {
       accept_platform_agreement: { Args: never; Returns: Json }
       accept_supplier_credit: { Args: { p_id: string }; Returns: Json }
       accept_supplier_invite: { Args: { p_token: string }; Returns: boolean }
+      access_request_set_stato: {
+        Args: { p_id: string; p_stato: string }
+        Returns: undefined
+      }
+      access_requests_list: {
+        Args: never
+        Returns: {
+          attivita: string
+          created_at: string
+          email: string
+          id: string
+          messaggio: string
+          nome: string
+          provincia_nome: string
+          ruolo: string
+          ruolo_altro: string
+          source: string
+          stato: string
+          telefono: string
+        }[]
+      }
       action_token_status: {
         Args: { p_kind: string; p_token: string }
         Returns: string
@@ -16821,6 +17130,42 @@ export type Database = {
           p_event_kind?: string
           p_reason?: string
         }
+        Returns: Json
+      }
+      look_get_by_token: { Args: { p_token: string }; Returns: Json }
+      look_proposal_set_status: {
+        Args: { p_proposal: string; p_status: string }
+        Returns: undefined
+      }
+      look_session_create: {
+        Args: { p_client_label: string; p_entry?: string; p_kind: string }
+        Returns: {
+          client_label: string | null
+          created_at: string
+          entry_id: string | null
+          id: string
+          kind: string
+          owner_id: string
+          selfie_path: string | null
+          selfie_url: string | null
+          share_token: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "look_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      look_session_send: { Args: { p_session: string }; Returns: Json }
+      look_session_set_selfie: {
+        Args: { p_path: string; p_session: string; p_url: string }
+        Returns: undefined
+      }
+      look_set_favorite: {
+        Args: { p_proposal: string; p_token: string }
         Returns: Json
       }
       maestranze_vocabolario: {
