@@ -1457,7 +1457,11 @@ function AlbumDesignerInner() {
       } else {
         url = hiUrl(m)
       }
-      const r = await fetch(url)
+      // Auth negli HEADER (il gateway edge-function rifiuta l'apikey solo in query → 401). L'<img> non
+      // poteva mandare header; con fetch sì → passa il gateway, poi la function valida il grant.
+      const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+      const { data: { session } } = await supabase.auth.getSession()
+      const r = await fetch(url, isDrive(m) ? { headers: { apikey: ANON, Authorization: `Bearer ${session?.access_token ?? ANON}` } } : undefined)
       if (!r.ok) throw new Error(`http ${r.status}`)
       const blob = await r.blob()
       if (!blob.type.startsWith('image/')) throw new Error('sorgente non immagine')
