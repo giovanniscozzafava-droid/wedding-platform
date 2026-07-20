@@ -98,8 +98,9 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
         m.fillStyle = '#000'; m.fillRect(0, 0, w, h)
         m.drawImage(paint, 0, 0) // paint = cerchi bianchi opachi dove ho pennellato → bianco su nero
         mask = mc.toDataURL('image/png')
-        // marked = foto originale con l'area dipinta tinta di MAGENTA TRASLUCIDO (Qwen vede l'oggetto sotto
-        // e sa cosa togliere). Alpha ~0.6: abbastanza per marcare, non tanto da nascondere il contorno.
+        // marked = foto originale con l'area dipinta coperta di MAGENTA PIENO/OPACO. Coprendo del tutto
+        // l'oggetto, Qwen NON può "ripulire la tinta e ridarti l'oggetto slavato": è costretto a inventare
+        // lo sfondo sotto la macchia → rimozione vera (il translucido causava il "solo scolorato").
         const kc = document.createElement('canvas'); kc.width = w; kc.height = h
         const k = kc.getContext('2d')!
         k.drawImage(img, 0, 0, w, h)
@@ -107,7 +108,7 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
         const g = mg.getContext('2d')!
         g.drawImage(paint, 0, 0)
         g.globalCompositeOperation = 'source-in'; g.fillStyle = '#FF00FF'; g.fillRect(0, 0, w, h)
-        k.globalAlpha = 0.6; k.drawImage(mg, 0, 0); k.globalAlpha = 1
+        k.drawImage(mg, 0, 0)
         marked = kc.toDataURL('image/jpeg', 0.92)
       }
       const prompt = text.trim()
@@ -151,10 +152,11 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
         const P = pc.getContext('2d')!.getImageData(0, 0, W, H)
         const A = fm.getImageData(0, 0, W, H)
         const od = O.data, pd = P.data, ad = A.data
-        // (1) l'originale è in bianco/nero? croma medio su un campione rado
-        let chroma = 0, ns = 0
-        for (let i = 0; i < od.length; i += 4 * 97) { const r0 = od[i]!, g0 = od[i + 1]!, b0 = od[i + 2]!; chroma += Math.max(r0, g0, b0) - Math.min(r0, g0, b0); ns++ }
-        const grayscale = ns > 0 && (chroma / ns) < 8
+        // (1) l'originale è DAVVERO in bianco/nero? croma medio basso E quasi tutti i pixel senza colore
+        //     → così non scolorisco mai per errore una foto a colori dai toni tenui.
+        let chroma = 0, ns = 0, lowc = 0
+        for (let i = 0; i < od.length; i += 4 * 97) { const r0 = od[i]!, g0 = od[i + 1]!, b0 = od[i + 2]!; const c = Math.max(r0, g0, b0) - Math.min(r0, g0, b0); chroma += c; if (c < 12) lowc++; ns++ }
+        const grayscale = ns > 0 && (chroma / ns) < 5 && (lowc / ns) > 0.97
         // (2) delta tono globale originale↔AI (Qwen shifta esposizione/colore su tutta la foto)
         let oR = 0, oG = 0, oB = 0, pR = 0, pG = 0, pB = 0, nn = 0
         for (let i = 0; i < od.length; i += 4 * 31) { oR += od[i]!; oG += od[i + 1]!; oB += od[i + 2]!; pR += pd[i]!; pG += pd[i + 1]!; pB += pd[i + 2]!; nn++ }

@@ -66,11 +66,11 @@ Deno.serve(async (req) => {
     const marked = (body.marked && body.marked.startsWith('data:')) ? body.marked : ''
     const srcImg = marked || body.image
     const instr = marked
-      ? `You are a master professional photo retoucher. This photo has a translucent bright pink / magenta (#FF00FF) marker painted over one unwanted object. Remove that object completely and erase the pink marker, then photorealistically rebuild the background that belongs behind it. Also remove any cast shadow, reflection or contact shadow that belonged to that object.
+      ? `A SOLID bright magenta (#FF00FF) shape has been painted over an unwanted object in this photo. REPLACE THE ENTIRE MAGENTA SHAPE with a photorealistic reconstruction of the background that truly belongs there. The object under it must be COMPLETELY GONE — do NOT merely recolor, fade, darken or blur it, actually replace it with background. Also erase any cast shadow or reflection of that object just around the shape.
 
-THE MOST IMPORTANT REQUIREMENT: the retouched area must blend TOTALLY and INVISIBLY into the rest of the photograph. The result must be absolutely seamless — a professional viewer must NOT be able to tell that anything was ever removed or edited. There must be NO visible patch, NO boundary, NO seam, NO halo, NO change of sharpness, NO smooth "plastic" zone. Reconstruct floors, tiles, grass, walls, wood, fabric or any repeating pattern so it continues PERFECTLY through the cleared area: match the exact same tile size and alignment, joints, perspective, texture, film grain/noise, lighting, colors and the same focus/depth-of-field as the immediate surroundings. Work the area meticulously and keep refining it until it is flawless and completely indistinguishable from an untouched original photograph — do not leave it half-done or approximate.
+Then make it blend TOTALLY and INVISIBLY: continue the surrounding floor, tiles, ground, wall, sky, fabric or any repeating pattern straight through the area, matching the exact texture, pattern alignment and joints, film grain/noise, sharpness/focus, lighting and colors — no visible patch, no seam, no halo, no smooth plastic zone. The result must be indistinguishable from an untouched original photograph.
 
-No pink, magenta or colored haze may remain anywhere. Keep every other part of the photo exactly identical, same framing and same resolution.${KEEP}`
+Absolutely no magenta or pink may remain anywhere. Keep every other part of the photo pixel-for-pixel identical, same framing and same resolution.${KEEP}`
       : `${userText || 'Enhance this photo naturally'}. Keep everything else exactly identical.${KEEP} Photorealistic.`
     try {
       const r = await fetch(QWEN_URL, {
