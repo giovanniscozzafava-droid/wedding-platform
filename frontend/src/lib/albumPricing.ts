@@ -53,7 +53,7 @@ export type AlbumPriceConfig = {
   includedModelPrice?: number // prezzo del modello incluso nel pacchetto (per la differenza)
   chosenModelLabel?: string  // modello scelto dal catalogo PDF del fotografo
   chosenModelPrice?: number  // suo prezzo di listino
-  family: { qty: number; base: number; extraPageRate: number }
+  family: { qty: number; base: number; extraPageRate: number; included?: boolean } // included = album genitori compresi nel pacchetto (base gratis, pagine extra sì)
   showCouple: boolean        // il totale è visibile alla coppia nel visore album
   note?: string              // provenienza / annotazione libera
 }
@@ -125,9 +125,14 @@ export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actu
     lines.push({ label: `${extraPages} pagine in più`, amount: extraPages * n2(cfg.extraPageRate), hint: `€ ${n2(cfg.extraPageRate)} a pagina` })
   }
   const fam = cfg.family
-  if (fam && n2(fam.qty) > 0 && n2(fam.base) >= 0) {
-    const each = n2(fam.base) + extraPages * n2(fam.extraPageRate)
-    lines.push({ label: `Album famiglia ×${n2(fam.qty)}`, amount: each * n2(fam.qty), hint: extraPages > 0 && n2(fam.extraPageRate) > 0 ? `${each} l'uno (con pagine extra)` : `${n2(fam.base)} l'uno` })
+  if (fam && n2(fam.qty) > 0) {
+    // INCLUSO nel pacchetto: la base dell'album genitori non si paga; le pagine extra sì.
+    const perBase = fam.included ? 0 : n2(fam.base)
+    const each = perBase + extraPages * n2(fam.extraPageRate)
+    const hint = fam.included
+      ? (extraPages > 0 && n2(fam.extraPageRate) > 0 ? `inclusi nel pacchetto · solo ${extraPages} pag. extra a ${euroA(n2(fam.extraPageRate))}/pag` : 'inclusi nel pacchetto')
+      : (extraPages > 0 && n2(fam.extraPageRate) > 0 ? `${euroA(each)} l'uno (con pagine extra)` : `${euroA(n2(fam.base))} l'uno`)
+    lines.push({ label: `Album genitori ×${n2(fam.qty)}${fam.included ? ' (inclusi)' : ''}`, amount: each * n2(fam.qty), hint })
   }
   const total = lines.reduce((s, l) => s + l.amount, 0)
   return { lines, extraPages, total }

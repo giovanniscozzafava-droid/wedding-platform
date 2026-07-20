@@ -2798,10 +2798,18 @@ function AlbumDesignerInner() {
                 )})}
                 {checklist.length === 0 && <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-4">Nessuna voce da controllare.</p>}
               </div>
-              <div className="p-3 border-t border-[rgb(var(--border))] flex items-center justify-between gap-2">
-                <span className="text-xs text-[rgb(var(--fg-muted))]">{checklist.filter((c) => coupleChecks[c.id]).length}/{checklist.length} confermate</span>
-                <Button variant="gold" size="sm" onClick={() => setChecklistOpen(false)}>Fatto</Button>
-              </div>
+              {checklist.length > 0 && checklist.every((c) => coupleChecks[c.id]) ? (
+                <div className="p-4 border-t border-[rgb(var(--border))] space-y-2 bg-[rgb(var(--emerald-100))]/40">
+                  <p className="text-sm font-medium text-[rgb(var(--emerald-600))] flex items-center gap-1.5"><Check size={15} /> Perfetto, è tutto a posto!</p>
+                  <p className="text-xs text-[rgb(var(--fg-muted))]">Ora scegliete la <b>copertina</b> dell'album dal catalogo. Nota: alcune copertine possono avere una <b>piccola variazione di prezzo</b> rispetto al preventivo.</p>
+                  <Link to={`/scegli-album/${entryId}`} onClick={() => setChecklistOpen(false)} className="block"><Button variant="gold" size="sm" className="w-full"><FileText size={14} /> Scegli l'album dal catalogo</Button></Link>
+                </div>
+              ) : (
+                <div className="p-3 border-t border-[rgb(var(--border))] flex items-center justify-between gap-2">
+                  <span className="text-xs text-[rgb(var(--fg-muted))]">{checklist.filter((c) => coupleChecks[c.id]).length}/{checklist.length} confermate</span>
+                  <Button variant="gold" size="sm" onClick={() => setChecklistOpen(false)}>Fatto</Button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2987,11 +2995,15 @@ function AlbumDesignerInner() {
                   <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--fg-muted))]">Album famiglia (mini per i genitori)</p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <label className="flex items-center gap-2 text-sm">Quantità {num(pc.family.qty, (n) => patchFamily({ qty: n }), { w: 'w-16' })}</label>
-                    <label className="flex items-center gap-2 text-sm">Prezzo cad. {num(pc.family.base, (n) => patchFamily({ base: n }), { step: 10 })} €</label>
+                    <label className={`flex items-center gap-2 text-sm ${pc.family.included ? 'opacity-45' : ''}`}>Prezzo cad. {num(pc.family.base, (n) => patchFamily({ base: n }), { step: 10 })} €</label>
                     <label className="flex items-center gap-2 text-sm">Pagina extra {num(pc.family.extraPageRate, (n) => patchFamily({ extraPageRate: n }))} €/pag</label>
                   </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={!!pc.family.included} onChange={(e) => patchFamily({ included: e.target.checked })} className="accent-[rgb(var(--gold-500))]" />
+                    <span>Inclusi nel pacchetto <span className="text-[rgb(var(--fg-muted))]">— la base non si paga, solo le pagine extra</span></span>
+                  </label>
                   {pc.family.qty > 0 && bd.extraPages > 0 && pc.family.extraPageRate > 0 && (
-                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Ogni album famiglia include lo stesso sovrapprezzo delle {bd.extraPages} pagine in più dell'album sposi.</p>
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">Ogni album genitori include lo stesso sovrapprezzo delle {bd.extraPages} pagine in più dell'album sposi{pc.family.included ? ' (solo quelle: la base è inclusa)' : ''}.</p>
                   )}
                 </div>
 
