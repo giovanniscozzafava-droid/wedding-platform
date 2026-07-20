@@ -1443,15 +1443,30 @@ function AlbumDesignerInner() {
   // Apre "Cancella oggetto (AI)" sulla foto: risolve un URL CORS-safe (grant Drive → proxy) e apre il modale.
   async function openInpaint(pageId: string, elId: string, mediaId: string) {
     const m = mediaById.get(mediaId); if (!m) { toast.error('Foto non disponibile'); return }
-    let src = hiUrl(m)
+    // Carico i byte e li passo come BLOB URL (same-origin): il canvas non dipende dagli header CORS
+    // del tag <img>. Le foto Drive passano dal proxy album-image (CORS-safe); le storage direttamente.
+    const t = toast.loading('Preparo la foto…')
     try {
-      if (isDrive(m) && entryId) {
+      let url: string
+      if (isDrive(m)) {
+        if (!entryId) throw new Error('evento mancante')
         const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId })
         const grant = (data as string) ?? null
-        if (grant) src = hiResProxyUrl(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, grant, mediaId)
+        if (!grant) throw new Error('accesso Drive non concesso')
+        url = hiResProxyUrl(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, grant, mediaId)
+      } else {
+        url = hiUrl(m)
       }
-    } catch { /* fallback a hiUrl */ }
-    setInpaint({ pageId, elId, src })
+      const r = await fetch(url)
+      if (!r.ok) throw new Error(`http ${r.status}`)
+      const blob = await r.blob()
+      if (!blob.type.startsWith('image/')) throw new Error('sorgente non immagine')
+      toast.dismiss(t)
+      setInpaint({ pageId, elId, src: URL.createObjectURL(blob) })
+    } catch (e) {
+      toast.dismiss(t)
+      toast.error(`Non riesco a preparare la foto per l'editing: ${(e as Error).message}`)
+    }
   }
   async function openInPhotoshop(mediaId: string) {
     const m = mediaById.get(mediaId); if (!m) { toast.error('Foto non disponibile'); return }
@@ -3737,8 +3752,8 @@ function AlbumDesignerInner() {
 
           {/* Cancella oggetto (AI): pennello/testo → gpt-image-1 → sostituisce la foto nella tavola */}
           {inpaint && (
-            <ObjectRemoveModal src={inpaint.src} onClose={() => setInpaint(null)}
-              onResult={(file) => { const t = inpaint; setInpaint(null); if (t) void replaceElWithFile(t.pageId, t.elId, file) }} />
+            <ObjectRemoveModal src={inpaint.src} onClose={() => { if (inpaint.src.startsWith('blob:')) URL.revokeObjectURL(inpaint.src); setInpaint(null) }}
+              onResult={(file) => { const t = inpaint; if (t?.src.startsWith('blob:')) URL.revokeObjectURL(t.src); setInpaint(null); if (t) void replaceElWithFile(t.pageId, t.elId, file) }} />
           )}
 
           {/* Valutazione WB in corso */}
