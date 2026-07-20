@@ -22,6 +22,9 @@ export type AlbumPage = {
   // il dorso. Vive sulla pagina SINISTRA. `frame` (0..1 dello spread) = trasformazione libera
   // stile Canva sulle due tavole; se assente = piena tavola (0,0,1,1).
   spreadImage?: { mediaId: string; cell: Cell; frame?: Frame } | null
+  // COMMENTO della tavola (vive sulla pagina SINISTRA dello spread): il fotografo spiega alla coppia
+  // la scelta di impaginazione; mostrato nella vista di consegna (lite). Facoltativo.
+  note?: string
 }
 export type AlbumLayout = { pages: AlbumPage[] }
 export type MediaLite = { id: string; moment: string | null }

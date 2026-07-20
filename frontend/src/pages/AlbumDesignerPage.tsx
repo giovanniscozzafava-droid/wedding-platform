@@ -3,7 +3,7 @@ import HTMLFlipBook from 'react-pageflip'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Wand2, Sparkles, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X, FlipHorizontal2, FlipVertical2, BadgeEuro } from 'lucide-react'
+import { ArrowLeft, Wand2, Sparkles, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X, FlipHorizontal2, FlipVertical2, BadgeEuro, Snowflake } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -364,6 +364,9 @@ function AlbumDesignerInner() {
     toast.success('Formato salvato')
   }
   const [status, setStatus] = useState<string>('DRAFT')
+  // FOTO CONGELATE: scelte dalla coppia (KEPT) ma che il fotografo NON vuole usare → le congela così
+  // non sono trascinabili/impaginabili (né a mano né dall'AI). Persistite nel layout dell'album.
+  const [frozenMedia, setFrozenMedia] = useState<Set<string>>(() => new Set())
   const [pages, setPages] = useState<AlbumPage[]>([])
   const [title, setTitle] = useState('')
   const [step, setStep] = useState<'select' | 'design'>('select')
@@ -481,6 +484,11 @@ function AlbumDesignerInner() {
   const mediaById = useMemo(() => new Map(media.map((m) => [m.id, m])), [media])
   const photos = useMemo(() => media.filter((m) => m.media_type === 'PHOTO'), [media])
   const kept = useMemo(() => photos.filter((m) => m.album_choice === 'KEPT'), [photos])
+  // foto USABILI in impaginazione = KEPT non congelate (manuale e AI usano questo pool)
+  const placeableKept = useMemo(() => kept.filter((m) => !frozenMedia.has(m.id)), [kept, frozenMedia])
+  function toggleFreeze(id: string) {
+    setFrozenMedia((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
 
   const load = useCallback(async () => {
     if (!entryId) return
@@ -522,8 +530,9 @@ function AlbumDesignerInner() {
         setFormat((proj as any).format_key ?? DEFAULT_FORMAT)
         setStatus((proj as any).status ?? 'DRAFT')
         setPriceCfg(((proj as any).price_config as AlbumPriceConfig | null) ?? null)
-        const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean } | null
+        const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean; frozen?: string[] } | null
         if (typeof lay?.bleed === 'boolean') setBleed(lay.bleed)
+        if (Array.isArray(lay?.frozen)) setFrozenMedia(new Set(lay.frozen))
         // MIGRA a TAVOLA UNICA: ogni tavola con foto diventa tavolaFree (così sostituisci-foto,
         // disposizioni, riempi-tavola e resize gruppo sono attivi ovunque, senza premere "Libera"
         // tavola per tavola). Visivamente identica; le tavole vuote restano template.
@@ -767,7 +776,7 @@ function AlbumDesignerInner() {
     autoTimer.current = window.setTimeout(() => { void save(undefined, true) }, 1500)
     return () => { if (autoTimer.current) window.clearTimeout(autoTimer.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pages, format, bleed, step, entryId])
+  }, [pages, format, bleed, frozenMedia, step, entryId])
 
   // ── selezione guidata ──────────────────────────────────────────────────────
   async function toggleKeep(m: M) {
@@ -972,7 +981,7 @@ function AlbumDesignerInner() {
   const okRange = total >= ALBUM_MIN_PHOTOS && total <= ALBUM_MAX_PHOTOS
 
   function generate() {
-    const sel = kept.map((m) => ({ id: m.id, moment: m.album_moment }))
+    const sel = placeableKept.map((m) => ({ id: m.id, moment: m.album_moment }))
     if (sel.length === 0) { toast.error('Seleziona prima le foto'); return }
     setPages(autoLayout(sel, format).pages)
     setStep('design')
@@ -1691,7 +1700,7 @@ function AlbumDesignerInner() {
     if (!silent) setBusy(true)
     try {
       const st = nextStatus ?? status
-      const payload = { p_entry: entryId, p_gallery: null, p_format: format, p_status: st, p_layout: { pages, bleed } }
+      const payload = { p_entry: entryId, p_gallery: null, p_format: format, p_status: st, p_layout: { pages, bleed, frozen: [...frozenMedia] } }
       let { data, error } = await (supabase.rpc as any)('album_project_save', payload)
       // Album CONGELATO dall'approvazione degli sposi: il layout non è sovrascrivibile finché non si
       // riapre. L'autosave (silent) non disturba; il save esplicito propone la riapertura non distruttiva
@@ -2239,7 +2248,7 @@ function AlbumDesignerInner() {
   }
 
   async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean; maxPages?: number; autoSelect?: boolean }) {
-    if (kept.length < 2) { toast.error('Servono almeno 2 foto selezionate'); return }
+    if (placeableKept.length < 2) { toast.error('Servono almeno 2 foto selezionate (non congelate)'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
     setAiBusy(true)
@@ -2249,7 +2258,7 @@ function AlbumDesignerInner() {
       let meta = exifMeta
       if (!Object.keys(meta).length) meta = await loadExif()
       const takenAt = (id: string): number | null => meta[id]?.takenAt ?? null
-      const ordered = [...kept].sort((a, b) => {
+      const ordered = [...placeableKept].sort((a, b) => {
         const ta = takenAt(a.id), tb = takenAt(b.id)
         if (ta != null && tb != null) return ta - tb   // entrambi con orario → cronologico
         if (ta != null) return -1                        // chi ha l'orario prima
@@ -2341,7 +2350,7 @@ function AlbumDesignerInner() {
       let meta = exifMeta
       if (!Object.keys(meta).length) meta = await loadExif()
       const takenAt = (id: string): number | null => meta[id]?.takenAt ?? null
-      const ordered = [...kept].sort((a, b) => { const ta = takenAt(a.id), tb = takenAt(b.id); if (ta != null && tb != null) return ta - tb; if (ta != null) return -1; if (tb != null) return 1; return 0 })
+      const ordered = [...placeableKept].sort((a, b) => { const ta = takenAt(a.id), tb = takenAt(b.id); if (ta != null && tb != null) return ta - tb; if (ta != null) return -1; if (tb != null) return 1; return 0 })
       const photosPayload = ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) }))
       curatePhotosRef.current = photosPayload
       setCurateProg({ done: 0, total: photosPayload.length, phase: 'Guardo le foto una a una…' })
@@ -2672,6 +2681,12 @@ function AlbumDesignerInner() {
               </div>
             ) })()}
             <div className="sticky bottom-0 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-4 py-2 flex flex-col gap-1.5">
+              {spreads[clientIdx]?.[0]?.note?.trim() && (
+                <div className="rounded-md bg-[rgb(var(--gold-50))] border border-[rgb(var(--gold-200))] px-3 py-1.5">
+                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))] flex items-center gap-1"><MessageSquare size={11} /> Il fotografo · Tavola {clientIdx + 1}</p>
+                  <p className="text-sm text-[rgb(var(--fg))] whitespace-pre-wrap">{spreads[clientIdx]![0]!.note}</p>
+                </div>
+              )}
               <p className="text-center text-[11px] text-[rgb(var(--fg-muted))]">Sfoglia con le frecce o trascinando · tocca una pagina per il post-it</p>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-[rgb(var(--fg-muted))] tabular-nums w-24">Pag. {clientIdx * 2 + 1}–{clientIdx * 2 + 2}</span>
@@ -2695,6 +2710,14 @@ function AlbumDesignerInner() {
             <div className="flex-1 min-h-0 overflow-auto p-3 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
               {renderSpread({ pair: spreads[zoomSpread]!, si: zoomSpread, max: 'min(180vw, 1400px)', interactive: true })}
             </div>
+            {spreads[zoomSpread]?.[0]?.note?.trim() && (
+              <div className="mx-auto w-full max-w-2xl px-4 pb-2" onClick={(e) => e.stopPropagation()}>
+                <div className="rounded-lg bg-white/10 border border-white/15 px-3 py-2 text-white">
+                  <p className="text-[10px] uppercase tracking-wider text-white/60 flex items-center gap-1"><MessageSquare size={11} /> Il fotografo · Tavola {zoomSpread + 1}</p>
+                  <p className="text-sm whitespace-pre-wrap">{spreads[zoomSpread]![0]!.note}</p>
+                </div>
+              </div>
+            )}
             <p className="text-center text-white/70 text-xs pb-3">{isCouple ? 'Tocca una foto o un punto della tavola per lasciare un post-it · tocca una puntina per rileggerla' : 'Tocca una puntina per leggere il post-it'}</p>
           </div>
         )}
@@ -2973,7 +2996,7 @@ function AlbumDesignerInner() {
             {!lite && (
               <div className="inline-flex items-center gap-0.5 rounded-lg border border-[rgb(var(--border))] p-0.5">
                 <Button variant="ghost" size="sm" disabled={busy || aiBusy || curateBusy} onClick={() => void aiCurate()} title="Troppe foto o momenti ripetuti? L'AI cura la selezione: taglia doppioni e ripetizioni, tiene il meglio del racconto con più respiro. Poi rivedi e applichi.">{curateBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} AI seleziona</Button>
-                <Button variant="ghost" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(kept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>
+                <Button variant="ghost" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(placeableKept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>
                 <Button variant="ghost" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché e cosa fare">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>
                 {Object.keys(qualityScores).length > 0 && <Button variant="ghost" size="sm" onClick={() => setQualityOpen(true)} title="Riapri il report qualità di stampa"><FileText size={14} /> Report</Button>}
                 <Button variant="ghost" size="sm" disabled={busy} onClick={() => setStyleOpen(true)} title="Carica i tuoi album PDF: l'AI impara COME impagini (foto per tavola, respiro, doppia pagina) e 'Impagina con AI' comporrà nel tuo stile"><Frame size={14} /> Il mio stile</Button>
@@ -3065,15 +3088,15 @@ function AlbumDesignerInner() {
                 {trayFiltered.map((m) => (
                   <div key={m.id} id={`tray-${m.id}`} className={`relative group/tray rounded ${highlightMedia === m.id ? 'ring-4 ring-[rgb(var(--gold-500))] ring-offset-2 ring-offset-[rgb(var(--bg))]' : ''}`}>
                     <button
-                      draggable onDragStart={(e) => e.dataTransfer.setData('text/media', m.id)}
-                      onClick={() => { if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
+                      draggable={!frozenMedia.has(m.id)} onDragStart={(e) => { if (frozenMedia.has(m.id)) { e.preventDefault(); return } e.dataTransfer.setData('text/media', m.id) }}
+                      onClick={() => { if (frozenMedia.has(m.id)) { toast.message('Foto congelata: scongelala (fiocco) per usarla'); return } if (!currentPageId) return; if (currentPage?.mode === 'free') freeAdd(currentPageId, m.id); else placeInto(currentPageId, activeSlot, m.id) }}
                       title={getMoment(m.album_moment)?.label ?? 'senza momento'}
                       className={`block w-full relative aspect-square rounded overflow-hidden border ${placedIds.has(m.id) ? 'border-[rgb(var(--border))]' : 'border-[rgb(var(--gold-400))] ring-1 ring-[rgb(var(--gold-400))]'}`}>
                       {/* SEMPRE a colori. INSERITE: sfumate (opacità) → si capisce che sono a posto.
                           NON inserite: piene e nitide, con bordino dorato → le foto che MANCANO
                           saltano subito all'occhio. (niente bianco/nero) */}
                       <img src={thumbUrl(m)} alt="" loading="lazy"
-                        className={`w-full h-full object-cover ${placedIds.has(m.id) ? 'opacity-40' : ''}`} />
+                        className={`w-full h-full object-cover ${frozenMedia.has(m.id) ? 'grayscale opacity-45' : placedIds.has(m.id) ? 'opacity-40' : ''}`} />
                       {/* VOLTO mappato dall'AI: pallino sulla posizione del viso (mappato sul crop quadrato) */}
                       {showFaces && faceMap[m.id]?.face && (() => {
                         const ia = aspects[m.id] ?? 1
@@ -3094,6 +3117,17 @@ function AlbumDesignerInner() {
                         className="absolute top-0.5 left-0.5 z-10 h-[16px] w-[16px] rounded-full bg-black/55 text-white flex items-center justify-center opacity-0 group-hover/tray:opacity-100 hover:bg-rose-600 transition-opacity">
                         <X size={11} />
                       </button>
+                    )}
+                    {/* CONGELA: la coppia l'ha scelta ma il fotografo non la vuole usare → non impaginabile */}
+                    {!lite && (
+                      <button title={frozenMedia.has(m.id) ? 'Scongela: torna usabile in impaginazione' : "Congela: scelta dalla coppia ma non la usi in impaginazione"}
+                        onClick={(e) => { e.stopPropagation(); toggleFreeze(m.id) }}
+                        className={`absolute bottom-0.5 right-0.5 z-20 h-[16px] w-[16px] rounded-full flex items-center justify-center transition-opacity ${frozenMedia.has(m.id) ? 'bg-sky-600 text-white opacity-100' : 'bg-black/55 text-white opacity-0 group-hover/tray:opacity-100 hover:bg-sky-600'}`}>
+                        <Snowflake size={10} />
+                      </button>
+                    )}
+                    {frozenMedia.has(m.id) && (
+                      <span className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 bg-sky-700/75 py-0.5 text-center text-[9px] font-bold uppercase tracking-wider text-white">Congelata</span>
                     )}
                     {/* voto qualità stampa (0-100) dell'AI: verde ≥75, ambra 50-74, rosso <50 */}
                     {(qualityScores[m.id]?.score ?? 0) > 0 && (
@@ -3291,6 +3325,15 @@ function AlbumDesignerInner() {
             {!lite && <DragSize axis="x" onResize={(d) => setPanelW((w) => clampPx(w - d, 180, 560))} className="w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-[rgb(var(--gold-400))] transition-colors" />}
             {/* pannello proprietà */}
             <aside className="shrink-0 border-l border-[rgb(var(--border))] overflow-auto p-3" style={{ width: panelW }}>
+              {/* COMMENTO DELLA TAVOLA (lo legge la coppia in consegna): il fotografo spiega l'impaginazione. */}
+              {currentPage && spreadPages[0] && (
+                <div className="mb-3 rounded-lg border border-[rgb(var(--gold-200))] bg-[rgb(var(--gold-50))] p-2.5">
+                  <label className="flex items-center gap-1.5 text-[11px] font-medium text-[rgb(var(--gold-700))]"><MessageSquare size={13} /> Commento · Tavola {activeSpread + 1} <span className="font-normal text-[rgb(var(--fg-subtle))]">· lo legge la coppia</span></label>
+                  <textarea value={spreadPages[0].note ?? ''} onChange={(e) => updatePage(spreadPages[0]!.id, (p) => ({ ...p, note: e.target.value.slice(0, 500) }))}
+                    rows={3} placeholder="Spiega alla coppia questa tavola: perché queste foto e perché disposte così…"
+                    className="mt-1.5 w-full rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 text-sm" />
+                </div>
+              )}
               {currentPage && (currentPage.mode === 'free' && !currentPage.frozen ? (
                 <FreePanel
                   page={currentPage} selEl={selEl} lite={lite}
