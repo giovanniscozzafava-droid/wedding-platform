@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 // parole) e l'AI (OpenAI gpt-image-1) ricostruisce lo sfondo. Restituisce un File pronto per sostituire
 // la foto nella tavola. Il canvas usa l'immagine CORS-safe (stessa dell'export) → niente taint.
 
-const MAXDIM = 1024 // lato lungo mandato all'AI
+const MAXDIM = 2048 // lato lungo mandato all'AI (wanx regge 512–4096; più risoluzione = inpaint più nitido)
 
 export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onClose: () => void; onResult: (file: File) => void }) {
   const dispRef = useRef<HTMLCanvasElement>(null)          // canvas visibile (immagine + pennellate rosse)
