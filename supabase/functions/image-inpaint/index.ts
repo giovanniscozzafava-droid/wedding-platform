@@ -66,7 +66,11 @@ Deno.serve(async (req) => {
     const marked = (body.marked && body.marked.startsWith('data:')) ? body.marked : ''
     const srcImg = marked || body.image
     const instr = marked
-      ? `This photo has a translucent bright pink / magenta (#FF00FF) marker painted over one unwanted object. Remove that object completely and erase the pink marker, then photorealistically rebuild the background that belongs behind it. Also remove any cast shadow, reflection or contact shadow that belonged to that object. Make floors, tiles, grass, walls or any repeating pattern continue naturally and seamlessly through the cleared area — match the same tile size and alignment, texture, film grain and the same focus/blur as the immediate surroundings, so nothing looks pasted, plastic or too smooth. No pink, magenta or colored haze may remain anywhere. Keep every other part of the photo exactly identical, same framing and same resolution.${KEEP}`
+      ? `You are a master professional photo retoucher. This photo has a translucent bright pink / magenta (#FF00FF) marker painted over one unwanted object. Remove that object completely and erase the pink marker, then photorealistically rebuild the background that belongs behind it. Also remove any cast shadow, reflection or contact shadow that belonged to that object.
+
+THE MOST IMPORTANT REQUIREMENT: the retouched area must blend TOTALLY and INVISIBLY into the rest of the photograph. The result must be absolutely seamless — a professional viewer must NOT be able to tell that anything was ever removed or edited. There must be NO visible patch, NO boundary, NO seam, NO halo, NO change of sharpness, NO smooth "plastic" zone. Reconstruct floors, tiles, grass, walls, wood, fabric or any repeating pattern so it continues PERFECTLY through the cleared area: match the exact same tile size and alignment, joints, perspective, texture, film grain/noise, lighting, colors and the same focus/depth-of-field as the immediate surroundings. Work the area meticulously and keep refining it until it is flawless and completely indistinguishable from an untouched original photograph — do not leave it half-done or approximate.
+
+No pink, magenta or colored haze may remain anywhere. Keep every other part of the photo exactly identical, same framing and same resolution.${KEEP}`
       : `${userText || 'Enhance this photo naturally'}. Keep everything else exactly identical.${KEEP} Photorealistic.`
     try {
       const r = await fetch(QWEN_URL, {
