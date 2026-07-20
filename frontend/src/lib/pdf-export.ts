@@ -47,7 +47,7 @@ export async function exportNodeToPdf(node: HTMLElement, opts: ExportOptions = {
 
   // Header function
   function drawHeader() {
-    pdf.setFillColor(196, 154, 92) // gold #C49A5C
+    pdf.setFillColor(196, 154, 92) // gold #25402F
     pdf.rect(margin, margin, 4, 12, 'F')
     pdf.setFontSize(11)
     pdf.setTextColor(60, 60, 60)

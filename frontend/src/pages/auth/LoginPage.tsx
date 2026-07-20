@@ -47,7 +47,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:col-span-3 relative overflow-hidden p-12 text-white"
         style={{ background: 'rgb(var(--bg))' }}>
         <img src="/hero/auth.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.6) 0%, rgba(126,102,51,0.4) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.6) 0%, rgba(22,40,29,0.4) 100%)' }} />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
           className="relative z-10 flex flex-col justify-between w-full">
           <Link to="/" className="inline-flex items-center gap-2 text-white">
@@ -81,7 +81,7 @@ export default function LoginPage() {
       {/* Hero mobile (foto + titolo) */}
       <div className="lg:hidden relative h-[40vh] min-h-[260px] overflow-hidden text-white">
         <img src="/hero/auth.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.55) 0%, rgba(126,102,51,0.45) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.55) 0%, rgba(22,40,29,0.45) 100%)' }} />
         <div className="relative z-10 h-full flex flex-col justify-between p-6">
           <Link to="/" className="inline-flex items-center gap-2 text-white">
             <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8 invert" />

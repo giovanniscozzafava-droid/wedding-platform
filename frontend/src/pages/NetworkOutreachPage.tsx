@@ -25,7 +25,7 @@ const rpc = (fn: string, args?: Record<string, unknown>) =>
   (supabase as unknown as { rpc: (f: string, a?: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc(fn, args)
 
 const STATUS_META: Record<Status, { label: string; color: string; bg: string }> = {
-  DA_CONTATTARE:   { label: 'Da contattare', color: '#A97F3F', bg: 'rgba(196,154,92,.14)' },
+  DA_CONTATTARE:   { label: 'Da contattare', color: '#25402F', bg: 'rgba(37,64,47,.14)' },
   CONTATTATO:      { label: 'Contattato',    color: '#5b6b7a', bg: 'rgba(91,107,122,.12)' },
   RICHIAMARE:      { label: 'Da richiamare',  color: '#B05A5A', bg: 'rgba(176,90,90,.14)' },
   APPUNTAMENTO:    { label: 'Appuntamento',   color: '#3F7A56', bg: 'rgba(63,122,86,.14)' },
@@ -182,13 +182,13 @@ export default function NetworkOutreachPage() {
       <div className="rounded-2xl p-5 mt-4 text-[#F4EDE0]" style={{ background: 'radial-gradient(120% 120% at 90% 0%,#322b23,#141009)' }}>
         <div className="flex flex-wrap items-center gap-5">
           <div className="flex-1 min-w-[240px]">
-            <div className="text-xs uppercase tracking-widest font-bold" style={{ color: '#C49A5C' }}>Guadagna con noi</div>
+            <div className="text-xs uppercase tracking-widest font-bold" style={{ color: '#25402F' }}>Guadagna con noi</div>
             <div className="font-display text-2xl mt-1">Recluta colleghi, fatti un secondo stipendio.</div>
             <p className="text-sm mt-2" style={{ color: '#cdbfa8' }}>
               <b className="text-white">20€</b> per ogni professionista che porti e che <b className="text-white">diventa attivo</b> — fino a <b className="text-white">100€/giorno</b>. Pagamento via bonifico al raggiungimento di <b className="text-white">200€</b>.
             </p>
             {earn && !earn.program_active && (
-              <p className="text-sm mt-2 rounded-lg px-3 py-2" style={{ background: 'rgba(196,154,92,.16)', color: '#EAD9B6' }}>
+              <p className="text-sm mt-2 rounded-lg px-3 py-2" style={{ background: 'rgba(37,64,47,.16)', color: '#EAD9B6' }}>
                 Il programma matura da <b className="text-white">gennaio 2027</b>, quando i fornitori iniziano a pagare. Intanto recluta: ogni iscritto che diventa attivo è già <b className="text-white">in attesa</b> e maturerà all’avvio.
               </p>
             )}
@@ -208,7 +208,7 @@ export default function NetworkOutreachPage() {
           </div>
         </div>
         <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.12)' }}>
-          <div style={{ height: '100%', width: `${Math.min(100, (Number(earn?.available ?? 0) / 200) * 100)}%`, background: '#C49A5C' }} />
+          <div style={{ height: '100%', width: `${Math.min(100, (Number(earn?.available ?? 0) / 200) * 100)}%`, background: '#25402F' }} />
         </div>
         <div className="text-[11px] mt-1.5" style={{ color: '#b7a98f' }}>
           {earn?.payout_eligible ? '✓ Hai raggiunto i 200€: il bonifico è in arrivo.' : `Mancano ${Math.max(0, 200 - Number(earn?.available ?? 0))}€ al bonifico.`}

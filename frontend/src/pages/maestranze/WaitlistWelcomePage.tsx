@@ -76,7 +76,7 @@ export default function WaitlistWelcomePage() {
         <div className="space-y-3">
           <button onClick={() => void condividi()}
             className="w-full h-12 rounded-lg text-base font-medium inline-flex items-center justify-center gap-2"
-            style={{ background: '#7E6633', color: '#FAF5EA' }}>
+            style={{ background: '#25402F', color: '#FAF5EA' }}>
             <Share2 className="size-4" /> Condividi con un collega
           </button>
           <a href="https://instagram.com/planfully" target="_blank" rel="noreferrer"

@@ -33,7 +33,7 @@ function hexToRgb(hex?: string | null, fb: RGB = INK): RGB {
 
 const NAME_BY_HEX: Record<string, string> = {
   '#f3eee4': 'Paper', '#fbf5e9': 'Crema', '#f5ebe0': 'Avorio', '#f4f1ea': 'Sabbia',
-  '#e8d9b3': 'Vaniglia', '#c49a5c': 'Oro', '#1a1714': 'Inchiostro', '#8a9a7b': 'Salvia',
+  '#e8d9b3': 'Vaniglia', '#25402F': 'Oro', '#1a1714': 'Inchiostro', '#8a9a7b': 'Salvia',
   '#b08d57': 'Bronzo', '#d8c3a5': 'Lino', '#e6ccb2': 'Cipria',
 }
 const nameForHex = (hex: string) => NAME_BY_HEX[(hex.startsWith('#') ? hex : '#' + hex).toLowerCase()] ?? hex.toUpperCase().replace('#', '#')
@@ -215,7 +215,7 @@ export async function buildMoodboardPdf(input: MoodPdfInput): Promise<void> {
   doc.addPage(); paperBg(); miniHeader()
   setText(accent); doc.setFont('helvetica', 'normal'); doc.setFontSize(10); spaced('EPILOGO', cx, 110, 4); ornament(cx, 128, 70)
   setText(INK); doc.setFont('times', 'normal'); doc.setFontSize(32); doc.text('I colori del giorno', cx, 178, { align: 'center' })
-  const epPal = palette.length ? palette : ['#1a1714', '#c49a5c', '#d8c3a5', '#e6ccb2', '#8a9a7b']
+  const epPal = palette.length ? palette : ['#1a1714', '#25402F', '#d8c3a5', '#e6ccb2', '#8a9a7b']
   const sw = 66, gap = 16, tot = sw * epPal.length + gap * (epPal.length - 1), sx0 = (W - tot) / 2, sy0 = 214
   epPal.forEach((hex, i) => {
     const x = sx0 + i * (sw + gap), c = hexToRgb(hex, [200, 190, 175])

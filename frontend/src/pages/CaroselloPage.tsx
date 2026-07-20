@@ -807,7 +807,7 @@ export default function CaroselloPage() {
                 <button key={a} onClick={() => patchText(selT.id, { align: a })} className={`h-full px-1.5 hover:bg-[rgb(var(--bg-sunken))] ${selT.align === a ? 'text-[rgb(var(--gold-700))] bg-[rgb(var(--gold-100))]' : ''}`}><Ic size={14} /></button>
               ))}
             </div>
-            {['#111111', '#ffffff', '#b8923f', '#7e6633', '#c0392b'].map((c) => (
+            {['#111111', '#ffffff', '#b8923f', '#25402F', '#c0392b'].map((c) => (
               <button key={c} onClick={() => patchText(selT.id, { color: c })} title="Colore testo" className={`h-7 w-7 rounded-full border ${selT.color === c ? 'ring-2 ring-[rgb(var(--gold-500))] border-transparent' : 'border-[rgb(var(--border))]'}`} style={{ background: c }} />
             ))}
             <button title="Sfondo dietro il testo" onClick={() => patchText(selT.id, { bg: selT.bg ? null : '#ffffff' })} className={`text-[11px] px-2 h-8 rounded-md border ${selT.bg ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] border-[rgb(var(--gold-300))]' : 'border-[rgb(var(--border))]'}`}>Box</button>

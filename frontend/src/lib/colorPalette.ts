@@ -130,7 +130,7 @@ export const PRESET_PALETTES: Palette[] = [
     colors: [
       { hex: '#fbf5e9', name: 'Crema' },
       { hex: '#e8d9b3', name: 'Vaniglia' },
-      { hex: '#c49a5c', name: 'Oro' },
+      { hex: '#25402F', name: 'Oro' },
       { hex: '#7a4f25', name: 'Caramello' },
       { hex: '#3a2a1a', name: 'Cuoio' },
     ],

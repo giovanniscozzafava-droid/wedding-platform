@@ -94,7 +94,7 @@ export function QuoteSignaturePad({ onChange, height = 200 }: Props) {
   return (
     <div className="space-y-2">
       <div className="relative rounded-lg border-2 border-dashed touch-none overflow-hidden"
-        style={{ borderColor: '#C49A5C', background: '#FFFFFF' }}>
+        style={{ borderColor: '#25402F', background: '#FFFFFF' }}>
         <canvas ref={canvasRef}
           style={{ width: '100%', height: `${height}px`, display: 'block', cursor: 'crosshair', background: '#FFFFFF' }}
           onMouseDown={start as any} onMouseMove={move as any} onMouseUp={end} onMouseLeave={end}

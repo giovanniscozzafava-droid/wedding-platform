@@ -13,7 +13,7 @@ export type GallerySettings = {
 }
 
 export const DEFAULT_GALLERY_SETTINGS: GallerySettings = {
-  allow_favorites: true, favorites_color: '#C49A5C', show_favorites_count: false, favorites_limit: null, favorites_download: 'off',
+  allow_favorites: true, favorites_color: '#25402F', show_favorites_count: false, favorites_limit: null, favorites_download: 'off',
   allow_comments: true, allow_social: true, show_filename: false, pin_icons: false,
   watermark_enabled: false, watermark_text: null, allow_download_all: false, download_hd: false,
 }

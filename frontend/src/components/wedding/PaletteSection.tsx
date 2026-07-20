@@ -31,7 +31,7 @@ const SUGGEST_KINDS: Array<{ v: Parameters<typeof suggestPalette>[1]; label: str
 
 export function PaletteSection({ entryId, readOnly = false }: Props) {
   const [colors, setColors] = useState<string[]>([])
-  const [baseColor, setBaseColor] = useState<string>('#c49a5c')
+  const [baseColor, setBaseColor] = useState<string>('#25402F')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 

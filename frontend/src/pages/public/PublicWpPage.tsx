@@ -483,7 +483,7 @@ export default function PublicWpPage() {
                             <button key={s} type="button" onClick={() => toggleChip('styles', s, 3)}
                               className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
                               style={on
-                                ? { background: '#7E6633', color: '#FAF5EA', borderColor: '#7E6633' }
+                                ? { background: '#25402F', color: '#FAF5EA', borderColor: '#25402F' }
                                 : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
                               {s}
                             </button>
@@ -500,7 +500,7 @@ export default function PublicWpPage() {
                             <button key={p} type="button" onClick={() => toggleChip('priorities', p, 3)}
                               className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
                               style={on
-                                ? { background: '#7E6633', color: '#FAF5EA', borderColor: '#7E6633' }
+                                ? { background: '#25402F', color: '#FAF5EA', borderColor: '#25402F' }
                                 : { borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
                               {p}
                             </button>

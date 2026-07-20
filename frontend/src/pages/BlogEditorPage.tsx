@@ -253,7 +253,7 @@ export default function BlogEditorPage() {
           <div className="lg:col-span-2 space-y-4">
             {/* Genera con AI da Instagram / caption */}
             <div className="rounded-2xl p-5 text-[#F4EDE0]" style={{ background: 'radial-gradient(120% 120% at 90% 0%,#322b23,#141009)' }}>
-              <div className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: '#C49A5C' }}>Genera con l’AI</div>
+              <div className="text-xs uppercase tracking-widest font-bold mb-1" style={{ color: '#25402F' }}>Genera con l’AI</div>
               <p className="text-sm mb-3" style={{ color: '#cdbfa8' }}>
                 Incolla la <b className="text-white">caption</b> di un tuo post Instagram (o il <b className="text-white">link</b> del post, o un tema): l’AI scrive una bozza d’articolo pronta da rivedere.
               </p>

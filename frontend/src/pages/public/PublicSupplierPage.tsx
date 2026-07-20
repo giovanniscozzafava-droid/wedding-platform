@@ -263,7 +263,7 @@ export default function PublicSupplierPage() {
                 </div>
                 {data.discover_tier === 'PREMIUM' && (
                   <span className="font-mono text-[10px] uppercase tracking-[0.2em] px-3 py-1 rounded-full"
-                    style={{ background: '#7E6633', color: '#FAF5EA' }}>
+                    style={{ background: '#25402F', color: '#FAF5EA' }}>
                     Premium
                   </span>
                 )}

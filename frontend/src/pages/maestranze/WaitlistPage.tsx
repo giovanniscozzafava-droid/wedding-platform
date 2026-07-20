@@ -245,7 +245,7 @@ export default function WaitlistPage() {
 
           <button disabled={!canSubmit || busy} onClick={() => void submit()}
             className="w-full h-13 py-3.5 rounded-lg text-base font-medium transition-opacity disabled:opacity-40"
-            style={{ background: '#7E6633', color: '#FAF5EA' }}>
+            style={{ background: '#25402F', color: '#FAF5EA' }}>
             {busy ? 'Un attimo…' : 'Mi metto in lista'}
           </button>
 

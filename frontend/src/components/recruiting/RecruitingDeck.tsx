@@ -96,7 +96,7 @@ export function RecruitingDeck({ subrole, inviteCode, inviteUrl, onClose }: {
       </div>
 
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, background: 'rgba(255,255,255,.08)' }}>
-        <div style={{ height: '100%', width: `${(i + 1) / n * 100}%`, background: '#C49A5C', transition: 'width .3s' }} />
+        <div style={{ height: '100%', width: `${(i + 1) / n * 100}%`, background: '#25402F', transition: 'width .3s' }} />
       </div>
       <div style={{ position: 'absolute', bottom: 12, left: 16, display: 'flex', gap: 8 }}>
         <NavBtn onClick={(e) => { e.stopPropagation(); prev() }}><ChevronLeft size={16} /></NavBtn>
@@ -113,18 +113,18 @@ function NavBtn({ children, onClick }: { children: React.ReactNode; onClick: (e:
 
 // ── stili ──
 const serif: React.CSSProperties = { fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 600, letterSpacing: '-.5px' }
-const kicker = (dark?: boolean): React.CSSProperties => ({ fontSize: 12.5, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 800, color: dark ? '#C49A5C' : '#A97F3F', margin: '0 0 14px' })
+const kicker = (dark?: boolean): React.CSSProperties => ({ fontSize: 12.5, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 800, color: dark ? '#25402F' : '#25402F', margin: '0 0 14px' })
 const h1: React.CSSProperties = { ...serif, fontSize: 52, lineHeight: 1.04, margin: 0 }
 const h2: React.CSSProperties = { ...serif, fontSize: 36, lineHeight: 1.1, margin: 0 }
 const sub = (dark?: boolean): React.CSSProperties => ({ fontSize: 19, lineHeight: 1.5, color: dark ? '#cdbfa8' : '#7a7468', margin: '16px 0 0', maxWidth: '52ch' })
-const pill = (dark?: boolean): React.CSSProperties => ({ display: 'inline-block', alignSelf: 'flex-start', background: 'rgba(196,154,92,.16)', color: dark ? '#EAD9B6' : '#A97F3F', border: '1px solid rgba(196,154,92,.4)', borderRadius: 999, padding: '8px 16px', fontSize: 14, fontWeight: 700, marginTop: 22 })
+const pill = (dark?: boolean): React.CSSProperties => ({ display: 'inline-block', alignSelf: 'flex-start', background: 'rgba(37,64,47,.16)', color: dark ? '#EAD9B6' : '#25402F', border: '1px solid rgba(37,64,47,.4)', borderRadius: 999, padding: '8px 16px', fontSize: 14, fontWeight: 700, marginTop: 22 })
 
 function Feat({ items }: { items: { t: string; d: string }[] }) {
   return (
     <ul style={{ listStyle: 'none', padding: 0, margin: '24px 0 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
       {items.map((it, k) => (
         <li key={k} style={{ paddingLeft: 30, position: 'relative' }}>
-          <span style={{ position: 'absolute', left: 0, top: 7, width: 12, height: 12, borderRadius: '50%', background: '#C49A5C' }} />
+          <span style={{ position: 'absolute', left: 0, top: 7, width: 12, height: 12, borderRadius: '50%', background: '#25402F' }} />
           <div style={{ fontSize: 20, fontWeight: 600, lineHeight: 1.2 }}>{it.t}</div>
           <div style={{ fontSize: 15.5, color: '#7a7468', marginTop: 3, lineHeight: 1.45 }}>{it.d}</div>
         </li>
@@ -165,11 +165,11 @@ function ProfileMock({ label, photos }: { label: string; photos: string[] }) {
           </div>
         ))}
       </div>
-      <div style={{ ...serif, fontSize: 16 }}>Il tuo studio · <span style={{ color: '#A97F3F' }}>{label}</span></div>
+      <div style={{ ...serif, fontSize: 16 }}>Il tuo studio · <span style={{ color: '#25402F' }}>{label}</span></div>
       <div style={{ display: 'flex', gap: 6, margin: '8px 0 12px' }}>
         {['Elegante', 'Su misura', 'Top rated'].map(c => <span key={c} style={{ fontSize: 11, border: '1px solid #E7E1D5', borderRadius: 999, padding: '4px 10px', color: '#7d7567' }}>{c}</span>)}
       </div>
-      <div style={{ background: '#C49A5C', color: '#fff', textAlign: 'center', borderRadius: 9, padding: 11, fontSize: 13.5, fontWeight: 700 }}>Richiedi preventivo</div>
+      <div style={{ background: '#25402F', color: '#fff', textAlign: 'center', borderRadius: 9, padding: 11, fontSize: 13.5, fontWeight: 700 }}>Richiedi preventivo</div>
     </Device>
   )
 }
@@ -210,7 +210,7 @@ function NetworkMock({ rete }: { rete: string }) {
     <Device url="Un collega è occupato…">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
         <div style={{ alignSelf: 'flex-start', maxWidth: '85%', background: '#F2ECE0', color: '#3a352d', borderRadius: 13, borderBottomLeftRadius: 4, padding: '9px 12px', fontSize: 12.5 }}>Sei libero il 12 settembre? Una coppia ti sta cercando.</div>
-        <div style={{ alignSelf: 'flex-end', maxWidth: '85%', background: '#C49A5C', color: '#fff', borderRadius: 13, borderBottomRightRadius: 4, padding: '9px 12px', fontSize: 12.5 }}>Sì! Mandami pure i dettagli ✋</div>
+        <div style={{ alignSelf: 'flex-end', maxWidth: '85%', background: '#25402F', color: '#fff', borderRadius: 13, borderBottomRightRadius: 4, padding: '9px 12px', fontSize: 12.5 }}>Sì! Mandami pure i dettagli ✋</div>
         <div style={{ fontSize: 11.5, color: '#a89e8c', marginTop: 2 }}>{rete}</div>
       </div>
     </Device>
@@ -221,15 +221,15 @@ function CapostipiteMock() {
   return (
     <Device url="La rete di un capostipite">
       <div style={{ background: 'linear-gradient(135deg,#322b23,#14110e)', color: '#F4EDE0', borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#C49A5C', fontWeight: 700 }}>Wedding Planner / Location</div>
+        <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#25402F', fontWeight: 700 }}>Wedding Planner / Location</div>
         <div style={{ ...serif, fontSize: 18, marginTop: 4 }}>Porta gli eventi</div>
       </div>
-      <div style={{ textAlign: 'center', color: '#C49A5C', fontSize: 18, margin: '4px 0' }}>↓</div>
+      <div style={{ textAlign: 'center', color: '#25402F', fontSize: 18, margin: '4px 0' }}>↓</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {['Fotografo', 'Fioraio', 'Tu', 'Band'].map((r, k) => (
-          <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, border: '1px solid #E7E1D5', background: k === 2 ? 'rgba(196,154,92,.14)' : '#fff', fontSize: 13, fontWeight: k === 2 ? 700 : 400 }}>
+          <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, border: '1px solid #E7E1D5', background: k === 2 ? 'rgba(37,64,47,.14)' : '#fff', fontSize: 13, fontWeight: k === 2 ? 700 : 400 }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#d9c8a6,#bfa06f)' }} />
-            {r}{k === 2 && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#A97F3F', fontWeight: 700 }}>in pancia ✓</span>}
+            {r}{k === 2 && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#25402F', fontWeight: 700 }}>in pancia ✓</span>}
           </div>
         ))}
       </div>
@@ -251,24 +251,24 @@ function RentMock() {
         <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: k ? '1px solid #E7E1D5' : 'none', fontSize: 13.5 }}>
           <span style={{ fontSize: 18 }}>{it[0]}</span>
           <span style={{ color: '#4a443a' }}>{it[1]}</span>
-          <span style={{ marginLeft: 'auto', fontWeight: 700, color: '#A97F3F' }}>{it[2]}</span>
+          <span style={{ marginLeft: 'auto', fontWeight: 700, color: '#25402F' }}>{it[2]}</span>
         </div>
       ))}
-      <div style={{ marginTop: 12, background: '#C49A5C', color: '#fff', textAlign: 'center', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 700 }}>Incassi anche senza eventi</div>
+      <div style={{ marginTop: 12, background: '#25402F', color: '#fff', textAlign: 'center', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 700 }}>Incassi anche senza eventi</div>
     </Device>
   )
 }
 
 function Node({ label, sub, gold }: { label: string; sub?: string; gold?: boolean }) {
   return (
-    <div style={{ border: `1px solid ${gold ? '#C49A5C' : '#E7E1D5'}`, background: gold ? 'rgba(196,154,92,.12)' : '#fff', borderRadius: 11, padding: '11px 12px', textAlign: 'center' }}>
+    <div style={{ border: `1px solid ${gold ? '#25402F' : '#E7E1D5'}`, background: gold ? 'rgba(37,64,47,.12)' : '#fff', borderRadius: 11, padding: '11px 12px', textAlign: 'center' }}>
       <div style={{ ...serif, fontSize: 15.5 }}>{label}</div>
       {sub && <div style={{ fontSize: 11.5, color: '#7a7468', marginTop: 2 }}>{sub}</div>}
     </div>
   )
 }
 function Arrow({ t }: { t: string }) {
-  return <div style={{ textAlign: 'center', color: '#C49A5C', fontSize: 16, margin: '7px 0', fontWeight: 700 }}>{t}</div>
+  return <div style={{ textAlign: 'center', color: '#25402F', fontSize: 16, margin: '7px 0', fontWeight: 700 }}>{t}</div>
 }
 function NetworkSchema() {
   return (
@@ -287,7 +287,7 @@ function NetworkSchema() {
         <div style={{ ...kicker(), marginBottom: 12 }}>Via 2 · Scambio tra colleghi</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}><Node label="Collega" sub="è pieno quel giorno" /></div>
-          <div style={{ color: '#C49A5C', fontSize: 22, fontWeight: 700 }}>→</div>
+          <div style={{ color: '#25402F', fontSize: 22, fontWeight: 700 }}>→</div>
           <div style={{ flex: 1 }}><Node label="Tu" sub="sei libero" gold /></div>
         </div>
         <Arrow t="↑  pegno (credito)  ↑" />
@@ -401,12 +401,12 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
       <h2 style={h2}>Nella rete ci sono due tipi di professionisti.</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 26 }}>
         <div style={{ background: '#fff', border: '1px solid #E7E1D5', borderRadius: 16, padding: 24 }}>
-          <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#A97F3F', fontWeight: 800 }}>I capostipiti</div>
+          <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#25402F', fontWeight: 800 }}>I capostipiti</div>
           <div style={{ ...serif, fontSize: 23, marginTop: 8 }}>Location &amp; Wedding Planner</div>
           <p style={{ margin: '10px 0 0', fontSize: 15.5, color: '#7a7468', lineHeight: 1.5 }}><b style={{ color: '#1A1714' }}>Organizzano e ospitano gli eventi</b> — non solo matrimoni. Le <b style={{ color: '#1A1714' }}>Location</b>, che accolgono ogni festa, sono il punto di partenza della rete: portano il lavoro. Per loro è <b style={{ color: '#1A1714' }}>gratis, sempre</b>.</p>
         </div>
         <div style={{ background: '#fff', border: '1px solid #E7E1D5', borderRadius: 16, padding: 24 }}>
-          <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#A97F3F', fontWeight: 800 }}>I fornitori</div>
+          <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#25402F', fontWeight: 800 }}>I fornitori</div>
           <div style={{ ...serif, fontSize: 23, marginTop: 8 }}>Foto, musica, fiori, catering… (tu)</div>
           <p style={{ margin: '10px 0 0', fontSize: 15.5, color: '#7a7468', lineHeight: 1.5 }}><b style={{ color: '#1A1714' }}>Realizzano i servizi</b> del matrimonio. Si fanno trovare e ricevono lavoro: <b style={{ color: '#1A1714' }}>dai capostipiti</b> o <b style={{ color: '#1A1714' }}>dai colleghi</b>.</p>
         </div>
@@ -465,7 +465,7 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
               <div style={{ ...serif, fontSize: 15.5 }}>{s[0]}</div>
               <div style={{ fontSize: 12, color: '#7a7468', marginTop: 5, lineHeight: 1.35 }}>{s[1]}</div>
             </div>
-            {k < arr.length - 1 && <div style={{ color: '#C49A5C', fontSize: 20, padding: '0 5px' }}>→</div>}
+            {k < arr.length - 1 && <div style={{ color: '#25402F', fontSize: 20, padding: '0 5px' }}>→</div>}
           </div>
         ))}
       </div>
@@ -578,7 +578,7 @@ function buildSlides({ subrole, inviteCode, inviteUrl, photos }: { subrole: stri
       <p style={sub(true)}>Ti aiuto io a creare il tuo account ora. Bastano un’email e una password.</p>
       {inviteCode && (
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginTop: 24, flexWrap: 'wrap' }}>
-          <div style={{ background: 'rgba(196,154,92,.18)', border: '1px solid rgba(196,154,92,.5)', borderRadius: 14, padding: '14px 22px' }}>
+          <div style={{ background: 'rgba(37,64,47,.18)', border: '1px solid rgba(37,64,47,.5)', borderRadius: 14, padding: '14px 22px' }}>
             <div style={{ fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: '#EAD9B6', fontWeight: 700 }}>Codice invito</div>
             <div style={{ ...serif, fontSize: 34, letterSpacing: '4px', color: '#fff' }}>{inviteCode}</div>
           </div>

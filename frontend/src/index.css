@@ -16,39 +16,49 @@
 @import "@fontsource-variable/bodoni-moda/opsz-italic.css";
 @import "@fontsource-variable/schibsted-grotesk";
 @import "@fontsource/fragment-mono/400.css";
+/* Rebrand "filiera" (registro Olivetti/Pineider): Jost + IBM Plex Mono sono i font UI.
+   I font sopra RESTANO: servono agli strumenti di design (copertine, tableau, poster). */
+@import "@fontsource/jost/400.css";
+@import "@fontsource/jost/500.css";
+@import "@fontsource/jost/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
 
 /* ─────────────────────────────────────────────────────────────
-   Wedding Platform — Design Tokens 2027
+   Wedding Platform — Design Tokens · brand "filiera" (cipresso/lacca/carta)
    ───────────────────────────────────────────────────────────── */
 
 @theme {
-  --font-sans: 'Schibsted Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Bodoni Moda Variable', 'Bodoni Moda', ui-serif, Georgia, serif;
-  --font-mono: 'Fragment Mono', ui-monospace, 'Courier New', monospace;
+  --font-sans: 'Jost', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Jost', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
 }
 
 :root {
   color-scheme: light;
 
-  /* Surfaces (light) */
-  --bg:           248 245 240;
-  --bg-elev:     255 253 250;
-  --bg-sunken:   242 238 232;
-  --border:      232 226 216;
-  --border-strong: 220 212 199;
+  /* Surfaces (light) — carta */
+  --bg:           244 243 238;   /* #F4F3EE carta */
+  --bg-elev:     251 250 245;   /* card, leggermente più chiara */
+  --bg-sunken:   235 233 225;
+  --border:      224 221 210;
+  --border-strong: 206 202 189;
 
-  /* Text */
-  --fg:           14 17 22;
-  --fg-muted:    102 102 102;
-  --fg-subtle:   148 148 148;
+  /* Text — inchiostro */
+  --fg:           24 31 27;      /* #181F1B inchiostro */
+  --fg-muted:    107 107  99;   /* grigio-verde */
+  --fg-subtle:   150 150 141;
 
-  /* Brand */
-  --gold-50:    250 245 234;
-  --gold-100:   244 232 207;
-  --gold-300:   217 187 130;
-  --gold-500:   196 154 92;
-  --gold-600:   168 138 75;
-  --gold-700:   126 102 51;
+  /* Accento firma — cipresso (era "gold"/oro). Diffuso: bottoni, stati attivi, focus. */
+  --gold-50:    233 237 231;
+  --gold-100:   215 224 216;
+  --gold-300:   122 145 128;
+  --gold-500:    37  64  47;     /* #25402F cipresso */
+  --gold-600:    30  52  38;
+  --gold-700:    22  40  29;
+
+  /* Lacca — accento forte, UNO per vista (CTA critiche). */
+  --lacca:      192  59  42;     /* #C03B2A */
 
   --sage-100:   228 234 222;
   --sage-300:   180 195 168;
@@ -99,22 +109,25 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg:          14 13 12;
-  --bg-elev:    24 22 20;
-  --bg-sunken:   8  7  6;
-  --border:     38 35 31;
-  --border-strong: 60 55 47;
+  --bg:          20 26 22;      /* inchiostro appena schiarito */
+  --bg-elev:    28 36 30;
+  --bg-sunken:  14 19 16;
+  --border:     44 54 47;
+  --border-strong: 66 80 70;
 
-  --fg:          245 240 230;
-  --fg-muted:   170 165 155;
-  --fg-subtle:  110 108 102;
+  --fg:          244 243 238;   /* carta */
+  --fg-muted:   176 182 170;
+  --fg-subtle:  120 128 118;
 
-  --gold-50:    50 40 22;
-  --gold-100:   75 60 32;
-  --gold-300:  150 122 68;
-  --gold-500:  196 154 92;
-  --gold-600:  220 192 130;
-  --gold-700:  240 222 175;
+  /* accento cipresso schiarito per restare visibile su fondo scuro */
+  --gold-50:    34 46 38;
+  --gold-100:   46 62 51;
+  --gold-300:  108 138 116;
+  --gold-500:  141 170 148;
+  --gold-600:  176 200 182;
+  --gold-700:  210 226 214;
+
+  --lacca:      214 88 72;      /* lacca schiarita per contrasto su scuro */
 
   --sage-100:   45 55 40;
   --sage-300:   95 113  80;
@@ -226,7 +239,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 /* bersaglio evidenziato mentre sposto una foto tra le tavole (navigatore) */
-.pf-drop-target { outline: 3px solid rgb(var(--gold-500)); outline-offset: 2px; border-radius: 8px; background: rgba(184,146,63,.12); }
+.pf-drop-target { outline: 3px solid rgb(var(--gold-500)); outline-offset: 2px; border-radius: 8px; background: rgb(var(--gold-500) / 0.12); }
 .fade-up { animation: fadeUp .35s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .skeleton {

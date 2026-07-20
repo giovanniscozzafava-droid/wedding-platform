@@ -57,7 +57,7 @@ type Stats = {
 const TIER_META: Record<Tier['tier'], { label: string; color: string; bg: string; range: string }> = {
   BRONZO:  { label: 'Bronzo', color: '#A0673D', bg: 'rgb(var(--gold-100))',  range: '1–9 fornitori paganti' },
   ARGENTO: { label: 'Argento', color: '#7D8B98', bg: 'rgb(var(--bg-sunken))', range: '10–29 fornitori paganti' },
-  ORO:     { label: 'Oro', color: '#C49A5C', bg: 'rgb(var(--gold-200, 240 220 175))', range: '30+ fornitori paganti' },
+  ORO:     { label: 'Oro', color: '#25402F', bg: 'rgb(var(--gold-200, 240 220 175))', range: '30+ fornitori paganti' },
 }
 
 const REASON_LABELS: Record<Credit['reason'], string> = {

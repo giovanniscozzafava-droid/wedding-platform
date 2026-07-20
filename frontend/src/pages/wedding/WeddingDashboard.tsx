@@ -355,7 +355,7 @@ export default function WeddingDashboard() {
                       gLocked
                         ? 'opacity-35 cursor-not-allowed pointer-events-none text-[rgb(var(--fg-subtle))]'
                         : activeG
-                          ? 'bg-[#7E6633] text-[#FAF5EA]'
+                          ? 'bg-[#25402F] text-[#FAF5EA]'
                           : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
                     )}
                     aria-current={activeG ? 'page' : undefined}

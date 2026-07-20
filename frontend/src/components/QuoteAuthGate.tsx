@@ -18,7 +18,7 @@ export function QuoteAuthGate({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#FDFBF6', color: '#1A1714', colorScheme: 'light' }}>
       <div className="w-full max-w-md rounded-2xl border p-7 text-center" style={{ borderColor: '#E4DED2', background: '#fff' }}>
-        <span className="inline-flex h-14 w-14 items-center justify-center rounded-full mb-4" style={{ background: 'rgba(196,154,92,.14)', color: '#A97F3F' }}>
+        <span className="inline-flex h-14 w-14 items-center justify-center rounded-full mb-4" style={{ background: 'rgba(37,64,47,.14)', color: '#25402F' }}>
           <Lock size={26} />
         </span>
         <h1 className="font-display text-2xl mb-2">Accedi per vedere il preventivo</h1>
