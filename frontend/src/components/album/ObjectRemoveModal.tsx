@@ -142,7 +142,10 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
         pc.getContext('2d')!.drawImage(resImg, 0, 0, W, H)
         const fmc = document.createElement('canvas'); fmc.width = W; fmc.height = H
         const fm = fmc.getContext('2d')!
-        const feather = Math.max(2, Math.round(3 * (W / dims.current.w)))
+        // Maschera DILATATA + sfumata: la sfocatura allarga l'alpha oltre la pennellata → aggancia l'ombra
+        // a contatto e fa continuare lo sfondo al bordo (niente "toppa" netta). Ampiezza legata al pennello.
+        const d2f = W / (dims.current.dw || W)
+        const feather = Math.min(64, Math.max(8, Math.round(brush * 0.6 * d2f)))
         fm.filter = `blur(${feather}px)`; fm.drawImage(paint, 0, 0, W, H); fm.filter = 'none'
         const O = octx.getImageData(0, 0, W, H)
         const P = pc.getContext('2d')!.getImageData(0, 0, W, H)
@@ -157,12 +160,16 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
         for (let i = 0; i < od.length; i += 4 * 31) { oR += od[i]!; oG += od[i + 1]!; oB += od[i + 2]!; pR += pd[i]!; pG += pd[i + 1]!; pB += pd[i + 2]!; nn++ }
         const dR = (oR - pR) / nn, dG = (oG - pG) / nn, dB = (oB - pB) / nn
         const cl = (v: number) => v < 0 ? 0 : v > 255 ? 255 : v
-        // (3) fondo SOLO dove ho pennellato, tono corretto + eventuale desaturazione (B&N)
+        // (3) fondo SOLO dove ho pennellato: tono corretto + eventuale B&N + GRANA di luminanza (la toppa
+        //     di Qwen è troppo liscia rispetto alla foto → senza grana sembra plastica/"troppo netta").
+        const GRAIN = 11 // ampiezza ± della grana (rumore correlato su R,G,B = grana di luminanza)
         for (let i = 0; i < od.length; i += 4) {
           const a = ad[i + 3]! / 255
           if (a === 0) continue
           let pr = cl(pd[i]! + dR), pg = cl(pd[i + 1]! + dG), pb = cl(pd[i + 2]! + dB)
           if (grayscale) { const y = 0.299 * pr + 0.587 * pg + 0.114 * pb; pr = pg = pb = y }
+          const nz = (Math.random() - 0.5) * GRAIN
+          pr = cl(pr + nz); pg = cl(pg + nz); pb = cl(pb + nz)
           od[i] = od[i]! * (1 - a) + pr * a
           od[i + 1] = od[i + 1]! * (1 - a) + pg * a
           od[i + 2] = od[i + 2]! * (1 - a) + pb * a
@@ -186,7 +193,7 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
         <div className="flex items-start justify-between gap-3 border-b border-[rgb(var(--border))] p-4">
           <div>
             <p className="font-display text-lg">Cancella oggetto</p>
-            <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Pennella sopra ciò che vuoi togliere (rosso) — o scrivilo a parole. L'AI ricostruisce lo sfondo.</p>
+            <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Pennella ciò che vuoi togliere <b>e la sua ombra</b> (rosso) — o scrivilo a parole. L'AI ricostruisce lo sfondo.</p>
           </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
         </div>

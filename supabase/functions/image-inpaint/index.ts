@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     const marked = (body.marked && body.marked.startsWith('data:')) ? body.marked : ''
     const srcImg = marked || body.image
     const instr = marked
-      ? `This photo has a translucent bright pink / magenta (#FF00FF) marker painted over one unwanted object. Remove that object completely and erase the pink marker, then photorealistically rebuild the background that belongs behind it — continue the surrounding textures, edges, perspective, lighting and colors so the fix is invisible. No pink, magenta or colored haze may remain anywhere. Keep every other part of the photo exactly identical, same framing and same resolution.${KEEP}`
+      ? `This photo has a translucent bright pink / magenta (#FF00FF) marker painted over one unwanted object. Remove that object completely and erase the pink marker, then photorealistically rebuild the background that belongs behind it. Also remove any cast shadow, reflection or contact shadow that belonged to that object. Make floors, tiles, grass, walls or any repeating pattern continue naturally and seamlessly through the cleared area — match the same tile size and alignment, texture, film grain and the same focus/blur as the immediate surroundings, so nothing looks pasted, plastic or too smooth. No pink, magenta or colored haze may remain anywhere. Keep every other part of the photo exactly identical, same framing and same resolution.${KEEP}`
       : `${userText || 'Enhance this photo naturally'}. Keep everything else exactly identical.${KEEP} Photorealistic.`
     try {
       const r = await fetch(QWEN_URL, {
