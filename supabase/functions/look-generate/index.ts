@@ -10,10 +10,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+// Contract Higgsfield verificata (memoria project_planfully_higgsfield_api): auth `Key key:secret`,
+// image-edit richiede un media_id (NON un URL), submit ritorna status_url, poll → images:[{url}].
 const HF_URL = Deno.env.get('HIGGSFIELD_API_URL') ?? 'https://platform.higgsfield.ai'
 const HF_KEY = Deno.env.get('HIGGSFIELD_API_KEY') ?? ''
-const HF_SECRET = Deno.env.get('HIGGSFIELD_API_SECRET') ?? ''
-const HF_MODEL = Deno.env.get('HIGGSFIELD_MODEL') ?? 'nano_banana'
+const HF_SECRET = Deno.env.get('HIGGSFIELD_SECRET') ?? Deno.env.get('HIGGSFIELD_API_SECRET') ?? ''
+const HF_MODEL = Deno.env.get('HIGGSFIELD_MODEL') ?? 'nano_banana_2'
+// path REST incerti (da confermare col proprio account): sovrascrivibili via secret senza toccare codice.
+const HF_IMPORT_URL = Deno.env.get('HIGGSFIELD_IMPORT_URL') ?? `${HF_URL}/media/import-url`
+const HF_GEN_URL = Deno.env.get('HIGGSFIELD_GEN_URL') ?? `${HF_URL}/${HF_MODEL}`
 const COST_EUR = Number(Deno.env.get('LOOK_COST_EUR') ?? '0.10') // prezzo interno per immagine (addebito wallet)
 const BUCKET = 'event-guest-uploads'
 
@@ -25,31 +30,40 @@ const cors = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'content-type': 'application/json' } })
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-// ── Client Higgsfield (image-to-image, async job + poll). Da verificare col proprio account. ──
+// ── Client Higgsfield (image-to-image). Contract verificata; i 2 path REST (import/gen) sono
+//    sovrascrivibili via secret. Flow: URL→media_id (import) → generate(medias) → poll status_url. ──
 async function callHiggsfield(imageUrl: string, prompt: string): Promise<string> {
   const headers = { Authorization: `Key ${HF_KEY}:${HF_SECRET}`, 'content-type': 'application/json' }
-  // submit
-  const sub = await fetch(`${HF_URL}/v1/${HF_MODEL}`, {
+
+  // 1) importa la foto → media_id (Higgsfield ignora gli URL diretti in image-to-image)
+  const imp = await fetch(HF_IMPORT_URL, { method: 'POST', headers, body: JSON.stringify({ url: imageUrl }) })
+  if (!imp.ok) throw new Error(`hf_import_${imp.status}`)
+  const impJson = await imp.json().catch(() => ({}))
+  const mediaId = impJson?.id || impJson?.media_id || impJson?.media?.id
+  if (!mediaId) throw new Error('hf_no_media_id')
+
+  // 2) genera (model in body + medias con media_id)
+  const gen = await fetch(HF_GEN_URL, {
     method: 'POST', headers,
-    body: JSON.stringify({ prompt, image_url: imageUrl, aspect_ratio: '3:4', resolution: '1k' }),
+    body: JSON.stringify({ model: HF_MODEL, prompt, count: 1, aspect_ratio: '3:4', resolution: '1k', medias: [{ role: 'image', value: mediaId }] }),
   })
-  if (!sub.ok) throw new Error(`hf_submit_${sub.status}`)
-  const subJson = await sub.json().catch(() => ({}))
-  // risultato immediato?
-  const direct = subJson?.result_url || subJson?.image_url || subJson?.results?.[0]?.url
+  if (!gen.ok) throw new Error(`hf_submit_${gen.status}`)
+  const g = await gen.json().catch(() => ({}))
+  const direct = g?.images?.[0]?.url || g?.results?.[0]?.url
   if (direct) return direct as string
-  const jobId = subJson?.id || subJson?.job_id
-  if (!jobId) throw new Error('hf_no_job')
-  // poll
-  for (let i = 0; i < 30; i++) {
+  const statusUrl: string | null = g?.status_url || (g?.request_id ? `${HF_URL}/requests/${g.request_id}/status` : null)
+  if (!statusUrl) throw new Error('hf_no_status_url')
+
+  // 3) poll (la submit ritorna status_url)
+  for (let i = 0; i < 40; i++) {
     await sleep(2000)
-    const st = await fetch(`${HF_URL}/v1/jobs/${jobId}`, { headers })
+    const st = await fetch(statusUrl, { headers })
     if (!st.ok) continue
     const d = await st.json().catch(() => ({}))
     const status = d?.status
-    const url = d?.result_url || d?.image_url || d?.results?.[0]?.url
+    const url = d?.images?.[0]?.url || d?.results?.[0]?.url
     if ((status === 'completed' || status === 'succeeded') && url) return url as string
-    if (status === 'failed' || status === 'error') throw new Error('hf_failed')
+    if (status === 'failed' || status === 'error' || status === 'nsfw') throw new Error(`hf_${status}`)
   }
   throw new Error('hf_timeout')
 }
