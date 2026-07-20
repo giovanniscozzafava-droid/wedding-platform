@@ -22,8 +22,8 @@ const QWEN_MODEL = Deno.env.get('QWEN_IMAGE_MODEL') ?? 'qwen-image-edit'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const rawB64 = (d: string) => { const i = d.indexOf(','); return i >= 0 ? d.slice(i + 1) : d }
 
-// una passata Qwen-Image-Edit → URL immagine (o null). seed diverso = ipotesi diversa.
-async function qwenOnce(srcImg: string, instr: string, seed: number): Promise<string | null> {
+// una passata Qwen-Image-Edit → { url } o { err }. seed diverso = ipotesi diversa.
+async function qwenOnce(srcImg: string, instr: string, seed: number): Promise<{ url?: string; err?: string }> {
   try {
     const r = await fetch(QWEN_URL, {
       method: 'POST', headers: { Authorization: `Bearer ${DS_KEY}`, 'content-type': 'application/json' },
@@ -31,8 +31,9 @@ async function qwenOnce(srcImg: string, instr: string, seed: number): Promise<st
     })
     const d = await r.json().catch(() => ({}))
     const url = d?.output?.choices?.[0]?.message?.content?.find((c: any) => c?.image)?.image
-    return (r.ok && url) ? url : null
-  } catch { return null }
+    if (r.ok && url) return { url }
+    return { err: String(d?.message ?? d?.code ?? r.status) }
+  } catch (e) { return { err: String((e as Error).message ?? e) } }
 }
 
 async function urlToDataUrl(url: string): Promise<string> {
@@ -85,12 +86,18 @@ Then make it blend TOTALLY and INVISIBLY: continue the surrounding floor, tiles,
 
 Absolutely no magenta or pink may remain anywhere. Keep every other part of the photo pixel-for-pixel identical, same framing and same resolution.${KEEP}`
       : `${userText || 'Enhance this photo naturally'}. Keep everything else exactly identical.${KEEP} Photorealistic.`
-    // N ipotesi in parallelo (seed diversi) → l'utente sceglie la migliore lato client
+    // N ipotesi (seed diversi). SEQUENZIALI con retry: le chiamate parallele venivano strozzate dal
+    // limite di concorrenza DashScope (tornavano < N o zero → niente scelta).
     const n = Math.min(4, Math.max(1, Math.round(Number(body.variants) || 1)))
     try {
-      const seeds = Array.from({ length: n }, (_, i) => 137 + i * 7919)
-      const urls = (await Promise.all(seeds.map((s) => qwenOnce(srcImg, instr, s)))).filter((u): u is string => !!u)
-      if (!urls.length) return json({ error: 'qwen_failed', detail: 'nessun output dal motore' }, 200)
+      const urls: string[] = []
+      let seed = 137, attempts = 0, lastErr = ''
+      while (urls.length < n && attempts < n + 3) {
+        const { url, err } = await qwenOnce(srcImg, instr, seed)
+        seed += 7919; attempts++
+        if (url) urls.push(url); else if (err) lastErr = err
+      }
+      if (!urls.length) return json({ error: 'qwen_failed', detail: lastErr || 'nessun output dal motore' }, 200)
       const images = await Promise.all(urls.map((u) => urlToDataUrl(u)))
       return json({ image: images[0], images, engine: 'qwen' })
     } catch (e) { return json({ error: 'qwen_error', detail: String((e as Error).message ?? e) }, 200) }

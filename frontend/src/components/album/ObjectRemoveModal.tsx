@@ -25,7 +25,7 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
   const [brush, setBrush] = useState(38)                   // raggio pennello in px display
   const [hasPaint, setHasPaint] = useState(false)
   const [text, setText] = useState('')
-  const [variants, setVariants] = useState<{ url: string; file: File }[] | null>(null) // 3 ipotesi da scegliere
+  const [variants, setVariants] = useState<{ url: string; file: File; label?: string }[] | null>(null) // ipotesi da scegliere
   const dims = useRef<{ w: number; h: number; dw: number; dh: number; scale: number }>({ w: 0, h: 0, dw: 0, dh: 0, scale: 1 })
 
   useEffect(() => {
@@ -144,6 +144,53 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
 
   const loadImg = (u: string) => new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => rej(new Error('out_img')); i.src = u })
 
+  // Riempimento LOCALE "campiona dai vicini": diffonde i pixel dai bordi della pennellata verso l'interno
+  // (Gauss-Seidel sul solo riquadro della maschera). Istantaneo e offline, tono già identico al contorno.
+  async function localFillImage(): Promise<HTMLImageElement | null> {
+    const img = imgRef.current, paint = paintRef.current; if (!img || !paint) return null
+    const { w, h } = dims.current
+    const sc = document.createElement('canvas'); sc.width = w; sc.height = h
+    const sctx = sc.getContext('2d')!; sctx.drawImage(img, 0, 0, w, h)
+    const sd = sctx.getImageData(0, 0, w, h).data
+    const M = paint.getContext('2d')!.getImageData(0, 0, w, h).data
+    let minX = w, minY = h, maxX = 0, maxY = 0, any = false
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { if (M[(y * w + x) * 4 + 3]! > 20) { any = true; if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y } }
+    if (!any) return null
+    const mg = Math.round(Math.max(w, h) * 0.02) + 4
+    minX = Math.max(0, minX - mg); minY = Math.max(0, minY - mg); maxX = Math.min(w - 1, maxX + mg); maxY = Math.min(h - 1, maxY + mg)
+    const bw = maxX - minX + 1, bh = maxY - minY + 1
+    const R = new Float32Array(bw * bh), G = new Float32Array(bw * bh), B = new Float32Array(bw * bh), hole = new Uint8Array(bw * bh)
+    for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+      const si = ((y + minY) * w + (x + minX)) * 4, bi = y * bw + x
+      R[bi] = sd[si]!; G[bi] = sd[si + 1]!; B[bi] = sd[si + 2]!
+      hole[bi] = M[si + 3]! > 20 ? 1 : 0
+    }
+    const iters = Math.min(300, Math.max(40, Math.round(Math.max(bw, bh) * 1.2)))
+    for (let it = 0; it < iters; it++) {
+      const fwd = it % 2 === 0
+      for (let yy = 0; yy < bh; yy++) {
+        const y = fwd ? yy : bh - 1 - yy
+        for (let xx = 0; xx < bw; xx++) {
+          const x = fwd ? xx : bw - 1 - xx
+          const bi = y * bw + x
+          if (!hole[bi]) continue
+          let sr = 0, sg = 0, sb = 0, c = 0
+          if (x > 0) { sr += R[bi - 1]!; sg += G[bi - 1]!; sb += B[bi - 1]!; c++ }
+          if (x < bw - 1) { sr += R[bi + 1]!; sg += G[bi + 1]!; sb += B[bi + 1]!; c++ }
+          if (y > 0) { sr += R[bi - bw]!; sg += G[bi - bw]!; sb += B[bi - bw]!; c++ }
+          if (y < bh - 1) { sr += R[bi + bw]!; sg += G[bi + bw]!; sb += B[bi + bw]!; c++ }
+          if (c) { R[bi] = sr / c; G[bi] = sg / c; B[bi] = sb / c }
+        }
+      }
+    }
+    const out = document.createElement('canvas'); out.width = w; out.height = h
+    const octx = out.getContext('2d')!; octx.drawImage(img, 0, 0, w, h)
+    const OD = octx.getImageData(0, 0, w, h); const odat = OD.data
+    for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) { const bi = y * bw + x; if (!hole[bi]) continue; const si = ((y + minY) * w + (x + minX)) * 4; odat[si] = R[bi]!; odat[si + 1] = G[bi]!; odat[si + 2] = B[bi]! }
+    octx.putImageData(OD, 0, 0)
+    return await loadImg(out.toDataURL('image/jpeg', 0.95))
+  }
+
   async function run() {
     const img = imgRef.current, paint = paintRef.current; if (!img || !paint) return
     if (!hasPaint && !text.trim()) { toast.message('Pennella sull\'oggetto da togliere, oppure scrivi cosa cancellare.'); return }
@@ -177,28 +224,34 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
       const prompt = text.trim()
         ? text.trim()
         : 'clean natural background that seamlessly continues the surrounding scene, object removed, photorealistic, consistent lighting and colors'
-      const { data, error } = await supabase.functions.invoke('image-inpaint', { body: { image, mask, marked, prompt, variants: VARIANTS } })
+      const results: { url: string; file: File; label?: string }[] = []
+      // Ipotesi #1: riempimento LOCALE che campiona i pixel VICINI (istantaneo, tono già del contorno).
+      // Presente sempre quando hai pennellato, anche se l'AI non risponde → non resti mai a mani vuote.
+      if (hasPaint) {
+        try { const li = await localFillImage(); if (li) { const f = await compositeResult(li); results.push({ url: URL.createObjectURL(f), file: f, label: 'Vicino' }) } } catch { /* */ }
+      }
+      // Ipotesi AI (Qwen): completo fino a VARIANTS in totale
+      const nAI = Math.max(1, VARIANTS - results.length)
+      const { data, error } = await supabase.functions.invoke('image-inpaint', { body: { image, mask, marked, prompt, variants: nAI } })
       let err = (data as { error?: string } | null)?.error; let detail = (data as { detail?: string } | null)?.detail
       if (error) { try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err; detail = b?.detail ?? detail } } catch { /* */ } }
-      if (error || err) {
+      if (!error && !err) {
+        const payload = data as { image?: string; images?: string[] }
+        const outUrls = (payload.images && payload.images.length ? payload.images : payload.image ? [payload.image] : [])
+        const aiFiles = await Promise.all(outUrls.map(async (u, i) => {
+          const resImg = await loadImg(u); const f = await compositeResult(resImg)
+          return { url: URL.createObjectURL(f), file: f, label: `AI ${i + 1}` }
+        }))
+        results.push(...aiFiles)
+      }
+      if (!results.length) {
         toast.error(
-          err === 'org_not_verified' ? 'Organizzazione OpenAI non abilitata alla generazione immagini.'
-          : err === 'no_engine' ? 'Manca il token del motore AI immagini sul server (REPLICATE_API_TOKEN).'
-          : err === 'replicate_failed' || err === 'replicate_error' ? `Il motore ha rifiutato${detail ? `: ${detail}` : ''}`.slice(0, 200)
+          err === 'no_engine' ? 'Manca la chiave del motore AI sul server.'
           : `Non riuscito${detail ? `: ${detail}` : (err ? `: ${err}` : '')}`.slice(0, 200),
           { duration: 9000 })
         return
       }
-      const payload = data as { image?: string; images?: string[] }
-      const outUrls = (payload.images && payload.images.length ? payload.images : payload.image ? [payload.image] : [])
-      if (!outUrls.length) { toast.error('Nessuna immagine restituita'); return }
-      // ricompongo OGNI ipotesi (in parallelo) → anteprime da scegliere
-      const results = await Promise.all(outUrls.map(async (u) => {
-        const resImg = await loadImg(u)
-        const file = await compositeResult(resImg)
-        return { url: URL.createObjectURL(file), file }
-      }))
-      if (results.length === 1) { onResult(results[0]!.file); return }
+      if (err && results.length < 2) toast.message('L\'AI non ha risposto: per ora mostro il riempimento locale.', { duration: 6000 })
       setVariants(results)
     } catch (e) {
       toast.error(`Non riuscito: ${String((e as Error)?.message ?? e).slice(0, 140)}`)
@@ -214,7 +267,7 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
           <div>
             <p className="font-display text-lg">Cancella oggetto</p>
             <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">
-              {choosing ? 'Tre ipotesi: tocca quella che integra meglio nella foto.' : <>Pennella ciò che vuoi togliere <b>e la sua ombra</b> (rosso) — o scrivilo a parole. L'AI ricostruisce lo sfondo.</>}
+              {choosing ? 'Ipotesi a confronto: «Vicino» campiona i pixel accanto, le «AI» le genera Qwen. Tocca la migliore.' : <>Pennella ciò che vuoi togliere <b>e la sua ombra</b> (rosso) — o scrivilo a parole. L'AI ricostruisce lo sfondo.</>}
             </p>
           </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
@@ -228,7 +281,7 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
                   <button onClick={() => onResult(v.file)}
                     className="relative overflow-hidden rounded-lg border border-[rgb(var(--border))] bg-black/5 transition hover:ring-2 hover:ring-[rgb(var(--gold-500))] focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]">
                     <img src={v.url} alt={`Ipotesi ${i + 1}`} className="block h-full w-full object-contain" />
-                    <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">Ipotesi {i + 1}</span>
+                    <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">{v.label ?? `Ipotesi ${i + 1}`}</span>
                     <span className="pointer-events-none absolute inset-x-2 bottom-2 flex items-center justify-center gap-1 rounded-md bg-[rgb(var(--gold-500))] py-1.5 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100"><Check size={13} /> Usa questa</span>
                   </button>
                 </figure>
