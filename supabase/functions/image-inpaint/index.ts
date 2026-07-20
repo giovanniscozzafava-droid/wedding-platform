@@ -11,6 +11,11 @@ const REPLICATE_MODEL = Deno.env.get('REPLICATE_MODEL') ?? 'black-forest-labs/fl
 const BFL_API_KEY = Deno.env.get('BFL_API_KEY') ?? ''
 const BFL_BASE = Deno.env.get('BFL_BASE') ?? 'https://api.bfl.ai'
 const BFL_MODEL = Deno.env.get('BFL_MODEL') ?? 'flux-pro-1.0-fill'
+// MOTORE PREFERITO: Qwen-Image-Edit (Alibaba DashScope) — chiave già impostata, nessun costo extra.
+// A istruzione: usa `marked` (immagine con l'area dipinta in magenta) e istruisce a rimuovere/riempire.
+const DS_KEY = Deno.env.get('DASHSCOPE_API_KEY') ?? ''
+const QWEN_URL = Deno.env.get('QWEN_IMAGE_URL') ?? 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation'
+const QWEN_MODEL = Deno.env.get('QWEN_IMAGE_MODEL') ?? 'qwen-image-edit'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const rawB64 = (d: string) => { const i = d.indexOf(','); return i >= 0 ? d.slice(i + 1) : d }
 
@@ -43,11 +48,32 @@ function dataUrlToBlob(d: string): Blob {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
-  if (!BFL_API_KEY && !REPLICATE_TOKEN && !OPENAI_API_KEY) return json({ error: 'no_engine', hint: 'Imposta BFL_API_KEY (FLUX) / REPLICATE_API_TOKEN / OPENAI_API_KEY' }, 503)
+  if (!DS_KEY && !BFL_API_KEY && !REPLICATE_TOKEN && !OPENAI_API_KEY) return json({ error: 'no_engine', hint: 'Imposta DASHSCOPE_API_KEY (Qwen) / BFL_API_KEY / REPLICATE_API_TOKEN / OPENAI_API_KEY' }, 503)
 
-  let body: { image?: string; mask?: string; prompt?: string; size?: string }
+  let body: { image?: string; mask?: string; marked?: string; prompt?: string; size?: string }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   if (!body.image || typeof body.image !== 'string' || !body.image.startsWith('data:')) return json({ error: 'no_image' }, 400)
+
+  // ── MOTORE PREFERITO: Qwen-Image-Edit (DashScope). Usa `marked` (area in magenta) + istruzione. ──
+  if (DS_KEY) {
+    try {
+      const userText = (typeof body.prompt === 'string' && body.prompt.trim()) ? body.prompt.trim().slice(0, 400) : ''
+      const hasMarker = !!(body.marked && body.marked.startsWith('data:'))
+      const src = hasMarker ? body.marked! : body.image
+      let instr: string
+      if (hasMarker && userText) instr = `Replace the area covered by the solid magenta marker with: ${userText}. Blend it in seamlessly, matching perspective, light and colors. Leave NO magenta anywhere. Keep everything else in the photo exactly identical. Photorealistic.`
+      else if (hasMarker) instr = `The image has an area covered by a solid magenta marker. Remove whatever is under the magenta and reconstruct the background seamlessly to match the surroundings (texture, light, colors). Leave NO magenta anywhere. Keep everything else in the photo exactly identical. Photorealistic, no artifacts.`
+      else instr = `${userText || 'Enhance this photo naturally'}. Keep everything else in the photo exactly identical. Photorealistic.`
+      const r = await fetch(QWEN_URL, {
+        method: 'POST', headers: { Authorization: `Bearer ${DS_KEY}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model: QWEN_MODEL, input: { messages: [{ role: 'user', content: [{ image: src }, { text: instr }] }] }, parameters: { n: 1, prompt_extend: false, watermark: false } }),
+      })
+      const d = await r.json().catch(() => ({}))
+      const url = d?.output?.choices?.[0]?.message?.content?.find((c: any) => c?.image)?.image
+      if (r.ok && url) return json({ image: await urlToDataUrl(url), engine: 'qwen' })
+      return json({ error: 'qwen_failed', detail: String(d?.message ?? d?.code ?? r.status) }, 200)
+    } catch (e) { return json({ error: 'qwen_error', detail: String((e as Error).message ?? e) }, 200) }
+  }
 
   const prompt = (typeof body.prompt === 'string' && body.prompt.trim())
     ? body.prompt.trim().slice(0, 400)

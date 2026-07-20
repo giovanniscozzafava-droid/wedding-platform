@@ -88,17 +88,28 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
       ic.getContext('2d')!.drawImage(img, 0, 0, w, h)
       const image = ic.toDataURL('image/jpeg', 0.92)
       let mask: string | undefined
+      let marked: string | undefined
       if (hasPaint) {
         const mc = document.createElement('canvas'); mc.width = w; mc.height = h
         const m = mc.getContext('2d')!
         m.fillStyle = '#000'; m.fillRect(0, 0, w, h)
         m.drawImage(paint, 0, 0) // paint = cerchi bianchi opachi dove ho pennellato → bianco su nero
         mask = mc.toDataURL('image/png')
+        // marked = foto originale con l'area dipinta riempita di MAGENTA (per il motore Qwen a istruzione)
+        const kc = document.createElement('canvas'); kc.width = w; kc.height = h
+        const k = kc.getContext('2d')!
+        k.drawImage(img, 0, 0, w, h)
+        const mg = document.createElement('canvas'); mg.width = w; mg.height = h
+        const g = mg.getContext('2d')!
+        g.drawImage(paint, 0, 0)
+        g.globalCompositeOperation = 'source-in'; g.fillStyle = '#FF00FF'; g.fillRect(0, 0, w, h)
+        k.drawImage(mg, 0, 0)
+        marked = kc.toDataURL('image/jpeg', 0.92)
       }
       const prompt = text.trim()
         ? text.trim()
         : 'clean natural background that seamlessly continues the surrounding scene, object removed, photorealistic, consistent lighting and colors'
-      const { data, error } = await supabase.functions.invoke('image-inpaint', { body: { image, mask, prompt } })
+      const { data, error } = await supabase.functions.invoke('image-inpaint', { body: { image, mask, marked, prompt } })
       let err = (data as { error?: string } | null)?.error; let detail = (data as { detail?: string } | null)?.detail
       if (error) { try { const ctx = (error as { context?: Response }).context; if (ctx && typeof ctx.json === 'function') { const b = await ctx.json(); err = b?.error ?? err; detail = b?.detail ?? detail } } catch { /* */ } }
       if (error || err) {
