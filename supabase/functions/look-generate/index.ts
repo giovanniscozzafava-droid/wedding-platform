@@ -70,11 +70,23 @@ Deno.serve(async (req) => {
     const { data: bal } = await admin.rpc('fb_ai_precheck', { p_location: uid })
     if ((bal ?? 0) <= 0) return json({ ok: false, error: 'no_credit', balance: bal ?? 0 })
 
-    // istruzione: preservazione volto + solo capelli / solo trucco
-    const guard = sess.kind === 'hair'
-      ? 'Change ONLY the hairstyle. Keep the exact same face, identity and makeup unchanged. Do not add makeup. Keep everything else exactly identical: face, skin, features, lighting, background.'
-      : 'Change ONLY the makeup. Keep the exact same face, identity and hairstyle unchanged. Do not restyle the hair. Keep everything else exactly identical: hair, face shape, features, lighting, background.'
-    const fullPrompt = `${guard} Apply: ${prompt}. Photorealistic, same person.`
+    // GUARDRAIL VOLTO REALE (trucco/parrucco): l'output deve restare la stessa identica persona.
+    const REAL = 'CRITICAL identity lock: this is a REAL photo of a real person. The output MUST be unmistakably the SAME individual — keep identical facial features, face shape and bone structure, eye shape and color, nose, mouth, skin tone and any freckles or marks. Do NOT beautify, slim, smooth, re-age or alter the face in any way. '
+    const view = String(body.view ?? 'front')
+    let guard: string
+    if (sess.kind === 'makeup') {
+      guard = REAL + 'Change ONLY the makeup. Keep the exact same hairstyle. Keep everything else identical: hair, face, lighting, background. Photorealistic, same person.'
+    } else if (sess.kind === 'hair' && view === 'back') {
+      // vista posteriore: si vede il retro del raccolto, il viso NON è visibile (quindi niente lock volto)
+      guard = 'Show the SAME person from BEHIND — a rear/back view of the head. Apply the new hairstyle and render the BACK of it in detail. Keep the same hair color, length and texture. The face is not visible from behind (that is expected). Same lighting and background. Photorealistic.'
+    } else if (sess.kind === 'hair') {
+      guard = REAL + 'Change ONLY the hairstyle (front view). Keep the exact same face and makeup unchanged. Do not add makeup. Keep everything else identical: face, skin, lighting, background. Photorealistic, same person.'
+    } else if (sess.kind === 'flowers') {
+      guard = 'This is a wedding venue (church or reception location). ADD a floral decoration/installation to it. Keep the venue architecture, space, perspective and lighting exactly identical: only ADD the flowers and decor described, integrated realistically. Photorealistic.'
+    } else {
+      guard = 'This is a wedding venue at the event. ADD a fireworks / pyrotechnic display to the scene (in the night sky above and around the venue). Keep the venue, foreground and composition exactly identical: only ADD the fireworks described, as a photorealistic night scene.'
+    }
+    const fullPrompt = `${guard} Apply: ${prompt}.`
 
     // genera (Qwen-Image-Edit, sincrono)
     const outUrl = await callQwenEdit(sess.selfie_url, fullPrompt)

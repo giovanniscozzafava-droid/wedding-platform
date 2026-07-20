@@ -1,18 +1,42 @@
 // PROVA LOOK (Beta) — tipi + wrapper RPC/edge-function per i due strumenti (acconciatura/trucco).
 import { supabase } from '@/lib/supabase'
 
-export type LookKind = 'hair' | 'makeup'
+export type LookKind = 'hair' | 'makeup' | 'flowers' | 'pyro'
 export type LookStyle = { id: string; owner_id: string | null; kind: LookKind; category: string; label: string; prompt_fragment: string; sort: number }
 export type LookSession = { id: string; owner_id: string; kind: LookKind; client_label: string | null; selfie_path: string | null; selfie_url: string | null; share_token: string; status: string; created_at: string }
 export type LookProposal = { id: string; session_id: string; title: string | null; image_url: string | null; status: 'DRAFT' | 'KEPT' | 'DISCARDED'; client_favorite: boolean; created_at: string }
 
-// etichette categorie (ordine di visualizzazione nel compositore)
+// etichette categorie (ordine di visualizzazione nel compositore), per mestiere
 export const MAKEUP_CATS = ['preset', 'occasione', 'occhi', 'labbra', 'incarnato', 'blush', 'ciglia', 'intensita'] as const
 export const HAIR_CATS = ['preset', 'acconciatura', 'volume', 'accessori', 'colore', 'occasione'] as const
+export const FLOWERS_CATS = ['preset', 'stile', 'fiori', 'colori', 'elementi', 'ambiente'] as const
+export const PYRO_CATS = ['preset', 'tipo', 'colori', 'momento', 'intensita'] as const
+export function catsFor(kind: LookKind): readonly string[] {
+  return kind === 'hair' ? HAIR_CATS : kind === 'flowers' ? FLOWERS_CATS : kind === 'pyro' ? PYRO_CATS : MAKEUP_CATS
+}
 export const CAT_LABEL: Record<string, string> = {
   preset: 'Preset', occasione: 'Occasione', occhi: 'Occhi', labbra: 'Labbra', incarnato: 'Incarnato',
   blush: 'Blush', ciglia: 'Ciglia & sopracciglia', intensita: 'Intensità',
   acconciatura: 'Acconciatura', volume: 'Volume', accessori: 'Accessori', colore: 'Colore',
+  stile: 'Stile', fiori: 'Fiori', colori: 'Colori', elementi: 'Elementi', ambiente: 'Dove',
+  tipo: 'Tipo di effetto', momento: 'Momento',
+}
+
+// mestiere → subrole, copy della pagina e del cliente
+export const KIND_UI: Record<LookKind, { title: string; short: string; photoLabel: string; freePlaceholder: string; clientKind: string }> = {
+  hair:    { title: 'Prova acconciatura online', short: 'Acconciatura', photoLabel: 'foto cliente', freePlaceholder: 'es. onde morbide con riga laterale', clientKind: 'acconciatura' },
+  makeup:  { title: 'Prova trucco online', short: 'Trucco', photoLabel: 'foto cliente', freePlaceholder: 'es. eyeliner grafico rame', clientKind: 'trucco' },
+  flowers: { title: 'Prova allestimento floreale', short: 'Allestimento', photoLabel: 'foto della location / chiesa', freePlaceholder: 'es. arco con rose bianche ed eucalipto', clientKind: 'allestimento' },
+  pyro:    { title: 'Prova spettacolo pirotecnico', short: 'Spettacolo', photoLabel: 'foto della location / serata', freePlaceholder: 'es. cascata dorata sul lago', clientKind: 'spettacolo' },
+}
+export function kindForSubrole(subrole: string | null | undefined): LookKind | null {
+  switch (subrole) {
+    case 'parrucchiere': return 'hair'
+    case 'make_up': return 'makeup'
+    case 'fioraio': case 'allestimenti': return 'flowers'
+    case 'fuochista': return 'pyro'
+    default: return null
+  }
 }
 
 export async function loadCatalog(kind: LookKind): Promise<LookStyle[]> {
@@ -43,8 +67,8 @@ export async function uploadSelfie(session: LookSession, file: File): Promise<st
   return url
 }
 
-export async function generateProposal(sessionId: string, prompt: string, title: string, spec: unknown): Promise<{ ok?: boolean; error?: string; proposal?: LookProposal; balance?: number; cost?: number }> {
-  const { data, error } = await (supabase as any).functions.invoke('look-generate', { body: { session_id: sessionId, prompt, title, spec } })
+export async function generateProposal(sessionId: string, prompt: string, title: string, spec: unknown, view: 'front' | 'back' = 'front'): Promise<{ ok?: boolean; error?: string; proposal?: LookProposal; balance?: number; cost?: number }> {
+  const { data, error } = await (supabase as any).functions.invoke('look-generate', { body: { session_id: sessionId, prompt, title, spec, view } })
   if (error) return { error: error.message }
   return data
 }

@@ -41,7 +41,7 @@ export default function ProvaLookClientPage() {
   }
 
   const studio = data.studio || 'Il professionista'
-  const kindLabel = data.kind === 'hair' ? 'acconciatura' : 'trucco'
+  const kindLabel = data.kind === 'hair' ? 'acconciatura' : data.kind === 'flowers' ? 'allestimento' : data.kind === 'pyro' ? 'spettacolo' : 'trucco'
 
   return (
     <div className="min-h-screen bg-[rgb(var(--bg))] text-[rgb(var(--fg))]">

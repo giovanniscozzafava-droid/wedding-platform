@@ -8,17 +8,19 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
   loadCatalog, createSession, uploadSelfie, generateProposal, setProposalStatus, sendSession,
-  composePrompt, MAKEUP_CATS, HAIR_CATS, CAT_LABEL,
+  composePrompt, catsFor, CAT_LABEL, KIND_UI, kindForSubrole,
   type LookKind, type LookStyle, type LookSession, type LookProposal,
 } from '@/lib/provaLook'
 
 export default function ProvaLookPage() {
   const { profile } = useAuth()
   const isAdmin = profile?.role === 'ADMIN'
-  const fixedKind: LookKind | null = profile?.subrole === 'parrucchiere' ? 'hair' : profile?.subrole === 'make_up' ? 'makeup' : null
+  const fixedKind = kindForSubrole(profile?.subrole)
   const [kind, setKind] = useState<LookKind>(fixedKind ?? 'makeup')
   useEffect(() => { if (fixedKind) setKind(fixedKind) }, [fixedKind])
   const available = !!fixedKind || isAdmin
+  const ui = KIND_UI[kind]
+  const [backView, setBackView] = useState(true) // capelli: genera anche la vista da dietro
 
   const [catalog, setCatalog] = useState<LookStyle[]>([])
   const [session, setSession] = useState<LookSession | null>(null)
@@ -34,7 +36,7 @@ export default function ProvaLookPage() {
   const [shareToken, setShareToken] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const cats = kind === 'hair' ? HAIR_CATS : MAKEUP_CATS
+  const cats = catsFor(kind)
   const byCat = useMemo(() => {
     const m: Record<string, LookStyle[]> = {}
     for (const s of catalog) { (m[s.category] ??= []).push(s) }
@@ -62,20 +64,26 @@ export default function ProvaLookPage() {
 
   function pick(cat: string, id: string) { setSelected((s) => ({ ...s, [cat]: s[cat] === id ? '' : id })) }
 
+  async function runOne(t: string, prompt: string, view: 'front' | 'back') {
+    const res = await generateProposal(session!.id, prompt, t, selected, view)
+    if (res.error || !res.ok) {
+      const m = res.error === 'no_credit' ? 'Credito AI esaurito: ricarica il wallet.' : res.error === 'no_ai_key' ? 'Motore AI non ancora configurato (chiave DashScope).' : res.error === 'no_selfie' ? 'Carica prima la foto.' : `Generazione non riuscita (${res.error ?? '?'})`
+      toast.error(m); return false
+    }
+    if (res.proposal) setProposals((p) => [res.proposal as LookProposal, ...p])
+    if (typeof res.balance === 'number') setBalance(res.balance)
+    return true
+  }
   async function generate() {
-    if (!session || !selfieUrl) { toast.error('Carica prima la foto della cliente'); return }
+    if (!session || !selfieUrl) { toast.error(`Carica prima la ${ui.photoLabel}`); return }
     const prompt = composePrompt(selFragments, freeText)
-    if (!prompt) { toast.error('Scegli almeno un elemento del look'); return }
+    if (!prompt) { toast.error('Scegli almeno un elemento'); return }
     setBusy(true)
-    const t = title.trim() || selLabels.slice(0, 3).join(' · ') || (kind === 'hair' ? 'Acconciatura' : 'Trucco')
+    const base = title.trim() || selLabels.slice(0, 3).join(' · ') || ui.short
     try {
-      const res = await generateProposal(session.id, prompt, t, selected)
-      if (res.error || !res.ok) {
-        const m = res.error === 'no_credit' ? 'Credito AI esaurito: ricarica il wallet.' : res.error === 'no_ai_key' ? 'Motore AI non ancora configurato (secret Higgsfield).' : res.error === 'no_selfie' ? 'Carica prima la foto.' : `Generazione non riuscita (${res.error ?? '?'})`
-        toast.error(m); return
-      }
-      if (res.proposal) setProposals((p) => [res.proposal as LookProposal, ...p])
-      if (typeof res.balance === 'number') setBalance(res.balance)
+      // per i capelli: fronte + (se attivo) vista da dietro
+      const ok = await runOne(kind === 'hair' && backView ? `${base} · fronte` : base, prompt, 'front')
+      if (ok && kind === 'hair' && backView) await runOne(`${base} · dietro`, prompt, 'back')
     } catch (e) { toast.error('Errore: ' + (e as Error).message) } finally { setBusy(false) }
   }
 
@@ -96,22 +104,21 @@ export default function ProvaLookPage() {
     <div className="max-w-3xl mx-auto px-6 py-16 text-center">
       <ImageIcon size={40} className="mx-auto text-[rgb(var(--fg-subtle))]" />
       <h2 className="font-display text-2xl mt-4">Prova look</h2>
-      <p className="text-[rgb(var(--fg-muted))] mt-2">Strumento disponibile per <strong>parrucchieri</strong> (prova acconciatura) e <strong>make-up artist</strong> (prova trucco). Imposta il tuo mestiere nel profilo per attivarlo.</p>
+      <p className="text-[rgb(var(--fg-muted))] mt-2">Strumento disponibile per <strong>parrucchieri</strong>, <strong>make-up artist</strong>, <strong>fioristi / allestitori</strong> e <strong>pirotecnici</strong>. Imposta il tuo mestiere nel profilo per attivarlo.</p>
     </div>
   )
 
   return (
     <div className="min-h-full">
       <div className="max-w-5xl mx-auto px-6 sm:px-10 py-10">
-        <PageHeader eyebrow={`${kind === 'hair' ? 'Acconciatura' : 'Trucco'} · Beta`}
-          title={kind === 'hair' ? 'Prova acconciatura online' : 'Prova trucco online'}
-          description="Carica la foto della cliente, componi i look, l'AI li applica mantenendo il suo volto. Rivedi, tieni i migliori e inviaglieli con un link." />
+        <PageHeader eyebrow={`${ui.short} · Beta`} title={ui.title}
+          description={`Carica la ${ui.photoLabel}, componi la proposta, l'AI la genera mantenendo tutto il resto intatto. Rivedi, tieni le migliori e inviale al cliente con un link.`} />
 
         <div className="flex items-center justify-between gap-3 flex-wrap mt-2 mb-6">
           {isAdmin && !fixedKind && (
-            <div className="inline-flex rounded-lg border border-[rgb(var(--border))] p-0.5">
-              {(['makeup', 'hair'] as LookKind[]).map((k) => (
-                <button key={k} onClick={() => { setKind(k); setSession(null) }} className={`px-3 h-8 rounded-md text-sm ${kind === k ? 'bg-[rgb(var(--gold-500))] text-white' : 'text-[rgb(var(--fg-muted))]'}`}>{k === 'hair' ? 'Acconciatura' : 'Trucco'}</button>
+            <div className="inline-flex rounded-lg border border-[rgb(var(--border))] p-0.5 flex-wrap">
+              {(['makeup', 'hair', 'flowers', 'pyro'] as LookKind[]).map((k) => (
+                <button key={k} onClick={() => { setKind(k); setSession(null) }} className={`px-3 h-8 rounded-md text-sm ${kind === k ? 'bg-[rgb(var(--gold-500))] text-white' : 'text-[rgb(var(--fg-muted))]'}`}>{KIND_UI[k].short}</button>
               ))}
             </div>
           )}
@@ -134,9 +141,14 @@ export default function ProvaLookPage() {
               <div>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void onFile(f) }} />
                 <div className="aspect-[3/4] rounded-xl overflow-hidden bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))] grid place-items-center">
-                  {selfieUrl ? <img src={selfieUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-[rgb(var(--fg-subtle))] text-sm">Foto cliente</span>}
+                  {selfieUrl ? <img src={selfieUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-[rgb(var(--fg-subtle))] text-sm capitalize">{ui.photoLabel}</span>}
                 </div>
-                <Button variant="outline" size="sm" className="w-full mt-2" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} {selfieUrl ? 'Cambia foto' : 'Carica foto cliente'}</Button>
+                <Button variant="outline" size="sm" className="w-full mt-2" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} {selfieUrl ? 'Cambia foto' : `Carica ${ui.photoLabel}`}</Button>
+                {kind === 'hair' && (
+                  <label className="mt-2 flex items-center gap-2 text-xs text-[rgb(var(--fg-muted))] cursor-pointer">
+                    <input type="checkbox" checked={backView} onChange={(e) => setBackView(e.target.checked)} /> Genera anche la vista da dietro
+                  </label>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -152,7 +164,7 @@ export default function ProvaLookPage() {
                 ) : null))}
                 <div>
                   <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[rgb(var(--fg-muted))] mb-1.5">Aggiungi a parole</p>
-                  <Input value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder={kind === 'hair' ? 'es. onde morbide con riga laterale' : 'es. eyeliner grafico rame'} />
+                  <Input value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder={ui.freePlaceholder} />
                 </div>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nome del look (facoltativo)" />
                 <Button className="w-full" disabled={busy || !selfieUrl} onClick={generate}>{busy ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />} Genera proposta</Button>
