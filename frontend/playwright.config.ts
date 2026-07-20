@@ -29,6 +29,12 @@ export default defineConfig({
       testMatch: /.*-mobile\.spec\.ts/,
       use: { ...devices['iPhone 13'] },
     },
+    // Pagine pubbliche desktop senza login (es. grounding visivo della landing a più viewport).
+    {
+      name: 'desktop-noauth',
+      testMatch: /.*-visual\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   // Avvia il dev server se non gira già (salta se PLAYWRIGHT_BASE_URL punta a prod/anteprima).
   webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
