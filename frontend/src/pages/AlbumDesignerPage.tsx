@@ -3,7 +3,7 @@ import HTMLFlipBook from 'react-pageflip'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Wand2, Sparkles, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X, FlipHorizontal2, FlipVertical2, BadgeEuro, Snowflake } from 'lucide-react'
+import { ArrowLeft, Wand2, Sparkles, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X, FlipHorizontal2, FlipVertical2, BadgeEuro, Snowflake, ListChecks } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -141,6 +141,22 @@ const ALBUM_REPLY_REASONS: { key: string; label: string; hint: string }[] = [
 const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:')
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
 const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
+
+// CHECKLIST DI CONSEGNA (lato fotografo): spunte per non dimenticare nulla prima di consegnare
+// (foto di gruppo, testimoni, genitori, nonni, pagine extra…). Persistita nel layout dell'album.
+type CheckItem = { id: string; label: string; done: boolean }
+const DEFAULT_CHECKLIST = (): CheckItem[] => [
+  { id: 'gruppi', label: 'Tutte le foto di gruppo (controlla che non ne manchi)', done: false },
+  { id: 'testimoni', label: 'Foto con i testimoni', done: false },
+  { id: 'genitori', label: 'Foto con i genitori', done: false },
+  { id: 'nonni', label: 'Foto con i nonni', done: false },
+  { id: 'sposi', label: 'Ritratti degli sposi', done: false },
+  { id: 'cerimonia', label: 'Momenti chiave (cerimonia, tagli, primo ballo…)', done: false },
+  { id: 'extra', label: 'Pagine in più concordate impaginate', done: false },
+  { id: 'copertina', label: 'Copertina / titolo a posto', done: false },
+  { id: 'ordine', label: 'Ordine cronologico corretto', done: false },
+  { id: 'qualita', label: 'Qualità di stampa verificata', done: false },
+]
 
 // Stili di impaginazione che l'AI può seguire (li sceglie il fotografo prima di comporre).
 const AI_STYLES: { key: string; label: string; desc: string }[] = [
@@ -367,6 +383,11 @@ function AlbumDesignerInner() {
   // FOTO CONGELATE: scelte dalla coppia (KEPT) ma che il fotografo NON vuole usare → le congela così
   // non sono trascinabili/impaginabili (né a mano né dall'AI). Persistite nel layout dell'album.
   const [frozenMedia, setFrozenMedia] = useState<Set<string>>(() => new Set())
+  // CHECKLIST DI CONSEGNA + promemoria "da dire" (persistiti nel layout)
+  const [checklist, setChecklist] = useState<CheckItem[]>(() => DEFAULT_CHECKLIST())
+  const [checkNotes, setCheckNotes] = useState('')
+  const [checklistOpen, setChecklistOpen] = useState(false)
+  const [newCheck, setNewCheck] = useState('')
   const [pages, setPages] = useState<AlbumPage[]>([])
   const [title, setTitle] = useState('')
   const [step, setStep] = useState<'select' | 'design'>('select')
@@ -530,9 +551,11 @@ function AlbumDesignerInner() {
         setFormat((proj as any).format_key ?? DEFAULT_FORMAT)
         setStatus((proj as any).status ?? 'DRAFT')
         setPriceCfg(((proj as any).price_config as AlbumPriceConfig | null) ?? null)
-        const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean; frozen?: string[] } | null
+        const lay = (proj as any).layout as { pages?: AlbumPage[]; bleed?: boolean; frozen?: string[]; checklist?: CheckItem[]; checkNotes?: string } | null
         if (typeof lay?.bleed === 'boolean') setBleed(lay.bleed)
         if (Array.isArray(lay?.frozen)) setFrozenMedia(new Set(lay.frozen))
+        if (Array.isArray(lay?.checklist) && lay.checklist.length) setChecklist(lay.checklist)
+        if (typeof lay?.checkNotes === 'string') setCheckNotes(lay.checkNotes)
         // MIGRA a TAVOLA UNICA: ogni tavola con foto diventa tavolaFree (così sostituisci-foto,
         // disposizioni, riempi-tavola e resize gruppo sono attivi ovunque, senza premere "Libera"
         // tavola per tavola). Visivamente identica; le tavole vuote restano template.
@@ -776,7 +799,7 @@ function AlbumDesignerInner() {
     autoTimer.current = window.setTimeout(() => { void save(undefined, true) }, 1500)
     return () => { if (autoTimer.current) window.clearTimeout(autoTimer.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pages, format, bleed, frozenMedia, step, entryId])
+  }, [pages, format, bleed, frozenMedia, checklist, checkNotes, step, entryId])
 
   // ── selezione guidata ──────────────────────────────────────────────────────
   async function toggleKeep(m: M) {
@@ -1700,7 +1723,7 @@ function AlbumDesignerInner() {
     if (!silent) setBusy(true)
     try {
       const st = nextStatus ?? status
-      const payload = { p_entry: entryId, p_gallery: null, p_format: format, p_status: st, p_layout: { pages, bleed, frozen: [...frozenMedia] } }
+      const payload = { p_entry: entryId, p_gallery: null, p_format: format, p_status: st, p_layout: { pages, bleed, frozen: [...frozenMedia], checklist, checkNotes } }
       let { data, error } = await (supabase.rpc as any)('album_project_save', payload)
       // Album CONGELATO dall'approvazione degli sposi: il layout non è sovrascrivibile finché non si
       // riapre. L'autosave (silent) non disturba; il save esplicito propone la riapertura non distruttiva
@@ -3054,6 +3077,7 @@ function AlbumDesignerInner() {
               <Button variant="outline" size="sm" onClick={() => { setPreviewIdx(0); setPreviewOpen(true) }}><Eye size={14} /> Anteprima</Button>
               {!lite && <Button variant="outline" size="sm" disabled={exporting} onClick={() => setExportOpen(true)}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Esporta…</Button>}
               <Button variant={action.next === 'FINAL' ? 'gold' : 'outline'} size="sm" disabled={busy} onClick={() => { if (action.next === 'FINAL') { setFinalNote(''); setFinalDialog(true) } else void save(action.next) }}>{action.label}</Button>
+              {!lite && <Button variant="outline" size="sm" onClick={() => setChecklistOpen(true)} title="Checklist di consegna: spunta cosa hai verificato (foto di gruppo, testimoni, genitori, nonni, pagine extra…) e annota cosa dire."><ListChecks size={14} /> Checklist {checklist.filter((c) => c.done).length < checklist.length ? `${checklist.filter((c) => c.done).length}/${checklist.length}` : '✓'}</Button>}
               <Button variant={openRevs ? 'gold' : 'outline'} size="sm" onClick={() => setRevOpen(true)}><MessageSquare size={14} /> Modifiche{openRevs ? ` (${openRevs})` : ''}</Button>
               <span className="font-mono text-[11px] uppercase tracking-wide text-[rgb(var(--fg-muted))]">{pages.length} pag · {fmt.label} · <span className="px-1.5 py-0.5 rounded bg-[rgb(var(--bg-sunken))] normal-case tracking-normal">{statusLabel(status)}</span></span>
             </div>
@@ -3696,6 +3720,11 @@ function AlbumDesignerInner() {
               <div className="w-[min(94vw,460px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-2 mb-1"><Check size={18} className="text-[rgb(var(--gold-600))]" /><h3 className="font-display text-xl">Segna come finale</h3></div>
                 <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">La coppia riceve email e notifica con il link per vedere l'album. Puoi aggiungere una nota per spiegare le tue scelte (facoltativa).</p>
+                {checklist.some((c) => !c.done) && (
+                  <button onClick={() => { setFinalDialog(false); setChecklistOpen(true) }} className="mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-[12px] text-amber-800 hover:bg-amber-100">
+                    <ListChecks size={15} className="shrink-0" /> Checklist: {checklist.filter((c) => c.done).length}/{checklist.length} verificati · {checklist.filter((c) => !c.done).length} da controllare <span className="ml-auto underline">Apri</span>
+                  </button>
+                )}
                 <textarea rows={4} value={finalNote} maxLength={800} onChange={(e) => setFinalNote(e.target.value)}
                   placeholder="Es. Ho aggiunto qualche pagina per far respirare le foto e ho scelto il formato verticale perché si presta meglio ai ritratti."
                   className="w-full text-sm rounded-lg border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-3 py-2" />
@@ -3703,6 +3732,49 @@ function AlbumDesignerInner() {
                 <div className="flex items-center justify-end gap-2 mt-4">
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => setFinalDialog(false)}>Annulla</Button>
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => void markFinalWithNote()}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Segna come finale e avvisa</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CHECKLIST DI CONSEGNA: spunte + voci custom + promemoria "da dire". Persistite nel layout. */}
+          {checklistOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => setChecklistOpen(false)}>
+              <div className="flex max-h-[92vh] w-[min(94vw,560px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-start justify-between gap-3 border-b border-[rgb(var(--border))] p-4">
+                  <div>
+                    <h3 className="flex items-center gap-2 font-display text-xl"><ListChecks size={18} className="text-[rgb(var(--gold-600))]" /> Checklist di consegna</h3>
+                    <p className="mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Spunta cosa hai verificato prima di consegnare · {checklist.filter((c) => c.done).length}/{checklist.length} fatti.</p>
+                  </div>
+                  <button onClick={() => setChecklistOpen(false)} className="rounded-full p-1.5 hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
+                </div>
+                <div className="min-h-0 flex-1 space-y-1 overflow-auto p-4">
+                  {checklist.map((c) => (
+                    <div key={c.id} className="group flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-[rgb(var(--bg-sunken))]">
+                      <button onClick={() => setChecklist((prev) => prev.map((x) => (x.id === c.id ? { ...x, done: !x.done } : x)))}
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${c.done ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-500))] text-white' : 'border-[rgb(var(--border-strong))]'}`}>
+                        {c.done && <Check size={13} />}
+                      </button>
+                      <span className={`flex-1 text-sm ${c.done ? 'text-[rgb(var(--fg-subtle))] line-through' : 'text-[rgb(var(--fg))]'}`}>{c.label}</span>
+                      <button onClick={() => setChecklist((prev) => prev.filter((x) => x.id !== c.id))} title="Rimuovi voce" className="text-[rgb(var(--fg-subtle))] opacity-0 transition-opacity hover:text-rose-500 group-hover:opacity-100"><X size={13} /></button>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 pt-1">
+                    <input value={newCheck} onChange={(e) => setNewCheck(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && newCheck.trim()) { setChecklist((prev) => [...prev, { id: crypto.randomUUID(), label: newCheck.trim(), done: false }]); setNewCheck('') } }}
+                      placeholder="Aggiungi una voce (es. foto con gli amici, con i colleghi…)" className="flex-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-1.5 text-sm" />
+                    <Button variant="outline" size="sm" disabled={!newCheck.trim()} onClick={() => { setChecklist((prev) => [...prev, { id: crypto.randomUUID(), label: newCheck.trim(), done: false }]); setNewCheck('') }}><Plus size={14} /> Aggiungi</Button>
+                  </div>
+                  <div className="pt-3">
+                    <label className="text-xs font-medium text-[rgb(var(--fg-muted))]">Da dire / promemoria (per te)</label>
+                    <textarea value={checkNotes} onChange={(e) => setCheckNotes(e.target.value)} rows={4}
+                      placeholder="Pagine in più aggiunte, cose da comunicare alla coppia, appunti sulla stampa…"
+                      className="mt-1 w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border))] p-3">
+                  <button onClick={() => setChecklist(DEFAULT_CHECKLIST())} className="text-[11px] text-[rgb(var(--fg-subtle))] hover:underline">Ripristina voci predefinite</button>
+                  <Button variant="gold" size="sm" onClick={() => setChecklistOpen(false)}><Check size={14} /> Fatto</Button>
                 </div>
               </div>
             </div>
