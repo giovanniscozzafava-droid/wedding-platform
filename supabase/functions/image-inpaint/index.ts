@@ -1,7 +1,10 @@
-// Edge function: image-inpaint — CANCELLA oggetti dalle foto (inpainting).
-// MOTORE: se c'è REPLICATE_API_TOKEN → Replicate FLUX Fill (maschera BIANCO = da rigenerare, nessuna
-// verifica richiesta). Altrimenti fallback OpenAI /v1/images/edits (maschera TRASPARENTE = da rigenerare;
-// richiede org verificata). verify_jwt=true.
+// Edge function: image-inpaint — CANCELLA oggetti dalle foto.
+// MOTORE PREFERITO: Qwen-Image-Edit (Alibaba DashScope, chiave già impostata). L'utente pennella l'oggetto:
+// il frontend manda `marked` (foto con una macchia magenta traslucida sull'oggetto) → istruisco Qwen a
+// togliere l'oggetto e ricostruire lo sfondo. Il ritaglio pulito viene poi ricomposto sul full-res dal
+// frontend (solo la zona pennellata, tono allineato, bordo sfumato). Fallback: BFL/Replicate/OpenAI a
+// maschera. NB: l'inpainting a maschera vero (wanx2.1-imageedit) è solo regione Beijing → non usabile con
+// chiave internazionale ("Model not exist"). verify_jwt=true.
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 const IMG_MODEL = Deno.env.get('OPENAI_IMAGE_MODEL') ?? 'dall-e-2'
@@ -12,15 +15,10 @@ const BFL_API_KEY = Deno.env.get('BFL_API_KEY') ?? ''
 const BFL_BASE = Deno.env.get('BFL_BASE') ?? 'https://api.bfl.ai'
 const BFL_MODEL = Deno.env.get('BFL_MODEL') ?? 'flux-pro-1.0-fill'
 // MOTORE PREFERITO: Qwen-Image-Edit (Alibaba DashScope) — chiave già impostata, nessun costo extra.
-// A istruzione: usa `marked` (immagine con l'area dipinta in magenta) e istruisce a rimuovere/riempire.
+// A istruzione: usa `marked` (foto con l'area da togliere tinta di magenta) e istruisce a rimuovere/riempire.
 const DS_KEY = Deno.env.get('DASHSCOPE_API_KEY') ?? ''
 const QWEN_URL = Deno.env.get('QWEN_IMAGE_URL') ?? 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation'
 const QWEN_MODEL = Deno.env.get('QWEN_IMAGE_MODEL') ?? 'qwen-image-edit'
-// INPAINTING A MASCHERA (il vero cancellino): wanx2.1-imageedit · description_edit_with_mask · async.
-// Rigenera SOLO l'area bianca della maschera, il resto resta identico → niente alone/colore/dpi persi.
-const WANX_MODEL = Deno.env.get('WANX_IMAGE_MODEL') ?? 'wanx2.1-imageedit'
-const WANX_SUBMIT_URL = Deno.env.get('WANX_SUBMIT_URL') ?? 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis'
-const WANX_TASK_URL = Deno.env.get('WANX_TASK_URL') ?? 'https://dashscope-intl.aliyuncs.com/api/v1/tasks'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const rawB64 = (d: string) => { const i = d.indexOf(','); return i >= 0 ? d.slice(i + 1) : d }
 
@@ -59,39 +57,21 @@ Deno.serve(async (req) => {
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   if (!body.image || typeof body.image !== 'string' || !body.image.startsWith('data:')) return json({ error: 'no_image' }, 400)
 
-  // ── MOTORE PREFERITO (DashScope). Con MASCHERA → wanx inpainting a maschera (rigenera SOLO l'area
-  //    bianca, il resto identico). Senza maschera (edit a parole) → qwen-image-edit sull'intera foto. ──
+  // ── MOTORE PREFERITO (DashScope · Qwen-Image-Edit). Con pennellata → uso `marked` (macchia magenta)
+  //    per indicare COSA togliere; senza → edit globale a parole. Il ritaglio pulito lo ricompone il
+  //    frontend sul full-res (solo la zona pennellata). Niente wanx: è Beijing-only con chiave intl. ──
   if (DS_KEY) {
     const userText = (typeof body.prompt === 'string' && body.prompt.trim()) ? body.prompt.trim().slice(0, 600) : ''
-    const KEEP = ' Preserve the exact original colors and grading; if black-and-white, keep it black-and-white, do not colorize.'
-    const hasMask = !!(body.mask && body.mask.startsWith('data:'))
-    if (hasMask) {
-      try {
-        const prompt = (userText || 'clean natural background that seamlessly continues the surrounding scene, unwanted object removed, consistent lighting and colors') + KEEP
-        const sub = await fetch(WANX_SUBMIT_URL, {
-          method: 'POST', headers: { Authorization: `Bearer ${DS_KEY}`, 'content-type': 'application/json', 'X-DashScope-Async': 'enable' },
-          body: JSON.stringify({ model: WANX_MODEL, input: { function: 'description_edit_with_mask', prompt, base_image_url: body.image, mask_image_url: body.mask }, parameters: { n: 1 } }),
-        })
-        const sj = await sub.json().catch(() => ({}))
-        const taskId = sj?.output?.task_id
-        if (!sub.ok || !taskId) return json({ error: 'wanx_submit', detail: String(sj?.message ?? sj?.code ?? sub.status) }, 200)
-        for (let i = 0; i < 40; i++) {
-          await sleep(2000)
-          const st = await fetch(`${WANX_TASK_URL}/${taskId}`, { headers: { Authorization: `Bearer ${DS_KEY}` } })
-          const d = await st.json().catch(() => ({}))
-          const status = d?.output?.task_status
-          if (status === 'SUCCEEDED') { const url = d?.output?.results?.[0]?.url; return url ? json({ image: await urlToDataUrl(url), engine: 'wanx' }) : json({ error: 'wanx_no_url' }, 200) }
-          if (status === 'FAILED' || status === 'CANCELED' || status === 'UNKNOWN') return json({ error: 'wanx_failed', detail: String(d?.output?.message ?? d?.output?.code ?? status) }, 200)
-        }
-        return json({ error: 'wanx_timeout' }, 200)
-      } catch (e) { return json({ error: 'wanx_error', detail: String((e as Error).message ?? e) }, 200) }
-    }
-    // niente maschera → edit globale a parole (qwen-image-edit, intera immagine)
+    const KEEP = ' Preserve the exact original colors and tonality; if the photo is black-and-white or sepia, keep it exactly that way and do not add any color.'
+    const marked = (body.marked && body.marked.startsWith('data:')) ? body.marked : ''
+    const srcImg = marked || body.image
+    const instr = marked
+      ? `This photo has a translucent bright pink / magenta (#FF00FF) marker painted over one unwanted object. Remove that object completely and erase the pink marker, then photorealistically rebuild the background that belongs behind it — continue the surrounding textures, edges, perspective, lighting and colors so the fix is invisible. No pink, magenta or colored haze may remain anywhere. Keep every other part of the photo exactly identical, same framing and same resolution.${KEEP}`
+      : `${userText || 'Enhance this photo naturally'}. Keep everything else exactly identical.${KEEP} Photorealistic.`
     try {
-      const instr = `${userText || 'Enhance this photo naturally'}. Keep everything else exactly identical.${KEEP} Photorealistic.`
       const r = await fetch(QWEN_URL, {
         method: 'POST', headers: { Authorization: `Bearer ${DS_KEY}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ model: QWEN_MODEL, input: { messages: [{ role: 'user', content: [{ image: body.image }, { text: instr }] }] }, parameters: { n: 1, prompt_extend: false, watermark: false } }),
+        body: JSON.stringify({ model: QWEN_MODEL, input: { messages: [{ role: 'user', content: [{ image: srcImg }, { text: instr }] }] }, parameters: { n: 1, prompt_extend: false, watermark: false } }),
       })
       const d = await r.json().catch(() => ({}))
       const url = d?.output?.choices?.[0]?.message?.content?.find((c: any) => c?.image)?.image

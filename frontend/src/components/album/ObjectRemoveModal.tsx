@@ -5,10 +5,13 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 
 // "Cancella oggetto (AI)": apri la foto grande, PENNELLA sopra ciò che vuoi togliere (o descrivilo a
-// parole) e l'AI (OpenAI gpt-image-1) ricostruisce lo sfondo. Restituisce un File pronto per sostituire
-// la foto nella tavola. Il canvas usa l'immagine CORS-safe (stessa dell'export) → niente taint.
+// parole) e l'AI (Qwen-Image-Edit) ricostruisce lo sfondo. Qwen ridisegna l'intera foto, perciò NON uso
+// il suo risultato tale e quale: ricompongo l'ORIGINALE a piena risoluzione e ci incollo SOLO la zona
+// pennellata presa dal risultato AI, con tono riallineato all'originale e guardia bianco/nero → niente
+// shift di colore, niente B&N che diventa colore, niente calo di risoluzione sul resto della foto.
+// Il canvas usa l'immagine CORS-safe (stessa dell'export) → niente taint.
 
-const MAXDIM = 2048 // lato lungo mandato all'AI (wanx regge 512–4096; più risoluzione = inpaint più nitido)
+const MAXDIM = 2048 // lato lungo mandato a Qwen (più risoluzione = ritaglio più nitido; il resto resta full-res)
 
 export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onClose: () => void; onResult: (file: File) => void }) {
   const dispRef = useRef<HTMLCanvasElement>(null)          // canvas visibile (immagine + pennellate rosse)
@@ -95,7 +98,8 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
         m.fillStyle = '#000'; m.fillRect(0, 0, w, h)
         m.drawImage(paint, 0, 0) // paint = cerchi bianchi opachi dove ho pennellato → bianco su nero
         mask = mc.toDataURL('image/png')
-        // marked = foto originale con l'area dipinta riempita di MAGENTA (per il motore Qwen a istruzione)
+        // marked = foto originale con l'area dipinta tinta di MAGENTA TRASLUCIDO (Qwen vede l'oggetto sotto
+        // e sa cosa togliere). Alpha ~0.6: abbastanza per marcare, non tanto da nascondere il contorno.
         const kc = document.createElement('canvas'); kc.width = w; kc.height = h
         const k = kc.getContext('2d')!
         k.drawImage(img, 0, 0, w, h)
@@ -103,7 +107,7 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
         const g = mg.getContext('2d')!
         g.drawImage(paint, 0, 0)
         g.globalCompositeOperation = 'source-in'; g.fillStyle = '#FF00FF'; g.fillRect(0, 0, w, h)
-        k.drawImage(mg, 0, 0)
+        k.globalAlpha = 0.6; k.drawImage(mg, 0, 0); k.globalAlpha = 1
         marked = kc.toDataURL('image/jpeg', 0.92)
       }
       const prompt = text.trim()
@@ -131,16 +135,40 @@ export function ObjectRemoveModal({ src, onClose, onResult }: { src: string; onC
       let outFile: File
       if (hasPaint && paint) {
         const W = img.naturalWidth, H = img.naturalHeight
-        const comp = document.createElement('canvas'); comp.width = W; comp.height = H
-        const cx = comp.getContext('2d')!
-        cx.drawImage(img, 0, 0, W, H)                                   // ORIGINALE a piena risoluzione
-        const patch = document.createElement('canvas'); patch.width = W; patch.height = H
-        const px = patch.getContext('2d')!
-        px.drawImage(resImg, 0, 0, W, H)                                // risultato AI scalato a full-res
-        px.globalCompositeOperation = 'destination-in'                 // tieni SOLO dove la maschera è dipinta
-        px.filter = 'blur(2px)'; px.drawImage(paint, 0, 0, W, H); px.filter = 'none' // bordo sfumato
-        cx.drawImage(patch, 0, 0)
-        const b = await new Promise<Blob>((r) => comp.toBlob((x) => r(x!), 'image/jpeg', 0.95))
+        // originale full-res + patch (risultato AI scalato) + maschera SFUMATA (bordo morbido)
+        const oc = document.createElement('canvas'); oc.width = W; oc.height = H
+        const octx = oc.getContext('2d')!; octx.drawImage(img, 0, 0, W, H)
+        const pc = document.createElement('canvas'); pc.width = W; pc.height = H
+        pc.getContext('2d')!.drawImage(resImg, 0, 0, W, H)
+        const fmc = document.createElement('canvas'); fmc.width = W; fmc.height = H
+        const fm = fmc.getContext('2d')!
+        const feather = Math.max(2, Math.round(3 * (W / dims.current.w)))
+        fm.filter = `blur(${feather}px)`; fm.drawImage(paint, 0, 0, W, H); fm.filter = 'none'
+        const O = octx.getImageData(0, 0, W, H)
+        const P = pc.getContext('2d')!.getImageData(0, 0, W, H)
+        const A = fm.getImageData(0, 0, W, H)
+        const od = O.data, pd = P.data, ad = A.data
+        // (1) l'originale è in bianco/nero? croma medio su un campione rado
+        let chroma = 0, ns = 0
+        for (let i = 0; i < od.length; i += 4 * 97) { const r0 = od[i]!, g0 = od[i + 1]!, b0 = od[i + 2]!; chroma += Math.max(r0, g0, b0) - Math.min(r0, g0, b0); ns++ }
+        const grayscale = ns > 0 && (chroma / ns) < 8
+        // (2) delta tono globale originale↔AI (Qwen shifta esposizione/colore su tutta la foto)
+        let oR = 0, oG = 0, oB = 0, pR = 0, pG = 0, pB = 0, nn = 0
+        for (let i = 0; i < od.length; i += 4 * 31) { oR += od[i]!; oG += od[i + 1]!; oB += od[i + 2]!; pR += pd[i]!; pG += pd[i + 1]!; pB += pd[i + 2]!; nn++ }
+        const dR = (oR - pR) / nn, dG = (oG - pG) / nn, dB = (oB - pB) / nn
+        const cl = (v: number) => v < 0 ? 0 : v > 255 ? 255 : v
+        // (3) fondo SOLO dove ho pennellato, tono corretto + eventuale desaturazione (B&N)
+        for (let i = 0; i < od.length; i += 4) {
+          const a = ad[i + 3]! / 255
+          if (a === 0) continue
+          let pr = cl(pd[i]! + dR), pg = cl(pd[i + 1]! + dG), pb = cl(pd[i + 2]! + dB)
+          if (grayscale) { const y = 0.299 * pr + 0.587 * pg + 0.114 * pb; pr = pg = pb = y }
+          od[i] = od[i]! * (1 - a) + pr * a
+          od[i + 1] = od[i + 1]! * (1 - a) + pg * a
+          od[i + 2] = od[i + 2]! * (1 - a) + pb * a
+        }
+        octx.putImageData(O, 0, 0)
+        const b = await new Promise<Blob>((r) => oc.toBlob((x) => r(x!), 'image/jpeg', 0.95))
         outFile = new File([b], `ai-edit-${Date.now()}.jpg`, { type: 'image/jpeg' })
       } else {
         const blob = await (await fetch(outUrl)).blob()
