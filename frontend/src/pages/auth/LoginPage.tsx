@@ -43,53 +43,47 @@ export default function LoginPage() {
   return (
     <div>
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-5">
-      {/* Brand panel */}
-      <div className="hidden lg:flex lg:col-span-3 relative overflow-hidden p-12 text-white"
-        style={{ background: 'rgb(var(--bg))' }}>
-        <img src="/hero/auth.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.6) 0%, rgba(22,40,29,0.4) 100%)' }} />
+      {/* Brand panel — editoriale "filiera": inchiostro + archi, niente foto */}
+      <div className="hidden lg:flex lg:col-span-3 relative overflow-hidden p-12"
+        style={{ background: '#181F1B', color: '#F4F3EE' }}>
+        <img src="/assets/svg/pattern/archi-inchiostro.svg" alt="" aria-hidden="true"
+          className="absolute pointer-events-none" style={{ bottom: -420, left: -320, width: 900, height: 900 }} />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
           className="relative z-10 flex flex-col justify-between w-full">
-          <Link to="/" className="inline-flex items-center gap-2 text-white">
-            <img src="/brand/planfully-symbol.svg" alt="" className="h-9 w-9 invert" />
-            <span className="font-display text-xl">Planfully</span>
+          <Link to="/" className="inline-flex items-center gap-2" style={{ color: '#F4F3EE' }}>
+            <img src="/assets/svg/marchio/planfully-symbol-cipresso-light.svg" alt="" className="h-8 w-8" />
+            <span style={{ fontFamily: "'Jost',sans-serif", fontWeight: 500, letterSpacing: '0.16em' }}>PLANFULLY</span>
           </Link>
 
           <div className="max-w-md">
-            <p className="text-xs uppercase tracking-[0.2em] mb-3 text-white/80">
-              Il network dei professionisti degli eventi &middot; Italia
+            <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, letterSpacing: '0.18em', color: '#3D5C46', marginBottom: 20 }}>
+              IL GESTIONALE DELLA FILIERA WEDDING
             </p>
-            <h1 className="font-display text-4xl xl:text-5xl leading-tight mb-4 text-white">
-              Il tuo network di professionisti.<br />In un posto solo.
+            <h1 style={{ fontFamily: "'Jost',sans-serif", fontWeight: 400, fontSize: 'clamp(34px,3.4vw,52px)', lineHeight: 1.08, letterSpacing: '-0.01em', margin: 0 }}>
+              Il lavoro invisibile che rende possibile ogni evento.
             </h1>
-            <p className="text-white/85 text-base max-w-md">
-              Wedding planner, location e i migliori fornitori italiani — tutti collegati.
-              Costruisci la tua rete di fiducia, organizza ogni evento, fai crescere il tuo
-              business. Senza intermediari, senza commissioni.
+            <p className="text-base mt-6" style={{ color: 'rgba(244,243,238,0.85)', maxWidth: '42ch', lineHeight: 1.6 }}>
+              Cataloghi, calendario condiviso e preventivi che si parlano — il dato entra una volta
+              sola e fluisce dalla filiera al cliente. Niente vetrine, niente sposi: solo il mestiere.
             </p>
           </div>
 
-          <ul className="grid grid-cols-2 gap-3 max-w-lg text-sm text-white">
-            <li className="rounded-lg p-3 backdrop-blur" style={{ background: 'rgba(255,255,255,0.12)' }}><strong>23</strong> servizi seed pronti per provare</li>
-            <li className="rounded-lg p-3 backdrop-blur" style={{ background: 'rgba(255,255,255,0.12)' }}><strong>10+</strong> trigger DB testati in produzione</li>
-            <li className="rounded-lg p-3 backdrop-blur" style={{ background: 'rgba(255,255,255,0.12)' }}><strong>PDF</strong> brandizzato per i tuoi clienti</li>
-            <li className="rounded-lg p-3 backdrop-blur" style={{ background: 'rgba(255,255,255,0.12)' }}><strong>iCal</strong> per Apple, Google, Outlook</li>
-          </ul>
+          <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: '0.12em', color: '#3D5C46' }}>
+            LOCATION · PLANNER · FORNITORI
+          </div>
         </motion.div>
       </div>
 
-      {/* Hero mobile (foto + titolo) */}
-      <div className="lg:hidden relative h-[40vh] min-h-[260px] overflow-hidden text-white">
-        <img src="/hero/auth.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(14,17,22,0.55) 0%, rgba(22,40,29,0.45) 100%)' }} />
-        <div className="relative z-10 h-full flex flex-col justify-between p-6">
-          <Link to="/" className="inline-flex items-center gap-2 text-white">
-            <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8 invert" />
-            <span className="font-display text-lg">Planfully</span>
+      {/* Hero mobile — inchiostro editoriale, niente foto */}
+      <div className="lg:hidden relative overflow-hidden" style={{ background: '#181F1B', color: '#F4F3EE' }}>
+        <div className="relative z-10 flex flex-col gap-6 p-6 py-10">
+          <Link to="/" className="inline-flex items-center gap-2" style={{ color: '#F4F3EE' }}>
+            <img src="/assets/svg/marchio/planfully-symbol-cipresso-light.svg" alt="" className="h-7 w-7" />
+            <span style={{ fontFamily: "'Jost',sans-serif", fontWeight: 500, letterSpacing: '0.16em' }}>PLANFULLY</span>
           </Link>
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] mb-2 text-white/80">Network · Italia</p>
-            <h1 className="font-display text-2xl leading-tight">Il tuo network di professionisti degli eventi. In un posto solo.</h1>
+            <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '0.18em', color: '#3D5C46', marginBottom: 10 }}>IL GESTIONALE DELLA FILIERA WEDDING</p>
+            <h1 style={{ fontFamily: "'Jost',sans-serif", fontWeight: 400, fontSize: 26, lineHeight: 1.1, margin: 0 }}>Il lavoro invisibile che rende possibile ogni evento.</h1>
           </div>
         </div>
       </div>
@@ -99,7 +93,7 @@ export default function LoginPage() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
           className="w-full max-w-sm space-y-6">
           <div>
-            <h2 className="font-display text-3xl tracking-tight">Bentornat*</h2>
+            <h2 className="font-display text-3xl tracking-tight">Bentornato</h2>
             <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">Accedi con le tue credenziali o un magic link.</p>
           </div>
 
