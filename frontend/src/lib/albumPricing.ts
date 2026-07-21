@@ -119,10 +119,11 @@ export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actu
     // DA ZERO: il cliente compone; paga il prezzo pieno del modello scelto.
     lines.push({ label: cfg.chosenModelLabel ? `Modello ${cfg.chosenModelLabel}` : 'Album (da zero)', amount: chosen, hint: `${included} pagine incluse` })
   } else if (cfg.mode === 'package') {
-    // BASE PREVENTIVATA: base del pacchetto + differenza col modello scelto (se più caro dell'incluso).
-    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse${cfg.packageLabel ? ` · ${cfg.packageLabel}` : ''}${cfg.includedModelLabel ? ` · base ${cfg.includedModelLabel}` : ''}` })
+    // BASE GRANDEZZA + il PREZZO PIENO del modello scelto (si somma al totale). La differenza dal modello
+    // base resta come informazione (e per il sovraccosto sugli album genitori).
+    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse${cfg.packageLabel ? ` · ${cfg.packageLabel}` : ''}` })
     modelDiff = Math.max(0, chosen - n2(cfg.includedModelPrice))
-    if (modelDiff > 0) lines.push({ label: `Modello ${cfg.chosenModelLabel ?? ''}`.trim(), amount: modelDiff, hint: `base ${cfg.includedModelLabel ?? '—'} ${euroA(n2(cfg.includedModelPrice))} → scelto ${euroA(chosen)}` })
+    if (chosen > 0) lines.push({ label: `Modello ${cfg.chosenModelLabel ?? ''}`.trim(), amount: chosen, hint: (cfg.includedModelLabel && n2(cfg.includedModelPrice) > 0) ? `base ${cfg.includedModelLabel} ${euroA(n2(cfg.includedModelPrice))} · +${euroA(modelDiff)} sul base` : 'prezzo del modello' })
   } else {
     // LEGACY (nessuna modalità): base + delta per tier.
     lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse` })
