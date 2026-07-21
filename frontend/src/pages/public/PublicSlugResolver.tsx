@@ -7,18 +7,23 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { MONDI_BY_SLUG } from '@/lib/mondi'
 
 const PublicWpPage = lazy(() => import('@/pages/public/PublicWpPage'))
 const PublicSupplierPage = lazy(() => import('@/pages/public/PublicSupplierPage'))
+const MondoPage = lazy(() => import('@/pages/public/MondoPage'))
 
 type Resolved = { slug: string; kind: 'wp' | 'fornitore'; role: string; display_name: string | null }
 
 export default function PublicSlugResolver() {
   const { slug } = useParams<{ slug: string }>()
+  // I 24 "mondi" (categorie di mestiere) sono un set NOTO: hanno la precedenza sullo
+  // slug personale e non passano dall'RPC. Un fornitore non può "rubare" /fotografi.
+  const mondo = slug ? MONDI_BY_SLUG[slug] : undefined
   const [state, setState] = useState<{ loading: boolean; resolved: Resolved | null }>({ loading: true, resolved: null })
 
   useEffect(() => {
-    if (!slug) { setState({ loading: false, resolved: null }); return }
+    if (!slug || MONDI_BY_SLUG[slug]) { setState({ loading: false, resolved: null }); return }
     let cancelled = false
     void (async () => {
       const { data } = await (supabase.rpc as any)('resolve_public_slug', { p_slug: slug })
@@ -27,6 +32,15 @@ export default function PublicSlugResolver() {
     })()
     return () => { cancelled = true }
   }, [slug])
+
+  // Mondo: reso subito, senza attendere (né chiamare) l'RPC.
+  if (mondo) {
+    return (
+      <Suspense fallback={<div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }} />}>
+        <MondoPage />
+      </Suspense>
+    )
+  }
 
   if (state.loading) {
     return (
