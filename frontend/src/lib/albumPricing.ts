@@ -30,8 +30,9 @@ export type AlbumPackage = {
   includedModelPrice?: number   // suo prezzo (snapshot, per calcolare la differenza)
 }
 
-// Voce di listino a prezzo (copertina/materiale o accessorio). Il prezzo si somma alla base.
-export type PricedItem = { id: string; label: string; price: number }
+// Voce di listino a prezzo (copertina/materiale o accessorio). Il prezzo si somma alla base, tranne se
+// `included` = compresa nel base (es. copertina base): allora vale 0 (nessun sovrapprezzo).
+export type PricedItem = { id: string; label: string; price: number; included?: boolean }
 
 // Listino del fotografo: default per formato + pacchetti base + delta per tier (legacy) +
 // copertine (materiali) e accessori/extra con prezzo (nuovo: base grandezza + copertina + extra).
@@ -41,6 +42,8 @@ export type AlbumPriceList = {
   packages?: AlbumPackage[]                    // pacchetti base preventivati
   covers?: PricedItem[]                        // copertine/materiali (ecopelle, pelle…): prezzo sopra la base grandezza
   accessories?: PricedItem[]                   // extra: box, plexiglass, lettere ottone, foto copertina, album genitori…
+  useDesignAlbum?: boolean                     // preset listino DesignAlbum come default nel catalogo (default: on)
+  shipping?: number                            // spedizione di default (eredita nel singolo album)
 }
 
 // Contratto di un evento.

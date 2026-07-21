@@ -108,10 +108,14 @@ export async function getCatalogModels(): Promise<{ label: string; price: number
   // 1) il PROPRIO catalogo (PDF/card): ha la PRECEDENZA (label duplicata → vince il suo prezzo)
   const r = await getMyCatalog()
   if (r) for (const h of r.hotspots) if (h.label && !seen.has(h.label)) seen.set(h.label, h.price ?? null)
-  // 2) DEFAULT per tutti: i modelli del listino DesignAlbum (prezzo = COSTO). Applico il RICARICO del
-  //    fotografo (markup del catalogo). Il fotografo può comunque sovrascriverli col proprio prezzo.
-  const markup = Number(r?.catalog?.markup_percent ?? 0)
-  for (const m of designAlbumCatalogModels()) if (m.label && !seen.has(m.label)) seen.set(m.label, m.price != null ? (applyMarkup(m.price, markup) ?? m.price) : null)
+  // 2) DEFAULT per tutti: i modelli del listino DesignAlbum (prezzo = COSTO), SOLO se il fotografo
+  //    tiene attivo il preset (toggle nel Listino album). Applico il suo RICARICO (markup del catalogo).
+  let useDA = true
+  try { const { data } = await (supabase.from as any)('album_price_settings').select('config').maybeSingle(); useDA = (data?.config?.useDesignAlbum) !== false } catch { /* default on */ }
+  if (useDA) {
+    const markup = Number(r?.catalog?.markup_percent ?? 0)
+    for (const m of designAlbumCatalogModels()) if (m.label && !seen.has(m.label)) seen.set(m.label, m.price != null ? (applyMarkup(m.price, markup) ?? m.price) : null)
+  }
   return Array.from(seen, ([label, price]) => ({ label, price }))
 }
 

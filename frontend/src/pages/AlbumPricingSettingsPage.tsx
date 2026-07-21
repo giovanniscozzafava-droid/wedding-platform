@@ -47,7 +47,7 @@ export default function AlbumPricingSettingsPage() {
       try {
         const { data } = await (supabase.from as any)('album_price_settings').select('config').maybeSingle()
         const cfg = (data?.config ?? null) as AlbumPriceList | null
-        if (cfg && cfg.formats) setList({ formats: cfg.formats ?? {}, modelDelta: { ...DEFAULT_MODEL_DELTA, ...(cfg.modelDelta ?? {}) }, packages: cfg.packages ?? [], covers: cfg.covers ?? [], accessories: cfg.accessories ?? [] })
+        if (cfg && cfg.formats) setList({ formats: cfg.formats ?? {}, modelDelta: { ...DEFAULT_MODEL_DELTA, ...(cfg.modelDelta ?? {}) }, packages: cfg.packages ?? [], covers: cfg.covers ?? [], accessories: cfg.accessories ?? [], useDesignAlbum: cfg.useDesignAlbum !== false, shipping: cfg.shipping })
       } catch { /* nessun listino ancora */ }
       finally { setLoading(false) }
       try { setModels(await getCatalogModels()) } catch { /* nessun catalogo */ }
@@ -96,9 +96,10 @@ export default function AlbumPricingSettingsPage() {
         <div key={it.id} className="flex items-center gap-2">
           <input value={it.label} onChange={(e) => setPriced(kind, it.id, { label: e.target.value })} placeholder={placeholder} className="h-9 flex-1 rounded-md border border-[rgb(var(--border))] bg-transparent px-2 text-sm" />
           <div className="flex items-center gap-1">
-            <Input type="number" min={0} step={5} value={Number.isFinite(it.price) ? it.price : 0} onChange={(e) => setPriced(kind, it.id, { price: Math.max(0, Number(e.target.value) || 0) })} className="h-9 w-24" />
+            <Input type="number" min={0} step={5} value={Number.isFinite(it.price) ? it.price : 0} onChange={(e) => setPriced(kind, it.id, { price: Math.max(0, Number(e.target.value) || 0) })} className={`h-9 w-24 ${it.included ? 'opacity-45' : ''}`} />
             <span className="text-xs text-[rgb(var(--fg-muted))]">€</span>
           </div>
+          <label className="flex items-center gap-1 text-[11px] text-[rgb(var(--fg-muted))]" title="Compresa nel prezzo base: nessun sovrapprezzo"><input type="checkbox" checked={!!it.included} onChange={(e) => setPriced(kind, it.id, { included: e.target.checked })} className="accent-[rgb(var(--gold-500))]" /> inclusa</label>
           <button onClick={() => removePriced(kind, it.id)} className="text-[rgb(var(--fg-muted))] hover:text-red-500" title="Rimuovi"><Trash2 size={16} /></button>
         </div>
       ))}
@@ -194,6 +195,10 @@ export default function AlbumPricingSettingsPage() {
           title="Listino album"
           description="I tuoi prezzi di vendita: base per formato, pagine incluse, costo pagina extra, box e album famiglia. Ogni evento eredita questo listino e resta modificabile sul singolo album."
         />
+        <label className="mt-4 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={list.useDesignAlbum !== false} onChange={(e) => setList((l) => ({ ...l, useDesignAlbum: e.target.checked }))} className="accent-[rgb(var(--gold-500))]" />
+          Usa il listino <b>DesignAlbum</b> come preset di modelli <span className="text-[rgb(var(--fg-muted))]">— disattivalo se costruisci il tuo preventivatore solo col tuo catalogo</span>
+        </label>
 
         <Card className="p-6 mt-4 space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
