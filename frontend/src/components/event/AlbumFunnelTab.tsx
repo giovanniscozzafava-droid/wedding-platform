@@ -15,6 +15,7 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
   const [layoutDone, setLayoutDone] = useState(false)
   const [coverDone, setCoverDone] = useState(false)
   const [coverStudio, setCoverStudio] = useState(false) // modello/copertina scelti in studio → la coppia salta lo step
+  const [impaginatoreOnly, setImpaginatoreOnly] = useState(false) // il fotografo usa solo l'impaginatore: niente percorso cliente
   const [approving, setApproving] = useState(false)
 
   async function load() {
@@ -26,9 +27,11 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
       (supabase.from as any)('album_projects').select('price_config').eq('entry_id', entryId).maybeSingle(), // copertina scelta in studio?
     ])
     const closed = chosen.data === true
-    const studio = ((proj.data?.price_config as { coverStudio?: boolean } | null)?.coverStudio) === true
+    const pcfg = proj.data?.price_config as { coverStudio?: boolean; impaginatoreOnly?: boolean } | null
+    const studio = pcfg?.coverStudio === true
     setSelectionClosed(closed)
     setCoverStudio(studio)
+    setImpaginatoreOnly(pcfg?.impaginatoreOnly === true)
     // "Scegli le foto" è fatto se ci sono cuori OPPURE se la selezione swipe è già chiusa.
     setPhotosDone((Array.isArray(likes.data) ? likes.data.length > 0 : false) || closed)
     setLayoutDone(!!appr.data)
@@ -65,6 +68,13 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
   const nextStep = !photosDone ? 1 : !layoutDone ? 2 : !coverDone ? 3 : 4
 
   if (loading) return <div className="py-16 grid place-items-center text-[rgb(var(--fg-muted))]"><Loader2 className="animate-spin" /></div>
+  if (impaginatoreOnly) return (
+    <div className="max-w-md mx-auto text-center py-16">
+      <BookOpen size={34} className="mx-auto text-[rgb(var(--gold-600))]" />
+      <h2 className="font-display text-2xl mt-4">Il tuo album</h2>
+      <p className="text-[rgb(var(--fg-muted))] mt-3">Il fotografo sta preparando il tuo album e te lo consegnerà direttamente: non c'è nulla da fare qui.</p>
+    </div>
+  )
 
   const steps = [
     { n: 1, icon: Images, title: 'Scegli le tue foto', desc: selectionClosed ? 'La selezione è già chiusa: le foto scelte sono dal fotografo per l’impaginazione. Puoi rivederle.' : 'Metti un cuore alle foto che vuoi nel tuo album. Sono quelle che il fotografo impagina.', done: photosDone },

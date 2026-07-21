@@ -2677,7 +2677,7 @@ function AlbumDesignerInner() {
         </header>
 
         {/* PREZZO ALBUM (vista coppia): totale live + dettaglio. Solo se il fotografo lo mostra. */}
-        {priceCfg?.showCouple && priceBreakdown.total > 0 && (
+        {priceCfg?.showCouple && !priceCfg?.impaginatoreOnly && priceBreakdown.total > 0 && (
           <div className="bg-[rgb(var(--gold-50))] border-b border-[rgb(var(--gold-200))] px-3 py-2">
             <button onClick={() => setCouplePriceOpen((v) => !v)} className="w-full flex items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 text-sm font-medium"><BadgeEuro size={16} className="text-[rgb(var(--gold-600))]" /> Il tuo album</span>
@@ -2969,10 +2969,11 @@ function AlbumDesignerInner() {
               </div>
             )}
             {!lite && (
-              <button onClick={openPrice} title="Imposta il prezzo dell'album per la coppia (base contratto, pagine extra, box, album famiglia)"
+              <button onClick={openPrice} title={priceCfg?.impaginatoreOnly ? 'Solo impaginatore: prezzi e selezione disattivati per questo evento (clicca per riattivare)' : "Imposta il prezzo dell'album per la coppia (base contratto, pagine extra, box, album famiglia)"}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[rgb(var(--border))] text-sm hover:bg-[rgb(var(--bg-sunken))]">
-                <BadgeEuro size={16} className="text-[rgb(var(--gold-600))]" />
-                {priceCfg ? <span className="font-medium">{euroA(priceBreakdown.total)}</span> : <span>Prezzo</span>}
+                {priceCfg?.impaginatoreOnly
+                  ? <><LayoutGrid size={16} className="text-[rgb(var(--fg-muted))]" /><span className="text-[rgb(var(--fg-muted))]">Impaginatore</span></>
+                  : <><BadgeEuro size={16} className="text-[rgb(var(--gold-600))]" />{priceCfg ? <span className="font-medium">{euroA(priceBreakdown.total)}</span> : <span>Prezzo</span>}</>}
               </button>
             )}
             <div className="hidden sm:flex rounded-lg border border-[rgb(var(--border))] overflow-hidden">
@@ -3004,6 +3005,13 @@ function AlbumDesignerInner() {
               </div>
 
               <div className="px-5 py-4 space-y-4">
+                <label className="flex items-start gap-2 rounded-lg border border-[rgb(var(--border))] p-3 text-sm">
+                  <input type="checkbox" checked={!!pc.impaginatoreOnly} onChange={(e) => set({ impaginatoreOnly: e.target.checked })} className="mt-0.5 accent-[rgb(var(--gold-500))]" />
+                  <span><b>Solo impaginatore</b> <span className="text-[rgb(var(--fg-muted))]">— non uso prezzi né selezione per questo evento: impagino ed esporto le tavole. La coppia non vede prezzo né il percorso «Il tuo album».</span></span>
+                </label>
+                {pc.impaginatoreOnly ? (
+                  <p className="text-[13px] text-[rgb(var(--fg-muted))]">Prezzi e percorso cliente disattivati. Usa l'impaginatore e i pulsanti <b>Esporta</b> per PDF/JPG delle tavole. Togli la spunta per riattivare i prezzi.</p>
+                ) : (<>
                 <div className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--bg-sunken))] px-3 py-2">
                   <span className="text-sm text-[rgb(var(--fg-muted))]">Importa base e info dal preventivo</span>
                   <Button size="sm" variant="outline" onClick={() => void importPriceFromQuote()}><FileText size={14} /> Dal preventivo</Button>
@@ -3116,6 +3124,7 @@ function AlbumDesignerInner() {
                   <input type="checkbox" checked={pc.showCouple} onChange={(e) => set({ showCouple: e.target.checked })} />
                   Mostra il totale e il dettaglio alla coppia nel suo album
                 </label>
+                </>)}
               </div>
             </div>
           </div>

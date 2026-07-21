@@ -67,6 +67,7 @@ export type AlbumPriceConfig = {
   chosenModelPrice?: number  // suo prezzo di listino
   chosenModelTier?: Tier     // fascia del modello scelto: BASIC = base (incluso, nessun sovrapprezzo)
   coverStudio?: boolean      // modello/copertina SCELTI IN STUDIO: la coppia salta la scelta copertina; vale il modello registrato qui
+  impaginatoreOnly?: boolean // SOLO IMPAGINATORE: niente prezzi/selezione/funnel per questo evento; si esportano le tavole
   family: { qty: number; base: number; extraPageRate: number; included?: boolean; modelUpgrade?: boolean } // included = compresi nel pacchetto (base gratis) · modelUpgrade = la differenza del modello scelto vale anche su ogni album genitori
   showCouple: boolean        // il totale è visibile alla coppia nel visore album
   note?: string              // provenienza / annotazione libera
