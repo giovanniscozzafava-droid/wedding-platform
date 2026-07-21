@@ -55,6 +55,7 @@ export type AlbumPriceConfig = {
   extraPageRate: number
   box: boolean
   boxPrice: number
+  boxIncluded?: boolean      // box compreso nel pacchetto → non si paga
   shipping?: number          // spedizione (deciso dal fotografo) — si somma al totale
   modelKey?: string          // modello scelto dal catalogo DesignAlbum (legacy)
   modelLabel?: string        // etichetta leggibile della scelta
@@ -134,7 +135,10 @@ export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actu
       lines.push({ label: `Modello${cfg.modelLabel ? ` · ${cfg.modelLabel}` : cfg.modelKey ? ` ${modelLabel(cfg.modelKey)}` : ''}`, amount: n2(cfg.modelDelta) })
     }
   }
-  if (cfg.box && n2(cfg.boxPrice) > 0) lines.push({ label: 'Box / custodia', amount: n2(cfg.boxPrice) })
+  if (cfg.box) {
+    if (cfg.boxIncluded) lines.push({ label: 'Box / custodia (incluso)', amount: 0, hint: 'compreso nel pacchetto' })
+    else if (n2(cfg.boxPrice) > 0) lines.push({ label: 'Box / custodia', amount: n2(cfg.boxPrice) })
+  }
   if (extraPages > 0 && n2(cfg.extraPageRate) > 0) {
     lines.push({ label: `${extraPages} pagine in più`, amount: extraPages * n2(cfg.extraPageRate), hint: `€ ${n2(cfg.extraPageRate)} a pagina` })
   }

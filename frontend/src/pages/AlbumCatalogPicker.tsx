@@ -43,6 +43,10 @@ export default function AlbumCatalogPicker() {
   const [optioned, setOptioned] = useState(0)                       // importo album già opzionato nel preventivo
   const [familyFromQuote, setFamilyFromQuote] = useState(false)     // album famiglia già nel preventivo
   const [bigOpen, setBigOpen] = useState(false)                     // visore PDF 3D a schermo intero
+  // FASE 2 — componenti del listino del fotografo + residuo preventivo (per la rimanenza alla consegna)
+  const [listino, setListino] = useState<{ covers: { id: string; label: string; price: number; included?: boolean }[]; accessories: { id: string; label: string; price: number; included?: boolean }[]; shipping: number; quoteTotal: number; quotePaid: number }>({ covers: [], accessories: [], shipping: 0, quoteTotal: 0, quotePaid: 0 })
+  const [selCover, setSelCover] = useState<string | null>(null)
+  const [selAcc, setSelAcc] = useState<Set<string>>(() => new Set())
 
   async function reloadPins() {
     const { data } = await (supabase.from as any)('album_pins').select('id, entry_id, page, x, y, comment, material, color, status').eq('entry_id', entryId)
@@ -87,6 +91,13 @@ export default function AlbumCatalogPicker() {
         if (/famiglia|genitori|album\s*mini/i.test(allTxt)) setFamilyFromQuote(true)
       } catch { /* nessun preventivo */ }
     })()
+    // FASE 2: componenti del listino del fotografo + residuo preventivo
+    void (async () => {
+      try {
+        const { data } = await (supabase as any).rpc('album_listino_for_entry', { p_entry: entryId })
+        if (data && !data.error) setListino({ covers: data.covers ?? [], accessories: data.accessories ?? [], shipping: Number(data.shipping ?? 0), quoteTotal: Number(data.quote_total ?? 0), quotePaid: Number(data.quote_paid ?? 0) })
+      } catch { /* nessun listino */ }
+    })()
   }, [entryId])
 
   const sizes = useMemo(() => sizesForFormat(specs.format as Format), [specs.format])
@@ -113,6 +124,16 @@ export default function AlbumCatalogPicker() {
     return applyMarkup(dp, Number(catalog?.markup_percent ?? 0)) ?? dp
   }, [selected?.price, selected?.label, specs.size, catalog?.markup_percent])
   const modelTotal = basePrice + surcharge
+  // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
+  const coverPick = listino.covers.find((c) => c.id === selCover)
+  const coverExtra = coverPick && !coverPick.included ? Number(coverPick.price) || 0 : 0
+  const accExtra = listino.accessories.filter((a) => selAcc.has(a.id) && !a.included).reduce((s, a) => s + (Number(a.price) || 0), 0)
+  const shipping = Number(listino.shipping) || 0
+  const albumTotal = modelTotal + coverExtra + accExtra + shipping
+  // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + upgrade album (oltre il contrattualizzato)
+  const residuo = Math.max(0, listino.quoteTotal - listino.quotePaid)
+  const albumUpgrade = Math.max(0, albumTotal - optioned)
+  const rimanenza = residuo + albumUpgrade
 
   function pick(h: Hotspot) {
     setSelected(h)
@@ -161,8 +182,8 @@ export default function AlbumCatalogPicker() {
       ].filter(Boolean).join(' · ')
       const priceLine = selected.price != null
         ? (optioned > 0
-            ? `Modello + opzioni ${euroA(modelTotal)} · già ${euroA(optioned)} nel preventivo · DIFFERENZA ${euroA(Math.max(0, modelTotal - optioned))}`
-            : `Prezzo ${euroA(modelTotal)} (vendita nuova)`)
+            ? `Album ${euroA(albumTotal)} · già ${euroA(optioned)} nel preventivo · differenza album ${euroA(albumUpgrade)} · rimanenza alla consegna ${euroA(rimanenza)}`
+            : `Album ${euroA(albumTotal)}${shipping > 0 ? ` (incl. spedizione ${euroA(shipping)})` : ''}`)
         : null
       const composed = [chosen, priceLine, pinNote.trim() || undefined].filter(Boolean).join('\n')
       const fullSpecs = { ...specs, size: sizeLabel, note: composed || undefined }
@@ -247,13 +268,13 @@ export default function AlbumCatalogPicker() {
             {selected && (basePrice > 0 || selected.price != null ? (
               <div className="rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] px-3 py-2.5">
                 {optioned > 0 ? (() => {
-                  const diff = Math.max(0, modelTotal - optioned)
+                  const diff = albumUpgrade
                   return (<>
-                    <div className="flex items-center justify-between"><span className="text-sm font-medium">Differenza da saldare</span><span className="font-display text-lg">{diff > 0 ? `+ ${euroA(diff)}` : 'Nessuna'}</span></div>
-                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Modello + opzioni {euroA(modelTotal)} · hai già {euroA(optioned)} nel preventivo. Paghi solo la differenza.</p>
+                    <div className="flex items-center justify-between"><span className="text-sm font-medium">Differenza album</span><span className="font-display text-lg">{diff > 0 ? `+ ${euroA(diff)}` : 'Nessuna'}</span></div>
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Album {euroA(albumTotal)} · hai già {euroA(optioned)} nel preventivo. La differenza si aggiunge alla rimanenza.</p>
                   </>)
                 })() : (<>
-                  <div className="flex items-center justify-between"><span className="text-sm font-medium">Prezzo album</span><span className="font-display text-lg">{euroA(modelTotal)}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-sm font-medium">Prezzo album</span><span className="font-display text-lg">{euroA(albumTotal)}</span></div>
                   <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Non hai un album nel preventivo: è una scelta nuova, prezzo pieno.</p>
                 </>)}
                 {surcharge > 0 && <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Incluso {euroA(surcharge)} di opzioni scelte.</p>}
@@ -294,6 +315,37 @@ export default function AlbumCatalogPicker() {
                     Foto in copertina{opts.coverPhotoSurcharge ? ` · +${euroA(opts.coverPhotoSurcharge)}` : ''}
                   </label>
                 )}
+              </div>
+            )}
+
+            {/* COMPONENTI del listino del fotografo: copertina + accessori (si sommano; 'inclusa' = 0) */}
+            {(listino.covers.length > 0 || listino.accessories.length > 0) && (
+              <div className="space-y-3">
+                {listino.covers.length > 0 && (
+                  <div><p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1.5">Copertina</p>
+                    <div className="flex flex-wrap gap-1.5">{listino.covers.map((c) => (
+                      <button key={c.id} onClick={() => setSelCover((v) => (v === c.id ? null : c.id))}
+                        className={`px-2.5 py-1 rounded-lg text-xs border ${selCover === c.id ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{c.label}{c.included ? ' · inclusa' : c.price > 0 ? ` · +${euroA(c.price)}` : ''}</button>
+                    ))}</div></div>
+                )}
+                {listino.accessories.length > 0 && (
+                  <div><p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1.5">Accessori</p>
+                    <div className="flex flex-wrap gap-1.5">{listino.accessories.map((a) => (
+                      <button key={a.id} onClick={() => setSelAcc((s) => { const n = new Set(s); n.has(a.id) ? n.delete(a.id) : n.add(a.id); return n })}
+                        className={`px-2.5 py-1 rounded-lg text-xs border ${selAcc.has(a.id) ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{a.label}{a.included ? ' · incluso' : a.price > 0 ? ` · +${euroA(a.price)}` : ''}</button>
+                    ))}</div></div>
+                )}
+              </div>
+            )}
+
+            {/* RIMANENZA ALLA CONSEGNA = residuo preventivo + upgrade album (oltre il contrattualizzato) */}
+            {selected && (residuo > 0 || albumUpgrade > 0 || shipping > 0) && (
+              <div className="rounded-xl border-2 border-[rgb(var(--gold-400))] bg-[rgb(var(--gold-50))] px-3 py-2.5">
+                <div className="flex items-center justify-between"><span className="text-sm font-medium">Rimanenza alla consegna</span><span className="font-display text-xl">{euroA(rimanenza)}</span></div>
+                <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">
+                  Residuo preventivo {euroA(residuo)}{albumUpgrade > 0 ? <> + upgrade album <b>{euroA(albumUpgrade)}</b></> : ''}{shipping > 0 ? ` · incl. spedizione ${euroA(shipping)}` : ''}.
+                </p>
+                <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-0.5">Album {euroA(albumTotal)}{optioned > 0 ? ` · già ${euroA(optioned)} nel preventivo` : ''}.</p>
               </div>
             )}
 

@@ -3064,7 +3064,8 @@ function AlbumDesignerInner() {
                     <label className="flex items-center gap-2 text-sm">
                       <input type="checkbox" checked={pc.box} onChange={(e) => set({ box: e.target.checked })} /> Box / custodia
                     </label>
-                    {pc.box && <label className="flex items-center gap-2 text-sm">{num(pc.boxPrice, (n) => set({ boxPrice: n }), { step: 5 })} €</label>}
+                    {pc.box && <label className={`flex items-center gap-2 text-sm ${pc.boxIncluded ? 'opacity-45' : ''}`}>{num(pc.boxPrice, (n) => set({ boxPrice: n }), { step: 5 })} €</label>}
+                    {pc.box && <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={!!pc.boxIncluded} onChange={(e) => set({ boxIncluded: e.target.checked })} className="accent-[rgb(var(--gold-500))]" /> inclusa nel pacchetto</label>}
                     <label className="flex items-center gap-2 text-sm">Spedizione {num(pc.shipping ?? 0, (n) => set({ shipping: n }), { step: 5 })} €</label>
                   </div>
                 </div>
