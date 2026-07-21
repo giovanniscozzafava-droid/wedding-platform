@@ -11,17 +11,22 @@ import { supabase } from '@/lib/supabase'
 export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k: string) => void }) {
   const [loading, setLoading] = useState(true)
   const [photosDone, setPhotosDone] = useState(false)
+  const [selectionClosed, setSelectionClosed] = useState(false) // la coppia (o il fotografo) ha CHIUSO la selezione swipe
   const [layoutDone, setLayoutDone] = useState(false)
   const [coverDone, setCoverDone] = useState(false)
   const [approving, setApproving] = useState(false)
 
   async function load() {
-    const [likes, appr, pins] = await Promise.all([
+    const [likes, appr, pins, chosen] = await Promise.all([
       (supabase as any).rpc('gallery_like_counts', { p_entry: entryId }),
       (supabase.from as any)('album_layout_approval').select('entry_id').eq('entry_id', entryId).maybeSingle(),
       (supabase.from as any)('album_pins').select('id', { count: 'exact', head: true }).eq('entry_id', entryId).eq('status', 'CHOSEN'),
+      (supabase as any).rpc('album_photos_chosen', { p_entry: entryId }), // selezione swipe già chiusa?
     ])
-    setPhotosDone(Array.isArray(likes.data) ? likes.data.length > 0 : false)
+    const closed = chosen.data === true
+    setSelectionClosed(closed)
+    // "Scegli le foto" è fatto se ci sono cuori OPPURE se la selezione swipe è già chiusa.
+    setPhotosDone((Array.isArray(likes.data) ? likes.data.length > 0 : false) || closed)
     setLayoutDone(!!appr.data)
     setCoverDone((pins.count ?? 0) > 0)
     setLoading(false)
@@ -57,7 +62,7 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
   if (loading) return <div className="py-16 grid place-items-center text-[rgb(var(--fg-muted))]"><Loader2 className="animate-spin" /></div>
 
   const steps = [
-    { n: 1, icon: Images, title: 'Scegli le tue foto', desc: 'Metti un cuore alle foto che vuoi nel tuo album. Sono quelle che il fotografo impagina.', done: photosDone },
+    { n: 1, icon: Images, title: 'Scegli le tue foto', desc: selectionClosed ? 'La selezione è già chiusa: le foto scelte sono dal fotografo per l’impaginazione. Puoi rivederle.' : 'Metti un cuore alle foto che vuoi nel tuo album. Sono quelle che il fotografo impagina.', done: photosDone },
     { n: 2, icon: BookOpen, title: "Conferma l'impaginazione", desc: "Sfoglia l'album impaginato. Se va bene approvalo, altrimenti chiedi una modifica.", done: layoutDone },
     { n: 3, icon: Frame, title: 'Scegli la copertina', desc: 'Sul catalogo del fotografo: modello, materiale e colore. Lascia un pin e conferma.', done: coverDone },
     { n: 4, icon: Printer, title: 'Stampe extra', desc: 'Vuoi stampe delle altre foto preferite? Ordinale quando vuoi.', done: false, optional: true },
@@ -86,7 +91,7 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-medium">{s.n}. {s.title}</p>
-                  {s.done ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))]">Fatto</span>
+                  {s.done ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))]">{s.n === 1 && selectionClosed ? 'Selezione già chiusa' : 'Fatto'}</span>
                     : s.optional ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]">Facoltativo</span>
                     : isNext ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Tocca a te ora</span>
                     : <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]">Dopo</span>}
@@ -94,7 +99,7 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
                 <p className="text-sm text-[rgb(var(--fg-muted))] mt-0.5">{s.desc}</p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {s.n === 1 && <Button variant={isNext ? 'gold' : 'outline'} size="sm" onClick={() => onTab('foto')}><Images size={14} /> Vai alle foto <ArrowRight size={13} /></Button>}
+                  {s.n === 1 && <Button variant={isNext ? 'gold' : 'outline'} size="sm" onClick={() => onTab('foto')}><Images size={14} /> {selectionClosed ? 'Rivedi le foto' : 'Vai alle foto'} <ArrowRight size={13} /></Button>}
                   {s.n === 2 && (<>
                     <Link to={`/album/${entryId}`}><Button variant={isNext && !layoutDone ? 'gold' : 'outline'} size="sm"><BookOpen size={14} /> Sfoglia l'album</Button></Link>
                     {!layoutDone
