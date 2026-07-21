@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { loadPdf } from '@/lib/pdf'
+import { designAlbumCatalogModels } from '@/components/album/albumCatalog'
 
 // Dati del flusso "Catalogo PDF → scelta + firma → commessa". Il fotografo carica il PDF
 // del proprio catalogo e marca gli hotspot; la coppia lo sfoglia, sceglie, firma → commessa
@@ -103,10 +104,13 @@ export async function interpretCatalog(pdfPath: string): Promise<InterpretedMode
 
 // Modelli del catalogo del fotografo (label + prezzo), per il listino/pacchetti e il pannello prezzo.
 export async function getCatalogModels(): Promise<{ label: string; price: number | null }[]> {
-  const r = await getMyCatalog()
-  if (!r) return []
   const seen = new Map<string, number | null>()
-  for (const h of r.hotspots) if (!seen.has(h.label)) seen.set(h.label, h.price ?? null)
+  // 1) il PROPRIO catalogo (PDF/card): ha la PRECEDENZA (label duplicata → vince il suo prezzo)
+  const r = await getMyCatalog()
+  if (r) for (const h of r.hotspots) if (h.label && !seen.has(h.label)) seen.set(h.label, h.price ?? null)
+  // 2) DEFAULT per tutti: i modelli del listino DesignAlbum (il fotografo può comunque sovrascriverli
+  //    aggiungendoli al proprio catalogo con il suo prezzo).
+  for (const m of designAlbumCatalogModels()) if (m.label && !seen.has(m.label)) seen.set(m.label, m.price)
   return Array.from(seen, ([label, price]) => ({ label, price }))
 }
 

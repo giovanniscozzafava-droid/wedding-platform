@@ -743,6 +743,13 @@ export const FINISHES: { key: string; label: string; amount: number }[] = [
 
 export const PRICING = { extraCopyFactor: 0.45, logoFromCatalog: 20, dataSposo: 10 }
 
+// Modelli del listino DesignAlbum come voci "da catalogo" (label + prezzo di partenza = grandezza più
+// piccola disponibile). Servono al dropdown "Modello scelto" nei prezzi album: il fotografo sceglie un
+// modello e precarica il costo/sovrapprezzo. Disponibili a tutti di default (oltre al proprio PDF).
+export function designAlbumCatalogModels(): { label: string; price: number | null }[] {
+  return MODELS.map((m) => ({ label: m.label, price: m.priceA.find((p) => p != null) ?? null }))
+}
+
 export type PriceLine = { label: string; amount: number }
 export type PriceBreakdown = { lines: PriceLine[]; unit: number; copies: number; total: number; tier: Tier }
 
