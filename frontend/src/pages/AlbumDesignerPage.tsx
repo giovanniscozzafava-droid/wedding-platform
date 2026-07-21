@@ -3053,6 +3053,10 @@ function AlbumDesignerInner() {
                       {isBase ? <> · <b className="text-[rgb(var(--emerald-600))]">BASE incluso, nessun sovrapprezzo</b></> : diff > 0 ? <> · differenza <b className="text-[rgb(var(--gold-700))]">{euroA(diff)}</b></> : ' · nessun sovrapprezzo'}
                     </p>
                   ) })()}
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={!!pc.coverStudio} onChange={(e) => set({ coverStudio: e.target.checked })} className="accent-[rgb(var(--gold-500))]" />
+                    <span>Modello e copertina scelti in studio <span className="text-[rgb(var(--fg-muted))]">— la coppia salta la scelta copertina; vale il modello qui sopra</span></span>
+                  </label>
                   {catalogModels.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-muted))]">Per scegliere un modello col prezzo, carica il catalogo PDF e metti i prezzi in <a className="underline" href="/album-catalogo">Gestisci catalogo</a>.</p>}
 
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

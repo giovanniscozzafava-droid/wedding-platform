@@ -14,21 +14,26 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
   const [selectionClosed, setSelectionClosed] = useState(false) // la coppia (o il fotografo) ha CHIUSO la selezione swipe
   const [layoutDone, setLayoutDone] = useState(false)
   const [coverDone, setCoverDone] = useState(false)
+  const [coverStudio, setCoverStudio] = useState(false) // modello/copertina scelti in studio → la coppia salta lo step
   const [approving, setApproving] = useState(false)
 
   async function load() {
-    const [likes, appr, pins, chosen] = await Promise.all([
+    const [likes, appr, pins, chosen, proj] = await Promise.all([
       (supabase as any).rpc('gallery_like_counts', { p_entry: entryId }),
       (supabase.from as any)('album_layout_approval').select('entry_id').eq('entry_id', entryId).maybeSingle(),
       (supabase.from as any)('album_pins').select('id', { count: 'exact', head: true }).eq('entry_id', entryId).eq('status', 'CHOSEN'),
       (supabase as any).rpc('album_photos_chosen', { p_entry: entryId }), // selezione swipe già chiusa?
+      (supabase.from as any)('album_projects').select('price_config').eq('entry_id', entryId).maybeSingle(), // copertina scelta in studio?
     ])
     const closed = chosen.data === true
+    const studio = ((proj.data?.price_config as { coverStudio?: boolean } | null)?.coverStudio) === true
     setSelectionClosed(closed)
+    setCoverStudio(studio)
     // "Scegli le foto" è fatto se ci sono cuori OPPURE se la selezione swipe è già chiusa.
     setPhotosDone((Array.isArray(likes.data) ? likes.data.length > 0 : false) || closed)
     setLayoutDone(!!appr.data)
-    setCoverDone((pins.count ?? 0) > 0)
+    // "Scegli la copertina" è fatto anche se il fotografo l'ha scelta in studio.
+    setCoverDone((pins.count ?? 0) > 0 || studio)
     setLoading(false)
   }
   useEffect(() => { void load() }, [entryId])

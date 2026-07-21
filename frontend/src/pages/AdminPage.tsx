@@ -51,6 +51,7 @@ export default function AdminPage() {
   const isStaff = profile?.is_support_staff || profile?.role === 'ADMIN'
   const [tab, setTab] = useState<Tab>('overview')
   const [ov, setOv] = useState<Overview | null>(null)
+  const [wl, setWl] = useState<{ total: number; nuove: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<UserRow[]>([])
   const [search, setSearch] = useState('')
@@ -74,6 +75,13 @@ export default function AdminPage() {
     const { data, error } = await rpc('admin_overview')
     if (error) toast.error(error.message); else setOv(data as Overview)
     setLoading(false)
+  }
+  // Lista d'attesa (access_requests): conteggio nuove/totali per il pannello.
+  async function loadWaitlist() {
+    const { data, error } = await rpc('access_requests_list')
+    if (error) return
+    const rows = (data ?? []) as { stato: string }[]
+    setWl({ total: rows.length, nuove: rows.filter((r) => r.stato === 'NUOVA').length })
   }
   async function loadUsers() {
     const { data, error } = await rpc('admin_list_users', { p_search: search })
@@ -160,7 +168,7 @@ export default function AdminPage() {
     toast.success('Limite pancia salvato')
     void loadSubs()
   }
-  useEffect(() => { void loadOverview() }, [])
+  useEffect(() => { void loadOverview(); void loadWaitlist() }, [])
   useEffect(() => { if (tab === 'team') void loadUsers(); if (tab === 'errors') void loadErrors(); if (tab === 'bugs') void loadBugs(); if (tab === 'subs') void loadSubs(); if (tab === 'inbox') void loadMails() /* eslint-disable-next-line */ }, [tab])
   useEffect(() => { if (tab === 'inbox') void loadMails() /* eslint-disable-next-line */ }, [mailFilter])
   useEffect(() => { if (tab === 'errors') void loadErrors() /* eslint-disable-next-line */ }, [errFilter])
@@ -246,6 +254,7 @@ export default function AdminPage() {
               <Stat label="Errori nuovi" value={ov.errors_new} sub={`${ov.error_occurrences} occorrenze`} alert={ov.errors_new > 0} onClick={() => setTab('errors')} />
               <Stat label="Segnalazioni" value={ov.bugs_new} sub={`${ov.bugs_total} totali`} alert={ov.bugs_new > 0} onClick={() => setTab('bugs')} />
               <Stat label="Funnel" value={ov.funnel_active_quotes} sub={ov.funnel_active ? 'acceso' : 'in pausa'} />
+              <Stat label="Lista d'attesa" value={wl?.nuove ?? 0} sub={`${wl?.total ?? 0} totali`} alert={(wl?.nuove ?? 0) > 0} />
             </div>
             <Card className="p-5">
               <h3 className="font-display text-lg mb-3">Utenti per ruolo</h3>
@@ -255,7 +264,10 @@ export default function AdminPage() {
                 ))}
               </div>
             </Card>
-            <Link to="/admin/assistenza"><Button variant="outline" size="sm"><LifeBuoy size={14} /> Vai ai ticket ({ov.tickets_open} aperti)</Button></Link>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/admin/assistenza"><Button variant="outline" size="sm"><LifeBuoy size={14} /> Vai ai ticket ({ov.tickets_open} aperti)</Button></Link>
+              <Link to="/admin/richieste-accesso"><Button variant="outline" size="sm"><Users size={14} /> Lista d'attesa ({wl?.nuove ?? 0} nuove · {wl?.total ?? 0} totali)</Button></Link>
+            </div>
           </div>
 
         ) : tab === 'inbox' ? (
