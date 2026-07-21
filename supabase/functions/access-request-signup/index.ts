@@ -64,10 +64,12 @@ Deno.serve(async (req) => {
     if (!pv) provincia = null
   }
   const source = String(b.source ?? 'landing').trim().slice(0, 40).toLowerCase() || 'landing'
+  // Provenienza: slug del mondo da cui è partita la CTA (solo lettere, es. "fotografi").
+  const mondo = String(b.mondo ?? '').trim().toLowerCase().replace(/[^a-z]/g, '').slice(0, 40) || null
 
   const { data: row, error } = await admin.from('access_requests').insert({
     nome, attivita, ruolo, ruolo_altro: ruolo === 'ALTRO' ? ruoloAltro : null,
-    email, telefono, provincia, messaggio, source,
+    email, telefono, provincia, messaggio, source, mondo,
   }).select('id').single()
   if (error) return json({ error: 'Non siamo riusciti a registrare la richiesta. Riprova.' }, 500)
 

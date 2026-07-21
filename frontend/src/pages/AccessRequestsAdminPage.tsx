@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
+import { MONDI_BY_SLUG } from '@/lib/mondi'
 
 type Req = {
   id: string
@@ -15,6 +16,7 @@ type Req = {
   provincia_nome: string | null
   messaggio: string | null
   source: string
+  mondo: string | null
   stato: string
   created_at: string
 }
@@ -97,6 +99,13 @@ export default function AccessRequestsAdminPage() {
                         style={{ borderColor: 'rgb(var(--border))', color: 'rgb(var(--fg-muted))' }}>
                         {RUOLO_LABEL[r.ruolo] ?? r.ruolo_altro ?? r.ruolo}
                       </span>
+                      {r.mondo && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}
+                          title={`Arrivato dalla pagina /${r.mondo}`}>
+                          {MONDI_BY_SLUG[r.mondo]?.nome ?? `/${r.mondo}`}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm mt-0.5" style={{ color: 'rgb(var(--fg-muted))' }}>
                       {r.nome}

@@ -83,8 +83,11 @@ export default function PublicHomePage() {
         style={{ position: 'absolute', top: -420, right: -380, width: 1100, height: 1100, pointerEvents: 'none' }} />
 
       {/* TESTATA */}
-      <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 24, padding: '28px clamp(20px,5vw,64px) 24px', borderBottom: `1px solid ${INCHIOSTRO}`, position: 'relative' }}>
-        <div style={{ fontFamily: JOST, fontWeight: 500, fontSize: 17, letterSpacing: '0.16em' }}>PLANFULLY</div>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, padding: '24px clamp(20px,5vw,64px)', borderBottom: `1px solid ${INCHIOSTRO}`, position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img src="/assets/svg/marchio/planfully-symbol-cipresso.svg" width={28} height={28} alt="" aria-hidden="true" />
+          <span style={{ fontFamily: JOST, fontWeight: 500, fontSize: 17, letterSpacing: '0.16em' }}>PLANFULLY</span>
+        </div>
         <nav style={{ display: 'flex', gap: 'clamp(16px,3vw,40px)', fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', fontFeatureSettings: "'tnum'" }}>
           <a href="#metodo">METODO</a>
           <a href="#accesso">ACCESSO</a>

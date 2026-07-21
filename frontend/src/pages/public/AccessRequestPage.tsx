@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Helmet } from 'react-helmet-async'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { type Provincia, loadProvince } from '@/lib/maestranze'
+import { MONDI_BY_SLUG } from '@/lib/mondi'
 import '@fontsource/jost/400.css'
 import '@fontsource/jost/500.css'
 import '@fontsource/ibm-plex-mono/400.css'
@@ -23,6 +24,9 @@ const RUOLI = [
 ]
 
 export default function AccessRequestPage() {
+  const [params] = useSearchParams()
+  // Provenienza: se si arriva da planfully.it/<slug> via ?mondo=<slug>, sappiamo il mestiere.
+  const mondo = MONDI_BY_SLUG[(params.get('mondo') || '').toLowerCase()]
   const [province, setProvince] = useState<Provincia[]>([])
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
@@ -50,7 +54,7 @@ export default function AccessRequestPage() {
     setErr(null); setBusy(true)
     try {
       const { data, error } = await supabase.functions.invoke('access-request-signup', {
-        body: { nome, attivita, ruolo, ruolo_altro: ruoloAltro, email, telefono, provincia, messaggio, source: 'landing', website },
+        body: { nome, attivita, ruolo, ruolo_altro: ruoloAltro, email, telefono, provincia, messaggio, source: mondo ? 'mondo' : 'landing', mondo: mondo?.slug ?? '', website },
       })
       if (error) {
         const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
@@ -74,8 +78,11 @@ export default function AccessRequestPage() {
         <meta name="robots" content="noindex" />
       </Helmet>
 
-      <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '28px clamp(20px,5vw,64px) 24px', borderBottom: `1px solid ${INCHIOSTRO}` }}>
-        <Link to="/" style={{ fontWeight: 500, fontSize: 17, letterSpacing: '0.16em', color: INCHIOSTRO, textDecoration: 'none' }}>PLANFULLY</Link>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px clamp(20px,5vw,64px)', borderBottom: `1px solid ${INCHIOSTRO}` }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, color: INCHIOSTRO, textDecoration: 'none' }}>
+          <img src="/assets/svg/marchio/planfully-symbol-cipresso.svg" width={28} height={28} alt="" aria-hidden="true" />
+          <span style={{ fontWeight: 500, fontSize: 17, letterSpacing: '0.16em' }}>PLANFULLY</span>
+        </Link>
         <Link to="/" style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', color: CIPRESSO, textDecoration: 'none' }}>← TORNA</Link>
       </header>
 
@@ -93,9 +100,15 @@ export default function AccessRequestPage() {
           <>
             <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.18em', color: CIPRESSO, marginBottom: 20 }}>ACCESSO SU INVITO</div>
             <h1 style={{ fontFamily: JOST, fontWeight: 400, fontSize: 'clamp(30px,5vw,44px)', lineHeight: 1.1, margin: '0 0 16px' }}>Richiedi accesso.</h1>
-            <p style={{ fontSize: 16, lineHeight: 1.55, color: CIPRESSO, marginBottom: 32 }}>
+            <p style={{ fontSize: 16, lineHeight: 1.55, color: CIPRESSO, marginBottom: mondo ? 20 : 32 }}>
               Apriamo la piattaforma a location, planner e fornitori che lavorano già insieme. Raccontaci chi sei: ti ricontattiamo noi.
             </p>
+            {mondo && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 32, fontFamily: MONO, fontSize: 12, letterSpacing: '0.06em', color: CIPRESSO, border: `1px solid ${CIPRESSO}`, padding: '7px 12px' }}>
+                <img src="/assets/svg/marchio/planfully-symbol-cipresso.svg" width={16} height={16} alt="" aria-hidden="true" />
+                DAL MONDO · {mondo.nome.toUpperCase()}
+              </div>
+            )}
 
             <div className="space-y-5">
               <div>

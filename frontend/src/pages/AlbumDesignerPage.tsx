@@ -14,6 +14,7 @@ import { autoLayout, framesForPage, newPage, templatesFor, cycleTemplate, MAX_PE
 import { exportAlbumPdf, exportAlbumJpgZip, hiResProxyUrl, ExportCancelled } from '@/lib/albumExport'
 import { coverImgStyle, slotAspectOf, cellToCrop, cropToCell, coverWindow, CROP_ANCHORS, DEFAULT_CELL, MARGIN_MM, type Cell } from '@/lib/albumGeometry'
 import { type AlbumPriceConfig, type AlbumPriceList, type AlbumPackage, computeAlbumPrice, seedConfigFromList, modelDeltaFor, applyPackage, emptyPriceList, DEFAULT_MODEL_DELTA, euroA, looksLikeAlbum, parseQuoteItem } from '@/lib/albumPricing'
+import { isBaseModelLabel, designAlbumTierForLabel } from '@/components/album/albumCatalog'
 
 // Ritaglio TESTA-SAFE + aureo: orizzontalmente mette il volto su una linea aurea; verticalmente
 // GARANTISCE che la testa (ht = top testa) resti nell'inquadratura — MAI teste tagliate. z=1 (nessuno
@@ -3031,18 +3032,25 @@ function AlbumDesignerInner() {
                     <p className="text-[11px] text-[rgb(var(--fg-muted))]">Nessun pacchetto nel listino: impostali in <a className="underline" href="/settings/album-prezzi">Listino album</a>, oppure metti la base a mano qui sotto.</p>
                   ))}
 
-                  {/* modello scelto dal catalogo PDF */}
+                  {/* MODELLO BASE (incluso nel pacchetto): i modelli fascia BASE non hanno sovrapprezzo */}
+                  <label className="flex items-center gap-2 text-sm flex-wrap">Modello base (incluso)
+                    <select value={pc.includedModelLabel ?? ''} onChange={(e) => { const m = catalogModels.find((x) => x.label === e.target.value); set({ includedModelLabel: e.target.value || undefined, includedModelPrice: m?.price ?? undefined }) }} className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm max-w-[18rem]">
+                      <option value="">— base del pacchetto —</option>
+                      {catalogModels.map((m) => <option key={m.label} value={m.label}>{m.label}{isBaseModelLabel(m.label) ? ' · BASE' : ''}{m.price != null ? ` · ${euroA(m.price)}` : ''}</option>)}
+                    </select>
+                  </label>
+                  {/* modello scelto dal catalogo PDF: fascia BASE = nessun sovrapprezzo, altre = differenza */}
                   <label className="flex items-center gap-2 text-sm flex-wrap">Modello scelto
-                    <select value={pc.chosenModelLabel ?? ''} onChange={(e) => { const m = catalogModels.find((x) => x.label === e.target.value); set({ chosenModelLabel: e.target.value || undefined, chosenModelPrice: m?.price ?? undefined }) }} className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm max-w-[18rem]">
+                    <select value={pc.chosenModelLabel ?? ''} onChange={(e) => { const m = catalogModels.find((x) => x.label === e.target.value); set({ chosenModelLabel: e.target.value || undefined, chosenModelPrice: m?.price ?? undefined, chosenModelTier: designAlbumTierForLabel(e.target.value) ?? undefined }) }} className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm max-w-[18rem]">
                       <option value="">— dal catalogo —</option>
-                      {catalogModels.map((m) => <option key={m.label} value={m.label}>{m.label}{m.price != null ? ` · ${euroA(m.price)}` : ''}</option>)}
+                      {catalogModels.map((m) => <option key={m.label} value={m.label}>{m.label}{isBaseModelLabel(m.label) ? ' · BASE' : ''}{m.price != null ? ` · ${euroA(m.price)}` : ''}</option>)}
                     </select>
                   </label>
                   {/* MODELLO BASE + DIFFERENZA salvata: si vede da cosa parte e quanto aggiunge la scelta */}
-                  {pc.chosenModelLabel && (() => { const diff = Math.max(0, (pc.chosenModelPrice ?? 0) - (pc.includedModelPrice ?? 0)); return (
+                  {pc.chosenModelLabel && (() => { const isBase = pc.chosenModelTier === 'BASIC'; const diff = isBase ? 0 : Math.max(0, (pc.chosenModelPrice ?? 0) - (pc.includedModelPrice ?? 0)); return (
                     <p className="text-[11px] text-[rgb(var(--fg-muted))]">
-                      Base: <b>{pc.includedModelLabel ?? '—'}</b>{pc.includedModelPrice != null ? ` (${euroA(pc.includedModelPrice)})` : ''} · scelto <b>{pc.chosenModelLabel}</b>{pc.chosenModelPrice != null ? ` (${euroA(pc.chosenModelPrice)})` : ''}
-                      {diff > 0 ? <> · differenza <b className="text-[rgb(var(--gold-700))]">{euroA(diff)}</b></> : ' · nessun sovrapprezzo'}
+                      Base: <b>{pc.includedModelLabel ?? '—'}</b>{pc.includedModelPrice != null ? ` (${euroA(pc.includedModelPrice)})` : ''} · scelto <b>{pc.chosenModelLabel}</b>{pc.chosenModelTier ? ` · ${pc.chosenModelTier}` : ''}
+                      {isBase ? <> · <b className="text-[rgb(var(--emerald-600))]">BASE incluso, nessun sovrapprezzo</b></> : diff > 0 ? <> · differenza <b className="text-[rgb(var(--gold-700))]">{euroA(diff)}</b></> : ' · nessun sovrapprezzo'}
                     </p>
                   ) })()}
                   {catalogModels.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-muted))]">Per scegliere un modello col prezzo, carica il catalogo PDF e metti i prezzi in <a className="underline" href="/album-catalogo">Gestisci catalogo</a>.</p>}
@@ -3075,7 +3083,7 @@ function AlbumDesignerInner() {
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={!!pc.family.modelUpgrade} onChange={(e) => patchFamily({ modelUpgrade: e.target.checked })} className="accent-[rgb(var(--gold-500))]" />
-                    <span>Modello scelto anche sui genitori <span className="text-[rgb(var(--fg-muted))]">— aggiunge la differenza del modello ({euroA(Math.max(0, (pc.chosenModelPrice ?? 0) - (pc.includedModelPrice ?? 0)))}) a ogni albumino</span></span>
+                    <span>Modello scelto anche sui genitori <span className="text-[rgb(var(--fg-muted))]">— aggiunge la differenza del modello ({euroA(pc.chosenModelTier === 'BASIC' ? 0 : Math.max(0, (pc.chosenModelPrice ?? 0) - (pc.includedModelPrice ?? 0)))}) a ogni albumino</span></span>
                   </label>
                   {pc.family.qty > 0 && bd.extraPages > 0 && pc.family.extraPageRate > 0 && (
                     <p className="text-[11px] text-[rgb(var(--fg-muted))]">Ogni album genitori include lo stesso sovrapprezzo delle {bd.extraPages} pagine in più dell'album sposi{pc.family.included ? ' (solo quelle: la base è inclusa)' : ''}.</p>

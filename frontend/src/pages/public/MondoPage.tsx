@@ -75,9 +75,12 @@ export default function MondoPage() {
 
       {/* TESTATA — marchio firmato del mondo */}
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, padding: '24px clamp(20px,5vw,64px)', borderBottom: `1px solid ${INCHIOSTRO}`, position: 'relative' }}>
-        <Link to="/" style={{ display: 'flex', flexDirection: 'column', color: INCHIOSTRO }}>
-          <span style={{ fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.16em' }}>PLANFULLY</span>
-          <span style={{ fontFamily: CAVEAT, fontWeight: 500, fontSize: 23, lineHeight: 1, color: CIPRESSO, margin: '3px 0 0 24px', transform: 'rotate(-3deg)', transformOrigin: 'left center' }}>{mondo.firma}</span>
+        <Link to="/" style={{ display: 'flex', alignItems: 'flex-start', gap: 14, color: INCHIOSTRO }}>
+          <img src="/assets/svg/marchio/planfully-symbol-cipresso.svg" width={34} height={34} alt="" aria-hidden="true" style={{ marginTop: 1 }} />
+          <span style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.16em' }}>PLANFULLY</span>
+            <span style={{ fontFamily: CAVEAT, fontWeight: 500, fontSize: 23, lineHeight: 1, color: CIPRESSO, margin: '3px 0 0 24px', transform: 'rotate(-3deg)', transformOrigin: 'left center' }}>{mondo.firma}</span>
+          </span>
         </Link>
         <nav style={{ display: 'flex', gap: 'clamp(16px,3vw,36px)', fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', fontFeatureSettings: "'tnum'" }}>
           <a href="/#metodo">METODO</a>
@@ -93,7 +96,7 @@ export default function MondoPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 40, marginTop: 'clamp(40px,5vw,80px)' }}>
           <p style={{ fontFamily: JOST, fontWeight: 400, fontSize: 'clamp(17px,1.5vw,21px)', lineHeight: 1.55, maxWidth: '46ch', margin: '0 0 0 clamp(0px,12vw,220px)', color: INCHIOSTRO, textWrap: 'pretty' }}>{mondo.testo}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Link to="/richiedi-accesso" className="pf-cta-hero" style={{ display: 'inline-block', background: LACCA, color: CARTA, fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.06em', padding: '18px 40px', textAlign: 'center' }}>Richiedi accesso</Link>
+            <Link to={`/richiedi-accesso?mondo=${mondo.slug}`} className="pf-cta-hero" style={{ display: 'inline-block', background: LACCA, color: CARTA, fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.06em', padding: '18px 40px', textAlign: 'center' }}>Richiedi accesso</Link>
             <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.06em', color: CIPRESSO, fontFeatureSettings: "'tnum'" }}>Su invito · planfully.it/{mondo.slug}</div>
           </div>
         </div>
@@ -132,7 +135,7 @@ export default function MondoPage() {
           <h2 style={{ fontFamily: JOST, fontWeight: 400, fontSize: 'clamp(26px,3vw,44px)', lineHeight: 1.15, margin: '0 0 24px', textWrap: 'pretty' }}>Connesso a tutto il resto dell’evento.</h2>
           <p style={{ fontSize: 'clamp(16px,1.35vw,20px)', lineHeight: 1.6, margin: '0 0 36px', opacity: 0.9, textWrap: 'pretty' }}>{mondo.filiera}</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 28 }}>
-            <Link to="/richiedi-accesso" className="pf-cta-outline" style={{ display: 'inline-block', border: `1px solid ${CARTA}`, color: CARTA, fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.06em', padding: '16px 38px' }}>Richiedi accesso</Link>
+            <Link to={`/richiedi-accesso?mondo=${mondo.slug}`} className="pf-cta-outline" style={{ display: 'inline-block', border: `1px solid ${CARTA}`, color: CARTA, fontFamily: JOST, fontWeight: 500, fontSize: 16, letterSpacing: '0.06em', padding: '16px 38px' }}>Richiedi accesso</Link>
             <Link to="/#rete" className="pf-dark-link" style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em' }}>VEDI LA RETE DEI MONDI →</Link>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maxim
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, type Format } from '@/components/album/albumCatalog'
+import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, type Format } from '@/components/album/albumCatalog'
 import { getFormat } from '@/lib/albumFormats'
 import { looksLikeAlbum, euroA } from '@/lib/albumPricing'
 import { PdfFlipbook } from '@/components/album/catalog/PdfFlipbook'
@@ -238,11 +238,13 @@ export default function AlbumCatalogPicker() {
             <Card className="p-4">
               <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Modello scelto</p>
               {selected
-                ? <p className="font-display text-xl text-[rgb(var(--fg))]">{selected.label} <span className="text-xs text-[rgb(var(--fg-subtle))] font-sans">· pag. {selected.page}</span></p>
+                ? <p className="font-display text-xl text-[rgb(var(--fg))]">{selected.label} <span className="text-xs text-[rgb(var(--fg-subtle))] font-sans">· pag. {selected.page}</span>
+                    {isBaseModelLabel(selected.label) && <span className="ml-2 align-middle text-[10px] font-sans uppercase tracking-wide rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] px-2 py-0.5">Base · inclusa</span>}</p>
                 : <p className="text-sm text-[rgb(var(--fg-muted))]">Tocca un riquadro sulla pagina per scegliere.</p>}
+              {selected && isBaseModelLabel(selected.label) && <p className="text-[11px] text-[rgb(var(--emerald-700))] mt-1">Modello base compreso nel pacchetto: nessun sovrapprezzo.</p>}
             </Card>
 
-            {selected && (selected.price != null ? (
+            {selected && (basePrice > 0 || selected.price != null ? (
               <div className="rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] px-3 py-2.5">
                 {optioned > 0 ? (() => {
                   const diff = Math.max(0, modelTotal - optioned)

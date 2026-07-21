@@ -61,6 +61,7 @@ export type AlbumPriceConfig = {
   includedModelLabel?: string // MODELLO BASE (quello incluso nel pacchetto): serve a indicarlo e a mostrare la differenza
   chosenModelLabel?: string  // modello scelto dal catalogo PDF del fotografo
   chosenModelPrice?: number  // suo prezzo di listino
+  chosenModelTier?: Tier     // fascia del modello scelto: BASIC = base (incluso, nessun sovrapprezzo)
   family: { qty: number; base: number; extraPageRate: number; included?: boolean; modelUpgrade?: boolean } // included = compresi nel pacchetto (base gratis) · modelUpgrade = la differenza del modello scelto vale anche su ogni album genitori
   showCouple: boolean        // il totale è visibile alla coppia nel visore album
   note?: string              // provenienza / annotazione libera
@@ -120,12 +121,12 @@ export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actu
     // DA ZERO: il cliente compone; paga il prezzo pieno del modello scelto.
     lines.push({ label: cfg.chosenModelLabel ? `Modello ${cfg.chosenModelLabel}` : 'Album (da zero)', amount: chosen, hint: `${included} pagine incluse` })
   } else {
-    // PACCHETTO o LEGACY: base grandezza + il PREZZO PIENO del modello scelto (SI SOMMA al totale,
-    // sempre, anche senza pacchetto). La differenza dal modello base resta come info e per i genitori.
-    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse${cfg.packageLabel ? ` · ${cfg.packageLabel}` : ''}` })
+    // PACCHETTO o LEGACY: base grandezza. Il modello BASE (fascia BASIC) è INCLUSO nel pacchetto →
+    // nessun sovrapprezzo. Le altre fasce (Royal/Prime/Top) aggiungono la DIFFERENZA sul modello base.
+    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse${cfg.packageLabel ? ` · ${cfg.packageLabel}` : ''}${cfg.includedModelLabel ? ` · base ${cfg.includedModelLabel}` : ''}` })
     if (chosen > 0) {
-      modelDiff = Math.max(0, chosen - n2(cfg.includedModelPrice))
-      lines.push({ label: `Modello ${cfg.chosenModelLabel ?? ''}`.trim(), amount: chosen, hint: (cfg.includedModelLabel && n2(cfg.includedModelPrice) > 0) ? `base ${cfg.includedModelLabel} ${euroA(n2(cfg.includedModelPrice))} · +${euroA(modelDiff)} sul base` : 'prezzo del modello' })
+      modelDiff = cfg.chosenModelTier === 'BASIC' ? 0 : Math.max(0, chosen - n2(cfg.includedModelPrice))
+      if (modelDiff > 0) lines.push({ label: `Modello ${cfg.chosenModelLabel ?? ''}`.trim(), amount: modelDiff, hint: `${cfg.chosenModelTier ?? ''} · base ${cfg.includedModelLabel ?? '—'} ${euroA(n2(cfg.includedModelPrice))} → ${euroA(chosen)}`.trim() })
     } else if (n2(cfg.modelDelta) > 0) {
       lines.push({ label: `Modello${cfg.modelLabel ? ` · ${cfg.modelLabel}` : cfg.modelKey ? ` ${modelLabel(cfg.modelKey)}` : ''}`, amount: n2(cfg.modelDelta) })
     }

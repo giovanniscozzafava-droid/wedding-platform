@@ -746,9 +746,17 @@ export const PRICING = { extraCopyFactor: 0.45, logoFromCatalog: 20, dataSposo: 
 // Modelli del listino DesignAlbum come voci "da catalogo" (label + prezzo di partenza = grandezza più
 // piccola disponibile). Servono al dropdown "Modello scelto" nei prezzi album: il fotografo sceglie un
 // modello e precarica il costo/sovrapprezzo. Disponibili a tutti di default (oltre al proprio PDF).
-export function designAlbumCatalogModels(): { label: string; price: number | null }[] {
-  return MODELS.map((m) => ({ label: m.label, price: m.priceA.find((p) => p != null) ?? null }))
+export function designAlbumCatalogModels(): { label: string; price: number | null; tier: Tier }[] {
+  return MODELS.map((m) => ({ label: m.label, price: m.priceA.find((p) => p != null) ?? null, tier: m.tier }))
 }
+
+// Fascia (tier) di un modello DesignAlbum per nome. BASIC = "base" (incluso nel pacchetto, nessun
+// sovrapprezzo); ROYAL/PRIME/TOP = upgrade. Serve a etichettare i modelli base sul PDF e in dropdown.
+export function designAlbumTierForLabel(label: string): Tier | null {
+  const key = (label ?? '').toLowerCase().trim()
+  return MODELS.find((m) => m.label.toLowerCase().trim() === key)?.tier ?? null
+}
+export const isBaseModelLabel = (label?: string): boolean => designAlbumTierForLabel(label ?? '') === 'BASIC'
 
 // Prezzo di un modello DesignAlbum per una data GRANDEZZA (sizeKey = 'format:WxH', es. 'portrait:25x35').
 // Match per LABEL: un hotspot del PDF con lo stesso nome eredita il prezzo del listino DesignAlbum per la
