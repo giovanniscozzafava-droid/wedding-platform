@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PdfHotspotEditor } from '@/components/album/catalog/PdfHotspotEditor'
 import { ModelOptionsEditor } from '@/components/album/catalog/ModelOptionsEditor'
+import { designAlbumCatalogModels } from '@/components/album/albumCatalog'
 import {
   getMyModels, uploadCatalogPdf, saveAllModels, saveCatalogMarkup, uploadCardImage, applyMarkup,
   uploadTempPdf, catalogPublicUrl, extractCatalogPrices, interpretCatalog, type Catalog, type Hotspot, type ModelOptions,
@@ -24,6 +25,9 @@ export default function AlbumCatalogManager() {
   const [markup, setMarkup] = useState(0)
   const [selCat, setSelCat] = useState<string>('')       // PDF selezionato per marcare
   const [opt, setOpt] = useState<{ kind: 'pdf' | 'card'; i: number } | null>(null)  // opzioni in modifica
+  const [daOpen, setDaOpen] = useState(false)            // modale "carica dal listino DesignAlbum"
+  const [daQuery, setDaQuery] = useState('')
+  const daList = useMemo(() => { const q = daQuery.toLowerCase().trim(); const all = designAlbumCatalogModels(); return q ? all.filter((m) => m.label.toLowerCase().includes(q)) : all }, [daQuery])
 
   useEffect(() => {
     getMyModels().then((r) => {
@@ -46,6 +50,14 @@ export default function AlbumCatalogManager() {
     setDirty(true)
   }
   const removeCard = (i: number) => setModels((ms) => { const cards = ms.filter((m) => !m.catalog_id); const t = cards[i]; return ms.filter((m) => m !== t) })
+  // Carica un modello dal listino DesignAlbum COME CARD nel proprio catalogo (label + costo + prezzo col
+  // ricarico). Così il cliente vede SOLO i modelli che il fotografo carica, con i prezzi già pronti.
+  const addDA = (m: { label: string; price: number | null }) => {
+    if (models.some((x) => !x.catalog_id && x.label === m.label)) { toast.message(`«${m.label}» è già tra le tue card`); return }
+    setModels((ms) => [...ms, { catalog_id: null, page: 1, x: 0, y: 0, w: 0, h: 0, label: m.label, image_path: null, cost: m.price ?? null, price: m.price != null ? applyMarkup(m.price, markup) : null, options: {}, default_format: null, default_pages: null, sort_order: ms.length }])
+    setDirty(true)
+    toast.success(`«${m.label}» aggiunto — aggiungi una foto e verifica il prezzo`)
+  }
 
   async function onUploadPdf(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; e.target.value = ''
@@ -239,11 +251,36 @@ export default function AlbumCatalogManager() {
                   <h3 className="font-display text-lg flex items-center gap-2"><ImagePlus size={18} /> Card a mano</h3>
                   <p className="text-[11px] text-[rgb(var(--fg-muted))]">Per chi non ha un PDF: una foto per modello, col nome e il prezzo.</p>
                 </div>
-                <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-[rgb(var(--border))] cursor-pointer hover:border-[rgb(var(--gold-300))]">
-                  <Plus size={14} /> Nuova card
-                  <input type="file" accept="image/*" className="hidden" onChange={onAddCard} disabled={busy} />
-                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => setDaOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-300))]"><FileText size={14} /> Dal listino DesignAlbum</button>
+                  <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-[rgb(var(--border))] cursor-pointer hover:border-[rgb(var(--gold-300))]">
+                    <Plus size={14} /> Nuova card
+                    <input type="file" accept="image/*" className="hidden" onChange={onAddCard} disabled={busy} />
+                  </label>
+                </div>
               </div>
+
+              {daOpen && (
+                <div className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-4" onClick={() => setDaOpen(false)}>
+                  <div className="flex max-h-[85vh] w-[min(94vw,560px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-start justify-between gap-3 border-b border-[rgb(var(--border))] p-4">
+                      <div><h3 className="font-display text-lg">Dal listino DesignAlbum</h3><p className="mt-0.5 text-[11px] text-[rgb(var(--fg-muted))]">Aggiungi al tuo catalogo SOLO i modelli che vuoi offrire (il cliente vede solo questi). Costo dal listino, prezzo col tuo ricarico ({markup}%). Poi aggiungi una foto alla card.</p></div>
+                      <button onClick={() => setDaOpen(false)} className="shrink-0 rounded-full px-2 py-1 text-lg leading-none hover:bg-[rgb(var(--bg-sunken))]">✕</button>
+                    </div>
+                    <div className="border-b border-[rgb(var(--border))] p-3"><Input value={daQuery} onChange={(e) => setDaQuery(e.target.value)} placeholder="Cerca un modello…" /></div>
+                    <div className="min-h-0 flex-1 space-y-0.5 overflow-auto p-2">
+                      {daList.map((m) => { const added = models.some((x) => !x.catalog_id && x.label === m.label); return (
+                        <div key={m.label} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[rgb(var(--bg-sunken))]">
+                          <span className="flex-1 truncate text-sm">{m.label}{m.price != null ? <span className="text-[rgb(var(--fg-subtle))]"> · {m.price} €</span> : ''}</span>
+                          <button disabled={added} onClick={() => addDA(m)} className={`shrink-0 rounded-md px-2.5 py-1 text-[12px] ${added ? 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]' : 'bg-[rgb(var(--gold-500))] text-white hover:opacity-90'}`}>{added ? 'Aggiunto' : 'Aggiungi'}</button>
+                        </div>
+                      )})}
+                      {daList.length === 0 && <p className="py-4 text-center text-sm text-[rgb(var(--fg-muted))]">Nessun modello.</p>}
+                    </div>
+                    <div className="flex justify-end border-t border-[rgb(var(--border))] p-3"><Button variant="gold" size="sm" onClick={() => setDaOpen(false)}>Fatto</Button></div>
+                  </div>
+                </div>
+              )}
               {manualCards.length === 0 ? (
                 <p className="text-sm text-[rgb(var(--fg-muted))]">Nessuna card a mano.</p>
               ) : (
