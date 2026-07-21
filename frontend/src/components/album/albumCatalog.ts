@@ -750,6 +750,19 @@ export function designAlbumCatalogModels(): { label: string; price: number | nul
   return MODELS.map((m) => ({ label: m.label, price: m.priceA.find((p) => p != null) ?? null }))
 }
 
+// Prezzo di un modello DesignAlbum per una data GRANDEZZA (sizeKey = 'format:WxH', es. 'portrait:25x35').
+// Match per LABEL: un hotspot del PDF con lo stesso nome eredita il prezzo del listino DesignAlbum per la
+// grandezza scelta → cliccando nel picker il cliente ha già il costo. Fallback: prezzo di partenza.
+export function designAlbumPriceForLabel(label: string, sizeKey?: string): number | null {
+  const key = (label ?? '').toLowerCase().trim()
+  if (!key) return null
+  const m = MODELS.find((x) => x.label.toLowerCase().trim() === key)
+  if (!m) return null
+  const col = SIZE_COL[sizeKey ?? '']
+  if (col != null && m.priceA[col] != null) return m.priceA[col] as number
+  return m.priceA.find((p) => p != null) ?? null
+}
+
 export type PriceLine = { label: string; amount: number }
 export type PriceBreakdown = { lines: PriceLine[]; unit: number; copies: number; total: number; tier: Tier }
 

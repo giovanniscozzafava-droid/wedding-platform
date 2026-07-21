@@ -3038,6 +3038,13 @@ function AlbumDesignerInner() {
                       {catalogModels.map((m) => <option key={m.label} value={m.label}>{m.label}{m.price != null ? ` · ${euroA(m.price)}` : ''}</option>)}
                     </select>
                   </label>
+                  {/* MODELLO BASE + DIFFERENZA salvata: si vede da cosa parte e quanto aggiunge la scelta */}
+                  {pc.chosenModelLabel && (() => { const diff = Math.max(0, (pc.chosenModelPrice ?? 0) - (pc.includedModelPrice ?? 0)); return (
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))]">
+                      Base: <b>{pc.includedModelLabel ?? '—'}</b>{pc.includedModelPrice != null ? ` (${euroA(pc.includedModelPrice)})` : ''} · scelto <b>{pc.chosenModelLabel}</b>{pc.chosenModelPrice != null ? ` (${euroA(pc.chosenModelPrice)})` : ''}
+                      {diff > 0 ? <> · differenza <b className="text-[rgb(var(--gold-700))]">{euroA(diff)}</b></> : ' · nessun sovrapprezzo'}
+                    </p>
+                  ) })()}
                   {catalogModels.length === 0 && <p className="text-[11px] text-[rgb(var(--fg-muted))]">Per scegliere un modello col prezzo, carica il catalogo PDF e metti i prezzi in <a className="underline" href="/album-catalogo">Gestisci catalogo</a>.</p>}
 
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -3064,6 +3071,10 @@ function AlbumDesignerInner() {
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={!!pc.family.included} onChange={(e) => patchFamily({ included: e.target.checked })} className="accent-[rgb(var(--gold-500))]" />
                     <span>Inclusi nel pacchetto <span className="text-[rgb(var(--fg-muted))]">— la base non si paga, solo le pagine extra</span></span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={!!pc.family.modelUpgrade} onChange={(e) => patchFamily({ modelUpgrade: e.target.checked })} className="accent-[rgb(var(--gold-500))]" />
+                    <span>Modello scelto anche sui genitori <span className="text-[rgb(var(--fg-muted))]">— aggiunge la differenza del modello ({euroA(Math.max(0, (pc.chosenModelPrice ?? 0) - (pc.includedModelPrice ?? 0)))}) a ogni albumino</span></span>
                   </label>
                   {pc.family.qty > 0 && bd.extraPages > 0 && pc.family.extraPageRate > 0 && (
                     <p className="text-[11px] text-[rgb(var(--fg-muted))]">Ogni album genitori include lo stesso sovrapprezzo delle {bd.extraPages} pagine in più dell'album sposi{pc.family.included ? ' (solo quelle: la base è inclusa)' : ''}.</p>

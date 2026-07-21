@@ -5,7 +5,7 @@ import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maxim
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, type Format } from '@/components/album/albumCatalog'
+import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, type Format } from '@/components/album/albumCatalog'
 import { getFormat } from '@/lib/albumFormats'
 import { looksLikeAlbum, euroA } from '@/lib/albumPricing'
 import { PdfFlipbook } from '@/components/album/catalog/PdfFlipbook'
@@ -17,7 +17,7 @@ import { buildCommissionPdf, downloadBlob } from '@/components/album/catalog/com
 import { loadPdf, renderPdfPageDataUrl } from '@/lib/pdf'
 import { supabase } from '@/lib/supabase'
 import {
-  getCatalogForEntry, createCommission, uploadCommissionPdf, catalogPublicUrl,
+  getCatalogForEntry, createCommission, uploadCommissionPdf, catalogPublicUrl, applyMarkup,
   type Catalog, type Hotspot, type CommissionSpecs,
 } from '@/hooks/useAlbumCatalog'
 
@@ -103,7 +103,16 @@ export default function AlbumCatalogPicker() {
     if (sel.cover) s += opts.coverPhotoSurcharge ?? 0
     return s
   }, [opts, sel])
-  const modelTotal = (selected?.price ?? 0) + surcharge
+  // Prezzo base del modello: se il fotografo ha messo un prezzo all'hotspot vince; altrimenti lo prendo
+  // dal listino DesignAlbum (match per nome) per la GRANDEZZA scelta, col ricarico del fotografo → così
+  // cliccando il modello il cliente ha già il costo.
+  const basePrice = useMemo(() => {
+    if (selected?.price != null) return selected.price
+    const dp = designAlbumPriceForLabel(selected?.label ?? '', specs.size)
+    if (dp == null) return 0
+    return applyMarkup(dp, Number(catalog?.markup_percent ?? 0)) ?? dp
+  }, [selected?.price, selected?.label, specs.size, catalog?.markup_percent])
+  const modelTotal = basePrice + surcharge
 
   function pick(h: Hotspot) {
     setSelected(h)
