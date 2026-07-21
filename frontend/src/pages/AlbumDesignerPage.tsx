@@ -3057,6 +3057,7 @@ function AlbumDesignerInner() {
                       <input type="checkbox" checked={pc.box} onChange={(e) => set({ box: e.target.checked })} /> Box / custodia
                     </label>
                     {pc.box && <label className="flex items-center gap-2 text-sm">{num(pc.boxPrice, (n) => set({ boxPrice: n }), { step: 5 })} €</label>}
+                    <label className="flex items-center gap-2 text-sm">Spedizione {num(pc.shipping ?? 0, (n) => set({ shipping: n }), { step: 5 })} €</label>
                   </div>
                 </div>
 

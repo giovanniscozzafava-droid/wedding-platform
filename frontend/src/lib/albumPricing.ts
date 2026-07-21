@@ -52,6 +52,7 @@ export type AlbumPriceConfig = {
   extraPageRate: number
   box: boolean
   boxPrice: number
+  shipping?: number          // spedizione (deciso dal fotografo) — si somma al totale
   modelKey?: string          // modello scelto dal catalogo DesignAlbum (legacy)
   modelLabel?: string        // etichetta leggibile della scelta
   modelDelta: number         // legacy: delta dal tier
@@ -118,16 +119,16 @@ export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actu
   if (cfg.mode === 'zero') {
     // DA ZERO: il cliente compone; paga il prezzo pieno del modello scelto.
     lines.push({ label: cfg.chosenModelLabel ? `Modello ${cfg.chosenModelLabel}` : 'Album (da zero)', amount: chosen, hint: `${included} pagine incluse` })
-  } else if (cfg.mode === 'package') {
-    // BASE GRANDEZZA + il PREZZO PIENO del modello scelto (si somma al totale). La differenza dal modello
-    // base resta come informazione (e per il sovraccosto sugli album genitori).
-    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse${cfg.packageLabel ? ` · ${cfg.packageLabel}` : ''}` })
-    modelDiff = Math.max(0, chosen - n2(cfg.includedModelPrice))
-    if (chosen > 0) lines.push({ label: `Modello ${cfg.chosenModelLabel ?? ''}`.trim(), amount: chosen, hint: (cfg.includedModelLabel && n2(cfg.includedModelPrice) > 0) ? `base ${cfg.includedModelLabel} ${euroA(n2(cfg.includedModelPrice))} · +${euroA(modelDiff)} sul base` : 'prezzo del modello' })
   } else {
-    // LEGACY (nessuna modalità): base + delta per tier.
-    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse` })
-    if (n2(cfg.modelDelta) > 0) lines.push({ label: `Modello${cfg.modelLabel ? ` · ${cfg.modelLabel}` : cfg.modelKey ? ` ${modelLabel(cfg.modelKey)}` : ''}`, amount: n2(cfg.modelDelta) })
+    // PACCHETTO o LEGACY: base grandezza + il PREZZO PIENO del modello scelto (SI SOMMA al totale,
+    // sempre, anche senza pacchetto). La differenza dal modello base resta come info e per i genitori.
+    lines.push({ label: 'Base album (contratto)', amount: n2(cfg.base), hint: `${included} pagine incluse${cfg.packageLabel ? ` · ${cfg.packageLabel}` : ''}` })
+    if (chosen > 0) {
+      modelDiff = Math.max(0, chosen - n2(cfg.includedModelPrice))
+      lines.push({ label: `Modello ${cfg.chosenModelLabel ?? ''}`.trim(), amount: chosen, hint: (cfg.includedModelLabel && n2(cfg.includedModelPrice) > 0) ? `base ${cfg.includedModelLabel} ${euroA(n2(cfg.includedModelPrice))} · +${euroA(modelDiff)} sul base` : 'prezzo del modello' })
+    } else if (n2(cfg.modelDelta) > 0) {
+      lines.push({ label: `Modello${cfg.modelLabel ? ` · ${cfg.modelLabel}` : cfg.modelKey ? ` ${modelLabel(cfg.modelKey)}` : ''}`, amount: n2(cfg.modelDelta) })
+    }
   }
   if (cfg.box && n2(cfg.boxPrice) > 0) lines.push({ label: 'Box / custodia', amount: n2(cfg.boxPrice) })
   if (extraPages > 0 && n2(cfg.extraPageRate) > 0) {
@@ -146,6 +147,7 @@ export function computeAlbumPrice(cfg: AlbumPriceConfig | null | undefined, actu
     if (modelPer > 0) parts.push(`+ modello ${euroA(modelPer)}`)
     lines.push({ label: `Album genitori ×${n2(fam.qty)}${fam.included ? ' (inclusi)' : ''}`, amount: each * n2(fam.qty), hint: `${euroA(each)} l'uno · ${parts.join(' · ')}` })
   }
+  if (n2(cfg.shipping) > 0) lines.push({ label: 'Spedizione', amount: n2(cfg.shipping) })
   const total = lines.reduce((s, l) => s + l.amount, 0)
   return { lines, extraPages, total }
 }
