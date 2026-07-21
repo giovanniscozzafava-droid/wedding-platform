@@ -88,7 +88,8 @@ const MaestranzeWaitlistPage = lazyWithRetry(() => import('@/pages/maestranze/Wa
 const MaestranzeWaitlistConfirmPage = lazyWithRetry(() => import('@/pages/maestranze/WaitlistConfirmPage'))
 const MaestranzeWaitlistWelcomePage = lazyWithRetry(() => import('@/pages/maestranze/WaitlistWelcomePage'))
 const MaestranzeWaitlistAdminPage = lazyWithRetry(() => import('@/pages/maestranze/WaitlistAdminPage'))
-const WaitlistPage = lazyWithRetry(() => import('@/pages/public/WaitlistPage'))
+// WaitlistPage (vecchia lista d'attesa, RPC waitlist_submit) ritirata: la lista d'attesa
+// è una sola (access_requests, /richiedi-accesso). /lista-attesa ora ci redirige.
 const PublicSupplierPage = lazyWithRetry(() => import('@/pages/public/PublicSupplierPage'))
 const BlogListPage = lazyWithRetry(() => import('@/pages/public/BlogListPage'))
 const BlogPostPage = lazyWithRetry(() => import('@/pages/public/BlogPostPage'))
@@ -143,7 +144,7 @@ export default function App() {
           <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/lista-attesa" element={<WaitlistPage />} />
+          <Route path="/lista-attesa" element={<Navigate to="/richiedi-accesso" replace />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/prova-menu-invito/:token" element={<TastingSessionInvite />} />
