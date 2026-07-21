@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2, Sparkles, PenLine } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2, Sparkles, PenLine, Users2, AlertTriangle, CheckCircle2, Unlock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -43,6 +43,33 @@ export function ContractTab({ wedding }: { wedding: any }) {
   const [editing, setEditing] = useState<any | null>(null)
   const [templates, setTemplates] = useState<any[]>([])
   const [tplReload, setTplReload] = useState(0)
+
+  // ── Gate presenza fornitori ──────────────────────────────────────────────
+  // Regola: un contratto non si "chiude" (invio per firma / registrazione cartaceo) finché
+  // TUTTI i fornitori del cerchio non hanno dato la propria presenza (quote_items.supplier_presence='SI').
+  // Il capostipite (erogatore) è escluso. Il fotografo può FORZARE lo sblocco con un tasto.
+  const presenceSuppliers = useMemo(() => {
+    const items = (wedding.quote?.quote_items ?? []) as any[]
+    const byId = new Map<string, { name: string; presence: string | null; subrole: string | null }>()
+    for (const it of items) {
+      if (!it.supplier_id || it.erogatore_e_capostipite || it.supplier_id === me) continue
+      const name = it.supplier?.business_name || it.supplier?.full_name || 'Fornitore'
+      const cur = byId.get(it.supplier_id)
+      if (!cur) byId.set(it.supplier_id, { name, presence: it.supplier_presence ?? null, subrole: it.supplier?.subrole ?? null })
+      else if (it.supplier_presence === 'SI' && cur.presence !== 'SI') cur.presence = 'SI'
+    }
+    return [...byId.values()]
+  }, [wedding.quote?.quote_items, me])
+  const missingPresence = presenceSuppliers.filter((s) => s.presence !== 'SI')
+  const allPresent = missingPresence.length === 0
+  const [forcedPresence, setForcedPresence] = useState(false)
+  const presenceOk = allPresent || forcedPresence || presenceSuppliers.length === 0
+  // usato dalle azioni che "chiudono" il contratto (invio/cartaceo)
+  function guardPresence(): boolean {
+    if (presenceOk) return true
+    toast.error(`Manca la presenza di ${missingPresence.length} fornitore/i. Usa "Forza e sblocca" per procedere comunque.`)
+    return false
+  }
 
   useEffect(() => {
     if (!me) return
@@ -134,6 +161,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
 
   // Firmato su carta: stampato e firmato a mano → registralo come FIRMATO (diventa immutabile come il digitale).
   async function markPaper(id: string) {
+    if (!guardPresence()) return
     if (!confirm('Confermi che questo contratto è stato firmato su carta?\n\nDiventerà immutabile, esattamente come una firma digitale.')) return
     try { await markPaperMut.mutateAsync(id); toast.success('Registrato come firmato (cartaceo)') }
     catch (e) { toast.error((e as Error).message) }
@@ -157,6 +185,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
   }
 
   async function sendContract(id: string) {
+    if (!guardPresence()) return
     try {
       const token = await send.mutateAsync(id)
       // Invio email brandizzato al cliente (come il preventivo), non più mailto.
@@ -189,6 +218,46 @@ export function ContractTab({ wedding }: { wedding: any }) {
           </span>
         </div>
       </header>
+
+      {presenceSuppliers.length > 0 && (
+        allPresent ? (
+          <div className="mb-4 flex items-center gap-2 text-sm rounded-lg px-3 py-2"
+            style={{ background: 'rgb(var(--emerald-100))', color: 'rgb(var(--fg))' }}>
+            <CheckCircle2 size={15} style={{ color: 'rgb(var(--emerald-500))' }} /> Tutti i fornitori del cerchio hanno confermato la presenza: puoi chiudere i contratti.
+          </div>
+        ) : forcedPresence ? (
+          <div className="mb-4 flex items-center justify-between gap-3 text-sm rounded-lg px-3 py-2 border"
+            style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+            <span className="inline-flex items-center gap-2"><Unlock size={15} /> Blocco presenze <strong>forzato</strong>: puoi inviare e registrare le firme. Mancano ancora {missingPresence.length} conferme.</span>
+            <button className="text-xs underline shrink-0" onClick={() => setForcedPresence(false)}>Ripristina blocco</button>
+          </div>
+        ) : (
+          <Card className="mb-4 p-4" style={{ borderLeft: '3px solid rgb(var(--amber-500))' }}>
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" style={{ color: 'rgb(var(--amber-500))' }} />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Il contratto non si chiude finché tutti i fornitori non confermano la presenza</p>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                  In attesa della conferma di <strong>{missingPresence.length}</strong> fornitore/i del cerchio. Finché non confermano, non puoi inviare per firma né registrare il cartaceo.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {missingPresence.map((s, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgb(var(--amber-100))', color: 'rgb(var(--fg))' }}>
+                      <Users2 size={11} /> {s.name}{s.subrole ? ` · ${s.subrole}` : ''}{s.presence === 'FORSE' ? ' (forse)' : s.presence === 'NO' ? ' (no)' : ''}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-3">
+                  <Button variant="outline" size="sm" onClick={() => { setForcedPresence(true); toast.message('Blocco presenze forzato: ora puoi chiudere i contratti.') }}>
+                    <Unlock size={13} /> Forza e sblocca la chiusura
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )
+      )}
 
       <div className="space-y-4">
         {(contracts ?? []).length === 0 && (
