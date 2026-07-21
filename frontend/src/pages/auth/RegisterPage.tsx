@@ -74,7 +74,7 @@ export default function RegisterPage() {
       return
     }
     if (!form.platform_terms) {
-      setError('Devi accettare le condizioni di Planfully per registrarti')
+      setError('Devi accettare le condizioni di Planfully per continuare')
       return
     }
     setBusy(true)

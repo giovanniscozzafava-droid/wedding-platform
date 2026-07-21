@@ -63,7 +63,7 @@ export default function WaitlistPage() {
                 {err && <p className="text-sm text-[rgb(var(--rose-500))]">{err}</p>}
                 <Button type="submit" variant="gold" className="w-full" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin" /> : 'Iscrivimi alla lista'}</Button>
               </form>
-              <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-3 text-center">Hai già un invito? <Link to="/register" className="text-[rgb(var(--gold-700))] hover:underline">Registrati qui</Link></p>
+              <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-3 text-center">Hai già un invito? <Link to="/register" className="text-[rgb(var(--gold-700))] hover:underline">Entra qui</Link></p>
             </>
           )}
         </div>

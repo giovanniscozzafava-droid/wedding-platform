@@ -582,8 +582,8 @@ function AcceptPriceConsent({ token, clientName, clientEmail, onUnlocked }: {
   return (
     <div className="min-h-screen px-4 py-10 flex items-center justify-center" style={{ background: '#FDFBF6', color: '#1A1714', colorScheme: 'light' }}>
       <div className="w-full max-w-md rounded-2xl border p-6" style={{ borderColor: '#E4DED2', background: '#fff' }}>
-        <h1 className="font-display text-xl mb-1">Registrati per vedere il preventivo</h1>
-        <p className="text-sm text-[#6B6358] mb-4">Per visualizzare il prezzo e accettare, registrati e accetta le condizioni.</p>
+        <h1 className="font-display text-xl mb-1">Crea un accesso per vedere il preventivo</h1>
+        <p className="text-sm text-[#6B6358] mb-4">Per visualizzare il prezzo e accettare, crea un accesso e accetta le condizioni.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome e cognome" className="text-sm px-3 py-2 rounded-lg border" style={{ borderColor: '#D6DAE1' }} />
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="La tua email" className="text-sm px-3 py-2 rounded-lg border" style={{ borderColor: '#D6DAE1' }} />

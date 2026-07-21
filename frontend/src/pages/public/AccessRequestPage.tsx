@@ -74,7 +74,7 @@ export default function AccessRequestPage() {
     <div style={{ background: CARTA, color: INCHIOSTRO, minHeight: '100vh', fontFamily: JOST }}>
       <Helmet>
         <html lang="it" />
-        <title>Richiedi accesso — Planfully</title>
+        <title>Iscriviti alla lista d’attesa — Planfully</title>
         <meta name="robots" content="noindex" />
       </Helmet>
 
@@ -89,7 +89,7 @@ export default function AccessRequestPage() {
       <div className="max-w-lg mx-auto px-5 py-12">
         {done ? (
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.18em', color: CIPRESSO, marginBottom: 20 }}>RICHIESTA INVIATA</div>
+            <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.18em', color: CIPRESSO, marginBottom: 20 }}>SEI IN LISTA D’ATTESA</div>
             <h1 style={{ fontFamily: JOST, fontWeight: 400, fontSize: 'clamp(30px,5vw,44px)', lineHeight: 1.1, margin: '0 0 20px' }}>Grazie. Ti ricontattiamo di persona.</h1>
             <p style={{ fontSize: 17, lineHeight: 1.6, color: INCHIOSTRO }}>
               Guardiamo la tua richiesta e ti scriviamo noi. Entra chi costruisce lo strumento con noi, non una lista d’attesa.
@@ -98,8 +98,8 @@ export default function AccessRequestPage() {
           </div>
         ) : (
           <>
-            <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.18em', color: CIPRESSO, marginBottom: 20 }}>ACCESSO SU INVITO</div>
-            <h1 style={{ fontFamily: JOST, fontWeight: 400, fontSize: 'clamp(30px,5vw,44px)', lineHeight: 1.1, margin: '0 0 16px' }}>Richiedi accesso.</h1>
+            <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.18em', color: CIPRESSO, marginBottom: 20 }}>LISTA D’ATTESA · SU INVITO</div>
+            <h1 style={{ fontFamily: JOST, fontWeight: 400, fontSize: 'clamp(30px,5vw,44px)', lineHeight: 1.1, margin: '0 0 16px' }}>Iscriviti alla lista d’attesa.</h1>
             <p style={{ fontSize: 16, lineHeight: 1.55, color: CIPRESSO, marginBottom: mondo ? 20 : 32 }}>
               Apriamo la piattaforma a location, planner e fornitori che lavorano già insieme. Raccontaci chi sei: ti ricontattiamo noi.
             </p>
@@ -166,10 +166,10 @@ export default function AccessRequestPage() {
               <button disabled={!canSubmit || busy} onClick={() => void submit()}
                 className="w-full h-13 py-4 text-base disabled:opacity-40"
                 style={{ background: LACCA, color: CARTA, fontFamily: JOST, fontWeight: 500, letterSpacing: '0.06em' }}>
-                {busy ? 'Invio…' : 'Invia la richiesta'}
+                {busy ? 'Invio…' : 'Iscriviti alla lista d’attesa'}
               </button>
               <p className="text-center" style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.06em', color: CIPRESSO }}>
-                Ti ricontattiamo noi · nessuna lista d’attesa
+                Ti ricontattiamo noi appena c’è posto · non è una registrazione
               </p>
             </div>
           </>

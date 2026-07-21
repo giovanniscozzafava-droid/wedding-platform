@@ -132,7 +132,7 @@ export default function LoginPage() {
             </div>
             <p className="text-sm text-center text-[rgb(var(--fg-muted))] pt-2">
               Non hai un account?{' '}
-              <Link to="/register" className="font-medium text-[rgb(var(--fg))] hover:underline">Registrati</Link>
+              <Link to="/richiedi-accesso" className="font-medium text-[rgb(var(--fg))] hover:underline">Iscriviti alla lista d’attesa</Link>
             </p>
             <p className="text-xs text-center text-[rgb(var(--fg-subtle))]">
               Hai ricevuto un preventivo?{' '}
@@ -260,7 +260,7 @@ export default function LoginPage() {
             Il modello è semplice. Niente onboarding lungo, niente call obbligatorie.
           </p>
           <ol className="space-y-5">
-            <Step n="1" title="Apri il tuo studio" copy="Ti registri come wedding planner o location. Importi i tuoi fornitori abituali con un invito email." />
+            <Step n="1" title="Apri il tuo studio" copy="Entri come wedding planner o location. Importi i tuoi fornitori abituali con un invito email." />
             <Step n="2" title="I fornitori entrano nella tua rete" copy="Accettano l'invito, popolano il loro catalogo e calendario, restano sempre titolari dei propri dati e prezzi." />
             <Step n="3" title="Costruisci l'evento" copy="Preventivo, contratto, tavoli, scaletta, sito ospiti, pagamenti. Clienti e fornitori vedono solo quello che li riguarda." />
             <Step n="4" title="Mantieni la relazione" copy="Storico cliente, materiali e contatti restano nel tuo account. Se domani cambi piattaforma, te li porti via." />
@@ -272,8 +272,8 @@ export default function LoginPage() {
               senza impegno.
             </p>
             <div className="flex flex-wrap gap-3 mt-4">
-              <Link to="/register">
-                <Button variant="gold">Richiedi accesso <ArrowRight size={14} /></Button>
+              <Link to="/richiedi-accesso">
+                <Button variant="gold">Iscriviti alla lista d’attesa <ArrowRight size={14} /></Button>
               </Link>
               <a href="mailto:hello@planfully.it">
                 <Button variant="outline">Scrivici in privato</Button>

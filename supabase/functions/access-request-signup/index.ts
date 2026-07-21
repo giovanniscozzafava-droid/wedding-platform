@@ -77,16 +77,16 @@ Deno.serve(async (req) => {
 
   // Email di conferma al richiedente (brand nuovo, via emailShell)
   const html = emailShell({
-    eyebrow: 'Richiesta ricevuta',
-    title: 'Abbiamo ricevuto la tua richiesta',
+    eyebrow: 'Lista d’attesa',
+    title: 'Sei in lista d’attesa',
     subtitleHtml: `Ciao <strong>${esc(nome)}</strong>`,
     bodyHtml:
-      `<p style="margin:0 0 14px">Grazie per aver chiesto l’accesso a <strong>Planfully</strong>, il gestionale della filiera wedding.</p>` +
+      `<p style="margin:0 0 14px">Grazie per esserti iscritto alla lista d’attesa di <strong>Planfully</strong>, il gestionale della filiera wedding.</p>` +
       `<p style="margin:0 0 14px">Apriamo la piattaforma a un numero ristretto di location, planner e fornitori che lavorano già insieme. ` +
-      `Guardiamo la tua richiesta e ti ricontattiamo di persona: entra chi costruisce lo strumento con noi, non una lista d’attesa.</p>` +
-      `<p style="margin:0;font-size:13px;color:#6b6b63">Se non hai richiesto tu l’accesso, ignora pure questa email.</p>`,
+      `Ti ricontattiamo di persona appena c’è posto: entra chi costruisce lo strumento con noi.</p>` +
+      `<p style="margin:0;font-size:13px;color:#6b6b63">Se non ti sei iscritto tu, ignora pure questa email.</p>`,
   })
-  const r = await sendEmail({ to: email, subject: 'La tua richiesta di accesso a Planfully', html, from: FROM, headers: { 'X-Entity-Ref-ID': String(row.id) } })
+  const r = await sendEmail({ to: email, subject: 'Sei in lista d’attesa · Planfully', html, from: FROM, headers: { 'X-Entity-Ref-ID': String(row.id) } })
 
   return json({ ok: true, email_inviata: r.ok })
 })

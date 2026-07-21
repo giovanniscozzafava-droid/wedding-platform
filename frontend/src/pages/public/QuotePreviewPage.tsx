@@ -277,10 +277,10 @@ function PriceConsentGate({ token, clientName, clientEmail, primary, onUnlocked 
       <div className="rounded-xl border p-4" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
         <div className="flex items-center gap-2 mb-1">
           <Lock size={16} style={{ color: primary }} />
-          <p className="font-medium text-sm">Registrati per vedere il prezzo</p>
+          <p className="font-medium text-sm">Crea un accesso per vedere il prezzo</p>
         </div>
         <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
-          Per visualizzare il totale del preventivo, registrati e accetta le condizioni qui sotto.
+          Per visualizzare il totale del preventivo, crea un accesso e accetta le condizioni qui sotto.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome e cognome" />
