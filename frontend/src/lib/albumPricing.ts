@@ -30,11 +30,17 @@ export type AlbumPackage = {
   includedModelPrice?: number   // suo prezzo (snapshot, per calcolare la differenza)
 }
 
-// Listino del fotografo: default per formato + pacchetti base + delta per tier (legacy).
+// Voce di listino a prezzo (copertina/materiale o accessorio). Il prezzo si somma alla base.
+export type PricedItem = { id: string; label: string; price: number }
+
+// Listino del fotografo: default per formato + pacchetti base + delta per tier (legacy) +
+// copertine (materiali) e accessori/extra con prezzo (nuovo: base grandezza + copertina + extra).
 export type AlbumPriceList = {
-  formats: Record<string, AlbumFormatPrice>   // key = ALBUM_FORMATS.key
+  formats: Record<string, AlbumFormatPrice>   // key = ALBUM_FORMATS.key (base per grandezza)
   modelDelta: Partial<Record<Tier, number>>   // legacy: upgrade modello per tier
   packages?: AlbumPackage[]                    // pacchetti base preventivati
+  covers?: PricedItem[]                        // copertine/materiali (ecopelle, pelle…): prezzo sopra la base grandezza
+  accessories?: PricedItem[]                   // extra: box, plexiglass, lettere ottone, foto copertina, album genitori…
 }
 
 // Contratto di un evento.

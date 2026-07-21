@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { SettingsTabs } from '@/components/settings/SettingsTabs'
 import { supabase } from '@/lib/supabase'
 import { ALBUM_FORMATS } from '@/lib/albumFormats'
-import { type AlbumPriceList, type AlbumFormatPrice, type AlbumPackage, emptyPriceList, DEFAULT_FORMAT_PRICE, DEFAULT_MODEL_DELTA, euroA } from '@/lib/albumPricing'
+import { type AlbumPriceList, type AlbumFormatPrice, type AlbumPackage, type PricedItem, emptyPriceList, DEFAULT_FORMAT_PRICE, DEFAULT_MODEL_DELTA, euroA } from '@/lib/albumPricing'
 import { getCatalogModels } from '@/hooks/useAlbumCatalog'
 import type { Tier } from '@/components/album/albumCatalog'
 
@@ -47,7 +47,7 @@ export default function AlbumPricingSettingsPage() {
       try {
         const { data } = await (supabase.from as any)('album_price_settings').select('config').maybeSingle()
         const cfg = (data?.config ?? null) as AlbumPriceList | null
-        if (cfg && cfg.formats) setList({ formats: cfg.formats ?? {}, modelDelta: { ...DEFAULT_MODEL_DELTA, ...(cfg.modelDelta ?? {}) }, packages: cfg.packages ?? [] })
+        if (cfg && cfg.formats) setList({ formats: cfg.formats ?? {}, modelDelta: { ...DEFAULT_MODEL_DELTA, ...(cfg.modelDelta ?? {}) }, packages: cfg.packages ?? [], covers: cfg.covers ?? [], accessories: cfg.accessories ?? [] })
       } catch { /* nessun listino ancora */ }
       finally { setLoading(false) }
       try { setModels(await getCatalogModels()) } catch { /* nessun catalogo */ }
@@ -79,6 +79,32 @@ export default function AlbumPricingSettingsPage() {
     setList((l) => { const f = { ...l.formats }; delete f[key]; return { ...l, formats: f } })
   const setDelta = (tier: Tier, n: number) =>
     setList((l) => ({ ...l, modelDelta: { ...l.modelDelta, [tier]: Math.max(0, n) } }))
+
+  // Copertine (materiali) e accessori copertina: liste a prezzo, editabili.
+  const covers = list.covers ?? []
+  const accessories = list.accessories ?? []
+  const addPriced = (kind: 'covers' | 'accessories') =>
+    setList((l) => ({ ...l, [kind]: [...(l[kind] ?? []), { id: crypto.randomUUID(), label: '', price: 0 }] }))
+  const setPriced = (kind: 'covers' | 'accessories', id: string, patch: Partial<PricedItem>) =>
+    setList((l) => ({ ...l, [kind]: (l[kind] ?? []).map((x) => (x.id === id ? { ...x, ...patch } : x)) }))
+  const removePriced = (kind: 'covers' | 'accessories', id: string) =>
+    setList((l) => ({ ...l, [kind]: (l[kind] ?? []).filter((x) => x.id !== id) }))
+  const renderPriced = (kind: 'covers' | 'accessories', items: PricedItem[], placeholder: string, example: string) => (
+    <div className="space-y-2">
+      {items.length === 0 && <p className="text-sm text-[rgb(var(--fg-muted))]">Nessuna voce. Aggiungine una (es. {example}).</p>}
+      {items.map((it) => (
+        <div key={it.id} className="flex items-center gap-2">
+          <input value={it.label} onChange={(e) => setPriced(kind, it.id, { label: e.target.value })} placeholder={placeholder} className="h-9 flex-1 rounded-md border border-[rgb(var(--border))] bg-transparent px-2 text-sm" />
+          <div className="flex items-center gap-1">
+            <Input type="number" min={0} step={5} value={Number.isFinite(it.price) ? it.price : 0} onChange={(e) => setPriced(kind, it.id, { price: Math.max(0, Number(e.target.value) || 0) })} className="h-9 w-24" />
+            <span className="text-xs text-[rgb(var(--fg-muted))]">€</span>
+          </div>
+          <button onClick={() => removePriced(kind, it.id)} className="text-[rgb(var(--fg-muted))] hover:text-red-500" title="Rimuovi"><Trash2 size={16} /></button>
+        </div>
+      ))}
+      <Button size="sm" variant="outline" onClick={() => addPriced(kind)}><Plus size={14} /> Aggiungi</Button>
+    </div>
+  )
 
   async function save() {
     setBusy(true)
@@ -256,6 +282,22 @@ export default function AlbumPricingSettingsPage() {
               </div>
             ))}
           </div>
+        </Card>
+
+        <Card className="p-6 mt-6 space-y-4">
+          <div>
+            <h3 className="font-display text-lg">Copertine (materiali)</h3>
+            <p className="text-sm text-[rgb(var(--fg-muted))]">Il modello di copertina. Il prezzo si <strong>somma alla base della grandezza</strong> (es. base 25×35 = 370 + ecopelle 20 = 390; in pelle 80 = 450). Il cliente ne sceglie una dal catalogo.</p>
+          </div>
+          {renderPriced('covers', covers, 'Es. Ecopelle · Pelle · Tela…', 'Ecopelle 20 · Pelle 80')}
+        </Card>
+
+        <Card className="p-6 mt-6 space-y-4">
+          <div>
+            <h3 className="font-display text-lg">Accessori copertina / extra</h3>
+            <p className="text-sm text-[rgb(var(--fg-muted))]">Extra opzionali che si sommano: foto sulla copertina, nomi stampati (ottone, incisi…), plexiglass, cofanetto speciale. <span className="text-[rgb(var(--fg-subtle))]">Box, album genitori e pagine extra hanno già i loro campi nei formati qui sopra.</span></p>
+          </div>
+          {renderPriced('accessories', accessories, 'Es. Foto in copertina · Nomi in ottone · Plexiglass…', 'Foto in copertina 20 · Nomi in ottone 25 · Plexiglass 30')}
         </Card>
 
         <div className="flex items-center gap-3 mt-6 flex-wrap">
