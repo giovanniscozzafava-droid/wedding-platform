@@ -69,7 +69,7 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
   const steps = [
     { n: 1, icon: Images, title: 'Scegli le tue foto', desc: selectionClosed ? 'La selezione è già chiusa: le foto scelte sono dal fotografo per l’impaginazione. Puoi rivederle.' : 'Metti un cuore alle foto che vuoi nel tuo album. Sono quelle che il fotografo impagina.', done: photosDone },
     { n: 2, icon: BookOpen, title: "Conferma l'impaginazione", desc: "Sfoglia l'album impaginato. Se va bene approvalo, altrimenti chiedi una modifica.", done: layoutDone },
-    { n: 3, icon: Frame, title: 'Scegli la copertina', desc: 'Sul catalogo del fotografo: modello, materiale e colore. Lascia un pin e conferma.', done: coverDone },
+    { n: 3, icon: Frame, title: 'Scegli la copertina', desc: coverStudio ? 'La copertina è stata scelta in studio con il fotografo: è già a posto.' : 'Sul catalogo del fotografo: modello, materiale e colore. Lascia un pin e conferma.', done: coverDone },
     { n: 4, icon: Printer, title: 'Stampe extra', desc: 'Vuoi stampe delle altre foto preferite? Ordinale quando vuoi.', done: false, optional: true },
   ]
 
@@ -111,7 +111,9 @@ export function AlbumFunnelTab({ entryId, onTab }: { entryId: string; onTab: (k:
                       ? <Button variant="outline" size="sm" disabled={approving} onClick={approveLayout}><Check size={14} /> Approvo l'album</Button>
                       : <Button variant="ghost" size="sm" onClick={revokeApproval}><RotateCcw size={14} /> Riapri e modifica</Button>}
                   </>)}
-                  {s.n === 3 && <Link to={`/scegli-album/${entryId}`}><Button variant={isNext ? 'gold' : 'outline'} size="sm"><Frame size={14} /> {coverDone ? 'Cambia la copertina' : 'Scegli la copertina'} <ArrowRight size={13} /></Button></Link>}
+                  {s.n === 3 && (coverStudio
+                    ? <span className="text-[11px] text-[rgb(var(--emerald-700))]">Copertina definita in studio col fotografo.</span>
+                    : <Link to={`/scegli-album/${entryId}`}><Button variant={isNext ? 'gold' : 'outline'} size="sm"><Frame size={14} /> {coverDone ? 'Cambia la copertina' : 'Scegli la copertina'} <ArrowRight size={13} /></Button></Link>)}
                   {s.n === 4 && <Button variant="outline" size="sm" onClick={() => onTab('foto')}><Printer size={14} /> Ordina stampe</Button>}
                 </div>
               </div>
