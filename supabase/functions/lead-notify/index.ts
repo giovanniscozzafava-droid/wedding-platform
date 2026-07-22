@@ -60,19 +60,19 @@ Deno.serve(async (req) => {
   if (wpEmail) {
     const rows = [
       ['Nome', `<strong>${esc(lead.client_name)}</strong>`],
-      ['Email', `<a href="mailto:${esc(lead.client_email)}" style="color:#7E6633">${esc(lead.client_email)}</a>`],
-      ...(lead.client_phone ? [['Telefono', `<a href="tel:${esc(lead.client_phone)}" style="color:#7E6633">${esc(lead.client_phone)}</a>`]] : []),
+      ['Email', `<a href="mailto:${esc(lead.client_email)}" style="color:#25402F">${esc(lead.client_email)}</a>`],
+      ...(lead.client_phone ? [['Telefono', `<a href="tel:${esc(lead.client_phone)}" style="color:#25402F">${esc(lead.client_phone)}</a>`]] : []),
       ['Evento', esc(lead.event_kind)],
       ...(eventDate ? [['Data', esc(eventDate)]] : []),
       ...(lead.event_location ? [['Location', esc(lead.event_location)]] : []),
       ...(lead.guests_estimate ? [['Invitati', String(lead.guests_estimate)]] : []),
       ...(lead.budget_range ? [['Budget', esc(lead.budget_range)]] : []),
-    ].map(([k, v]) => `<tr><td style="padding:4px 0;color:#787164">${k}:</td><td style="padding:4px 0;text-align:right">${v}</td></tr>`).join('')
+    ].map(([k, v]) => `<tr><td style="padding:4px 0;color:#6B6B63">${k}:</td><td style="padding:4px 0;text-align:right">${v}</td></tr>`).join('')
     const wpHtml = emailShell({
       eyebrow: 'Nuova richiesta',
       title: 'Hai un nuovo cliente potenziale',
       subtitleHtml: `<strong>${esc(lead.client_name)}</strong> ha richiesto un preventivo per il suo evento`,
-      bodyHtml: `<table style="width:100%;font-size:14px;color:#1A1714;border-collapse:collapse">${rows}</table>${lead.message ? `<div style="border-left:2px solid #7E6633;padding:10px 14px;margin:16px 0;background:#F3F0E9;font-style:italic;color:#3a3a3a;font-size:14px">"${esc(lead.message)}"</div>` : ''}<p style="font-size:12px;color:#787164;margin:16px 0 0">Rispondi entro 48 ore per migliorare il tuo tasso di chiusura.</p>`,
+      bodyHtml: `<table style="width:100%;font-size:14px;color:#181F1B;border-collapse:collapse">${rows}</table>${lead.message ? `<div style="border-left:2px solid #25402F;padding:10px 14px;margin:16px 0;background:#F4F3EE;font-style:italic;color:#181F1B;font-size:14px">"${esc(lead.message)}"</div>` : ''}<p style="font-size:12px;color:#6B6B63;margin:16px 0 0">Rispondi entro 48 ore per migliorare il tuo tasso di chiusura.</p>`,
       cta: { href: `${APP_BASE}/leads`, label: 'Apri la tua inbox' },
     })
     await sendEmail(wpEmail, `Nuova richiesta da ${lead.client_name}`, wpHtml)
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
   const clientHtml = emailShell({
     eyebrow: 'Richiesta ricevuta',
     title: `Grazie ${lead.client_name}`,
-    bodyHtml: `<p style="margin:0 0 16px">Abbiamo ricevuto la tua richiesta di preventivo per <strong>${esc(wpDisplay)}</strong> (${wpRole}).</p><p style="margin:0">Riceverai una risposta direttamente <strong>entro 48 ore</strong>. Nel frattempo puoi esplorare il portale e altri professionisti che potrebbero interessarti.</p>${wp.slug ? `<p style="margin:18px 0 0;font-size:13px"><a href="${APP_BASE}/p/wp/${esc(wp.slug)}" style="color:#1A1714;text-decoration:underline">Rivedi il profilo di ${esc(wpDisplay)}</a></p>` : ''}`,
+    bodyHtml: `<p style="margin:0 0 16px">Abbiamo ricevuto la tua richiesta di preventivo per <strong>${esc(wpDisplay)}</strong> (${wpRole}).</p><p style="margin:0">Riceverai una risposta direttamente <strong>entro 48 ore</strong>. Nel frattempo puoi esplorare il portale e altri professionisti che potrebbero interessarti.</p>${wp.slug ? `<p style="margin:18px 0 0;font-size:13px"><a href="${APP_BASE}/p/wp/${esc(wp.slug)}" style="color:#181F1B;text-decoration:underline">Rivedi il profilo di ${esc(wpDisplay)}</a></p>` : ''}`,
   })
   await sendEmail(lead.client_email, `Abbiamo ricevuto la tua richiesta per ${wpDisplay}`, clientHtml)
 

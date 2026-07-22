@@ -4,6 +4,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -73,33 +74,21 @@ Deno.serve(async (req) => {
     const sid = sidByForn.get(s.id)
     const link = s.slug ? `${APP_BASE}/p/fornitore/${s.slug}${sid ? `?sid=${sid}` : ''}` : APP_BASE
     return `
-      <tr><td style="padding:12px 0;border-bottom:1px solid #EFEAE0">
-        <div style="font-family:Georgia,serif;font-size:16px;color:#1A1714;font-weight:700">${esc(name)}</div>
-        <div style="font-family:Arial,sans-serif;font-size:12px;color:#8A8275">${esc(cap(s.subrole ?? 'Fornitore'))}${s.city ? ' · ' + esc(s.city) : ''}</div>
-        <a href="${link}" style="display:inline-block;margin-top:6px;font-family:Arial,sans-serif;font-size:13px;color:#B08D57;text-decoration:none">Vedi il profilo →</a>
+      <tr><td style="padding:12px 0;border-bottom:1px solid #E2DFD4">
+        <div style="font-size:16px;color:#181F1B;font-weight:700">${esc(name)}</div>
+        <div style="font-size:12px;color:#6B6B63">${esc(cap(s.subrole ?? 'Fornitore'))}${s.city ? ' · ' + esc(s.city) : ''}</div>
+        <a href="${link}" style="display:inline-block;margin-top:6px;font-size:13px;color:#25402F;text-decoration:none">Vedi il profilo →</a>
       </td></tr>`
   }).join('')
 
-  const html = `
-  <div style="background:#F7F4EE;padding:32px 0;font-family:Arial,sans-serif">
-    <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#FFFDF8;border-radius:14px;overflow:hidden">
-      <tr><td style="height:6px;background:#B08D57"></td></tr>
-      <tr><td style="padding:28px 32px 8px 32px">
-        <div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#B08D57">Fornitori consigliati</div>
-        <h1 style="font-family:Georgia,serif;font-size:24px;color:#1A1714;margin:6px 0 4px">${esc(referrerName)} ti consiglia questi professionisti</h1>
-        <p style="font-family:Arial,sans-serif;font-size:14px;color:#6B6358;line-height:1.6;margin:0">
-          Professionisti di fiducia per il tuo${q.event_kind && q.event_kind !== 'matrimonio' ? ' ' + esc(q.event_kind) : ''} evento. Dai un'occhiata ai loro profili.
-        </p>
-      </td></tr>
-      <tr><td style="padding:8px 32px 24px 32px">
-        <table role="presentation" width="100%">${cards}</table>
-      </td></tr>
-      <tr><td style="padding:0 32px 28px 32px">
-        <a href="${APP_BASE}/area-cliente/accedi" style="display:inline-block;background:#1A1714;color:#fff;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;padding:12px 22px;border-radius:8px">Apri la tua area cliente</a>
-      </td></tr>
-      <tr><td style="padding:0 32px 24px 32px;font-family:Arial,sans-serif;font-size:11px;color:#A59C8E">Ricevi questa email perché ${esc(referrerName)} ti ha consigliato dei colleghi su Planfully.</td></tr>
-    </table>
-  </div>`
+  const html = emailShell({
+    eyebrow: 'Fornitori consigliati',
+    title: `${referrerName} ti consiglia questi professionisti`,
+    subtitleHtml: `Professionisti di fiducia per il tuo${q.event_kind && q.event_kind !== 'matrimonio' ? ' ' + esc(q.event_kind) : ''} evento. Dai un'occhiata ai loro profili.`,
+    bodyHtml: `<table role="presentation" width="100%">${cards}</table>`,
+    cta: { href: `${APP_BASE}/area-cliente/accedi`, label: 'Apri la tua area cliente' },
+    contactHtml: `Ricevi questa email perché ${esc(referrerName)} ti ha consigliato dei colleghi su Planfully.`,
+  })
 
   try {
     await sendEmailSES({ to: String(q.client_email), subject: `${referrerName} ti consiglia alcuni professionisti`, html })

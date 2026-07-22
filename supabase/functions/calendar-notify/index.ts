@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -64,16 +65,18 @@ Deno.serve(async (req) => {
     body.event === 'entry_updated'
       ? `Aggiornamento evento ${entry.date_from}`
       : `Nuova richiesta per ${entry.date_from}`
-  const html = `
-    <p>Ciao,</p>
-    <p>${owner?.business_name ?? owner?.full_name ?? 'Un capostipite'} ti ha ${body.event === 'entry_updated' ? 'aggiornato' : 'inserito in'} un evento sul calendario:</p>
-    <ul>
-      <li><strong>Titolo:</strong> ${entry.title}</li>
-      <li><strong>Data:</strong> dal ${entry.date_from} al ${entry.date_to}</li>
-      <li><strong>Stato:</strong> ${entry.status}</li>
-    </ul>
-    <p>Accedi alla piattaforma per vedere i dettagli.</p>
-  `
+  const row = (k: string, v: string) => `<tr><td style="color:#6B6B63;padding:3px 12px 3px 0">${k}</td><td>${v}</td></tr>`
+  const html = emailShell({
+    eyebrow: 'Calendario',
+    title: body.event === 'entry_updated' ? 'Evento aggiornato' : 'Nuova richiesta',
+    subtitleHtml: `${esc(owner?.business_name ?? owner?.full_name ?? 'Un capostipite')} ti ha ${body.event === 'entry_updated' ? 'aggiornato' : 'inserito in'} un evento sul calendario.`,
+    bodyHtml: `<table style="font-size:14px;border-collapse:collapse">
+      ${row('Titolo', `<strong>${esc(entry.title)}</strong>`)}
+      ${row('Data', `dal ${esc(entry.date_from)} al ${esc(entry.date_to)}`)}
+      ${row('Stato', esc(entry.status))}
+    </table>`,
+    contactHtml: 'Accedi alla piattaforma per vedere i dettagli.',
+  })
 
   const results: Array<{ to: string; status: string }> = []
   for (const r of recipients) {

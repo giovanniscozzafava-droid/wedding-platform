@@ -13,6 +13,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -179,50 +180,24 @@ async function sendInviteEmail(args: {
     : args.inviterName
 
   const stepsHtml = preset.whatToDo
-    .map((s, i) => `<li style="margin:0 0 8px;padding-left:8px"><span style="color:#C49A5C;font-weight:600">${i + 1}.</span> ${escapeHtml(s)}</li>`)
+    .map((s, i) => `<li style="margin:0 0 8px"><span style="color:#25402F;font-weight:600">${i + 1}.</span> ${escapeHtml(s)}</li>`)
     .join('')
 
-  // PNG hosted (Gmail e tanti client email strippano SVG inline)
-  const logoImg = `<img src="https://planfully.it/brand/planfully-symbol-light.png" alt="Planfully" width="72" height="72" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none" />`
+  const bodyHtml = `
+    <p style="margin:0 0 14px">Ciao, sono <strong>${escapeHtml(inviterLabel)}</strong>. Ti scrivo da Planfully, lo strumento che uso per organizzare i miei matrimoni con i fornitori di fiducia — senza marketplace, senza commissioni sul tuo lavoro.</p>
+    <p style="margin:0 0 14px">${escapeHtml(preset.greeting)}</p>
+    ${args.customMessage ? `<div style="margin:16px 0;padding:14px 16px;background:#F4F3EE;border-left:3px solid #25402F"><strong style="display:block;font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;color:#25402F;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Messaggio personale</strong>${escapeHtml(args.customMessage)}</div>` : ''}
+    <h3 style="margin:22px 0 10px;font-size:15px;color:#181F1B">Cosa fare dopo aver accettato</h3>
+    <ol style="margin:0;padding-left:0;list-style:none;line-height:1.6">${stepsHtml}</ol>
+    <p style="margin:20px 0 0;font-size:12px;color:#6B6B63">Pulsante che non funziona? Copia questo link:<br><a href="${args.acceptUrl}" style="color:#25402F;word-break:break-all">${args.acceptUrl}</a></p>`
 
-  const html = `<!doctype html>
-<html lang="it"><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f6f4ef;margin:0;padding:32px;color:#1A2E4F">
-<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.06)">
-  <div style="background:linear-gradient(135deg,#1A1714 0%,#3a2f24 60%,#7E6633 100%);padding:32px;text-align:center;color:#fff">
-    ${logoImg}
-    <h1 style="margin:14px 0 0;font-size:26px;font-weight:600;letter-spacing:-0.02em;color:#F3EEE4">Planfully</h1>
-    <p style="margin:6px 0 0;opacity:0.75;font-size:12px;letter-spacing:0.5px;color:#F3EEE4">Network indipendente per il wedding italiano</p>
-  </div>
-  <div style="padding:32px">
-    <p style="margin:0 0 4px;font-size:13px;color:#a0aec0;text-transform:uppercase;letter-spacing:1px">Invito personale</p>
-    <h2 style="margin:0 0 16px;font-size:22px;line-height:1.3">${escapeHtml(args.inviterName)} ti vuole nel suo network</h2>
-    <p style="line-height:1.6;font-size:15px;color:#4a5568">
-      Ciao, sono <strong>${escapeHtml(inviterLabel)}</strong>. Ti scrivo da Planfully, lo strumento che uso per organizzare i miei matrimoni con i fornitori di fiducia — senza marketplace, senza commissioni sul tuo lavoro.
-    </p>
-    <p style="line-height:1.6;font-size:15px;color:#4a5568;margin:14px 0">
-      ${escapeHtml(preset.greeting)}
-    </p>
-    ${args.customMessage ? `<div style="margin:20px 0;padding:16px;background:#f6f4ef;border-left:3px solid #C49A5C;border-radius:6px;color:#4a5568;line-height:1.5"><strong style="display:block;font-size:12px;color:#1A2E4F;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Messaggio personale</strong>${escapeHtml(args.customMessage)}</div>` : ''}
-    <div style="margin:24px 0 16px">
-      <h3 style="margin:0 0 12px;font-size:15px;color:#1A2E4F">Cosa fare dopo aver accettato</h3>
-      <ol style="margin:0;padding-left:0;list-style:none;font-size:14px;color:#4a5568;line-height:1.5">
-        ${stepsHtml}
-      </ol>
-    </div>
-    <div style="margin:28px 0;text-align:center">
-      <a href="${args.acceptUrl}" style="display:inline-block;background:#C49A5C;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">Accetta l'invito di ${escapeHtml(args.inviterName)}</a>
-    </div>
-    <p style="font-size:12px;color:#a0aec0;text-align:center;margin:24px 0 0">
-      Pulsante che non funziona? Copia questo link:<br>
-      <a href="${args.acceptUrl}" style="color:#1A2E4F;word-break:break-all">${args.acceptUrl}</a>
-    </p>
-    ${args.inviterEmail ? `<p style="font-size:12px;color:#a0aec0;text-align:center;margin:16px 0 0">Puoi rispondere a questa email per parlare direttamente con ${escapeHtml(args.inviterName)} (${escapeHtml(args.inviterEmail)}).</p>` : ''}
-  </div>
-  <div style="background:#f6f4ef;padding:20px;text-align:center;font-size:11px;color:#a0aec0;border-top:1px solid #e2e8f0">
-    Un progetto Fuyue Srl · planfully.it
-  </div>
-</div>
-</body></html>`
+  const html = emailShell({
+    eyebrow: 'Invito personale',
+    title: `${args.inviterName} ti vuole nel suo network`,
+    bodyHtml,
+    cta: { href: args.acceptUrl, label: `Accetta l'invito di ${args.inviterName}` },
+    contactHtml: args.inviterEmail ? `Puoi rispondere a questa email per parlare direttamente con ${escapeHtml(args.inviterName)} (${escapeHtml(args.inviterEmail)}).` : undefined,
+  })
 
   // FROM: "Nome Cognome · via Planfully <noreply@planfully.it>"
   // Reply-to = email reale del WP (così risposte vanno a lui, non a noreply)

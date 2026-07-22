@@ -4,6 +4,7 @@
 // ogni ~3 giorni. Solo selezioni ancora ATTIVE (non inviate). Service role.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -11,7 +12,6 @@ const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json', ...cors } })
-const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 const dayMs = 86400000
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / dayMs)
 
@@ -54,21 +54,15 @@ Deno.serve(async (req) => {
     const sub = overdue
       ? `Il termine per scegliere le foto dell'album (${dl}) è passato: completatela il prima possibile, così ${esc(photographerName)} può procedere.`
       : `${esc(photographerName)} aspetta la vostra selezione entro il ${dl}. Aprite la galleria e finite di scegliere le foto per l'album.`
-    const html = `
-    <div style="background:#F7F4EE;padding:32px 0;font-family:Arial,sans-serif">
-      <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#FFFDF8;border-radius:14px;overflow:hidden">
-        <tr><td style="height:6px;background:${overdue ? '#C0552F' : '#B08D57'}"></td></tr>
-        <tr><td style="padding:28px 32px 8px 32px">
-          <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${overdue ? '#C0552F' : '#B08D57'}">Selezione album${overdue ? ' · scaduta' : ''}</div>
-          <h1 style="font-family:Georgia,serif;font-size:23px;color:#1A1714;margin:6px 0 6px">${esc(headline)}</h1>
-          <p style="font-size:14px;color:#6B6358;line-height:1.6;margin:0">${sub}</p>
-        </td></tr>
-        <tr><td style="padding:16px 32px 26px 32px">
-          <a href="${link}" style="display:inline-block;background:#1A1714;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:8px">Continua la selezione →</a>
-        </td></tr>
-        <tr><td style="padding:0 32px 24px 32px;font-size:11px;color:#A59C8E">Ricevi questa email perché ${esc(photographerName)} ha fissato una data per la selezione delle foto su Planfully.</td></tr>
-      </table>
-    </div>`
+    const html = emailShell({
+      accent: overdue ? '#C03B2A' : '#25402F',
+      eyebrow: `Selezione album${overdue ? ' · scaduta' : ''}`,
+      title: headline,
+      subtitleHtml: sub,
+      bodyHtml: '',
+      cta: { href: link, label: 'Continua la selezione' },
+      contactHtml: `Ricevi questa email perché ${esc(photographerName)} ha fissato una data per la selezione delle foto su Planfully.`,
+    })
     for (const to of recipients) {
       try { await sendEmailSES({ to, subject: overdue ? `${photographerName}: selezione foto scaduta` : `${photographerName}: ${headline.toLowerCase()}`, html }); sent++ } catch { /* best-effort */ }
     }

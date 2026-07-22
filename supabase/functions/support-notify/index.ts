@@ -4,7 +4,8 @@
 //  - to_role='STAFF':    il cliente ha ribattuto → email allo staff.
 // L'inserimento del messaggio lo fa il frontend (RLS + trigger). Qui solo email.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/resend.ts'
+import { sendEmail } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -18,7 +19,6 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json', ...cors } })
-const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
@@ -68,13 +68,14 @@ Deno.serve(async (req) => {
   }
 
   const link = `${APP_BASE}/assistenza`
-  const html = `<!doctype html><html lang="it"><body style="font-family:Georgia,serif;color:#1A1714">
-    <p style="font-size:14px;color:#787164;margin:0 0 12px">${intro}</p>
-    <p style="font-size:15px;font-weight:600;margin:0 0 6px">${esc(t.subject)}</p>
-    <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#FBF7EF;border-left:3px solid #C49A5C;padding:12px 16px;border-radius:6px">${esc(body.body)}</div>
-    <p style="margin-top:16px"><a href="${link}" style="color:#1A2E4F">Apri la conversazione</a></p>
-  </body></html>`
+  const html = emailShell({
+    eyebrow: 'Assistenza',
+    title: t.subject,
+    subtitleHtml: esc(intro),
+    bodyHtml: `<div style="white-space:pre-wrap">${esc(body.body)}</div>`,
+    cta: { href: link, label: 'Apri la conversazione' },
+  })
 
-  const r = await sendEmail({ to, subject, html, text: htmlToText(html), from: FROM, reply_to: replyTo })
+  const r = await sendEmail({ to, subject, html, from: FROM, reply_to: replyTo })
   return json({ ok: true, emailed: r.ok })
 })

@@ -3,6 +3,7 @@
 // a completarla. Ri-nudge al massimo ogni 30 giorni. Best-effort, niente PII nei log.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/resend.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -49,12 +50,14 @@ Deno.serve(async () => {
     const emails = emailsByEntry.get(e.id)
     if (!emails?.length) continue
     const title = esc(e.title || 'il tuo evento')
-    const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1a1714;max-width:520px">
-      <h2 style="font-size:19px;margin:0 0 6px">Il tuo album ti aspetta — manca solo la tua scelta</h2>
-      <p style="margin:0 0 14px;color:#555;font-size:15px;line-height:1.5">Le foto di <strong>${title}</strong> sono pronte da un po'. Per stamparlo serve l'ultimo passo: <strong>scegli le foto e conferma l'impaginazione</strong>. Bastano pochi minuti.</p>
-      <p style="margin:18px 0"><a href="${APP_BASE}" style="display:inline-block;background:#c9a227;color:#1a2e4f;font-weight:700;text-decoration:none;padding:13px 26px;border-radius:10px">Apri "Il tuo album"</a></p>
-      <p style="font-size:13px;color:#888;line-height:1.5">Puoi cambiare le tue scelte quando vuoi finché l'album non va in stampa. Se hai dubbi, scrivi al tuo fotografo.</p>
-    </div>`
+    const html = emailShell({
+      eyebrow: 'Il tuo album',
+      title: 'Il tuo album ti aspetta',
+      subtitleHtml: 'Manca solo la tua scelta.',
+      bodyHtml: `<p style="margin:0">Le foto di <strong>${title}</strong> sono pronte da un po'. Per stamparlo serve l'ultimo passo: <strong>scegli le foto e conferma l'impaginazione</strong>. Bastano pochi minuti.</p>`,
+      cta: { href: APP_BASE, label: 'Apri "Il tuo album"' },
+      contactHtml: "Puoi cambiare le tue scelte quando vuoi finché l'album non va in stampa. Se hai dubbi, scrivi al tuo fotografo.",
+    })
     try {
       await sendEmail({ to: emails, subject: `Manca poco al tuo album di ${title}`, html })
       await admin.from('album_nudges').upsert({ entry_id: e.id, last_nudge_at: new Date().toISOString(), count: ((nudgedAt.has(e.id) ? 1 : 0) + 1) }, { onConflict: 'entry_id' })

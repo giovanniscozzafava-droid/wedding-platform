@@ -2,7 +2,8 @@
 // Apertura ticket di assistenza: salva il ticket e NOTIFICA lo staff via email,
 // così la richiesta "arriva" davvero (non resta solo nel database).
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/resend.ts'
+import { sendEmail } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -26,7 +27,6 @@ async function staffRecipients(admin: any): Promise<string[]> {
   }
   return Array.from(set)
 }
-const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 const REPARTO_LABEL: Record<string, string> = {
   GENERALE: 'Domanda generale', TECNICO: 'Problema tecnico',
@@ -63,21 +63,18 @@ Deno.serve(async (req) => {
 
   // Notifica lo staff.
   const repartoLabel = REPARTO_LABEL[reparto] ?? reparto
-  const html = `<!doctype html><html lang="it"><body style="font-family:Georgia,serif;color:#1A1714">
-    <h2 style="margin:0 0 4px">Nuovo ticket · ${esc(repartoLabel)}</h2>
-    <p style="color:#787164;margin:0 0 16px;font-size:13px">
-      Da <strong>${esc(who)}</strong> (${esc(user.email ?? '')})${prof?.role ? ` · ${esc(prof.role)}` : ''}${prof?.phone ? ` · ${esc(prof.phone)}` : ''}
-    </p>
-    <p style="font-size:15px;font-weight:600;margin:0 0 6px">${esc(subject)}</p>
-    <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#FBF7EF;border-left:3px solid #C49A5C;padding:12px 16px;border-radius:6px">${esc(message)}</div>
-    <p style="color:#A59C8E;font-size:11px;margin-top:18px">Rispondi a questa email per scrivere direttamente a ${esc(who)}.</p>
-  </body></html>`
+  const html = emailShell({
+    eyebrow: `Nuovo ticket · ${repartoLabel}`,
+    title: subject,
+    subtitleHtml: `Da <strong>${esc(who)}</strong> (${esc(user.email ?? '')})${prof?.role ? ` · ${esc(prof.role)}` : ''}${prof?.phone ? ` · ${esc(prof.phone)}` : ''}`,
+    bodyHtml: `<div style="white-space:pre-wrap">${esc(message)}</div>`,
+    contactHtml: `Rispondi a questa email per scrivere direttamente a ${esc(who)}.`,
+  })
 
   const r = await sendEmail({
     to: await staffRecipients(admin),
     subject: `[Assistenza · ${repartoLabel}] ${subject}`,
     html,
-    text: htmlToText(html),
     from: FROM,
     reply_to: user.email ?? undefined,
   })

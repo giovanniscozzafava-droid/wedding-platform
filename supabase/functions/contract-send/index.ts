@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
   const { data: ownerAuth } = await admin.auth.admin.getUserById(c.owner_id)
   const ownerEmail = ownerAuth?.user?.email ?? null
   const wpName = owner?.business_name ?? owner?.full_name ?? 'Il tuo organizzatore'
-  const primary = owner?.brand_primary_color ?? '#1A2E4F'
+  const primary = owner?.brand_primary_color ?? '#25402F'
 
   const link = `${APP_BASE}/p/contract/${token}`
   // Nessuna email cliente (es. cliente diretto): il link di firma esiste comunque → si condivide via

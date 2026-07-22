@@ -7,6 +7,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -109,26 +110,15 @@ Deno.serve(async (req) => {
       })
     } catch { /* */ }
     if (!email) continue
-    const html = `
-    <div style="background:#F7F4EE;padding:32px 0;font-family:Arial,sans-serif">
-      <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#FFFDF8;border-radius:14px;overflow:hidden">
-        <tr><td style="height:6px;background:#B08D57"></td></tr>
-        <tr><td style="padding:28px 32px 8px 32px">
-          <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#B08D57">Nuova opportunità</div>
-          <h1 style="font-family:Georgia,serif;font-size:23px;color:#1A1714;margin:6px 0 4px">${esc(referrerName)} ti ha appena suggerito a ${esc(coupleWord)}</h1>
-          <p style="font-size:14px;color:#6B6358;line-height:1.6;margin:8px 0 0">
-            Per un <strong>${esc(eventWord)}</strong> del <strong>${esc(dateStr)}</strong>${q.guest_count ? ` · ~${esc(q.guest_count)} invitati` : ''}${q.event_location ? ` · ${esc(q.event_location)}` : ''}.
-          </p>
-          <p style="font-size:14px;color:#6B6358;line-height:1.6;margin:12px 0 0">
-            Crea subito la tua offerta e invia il preventivo. In questa fase <strong>non vedi i dati del cliente</strong>: solo la data. I contatti si sbloccano se il cliente accetta la tua proposta.
-          </p>
-        </td></tr>
-        <tr><td style="padding:14px 32px 26px 32px">
-          <a href="${APP_BASE}/suggerimenti-ricevuti" style="display:inline-block;background:#1A1714;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:8px">Crea la tua offerta →</a>
-        </td></tr>
-        <tr><td style="padding:0 32px 24px 32px;font-size:11px;color:#A59C8E">Ricevi questa email perché ${esc(referrerName)} ti segue su Planfully e ti ha suggerito per questo evento.</td></tr>
-      </table>
-    </div>`
+    const html = emailShell({
+      eyebrow: 'Nuova opportunità',
+      title: `${referrerName} ti ha appena suggerito a ${coupleWord}`,
+      bodyHtml: `
+        <p style="margin:0 0 12px">Per un <strong>${esc(eventWord)}</strong> del <strong>${esc(dateStr)}</strong>${q.guest_count ? ` · ~${esc(q.guest_count)} invitati` : ''}${q.event_location ? ` · ${esc(q.event_location)}` : ''}.</p>
+        <p style="margin:0">Crea subito la tua offerta e invia il preventivo. In questa fase <strong>non vedi i dati del cliente</strong>: solo la data. I contatti si sbloccano se il cliente accetta la tua proposta.</p>`,
+      cta: { href: `${APP_BASE}/suggerimenti-ricevuti`, label: 'Crea la tua offerta' },
+      contactHtml: `Ricevi questa email perché ${esc(referrerName)} ti segue su Planfully e ti ha suggerito per questo evento.`,
+    })
     try { await sendEmailSES({ to: email, subject: `${referrerName} ti ha suggerito a ${coupleWord} — crea la tua offerta`, html }) } catch { /* best-effort */ }
     void supName
   }
@@ -140,25 +130,20 @@ Deno.serve(async (req) => {
       const s: any = supById.get(c.supplier_id)
       const name = s?.business_name ?? s?.full_name ?? 'Fornitore'
       const link = s?.slug ? `${APP_BASE}/p/fornitore/${s.slug}` : APP_BASE
-      return `<tr><td style="padding:12px 0;border-bottom:1px solid #EFEAE0">
-        <div style="font-family:Georgia,serif;font-size:16px;color:#1A1714;font-weight:700">${esc(name)}</div>
-        <div style="font-size:12px;color:#8A8275">${esc(cap(s?.subrole ?? 'Fornitore'))}${s?.city ? ' · ' + esc(s.city) : ''}</div>
-        <a href="${link}" style="display:inline-block;margin-top:6px;font-size:13px;color:#B08D57;text-decoration:none">Vedi il profilo →</a></td></tr>`
+      return `<tr><td style="padding:12px 0;border-bottom:1px solid #E2DFD4">
+        <div style="font-size:16px;color:#181F1B;font-weight:700">${esc(name)}</div>
+        <div style="font-size:12px;color:#6B6B63">${esc(cap(s?.subrole ?? 'Fornitore'))}${s?.city ? ' · ' + esc(s.city) : ''}</div>
+        <a href="${link}" style="display:inline-block;margin-top:6px;font-size:13px;color:#25402F;text-decoration:none">Vedi il profilo →</a></td></tr>`
     }).join('')
-    const html = `
-    <div style="background:#F7F4EE;padding:32px 0;font-family:Arial,sans-serif">
-      <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#FFFDF8;border-radius:14px;overflow:hidden">
-        <tr><td style="height:6px;background:#B08D57"></td></tr>
-        <tr><td style="padding:28px 32px 8px 32px">
-          <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#B08D57">Fornitori consigliati</div>
-          <h1 style="font-family:Georgia,serif;font-size:24px;color:#1A1714;margin:6px 0 6px">${esc(referrerName)} ti consiglia questi professionisti di fiducia</h1>
-          ${message ? `<p style="font-size:14px;color:#1A1714;line-height:1.6;margin:0 0 4px;padding:12px 14px;background:#F7F4EE;border-radius:8px">${esc(message)}</p>` : ''}
-          <p style="font-size:14px;color:#6B6358;line-height:1.6;margin:8px 0 0">Se vuoi, riceverai da loro un preventivo dedicato per il tuo evento.</p>
-        </td></tr>
-        <tr><td style="padding:8px 32px 24px 32px"><table role="presentation" width="100%">${cards}</table></td></tr>
-        <tr><td style="padding:0 32px 24px 32px;font-size:11px;color:#A59C8E">Ricevi questa email perché ${esc(referrerName)} ti ha consigliato dei colleghi su Planfully.</td></tr>
-      </table>
-    </div>`
+    const html = emailShell({
+      eyebrow: 'Fornitori consigliati',
+      title: `${referrerName} ti consiglia questi professionisti di fiducia`,
+      bodyHtml: `
+        ${message ? `<div style="margin:0 0 12px;padding:12px 14px;background:#F4F3EE;border-left:3px solid #25402F">${esc(message)}</div>` : ''}
+        <p style="margin:0 0 8px">Se vuoi, riceverai da loro un preventivo dedicato per il tuo evento.</p>
+        <table role="presentation" width="100%">${cards}</table>`,
+      contactHtml: `Ricevi questa email perché ${esc(referrerName)} ti ha consigliato dei colleghi su Planfully.`,
+    })
     try { await sendEmailSES({ to: String(q.client_email), subject: `${referrerName} ti consiglia alcuni professionisti di fiducia`, html }); clientSent = true } catch { /* */ }
   }
 

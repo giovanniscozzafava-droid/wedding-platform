@@ -13,6 +13,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { jsPDF } from 'npm:jspdf@2.5.2'
 import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -470,20 +471,15 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
   const toOwner = ownerEmail ? (cleanName(owner?.business_name ?? owner?.full_name) ? `${safeName(owner?.business_name ?? owner?.full_name)} <${ownerEmail}>` : ownerEmail) : null
 
   // Email cliente
-  const clientHtml = `<!doctype html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f6f4ef;padding:24px;color:#1A1714">
-<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.06)">
-  <div style="background:linear-gradient(135deg,#1A1714 0%,#7E6633 100%);padding:32px;text-align:center;color:#F3EEE4">
-    <h1 style="margin:0;font-size:24px">Accettazione confermata</h1>
-    <p style="margin:6px 0 0;opacity:0.85;font-size:13px">${safeText(quote.title)}</p>
-  </div>
-  <div style="padding:28px">
-    <p style="line-height:1.6">Grazie ${safeText(a.signer_name)}, abbiamo ricevuto la tua accettazione del preventivo per <strong>${totFmt}</strong>.</p>
-    <p style="line-height:1.6;color:#4a5568">${safeText(wpName)} ti contatterà a breve per i prossimi passi.</p>
-    ${actPdfUrl ? `<p style="margin:24px 0"><a href="${actPdfUrl}" style="display:inline-block;background:#C49A5C;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600">Scarica atto firmato</a></p>` : ''}
-    <p style="font-size:12px;color:#a0aec0;margin-top:24px">Il link al documento ha validità decennale. Conservalo per i tuoi atti.</p>
-  </div>
-  <div style="background:#f6f4ef;padding:16px;text-align:center;font-size:11px;color:#a0aec0;border-top:1px solid #e2e8f0">Un progetto Fuyue Srl · planfully.it</div>
-</div></body>`
+  const clientHtml = emailShell({
+    eyebrow: 'Accettazione confermata',
+    title: 'Accettazione confermata',
+    subtitleHtml: esc(quote.title),
+    bodyHtml: `<p style="margin:0 0 10px">Grazie ${esc(a.signer_name)}, abbiamo ricevuto la tua accettazione del preventivo per <strong>${totFmt}</strong>.</p>
+      <p style="margin:0">${esc(wpName)} ti contatterà a breve per i prossimi passi.</p>`,
+    cta: actPdfUrl ? { href: actPdfUrl, label: 'Scarica atto firmato' } : undefined,
+    contactHtml: 'Il link al documento ha validità decennale. Conservalo per i tuoi atti.',
+  })
 
   await sendEmail(toClient, `Accettazione preventivo confermata · ${quote.title}`, clientHtml, {
     from: fromHeader,
@@ -492,26 +488,23 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
 
   // Email WP
   if (ownerEmail) {
-    const wpHtml = `<!doctype html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f6f4ef;padding:24px;color:#1A1714">
-<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.06)">
-  <div style="background:linear-gradient(135deg,#1A2E4F 0%,#C49A5C 100%);padding:28px;color:#fff">
-    <h1 style="margin:0;font-size:22px">Preventivo accettato</h1>
-    <p style="margin:6px 0 0;opacity:0.9;font-size:13px">${safeText(quote.title)} · revisione v${quote.revision}</p>
-  </div>
-  <div style="padding:24px">
-    <p><strong>${safeText(a.signer_name)}</strong> ha firmato il preventivo per <strong>${totFmt}</strong>.</p>
-    <table style="width:100%;font-size:13px;margin:16px 0;border-collapse:collapse">
-      <tr><td style="color:#6E6E6E;padding:4px 0">Documento</td><td>${a.doc_type.replace('_',' ')} n° ${safeText(a.doc_number)}</td></tr>
-      <tr><td style="color:#6E6E6E;padding:4px 0">Email cliente</td><td>${safeText(a.signer_email)}</td></tr>
-      ${a.signer_phone ? `<tr><td style="color:#6E6E6E;padding:4px 0">Telefono</td><td>${safeText(a.signer_phone)}</td></tr>` : ''}
-      <tr><td style="color:#6E6E6E;padding:4px 0">Quando</td><td>${new Date(a.accepted_at).toLocaleString('it-IT')}</td></tr>
-      <tr><td style="color:#6E6E6E;padding:4px 0">IP</td><td>${a.ip_address ?? '—'}</td></tr>
-    </table>
-    <p style="margin:20px 0 8px"><a href="${APP_BASE}/quotes/${quote.id}" style="display:inline-block;background:#1A2E4F;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Apri nel tuo gestionale</a></p>
-    ${actPdfUrl ? `<p style="font-size:12px;margin:4px 0"><a href="${actPdfUrl}" style="color:#C49A5C;text-decoration:underline">Scarica l'atto firmato (PDF)</a> <span style="color:#a0aec0">— il link scade dopo qualche giorno; trovi sempre tutto nel gestionale.</span></p>` : ''}
-    <p style="font-size:12px;color:#a0aec0;margin-top:20px">Hash PDF preventivo: <code>${(a.quote_pdf_hash ?? '—').slice(0,32)}…</code></p>
-  </div>
-</div></body>`
+    const row = (k: string, v: string) => `<tr><td style="color:#6B6B63;padding:4px 12px 4px 0">${k}</td><td>${v}</td></tr>`
+    const wpHtml = emailShell({
+      eyebrow: `Preventivo accettato · v${quote.revision}`,
+      title: 'Preventivo accettato',
+      subtitleHtml: esc(quote.title),
+      bodyHtml: `<p style="margin:0 0 12px"><strong>${esc(a.signer_name)}</strong> ha firmato il preventivo per <strong>${totFmt}</strong>.</p>
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          ${row('Documento', `${esc(a.doc_type.replace('_', ' '))} n° ${esc(a.doc_number)}`)}
+          ${row('Email cliente', esc(a.signer_email))}
+          ${a.signer_phone ? row('Telefono', esc(a.signer_phone)) : ''}
+          ${row('Quando', esc(new Date(a.accepted_at).toLocaleString('it-IT')))}
+          ${row('IP', esc(a.ip_address ?? '—'))}
+        </table>
+        ${actPdfUrl ? `<p style="font-size:12px;margin:14px 0 0"><a href="${actPdfUrl}" style="color:#25402F;text-decoration:underline">Scarica l'atto firmato (PDF)</a> <span style="color:#6B6B63">— il link scade dopo qualche giorno; trovi sempre tutto nel gestionale.</span></p>` : ''}
+        <p style="font-size:12px;color:#6B6B63;margin-top:16px">Hash PDF preventivo: <code>${esc((a.quote_pdf_hash ?? '—').slice(0, 32))}…</code></p>`,
+      cta: { href: `${APP_BASE}/quotes/${quote.id}`, label: 'Apri nel tuo gestionale' },
+    })
 
     await sendEmail(toOwner ?? ownerEmail, `${a.signer_name} ha firmato · ${quote.title}`, wpHtml, {
       from: `Planfully <${fromAddr}>`,

@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -157,8 +158,12 @@ Deno.serve(async (req) => {
               const to = au?.user?.email
               if (!to) continue
               const subject = `Conferma la tua disponibilità · ${q.title ?? 'evento'}${dateStr ? ` (${dateStr})` : ''}`
-              const html = `<p>Ciao,</p><p>Sei stato inserito in un preventivo per <strong>${escapeHtml(q.title ?? 'un evento')}</strong>${dateStr ? ` del <strong>${dateStr}</strong>` : ''}.</p>`
-                + `<p>Per favore conferma la tua disponibilità dall'area <a href="${link}">Lavori da confermare</a>.</p>`
+              const html = emailShell({
+                eyebrow: 'Disponibilità richiesta',
+                title: 'Confermi la tua disponibilità?',
+                bodyHtml: `<p style="margin:0">Sei stato inserito in un preventivo per <strong>${escapeHtml(q.title ?? 'un evento')}</strong>${dateStr ? ` del <strong>${escapeHtml(dateStr)}</strong>` : ''}.</p>`,
+                cta: { href: link, label: 'Conferma la disponibilità' },
+              })
               await sendResend(to, subject, html)
             } catch (_e) { /* best-effort */ }
           }
@@ -195,19 +200,8 @@ Deno.serve(async (req) => {
     const ownerEmailLocal = ownerEmail ? ownerEmail.split('@')[0].replace(/\+.*$/, '').replace(/[._-]+/g, ' ').trim() : null
     const wpName = cleanName(owner?.business_name) ?? cleanName(owner?.full_name) ?? cleanName(ownerEmailLocal) ?? roleFallback
     const wpBiz = cleanName(owner?.business_name)
-    const primaryColor = isPremium && owner?.brand_primary_color ? owner.brand_primary_color : '#1A2E4F'
-    const accentColor = isPremium && owner?.brand_secondary_color ? owner.brand_secondary_color : '#C49A5C'
-    const logoUrl = isPremium && owner?.brand_logo_url ? owner.brand_logo_url : 'https://planfully.it/brand/planfully-symbol.png'
-    // Contrasto bottone CTA: se il brand color è troppo chiaro il pulsante diventa
-    // bianco-su-bianco (illeggibile). In quel caso usa un fondo scuro sicuro.
-    const luminance = (hex: string): number => {
-      const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
-      if (!m) return 0
-      const n = parseInt(m[1], 16)
-      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
-      return (0.299 * r + 0.587 * g + 0.114 * b) / 255
-    }
-    const ctaBg = luminance(primaryColor) > 0.62 ? '#1A2E4F' : primaryColor
+    // Accento white-label: colore del pro (premium) oppure cipresso (default brand).
+    const primaryColor = isPremium && owner?.brand_primary_color ? owner.brand_primary_color : '#25402F'
 
     const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(q.total_client))
     const eventDateFmt = q.event_date ? new Date(q.event_date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : null
@@ -287,142 +281,26 @@ Deno.serve(async (req) => {
 
     const customNote = isOverride ? body.override_reason ?? '' : ''
 
-    const html = `<!doctype html>
-<html lang="it">
-<body style="font-family:Georgia,'Times New Roman',serif;background:#F8F5EE;margin:0;padding:0;color:#1A1714">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F8F5EE;padding:32px 16px">
-  <tr><td align="center">
-
-    <!-- MAIN CARD -->
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;background:#FDFBF6;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(26,23,20,0.08)">
-
-      <!-- TOP ACCENT BAR -->
-      <tr><td style="background:${accentColor};height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
-      <tr><td style="background:${primaryColor};height:1px;font-size:0;line-height:0">&nbsp;</td></tr>
-
-      <!-- HEADER: logo + WP name -->
-      <tr><td style="padding:36px 40px 24px 40px">
-        <table role="presentation" width="100%"><tr>
-          <td style="vertical-align:middle">
-            <img src="${logoUrl}" alt="${escapeHtml(wpBiz ?? wpName)}" width="56" height="56" style="display:block;border-radius:8px;border:0" />
-          </td>
-          <td style="vertical-align:middle;padding-left:14px">
-            <div style="font-family:Georgia,serif;font-size:18px;color:#1A1714;font-weight:700;letter-spacing:-0.02em">${escapeHtml(wpBiz ?? wpName)}</div>
-            ${owner?.city ? `<div style="font-family:Arial,sans-serif;font-size:11px;color:#A59C8E;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">${escapeHtml(owner.city)}</div>` : ''}
-          </td>
-          <td style="vertical-align:middle;text-align:right">
-            <div style="font-family:Arial,sans-serif;font-size:10px;color:#A59C8E;letter-spacing:1.5px;text-transform:uppercase">Revisione</div>
-            <div style="font-family:Georgia,serif;font-size:16px;color:#1A1714;font-weight:700">v${q.revision}</div>
-          </td>
-        </tr></table>
-      </td></tr>
-
-      <!-- DIVIDER ORNAMENT -->
-      <tr><td style="padding:0 40px 28px 40px;text-align:center">
-        <table role="presentation" width="100%"><tr>
-          <td style="border-bottom:1px solid #E4DED2;height:0;line-height:0">&nbsp;</td>
-          <td style="width:24px;text-align:center;padding:0 8px">
-            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${accentColor}"></span>
-          </td>
-          <td style="border-bottom:1px solid #E4DED2;height:0;line-height:0">&nbsp;</td>
-        </tr></table>
-      </td></tr>
-
-      ${isOverride ? `
-      <!-- OVERRIDE BANNER -->
-      <tr><td style="padding:0 40px 24px 40px">
-        <div style="background:#FFF8EB;border-left:3px solid ${accentColor};border-radius:6px;padding:14px 16px">
-          <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px">Modifica al preventivo già accettato</div>
-          <div style="font-family:Georgia,serif;font-size:14px;color:#1A1714;line-height:1.5;font-style:italic">"${escapeHtml(customNote)}"</div>
-        </div>
-      </td></tr>` : ''}
-
-      <!-- EYEBROW + TITLE -->
-      <tr><td style="padding:0 40px 8px 40px;text-align:center">
-        <div style="font-family:Arial,sans-serif;font-size:11px;color:${accentColor};letter-spacing:3px;text-transform:uppercase;font-weight:600">${isOverride ? 'Preventivo aggiornato per' : 'Preventivo per'}</div>
-      </td></tr>
-      <tr><td style="padding:8px 40px 0 40px;text-align:center">
-        <h1 style="font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:36px;line-height:1.15;color:#1A1714;margin:0;letter-spacing:-0.02em">${escapeHtml(q.title)}</h1>
-      </td></tr>
-      ${eventDateFmt ? `
-      <tr><td style="padding:14px 40px 0 40px;text-align:center">
-        <div style="font-family:Georgia,serif;font-style:italic;font-size:14px;color:#787164">${escapeHtml(eventDateFmt)}</div>
-      </td></tr>` : ''}
-
-      ${isNewCouple ? `
-      <!-- INVITO REGISTRAZIONE: niente totale, niente voci. Solo invito a creare account -->
-      <tr><td style="padding:24px 40px 8px 40px;text-align:center">
-        <p style="font-family:Georgia,serif;font-size:15px;color:#4a5568;line-height:1.7;margin:0">
-          Il tuo preventivo personalizzato è pronto.<br>
-          Crea il tuo account riservato per visualizzarlo nel dettaglio,<br>
-          accettarlo digitalmente e seguire l'organizzazione ${eventLabel === 'evento' ? "dell'evento" : 'del ' + eventLabel}.
-        </p>
-      </td></tr>
-      <tr><td style="padding:18px 40px 0 40px;text-align:center">
-        <div style="display:inline-block;padding:14px 22px;border-radius:10px;background:#F8F5EE;border:1px solid #E4DED2">
-          <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:6px">Cosa trovi nella tua area</div>
-          <div style="font-family:Georgia,serif;font-size:13px;color:#1A1714;line-height:1.7">
-            ${areaFeatures}
-          </div>
-        </div>
-      </td></tr>
-      ` : `
-      <!-- UTENTE REGISTRATO: niente cifre nell'email. Si accede per vederle. -->
-      <tr><td style="padding:24px 40px 8px 40px;text-align:center">
-        <p style="font-family:Georgia,serif;font-size:15px;color:#4a5568;line-height:1.7;margin:0">
-          Il tuo preventivo${isOverride ? ' aggiornato' : ''} è pronto.<br>
-          Per riservatezza, importi e accettazione sono visibili solo nella tua area riservata.<br>
-          Accedi per vederlo nel dettaglio e accettarlo.
-        </p>
-      </td></tr>
-      <tr><td style="padding:18px 40px 0 40px;text-align:center">
-        <div style="display:inline-block;padding:14px 22px;border-radius:10px;background:#F8F5EE;border:1px solid #E4DED2">
-          <div style="font-family:Arial,sans-serif;font-size:10px;color:${accentColor};letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:6px">Cosa trovi nella tua area</div>
-          <div style="font-family:Georgia,serif;font-size:13px;color:#1A1714;line-height:1.7">
-            ${areaFeatures}
-          </div>
-        </div>
-      </td></tr>
-      `}
-
-      <!-- CTA -->
-      <tr><td style="padding:32px 40px;text-align:center">
-        <a href="${link}" style="display:inline-block;background:${ctaBg};color:#FFFFFF;padding:16px 40px;border-radius:50px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px;letter-spacing:1.5px;text-transform:uppercase">${isNewCouple ? 'Crea il tuo account · vedi il preventivo' : 'Apri il preventivo'}</a>
-        <div style="margin-top:16px;font-family:Arial,sans-serif;font-size:11px;color:#A59C8E">${isNewCouple ? 'Crea un account in 30 secondi → troverai il preventivo nella tua area personale, potrai accettarlo con firma sicura' : 'Potrai accettarlo digitalmente con firma sicura'}</div>
-      </td></tr>
-
-      <!-- PERSONAL SIGNATURE WP -->
-      <tr><td style="padding:0 40px 36px 40px;text-align:center">
-        <table role="presentation" width="100%"><tr>
-          <td style="border-bottom:1px solid #E4DED2">&nbsp;</td>
-        </tr></table>
-        <div style="margin-top:24px;font-family:Georgia,serif;font-style:italic;font-size:13px;color:#787164;line-height:1.6">
-          ${owner?.bio ? escapeHtml(owner.bio).slice(0, 280) + (owner.bio.length > 280 ? '…' : '') : closingPhrase}
-        </div>
-        <div style="margin-top:18px;font-family:Georgia,serif;font-size:14px;color:#1A1714;font-weight:700">— ${escapeHtml(wpName)}</div>
-        <div style="font-family:Arial,sans-serif;font-size:11px;color:#A59C8E;letter-spacing:1px;text-transform:uppercase;margin-top:4px">${escapeHtml(wpBiz ?? roleFallback)}</div>
-        ${ownerEmail || owner?.phone ? `
-        <div style="margin-top:14px;font-family:Arial,sans-serif;font-size:12px;color:#787164">
-          ${ownerEmail ? `<a href="mailto:${escapeHtml(ownerEmail)}" style="color:#787164;text-decoration:none">${escapeHtml(ownerEmail)}</a>` : ''}
-          ${ownerEmail && owner?.phone ? '  ·  ' : ''}
-          ${owner?.phone ? escapeHtml(owner.phone) : ''}
-        </div>` : ''}
-      </td></tr>
-
-      <!-- BOTTOM ACCENT -->
-      <tr><td style="background:${accentColor};height:3px;font-size:0;line-height:0">&nbsp;</td></tr>
-    </table>
-
-    <!-- POWERED BY -->
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;margin-top:20px">
-      <tr><td style="text-align:center;font-family:Arial,sans-serif;font-size:10px;color:#A59C8E;letter-spacing:1.5px">
-        <a href="https://planfully.it" style="color:#A59C8E;text-decoration:none">Powered by Planfully · Un progetto Fuyue Srl</a>
-      </td></tr>
-    </table>
-
-  </td></tr>
-</table>
-</body></html>`
+    const areaBox = `<div style="margin:16px 0;padding:14px 18px;background:#F4F3EE;border:1px solid #E2DFD4">
+      <div style="font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;color:#25402F;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Cosa trovi nella tua area</div>
+      <div style="font-size:13px;line-height:1.8;color:#181F1B">${areaFeatures}</div>
+    </div>`
+    const overrideBanner = isOverride
+      ? `<div style="margin:0 0 16px;padding:12px 16px;background:#F4F3EE;border-left:3px solid ${escapeHtml(primaryColor)}"><div style="font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;color:${escapeHtml(primaryColor)};letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Modifica al preventivo già accettato</div><div style="font-style:italic">“${escapeHtml(customNote)}”</div></div>`
+      : ''
+    const intro = isNewCouple
+      ? `<p style="margin:0 0 4px">Il tuo preventivo personalizzato è pronto. Crea il tuo account riservato per visualizzarlo nel dettaglio, accettarlo digitalmente e seguire l'organizzazione ${eventLabel === 'evento' ? "dell'evento" : 'del ' + escapeHtml(eventLabel)}.</p>`
+      : `<p style="margin:0 0 4px">Il tuo preventivo${isOverride ? ' aggiornato' : ''} è pronto. Per riservatezza, importi e accettazione sono visibili solo nella tua area riservata. Accedi per vederlo nel dettaglio e accettarlo.</p>`
+    const signature = `<span style="font-style:italic">${owner?.bio ? escapeHtml(owner.bio).slice(0, 280) + (owner.bio.length > 280 ? '…' : '') : escapeHtml(closingPhrase)}</span><br><br><strong>— ${escapeHtml(wpName)}</strong><br>${escapeHtml(wpBiz ?? roleFallback)}${ownerEmail || owner?.phone ? `<br>${ownerEmail ? escapeHtml(ownerEmail) : ''}${ownerEmail && owner?.phone ? ' · ' : ''}${owner?.phone ? escapeHtml(owner.phone) : ''}` : ''}`
+    const html = emailShell({
+      accent: primaryColor,
+      eyebrow: isOverride ? 'Preventivo aggiornato' : 'Preventivo per',
+      title: q.title,
+      subtitleHtml: eventDateFmt ? escapeHtml(eventDateFmt) : undefined,
+      bodyHtml: `${overrideBanner}${intro}${areaBox}<p style="margin:14px 0 0;font-size:12px;color:#6B6B63">${isNewCouple ? 'Crea un account in 30 secondi → troverai il preventivo nella tua area personale e potrai accettarlo con firma sicura.' : 'Potrai accettarlo digitalmente con firma sicura.'}</p>`,
+      cta: { href: link, label: isNewCouple ? 'Crea il tuo account e apri il preventivo' : 'Apri il preventivo' },
+      contactHtml: signature,
+    })
 
     // ── Template SOBRIO (text-forward) per i provider Microsoft (Outlook/Hotmail/
     //    Live/MSN): SmartScreen penalizza l'HTML "promozionale" (immagini grandi,
@@ -443,17 +321,17 @@ Deno.serve(async (req) => {
   ${isNewCouple ? `
   <p style="margin:0 0 16px">${escapeHtml(wpName)} ti ha preparato il preventivo per <strong>${escapeHtml(q.title)}</strong>${eventDateFmt ? ` (${escapeHtml(eventDateFmt)})` : ''}.</p>
   <p style="margin:0 0 16px">Per vederlo nel dettaglio, accettarlo con firma e seguire l'organizzazione, crea il tuo account riservato qui:</p>
-  <p style="margin:0 0 20px"><a href="${link}" style="color:#1A2E4F;font-weight:bold">Crea l'account e apri il preventivo →</a></p>
+  <p style="margin:0 0 20px"><a href="${link}" style="color:#25402F;font-weight:bold">Crea l'account e apri il preventivo →</a></p>
   ` : `
   <p style="margin:0 0 16px">${escapeHtml(wpName)} ti ha inviato il preventivo per <strong>${escapeHtml(q.title)}</strong>${eventDateFmt ? ` (${escapeHtml(eventDateFmt)})` : ''}.</p>
   <p style="margin:0 0 16px">Per riservatezza, importi e accettazione sono visibili solo nella tua area riservata.</p>
-  <p style="margin:0 0 20px"><a href="${link}" style="color:#1A2E4F;font-weight:bold">Accedi e apri il preventivo →</a></p>
+  <p style="margin:0 0 20px"><a href="${link}" style="color:#25402F;font-weight:bold">Accedi e apri il preventivo →</a></p>
   `}
   ${isOverride && customNote ? `<p style="margin:0 0 16px">Nota di aggiornamento: ${escapeHtml(customNote)}</p>` : ''}
   <p style="margin:0 0 4px">${escapeHtml(closingPhrase)}</p>
   <p style="margin:0 0 2px">— ${escapeHtml(wpName)}${wpBiz ? `, ${escapeHtml(wpBiz)}` : ''}</p>
   ${ownerEmail || owner?.phone ? `<p style="margin:0 0 16px;color:#787164;font-size:13px">${ownerEmail ? escapeHtml(ownerEmail) : ''}${ownerEmail && owner?.phone ? ' · ' : ''}${owner?.phone ? escapeHtml(owner.phone) : ''}</p>` : ''}
-  <p style="margin:24px 0 0;color:#A59C8E;font-size:12px">Powered by Planfully · Un progetto Fuyue Srl. Se non ti aspettavi questa email, ignorala pure.</p>
+  <p style="margin:24px 0 0;color:#6B6B63;font-size:12px">Planfully · il gestionale della filiera wedding. Se non ti aspettavi questa email, ignorala pure.</p>
 </div>
 </body></html>`
 

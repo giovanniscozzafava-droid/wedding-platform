@@ -4,7 +4,8 @@
 //  * Archiviazione dopo 30 giorni senza risposta.
 //  * Email "data contesa": stessa data, altro preventivo, solo se non accettato.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/resend.ts'
+import { sendEmail } from '../_shared/resend.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -37,32 +38,23 @@ async function sendBranded(q: any, subject: string, intro: string, cta: string) 
   if (!q.client_email) return
   const o = await loadOwner(q.owner_id)
   const wpName = o?.business_name ?? o?.full_name ?? 'Il tuo referente'
-  const primary = o?.brand_primary_color ?? '#1A2E4F'
+  const primary = o?.brand_primary_color ?? '#25402F'
   // Atterra sulla dashboard aggregata del cliente (tutte le offerte insieme), previo accesso.
   const link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
   const fromAddr = (FROM.match(/<(.+)>/)?.[1]) ?? FROM
   const totFmt = q.total_client != null ? new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(q.total_client)) : ''
-  const html = `<!doctype html><html lang="it"><body style="font-family:Georgia,serif;background:#F8F5EE;margin:0;padding:30px 16px;color:#1A1714">
-<table role="presentation" width="100%"><tr><td align="center">
-  <table role="presentation" width="560" style="max-width:560px;background:#FDFBF6;border-radius:14px;overflow:hidden">
-    <tr><td style="background:${primary};height:4px"></td></tr>
-    <tr><td style="padding:30px 34px">
-      <img src="https://planfully.it/brand/planfully-symbol.png" width="38" height="38" style="display:block;border-radius:8px;border:0" alt="Planfully" />
-      <h1 style="font-size:22px;margin:16px 0 6px;color:${primary}">${esc(q.title)}</h1>
-      ${totFmt ? `<p style="font-size:13px;color:#787164;margin:0 0 16px">${totFmt}</p>` : ''}
-      <p style="font-size:15px;line-height:1.7;margin:0 0 22px">${intro}</p>
-      <a href="${link}" style="display:inline-block;background:${primary};color:#FDFBF6;padding:13px 30px;border-radius:40px;text-decoration:none;font-family:Arial,sans-serif;font-weight:600;font-size:14px">${esc(cta)}</a>
-      <p style="margin:24px 0 0;font-size:13px;color:#787164">— ${esc(wpName)}${o?.phone ? ' · ' + esc(o.phone) : ''}</p>
-    </td></tr>
-    <tr><td style="background:${primary};height:3px"></td></tr>
-  </table>
-  <p style="font-size:10px;color:#A59C8E;margin-top:14px">Powered by Planfully · Un progetto Fuyue Srl</p>
-</td></tr></table></body></html>`
+  const html = emailShell({
+    accent: primary, // white-label: colore del professionista
+    title: q.title,
+    subtitleHtml: totFmt || undefined,
+    bodyHtml: `<p style="margin:0">${intro}</p>`,
+    cta: { href: link, label: cta },
+    contactHtml: `— ${esc(wpName)}${o?.phone ? ' · ' + esc(o.phone) : ''}`,
+  })
   await sendEmail({
     to: q.client_name ? `${String(q.client_name).replace(/[",;<>\r\n]/g, ' ')} <${q.client_email}>` : q.client_email,
     subject,
     html,
-    text: htmlToText(html),
     from: `${wpName.replace(/[",;<>\r\n]/g, ' ').slice(0, 60)} via Planfully <${fromAddr}>`,
     reply_to: o?.email ?? undefined,
     headers: {

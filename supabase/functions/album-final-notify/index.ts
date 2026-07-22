@@ -4,6 +4,7 @@
 // trigger; qui mandiamo solo le email. Service role.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail as sendEmailSES } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -11,7 +12,6 @@ const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json', ...cors } })
-const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
@@ -41,22 +41,16 @@ Deno.serve(async (req) => {
 
   // Link: porta direttamente a visionare l'album (via accesso cliente → /album/:entry).
   const link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/album/' + body.entry_id)}`
-  const html = `
-  <div style="background:#F7F4EE;padding:32px 0;font-family:Arial,sans-serif">
-    <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#FFFDF8;border-radius:14px;overflow:hidden">
-      <tr><td style="height:6px;background:#B08D57"></td></tr>
-      <tr><td style="padding:28px 32px 8px 32px">
-        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#B08D57">Il tuo album è pronto</div>
-        <h1 style="font-family:Georgia,serif;font-size:24px;color:#1A1714;margin:6px 0 6px">${esc(photographerName)} ha completato il tuo album</h1>
-        <p style="font-size:14px;color:#6B6358;line-height:1.6;margin:0">Le foto sono impaginate e pronte da sfogliare. Aprilo per vederlo nel dettaglio, tavola per tavola.</p>
-        ${note ? `<div style="margin-top:14px;padding:12px 14px;background:#F7F4EE;border-radius:8px;border-left:3px solid #B08D57"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#B08D57;margin-bottom:4px">Una nota da ${esc(photographerName)}</div><div style="font-size:14px;color:#1A1714;line-height:1.6;white-space:pre-wrap">${esc(note)}</div></div>` : ''}
-      </td></tr>
-      <tr><td style="padding:16px 32px 26px 32px">
-        <a href="${link}" style="display:inline-block;background:#1A1714;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:8px">Guarda il tuo album →</a>
-      </td></tr>
-      <tr><td style="padding:0 32px 24px 32px;font-size:11px;color:#A59C8E">Ricevi questa email perché ${esc(photographerName)} ha segnato come finale il tuo album su Planfully.</td></tr>
-    </table>
-  </div>`
+  const html = emailShell({
+    eyebrow: 'Il tuo album è pronto',
+    title: `${photographerName} ha completato il tuo album`,
+    subtitleHtml: 'Le foto sono impaginate e pronte da sfogliare. Aprilo per vederlo nel dettaglio, tavola per tavola.',
+    bodyHtml: note
+      ? `<div style="padding:12px 16px;background:#F4F3EE;border-left:3px solid #25402F"><div style="font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#25402F;margin-bottom:6px">Una nota da ${esc(photographerName)}</div><div style="line-height:1.7;white-space:pre-wrap">${esc(note)}</div></div>`
+      : '',
+    cta: { href: link, label: 'Guarda il tuo album' },
+    contactHtml: `Ricevi questa email perché ${esc(photographerName)} ha segnato come finale il tuo album su Planfully.`,
+  })
 
   let sent = 0
   for (const to of recipients) {

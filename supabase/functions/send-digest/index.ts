@@ -8,6 +8,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -24,12 +25,6 @@ function json(body: unknown, status = 200) {
     status,
     headers: { 'content-type': 'application/json', ...cors },
   })
-}
-
-function esc(s: string): string {
-  return String(s ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!),
-  )
 }
 
 type DigestItem = {
@@ -56,11 +51,11 @@ function renderDigestHtml(displayName: string | null, items: DigestItem[], total
       const link = it.link_action ? `${APP_BASE}${it.link_action}` : `${APP_BASE}/notifiche`
       return `
         <tr>
-          <td style="padding:12px 0;border-bottom:1px solid #eee;">
-            <div style="font-weight:600;color:#111;">${esc(it.titolo)}</div>
-            ${it.descrizione ? `<div style="color:#555;font-size:14px;margin-top:4px;">${esc(it.descrizione)}</div>` : ''}
+          <td style="padding:12px 0;border-bottom:1px solid #E2DFD4;">
+            <div style="font-weight:600;color:#181F1B;">${esc(it.titolo)}</div>
+            ${it.descrizione ? `<div style="color:#6B6B63;font-size:14px;margin-top:4px;">${esc(it.descrizione)}</div>` : ''}
             <div style="margin-top:8px;">
-              <a href="${link}" style="color:#b08a3e;text-decoration:none;font-size:14px;">Apri →</a>
+              <a href="${link}" style="color:#25402F;text-decoration:none;font-size:14px;">Apri →</a>
             </div>
           </td>
         </tr>`
@@ -69,40 +64,17 @@ function renderDigestHtml(displayName: string | null, items: DigestItem[], total
 
   const altre = Math.max(0, totale - items.length)
   const altreHtml = altre > 0
-    ? `<p style="color:#777;font-size:13px;">…e altre ${altre} notifiche nel pannello.</p>`
+    ? `<p style="color:#6B6B63;font-size:13px;margin:14px 0 0">…e altre ${altre} notifiche nel pannello.</p>`
     : ''
 
-  return `<!DOCTYPE html>
-<html lang="it"><head><meta charset="utf-8"><title>Planfully — Promemoria di oggi</title></head>
-<body style="margin:0;padding:0;background:#fafaf7;font-family:Georgia,serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf7;padding:24px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #eaeaea;border-radius:8px;padding:32px;">
-        <tr><td>
-          <h1 style="margin:0 0 12px 0;font-size:22px;color:#111;font-weight:500;">Promemoria di oggi</h1>
-          <p style="margin:0 0 16px 0;color:#444;font-size:15px;">${greeting}</p>
-          <p style="margin:0 0 24px 0;color:#444;font-size:15px;">
-            Hai <strong>${totale}</strong> notifich${totale === 1 ? 'a' : 'e'} che richiedono attenzione oggi.
-          </p>
-          <table width="100%" cellpadding="0" cellspacing="0">
-            ${itemsHtml}
-          </table>
-          ${altreHtml}
-          <div style="margin-top:32px;">
-            <a href="${APP_BASE}/notifiche"
-               style="display:inline-block;background:#111;color:#fff;padding:12px 24px;
-                      text-decoration:none;border-radius:4px;font-size:14px;">
-              Apri pannello notifiche
-            </a>
-          </div>
-          <p style="margin-top:32px;color:#999;font-size:12px;border-top:1px solid #eee;padding-top:16px;">
-            Planfully — il tuo wedding cockpit. Per gestire le preferenze accedi al pannello.
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`
+  return emailShell({
+    eyebrow: 'Promemoria di oggi',
+    title: 'Promemoria di oggi',
+    subtitleHtml: `${greeting} hai <strong>${totale}</strong> notifich${totale === 1 ? 'a' : 'e'} che richiedono attenzione oggi.`,
+    bodyHtml: `<table width="100%" cellpadding="0" cellspacing="0">${itemsHtml}</table>${altreHtml}`,
+    cta: { href: `${APP_BASE}/notifiche`, label: 'Apri pannello notifiche' },
+    contactHtml: 'Per gestire le preferenze delle notifiche accedi al pannello.',
+  })
 }
 
 async function sendDigestForUser(

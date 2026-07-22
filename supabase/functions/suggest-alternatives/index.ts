@@ -3,14 +3,14 @@
 // un'email che ringrazia e suggerisce 2 colleghi dello stesso settore, iscritti
 // e disponibili, con i loro contatti. Da lì il cliente riparte.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/resend.ts'
+import { sendEmail } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
-const esc = (s: unknown) => String(s ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]!))
 
 type Alt = { id: string | null; name: string | null; full_name: string | null; subrole: string | null; city: string | null; phone: string | null; email: string | null }
 
@@ -52,31 +52,26 @@ Deno.serve(async (req) => {
   // piattaforma è riservata ai fornitori, non aperta al pubblico.
   const cards = alts.map((a) => {
     const sector = [a.subrole, a.city].filter(Boolean).join(' · ')
-    return `<div style="background:#FDFBF6;border:1px solid #E4DED2;border-radius:12px;padding:16px;margin:10px 0">
+    return `<div style="background:#F4F3EE;border:1px solid #E2DFD4;padding:16px;margin:10px 0">
       <p style="margin:0 0 4px;font-weight:600;font-size:16px">${esc(a.full_name ?? a.name)}</p>
-      ${sector ? `<p style="margin:0 0 10px;font-size:13px;color:#6E6E6E">${esc(sector)}</p>` : ''}
-      ${a.phone ? `<p style="margin:0 0 6px;font-size:14px">Tel: <a href="tel:${esc(a.phone)}" style="color:#7E6633;text-decoration:none">${esc(a.phone)}</a></p>` : ''}
-      ${a.email ? `<p style="margin:0;font-size:14px">Email: <a href="mailto:${esc(a.email)}" style="color:#7E6633;text-decoration:none">${esc(a.email)}</a></p>` : ''}
+      ${sector ? `<p style="margin:0 0 10px;font-size:13px;color:#6B6B63">${esc(sector)}</p>` : ''}
+      ${a.phone ? `<p style="margin:0 0 6px;font-size:14px">Tel: <a href="tel:${esc(a.phone)}" style="color:#25402F;text-decoration:none">${esc(a.phone)}</a></p>` : ''}
+      ${a.email ? `<p style="margin:0;font-size:14px">Email: <a href="mailto:${esc(a.email)}" style="color:#25402F;text-decoration:none">${esc(a.email)}</a></p>` : ''}
     </div>`
   }).join('')
 
-  const html = `<!DOCTYPE html><html><body style="margin:0;background:#FDFBF6;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#1A1714">
-  <div style="max-width:560px;margin:0 auto;padding:40px 24px">
-    <div style="text-align:center;margin-bottom:24px"><h1 style="font-family:Georgia,serif;font-size:26px;margin:0;color:#C49A5C">Planfully</h1></div>
-    <div style="background:#fff;border:1px solid #E4DED2;border-radius:16px;padding:32px">
-      <h2 style="font-family:Georgia,serif;font-size:22px;margin:0 0 12px;line-height:1.3">Grazie${clientName ? `, ${esc(clientName.split(' ')[0])}` : ''}!</h2>
-      <p style="font-size:15px;line-height:1.6;color:#3a3a3a;margin:0 0 16px">
-        Purtroppo <strong>${esc(r.busy_name)}</strong> non è disponibile per il <strong>${esc(dateIt)}</strong>.
-        Ma non ti lasciamo a mani vuote: ti consigliamo due colleghi dello stesso settore, liberi in quella data.
-      </p>
-      ${r.message ? `<div style="border-left:3px solid #C49A5C;padding:10px 14px;margin:0 0 16px;background:#FDFBF6;font-style:italic;color:#3a3a3a;font-size:14px">"${esc(r.message)}"<br><span style="font-style:normal;color:#6E6E6E;font-size:12px">— ${esc(r.busy_name)}</span></div>` : ''}
-      ${cards}
-      <p style="font-size:12px;color:#6E6E6E;margin-top:20px">Contattali pure: troverai il loro profilo con portfolio e il modulo per richiedere un preventivo.</p>
-    </div>
-    <p style="font-size:11px;color:#6E6E6E;text-align:center;margin-top:20px">© Planfully · Fuyue Srl</p>
-  </div></body></html>`
+  const bodyHtml = `
+    <p style="margin:0 0 16px">Purtroppo <strong>${esc(r.busy_name)}</strong> non è disponibile per il <strong>${esc(dateIt)}</strong>. Ma non ti lasciamo a mani vuote: ti consigliamo due colleghi dello stesso settore, liberi in quella data.</p>
+    ${r.message ? `<div style="border-left:3px solid #25402F;padding:10px 14px;margin:0 0 16px;background:#F4F3EE;font-style:italic;font-size:14px">“${esc(r.message)}”<br><span style="font-style:normal;color:#6B6B63;font-size:12px">— ${esc(r.busy_name)}</span></div>` : ''}
+    ${cards}`
+  const html = emailShell({
+    eyebrow: 'Due alternative',
+    title: `Grazie${clientName ? `, ${clientName.split(' ')[0]}` : ''}!`,
+    bodyHtml,
+    contactHtml: 'Contattali pure: sono professionisti iscritti e disponibili in quella data.',
+  })
 
-  const res = await sendEmail({ to: client_email, subject: `Due alternative per il ${dateIt} · Planfully`, html, text: htmlToText(html) })
+  const res = await sendEmail({ to: client_email, subject: `Due alternative per il ${dateIt} · Planfully`, html })
 
   // AGGANCIO: lega il cliente ai colleghi suggeriti. Se uno di loro firmerà un
   // contratto con questo cliente (stessa email), scatta il credito automatico

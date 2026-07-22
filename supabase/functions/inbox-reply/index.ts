@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
   const subject = (mail.subject ?? '').toLowerCase().startsWith('re:') ? mail.subject! : `Re: ${mail.subject ?? ''}`
   const fromAddr = mail.to_addr ?? 'hello@planfully.it' // rispondiamo dall'indirizzo a cui hanno scritto
-  const html = `<div style="font-family:Georgia,serif;color:#1A1714;font-size:15px;line-height:1.6;white-space:pre-wrap">${esc(body.body.trim())}</div>`
+  const html = `<div style="font-family:'Jost',Helvetica,Arial,sans-serif;color:#181F1B;font-size:15px;line-height:1.6;white-space:pre-wrap">${esc(body.body.trim())}</div>`
 
   const r = await sendEmail({
     to: mail.from_addr,

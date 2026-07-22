@@ -3,6 +3,7 @@
 // riga follows (caller → target). Il destinatario è il professionista SEGUITO.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/resend.ts'
+import { emailShell } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -39,7 +40,8 @@ Deno.serve(async (req) => {
   if (!toEmail) return json({ error: 'no_target_email' }, 404)
   const { data: tgt } = await admin.from('profiles').select('full_name').eq('id', target).maybeSingle()
 
-  const follower = esc((me?.business_name || me?.full_name || 'Un professionista') as string)
+  const followerRaw = (me?.business_name || me?.full_name || 'Un professionista') as string
+  const follower = esc(followerRaw)
   const firstName = esc(((tgt?.full_name as string | null) ?? '').split(' ')[0] ?? '')
   const link = `${APP_BASE}/suppliers/${caller.user.id}`
   const verb = approved ? 'ha iniziato a seguirti' : 'vuole seguirti'
@@ -48,21 +50,14 @@ Deno.serve(async (req) => {
     : `<strong>${follower}</strong> si è candidato a seguirti: puoi approvare o ignorare la richiesta dalla tua rete.`
   const cta = approved ? 'Guarda il suo profilo' : 'Vedi la richiesta'
 
-  const html = `
-  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
-    <div style="background:#1a2e4f;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0">
-      <p style="margin:0;font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.8">Planfully · Rete</p>
-      <h1 style="margin:6px 0 0;font-size:22px">${follower} ${verb}</h1>
-    </div>
-    <div style="border:1px solid #e6e8ec;border-top:none;border-radius:0 0 14px 14px;padding:24px">
-      <p>${firstName ? 'Ciao ' + firstName + ',' : 'Ciao,'}</p>
-      <p>${intro}</p>
-      <p style="text-align:center;margin:26px 0">
-        <a href="${link}" style="display:inline-block;background:#c9a227;color:#1a2e4f;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:10px">${cta}</a>
-      </p>
-      <p style="font-size:12px;color:#94a3b8;margin-top:20px">Ricevi questa email perché un altro professionista ti ha aggiunto alla sua rete su Planfully.</p>
-    </div>
-  </div>`
+  const html = emailShell({
+    eyebrow: 'Rete',
+    title: `${followerRaw} ${verb}`,
+    subtitleHtml: firstName ? `Ciao ${firstName},` : 'Ciao,',
+    bodyHtml: `<p style="margin:0">${intro}</p>`,
+    cta: { href: link, label: cta },
+    contactHtml: 'Ricevi questa email perché un altro professionista ti ha aggiunto alla sua rete su Planfully.',
+  })
 
   const r = await sendEmail({ to: toEmail, subject: `${follower} ${verb} su Planfully`, html })
   if (!r.ok) return json({ error: 'email_failed', reason: (r as { reason?: string }).reason }, 502)

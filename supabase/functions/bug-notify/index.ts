@@ -2,7 +2,8 @@
 // Avvisa lo staff via email quando arriva una segnalazione ALTA/BLOCCANTE,
 // così non deve controllare il pannello per accorgersi dei problemi gravi.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { sendEmail, htmlToText } from '../_shared/resend.ts'
+import { sendEmail } from '../_shared/resend.ts'
+import { emailShell, esc } from '../_shared/emailLayout.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -16,7 +17,6 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json', ...cors } })
-const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
@@ -50,13 +50,15 @@ Deno.serve(async (req) => {
     if (su?.user?.email) set.add(su.user.email)
   }
 
-  const html = `<!doctype html><html lang="it"><body style="font-family:Georgia,serif;color:#1A1714">
-    <h2 style="margin:0 0 4px;color:#b91c1c">Segnalazione ${esc(severity)}</h2>
-    <p style="color:#787164;margin:0 0 14px;font-size:13px">Da <strong>${esc(reporter)}</strong>${body.url ? ` · su ${esc(body.url)}` : ''}</p>
-    <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#FBF7EF;border-left:3px solid #b91c1c;padding:12px 16px;border-radius:6px">${esc(message)}</div>
-    <p style="margin-top:16px"><a href="${APP_BASE}/admin" style="color:#1A2E4F">Apri il pannello</a></p>
-  </body></html>`
+  const html = emailShell({
+    accent: '#C03B2A', // lacca: allerta staff
+    eyebrow: `Segnalazione ${severity}`,
+    title: 'Nuova segnalazione',
+    subtitleHtml: `Da <strong>${esc(reporter)}</strong>${body.url ? ` · su ${esc(body.url)}` : ''}`,
+    bodyHtml: `<div style="white-space:pre-wrap">${esc(message)}</div>`,
+    cta: { href: `${APP_BASE}/admin`, label: 'Apri il pannello' },
+  })
 
-  const r = await sendEmail({ to: Array.from(set), subject: `[Segnalazione ${severity}] ${message.slice(0, 60)}`, html, text: htmlToText(html), from: FROM, reply_to: replyTo })
+  const r = await sendEmail({ to: Array.from(set), subject: `[Segnalazione ${severity}] ${message.slice(0, 60)}`, html, from: FROM, reply_to: replyTo })
   return json({ ok: true, emailed: r.ok })
 })
