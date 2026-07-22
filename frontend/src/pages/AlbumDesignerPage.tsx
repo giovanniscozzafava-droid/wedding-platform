@@ -504,6 +504,21 @@ function AlbumDesignerInner() {
   const role = albumRoleOf(profile?.role)
   const action = primaryAction(role, status as never)
   const lite = role === 'couple' // il cliente vede la versione light (non decide la struttura)
+  // Rotellina del mouse sopra la STRISCIA DELLE TAVOLE → scorrimento ORIZZONTALE (e blocca lo
+  // scroll della pagina). Listener nativo non-passivo: solo così preventDefault fa effetto.
+  useEffect(() => {
+    const el = filmstripRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return // lascia il pinch-zoom del trackpad
+      const d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX
+      if (!d) return
+      el.scrollLeft += d
+      e.preventDefault()
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [lite, loading])
   const [exportOpen, setExportOpen] = useState(false)   // dialogo qualità di stampa
   const [exportDpi, setExportDpi] = useState(300)
   const [cutMarks, setCutMarks] = useState(false)
