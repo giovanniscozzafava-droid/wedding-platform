@@ -30,7 +30,7 @@ import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
 type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null; pick_photographer?: boolean | null; pick_couple?: boolean | null }
-type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
+type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; album_selectable?: boolean; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string; share_token: string | null }
 
 // RANGE DI SELEZIONE (min/max foto): il fotografo decide quante foto la coppia deve scegliere per
@@ -155,7 +155,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [gsettings, setGsettings] = useState<GallerySettings>(DEFAULT_GALLERY_SETTINGS)
   // nuova cartella
-  const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
+  const [nf, setNf] = useState<{ open: boolean; name: string; level: string; subrole: string; selectable: boolean }>({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '', selectable: true })
   // lightbox: lista di foto della cartella aperta + indice corrente
   const [box, setBox] = useState<{ list: Media[]; i: number } | null>(null)
   // Momenti scelti dalla coppia/fotografo (overlay ottimistico su album_moment). Così il fotografo
@@ -207,7 +207,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       if (gs) setGsettings({ ...DEFAULT_GALLERY_SETTINGS, ...gs })
     }
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, guest_visible, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents')
+      .select('id, name, level, shared, guest_visible, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, album_selectable')
       .eq('entry_id', entryId).order('sort_order')
     // Media a PAGINE: PostgREST limita a 1000 righe/richiesta → senza paginare la galleria
     // si fermava a 1000 foto. Qui le carichiamo TUTTE (capienza illimitata) e le raggruppiamo.
@@ -297,10 +297,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       const { error } = await (supabase.from as any)('gallery_folders').insert({
         gallery_id: gallery.id, entry_id: entryId, name: nf.name.trim(), level: nf.level,
         assigned_subrole: nf.level === 'LAVORAZIONE' ? (nf.subrole || null) : null,
-        shared: false, sort_order: folders.length,
+        shared: false, sort_order: folders.length, album_selectable: nf.selectable,
       })
       if (error) throw error
-      setNf({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })
+      setNf({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '', selectable: true })
       await load()
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
@@ -318,6 +318,15 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { error } = await (supabase.from as any)('gallery_folders').update({ guest_visible: next }).eq('id', f.id)
     if (error) { toast.error(error.message); await load(); return }
     toast.success(next ? 'Cartella ora visibile a tutti gli ospiti' : 'Cartella nascosta agli ospiti')
+  }
+
+  // Includi/escludi la cartella dalla SELEZIONE ALBUM (le sue foto sono selezionabili/impaginabili).
+  async function toggleAlbumSelectable(f: Folder) {
+    const next = !(f.album_selectable ?? true)
+    setFolders((fs) => fs.map((x) => (x.id === f.id ? { ...x, album_selectable: next } : x)))   // ottimistico
+    const { error } = await (supabase.from as any)('gallery_folders').update({ album_selectable: next }).eq('id', f.id)
+    if (error) { toast.error(error.message); await load(); return }
+    toast.success(next ? 'Cartella inclusa nella selezione album' : 'Cartella esclusa dalla selezione album')
   }
 
   // CUORE DEL FOTOGRAFO su una foto: selezione indipendente da quella degli sposi (pick_couple)
@@ -794,8 +803,12 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 )}
               </div>
               {nf.level === 'LAVORAZIONE' && <p className="text-[11px] text-[rgb(var(--gold-700))]">Visibile solo al fornitore di quel ruolo nel cerchio. Niente primi piani degli sposi qui.</p>}
+              <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+                <input type="checkbox" checked={nf.selectable} onChange={(e) => setNf((s) => ({ ...s, selectable: e.target.checked }))} className="mt-0.5 h-4 w-4 accent-[rgb(var(--gold-500))]" />
+                <span><strong>Includi nella selezione album</strong> — le foto di questa cartella si possono scegliere e impaginare. <span className="text-[rgb(var(--fg-subtle))]">Togli la spunta per le cartelle di servizio (grezzi, backstage, foto ospiti).</span></span>
+              </label>
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setNf({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '' })}>Annulla</Button>
+                <Button variant="ghost" size="sm" onClick={() => setNf({ open: false, name: '', level: 'LAVORO_INTERO', subrole: '', selectable: true })}>Annulla</Button>
                 <Button variant="gold" size="sm" disabled={busy} onClick={createFolder}>Crea cartella</Button>
               </div>
             </div>
@@ -844,6 +857,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                   : <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] text-[10px]">non condivisa</Badge>)}
                 {salesEnabled && f.is_for_sale && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px] shrink-0">€{((f.price_cents ?? 0) / 100).toFixed(0)} a pagamento</Badge>}
                 {f.level !== 'INVITATI' && f.guest_visible && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px] shrink-0 inline-flex items-center gap-0.5"><Globe size={10} /> visibile agli ospiti</Badge>}
+                {!(f.album_selectable ?? true) && <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] text-[10px] shrink-0">fuori selezione album</Badge>}
               </button>
               {isOwner && (
                 <div className="flex items-center gap-1.5">
@@ -856,6 +870,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                       <Globe size={12} /> {f.guest_visible ? 'Nascondi agli ospiti' : 'Mostra agli ospiti'}
                     </Button>
                   )}
+                  <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleAlbumSelectable(f)}
+                    title="Includi o escludi questa cartella dalla selezione album (le sue foto diventano selezionabili/impaginabili o no)">
+                    <Heart size={12} /> {(f.album_selectable ?? true) ? 'Escludi da album' : 'Includi in album'}
+                  </Button>
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => addDemoPhotos(f)}><Sparkles size={12} /> Foto demo</Button>
                   {salesEnabled && <Button variant="outline" size="sm" onClick={() => setFolderPrice(f)}>{f.is_for_sale ? `€${((f.price_cents ?? 0) / 100).toFixed(0)}` : 'Prezzo'}</Button>}

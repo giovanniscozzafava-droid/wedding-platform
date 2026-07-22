@@ -113,6 +113,7 @@ type M = {
   media_type: 'PHOTO' | 'VIDEO'; guest_tag_name: string | null
   album_choice: 'KEPT' | 'DISCARDED' | null; album_moment: string | null
   source_name: string | null   // nome file originale (per ritrovarle in Lightroom)
+  folder_id?: string | null    // cartella di provenienza (per escludere le cartelle fuori selezione)
 }
 
 // POST-IT: richiesta di modifica del cliente appuntata in un punto della tavola (anchor 0..1) ed
@@ -548,7 +549,7 @@ function AlbumDesignerInner() {
         const PAGE = 1000; const out: M[] = []
         for (let from = 0; ; from += PAGE) {
           const { data, error } = await (supabase.from as any)('gallery_media')
-            .select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment, source_name')
+            .select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment, source_name, folder_id')
             .eq('entry_id', entryId)
             .order('created_at', { ascending: true }).order('id', { ascending: true })
             .range(from, from + PAGE - 1)
@@ -559,17 +560,20 @@ function AlbumDesignerInner() {
         }
         return out
       }
-      const [pr, med, er, lr] = await Promise.all([
+      const [pr, med, er, lr, ef] = await Promise.all([
         (supabase.from as any)('album_projects').select('format_key, status, layout, price_config').eq('entry_id', entryId).maybeSingle(),
         fetchAllMedia(),
         (supabase.from as any)('calendar_entries').select('title').eq('id', entryId).maybeSingle(),
         (supabase as any).rpc('gallery_like_counts', { p_entry: entryId }),
+        // cartelle ESCLUSE dalla selezione album: le loro foto non entrano nell'impaginatore
+        (supabase.from as any)('gallery_folders').select('id').eq('entry_id', entryId).eq('album_selectable', false),
       ])
       const proj = (pr as any)?.data, ent = (er as any)?.data
       const lcMap: Record<string, number> = {}
       for (const r of ((lr as any)?.data ?? []) as { media_id: string; n: number }[]) lcMap[r.media_id] = r.n
       setLikeCounts(lcMap)
-      setMedia((med as M[]) ?? [])
+      const excluded = new Set((((ef as any)?.data ?? []) as { id: string }[]).map((x) => x.id))
+      setMedia((((med as M[]) ?? []).filter((m) => !(m.folder_id && excluded.has(m.folder_id)))))
       setTitle((ent as { title?: string } | null)?.title ?? 'Album')
       if (proj) {
         setFormat((proj as any).format_key ?? DEFAULT_FORMAT)
