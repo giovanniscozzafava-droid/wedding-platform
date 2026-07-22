@@ -551,7 +551,23 @@ export default function CaroselloPage() {
         </div>
         <span className="mx-0.5 h-5 w-px bg-[rgb(var(--border))]" />
 
-        {/* MODELLI (solo disposizione foto) */}
+        {/* QUESTA TAVOLA: preset (1 o più foto) applicati SOLO alla pagina corrente, sempre. */}
+        <Menu label={`Tavola ${curSlide + 1}`} icon={LayoutGrid} width="w-[min(92vw,440px)]">
+          <p className="px-1 pt-0.5 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Preset per QUESTA tavola (una o più foto)</p>
+          <div className="grid grid-cols-2 gap-0.5">
+            {CAROUSEL_MODELS.filter((m) => (m.group ?? 'base') === 'base').map((m) => (
+              <button key={m.key} title={m.hint} onClick={() => applyModelToSlide(m.key, curSlide)} className="text-xs text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))]">{m.label}</button>
+            ))}
+          </div>
+          <p className="px-1 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Editoriale</p>
+          <div className="grid grid-cols-2 gap-0.5">
+            {CAROUSEL_MODELS.filter((m) => m.group === 'editoriale').map((m) => (
+              <button key={m.key} title={m.hint} onClick={() => applyModelToSlide(m.key, curSlide)} className="text-xs text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))]">{m.label}</button>
+            ))}
+          </div>
+        </Menu>
+
+        {/* MODELLI (solo disposizione foto) — rispettano l'ambito Tutte/Pagina qui sopra */}
         <Menu label="Modelli" icon={LayoutGrid} width="w-[min(92vw,440px)]">
           <p className="px-1 pt-0.5 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Impaginazioni</p>
           <div className="grid grid-cols-2 gap-0.5">

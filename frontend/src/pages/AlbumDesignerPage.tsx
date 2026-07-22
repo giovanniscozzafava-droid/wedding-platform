@@ -114,6 +114,8 @@ type M = {
   album_choice: 'KEPT' | 'DISCARDED' | null; album_moment: string | null
   source_name: string | null   // nome file originale (per ritrovarle in Lightroom)
   folder_id?: string | null    // cartella di provenienza (per escludere le cartelle fuori selezione)
+  pick_photographer?: boolean | null // cuore del FOTOGRAFO = selezione dell'impaginatore (unica: galleria+swipe+qui)
+  pick_couple?: boolean | null       // cuore degli SPOSI (sola lettura qui, protetto)
 }
 
 // POST-IT: richiesta di modifica del cliente appuntata in un punto della tavola (anchor 0..1) ed
@@ -529,7 +531,7 @@ function AlbumDesignerInner() {
 
   const mediaById = useMemo(() => new Map(media.map((m) => [m.id, m])), [media])
   const photos = useMemo(() => media.filter((m) => m.media_type === 'PHOTO'), [media])
-  const kept = useMemo(() => photos.filter((m) => m.album_choice === 'KEPT'), [photos])
+  const kept = useMemo(() => photos.filter((m) => !!m.pick_photographer), [photos])
   // foto USABILI in impaginazione = KEPT non congelate (manuale e AI usano questo pool)
   const placeableKept = useMemo(() => kept.filter((m) => !frozenMedia.has(m.id)), [kept, frozenMedia])
   function toggleFreeze(id: string) {
@@ -549,7 +551,7 @@ function AlbumDesignerInner() {
         const PAGE = 1000; const out: M[] = []
         for (let from = 0; ; from += PAGE) {
           const { data, error } = await (supabase.from as any)('gallery_media')
-            .select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment, source_name, folder_id')
+            .select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, album_choice, album_moment, source_name, folder_id, pick_photographer, pick_couple')
             .eq('entry_id', entryId)
             .order('created_at', { ascending: true }).order('id', { ascending: true })
             .range(from, from + PAGE - 1)
@@ -847,34 +849,32 @@ function AlbumDesignerInner() {
   }
 
   // ── selezione guidata ──────────────────────────────────────────────────────
-  // IMPORT (sostituisce): la selezione di lavoro album diventa ESATTAMENTE il cuore scelto
-  // (sposi = pick_couple · fotografo = pick_photographer). I due cuori restano intatti.
-  async function importAlbumSelection(source: 'COUPLE' | 'PHOTOGRAPHER') {
+  // PARTI DAGLI SPOSI: copia la selezione degli sposi (pick_couple) nella TUA (pick_photographer),
+  // così parti dalla loro scelta e poi rifinisci liberamente. La loro selezione NON viene toccata.
+  async function importAlbumSelection() {
     if (!entryId || importSelBusy) return
-    if (!window.confirm(source === 'COUPLE'
-      ? 'Sostituire la selezione dell’album con quella degli SPOSI? (i cuori non si toccano)'
-      : 'Sostituire la selezione dell’album con la TUA (cuori fotografo)?')) return
+    if (!window.confirm('Sostituire la TUA selezione album con quella degli SPOSI? La loro resta intatta; poi rifinisci come vuoi.')) return
     setImportSelBusy(true)
-    const { data, error } = await (supabase.rpc as any)('import_selection', { p_entry: entryId, p_source: source, p_target: 'ALBUM' })
-    if (error || (data as { error?: string } | null)?.error) { toast.error('Import non riuscito'); setImportSelBusy(false); return }
-    const { data: gm } = await (supabase.from as any)('gallery_media').select('id, album_choice').eq('entry_id', entryId)
+    const { data, error } = await (supabase.rpc as any)('photographer_adopt_couple', { p_entry: entryId })
+    if (error) { toast.error('Import non riuscito'); setImportSelBusy(false); return }
+    const { data: gm } = await (supabase.from as any)('gallery_media').select('id, pick_photographer').eq('entry_id', entryId)
     if (gm) {
-      const byId = new Map((gm as { id: string; album_choice: 'KEPT' | 'DISCARDED' | null }[]).map((g) => [g.id, g.album_choice]))
-      setMedia((arr) => arr.map((x) => (byId.has(x.id) ? { ...x, album_choice: byId.get(x.id) ?? null } : x)))
+      const byId = new Map((gm as { id: string; pick_photographer: boolean | null }[]).map((g) => [g.id, !!g.pick_photographer]))
+      setMedia((arr) => arr.map((x) => (byId.has(x.id) ? { ...x, pick_photographer: byId.get(x.id) ?? false } : x)))
     }
     setImportSelBusy(false)
-    toast.success(`Album: ${(data as { count?: number } | null)?.count ?? 0} foto (${source === 'COUPLE' ? 'sposi' : 'tue'})`)
+    toast.success(`Selezione album = sposi: ${(data as number) ?? 0} foto`)
   }
+  // Il cuore qui è la selezione del FOTOGRAFO (pick_photographer): unica e coerente con la galleria
+  // e con lo swipe da telefono, LIBERA (nessun min/max). Non tocca la selezione degli sposi.
   async function toggleKeep(m: M) {
-    const prev = m.album_choice
-    const next = m.album_choice === 'KEPT' ? 'DISCARDED' : 'KEPT'
-    setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: next } : x)))
-    // VERIFICA il salvataggio: se la RPC fallisce (es. permessi), ANNULLA l'ottimistico e avvisa,
-    // così il cuore non resta "acceso" a vuoto e poi sparisce al reload.
-    const { data, error } = await (supabase.rpc as any)('set_album_choice', { p_media: m.id, p_choice: next })
-    if (error || (data && (data as { error?: string }).error)) {
-      setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: prev } : x)))
-      toast.error(`Non riesco a salvare il like: ${error?.message ?? (data as { error?: string }).error}`)
+    const prev = !!m.pick_photographer
+    const next = !prev
+    setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, pick_photographer: next } : x)))
+    const { error } = await (supabase.rpc as any)('photographer_toggle_pick', { p_media: m.id, p_pick: next })
+    if (error) {
+      setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, pick_photographer: prev } : x)))
+      toast.error(`Non riesco a salvare: ${error.message}`)
     }
   }
   // ELIMINA una foto DALLA SELEZIONE (non dal disco): la toglie da TUTTE le tavole, dalla memoria
@@ -902,12 +902,12 @@ function AlbumDesignerInner() {
     setEverPlaced((prev) => { if (!prev.has(m.id)) return prev; const nx = new Set(prev); nx.delete(m.id); return nx })
     setSelEl((s) => (s === m.id ? null : s))
     setMultiSel((s) => s.filter((x) => x !== m.id))
-    // 3) scarta dalla selezione album (soft, NON da disco). Se era già DISCARDED, basta il passo 1-2.
-    if (m.album_choice === 'KEPT') {
-      setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: 'DISCARDED' } : x)))
-      const { data, error } = await (supabase.rpc as any)('set_album_choice', { p_media: m.id, p_choice: 'DISCARDED' })
-      if (error || (data && (data as { error?: string }).error)) {
-        setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, album_choice: 'KEPT' } : x)))
+    // 3) togli dalla TUA selezione album (soft, NON da disco). Se non era selezionata, basta 1-2.
+    if (m.pick_photographer) {
+      setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, pick_photographer: false } : x)))
+      const { error } = await (supabase.rpc as any)('photographer_toggle_pick', { p_media: m.id, p_pick: false })
+      if (error) {
+        setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, pick_photographer: true } : x)))
         return false
       }
     }
@@ -920,30 +920,31 @@ function AlbumDesignerInner() {
     if (ok) toast.success('Foto tolta dalla selezione')
     else toast.error('Non sono riuscito a togliere la foto dalla selezione')
   }
-  // Seleziona/deseleziona TUTTI i cuori in UN colpo (RPC atomica: niente fallimenti parziali).
+  // Seleziona/deseleziona TUTTI i cuori del FOTOGRAFO in un colpo (RPC atomica).
   async function setKeepAll(choice: 'KEPT' | 'DISCARDED') {
-    const changing = photos.filter((m) => (m.album_choice ?? 'DISCARDED') !== choice)
-    if (!changing.length) { toast(choice === 'KEPT' ? 'Sono già tutte selezionate' : 'Nessun cuore da togliere'); return }
-    const toChange = changing.map((m) => m.id); const ids = new Set(toChange)
-    const before = new Map(changing.map((m) => [m.id, m.album_choice] as const))
-    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, album_choice: choice } : x)))
-    const { data, error } = await (supabase.rpc as any)('album_set_choices', { p_ids: toChange, p_choice: choice })
-    if (error || (data && (data as { error?: string }).error)) {
-      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, album_choice: before.get(x.id) ?? null } : x)))
-      toast.error(`Selezione non salvata: ${error?.message ?? (data as { error?: string }).error}`)
-    } else toast.success(choice === 'KEPT' ? `${toChange.length} foto selezionate per l'album` : `${toChange.length} foto deselezionate`)
+    const pick = choice === 'KEPT'
+    const changing = photos.filter((m) => !!m.pick_photographer !== pick)
+    if (!changing.length) { toast(pick ? 'Sono già tutte selezionate' : 'Nessun cuore da togliere'); return }
+    const ids = new Set(changing.map((m) => m.id))
+    const before = new Map(changing.map((m) => [m.id, !!m.pick_photographer] as const))
+    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, pick_photographer: pick } : x)))
+    const { error } = await (supabase.rpc as any)('photographer_set_all', { p_entry: entryId, p_pick: pick })
+    if (error) {
+      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, pick_photographer: before.get(x.id) ?? false } : x)))
+      toast.error(`Selezione non salvata: ${error.message}`)
+    } else toast.success(pick ? `${ids.size} foto selezionate per l'album` : `${ids.size} foto deselezionate`)
   }
 
-  // Seleziona (cuore KEPT) tutte le foto a cui gli sposi hanno messo "mi piace".
+  // Aggiungi al TUO cuore tutte le foto a cui gli sposi hanno messo "mi piace".
   async function keepLiked() {
-    const liked = photos.filter((m) => (likeCounts[m.id] ?? 0) > 0 && (m.album_choice ?? 'DISCARDED') !== 'KEPT')
+    const liked = photos.filter((m) => (likeCounts[m.id] ?? 0) > 0 && !m.pick_photographer)
     if (!liked.length) { toast('Nessuna foto con like da aggiungere'); return }
     const toChange = liked.map((m) => m.id); const ids = new Set(toChange)
-    const before = new Map(liked.map((m) => [m.id, m.album_choice] as const))
-    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, album_choice: 'KEPT' } : x)))
-    const { data, error } = await (supabase.rpc as any)('album_set_choices', { p_ids: toChange, p_choice: 'KEPT' })
-    if (error || (data && (data as { error?: string }).error)) {
-      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, album_choice: before.get(x.id) ?? null } : x)))
+    const before = new Map(liked.map((m) => [m.id, !!m.pick_photographer] as const))
+    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, pick_photographer: true } : x)))
+    const { error } = await (supabase.rpc as any)('photographer_set_picks', { p_ids: toChange, p_pick: true })
+    if (error) {
+      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, pick_photographer: before.get(x.id) ?? false } : x)))
       toast.error('Selezione non salvata')
     } else toast.success(`${toChange.length} preferite dagli sposi aggiunte all'album`)
   }
@@ -990,7 +991,7 @@ function AlbumDesignerInner() {
         const mt: 'PHOTO' | 'VIDEO' = file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO'
         const newId = await addAlbumMedia(path, pub, mt, null, file.name)
         if (newId) {
-          setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: mt, guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: file.name }])
+          setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: mt, guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: file.name, pick_photographer: true }])
           ok++
         }
       } catch (e) { fails.push(`${file.name}: ${(e as Error).message}`) }
@@ -1655,7 +1656,7 @@ function AlbumDesignerInner() {
       const pub = supabase.storage.from('event-guest-uploads').getPublicUrl(path).data.publicUrl
       const newId = await addAlbumMedia(path, pub, 'PHOTO', null, file.name)
       if (!newId) throw new Error('upload non riuscito')
-      setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: file.name }])
+      setMedia((arr) => [...arr, { id: newId, drive_file_id: `album:${path}`, thumbnail_link: pub, media_type: 'PHOTO', guest_tag_name: null, album_choice: 'KEPT', album_moment: null, source_name: file.name, pick_photographer: true }])
       freeReplace(pageId, elId, newId)
       toast.success('Versione modificata caricata e inserita nella tavola')
     } catch (e) { toast.error('Caricamento non riuscito: ' + (e as Error).message) } finally { setImporting(null) }
@@ -2564,11 +2565,11 @@ function AlbumDesignerInner() {
     const toDrop = curateResult.drop.map((d) => d.id).filter((id) => !curateRescue.has(id))
     if (!toDrop.length) { setCurateResult(null); toast.message('Nessuna foto tolta.'); return }
     const ids = new Set(toDrop)
-    const before = new Map(photos.filter((m) => ids.has(m.id)).map((m) => [m.id, m.album_choice] as const))
-    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, album_choice: 'DISCARDED' } : x)))
-    const { data, error } = await (supabase.rpc as any)('album_set_choices', { p_ids: toDrop, p_choice: 'DISCARDED' })
-    if (error || (data && (data as { error?: string }).error)) {
-      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, album_choice: before.get(x.id) ?? null } : x)))
+    const before = new Map(photos.filter((m) => ids.has(m.id)).map((m) => [m.id, !!m.pick_photographer] as const))
+    setMedia((arr) => arr.map((x) => (ids.has(x.id) ? { ...x, pick_photographer: false } : x)))
+    const { error } = await (supabase.rpc as any)('photographer_set_picks', { p_ids: toDrop, p_pick: false })
+    if (error) {
+      setMedia((arr) => arr.map((x) => (before.has(x.id) ? { ...x, pick_photographer: before.get(x.id) ?? false } : x)))
       toast.error('Non riuscito a togliere le foto dalla selezione'); return
     }
     const k = curateResult.total - toDrop.length
@@ -3354,14 +3355,11 @@ function AlbumDesignerInner() {
                 {MOMENTS.filter((mm) => (trayMoments.get(mm.key) ?? 0) > 0).map((mm) => <option key={mm.key} value={mm.key}>{mm.label} ({trayMoments.get(mm.key)})</option>)}
                 {(trayMoments.get('_none') ?? 0) > 0 && <option value="_none">Senza momento ({trayMoments.get('_none')})</option>}
               </select>
-              {/* IMPORTA la selezione di lavoro da uno dei due cuori (sostituisce). I cuori restano distinti. */}
-              <div className="flex items-center gap-1 mb-1.5">
-                <span className="text-[10px] text-[rgb(var(--fg-subtle))] shrink-0">Importa:</span>
-                <button type="button" disabled={importSelBusy} onClick={() => void importAlbumSelection('COUPLE')} title="La selezione album diventa quella degli sposi (sostituisce)"
-                  className="flex-1 inline-flex items-center justify-center gap-1 text-[10px] py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"><Heart size={10} className="fill-rose-500 text-rose-500" /> Sposi</button>
-                <button type="button" disabled={importSelBusy} onClick={() => void importAlbumSelection('PHOTOGRAPHER')} title="La selezione album diventa la tua (cuori fotografo, sostituisce)"
-                  className="flex-1 inline-flex items-center justify-center gap-1 text-[10px] py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"><Heart size={10} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> La mia</button>
-              </div>
+              {/* La selezione qui è la TUA (cuori fotografo). Parti dalla scelta degli sposi se vuoi. */}
+              {!isCouple && (
+                <button type="button" disabled={importSelBusy} onClick={() => void importAlbumSelection()} title="Copia la selezione degli sposi nella tua, poi rifinisci. La loro non si tocca."
+                  className="w-full inline-flex items-center justify-center gap-1 text-[10px] py-1 mb-1.5 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"><Heart size={10} className="fill-rose-500 text-rose-500" /> Parti dalla selezione sposi</button>
+              )}
               <div className="grid grid-cols-2 gap-1.5">
                 {trayFiltered.map((m) => (
                   <div key={m.id} id={`tray-${m.id}`} className={`relative group/tray rounded ${highlightMedia === m.id ? 'ring-4 ring-[rgb(var(--gold-500))] ring-offset-2 ring-offset-[rgb(var(--bg))]' : ''}`}>
@@ -4477,7 +4475,7 @@ function SelectStep(props: {
   }, [photos.length, total])
   const likedTotal = photos.filter((m) => (likeCounts[m.id] ?? 0) > 0).length
   const showingKeptOnly = onlyKept && total > 0
-  const base = showingKeptOnly ? photos.filter((m) => m.album_choice === 'KEPT') : photos
+  const base = showingKeptOnly ? photos.filter((m) => !!m.pick_photographer) : photos
   const shown = likedFirst ? [...base].sort((a, b) => (likeCounts[b.id] ?? 0) - (likeCounts[a.id] ?? 0)) : base
   const fileRef = useRef<HTMLInputElement>(null)
   // ANTEPRIMA "Quick Look" (stile macOS): passa/clicca su una foto e premi BARRA SPAZIATRICE per
@@ -4535,14 +4533,15 @@ function SelectStep(props: {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {shown.map((m) => {
-            const keptOn = m.album_choice === 'KEPT'
+            const keptOn = !!m.pick_photographer   // la TUA selezione (fotografo)
             const likes = likeCounts[m.id] ?? 0
             return (
               <Card key={m.id} className={`group overflow-hidden ${keptOn ? 'ring-2 ring-[rgb(var(--gold-500))]' : ''}`}>
                 <button onClick={() => onToggle(m)} onMouseEnter={() => { focusRef.current = m }} onFocus={() => { focusRef.current = m }}
                   title="Clic = seleziona · Barra spaziatrice o lente = anteprima grande" className="relative block w-full aspect-square">
                   <img src={thumb(m)} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  <span className={`absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center ${keptOn ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/40 text-white'}`}><Heart size={13} className={keptOn ? 'fill-current' : ''} /></span>
+                  <span className={`absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center ${keptOn ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/40 text-white'}`} title="La tua selezione (tocca per cambiarla)"><Heart size={13} className={keptOn ? 'fill-current' : ''} /></span>
+                  {m.pick_couple && <span className="absolute top-1.5 right-9 h-6 w-6 rounded-full bg-rose-500 text-white flex items-center justify-center pointer-events-none" title="Scelta dagli sposi (sola lettura)"><Heart size={12} className="fill-current" /></span>}
                   {likes > 0 && <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-rose-500/90 text-white text-[10px] px-1.5 py-0.5" title="Mi piace degli sposi"><Heart size={10} className="fill-current" /> {likes}</span>}
                   {/* Lente: click sicuro per l'anteprima grande (non tocca il cuore). */}
                   <span role="button" tabIndex={0} title="Ingrandisci (anteprima)" onMouseEnter={() => { focusRef.current = m }}
@@ -4567,9 +4566,9 @@ function SelectStep(props: {
       {/* riepilogo selezione */}
       <div className="lg:sticky lg:top-20 self-start space-y-3">
         <Card className="p-4">
-          <p className="text-sm font-medium">Selezione album</p>
-          <p className={`text-3xl font-display mt-1 ${okRange ? 'text-[rgb(var(--emerald-600))]' : 'text-[rgb(var(--fg))]'}`}>{total}<span className="text-base text-[rgb(var(--fg-muted))]"> / {ALBUM_MIN_PHOTOS}–{ALBUM_MAX_PHOTOS}</span></p>
-          <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">{total < ALBUM_MIN_PHOTOS ? `Aggiungi almeno ${ALBUM_MIN_PHOTOS - total} foto` : total > ALBUM_MAX_PHOTOS ? `Togli ${total - ALBUM_MAX_PHOTOS} foto` : 'Numero perfetto ✓'}</p>
+          <p className="text-sm font-medium">La tua selezione album</p>
+          <p className="text-3xl font-display mt-1 text-[rgb(var(--fg))]">{total}<span className="text-base text-[rgb(var(--fg-muted))]"> foto</span></p>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Sei libero: nessun minimo o massimo. <span className="text-[rgb(var(--fg-subtle))]">(l'ideale per un album è {ALBUM_MIN_PHOTOS}–{ALBUM_MAX_PHOTOS})</span></p>
           {untagged > 0 && <p className="text-[11px] text-amber-600 mt-1">{untagged} foto senza momento</p>}
         </Card>
         <Card className="p-4">

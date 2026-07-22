@@ -71,6 +71,18 @@ export default function AlbumSelectSwipePage() {
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
   }, [current, decide, undo])
 
+  // RIAPRI LE SCARTATE: dopo la passata, rivedi le foto NON selezionate per sceglierle ancora.
+  const reviewDiscarded = useCallback(() => {
+    if (!entryId) return
+    void (async () => {
+      const { data: gm } = await (supabase.from as any)('gallery_media')
+        .select('id, thumbnail_link, pick_photographer').eq('entry_id', entryId).eq('media_type', 'PHOTO').eq('pick_photographer', false).order('id')
+      const list = (gm ?? []) as P[]
+      if (!list.length) { toast.message('Nessuna scartata da rivedere'); return }
+      setHistory([]); setQueue(list)
+    })()
+  }, [entryId])
+
   const onDown = (e: React.PointerEvent) => { startRef.current = { x: e.clientX, y: e.clientY }; try { (e.target as HTMLElement).setPointerCapture(e.pointerId) } catch { /* ok */ } }
   const onMove = (e: React.PointerEvent) => { if (!startRef.current) return; setDrag({ dx: e.clientX - startRef.current.x, dy: e.clientY - startRef.current.y }) }
   const onUp = () => {
@@ -112,8 +124,9 @@ export default function AlbumSelectSwipePage() {
             <h1 className="font-display text-2xl mb-1">Selezione fatta</h1>
             <p className="text-sm text-[rgb(var(--fg-muted))] mb-6">Hai messo il cuore a <strong>{kept}</strong> foto su {total}. Ora, nell'album o nel carosello, premi <strong>«Importa: La mia»</strong> per usarle.</p>
             <div className="flex flex-col gap-2">
+              <button onClick={reviewDiscarded} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[rgb(var(--gold-300))] text-[rgb(var(--gold-700))] text-sm font-medium py-3"><Undo2 size={16} /> Rivedi le scartate</button>
               <Link to={`/album/${entryId}`}><span className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[rgb(var(--gold-500))] text-white text-sm font-medium py-3"><Images size={16} /> Vai all'impaginatore</span></Link>
-              <button onClick={() => { setQueue((q) => q); window.location.reload() }} className="text-xs text-[rgb(var(--gold-700))] hover:underline">Rivedi tutto da capo</button>
+              <button onClick={() => window.location.reload()} className="text-xs text-[rgb(var(--gold-700))] hover:underline">Rivedi tutto da capo</button>
             </div>
           </div>
         ) : current ? (
