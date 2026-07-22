@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
 
-  let body: { photos?: InPhoto[]; analyses?: Analysis[]; format?: string; albumOrient?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number; vertPct?: number; horizPct?: number } }
+  let body: { photos?: InPhoto[]; analyses?: Analysis[]; format?: string; albumOrient?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; groupShots?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number; vertPct?: number; horizPct?: number } }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const photos = (body.photos ?? []).filter((p) => p && typeof p.id === 'string').slice(0, 400)
   // NB: la modalità "learn" (Il mio stile) manda `images`, NON `photos` → non applicare qui la guardia
@@ -377,6 +377,9 @@ Deno.serve(async (req) => {
       chronoStrict
         ? 'IMPORTANTE: le foto arrivano GIÀ IN ORDINE CRONOLOGICO DI SCATTO (orario reale). RISPETTA rigorosamente questa sequenza: è il racconto del giorno.'
         : "Le foto arrivano in ordine cronologico di scatto come RIFERIMENTO, ma per lo stile scelto PRIORITIZZA il criterio dello stile (sotto) sull'ordine temporale: puoi raggruppare per soggetto/tema/impatto anche foto non consecutive.",
+      body.groupShots
+        ? 'ACCORPA I GRUPPI (richiesto): tutte le foto con s=gruppo o s=famiglia vanno RACCOLTE INSIEME su TAVOLE DEDICATE consecutive (mosaico fitto 6-9 per tavola), NON sparse tra gli altri momenti; questa sezione di gruppo esce dalla sequenza cronologica e forma un blocco compatto. Tra scatti di gruppo QUASI IDENTICI (stesso gruppo, pose simili) tieni SOLO il migliore e scarta gli altri.'
+        : '',
       'Ragiona in due passi:',
       chronoStrict
         ? '1) Scorri la sequenza cronologica e individua dove CAMBIA scena/momento (usa m e s).'

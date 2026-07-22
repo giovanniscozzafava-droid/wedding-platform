@@ -1511,6 +1511,7 @@ function AlbumDesignerInner() {
   const [aiFullPct, setAiFullPct] = useState<number>(10)     // % foto a pagina intera
   const [aiRespectFormat, setAiRespectFormat] = useState<boolean>(true) // verticali/orizzontali restano tali
   const [aiAutoSelect, setAiAutoSelect] = useState<boolean>(false) // fai scegliere le foto all'AI (cura + impagina il sottoinsieme)
+  const [aiGroupShots, setAiGroupShots] = useState<boolean>(false) // accorpa le foto di gruppo/famiglia su tavole dedicate
   const [aiMaxPages, setAiMaxPages] = useState<number>(60) // tetto massimo di pagine dell'album
   const [qualityScores, setQualityScores] = useState<Record<string, { score: number; issues: string[]; reason: string; advice?: string }>>({}) // ranking qualità stampa + consiglio tecnico
   const [qualityBusy, setQualityBusy] = useState(false)
@@ -2326,7 +2327,7 @@ function AlbumDesignerInner() {
     return { analyses, reason, cancelled: false }
   }
 
-  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean; maxPages?: number; autoSelect?: boolean }) {
+  async function aiLayout(opts?: { style?: string; maxPerSpread?: number; groupBw?: boolean; heroDouble?: boolean; doublePct?: number; fullPct?: number; respectFormat?: boolean; maxPages?: number; autoSelect?: boolean; groupShots?: boolean }) {
     if (placeableKept.length < 2) { toast.error('Servono almeno 2 foto selezionate (non congelate)'); return }
     if (usageCount.size > 0 && !window.confirm("L'impaginazione AI rifà tutte le tavole da capo. Sostituire l'impaginato attuale? (puoi annullare con ⌘Z)")) return
     setStep('design') // passa all'impaginato: così si vede l'animazione e poi il risultato
@@ -2359,16 +2360,21 @@ function AlbumDesignerInner() {
       let curatedNote = ''
       // "Fai scegliere le foto all'AI": prima di comporre, l'AI cura il sottoinsieme migliore
       // (taglia doppioni/momenti ripetuti). Compone SOLO le scelte (le altre restano in selezione).
-      if (opts?.autoSelect && photosPayload.length >= 8) {
-        setAiProg({ done: photosPayload.length, total: photosPayload.length, phase: 'Scelgo le foto migliori…' })
+      // AUTO-CULL: oltre il MASSIMO dell'album l'AI sceglie da sola quali tenere (senza
+      // spuntare nulla), riducendo al max. Se l'utente ha chiesto la cura, la fa comunque
+      // (numero scelto dall'AI). L'AI usa ciò che ha capito: sposi/gruppo/hero/doppioni.
+      const overMax = photosPayload.length > ALBUM_MAX_PHOTOS
+      if ((opts?.autoSelect || overMax) && photosPayload.length >= 8) {
+        const cullTarget = overMax ? ALBUM_MAX_PHOTOS : 0
+        setAiProg({ done: photosPayload.length, total: photosPayload.length, phase: overMax ? `Troppe foto (${photosPayload.length}, max ${ALBUM_MAX_PHOTOS}): scelgo le migliori…` : 'Scelgo le foto migliori…' })
         try {
-          const { data: cd } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses, photos: photosPayload, target: 0 } })
+          const { data: cd } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses, photos: photosPayload, target: cullTarget } })
           const keep = (cd as { keep?: string[] } | null)?.keep
           if (Array.isArray(keep) && keep.length >= 2 && keep.length < photosPayload.length) {
             const keepSet = new Set(keep)
             usePhotos = photosPayload.filter((p) => keepSet.has(p.id))
             analyses = analyses.filter((a) => keepSet.has((a as { id?: string }).id ?? ''))
-            curatedNote = ` · AI ha scelto ${usePhotos.length}/${photosPayload.length}`
+            curatedNote = overMax ? ` · troppe foto: AI ne ha tenute ${usePhotos.length}/${photosPayload.length}` : ` · AI ha scelto ${usePhotos.length}/${photosPayload.length}`
           }
         } catch { /* se la cura fallisce, impagina tutte */ }
       }
@@ -2380,7 +2386,7 @@ function AlbumDesignerInner() {
         photos: usePhotos,
         analyses,
         format, albumOrient: (fmt.w / fmt.h < 0.92 ? 'verticale' : fmt.w / fmt.h > 1.08 ? 'orizzontale' : 'quadrato'),
-        style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true,
+        style: opts?.style, maxPerSpread: opts?.maxPerSpread, groupBw: opts?.groupBw, doublePct: opts?.doublePct, fullPct: opts?.fullPct, maxPages: opts?.maxPages, chronological: true, groupShots: opts?.groupShots,
         styleProfile: (learned?.perSpread?.length ? learned.perSpread : styleProfile()), learnedStyle: learned,
       }
       if (aiCancel.current) { toast.message('Analisi interrotta'); return }
@@ -3734,7 +3740,22 @@ function AlbumDesignerInner() {
                 <p className="mb-1 mt-0.5 text-sm text-[rgb(var(--fg-muted))]">Poche scelte e l'AI compone l'album di conseguenza (legge le foto, gli orari di scatto e i volti).</p>
                 <p className="mb-3 text-xs"><button type="button" onClick={() => { setAiPick(false); setStyleOpen(true) }} className="text-[rgb(var(--gold-700))] hover:underline">Insegna il tuo stile</button> <span className="text-[rgb(var(--fg-subtle))]">— carica un tuo album PDF e l'AI impaginerà come te.</span></p>
 
-                <p className="mb-1.5 text-xs font-medium text-[rgb(var(--fg-muted))]">Stile</p>
+                {/* PASSO 1: il formato dell'album — l'AI impagina su questo, sceglilo prima. */}
+                <p className="mb-1.5 text-xs font-medium text-[rgb(var(--fg-muted))]">1 · Formato dell'album</p>
+                <select value={format} onChange={(e) => setFormat(e.target.value)} className="w-full text-sm rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2.5 py-2">
+                  <optgroup label="Standard">
+                    {ALBUM_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                  </optgroup>
+                  {(customFmts.length > 0 || isCustomFormat(format)) && (
+                    <optgroup label="Personalizzati">
+                      {customFmts.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                      {isCustomFormat(format) && !customFmts.some((f) => f.key === format) && <option value={format}>{getFormat(format).label}</option>}
+                    </optgroup>
+                  )}
+                </select>
+                <p className="mb-4 mt-1 text-[10px] text-[rgb(var(--fg-subtle))]">L'AI compone su questo formato ({getFormat(format).label}). Cambialo qui prima di generare.</p>
+
+                <p className="mb-1.5 text-xs font-medium text-[rgb(var(--fg-muted))]">2 · Stile</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {AI_STYLES.map((s) => (
                     <button key={s.key} onClick={() => setAiStyle(s.key)}
@@ -3777,6 +3798,10 @@ function AlbumDesignerInner() {
                     <span><strong>Fai scegliere le foto all'AI</strong> — se sono troppe o ripetono i momenti, l'AI usa solo il meglio (taglia doppioni e ripetizioni) per un album con più respiro. <span className="text-[rgb(var(--fg-subtle))]">Le altre restano in selezione, semplicemente non entrano nell'album.</span></span>
                   </label>
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input type="checkbox" checked={aiGroupShots} onChange={(e) => setAiGroupShots(e.target.checked)} className="accent-[rgb(var(--gold-500))]" />
+                    <span><strong>Accorpa le foto di gruppo</strong> — gruppi e famiglie insieme su tavole dedicate (mosaico), e tra scatti quasi uguali tiene il migliore</span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
                     <input type="checkbox" checked={aiGroupBw} onChange={(e) => setAiGroupBw(e.target.checked)} className="accent-[rgb(var(--gold-500))]" />
                     Raggruppa le foto in <strong>bianco e nero</strong> (non mischiarle col colore)
                   </label>
@@ -3792,7 +3817,7 @@ function AlbumDesignerInner() {
 
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
-                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat, maxPages: aiMaxPages, autoSelect: aiAutoSelect }) }}><Sparkles size={14} /> Impagina</Button>
+                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat, maxPages: aiMaxPages, autoSelect: aiAutoSelect, groupShots: aiGroupShots }) }}><Sparkles size={14} /> Impagina</Button>
                 </div>
               </div>
             </div>
