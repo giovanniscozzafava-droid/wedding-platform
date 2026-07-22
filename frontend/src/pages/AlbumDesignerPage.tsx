@@ -1468,7 +1468,23 @@ function AlbumDesignerInner() {
     setCurrentPageId(leftId); setActiveSlot(null); setSelEl(targetId); setMultiSel([])
   }
   function freeUpdate(pageId: string, id: string, patch: Partial<FreeEl>) { updatePage(pageId, (p) => ({ ...p, elements: updateFreeEl(p.elements ?? [], id, patch) })) }
-  function freeAdd(pageId: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), newFreeEl(mediaId)], 'x') })) }
+  // Piazza una foto sulla tavola nel SUO FORMATO ORIGINALE: l'elemento nasce con l'aspetto
+  // nativo della foto (non un quadrato), così si apre intera senza ritaglio. Leggero cascade
+  // per non sovrapporre perfettamente le foto aggiunte in sequenza.
+  function freeAdd(pageId: string, mediaId: string) {
+    const f = getFormat(format)
+    const pa = photoAspect.get(mediaId) ?? aspects[mediaId] ?? 1     // aspetto nativo foto (larghezza/altezza)
+    const ta = (f.w * 2) / Math.max(1, f.h)                          // aspetto della tavola (2 pagine affiancate)
+    const MAXF = 0.62
+    const rel = pa / ta
+    const w = rel >= 1 ? MAXF : MAXF * rel
+    const h = rel >= 1 ? MAXF / rel : MAXF
+    updatePage(pageId, (p) => {
+      const off = Math.min(0.18, (p.elements ?? []).length * 0.03)
+      const el = { ...newFreeEl(mediaId), x: Math.max(0.02, Math.min(1 - w - 0.02, (1 - w) / 2 + off)), y: Math.max(0.02, Math.min(1 - h - 0.02, (1 - h) / 2 + off)), w, h, rot: 0, cell: { ...DEFAULT_CELL } }
+      return { ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: bringToFront([...(p.elements ?? []), el], 'x') }
+    })
+  }
   // Trascinando una foto SOPRA una foto già presente, la SOSTITUISCE: resta posizione/dimensione/
   // rotazione del riquadro, cambia solo la foto (ritaglio azzerato così la nuova riempie il riquadro).
   function freeReplace(pageId: string, id: string, mediaId: string) { updatePage(pageId, (p) => ({ ...p, elements: (p.elements ?? []).map((e) => (e.id === id ? { ...e, mediaId, cell: { ...DEFAULT_CELL } } : e)) })) }
