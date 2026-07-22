@@ -719,6 +719,17 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         </Card>
       )}
 
+      {/* SCORCIATOIA: fai la selezione lato FOTOGRAFO con lo swipe (stile Tinder, mobile). */}
+      {isOwner && folders.some((f) => f.gallery_media.some((m) => m.media_type === 'PHOTO')) && (
+        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-medium flex items-center gap-2"><Heart size={16} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> Fai la selezione</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">La tua scelta a swipe, come gli sposi: destra tieni, sinistra scarta. È il tuo cuore, separato dal loro.</p>
+          </div>
+          <Link to={`/foto-selezione/${entryId}`}><Button variant="gold" size="sm"><Heart size={14} /> Fai la selezione</Button></Link>
+        </Card>
+      )}
+
       {/* CAROSELLO Instagram — voce a sé (fuori dall'impaginatore). Selezione foto del FOTOGRAFO,
           separata dalla selezione album degli sposi. */}
       {isOwner && folders.some((f) => f.gallery_media.length > 0) && (

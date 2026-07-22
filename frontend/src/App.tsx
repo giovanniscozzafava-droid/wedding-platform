@@ -103,6 +103,7 @@ const ClientPortalPage = lazyWithRetry(() => import('@/pages/client/ClientPortal
 const ClientAccessPage = lazyWithRetry(() => import('@/pages/client/ClientAccessPage'))
 const SupplierTeamPage = lazyWithRetry(() => import('@/pages/SupplierTeamPage'))
 const AlbumDesignerPage = lazyWithRetry(() => import('@/pages/AlbumDesignerPage'))
+const AlbumSelectSwipePage = lazyWithRetry(() => import('@/pages/AlbumSelectSwipePage'))
 const CaroselloPage = lazyWithRetry(() => import('@/pages/CaroselloPage'))
 const VideoReviewPage = lazyWithRetry(() => import('@/pages/VideoReviewPage'))
 const SupplierLeadsPage = lazyWithRetry(() => import('@/pages/SupplierLeadsPage'))
@@ -372,6 +373,8 @@ export default function App() {
           {/* Impaginatore = editor a TUTTA PAGINA: bare (niente sidebar/header/footer dello shell,
               così non c'è footer né spazio vuoto sotto). Ha la sua barra con il tasto indietro. */}
           <Route path="/album/:entryId" element={<RequireAuth bare roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><AlbumDesignerPage /></RequireAuth>} />
+          {/* Selezione lato FOTOGRAFO stile Tinder (mobile-first, a tutto schermo, senza shell) */}
+          <Route path="/foto-selezione/:entryId" element={<RequireAuth bare roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><AlbumSelectSwipePage /></RequireAuth>} />
           {/* Carosello social: slide Instagram collegate in flusso unico (effetto seamless). Stessa selezione foto dell'album. */}
           <Route path="/carosello/:entryId" element={<RequireAuth bare roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><CaroselloPage /></RequireAuth>} />
           {/* Revisione video del videomaker: consegna + post-it temporizzati del cliente */}
