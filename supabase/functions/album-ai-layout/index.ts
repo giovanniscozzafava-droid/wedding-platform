@@ -286,15 +286,27 @@ Deno.serve(async (req) => {
     if (items.length < 2) return json({ keep: items.map((a) => a.id), drop: [] })
     const target = Math.max(0, Math.min(600, Math.round((body as { target?: number }).target ?? 0)))
     const likeById = new Map((body.photos ?? []).map((p) => [p.id, Math.max(0, Math.round(p.likes ?? 0))]))
-    const compact = items.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, bw: a.bw ? 1 : 0, h: a.hero ? 1 : 0, imp: likeById.get(a.id) ?? 0 }))
+    const aspById = new Map((body.photos ?? []).map((p) => [p.id, typeof p.aspect === 'number' && p.aspect > 0 ? p.aspect : 1]))
+    const orient = (id: string) => { const a = aspById.get(id) ?? 1; return a < 0.92 ? 'V' : a > 1.08 ? 'H' : 'Q' }
+    const compact = items.map((a) => ({ id: a.id, m: a.moment, c: a.caption, s: a.subjects ?? '', ppl: a.people ?? 0, bw: a.bw ? 1 : 0, h: a.hero ? 1 : 0, o: orient(a.id), imp: likeById.get(a.id) ?? 0 }))
     const term = (body.eventTerm ?? 'matrimonio').replace(/[^\p{L}\s]/gu, '').slice(0, 40)
+    // Criterio di SCELTA legato allo STILE richiesto: a parità, privilegia le foto giuste per lo stile.
+    const SELECT_BIAS: Record<string, string> = {
+      fotografo: 'Stile del fotografo: tieni il MEGLIO di ogni momento con equilibrio, scatti forti e varietà; poche ma buone.',
+      narrativo: "Stile REPORTAGE/narrativo: privilegia le foto che RACCONTANO UNA SCENA e l'azione del momento; a parità preferisci le ORIZZONTALI (o=H) che tengono ambiente e contesto; mantieni la sequenza e la varietà di momenti.",
+      editoriale: "Stile EDITORIALE: privilegia gli SCATTI FORTI e i RITRATTI d'impatto (h=1, s=sposi/coppia/persona, primi piani, spesso verticali o=V); pochi ma potenti; taglia il riempitivo e i campi larghi deboli.",
+      ritrattistico: 'Stile RITRATTISTICO: privilegia RITRATTI e PERSONE (s=sposi/coppia/persona, ppl>0, volti); scarta paesaggi/ambienti e dettagli ripetuti.',
+      dettaglio: 'Stile DETTAGLIO: privilegia DETTAGLI e allestimenti (s=dettaglio/ambiente); tra dettagli simili tieni il più nitido/rappresentativo.',
+    }
+    const styleBias = SELECT_BIAS[typeof body.style === 'string' ? body.style : ''] ?? SELECT_BIAS.fotografo
     const sysC = [
       `Sei un art director di album di ${term}. La coppia ha selezionato TROPPE foto (${items.length}) e ripete gli stessi momenti: troppe foto tolgono RESPIRO e qualità all'album.`,
-      'Cura una SELEZIONE PIÙ STRETTA che racconti BENE la giornata: elimina i QUASI-DUPLICATI (stesso momento+soggetto in scatti consecutivi/vicini), le ripetizioni e gli scatti più deboli; TIENI il meglio di ogni momento, gli scatti forti (h=1), i picchi emotivi, la varietà di soggetti/scene.',
-      "REGOLA: non cancellare interi momenti — tieni almeno 1-2 foto per ogni momento presente. Bilancia il racconto (preparativi→cerimonia→ricevimento→festa).",
-      'Le foto sono in ORDINE CRONOLOGICO: i quasi-duplicati sono spesso vicini nell\'elenco.',
+      'Ogni foto: [id, m=momento, c=didascalia, s=soggetto (sposi/coppia/persona/gruppo/famiglia/dettaglio/ambiente), ppl=persone, bw=bianco/nero, h=1 scatto forte, o=orientamento (H/V/Q), imp=importanza per la coppia]. Le foto sono in ORDINE CRONOLOGICO: le simili sono spesso vicine.',
+      'REGOLA #1 — SCATTI SIMILI: individua i GRUPPI di foto SIMILI (stesso soggetto/scena/posa, di solito vicine) e in OGNI gruppo TIENI SOLO LA MIGLIORE (più nitida, occhi aperti/espressioni, composizione, coerente con lo stile); scarta le altre come quasi-duplicati. È il criterio PIÙ IMPORTANTE.',
+      `REGOLA #2 — STILE: ${styleBias}`,
+      'REGOLA #3 — RACCONTO: non cancellare interi momenti — tieni almeno 1-2 foto per ogni momento; bilancia preparativi→cerimonia→ricevimento→festa; tieni i picchi emotivi e la varietà di soggetti/scene.',
       target > 0 ? `Obiettivo: circa ${target} foto da TENERE (puoi discostarti di poco).` : 'Scegli TU il numero ideale da tenere: di solito 45-60% del totale, MAI meno del 40%.',
-      'Rispondi SOLO JSON {"keep":["id",...],"drop":[{"id":"id","reason":"..."}]}. reason breve tra: ripetizione, quasi-duplicato, scatto debole, momento sovrarappresentato.',
+      'Rispondi SOLO JSON {"keep":["id",...],"drop":[{"id":"id","reason":"..."}]}. reason breve tra: quasi-duplicato, ripetizione, scatto debole, fuori stile, momento sovrarappresentato.',
     ].join('\n')
     let cModel = ''
     try {

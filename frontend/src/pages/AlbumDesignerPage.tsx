@@ -2368,7 +2368,7 @@ function AlbumDesignerInner() {
         const cullTarget = overMax ? ALBUM_MAX_PHOTOS : 0
         setAiProg({ done: photosPayload.length, total: photosPayload.length, phase: overMax ? `Troppe foto (${photosPayload.length}, max ${ALBUM_MAX_PHOTOS}): scelgo le migliori…` : 'Scelgo le foto migliori…' })
         try {
-          const { data: cd } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses, photos: photosPayload, target: cullTarget } })
+          const { data: cd } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses, photos: photosPayload, target: cullTarget, style: opts?.style } })
           const keep = (cd as { keep?: string[] } | null)?.keep
           if (Array.isArray(keep) && keep.length >= 2 && keep.length < photosPayload.length) {
             const keepSet = new Set(keep)
@@ -2436,14 +2436,14 @@ function AlbumDesignerInner() {
       if (!Object.keys(meta).length) meta = await loadExif()
       const takenAt = (id: string): number | null => meta[id]?.takenAt ?? null
       const ordered = [...placeableKept].sort((a, b) => { const ta = takenAt(a.id), tb = takenAt(b.id); if (ta != null && tb != null) return ta - tb; if (ta != null) return -1; if (tb != null) return 1; return 0 })
-      const photosPayload = ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) }))
+      const photosPayload = ordered.map((m) => ({ id: m.id, url: thumbUrl(m), moment: m.album_moment, aspect: aspects[m.id] ?? photoAspect.get(m.id) ?? 1, likes: likeCounts[m.id] ?? 0, takenAt: takenAt(m.id) }))
       curatePhotosRef.current = photosPayload
       setCurateProg({ done: 0, total: photosPayload.length, phase: 'Guardo le foto una a una…' })
       const an = await analyzeInBatches(photosPayload, curateCancel, (done, total) => setCurateProg({ done, total, phase: 'Guardo le foto una a una…' }))
       if (an.cancelled) { toast.message('Selezione AI interrotta'); return }
       curateAnalysesRef.current = an.analyses
       setCurateProg({ done: photosPayload.length, total: photosPayload.length, phase: 'Scelgo il meglio del racconto…' })
-      const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses: an.analyses, photos: photosPayload, target: 0 } })
+      const { data, error } = await supabase.functions.invoke('album-ai-layout', { body: { mode: 'curate', analyses: an.analyses, photos: photosPayload, target: 0, style: aiStyle } })
       if (error || (data as { error?: string } | null)?.error) { toast.error(`Selezione AI non riuscita${(data as { reason?: string } | null)?.reason ? `: ${(data as { reason?: string }).reason}` : ''}`.slice(0, 160)); return }
       const drop = (data as { drop?: { id: string; reason: string }[] }).drop ?? []
       if (!drop.length) { toast.success("L'AI non toglierebbe nulla: la selezione è già essenziale."); return }
