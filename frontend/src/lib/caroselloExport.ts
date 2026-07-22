@@ -70,6 +70,24 @@ export async function renderCaroselloStrip(strip: AlbumPage, slideW: number, sli
   return c
 }
 
+// Esporta UNA SOLA slide (k) della strip come singolo JPG (o blob). Utile per rigenerare/scaricare
+// una tavola specifica senza rifare tutto il carosello.
+export async function exportCaroselloSlide(
+  strip: AlbumPage, slideW: number, slideH: number, n: number, k: number, resolve: UrlResolver,
+  opts: { texts?: TextEl[]; filename?: string; returnBlob?: boolean } = {},
+): Promise<Blob | void> {
+  const { texts = [], filename = `slide-${String(k + 1).padStart(2, '0')}.jpg`, returnBlob = false } = opts
+  const big = await renderCaroselloStrip(strip, slideW, slideH, n, resolve, texts)
+  const c = document.createElement('canvas'); c.width = slideW; c.height = slideH
+  c.getContext('2d')!.drawImage(big, k * slideW, 0, slideW, slideH, 0, 0, slideW, slideH)
+  const blob: Blob = await new Promise((res) => c.toBlob((b) => res(b!), 'image/jpeg', 0.92))
+  if (returnBlob) return blob
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob); a.download = filename
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000)
+}
+
 export async function exportCaroselloZip(
   strip: AlbumPage, slideW: number, slideH: number, n: number, resolve: UrlResolver,
   opts: { texts?: TextEl[]; filename?: string; returnBlob?: boolean; onProgress?: (done: number, total: number) => void; onZip?: (p: number) => void; shouldCancel?: () => boolean } = {},

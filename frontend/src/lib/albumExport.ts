@@ -24,6 +24,30 @@ function drawCellImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement, dx:
   ctx.restore()
 }
 
+// Disegna una CARD libera (ombra + eventuale cornice piena + foto rientrata) centrata sull'ORIGINE
+// del contesto (già traslato/ruotato dal chiamante). Replica l'anteprima DOM (box-shadow + border):
+//  · l'ombra è proiettata da un rettangolo PIENO (foto+cornice), non da dietro la foto opaca
+//    (prima era invisibile perché coperta dalla foto);
+//  · la cornice è un rettangolo pieno del colore bordo e la foto viene disegnata RIENTRATA di `bw`
+//    (prima era uno strokeRect bianco su fondo bianco → invisibile);
+//  · lo spessore è legato al lato corto dell'elemento → indipendente da risoluzione/formato.
+function drawFreeCardAtOrigin(ctx: CanvasRenderingContext2D, elWpx: number, elHpx: number, el: { border?: { w: number; color: string } | null; shadow?: boolean; cell: Cell }, img: HTMLImageElement | null) {
+  const m = Math.min(elWpx, elHpx)
+  const bw = el.border ? Math.max(1, (el.border.w / 200) * m) : 0
+  const L = -elWpx / 2, T = -elHpx / 2
+  if (el.shadow) {
+    ctx.save()
+    ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 0.085 * m; ctx.shadowOffsetY = 0.03 * m
+    ctx.fillStyle = el.border ? el.border.color : '#ffffff'
+    ctx.fillRect(L, T, elWpx, elHpx)   // la card piena proietta l'ombra (come box-shadow del DOM)
+    ctx.restore()
+  }
+  if (el.border) { ctx.fillStyle = el.border.color; ctx.fillRect(L, T, elWpx, elHpx) }
+  const ix = L + bw, iy = T + bw, iw = elWpx - 2 * bw, ih = elHpx - 2 * bw
+  if (img) drawCellImage(ctx, img, ix, iy, iw, ih, el.cell)
+  else { ctx.fillStyle = '#ebebeb'; ctx.fillRect(ix, iy, iw, ih) }
+}
+
 export type UrlResolver = (mediaId: string) => string
 
 // URL del proxy edge che restituisce l'ORIGINALE Drive in alta risoluzione (autorizzato dal grant).
@@ -215,10 +239,9 @@ export async function drawPageInto(ctx: CanvasRenderingContext2D, page: AlbumPag
       const elWpx = el.w * wpx, elHpx = el.h * hpx
       const cxp = ox + (el.x + el.w / 2) * wpx, cyp = (el.y + el.h / 2) * hpx
       ctx.save(); ctx.translate(cxp, cyp); ctx.rotate((el.rot * Math.PI) / 180)
-      if (el.shadow) { ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 0.03 * Math.min(elWpx, elHpx); ctx.shadowOffsetY = 0.012 * elHpx }
-      try { const img = await loadImage(resolve(el.mediaId)); drawCellImage(ctx, img, -elWpx / 2, -elHpx / 2, elWpx, elHpx, el.cell) } catch { ctx.fillStyle = '#ebebeb'; ctx.fillRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
-      ctx.shadowColor = 'transparent'
-      if (el.border) { ctx.lineWidth = Math.max(1, el.border.w * pxPerMm); ctx.strokeStyle = el.border.color; ctx.strokeRect(-elWpx / 2, -elHpx / 2, elWpx, elHpx) }
+      let img: HTMLImageElement | null = null
+      try { img = await loadImage(resolve(el.mediaId)) } catch { img = null }
+      drawFreeCardAtOrigin(ctx, elWpx, elHpx, el, img)
       ctx.restore()
     }
   } else {

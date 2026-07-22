@@ -39,6 +39,7 @@ type Style = { rot?: number; border?: FreeEl['border']; shadow?: boolean }
 // y/h = frazione altezza. Lo trasformo in coord. strip: x_strip = (k + x)/n, w_strip = w/n.
 type Rect = { x: number; y: number; w: number; h: number } & Style
 const white = { w: 12, color: '#ffffff' }
+const dark = { w: 3, color: '#111111' }
 const gx = 0.02, gy = 0.02   // gutter locale
 
 const styled = (base: FreeEl, s: Style): FreeEl => ({ ...base, rot: s.rot ?? 0, border: s.border, shadow: s.shadow })
@@ -167,6 +168,76 @@ export const CAROUSEL_MODELS: CarouselModel[] = [
 
 export function getModel(key: string): CarouselModel {
   return CAROUSEL_MODELS.find((m) => m.key === key) ?? CAROUSEL_MODELS[0]!
+}
+
+// ── IMPAGINAZIONI PER SINGOLA TAVOLA, RAGGRUPPATE PER NUMERO DI FOTO ─────────────
+// Il fotografo sceglie QUANTE foto ha su una tavola e riceve diverse impaginazioni per quel numero.
+// rects in coord LOCALI della slide (0..1); vengono rimappati sulla tavola k dalla pagina.
+export type SlideLayout = { key: string; label: string; rects: Rect[] }
+
+// Griglia generica cols×rows dentro il riquadro (x0,y0,W,H) con gutter uniforme.
+const grid = (cols: number, rows: number, x0 = 0, y0 = 0, W = 1, H = 1): Rect[] => {
+  const w = (W - (cols - 1) * gx) / cols, h = (H - (rows - 1) * gy) / rows
+  const out: Rect[] = []
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) out.push({ x: x0 + c * (w + gx), y: y0 + r * (h + gy), w, h })
+  return out
+}
+const rowL = (k: number, y = 0, h = 1, x0 = 0, W = 1): Rect[] => grid(k, 1, x0, y, W, h)
+const colL = (k: number, x = 0, w = 1, y0 = 0, H = 1): Rect[] => grid(1, k, x, y0, w, H)
+
+export const SLIDE_LAYOUTS: Record<number, SlideLayout[]> = {
+  1: [
+    { key: '1-full', label: 'Piena', rects: [{ x: 0, y: 0, w: 1, h: 1 }] },
+    { key: '1-margin', label: 'Con margine', rects: [{ x: 0.07, y: 0.055, w: 0.86, h: 0.89 }] },
+    { key: '1-portrait', label: 'Ritratto', rects: [{ x: 0.2, y: 0.07, w: 0.6, h: 0.86 }] },
+    { key: '1-bottom', label: 'Ancorata basso', rects: [{ x: 0, y: 0.34, w: 1, h: 0.66 }] },
+    { key: '1-passe', label: 'Passepartout', rects: [{ x: 0.18, y: 0.22, w: 0.64, h: 0.5 }] },
+    { key: '1-polaroid', label: 'Polaroid', rects: [{ x: 0.11, y: 0.09, w: 0.78, h: 0.68, border: white, shadow: true, rot: -2.5 }] },
+    { key: '1-hairline', label: 'Filo', rects: [{ x: 0.05, y: 0.04, w: 0.9, h: 0.92, border: dark }] },
+  ],
+  2: [
+    { key: '2-cols', label: 'Affiancate', rects: rowL(2) },
+    { key: '2-rows', label: 'Impilate', rects: colL(2) },
+    { key: '2-bigL', label: 'Grande + piccola', rects: [{ x: 0, y: 0, w: 0.64, h: 1 }, { x: 0.66, y: 0.24, w: 0.34, h: 0.52 }] },
+    { key: '2-offset', label: 'Sfalsate', rects: [{ x: 0.04, y: 0.05, w: 0.6, h: 0.5, shadow: true }, { x: 0.36, y: 0.45, w: 0.6, h: 0.5, shadow: true }] },
+    { key: '2-dip', label: 'Dittico a filo', rects: [{ x: 0, y: 0, w: 0.498, h: 1 }, { x: 0.502, y: 0, w: 0.498, h: 1 }] },
+    { key: '2-polas', label: 'Due polaroid', rects: [{ x: 0.03, y: 0.08, w: 0.5, h: 0.62, border: white, shadow: true, rot: -3 }, { x: 0.47, y: 0.3, w: 0.5, h: 0.62, border: white, shadow: true, rot: 3 }] },
+  ],
+  3: [
+    { key: '3-bands', label: 'Tre bande', rects: rowL(3) },
+    { key: '3-rows', label: 'Tre righe', rects: colL(3) },
+    { key: '3-Lbig', label: 'Grande + due', rects: [{ x: 0, y: 0, w: 0.6, h: 1 }, ...colL(2, 0.62, 0.38) as Rect[]] },
+    { key: '3-strip', label: 'Provini', rects: [{ x: 0.02, y: 0.37, w: 0.3, h: 0.26 }, { x: 0.35, y: 0.37, w: 0.3, h: 0.26 }, { x: 0.68, y: 0.37, w: 0.3, h: 0.26 }] },
+    { key: '3-topbig', label: 'Grande sopra', rects: [{ x: 0, y: 0, w: 1, h: 0.6 }, { x: 0, y: 0.62, w: 0.49, h: 0.38 }, { x: 0.51, y: 0.62, w: 0.49, h: 0.38 }] },
+    { key: '3-scrap', label: 'Scrapbook', rects: [{ x: 0.03, y: 0.06, w: 0.5, h: 0.5, border: white, shadow: true, rot: -4 }, { x: 0.5, y: 0.02, w: 0.46, h: 0.46, border: white, shadow: true, rot: 3 }, { x: 0.25, y: 0.5, w: 0.5, h: 0.46, border: white, shadow: true, rot: -2 }] },
+  ],
+  4: [
+    { key: '4-grid', label: 'Griglia 2×2', rects: grid(2, 2) },
+    { key: '4-row', label: 'In fila', rects: rowL(4) },
+    { key: '4-bigL', label: 'Grande + tre', rects: [{ x: 0, y: 0, w: 0.6, h: 1 }, ...colL(3, 0.62, 0.38) as Rect[]] },
+    { key: '4-topstrip', label: '1 + fila di 3', rects: [{ x: 0, y: 0, w: 1, h: 0.62 }, ...rowL(3, 0.64, 0.36) as Rect[]] },
+    { key: '4-scrap', label: 'Scrapbook', rects: [{ x: 0.04, y: 0.05, w: 0.44, h: 0.44, border: white, shadow: true, rot: -4 }, { x: 0.5, y: 0.08, w: 0.44, h: 0.44, border: white, shadow: true, rot: 3 }, { x: 0.06, y: 0.5, w: 0.44, h: 0.44, border: white, shadow: true, rot: 2.5 }, { x: 0.5, y: 0.52, w: 0.44, h: 0.44, border: white, shadow: true, rot: -3 }] },
+  ],
+  5: [
+    { key: '5-2-3', label: '2 sopra · 3 sotto', rects: [...rowL(2, 0, 0.49) as Rect[], ...rowL(3, 0.51, 0.49) as Rect[]] },
+    { key: '5-bigL', label: 'Grande + quattro', rects: [{ x: 0, y: 0, w: 0.6, h: 1 }, ...grid(2, 2, 0.62, 0, 0.38, 1) as Rect[]] },
+    { key: '5-3-2', label: '3 sopra · 2 sotto', rects: [...rowL(3, 0, 0.49) as Rect[], ...rowL(2, 0.51, 0.49) as Rect[]] },
+    { key: '5-row', label: 'In fila', rects: rowL(5) },
+  ],
+  6: [
+    { key: '6-2x3', label: 'Griglia 2×3', rects: grid(2, 3) },
+    { key: '6-3x2', label: 'Griglia 3×2', rects: grid(3, 2) },
+    { key: '6-bigL', label: 'Grande + cinque', rects: [{ x: 0, y: 0, w: 0.62, h: 1 }, ...grid(1, 5, 0.64, 0, 0.36, 1) as Rect[]] },
+    { key: '6-contact', label: 'Provinato', rects: grid(3, 2, 0.04, 0.1, 0.92, 0.8) },
+  ],
+}
+
+// Numero massimo di foto per cui offriamo impaginazioni pronte (oltre, si compone a mano).
+export const MAX_LAYOUT_PHOTOS = 6
+
+// Costruisce gli elementi di UN layout sulla tavola k: le foto `ids` (in ordine) riempiono i rects.
+export function buildSlideLayoutEls(rects: Rect[], n: number, k: number, ids: string[]): FreeEl[] {
+  return rects.map((r, i) => styled(el(ids[i] ?? '', (k + r.x) / n, r.y, r.w / n, r.h), r))
 }
 
 // ── TESTO ─────────────────────────────────────────────────────────────────────

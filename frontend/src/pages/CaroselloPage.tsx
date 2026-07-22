@@ -4,7 +4,7 @@ import {
   ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
   ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2, Maximize2,
   Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight,
-  ChevronDown, LayoutGrid, Newspaper, Palette, Image as ImageIcon,
+  ChevronDown, LayoutGrid, Palette, Image as ImageIcon,
 } from 'lucide-react'
 import type { Cell } from '@/lib/albumGeometry'
 import { toast } from 'sonner'
@@ -13,8 +13,8 @@ import { supabase } from '@/lib/supabase'
 import { coverImgStyle, coverWindow, DEFAULT_CELL } from '@/lib/albumGeometry'
 import { type FreeEl, type Corner } from '@/lib/albumFree'
 import type { AlbumPage } from '@/lib/albumEngine'
-import { CAROUSEL_FORMATS, getCarouselFormat, DEFAULT_CAROUSEL_FORMAT, CAROUSEL_MODELS, getModel, CAROUSEL_FONTS, getFontFamily, TEXT_PRESETS, newText, CAROUSEL_PRESETS, getPreset, type TextEl } from '@/lib/caroselloModels'
-import { exportCaroselloZip } from '@/lib/caroselloExport'
+import { CAROUSEL_FORMATS, getCarouselFormat, DEFAULT_CAROUSEL_FORMAT, getModel, SLIDE_LAYOUTS, buildSlideLayoutEls, MAX_LAYOUT_PHOTOS, CAROUSEL_FONTS, getFontFamily, TEXT_PRESETS, newText, type SlideLayout, type TextEl } from '@/lib/caroselloModels'
+import { exportCaroselloZip, exportCaroselloSlide } from '@/lib/caroselloExport'
 import { hiResProxyUrl } from '@/lib/albumExport'
 import { getDriveToken, ensureDriveFolder, uploadAnyToDrive, driveDownloadUrl } from '@/lib/driveUpload'
 
@@ -40,6 +40,47 @@ function Menu({ label, icon: Ic, width = 'w-60', children }: { label: string; ic
           {children}
         </div>
       )}
+    </div>
+  )
+}
+
+// Mini-anteprima SVG di un layout: i rettangoli mostrano dove finiranno le foto (aspetto ~4:5).
+function LayoutMini({ rects }: { rects: SlideLayout['rects'] }) {
+  return (
+    <svg viewBox="0 0 80 100" className="w-full h-full block">
+      <rect x="0" y="0" width="80" height="100" className="fill-[rgb(var(--bg-sunken))]" />
+      {rects.map((r, i) => {
+        const cx = (r.x + r.w / 2) * 80, cy = (r.y + r.h / 2) * 100
+        return <rect key={i} x={r.x * 80} y={r.y * 100} width={r.w * 80} height={r.h * 100}
+          transform={r.rot ? `rotate(${r.rot} ${cx} ${cy})` : undefined}
+          className="fill-[rgb(var(--gold-400))]" stroke={r.border ? '#ffffff' : undefined} strokeWidth={r.border ? 1.5 : 0} />
+      })}
+    </svg>
+  )
+}
+
+// Selettore impaginazioni per UNA tavola: scegli quante foto ci sono e ti mostra le opzioni per quel
+// numero. `photoCount` = foto attualmente sulla tavola (default del chip). onPick applica il layout.
+function LayoutPicker({ photoCount, onPick }: { photoCount: number; onPick: (rects: SlideLayout['rects']) => void }) {
+  const [cnt, setCnt] = useState(Math.min(MAX_LAYOUT_PHOTOS, Math.max(1, photoCount || 1)))
+  const layouts = SLIDE_LAYOUTS[cnt] ?? []
+  return (
+    <div>
+      <div className="flex items-center gap-1 mb-2 flex-wrap">
+        <span className="text-[11px] text-[rgb(var(--fg-subtle))] mr-0.5">Foto sulla tavola</span>
+        {Array.from({ length: MAX_LAYOUT_PHOTOS }, (_, i) => i + 1).map((k) => (
+          <button key={k} onClick={() => setCnt(k)} className={`h-7 w-7 rounded-md text-xs font-semibold shrink-0 ${cnt === k ? 'bg-[rgb(var(--gold-500))] text-white' : 'border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{k}</button>
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {layouts.map((l) => (
+          <button key={l.key} onClick={() => onPick(l.rects)} title={l.label}
+            className="rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-400))] hover:ring-1 hover:ring-[rgb(var(--gold-300))] overflow-hidden bg-[rgb(var(--bg))] p-1 text-left transition-colors">
+            <div className="aspect-[4/5] w-full overflow-hidden rounded"><LayoutMini rects={l.rects} /></div>
+            <span className="block text-[10px] text-center text-[rgb(var(--fg-muted))] truncate mt-0.5">{l.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -259,73 +300,33 @@ export default function CaroselloPage() {
   function undo() { const h = histRef.current.pop(); if (!h) return; futRef.current.push(cur.current); setStrip(h.strip); setTexts(h.texts); setSelId(null); setSelText(null); setModelKey(null); syncUR() }
   function redo() { const f = futRef.current.pop(); if (!f) return; histRef.current.push(cur.current); setStrip(f.strip); setTexts(f.texts); setSelId(null); setSelText(null); syncUR() }
 
-  // Ambito di applicazione di modelli/preset: TUTTE le slide oppure SOLO la pagina (foglio) corrente.
-  const [perPage, setPerPage] = useState(false)
   const slideOf = (g: { x: number; w: number }) => Math.floor((g.x + g.w / 2) * n)
-  // Rimappa elementi/testi costruiti per UNA slide (coord. 0..1) dentro la slide k della strip.
-  function remapToSlide<T extends { x: number; w: number; id: string }>(arr: T[], k: number): T[] {
-    return arr.map((e) => ({ ...e, id: uid(), x: (k + e.x) / n, w: e.w / n }))
-  }
-  // Foto ancora non usate nella strip (per pre-riempire un modello sulla singola pagina senza ripetere).
+  // Foto ancora non usate nella strip (per pre-riempire un layout sulla tavola senza ripetere).
   function unusedIds(): string[] {
     const used = new Set(elements.map((e) => e.mediaId).filter(Boolean))
     return keptIds.filter((id) => !used.has(id))
   }
 
-  function applyModel(key: string) {
-    snapshot()
-    const model = getModel(key)
-    if (perPage) {                                   // solo la pagina corrente
-      const k = curSlide
-      const built = remapToSlide(model.build(1, unusedIds()), k)
-      setElements([...elements.filter((e) => slideOf(e) !== k), ...built])
-      setModelKey(null); setSelId(null); setSelText(null)
-      toast.success(`Modello "${model.label}" sulla pagina ${k + 1}`)
-      return
-    }
-    setElements(model.build(n, keptIds))
-    setModelKey(key)
-    setSelId(null); setSelText(null)
+  // Foto attualmente su una tavola k, in ordine di lettura (alto→basso, sx→dx).
+  function idsOnSlide(k: number): string[] {
+    return elements.filter((e) => e.mediaId && slideOf(e) === k)
+      .sort((a, b) => (a.y - b.y) || (a.x - b.x)).map((e) => e.mediaId)
   }
-  // Preset PRONTO: mette foto + testi già composti (sostituisci solo le foto / cambia i testi).
-  function applyPreset(key: string) {
-    const preset = getPreset(key); if (!preset) return
+  // Impagina la tavola k con un LAYOUT scelto (rects locali 0..1): preserva le foto già presenti in
+  // ordine; se il layout ha più slot delle foto attuali, riempie con foto non ancora usate.
+  function applyLayoutToSlide(rects: SlideLayout['rects'], k: number) {
     snapshot()
-    if (perPage) {                                   // solo la pagina corrente
-      const k = curSlide
-      const built = preset.build(1, unusedIds())
-      setElements([...elements.filter((e) => slideOf(e) !== k), ...remapToSlide(built.elements, k)])
-      setTexts([...texts.filter((t) => slideOf(t) !== k), ...remapToSlide(built.texts, k)])
-      setModelKey(null); setSelId(null); setSelText(null)
-      toast.success(`Preset "${preset.label}" sulla pagina ${k + 1} · sostituisci foto e testi`)
-      return
-    }
-    const built = preset.build(n, keptIds)
-    setElements(built.elements); setTexts(built.texts); setModelKey(null); setSelId(null); setSelText(null)
-    toast.success(`Preset "${preset.label}" applicato · sostituisci le foto e cambia i testi`)
-  }
-  // Applica un MODELLO a UNA tavola specifica (k), sostituendo solo i suoi elementi. Usato dai controlli
-  // per-tavola: ogni foglio decide quante foto e che layout, indipendentemente dagli altri.
-  function applyModelToSlide(key: string, k: number) {
-    snapshot()
-    const built = remapToSlide(getModel(key).build(1, unusedIds()), k)
+    const ids = idsOnSlide(k)
+    if (rects.length > ids.length) ids.push(...unusedIds().filter((id) => !ids.includes(id)).slice(0, rects.length - ids.length))
+    const built = buildSlideLayoutEls(rects, n, k, ids)
     setElements([...elements.filter((e) => slideOf(e) !== k), ...built])
     setModelKey(null); setSelId(null); setSelText(null)
   }
-  function applyPresetToSlide(key: string, k: number) {
-    const preset = getPreset(key); if (!preset) return
-    snapshot()
-    const built = preset.build(1, unusedIds())
-    setElements([...elements.filter((e) => slideOf(e) !== k), ...remapToSlide(built.elements, k)])
-    setTexts([...texts.filter((t) => slideOf(t) !== k), ...remapToSlide(built.texts, k)])
-    setModelKey(null); setSelId(null); setSelText(null)
-    toast.success(`Preset "${preset.label}" sulla tavola ${k + 1}`)
-  }
-  // Scorciatoia "quante foto" per la singola tavola.
-  const COUNT_MODEL: Record<number, string> = { 1: 'one', 2: 'cols2', 3: 'bands3', 4: 'grid4', 6: 'grid6' }
+  // Chip rapido "quante foto": applica il PRIMO layout per quel numero.
   function applyCountToSlide(cnt: number, k: number) {
-    applyModelToSlide(COUNT_MODEL[cnt] ?? 'one', k)
-    toast.success(`Tavola ${k + 1}: ${cnt} ${cnt === 1 ? 'foto' : 'foto'}`)
+    const l = (SLIDE_LAYOUTS[cnt] ?? [])[0]; if (!l) return
+    applyLayoutToSlide(l.rects, k)
+    toast.success(`Tavola ${k + 1}: ${cnt} foto`)
   }
   const [tavolaMenu, setTavolaMenu] = useState<number | null>(null)
   // Navigazione tra le (fino a 20) pagine. Uso i bounding rect REALI (robusto a padding/centratura):
@@ -515,6 +516,19 @@ export default function CaroselloPage() {
     } catch (e) { toast.error(`Export non riuscito: ${(e as Error).message}`) }
     finally { revoke(); setExporting(false); setExportProg(null) }
   }
+  // Esporta SOLO la tavola che stai guardando (curSlide) come singolo JPG — utile per rigenerare
+  // una slide senza riscaricare tutto il carosello.
+  async function exportOneSlide() {
+    if (exporting || driveBusy) return
+    if (!elements.some((e) => e.mediaId && slideOf(e) === curSlide)) { toast.error('Questa tavola è vuota'); return }
+    setExporting(true)
+    const { resolve, revoke } = await buildBlobResolver()
+    try {
+      await exportCaroselloSlide(strip, fmt.w, fmt.h, n, curSlide, resolve, { texts, filename: `slide-${String(curSlide + 1).padStart(2, '0')}.jpg` })
+      toast.success(`Tavola ${curSlide + 1} esportata`)
+    } catch (e) { toast.error(`Export non riuscito: ${(e as Error).message}`) }
+    finally { revoke(); setExporting(false) }
+  }
   async function saveToDrive() {
     if (exporting || driveBusy) return
     if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
@@ -549,8 +563,9 @@ export default function CaroselloPage() {
             <button onClick={undo} disabled={!canUndo} title="Annulla (Cmd/Ctrl+Z)" className="p-1.5 rounded-md disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))]"><Undo2 size={16} /></button>
             <button onClick={redo} disabled={!canRedo} title="Ripeti (Cmd/Ctrl+Shift+Z)" className="p-1.5 rounded-md disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))]"><Redo2 size={16} /></button>
           </div>
+          <Button variant="outline" size="sm" disabled={exporting || driveBusy} onClick={() => void exportOneSlide()} title={`Esporta solo la tavola ${curSlide + 1} come singola immagine`}><Download size={14} /> Tavola {curSlide + 1}</Button>
           <Button variant="outline" size="sm" disabled={exporting || driveBusy} onClick={() => void saveToDrive()} title="Salva le slide sul tuo Google Drive e copia il link">{driveBusy ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Drive</Button>
-          <Button variant="gold" size="sm" disabled={exporting || driveBusy} onClick={() => void exportZip()}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Esporta per Instagram</Button>
+          <Button variant="gold" size="sm" disabled={exporting || driveBusy} onClick={() => void exportZip()}>{exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} <span className="hidden sm:inline">Esporta per Instagram</span><span className="sm:hidden">Esporta</span></Button>
         </div>
       </header>
 
@@ -568,53 +583,11 @@ export default function CaroselloPage() {
         </div>
         <span className="mx-0.5 h-5 w-px bg-[rgb(var(--border))]" />
 
-        {/* AMBITO: modelli e preset su TUTTE le slide o solo sulla pagina corrente (singolo foglio) */}
-        <div className="inline-flex items-center rounded-lg border border-[rgb(var(--border))] overflow-hidden text-xs shrink-0" title="Dove applicare Modelli e Preset">
-          <button onClick={() => setPerPage(false)} className={`px-2 py-1 ${!perPage ? 'bg-[rgb(var(--gold-500))] text-white' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>Tutte</button>
-          <button onClick={() => setPerPage(true)} className={`px-2 py-1 ${perPage ? 'bg-[rgb(var(--gold-500))] text-white' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}>Pagina {curSlide + 1}</button>
-        </div>
-        <span className="mx-0.5 h-5 w-px bg-[rgb(var(--border))]" />
-
-        {/* QUESTA TAVOLA: preset (1 o più foto) applicati SOLO alla pagina corrente, sempre. */}
-        <Menu label={`Tavola ${curSlide + 1}`} icon={LayoutGrid} width="w-[min(92vw,440px)]">
-          <p className="px-1 pt-0.5 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Preset per QUESTA tavola (una o più foto)</p>
-          <div className="grid grid-cols-2 gap-0.5">
-            {CAROUSEL_MODELS.filter((m) => (m.group ?? 'base') === 'base').map((m) => (
-              <button key={m.key} title={m.hint} onClick={() => applyModelToSlide(m.key, curSlide)} className="text-xs text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))]">{m.label}</button>
-            ))}
-          </div>
-          <p className="px-1 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Editoriale</p>
-          <div className="grid grid-cols-2 gap-0.5">
-            {CAROUSEL_MODELS.filter((m) => m.group === 'editoriale').map((m) => (
-              <button key={m.key} title={m.hint} onClick={() => applyModelToSlide(m.key, curSlide)} className="text-xs text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))]">{m.label}</button>
-            ))}
-          </div>
-        </Menu>
-
-        {/* MODELLI (solo disposizione foto) — rispettano l'ambito Tutte/Pagina qui sopra */}
-        <Menu label="Modelli" icon={LayoutGrid} width="w-[min(92vw,440px)]">
-          <p className="px-1 pt-0.5 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Impaginazioni</p>
-          <div className="grid grid-cols-2 gap-0.5">
-            {CAROUSEL_MODELS.filter((m) => (m.group ?? 'base') === 'base').map((m) => (
-              <button key={m.key} title={m.hint} onClick={() => applyModel(m.key)} className={`text-xs text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))] ${modelKey === m.key ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : ''}`}>{m.label}</button>
-            ))}
-          </div>
-          <p className="px-1 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Editoriale</p>
-          <div className="grid grid-cols-2 gap-0.5">
-            {CAROUSEL_MODELS.filter((m) => m.group === 'editoriale').map((m) => (
-              <button key={m.key} title={m.hint} onClick={() => applyModel(m.key)} className={`text-xs text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))] ${modelKey === m.key ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : ''}`}>{m.label}</button>
-            ))}
-          </div>
-        </Menu>
-
-        {/* PRESET PRONTI (foto + testo già composti) */}
-        <Menu label="Preset pronti" icon={Newspaper} width="w-[min(92vw,380px)]">
-          {CAROUSEL_PRESETS.map((p) => (
-            <button key={p.key} onClick={() => applyPreset(p.key)} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[rgb(var(--bg-sunken))]">
-              <span className="text-sm font-medium block">{p.label}</span>
-              <span className="text-[11px] text-[rgb(var(--fg-muted))] block">{p.hint}</span>
-            </button>
-          ))}
+        {/* IMPAGINA QUESTA TAVOLA: scegli quante foto ci sono e ricevi diverse impaginazioni per quel
+            numero. Si applica SOLO alla tavola che stai guardando (curSlide). */}
+        <Menu label={`Impagina tavola ${curSlide + 1}`} icon={LayoutGrid} width="w-[min(94vw,420px)]">
+          <p className="px-1 pt-0.5 pb-2 text-[11px] text-[rgb(var(--fg-muted))]">Impaginazioni per la <strong>tavola {curSlide + 1}</strong>, in base a quante foto ci metti.</p>
+          <LayoutPicker key={curSlide} photoCount={idsOnSlide(curSlide).length} onPick={(rects) => applyLayoutToSlide(rects, curSlide)} />
         </Menu>
 
         {/* TESTO */}
@@ -764,30 +737,18 @@ export default function CaroselloPage() {
                   <button onClick={() => goToSlide(i)} title={`Centra la pagina ${i + 1}`}
                     className="text-[11px] font-bold text-white mix-blend-difference px-1 pointer-events-auto hover:underline">{i + 1}</button>
                   <div className="ml-auto flex items-center gap-0.5 rounded-md bg-black/55 px-1 py-0.5 pointer-events-auto">
-                    {[1, 2, 3, 4, 6].map((cnt) => (
+                    {[1, 2, 3, 4, 5, 6].map((cnt) => (
                       <button key={cnt} onClick={() => applyCountToSlide(cnt, i)} title={`${cnt} foto in questa tavola`}
-                        className="text-[10px] font-semibold text-white hover:text-[rgb(var(--gold-300))] w-3.5 text-center leading-none">{cnt}</button>
+                        className="text-[10px] font-semibold text-white hover:text-[rgb(var(--gold-300))] w-3 text-center leading-none">{cnt}</button>
                     ))}
-                    <button onClick={() => setTavolaMenu((m) => (m === i ? null : i))} title="Altri layout e preset per questa tavola"
+                    <button onClick={() => setTavolaMenu((m) => (m === i ? null : i))} title="Altre impaginazioni per questa tavola"
                       className="text-white/90 hover:text-white pl-0.5"><ChevronDown size={12} /></button>
                   </div>
                 </div>
                 {tavolaMenu === i && (
-                  <div className="absolute right-1 top-8 z-50 w-48 max-h-[52vh] overflow-auto rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-xl p-1.5 pointer-events-auto" onPointerDown={(e) => e.stopPropagation()}>
-                    <p className="px-1 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Layout · tavola {i + 1}</p>
-                    <div className="grid grid-cols-2 gap-0.5">
-                      {CAROUSEL_MODELS.filter((m) => (m.group ?? 'base') === 'base').map((m) => (
-                        <button key={m.key} title={m.hint} onClick={() => { applyModelToSlide(m.key, i); setTavolaMenu(null) }}
-                          className="text-[11px] text-left px-1.5 py-1 rounded hover:bg-[rgb(var(--bg-sunken))]">{m.label}</button>
-                      ))}
-                    </div>
-                    <p className="px-1 pt-1.5 pb-1 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Preset (foto + testo)</p>
-                    <div className="flex flex-col gap-0.5">
-                      {CAROUSEL_PRESETS.map((p) => (
-                        <button key={p.key} onClick={() => { applyPresetToSlide(p.key, i); setTavolaMenu(null) }}
-                          className="text-[11px] text-left px-1.5 py-1 rounded hover:bg-[rgb(var(--bg-sunken))]">{p.label}</button>
-                      ))}
-                    </div>
+                  <div className="absolute right-1 top-8 z-50 w-[min(88vw,340px)] max-h-[60vh] overflow-auto rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-xl p-2 pointer-events-auto" onPointerDown={(e) => e.stopPropagation()}>
+                    <p className="px-0.5 pb-1.5 text-[11px] text-[rgb(var(--fg-muted))]">Impaginazioni · <strong>tavola {i + 1}</strong></p>
+                    <LayoutPicker key={i} photoCount={idsOnSlide(i).length} onPick={(rects) => { applyLayoutToSlide(rects, i); setTavolaMenu(null) }} />
                   </div>
                 )}
               </div>
