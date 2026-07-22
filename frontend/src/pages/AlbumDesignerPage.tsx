@@ -437,6 +437,7 @@ function AlbumDesignerInner() {
   const [selGuide, setSelGuide] = useState<{ axis: 'v' | 'h'; index: number } | null>(null) // righello selezionato (Canc per eliminarlo)
   const canvasRef = useRef<HTMLDivElement>(null)
   const filmstripRef = useRef<HTMLDivElement>(null) // navigatore tavole (per auto-scroll durante il drag)
+  const spreadAnchor = useRef<number | null>(null) // àncora per la selezione a intervallo (Shift) delle tavole
   const [canvasBox, setCanvasBox] = useState({ w: 0, h: 0 }) // area disponibile per la tavola (per il fit)
   const [previewOpen, setPreviewOpen] = useState(false) // anteprima sfogliabile
   const [previewIdx, setPreviewIdx] = useState(0)
@@ -457,6 +458,7 @@ function AlbumDesignerInner() {
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
   const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero "primario" (pannello/crop)
   const [multiSel, setMultiSel] = useState<string[]>([])        // selezione multipla (Shift) sulla tavola
+  const [selSpreads, setSelSpreads] = useState<Set<number>>(new Set()) // tavole selezionate nel navigatore (Shift) da spostare insieme
   const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
   const [gutterMm, setGutterMm] = useState(3) // margine (mm) tra le foto quando si applica una disposizione
   const [momentFilter, setMomentFilter] = useState<string>('') // filtro libreria per "momento" (tag); '' = tutti
@@ -1754,6 +1756,41 @@ function AlbumDesignerInner() {
       blocks.splice(Math.max(0, Math.min(blocks.length, adj)), 0, moved!)
       return blocks.flat()
     })
+  }
+  // Sposta INSIEME più tavole (selezione Shift) nella posizione di rilascio, conservando il loro ordine.
+  function moveSpreadsInsert(fromList: number[], to: number) {
+    const froms = [...new Set(fromList)].filter((i) => Number.isInteger(i)).sort((a, b) => a - b)
+    if (froms.length < 1) return
+    const removedBefore = froms.filter((i) => i < to).length
+    const insAt = Math.max(0, to - removedBefore)
+    setPages((arr) => {
+      const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2))
+      const moving = froms.filter((i) => i >= 0 && i < blocks.length).map((i) => blocks[i]!)
+      if (!moving.length) return arr
+      const remaining = blocks.filter((_, i) => !froms.includes(i))
+      remaining.splice(Math.max(0, Math.min(remaining.length, insAt)), 0, ...moving)
+      return remaining.flat()
+    })
+    // la selezione segue il blocco spostato (evidenziata alla nuova posizione)
+    const next = new Set<number>(); for (let i = 0; i < froms.length; i++) next.add(insAt + i)
+    setSelSpreads(next); spreadAnchor.current = insAt
+  }
+  // Click su una tavola del navigatore: Shift = estende l'intervallo dall'àncora; senza Shift = selezione singola.
+  function selectSpread(si: number, shift: boolean, firstPageId?: string) {
+    if (shift && spreadAnchor.current != null) {
+      const lo = Math.min(spreadAnchor.current, si), hi = Math.max(spreadAnchor.current, si)
+      const range = new Set<number>(); for (let i = lo; i <= hi; i++) range.add(i)
+      setSelSpreads(range)
+    } else {
+      spreadAnchor.current = si
+      setSelSpreads(new Set([si]))
+      if (firstPageId) { setCurrentPageId(firstPageId); setActiveSlot(null); setSelEl(null); setMultiSel([]) }
+    }
+  }
+  // Rilascio del drag di una tavola: se fa parte di una selezione multipla, sposta l'intero blocco.
+  function reorderSpreads(from: number, to: number) {
+    if (selSpreads.size > 1 && selSpreads.has(from)) moveSpreadsInsert([...selSpreads], to)
+    else { setSelSpreads(new Set()); moveSpreadInsert(from, to) }
   }
   function delPage(id: string) { setPages((a) => removePage(a, id)); if (activePage === id) setActivePage(null) }
 
@@ -3494,6 +3531,13 @@ function AlbumDesignerInner() {
               )}
               {/* maniglia: alza/abbassa la striscia delle tavole (le miniature scalano) */}
               {!lite && <DragSize axis="y" onResize={(d) => setStripH((h) => clampPx(h - d, 48, 240))} className="h-1.5 shrink-0 cursor-row-resize bg-transparent hover:bg-[rgb(var(--gold-400))] transition-colors" />}
+              {/* selezione multipla tavole (Shift): quante ne sposto insieme */}
+              {!lite && selSpreads.size > 1 && (
+                <div className="flex items-center justify-between gap-2 px-2 py-1 bg-[rgb(var(--gold-100))] border-t border-[rgb(var(--gold-300))] text-[11px] text-[rgb(var(--gold-800))]">
+                  <span><strong>{selSpreads.size} tavole selezionate</strong> — trascinane una per spostarle insieme</span>
+                  <button onClick={() => { setSelSpreads(new Set()); spreadAnchor.current = null }} className="text-[rgb(var(--gold-700))] hover:underline shrink-0">Deseleziona</button>
+                </div>
+              )}
               {/* filmstrip TAVOLE (doppia pagina, come in stampa) */}
               <div ref={filmstripRef}
                 onDragOver={(e) => { const c = filmstripRef.current; if (!c) return; const r = c.getBoundingClientRect(); const EDGE = 72; if (e.clientX > r.right - EDGE) c.scrollLeft += 22; else if (e.clientX < r.left + EDGE) c.scrollLeft -= 22 }}
@@ -3501,13 +3545,13 @@ function AlbumDesignerInner() {
                 {spreads.map((pair, si) => (
                   <Fragment key={si}>
                     {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} onInsert={() => insertEmptyTavola(si)} gapIndex={si} h={stripH} />}
-                    <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
+                    <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} selected={selSpreads.has(si)} lite={lite} thumbH={stripH}
                       postit={postitByTav.get(si) ?? 0}
                       mediaById={mediaById} thumb={thumbUrl} formatKey={format}
-                      onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
+                      onSelect={(shift) => selectSpread(si, shift, (pair[0] ?? pair[1])!.id)}
                       onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
                       onMovePhotos={(pageId, move) => movePhotosToTavola(pageId, move)}
-                      onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => moveSpreadInsert(from, to)}
+                      onMove={(d) => moveSpread(si, d)} onDelete={() => delSpread(si)} onReorder={(from, to) => reorderSpreads(from, to)}
                       onContext={(x, y) => setNavMenu({ si, x, y })} />
                   </Fragment>
                 ))}
@@ -4999,14 +5043,14 @@ function GapDrop({ onDropPhoto, onMoveNewTavola, onInsert, gapIndex, h }: { onDr
 
 // Miniatura di una TAVOLA (2 pagine) con la filigrana del dorso al centro.
 function SpreadThumb(props: {
-  pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string; thumbH?: number
+  pair: AlbumPage[]; index: number; aspect: number; active: boolean; selected?: boolean; lite?: boolean; formatKey: string; thumbH?: number
   postit?: number
   mediaById: Map<string, M>; thumb: (m: M) => string
-  onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
+  onSelect: (shift: boolean) => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
   onMovePhotos?: (targetPageId: string, move: MovePayload) => void
   onReorder: (from: number, to: number) => void; onContext?: (x: number, y: number) => void
 }) {
-  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, postit = 0, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onMovePhotos, onReorder, onContext } = props
+  const { pair, index, aspect, active, selected, lite, formatKey, thumbH = 64, postit = 0, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onMovePhotos, onReorder, onContext } = props
   // drop di una foto trascinata dal navigatore: se ha il marcatore "move" la SPOSTA in questa tavola.
   const handleMediaDrop = (pageId: string, e: import('react').DragEvent) => {
     const mv = e.dataTransfer.getData('text/move')
@@ -5024,7 +5068,7 @@ function SpreadThumb(props: {
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { const side = over; setOver(false); const raw = e.dataTransfer.getData('text/spread'); if (raw === '') return; e.preventDefault(); e.stopPropagation(); const from = Number(raw); if (Number.isNaN(from)) return; const to = side === 'r' ? index + 1 : index; if (to !== from && to !== from + 1) onReorder(from, to) }}>
       {over && <div className={`absolute top-0 bottom-0 w-1 rounded bg-[rgb(var(--gold-500))] z-10 ${over === 'l' ? '-left-1.5' : '-right-1.5'}`} />}
-      <button onClick={onSelect} className={`relative flex overflow-hidden border bg-white ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'} ${!lite ? 'cursor-grab active:cursor-grabbing' : ''}`} style={{ height: thumbH, aspectRatio: String(w) }}>
+      <button onClick={(e) => onSelect(e.shiftKey)} className={`relative flex overflow-hidden border bg-white ${active ? 'ring-2 ring-[rgb(var(--gold-500))] border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))]'} ${!lite ? 'cursor-grab active:cursor-grabbing' : ''}`} style={{ height: thumbH, aspectRatio: String(w) }}>
         {pair[0]?.tavolaFree ? (
           <div className="relative h-full w-full"
             onDragOver={(e) => { if (e.dataTransfer.types.includes('text/media')) e.preventDefault() }} onDrop={(e) => handleMediaDrop(pair[0]!.id, e)}>
@@ -5039,7 +5083,8 @@ function SpreadThumb(props: {
         {!pair[0]?.tavolaFree && pair[0]?.spreadImage && (() => { const m = mediaById.get(pair[0]!.spreadImage!.mediaId); return m ? <SpreadImg src={thumb(m)} cell={pair[0]!.spreadImage!.cell} frame={spreadFrameOf(pair[0]!.spreadImage)} pointerNone /> : null })()}
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.5)] pointer-events-none" />}
       </button>
-      <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">Tav. {index + 1}</span>
+      {selected && <div className="pointer-events-none absolute inset-0 z-[6] ring-2 ring-inset ring-[rgb(var(--gold-500))] bg-[rgb(var(--gold-500))]/15" />}
+      <span className={`absolute -top-1.5 left-1 text-[9px] text-white rounded px-1 ${selected ? 'bg-[rgb(var(--gold-600))]' : 'bg-black/60'}`}>Tav. {index + 1}</span>
       {postit > 0 && (
         <span title={`${postit} richiest${postit === 1 ? 'a' : 'e'} di modifica su questa tavola`}
           className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-semibold flex items-center justify-center shadow ring-1 ring-white z-10">
