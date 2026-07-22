@@ -452,7 +452,6 @@ function AlbumDesignerInner() {
     const measure = () => setReaderBox({ w: el.clientWidth, h: el.clientHeight })
     const ro = new ResizeObserver(measure); ro.observe(el); measure(); readerRoRef.current = ro
   }, [])
-  const [clientReqOpen, setClientReqOpen] = useState(false)
   const [zoomSpread, setZoomSpread] = useState<number | null>(null)
   const [reqListOpen, setReqListOpen] = useState(false)
   const [cropFor, setCropFor] = useState<number | null>(null) // slot in ritaglio
@@ -1848,12 +1847,6 @@ function AlbumDesignerInner() {
     const r = ALBUM_REPLY_REASONS.find((x) => x.key === reasonKey)
     setReplyFor(id); setReplyReason(reasonKey); setReplyText(r?.hint ?? '')
   }
-  async function sendClientReq() {
-    if (!revBody.trim() || !entryId) return
-    const { error } = await (supabase.from as any)('album_revision_requests').insert({ entry_id: entryId, body: revBody.trim(), page_index: clientIdx * 2 + 1 })
-    if (error) { toast.error(error.message); return }
-    toast.success('Richiesta inviata al fotografo'); setRevBody(''); setClientReqOpen(false); await loadRevs()
-  }
   // ── POST-IT ancorati ───────────────────────────────────────────────────────
   // Tocco sulla tavola → (x,y) in 0..1 della tavola intera + foto sotto il dito (se tavolaFree).
   function hitMediaAt(tavLeft: AlbumPage | undefined, x: number, y: number): string | null {
@@ -2114,6 +2107,23 @@ function AlbumDesignerInner() {
   const spreads: AlbumPage[][] = []
   for (let i = 0; i < pages.length; i += 2) spreads.push(pages.slice(i, i + 2))
   const activeSpread = Math.floor(spreadStart / 2)
+  // Tavola "effettiva" di una richiesta: usa tavola_index (post-it ancorato), altrimenti
+  // ricava dalla pagina di riferimento; CLAMP nel range valido così i post-it di tavole
+  // spostate/tolte da una re-impaginazione non spariscono ma ricadono sulla tavola più vicina.
+  const clampTav = (t: number) => Math.min(Math.max(t, 0), Math.max(0, spreads.length - 1))
+  const effTav = (r: Postit): number | null =>
+    r.tavola_index != null ? clampTav(r.tavola_index)
+      : r.page_index != null ? clampTav(Math.floor((r.page_index - 1) / 2))
+        : null
+  // Quante richieste APERTE gravano su ogni tavola (per il badge sulla striscia).
+  const postitByTav = new Map<number, number>()
+  for (const r of revList) {
+    if (r.status !== 'OPEN') continue
+    const t = effTav(r)
+    if (t != null) postitByTav.set(t, (postitByTav.get(t) ?? 0) + 1)
+  }
+  // Salta alla tavola di una richiesta (dal pannello "Modifiche").
+  const goToTav = (si: number) => { const p = spreads[si]?.[0] ?? spreads[si]?.[1]; if (p) { setCurrentPageId(p.id); setActiveSlot(null); setSelEl(null) } }
   // altezza della tavola che FITTA l'area disponibile (sia in larghezza che in altezza), poi scalata dallo zoom
   const spreadCount = spreadPages.length || 1
   const fitH = canvasBox.h && canvasBox.w ? Math.min(canvasBox.h, canvasBox.w / (asp * spreadCount)) * 0.96 : 0
@@ -2606,12 +2616,12 @@ function AlbumDesignerInner() {
           placing={placing && placing.tav === si ? placing : null}
           composer={interactive && placing && placing.tav === si ? (
             <div className="rounded-md rounded-tl-none bg-amber-50 border border-amber-300 shadow-xl p-2.5 space-y-2 -rotate-1">
-              <p className="text-[11px] text-amber-800 font-medium">{placing.mediaId ? 'Su questa foto' : 'Su questo punto'} · Tav. {si + 1}</p>
+              <p className="text-[11px] text-amber-800 font-semibold">{placing.mediaId ? 'Cosa vuoi fare con questa foto?' : `Nota su questo punto · Tav. ${si + 1}`}</p>
               {placing.mediaId && (
-                <div className="flex gap-1">
-                  <button onClick={() => { setReplaceMode(false); setRemoveMode(false) }} className={`flex-1 text-[11px] py-1 rounded border ${!replaceMode && !removeMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>✍️ Nota</button>
-                  <button onClick={() => { setReplaceMode(true); setRemoveMode(false) }} className={`flex-1 text-[11px] py-1 rounded border ${replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}>Sostituisci</button>
-                  <button onClick={() => { setRemoveMode(true); setReplaceMode(false) }} className={`flex-1 inline-flex items-center justify-center gap-1 text-[11px] py-1 rounded border ${removeMode ? 'bg-rose-500 text-white border-rose-500' : 'border-rose-300 text-rose-600'}`}><ThumbsDown size={11} /> Togli</button>
+                <div className="grid grid-cols-3 gap-1">
+                  <button onClick={() => { setReplaceMode(false); setRemoveMode(false) }} className={`flex flex-col items-center gap-0.5 text-[10px] font-medium py-1.5 rounded border ${!replaceMode && !removeMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}><MessageSquare size={15} /> Nota</button>
+                  <button onClick={() => { setReplaceMode(true); setRemoveMode(false) }} className={`flex flex-col items-center gap-0.5 text-[10px] font-medium py-1.5 rounded border ${replaceMode ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-800'}`}><Shuffle size={15} /> Sostituisci</button>
+                  <button onClick={() => { setRemoveMode(true); setReplaceMode(false) }} className={`flex flex-col items-center gap-0.5 text-[10px] font-medium py-1.5 rounded border ${removeMode ? 'bg-rose-500 text-white border-rose-500' : 'border-rose-300 text-rose-600'}`}><Trash2 size={15} /> Togli</button>
                 </div>
               )}
               <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={2} autoFocus placeholder={removeMode ? 'Perché la toglieresti? (facoltativo)' : replaceMode ? 'Perché la cambieresti? (facoltativo)' : 'Cosa vorresti cambiare qui?'} className={`w-full text-sm rounded border bg-white/90 px-2 py-1.5 outline-none ${removeMode ? 'border-rose-300 focus:border-rose-500' : 'border-amber-300 focus:border-amber-500'}`} />
@@ -2776,7 +2786,6 @@ function AlbumDesignerInner() {
             <div className="flex items-center justify-between px-4 py-2 text-white" onClick={(e) => e.stopPropagation()}>
               <span className="text-sm">Pagine {zoomSpread * 2 + 1}–{zoomSpread * 2 + 2}</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="!text-white !border-white/30" onClick={() => { setClientIdx(zoomSpread); setClientReqOpen(true) }}><MessageSquare size={14} /> Nota generale</Button>
                 <button onClick={() => { setZoomSpread(null); setPlacing(null); setOpenPin(null) }} className="p-1.5 rounded hover:bg-white/10"><X size={20} className="text-white" /></button>
               </div>
             </div>
@@ -2792,21 +2801,6 @@ function AlbumDesignerInner() {
               </div>
             )}
             <p className="text-center text-white/70 text-xs pb-3">{isCouple ? 'Tocca una foto o un punto della tavola per lasciare un post-it · tocca una puntina per rileggerla' : 'Tocca una puntina per leggere il post-it'}</p>
-          </div>
-        )}
-
-        {/* foglio "richiedi modifica" */}
-        {clientReqOpen && (
-          <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setClientReqOpen(false)}>
-            <div className="bg-[rgb(var(--bg))] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
-              <p className="font-medium flex items-center gap-2"><MessageSquare size={16} /> Richiedi una modifica</p>
-              <p className="text-xs text-[rgb(var(--fg-muted))]">Riferita alle <strong>pagine {clientIdx * 2 + 1}–{clientIdx * 2 + 2}</strong>. Scrivi cosa vorresti cambiare (foto, posizione, ritaglio…): il fotografo la sistema.</p>
-              <textarea value={revBody} onChange={(e) => setRevBody(e.target.value)} rows={4} autoFocus placeholder="Es. Nella tavola 3, sposterei la foto grande a sinistra…" className="w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => setClientReqOpen(false)}>Annulla</Button>
-                <Button variant="gold" size="sm" disabled={!revBody.trim()} onClick={() => void sendClientReq()}>Invia al fotografo</Button>
-              </div>
-            </div>
           </div>
         )}
 
@@ -2888,7 +2882,7 @@ function AlbumDesignerInner() {
                   : revList.map((r) => (
                     <div key={r.id} className="rounded-lg border border-[rgb(var(--border))] p-2.5">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="text-[11px] text-[rgb(var(--fg-muted))]">{r.page_index ? `Tavola ${Math.ceil(r.page_index / 2)}` : 'Generale'}</span>
+                        <span className="text-[11px] text-[rgb(var(--fg-muted))]">{effTav(r) != null ? `Tavola ${(effTav(r) as number) + 1}${r.anchor_x != null ? (r.media_id ? ' · su una foto' : ' · su un punto') : ''}` : 'Generale'}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.status === 'OPEN' ? 'bg-amber-100 text-amber-700' : r.status === 'DECLINED' ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'}`}>{r.status === 'OPEN' ? 'In attesa' : r.status === 'DECLINED' ? 'Risposta dal fotografo' : 'Fatto'}</span>
                       </div>
                       <p className="text-sm">{r.body}</p>
@@ -3435,7 +3429,7 @@ function AlbumDesignerInner() {
                     {/* filigrana del dorso (solo editor, non in stampa) — in tavola unica la disegna la FreeStage */}
                     {spreadPages.length === 2 && !spreadPages[0]?.tavolaFree && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.55)] pointer-events-none z-50" title="Dorso (non viene stampato)" />}
                     {/* POST-IT del cliente, appuntati sulla tavola: il fotografo li legge e li segna fatti */}
-                    <PostitLayer pins={revList.filter((r) => r.anchor_x != null && r.tavola_index === activeSpread)} openId={openPin} onOpen={setOpenPin}
+                    <PostitLayer pins={revList.filter((r) => r.anchor_x != null && effTav(r) === activeSpread)} openId={openPin} onOpen={setOpenPin}
                       renderBubble={(p) => {
                         const isRepl = p.kind === 'REPLACE'
                         const rep = p.replace_media_id ? mediaById.get(p.replace_media_id) : null
@@ -3487,6 +3481,7 @@ function AlbumDesignerInner() {
                   <Fragment key={si}>
                     {!lite && <GapDrop onDropPhoto={(mid, x, y) => setGapInsert({ si, mediaId: mid, x, y })} onMoveNewTavola={(move) => moveNewTavola(si, move)} onInsert={() => insertEmptyTavola(si)} gapIndex={si} h={stripH} />}
                     <SpreadThumb pair={pair} index={si} aspect={asp} active={si === activeSpread} lite={lite} thumbH={stripH}
+                      postit={postitByTav.get(si) ?? 0}
                       mediaById={mediaById} thumb={thumbUrl} formatKey={format}
                       onSelect={() => { setCurrentPageId((pair[0] ?? pair[1])!.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) }}
                       onDropMedia={(pageId, id) => placeInto(pageId, null, id)}
@@ -4165,6 +4160,12 @@ function AlbumDesignerInner() {
                         <div className="min-w-0">
                           <p>{r.body}</p>
                           <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">— {r.author_name ?? 'Cliente'}{r.page_index ? ` · pag. ${r.page_index}` : ''}{r.status === 'DONE' ? ' · fatto ✓' : r.status === 'DECLINED' ? ' · risposto' : ''}</p>
+                          {effTav(r) != null && (
+                            <button onClick={() => { goToTav(effTav(r) as number); setRevOpen(false) }}
+                              className="mt-1 text-[11px] text-[rgb(var(--gold-700))] hover:underline inline-flex items-center gap-1">
+                              <MessageSquare size={11} /> Vai alla Tav. {(effTav(r) as number) + 1}{r.anchor_x != null ? ' · c’è la puntina' : ''}
+                            </button>
+                          )}
                         </div>
                         {!isCouple && r.status === 'OPEN' && (
                           <div className="shrink-0 flex items-center gap-1">
@@ -4959,12 +4960,13 @@ function GapDrop({ onDropPhoto, onMoveNewTavola, onInsert, gapIndex, h }: { onDr
 // Miniatura di una TAVOLA (2 pagine) con la filigrana del dorso al centro.
 function SpreadThumb(props: {
   pair: AlbumPage[]; index: number; aspect: number; active: boolean; lite?: boolean; formatKey: string; thumbH?: number
+  postit?: number
   mediaById: Map<string, M>; thumb: (m: M) => string
   onSelect: () => void; onMove: (d: -1 | 1) => void; onDelete: () => void; onDropMedia: (pageId: string, id: string) => void
   onMovePhotos?: (targetPageId: string, move: MovePayload) => void
   onReorder: (from: number, to: number) => void; onContext?: (x: number, y: number) => void
 }) {
-  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onMovePhotos, onReorder, onContext } = props
+  const { pair, index, aspect, active, lite, formatKey, thumbH = 64, postit = 0, mediaById, thumb, onSelect, onMove, onDelete, onDropMedia, onMovePhotos, onReorder, onContext } = props
   // drop di una foto trascinata dal navigatore: se ha il marcatore "move" la SPOSTA in questa tavola.
   const handleMediaDrop = (pageId: string, e: import('react').DragEvent) => {
     const mv = e.dataTransfer.getData('text/move')
@@ -4998,6 +5000,12 @@ function SpreadThumb(props: {
         {pair.length === 2 && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.5)] pointer-events-none" />}
       </button>
       <span className="absolute -top-1.5 left-1 text-[9px] bg-black/60 text-white rounded px-1">Tav. {index + 1}</span>
+      {postit > 0 && (
+        <span title={`${postit} richiest${postit === 1 ? 'a' : 'e'} di modifica su questa tavola`}
+          className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-semibold flex items-center justify-center shadow ring-1 ring-white z-10">
+          {postit}
+        </span>
+      )}
       {!lite && (
         <div className="absolute inset-x-0 -bottom-1 hidden group-hover:flex items-center justify-center gap-0.5">
           <button title="Sposta a sinistra" className="h-4 w-4 rounded bg-[rgb(var(--bg))] border border-[rgb(var(--border))] flex items-center justify-center" onClick={onMove.bind(null, -1)}><ChevronLeft size={10} /></button>
