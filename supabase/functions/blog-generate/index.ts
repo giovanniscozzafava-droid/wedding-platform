@@ -1,13 +1,12 @@
 // Edge function: blog-generate
 // Genera una bozza di articolo blog (IT, SEO) a partire da uno spunto: la
-// caption di un post Instagram (incollata) o un tema. Usa Claude (Anthropic).
-// Aperto a tutti i professionisti autenticati. Richiede il secret ANTHROPIC_API_KEY.
+// caption di un post Instagram (incollata) o un tema. AI via layer unificato:
+// Qwen primario, fallback OpenAI/Claude (vedi _shared/ai.ts).
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { aiChat, firstJson } from '../_shared/ai.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
-const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
-const MODEL = 'claude-sonnet-4-6'
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
@@ -32,10 +31,6 @@ Deno.serve(async (req) => {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return json({ error: 'auth_required' }, 401)
 
-  if (!ANTHROPIC_KEY) {
-    return json({ error: 'no_ai_key', hint: 'Imposta il secret ANTHROPIC_API_KEY su Supabase Functions.' }, 503)
-  }
-
   let body: { caption?: string; post_url?: string; topic?: string; author_name?: string; subrole?: string; city?: string }
   try { body = await req.json() } catch { return json({ error: 'invalid_json' }, 400) }
 
@@ -57,24 +52,9 @@ Requisiti:
 Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo, con questi campi:
 {"title": string, "excerpt": string (max 200 caratteri), "body_html": string (solo <h2>,<p>,<ul>,<li>,<strong>,<em>), "tags": string[] (4-6 tag brevi), "seo_title": string (max 60 caratteri), "seo_description": string (max 155 caratteri)}`
 
-  try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 2400, messages: [{ role: 'user', content: prompt }] }),
-    })
-    if (!r.ok) {
-      const t = await r.text().catch(() => '')
-      return json({ error: 'ai_error', status: r.status, detail: t.slice(0, 300) }, 502)
-    }
-    const data = await r.json()
-    const text: string = data?.content?.[0]?.text ?? ''
-    const start = text.indexOf('{'); const end = text.lastIndexOf('}')
-    if (start < 0 || end < 0) return json({ error: 'ai_no_json', raw: text.slice(0, 300) }, 502)
-    let draft: Record<string, unknown>
-    try { draft = JSON.parse(text.slice(start, end + 1)) } catch { return json({ error: 'ai_bad_json', raw: text.slice(0, 300) }, 502) }
-    return json({ ok: true, draft })
-  } catch (e) {
-    return json({ error: 'fetch_failed', detail: (e as Error).message }, 502)
-  }
+  const res = await aiChat({ parts: [{ text: prompt }], maxTokens: 2400 })
+  if (!res.ok) return json({ error: res.error === 'no_provider' ? 'no_ai_key' : 'ai_error', attempts: res.attempts }, res.error === 'no_provider' ? 503 : 502)
+  const draft = firstJson<Record<string, unknown>>(res.text)
+  if (!draft) return json({ error: 'ai_no_json', raw: res.text.slice(0, 300) }, 502)
+  return json({ ok: true, draft, provider: res.provider })
 })

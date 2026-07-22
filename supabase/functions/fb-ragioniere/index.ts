@@ -1,12 +1,12 @@
 // RAGIONIERE AI di una LOCATION: legge i dati gestionali di un evento (coperti, menu, food cost,
 // preventivo) e FA QUADRARE I CONTI. I NUMERI sono calcolati qui (esatti, niente allucinazioni);
-// Claude fa il CONTROLLER: verdetto, scostamenti, rischi, consigli. Wallet AI a token (come fb-read-bolla).
+// l'AI fa il CONTROLLER: verdetto, scostamenti, rischi, consigli. Wallet AI a token (come fb-read-bolla).
+// AI via layer unificato: Qwen primario, fallback OpenAI/Claude (_shared/ai.ts).
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { aiChat, firstJson } from '../_shared/ai.ts'
 
-const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const MODEL = 'claude-sonnet-4-6'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -29,7 +29,6 @@ Rispondi ESCLUSIVAMENTE con JSON valido: {"verdetto":"ok|attenzione|critico","si
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return json({ ok: false, error: 'method' })
-  if (!ANTHROPIC_KEY) return json({ ok: false, error: 'no_ai_key' })
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
   const auth = req.headers.get('Authorization') ?? ''
@@ -103,21 +102,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1500, system: SYS, messages: [{ role: 'user', content: `Conti dell'evento (numeri già calcolati, usali così):\n${JSON.stringify(conti)}` }] }),
-    })
-    if (!r.ok) return json({ ok: false, error: 'ai_error', detail: (await r.text()).slice(0, 300), conti })
-    const d = await r.json()
-    const inTok = d?.usage?.input_tokens ?? 0, outTok = d?.usage?.output_tokens ?? 0
+    const res = await aiChat({ system: SYS, parts: [{ text: `Conti dell'evento (numeri già calcolati, usali così):\n${JSON.stringify(conti)}` }], maxTokens: 1500 })
+    if (!res.ok) return json({ ok: false, error: 'ai_error', attempts: res.attempts, conti })
+    const inTok = res.usage.inTok, outTok = res.usage.outTok
     const { data: price } = await admin.from('fb_ai_pricing').select('input_eur_per_mtok, output_eur_per_mtok').eq('id', 1).maybeSingle()
     const cost = (inTok * (price?.input_eur_per_mtok ?? 9) + outTok * (price?.output_eur_per_mtok ?? 45)) / 1_000_000
     const { data: newBal } = await admin.rpc('fb_ai_charge', { p_location: entry.owner_id, p_cost: cost, p_in: inTok, p_out: outTok, p_fn: 'fb-ragioniere' })
-    const text: string = d?.content?.[0]?.text ?? ''
-    const m = text.match(/\{[\s\S]*\}/)
-    const analisi = m ? (() => { try { return JSON.parse(m[0]) } catch { return null } })() : null
-    return json({ ok: true, conti, analisi: analisi ?? { verdetto: 'attenzione', sintesi: text.slice(0, 300), alert: [], consigli: [], incidenza_giudizio: '' }, cost, balance: newBal })
+    const analisi = firstJson(res.text)
+    return json({ ok: true, provider: res.provider, conti, analisi: analisi ?? { verdetto: 'attenzione', sintesi: res.text.slice(0, 300), alert: [], consigli: [], incidenza_giudizio: '' }, cost, balance: newBal })
   } catch (e) {
     return json({ ok: false, error: 'exception', detail: String(e).slice(0, 300), conti }, 500)
   }

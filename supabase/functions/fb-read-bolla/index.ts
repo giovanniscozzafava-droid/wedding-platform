@@ -8,13 +8,10 @@
 // rasterizzato lato browser, perché il compatible-mode accetta immagini, non PDF).
 // Esiti di business → 200 con {ok:false,error} così il frontend li legge. Richiede DASHSCOPE_API_KEY.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { aiChat, firstJson } from '../_shared/ai.ts'
 
-const QWEN_KEY = Deno.env.get('DASHSCOPE_API_KEY') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-// Endpoint OpenAI-compatible di DashScope (default internazionale, Singapore) e modello vision.
-const BASE_URL = Deno.env.get('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
-const MODEL = Deno.env.get('QWEN_MODEL') ?? 'qwen-vl-max'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -53,8 +50,6 @@ function collectImages(body: any): string[] {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return json({ ok: false, error: 'method' })
-  if (!QWEN_KEY) return json({ ok: false, error: 'no_ai_key' })
-
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
   const auth = req.headers.get('Authorization') ?? ''
   const { data: caller } = await admin.auth.getUser(auth.slice(7))
@@ -73,34 +68,22 @@ Deno.serve(async (req) => {
   if (!images.length) return json({ ok: false, error: 'no_file' })
 
   try {
-    const content: any[] = [{ type: 'text', text: PROMPT }]
-    for (const url of images) content.push({ type: 'image_url', image_url: { url } })
-
-    const r = await fetch(`${BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${QWEN_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: 0,
-        max_tokens: 3000,
-        messages: [{ role: 'user', content }],
-      }),
+    // AI via layer unificato (Qwen-VL primario, fallback OpenAI/Claude su immagini).
+    const res = await aiChat({
+      parts: [{ text: PROMPT }, ...images.map((url) => ({ image: url }))],
+      maxTokens: 3000, temperature: 0,
     })
-    if (!r.ok) return json({ ok: false, error: 'ai_error', detail: (await r.text()).slice(0, 300) })
-    const d = await r.json()
+    if (!res.ok) return json({ ok: false, error: 'ai_error', attempts: res.attempts })
 
-    // ADDEBITO: costo reale dai token usati (usage OpenAI-compatible)
-    const inTok = d?.usage?.prompt_tokens ?? 0
-    const outTok = d?.usage?.completion_tokens ?? 0
+    // ADDEBITO: costo reale dai token usati (usage normalizzato dal layer)
+    const inTok = res.usage.inTok, outTok = res.usage.outTok
     const { data: price } = await admin.from('fb_ai_pricing').select('input_eur_per_mtok, output_eur_per_mtok').eq('id', 1).maybeSingle()
     const cost = (inTok * (price?.input_eur_per_mtok ?? 9) + outTok * (price?.output_eur_per_mtok ?? 45)) / 1_000_000
     const { data: newBal } = await admin.rpc('fb_ai_charge', { p_location: loc, p_cost: cost, p_in: inTok, p_out: outTok, p_fn: 'fb-read-bolla' })
 
-    const text: string = d?.choices?.[0]?.message?.content ?? ''
-    const m = text.match(/\{[\s\S]*\}/)
-    if (!m) return json({ ok: false, error: 'parse', raw: text.slice(0, 300), cost, balance: newBal })
-    const parsed = JSON.parse(m[0])
-    return json({ ok: true, fornitore: parsed.fornitore ?? null, righe: Array.isArray(parsed.righe) ? parsed.righe : [], cost, balance: newBal })
+    const parsed = firstJson<{ fornitore?: string; righe?: unknown }>(res.text)
+    if (!parsed) return json({ ok: false, error: 'parse', raw: res.text.slice(0, 300), cost, balance: newBal })
+    return json({ ok: true, provider: res.provider, fornitore: parsed.fornitore ?? null, righe: Array.isArray(parsed.righe) ? parsed.righe : [], cost, balance: newBal })
   } catch (e) {
     return json({ ok: false, error: 'exception', detail: String(e).slice(0, 300) }, 500)
   }
