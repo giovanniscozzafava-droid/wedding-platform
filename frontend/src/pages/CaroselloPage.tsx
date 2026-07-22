@@ -470,33 +470,57 @@ export default function CaroselloPage() {
   // ── EXPORT / SALVA ──────────────────────────────────────────────────────────
   const [exporting, setExporting] = useState(false)
   const [driveBusy, setDriveBusy] = useState(false)
-  async function buildResolver(): Promise<(id: string) => string> {
+  // Pre-scarica le foto della strip come BLOB (same-origin) così il canvas non si "sporca" di
+  // cross-origin: le foto Drive passano dal proxy CORS (con grant + header auth), le altre via fetch.
+  // Prima il resolver ritornava un URL Drive senza CORS → canvas tainted/immagini vuote in export.
+  async function buildBlobResolver(): Promise<{ resolve: (id: string) => string; revoke: () => void }> {
     const SB = import.meta.env.VITE_SUPABASE_URL, AK = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const { data: { session } } = await supabase.auth.getSession()
     let grant: string | null = null
     try { const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId }); grant = (data as string) ?? null } catch { grant = null }
-    return (id: string) => { if (isDirectSrc(id)) return id; const m = mediaById.get(id); if (!m) return ''; return grant && isDrive(m) ? hiResProxyUrl(SB, AK, grant, id) : hiUrl(m) }
+    const ids = [...new Set((strip.elements ?? []).map((e) => e.mediaId).filter(Boolean))] as string[]
+    const map = new Map<string, string>()
+    await Promise.all(ids.map(async (id) => {
+      if (isDirectSrc(id)) { map.set(id, id); return }
+      const m = mediaById.get(id); if (!m) return
+      try {
+        let url = hiUrl(m); let init: RequestInit | undefined
+        if (isDrive(m)) {
+          if (!grant) return
+          url = hiResProxyUrl(SB, AK, grant, id)
+          init = { headers: { apikey: AK, Authorization: `Bearer ${session?.access_token ?? AK}` } }
+        }
+        if (!url) return
+        const r = await fetch(url, init); if (!r.ok) return
+        map.set(id, URL.createObjectURL(await r.blob()))
+      } catch { /* foto saltata → resterà grigia */ }
+    }))
+    return {
+      resolve: (id: string) => (isDirectSrc(id) ? id : (map.get(id) ?? '')),
+      revoke: () => { for (const u of map.values()) if (u.startsWith('blob:')) URL.revokeObjectURL(u) },
+    }
   }
   const onZipProg = (z: number) => setExportProg((p) => (p ? { ...p, zip: z } : { done: n, total: n, zip: z }))
   async function exportZip() {
     if (exporting || driveBusy) return
     if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
     setExporting(true); setExportProg({ done: 0, total: n })
+    const { resolve, revoke } = await buildBlobResolver()
     try {
-      const resolve = await buildResolver()
       await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, {
         texts, filename: `carosello-${n}slide.zip`,
         onProgress: (done, total) => setExportProg({ done, total }), onZip: onZipProg,
       })
       toast.success(`${n} slide esportate: caricale su Instagram nell'ordine slide-01 → slide-${String(n).padStart(2, '0')} per lo swipe continuo.`, { duration: 9000 })
     } catch (e) { toast.error(`Export non riuscito: ${(e as Error).message}`) }
-    finally { setExporting(false); setExportProg(null) }
+    finally { revoke(); setExporting(false); setExportProg(null) }
   }
   async function saveToDrive() {
     if (exporting || driveBusy) return
     if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
     setDriveBusy(true); setExportProg({ done: 0, total: n })
+    const { resolve, revoke } = await buildBlobResolver()
     try {
-      const resolve = await buildResolver()
       const blob = await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, { texts, returnBlob: true, onProgress: (done, total) => setExportProg({ done, total }), onZip: onZipProg }) as Blob
       setExportProg(null)
       const token = await getDriveToken()
@@ -506,7 +530,7 @@ export default function CaroselloPage() {
       const link = driveDownloadUrl(id)
       try { await navigator.clipboard.writeText(link); toast.success('Salvato sul tuo Drive · link copiato negli appunti', { duration: 8000 }) } catch { toast.success('Salvato sul tuo Drive') }
     } catch (e) { toast.error(`Salvataggio su Drive non riuscito: ${(e as Error).message}`.slice(0, 160)) }
-    finally { setDriveBusy(false); setExportProg(null) }
+    finally { revoke(); setDriveBusy(false); setExportProg(null) }
   }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[rgb(var(--fg-muted))]" /></div>
