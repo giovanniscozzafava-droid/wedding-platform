@@ -462,6 +462,7 @@ function AlbumDesignerInner() {
   const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
   const [gutterMm, setGutterMm] = useState(3) // margine (mm) tra le foto quando si applica una disposizione
   const [momentFilter, setMomentFilter] = useState<string>('') // filtro libreria per "momento" (tag); '' = tutti
+  const [importSelBusy, setImportSelBusy] = useState(false) // import selezione album da cuore sposi/fotografo
   // PANNELLI RIDIMENSIONABILI (persistiti): libreria sx, pannello funzioni dx, striscia tavole.
   const lsNum = (k: string, def: number, min: number) => { try { const v = Number(localStorage.getItem(k)); return v >= min ? v : def } catch { return def } }
   const [libW, setLibW] = useState(() => lsNum('albumLibW', 160, 120))
@@ -842,6 +843,24 @@ function AlbumDesignerInner() {
   }
 
   // ── selezione guidata ──────────────────────────────────────────────────────
+  // IMPORT (sostituisce): la selezione di lavoro album diventa ESATTAMENTE il cuore scelto
+  // (sposi = pick_couple · fotografo = pick_photographer). I due cuori restano intatti.
+  async function importAlbumSelection(source: 'COUPLE' | 'PHOTOGRAPHER') {
+    if (!entryId || importSelBusy) return
+    if (!window.confirm(source === 'COUPLE'
+      ? 'Sostituire la selezione dell’album con quella degli SPOSI? (i cuori non si toccano)'
+      : 'Sostituire la selezione dell’album con la TUA (cuori fotografo)?')) return
+    setImportSelBusy(true)
+    const { data, error } = await (supabase.rpc as any)('import_selection', { p_entry: entryId, p_source: source, p_target: 'ALBUM' })
+    if (error || (data as { error?: string } | null)?.error) { toast.error('Import non riuscito'); setImportSelBusy(false); return }
+    const { data: gm } = await (supabase.from as any)('gallery_media').select('id, album_choice').eq('entry_id', entryId)
+    if (gm) {
+      const byId = new Map((gm as { id: string; album_choice: 'KEPT' | 'DISCARDED' | null }[]).map((g) => [g.id, g.album_choice]))
+      setMedia((arr) => arr.map((x) => (byId.has(x.id) ? { ...x, album_choice: byId.get(x.id) ?? null } : x)))
+    }
+    setImportSelBusy(false)
+    toast.success(`Album: ${(data as { count?: number } | null)?.count ?? 0} foto (${source === 'COUPLE' ? 'sposi' : 'tue'})`)
+  }
   async function toggleKeep(m: M) {
     const prev = m.album_choice
     const next = m.album_choice === 'KEPT' ? 'DISCARDED' : 'KEPT'
@@ -3315,6 +3334,14 @@ function AlbumDesignerInner() {
                 {MOMENTS.filter((mm) => (trayMoments.get(mm.key) ?? 0) > 0).map((mm) => <option key={mm.key} value={mm.key}>{mm.label} ({trayMoments.get(mm.key)})</option>)}
                 {(trayMoments.get('_none') ?? 0) > 0 && <option value="_none">Senza momento ({trayMoments.get('_none')})</option>}
               </select>
+              {/* IMPORTA la selezione di lavoro da uno dei due cuori (sostituisce). I cuori restano distinti. */}
+              <div className="flex items-center gap-1 mb-1.5">
+                <span className="text-[10px] text-[rgb(var(--fg-subtle))] shrink-0">Importa:</span>
+                <button type="button" disabled={importSelBusy} onClick={() => void importAlbumSelection('COUPLE')} title="La selezione album diventa quella degli sposi (sostituisce)"
+                  className="flex-1 inline-flex items-center justify-center gap-1 text-[10px] py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"><Heart size={10} className="fill-rose-500 text-rose-500" /> Sposi</button>
+                <button type="button" disabled={importSelBusy} onClick={() => void importAlbumSelection('PHOTOGRAPHER')} title="La selezione album diventa la tua (cuori fotografo, sostituisce)"
+                  className="flex-1 inline-flex items-center justify-center gap-1 text-[10px] py-1 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"><Heart size={10} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> La mia</button>
+              </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {trayFiltered.map((m) => (
                   <div key={m.id} id={`tray-${m.id}`} className={`relative group/tray rounded ${highlightMedia === m.id ? 'ring-4 ring-[rgb(var(--gold-500))] ring-offset-2 ring-offset-[rgb(var(--bg))]' : ''}`}>

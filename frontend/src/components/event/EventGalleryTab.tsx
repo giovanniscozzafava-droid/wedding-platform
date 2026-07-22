@@ -29,7 +29,7 @@ import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 // carica; gli sposi vedono tutto + danno il consenso; i fornitori vedono solo
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null }
+type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null; pick_photographer?: boolean | null; pick_couple?: boolean | null }
 type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string; share_token: string | null }
 
@@ -214,7 +214,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const media: any[] = []
     for (let from = 0; ; from += 1000) {
       const { data: page, error } = await (supabase.from as any)('gallery_media')
-        .select('id, folder_id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, album_moment, uploaded_by, uploader_name, guest_tags, no_minors')
+        .select('id, folder_id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, album_moment, uploaded_by, uploader_name, guest_tags, no_minors, pick_photographer, pick_couple')
         .eq('entry_id', entryId).order('id').range(from, from + 999)
       if (error || !page?.length) break
       media.push(...page)
@@ -318,6 +318,15 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { error } = await (supabase.from as any)('gallery_folders').update({ guest_visible: next }).eq('id', f.id)
     if (error) { toast.error(error.message); await load(); return }
     toast.success(next ? 'Cartella ora visibile a tutti gli ospiti' : 'Cartella nascosta agli ospiti')
+  }
+
+  // CUORE DEL FOTOGRAFO su una foto: selezione indipendente da quella degli sposi (pick_couple)
+  // e dalle selezioni di lavoro (album/carosello). Ottimistico + persistito (owner-only).
+  async function togglePhotographerPick(m: Media) {
+    const next = !m.pick_photographer
+    setFolders((fs) => fs.map((fo) => ({ ...fo, gallery_media: fo.gallery_media.map((x) => x.id === m.id ? { ...x, pick_photographer: next } : x) })))
+    const { error } = await (supabase.rpc as any)('photographer_toggle_pick', { p_media: m.id, p_pick: next })
+    if (error) { toast.error('Selezione non salvata'); await load() }
   }
 
   async function deleteFolder(f: Folder) {
@@ -864,7 +873,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {fMedia.map((m, idx) => (
-                  <button key={m.id} type="button" onClick={() => setBox({ list: fMedia, i: idx })}
+                  <div key={m.id} role="button" tabIndex={0} onClick={() => setBox({ list: fMedia, i: idx })}
                     className="group relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] cursor-zoom-in" style={{ aspectRatio: '4/3' }}>
                     {m.media_type === 'VIDEO' && !isDrive(m)
                       ? <video src={m.thumbnail_link ?? ''} muted preload="metadata" className="w-full h-full object-cover" />
@@ -874,14 +883,17 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                         ? <Play size={20} className="text-white opacity-80 fill-white" />
                         : <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-90 transition" />}
                     </span>
-                    {m.uploader_name && <span className="absolute top-1 left-1 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full">da {m.uploader_name}</span>}
-                    {m.no_minors && <span className="absolute top-1 right-1" title="L'invitato dichiara: nessun minore"><ShieldCheck size={13} className="text-emerald-300 drop-shadow" /></span>}
+                    {m.uploader_name && <span className="absolute bottom-1 left-1 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full">da {m.uploader_name}</span>}
+                    {m.no_minors && <span className="absolute bottom-1 right-1" title="L'invitato dichiara: nessun minore"><ShieldCheck size={13} className="text-emerald-300 drop-shadow" /></span>}
                     {(m.guest_tags && m.guest_tags.length > 0)
                       ? <span className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tags.map(guestTagLabel).join(' · ')}</span>
                       : m.guest_tag_name && <span className="absolute bottom-0 inset-x-0 bg-black/45 text-white text-[10px] px-1 py-0.5 truncate text-left">{m.guest_tag_name}</span>}
-                    {m.album_choice === 'KEPT' && <span className="absolute top-1 right-5"><Heart size={12} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))] drop-shadow" /></span>}
+                    {/* cuore CLIENTE (sposi) — sola lettura */}
+                    {m.pick_couple && <span className="absolute top-1 right-1" title="Scelta dagli sposi"><Heart size={13} className="fill-rose-500 text-rose-500 drop-shadow" /></span>}
+                    {/* cuore FOTOGRAFO — la TUA selezione (toggle, indipendente da quella degli sposi) */}
+                    {isOwner && <button type="button" title={m.pick_photographer ? 'Togli dalla mia selezione' : 'Metti nella mia selezione'} onClick={(e) => { e.stopPropagation(); void togglePhotographerPick(m) }} className="absolute top-0.5 right-6 p-0.5 rounded-full hover:bg-black/30 z-[2]"><Heart size={14} className={m.pick_photographer ? 'fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))] drop-shadow' : 'text-white/80 drop-shadow'} /></button>}
                     {(likeCounts[m.id] ?? 0) > 0 && <span className="absolute top-1 left-1 inline-flex items-center gap-0.5 rounded-full bg-black/55 text-white text-[10px] px-1.5 py-0.5"><Heart size={10} className="fill-rose-400 text-rose-400" /> {likeCounts[m.id]}</span>}
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

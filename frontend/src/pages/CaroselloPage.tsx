@@ -366,6 +366,20 @@ export default function CaroselloPage() {
     setAllPhotos((xs) => xs.map((x) => (x.id === m.id ? { ...x, carousel_pick: next } : x)))
   }
 
+  // IMPORT (sostituisce): riempie la selezione carosello dal cuore SPOSI o dal cuore FOTOGRAFO.
+  const [importing, setImporting] = useState(false)
+  async function importFromSelection(source: 'COUPLE' | 'PHOTOGRAPHER') {
+    if (!entryId || importing) return
+    setImporting(true)
+    const { data, error } = await (supabase.rpc as any)('import_selection', { p_entry: entryId, p_source: source, p_target: 'CAROUSEL' })
+    if (error || (data as any)?.error) { toast.error('Import non riuscito'); setImporting(false); return }
+    const { data: gm } = await (supabase.from as any)('gallery_media')
+      .select('id, drive_file_id, thumbnail_link, media_type, carousel_pick').eq('entry_id', entryId).eq('media_type', 'PHOTO').order('id')
+    if (gm) setAllPhotos((xs) => xs.map((x) => { const g = (gm as { id: string; carousel_pick?: boolean }[]).find((y) => y.id === x.id); return g ? { ...x, carousel_pick: !!g.carousel_pick } : { ...x, carousel_pick: false } }))
+    setImporting(false)
+    toast.success(`Carosello: importate ${(data as any)?.count ?? 0} foto (${source === 'COUPLE' ? 'sposi' : 'tue'})`)
+  }
+
   // Assegna la foto: se c'è uno slot selezionato lo riempie; altrimenti uno slot vuoto DELLA PAGINA
   // CORRENTE; altrimenti aggiunge una foto libera DENTRO la pagina corrente (poi la trascini dove vuoi).
   function assignPhoto(mediaId: string) {
@@ -824,9 +838,11 @@ export default function CaroselloPage() {
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <p className="text-[11px] text-[rgb(var(--fg-muted))]">Tocca una foto → va sulla pagina che stai guardando · <strong>trascinala dove vuoi</strong> sulla tavola (o su uno slot) · <kbd className="px-1 rounded bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))]">Canc</kbd> elimina · la <strong>tua</strong> selezione ({media.length})</p>
           {isOwner && (
-            <Button variant="gold" size="sm" onClick={() => setPickerOpen(true)} className="shrink-0">
-              <Heart size={13} /> Seleziona foto
-            </Button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button variant="outline" size="sm" disabled={importing} onClick={() => void importFromSelection('COUPLE')} title="Riempi il carosello con la selezione degli sposi (sostituisce)"><Heart size={12} className="fill-rose-500 text-rose-500" /> Sposi</Button>
+              <Button variant="outline" size="sm" disabled={importing} onClick={() => void importFromSelection('PHOTOGRAPHER')} title="Riempi il carosello con la tua selezione (cuori fotografo) — sostituisce"><Heart size={12} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> La mia</Button>
+              <Button variant="gold" size="sm" onClick={() => setPickerOpen(true)}><Heart size={13} /> Seleziona foto</Button>
+            </div>
           )}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
