@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Loader2, X, Check, RotateCcw, Maximize2, ArrowLeft, Images } from 'lucide-react'
+import { Loader2, X, Check, RotateCcw, Maximize2, ArrowLeft, Images, RefreshCw } from 'lucide-react'
 import {
-  loadGallery, decideMedia, undoMedia, advanceRound, submitSelection,
+  loadGallery, decideMedia, undoMedia, advanceRound, submitSelection, requestReopen,
   thumbUrl, hiUrl, type GData, type GMedia, type GSelection,
 } from '@/lib/coupleGallery'
 
@@ -19,6 +19,8 @@ export default function GallerySwipePage() {
   const [loading, setLoading] = useState(true)
   const [zoom, setZoom] = useState<GMedia | null>(null)
   const [busy, setBusy] = useState(false)               // invio/avanzamento in corso
+  const [closeWarn, setCloseWarn] = useState<{ error: string; kept: number } | null>(null) // avviso "chiudi fuori range"
+  const [reopenSent, setReopenSent] = useState(false)   // richiesta di riapertura inviata al fotografo
 
   const refresh = useCallback(async () => {
     if (!token) { setErr('Link non valido'); setLoading(false); return }
@@ -36,7 +38,9 @@ export default function GallerySwipePage() {
   useEffect(() => { void refresh() }, [refresh])
 
   const studio = data?.photographer.business_name || data?.photographer.full_name || 'il fotografo'
-  const roundDone = sel != null && queue.length === 0 && sel.status !== 'SUBMITTED'
+  // Fine schermata swipe: giro finito (coda vuota) OPPURE selezione già inviata (mostra il riepilogo
+  // "Selezione inviata" con il tasto "Richiedi di riaprire"). Prima SUBMITTED cadeva nel Deck vuoto.
+  const roundDone = sel != null && (sel.status === 'SUBMITTED' || queue.length === 0)
 
   // conteggio "tenute" del giro in tempo reale (server + ottimistico locale)
   const applyState = (s: { kept?: number; decided?: number; pool?: number }) =>
@@ -86,7 +90,15 @@ export default function GallerySwipePage() {
   }, [queue, roundDone, zoom]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function doAdvance() { if (!token) return; setBusy(true); const r = await advanceRound(token); setBusy(false); if (!r.error) await refresh() }
-  async function doSubmit() { if (!token) return; setBusy(true); const r = await submitSelection(token); setBusy(false); if (r.ok) await refresh() }
+  // CHIUDI la selezione: sempre disponibile. Se fuori dal range mostra un avviso, poi (force) chiude comunque.
+  async function doSubmit(force = false) {
+    if (!token) return
+    setBusy(true); const r = await submitSelection(token, force); setBusy(false)
+    if (r.ok) { setCloseWarn(null); await refresh(); return }
+    if (r.error === 'below_min' || r.error === 'above_max') setCloseWarn({ error: r.error, kept: r.kept ?? sel?.kept ?? 0 })
+  }
+  // COPPIA: chiede al fotografo di riaprire la selezione (dopo l'invio).
+  async function doRequestReopen() { if (!token) return; setBusy(true); const r = await requestReopen(token); setBusy(false); if (r.ok) setReopenSent(true) }
   async function doRescue() { // ripesca: ricarica e rimetti in coda le scartate di questo giro
     if (!token) return
     const d = await loadGallery(token); if (d.error) return
@@ -124,22 +136,29 @@ export default function GallerySwipePage() {
 
       <main className="flex-1 flex flex-col items-center justify-center px-5 pb-6 min-h-0">
         {roundDone
-          ? <RoundEnd sel={sel} studio={studio} busy={busy} onAdvance={doAdvance} onSubmit={doSubmit} onRescue={doRescue} />
+          ? <RoundEnd sel={sel} studio={studio} busy={busy} onAdvance={doAdvance} onSubmit={() => doSubmit()} onRescue={doRescue} onReopen={doRequestReopen} reopenSent={reopenSent} />
           : <>
               <Deck queue={queue} onDecide={decide} onUndo={undo} canUndo={history.length > 0} onZoom={setZoom} />
-              {/* RIPESCA: rivedi le scartate — MA non quando sei OLTRE il tetto: lì devi togliere, non aggiungere. */}
-              {discardedCount > 0 && sel.kept <= sel.target_max && (
+              {/* RIPESCA: rivedi le scartate in qualsiasi momento (magari vi è sfuggita una foto). */}
+              {discardedCount > 0 && (
                 <button onClick={ripesca} className="mt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] underline underline-offset-4">
                   Ripesca dalle scartate ({discardedCount})
                 </button>
               )}
-              {/* OLTRE il tetto: devi continuare a scartare finché rientri; la conferma resta nascosta. */}
+              {/* OLTRE il tetto: invito a continuare a scartare per rientrare. */}
               {sel.status === 'ACTIVE' && sel.kept > sel.target_max && (
                 <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-[rgb(var(--rose-600))]">Troppe ({sel.kept}) · scartatene ancora {sel.kept - sel.target_max} per rientrare (max {sel.target_max})</p>
               )}
               {/* CONFERMA: appare appena raggiunto il numero (tenute nel range), anche senza scorrere tutto */}
               {sel.status === 'ACTIVE' && sel.kept >= sel.target_min && sel.kept <= sel.target_max && (
-                <ConfirmBar kept={sel.kept} studio={studio} busy={busy} onConfirm={doSubmit} />
+                <ConfirmBar kept={sel.kept} studio={studio} busy={busy} onConfirm={() => doSubmit()} />
+              )}
+              {/* CHIUDI SEMPRE: disponibile anche fuori range (avvisa e chiude comunque). */}
+              {sel.status === 'ACTIVE' && (sel.kept < sel.target_min || sel.kept > sel.target_max) && (
+                <button onClick={() => doSubmit()} disabled={busy}
+                  className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--fg-muted))] underline underline-offset-4 disabled:opacity-50">
+                  Chiudi la selezione
+                </button>
               )}
             </>}
       </main>
@@ -148,6 +167,24 @@ export default function GallerySwipePage() {
         <div className="fixed inset-0 z-50 bg-[#0E1116] grid place-items-center p-4" role="dialog" aria-modal="true" onClick={() => setZoom(null)}>
           <img src={hiUrl(zoom)} alt="" className="max-h-full max-w-full object-contain" />
           <button onClick={() => setZoom(null)} aria-label="Chiudi" className="absolute top-4 right-4 grid place-items-center w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/15"><X size={22} /></button>
+        </div>
+      )}
+
+      {/* AVVISO fuori range prima di chiudere comunque */}
+      {closeWarn && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-5" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-2xl bg-[rgb(var(--bg))] border border-[rgb(var(--border))] p-5 text-center">
+            <p className="font-display text-xl">Siete fuori dal traguardo</p>
+            <p className="text-sm text-[rgb(var(--fg-muted))] mt-2">
+              {closeWarn.error === 'above_max'
+                ? <>Avete tenuto <b>{closeWarn.kept}</b> foto, più del massimo ({sel.target_max}). Potete chiudere lo stesso: sarà {studio} a decidere come procedere.</>
+                : <>Avete tenuto <b>{closeWarn.kept}</b> foto, meno del minimo ({sel.target_min}). Potete chiudere lo stesso oppure ripescarne ancora.</>}
+            </p>
+            <div className="mt-5 flex gap-2 justify-center">
+              <button onClick={() => setCloseWarn(null)} className="rounded-full h-11 px-5 border border-[rgb(var(--border))] font-mono text-[11px] uppercase tracking-[0.14em]">Continua a scegliere</button>
+              <button onClick={() => void doSubmit(true)} disabled={busy} className="rounded-full h-11 px-5 bg-[rgb(var(--gold-500))] text-white font-mono text-[11px] uppercase tracking-[0.14em] disabled:opacity-50">Chiudi comunque</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -278,8 +315,8 @@ function ConfirmBar({ kept, studio, busy, onConfirm }: { kept: number; studio: s
 }
 
 // Fine giro: decide la CTA in base alle tenute (logica a giri 60–120).
-function RoundEnd({ sel, studio, busy, onAdvance, onSubmit, onRescue }: {
-  sel: GSelection; studio: string; busy: boolean; onAdvance: () => void; onSubmit: () => void; onRescue: () => void
+function RoundEnd({ sel, studio, busy, onAdvance, onSubmit, onRescue, onReopen, reopenSent }: {
+  sel: GSelection; studio: string; busy: boolean; onAdvance: () => void; onSubmit: () => void; onRescue: () => void; onReopen: () => void; reopenSent: boolean
 }) {
   const { kept, target_min: min, target_max: max, status } = sel
   if (status === 'SUBMITTED') return (
@@ -287,7 +324,12 @@ function RoundEnd({ sel, studio, busy, onAdvance, onSubmit, onRescue }: {
       <Check size={34} className="mx-auto text-[rgb(var(--gold-600))]" />
       <h2 className="font-display text-3xl mt-4">Selezione inviata</h2>
       <p className="text-[rgb(var(--fg-muted))] mt-3">Avete scelto <b>{kept}</b> fotografie per l'album. Le abbiamo consegnate a {studio}: preparerà la vostra bozza.</p>
-      <Link to=".." relative="path" className="inline-block mt-6 font-mono text-xs uppercase tracking-[0.16em] text-[rgb(var(--gold-700))] underline underline-offset-4">Torna alla galleria</Link>
+      {reopenSent
+        ? <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgb(var(--gold-700))]">Richiesta inviata a {studio} · vi riaprirà la selezione</p>
+        : <button onClick={onReopen} disabled={busy} className="mt-6 inline-flex items-center gap-2 rounded-full h-11 px-5 bg-white border border-[rgb(var(--border-strong))] font-mono text-[11px] uppercase tracking-[0.14em] disabled:opacity-50">
+            {busy ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />} Richiedi di riaprire la selezione
+          </button>}
+      <div><Link to=".." relative="path" className="inline-block mt-6 font-mono text-xs uppercase tracking-[0.16em] text-[rgb(var(--gold-700))] underline underline-offset-4">Torna alla galleria</Link></div>
     </div>
   )
   const above = kept > max

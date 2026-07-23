@@ -42,6 +42,8 @@ function SelectionRangeControl({ galleryId }: { galleryId: string }) {
   const [kind, setKind] = useState('matrimonio')
   const [deadline, setDeadline] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [reopenReq, setReopenReq] = useState(false)   // la coppia ha chiesto di riaprire
+  const [reopening, setReopening] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -50,8 +52,8 @@ function SelectionRangeControl({ galleryId }: { galleryId: string }) {
     void (async () => {
       const { data } = await (supabase.rpc as any)('gallery_get_range', { p_gallery: galleryId })
       if (!alive) return
-      const d = data as { min?: number; max?: number; event_kind?: string; submitted?: boolean; deadline?: string | null; error?: string } | null
-      if (d && !d.error && typeof d.min === 'number') { setMin(d.min); setMax(d.max ?? d.min); setKind(d.event_kind ?? 'matrimonio'); setSubmitted(!!d.submitted); setDeadline(d.deadline ?? '') }
+      const d = data as { min?: number; max?: number; event_kind?: string; submitted?: boolean; deadline?: string | null; reopen_requested?: boolean; error?: string } | null
+      if (d && !d.error && typeof d.min === 'number') { setMin(d.min); setMax(d.max ?? d.min); setKind(d.event_kind ?? 'matrimonio'); setSubmitted(!!d.submitted); setDeadline(d.deadline ?? ''); setReopenReq(!!d.reopen_requested) }
       setLoaded(true)
     })()
     return () => { alive = false }
@@ -86,6 +88,17 @@ function SelectionRangeControl({ galleryId }: { galleryId: string }) {
       toast.success(`Selezione chiusa${typeof kept === 'number' ? ` · ${kept} foto scelte` : ''}`)
     } catch (e) { toast.error(`Non chiusa: ${(e as Error).message}`) } finally { setClosing(false) }
   }
+  // RIAPRI: nuovo giro sulle tenute correnti → la coppia riprende a scremare da dov'era.
+  async function reopen() {
+    setReopening(true)
+    try {
+      const { data, error } = await (supabase.rpc as any)('gallery_selection_reopen', { p_gallery: galleryId })
+      const err = (data as { error?: string } | null)?.error
+      if (error || err) throw new Error(err ?? error?.message ?? 'errore')
+      setSubmitted(false); setReopenReq(false)
+      toast.success('Selezione riaperta · la coppia può continuare a scremare')
+    } catch (e) { toast.error(`Non riaperta: ${(e as Error).message}`) } finally { setReopening(false) }
+  }
   if (!loaded) return null
   return (
     <div className="w-full mt-1 border-t border-[rgb(var(--border))] pt-3 space-y-3">
@@ -104,7 +117,11 @@ function SelectionRangeControl({ galleryId }: { galleryId: string }) {
           <label className="text-[11px] text-[rgb(var(--fg-muted))]">Data massima selezione<Input type="date" value={deadline} onChange={(e) => void saveDeadline(e.target.value)} className="mt-0.5" /></label>
           {!submitted
             ? <Button variant="outline" size="sm" disabled={closing} onClick={() => void forceClose()}><Lock size={14} /> {closing ? 'Chiudo…' : 'Chiudi selezione ora'}</Button>
-            : <span className="text-[10px] text-[rgb(var(--emerald-600))] mb-1.5">Selezione chiusa.</span>}
+            : <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span className="text-[10px] text-[rgb(var(--emerald-600))]">Selezione chiusa.</span>
+                <Button variant="outline" size="sm" disabled={reopening} onClick={() => void reopen()}>{reopening ? 'Riapro…' : 'Riapri la selezione'}</Button>
+                {reopenReq && <span className="text-[10px] font-medium text-[rgb(var(--gold-700))]">· la coppia ha chiesto di riaprire</span>}
+              </div>}
         </div>
         <p className="mt-1.5 text-[10px] text-[rgb(var(--fg-subtle))]">Con una data massima partono gli <b>avvisi email</b> alla coppia (7/3/1 giorni prima, il giorno stesso e se scade). <b>Chiudi selezione ora</b> blocca la selezione con le foto attuali, anche se la coppia è ancora fuori dal range.</p>
       </div>

@@ -19,6 +19,7 @@ export default function AlbumSelectSwipePage() {
   const [kept, setKept] = useState(0)
   const [total, setTotal] = useState(0)
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null)
+  const [exit, setExit] = useState<0 | 1 | -1>(0) // 1 = vola a destra (tieni), -1 = sinistra (scarta)
   const startRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -85,18 +86,23 @@ export default function AlbumSelectSwipePage() {
 
   const onDown = (e: React.PointerEvent) => { startRef.current = { x: e.clientX, y: e.clientY }; try { (e.target as HTMLElement).setPointerCapture(e.pointerId) } catch { /* ok */ } }
   const onMove = (e: React.PointerEvent) => { if (!startRef.current) return; setDrag({ dx: e.clientX - startRef.current.x, dy: e.clientY - startRef.current.y }) }
+  // Vola via poi decidi: feel pulito/dopaminergico (come lo swipe della coppia).
+  const fly = (keep: boolean) => { if (!current) return; setExit(keep ? 1 : -1); window.setTimeout(() => { setExit(0); decide(current, keep) }, 190) }
   const onUp = () => {
     const s = startRef.current; startRef.current = null
     if (!s || !current) { setDrag(null); return }
     const dx = drag?.dx ?? 0; const TH = 90
-    if (dx > TH) decide(current, true)
-    else if (dx < -TH) decide(current, false)
+    if (dx > TH) fly(true)
+    else if (dx < -TH) fly(false)
     else setDrag(null)
   }
 
   const done = !loading && allowed && !current
   const dx = drag?.dx ?? 0
   const dir = dx > 40 ? 'keep' : dx < -40 ? 'skip' : null
+  const flying = exit !== 0
+  const cardDx = flying ? exit * 700 : dx
+  const cardRot = flying ? exit * 18 : dx / 22
 
   return (
     <div className="h-[100dvh] overflow-hidden flex flex-col bg-[rgb(var(--bg-sunken))] select-none">
@@ -141,7 +147,7 @@ export default function AlbumSelectSwipePage() {
             <div
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
               className="absolute w-[min(88vw,520px)] aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl bg-black touch-none cursor-grab active:cursor-grabbing"
-              style={{ transform: `translate(${dx}px, ${(drag?.dy ?? 0) * 0.15}px) rotate(${dx / 22}deg)`, transition: drag ? 'none' : 'transform .25s' }}>
+              style={{ transform: `translate(${cardDx}px, ${flying ? 0 : (drag?.dy ?? 0) * 0.15}px) rotate(${cardRot}deg)`, transition: (drag && !flying) ? 'none' : 'transform .2s ease-out', opacity: flying ? 0 : 1 }}>
               {current.thumbnail_link
                 ? <img src={current.thumbnail_link} alt="" className="w-full h-full object-contain" draggable={false} />
                 : <div className="w-full h-full grid place-items-center text-white/60 text-sm">senza anteprima</div>}
@@ -156,9 +162,9 @@ export default function AlbumSelectSwipePage() {
 
       {!loading && allowed && !done && current && (
         <div className="shrink-0 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-4 pt-3 flex items-center justify-center gap-5" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
-          <button onClick={() => decide(current, false)} title="Scarta (←)" className="h-14 w-14 rounded-full border-2 border-rose-300 text-rose-500 grid place-items-center hover:bg-rose-50 active:scale-95 transition"><X size={26} /></button>
+          <button onClick={() => fly(false)} title="Scarta (←)" className="h-14 w-14 rounded-full border-2 border-rose-300 text-rose-500 grid place-items-center hover:bg-rose-50 active:scale-95 transition"><X size={26} /></button>
           <button onClick={undo} disabled={!history.length} title="Annulla" className="h-10 w-10 rounded-full border border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] grid place-items-center disabled:opacity-40 hover:bg-[rgb(var(--bg-sunken))]"><Undo2 size={18} /></button>
-          <button onClick={() => decide(current, true)} title="Tieni (→)" className="h-14 w-14 rounded-full bg-[rgb(var(--gold-500))] text-white grid place-items-center hover:bg-[rgb(var(--gold-600))] active:scale-95 transition"><Heart size={24} className="fill-white" /></button>
+          <button onClick={() => fly(true)} title="Tieni (→)" className="h-14 w-14 rounded-full bg-[rgb(var(--gold-500))] text-white grid place-items-center hover:bg-[rgb(var(--gold-600))] active:scale-95 transition"><Heart size={24} className="fill-white" /></button>
         </div>
       )}
     </div>

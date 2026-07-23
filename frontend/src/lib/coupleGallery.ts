@@ -41,8 +41,10 @@ export const undoMedia = (token: string, media: string): Promise<GStateResp> =>
   (supabase.rpc as any)('gallery_selection_undo', { p_token: token, p_media: media }).then((r: any) => (r.data ?? { error: r.error?.message }) as GStateResp)
 export const advanceRound = (token: string): Promise<GStateResp> =>
   (supabase.rpc as any)('gallery_selection_advance', { p_token: token }).then((r: any) => (r.data ?? { error: r.error?.message }) as GStateResp)
-export const submitSelection = (token: string): Promise<{ ok?: boolean; error?: string; kept?: number; min?: number; max?: number }> =>
-  (supabase.rpc as any)('gallery_selection_submit', { p_token: token }).then((r: any) => (r.data ?? { error: r.error?.message }))
+export const submitSelection = (token: string, force = false): Promise<{ ok?: boolean; error?: string; kept?: number; min?: number; max?: number }> =>
+  (supabase.rpc as any)('gallery_selection_submit', { p_token: token, p_force: force }).then((r: any) => (r.data ?? { error: r.error?.message }))
+export const requestReopen = (token: string): Promise<{ ok?: boolean; error?: string }> =>
+  (supabase.rpc as any)('gallery_selection_request_reopen', { p_token: token }).then((r: any) => (r.data ?? { error: r.error?.message }))
 
 // ── Capitoli editoriali: i ~20 "momenti" fini (album_moment) raccolti nei 4 capitoli
 //    del racconto. Si mostrano solo i capitoli con foto; l'ordine è quello del racconto.
