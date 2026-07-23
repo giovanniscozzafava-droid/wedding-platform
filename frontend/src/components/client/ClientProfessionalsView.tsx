@@ -134,7 +134,23 @@ export function ClientProfessionalsView({ emptyEmail }: { emptyEmail?: string | 
           </div>
         </Card>
       )}
-      {pros.map((p) => <ProfessionalBlock key={p.owner_id} pro={p} onChanged={() => void loadOverview()} />)}
+      {(() => {
+        // Raggruppa i professionisti per CATEGORIA (subrole del fornitore, o ruolo per WP/Location),
+        // così la coppia vede i preventivi distinti per settore. Ordine di prima comparsa.
+        const groups: { label: string; items: Professional[] }[] = []
+        for (const p of pros) {
+          const label = p.subrole ? subroleLabel(p.subrole) : roleLabel(p.role)
+          let g = groups.find((x) => x.label === label)
+          if (!g) { g = { label, items: [] }; groups.push(g) }
+          g.items.push(p)
+        }
+        return groups.map((g) => (
+          <div key={g.label} className="space-y-3">
+            <h3 className="text-[11px] font-mono uppercase tracking-[0.18em] text-[rgb(var(--gold-700))] px-1 pt-1">{g.label}</h3>
+            {g.items.map((p) => <ProfessionalBlock key={p.owner_id} pro={p} onChanged={() => void loadOverview()} />)}
+          </div>
+        ))
+      })()}
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle } from 'lucide-react'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -116,6 +116,12 @@ export default function QuoteEditorPage() {
   const [clientName, setClientName] = useState<string>('')
   const [clientEmail, setClientEmail] = useState<string>('')
   const [eventDate, setEventDate] = useState<string>('')
+  // LUOGO evento: testo mostrato (eventLocation) + link opzionale a una location registrata (locationId).
+  const [eventLocation, setEventLocation] = useState<string>('')
+  const [locationId, setLocationId] = useState<string | null>(null)
+  const [locQuery, setLocQuery] = useState<string>('')
+  const [locResults, setLocResults] = useState<Array<{ id: string; business_name: string | null; full_name: string | null; city: string | null; slug: string | null }>>([])
+  const [locOpen, setLocOpen] = useState(false)
   const [blockDays, setBlockDays] = useState(15)
   const [notifyClient] = useState(true)
   const [blocking, setBlocking] = useState(false)
@@ -322,6 +328,8 @@ export default function QuoteEditorPage() {
       setClientName(quote.client_name ?? '')
       setClientEmail(quote.client_email ?? '')
       setEventDate(quote.event_date ?? '')
+      setEventLocation((quote as any).event_location ?? '')
+      setLocationId((quote as any).location_id ?? null)
       setOptionAllowed(!!(quote as any).option_allowed)
       if ((quote as any).option_days) setBlockDays(Number((quote as any).option_days))
       setEventKind(((quote as any).event_kind ?? 'matrimonio').toLowerCase())
@@ -434,6 +442,8 @@ export default function QuoteEditorPage() {
         client_name: clientName.trim() || null,
         client_email: clientEmail.trim() || null,
         event_date: eventDate || null,
+        event_location: eventLocation.trim() || null,
+        location_id: locationId,
         event_kind: eventKind || 'matrimonio',
         default_markup_percent: Number(defaultMarkup || 0),
         guest_count: guestCount ? Number(guestCount) : null,
@@ -442,6 +452,23 @@ export default function QuoteEditorPage() {
       toast.success('Preventivo aggiornato')
     } catch (e) { toast.error((e as Error).message) }
   }
+
+  // Autocomplete "collega una location registrata": cerca gli account ruolo LOCATION.
+  async function searchLocations(q: string) {
+    setLocQuery(q); setLocOpen(true)
+    if (q.trim().length < 2) { setLocResults([]); return }
+    try {
+      const { data } = await (supabase.rpc as any)('search_locations', { p_q: q.trim() })
+      setLocResults((data as typeof locResults) ?? [])
+    } catch { setLocResults([]) }
+  }
+  function pickLocation(loc: (typeof locResults)[number]) {
+    const name = loc.business_name || loc.full_name || 'Location'
+    setLocationId(loc.id)
+    setEventLocation(loc.city ? `${name} · ${loc.city}` : name)
+    setLocOpen(false); setLocResults([]); setLocQuery('')
+  }
+  function unlinkLocation() { setLocationId(null); setLocOpen(false); setLocResults([]) }
 
   async function handleForceEdit() {
     if (!id || !quote) return
@@ -454,6 +481,8 @@ export default function QuoteEditorPage() {
         client_name: clientName.trim() || null,
         client_email: clientEmail.trim() || null,
         event_date: eventDate || null,
+        event_location: eventLocation.trim() || null,
+        location_id: locationId,
         default_markup_percent: Number(defaultMarkup || 0),
         guest_count: guestCount ? Number(guestCount) : null,
         table_count: tableCount ? Number(tableCount) : null,
@@ -765,6 +794,33 @@ export default function QuoteEditorPage() {
             <div className="space-y-1">
               <Label><Calendar size={12} className="inline" /> Data evento</Label>
               <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} disabled={isLocked} />
+            </div>
+            <div className="space-y-1 lg:col-span-3 relative">
+              <Label><MapPin size={12} className="inline" /> Luogo evento</Label>
+              <Input value={eventLocation} onChange={(e) => { setEventLocation(e.target.value); if (locationId) setLocationId(null) }} disabled={isLocked}
+                placeholder="Es. Villa Rosa, Tenuta delle Grazie, indirizzo…" />
+              {locationId ? (
+                <p className="text-[11px] text-[rgb(var(--gold-700))] mt-0.5 inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[rgb(var(--gold-500))]" /> Location registrata collegata
+                  {!isLocked && <>· <button type="button" onClick={unlinkLocation} className="underline">scollega</button></>}
+                </p>
+              ) : !isLocked ? (
+                <div className="mt-1">
+                  <input value={locQuery} onChange={(e) => void searchLocations(e.target.value)} onFocus={() => setLocOpen(true)}
+                    placeholder="oppure collega una location registrata sulla piattaforma…"
+                    className="w-full h-8 px-2 rounded-lg border bg-[rgb(var(--bg-elev))] border-[rgb(var(--border))] text-xs outline-none focus:border-[rgb(var(--gold-500))]" />
+                  {locOpen && locResults.length > 0 && (
+                    <div className="absolute z-30 mt-1 w-full max-w-md rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))] shadow-lg max-h-52 overflow-auto">
+                      {locResults.map((l) => (
+                        <button key={l.id} type="button" onClick={() => pickLocation(l)}
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-[rgb(var(--bg-sunken))]">
+                          {l.business_name || l.full_name}{l.city ? <span className="text-[rgb(var(--fg-muted))]"> · {l.city}</span> : null}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
             <div className="space-y-1 lg:col-span-3">
               <Label>Opzione data — il cliente può tenerla senza firmare</Label>
