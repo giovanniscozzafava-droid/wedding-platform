@@ -54,6 +54,12 @@ const PRIORITY_BY_KIND: Record<string, string[]> = {
 const styleOptionsFor = (k: string) => STYLE_BY_KIND[k] ?? STYLE_COMMON
 const priorityOptionsFor = (k: string) => PRIORITY_BY_KIND[k] ?? PRIORITY_BY_KIND.altro!
 
+// CONGELATO (2026-07): il matching "Scegli il tuo stile" (torneo a coppie) è troppo complesso per
+// ora. Con false non parte l'init né la UI. Rimettere true per riattivarlo.
+const STYLE_MATCH_ENABLED = false
+// Categorie per "a che punto siete con l'organizzazione" (riusa le priorità event-kind-aware).
+const orgCategoriesFor = (k: string) => priorityOptionsFor(k)
+
 export default function EmbedLeadPage() {
   const { slug: slugParam } = useParams<{ slug: string }>()
   const [sp] = useSearchParams()
@@ -93,6 +99,9 @@ export default function EmbedLeadPage() {
     budget_range: 'undecided', message: '',
     story: '', styles: [] as string[], priorities: [] as string[],
     must_haves: '', no_thanks: '', honeypot: '',
+    // A che punto sono con l'organizzazione: per categoria 'chosen' | 'open' | 'na'. Genera il lead
+    // (categorie 'open' = da suggerire). wants_location: vuole proposte di location.
+    organizing: {} as Record<string, 'chosen' | 'open' | 'na'>, wants_location: false,
   })
 
   // Viewport stretto (iframe su mobile): i campi a 2 colonne si impilano.
@@ -145,7 +154,7 @@ export default function EmbedLeadPage() {
   // Card del gioco "scegli il tuo stile" (asset taggati del fornitore), filtrate per tipo evento.
   // Avviamo un TORNEO: mescola, prendi fino a 16, poi duelli a coppie.
   useEffect(() => {
-    if (!slug) return
+    if (!slug || !STYLE_MATCH_ENABLED) return // gioco stile congelato: niente asset, niente torneo
     void (async () => {
       try {
         const { data } = await (supabase as unknown as AnyRpc).rpc('get_supplier_assets', { p_slug: slug, p_event_kind: form.event_kind, p_limit: 30 })
@@ -195,6 +204,14 @@ export default function EmbedLeadPage() {
       return { ...f, [key]: [...cur, val] }
     })
   }
+
+  // Stato organizzazione per categoria (toggle: ripremere lo stesso stato lo azzera).
+  function setOrg(cat: string, status: 'chosen' | 'open' | 'na') {
+    setForm((f) => { const cur = { ...f.organizing }; if (cur[cat] === status) delete cur[cat]; else cur[cat] = status; return { ...f, organizing: cur } })
+  }
+  const orgCats = orgCategoriesFor(form.event_kind)
+  const openCategories = orgCats.filter((c) => form.organizing[c] === 'open')
+  const locationOpen = orgCats.some((c) => c.toLowerCase().startsWith('location') && form.organizing[c] === 'open')
 
   // Risposte alle domande di categoria (specifiche del subrole del professionista)
   function setCat(key: string, val: unknown) { setCatAnswers((a) => ({ ...a, [key]: val })) }
@@ -253,6 +270,9 @@ export default function EmbedLeadPage() {
           ...catAnswers, // risposte alle domande specifiche di categoria (fiorista, fotografo, ...)
           ...(liked.length ? { liked_style_cards: liked } : {}),
           ...(rankedTags.length ? { liked_tags: rankedTags, style_profile: styleProfile.slice(0, 8).map(([tag, score]) => ({ tag, score })) } : {}),
+          // A che punto sono con l'organizzazione → categorie 'open' = da suggerire (genera il lead).
+          ...(Object.keys(form.organizing).length ? { organizing: form.organizing, open_categories: openCategories } : {}),
+          ...(form.wants_location ? { wants_location_suggestions: true } : {}),
           callback_pref: callbackPref,
         },
       })
@@ -438,6 +458,39 @@ export default function EmbedLeadPage() {
                 <input style={ui.input} value={form.no_thanks} onChange={(e) => setForm((f) => ({ ...f, no_thanks: e.target.value }))} placeholder="Es. lancio del riso" />
               </Field>
             </div>
+
+            {/* A CHE PUNTO SIETE: cosa hanno già scelto → il lead sa quali categorie suggerire. */}
+            {orgCats.length > 0 && (
+              <div style={{ marginTop: 6, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.08)' }}>
+                <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>A che punto siete con l'organizzazione?</p>
+                <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Segnate cosa avete già scelto: così {proName || 'chi vi seguirà'} sa dove può darvi una mano.</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {orgCats.map((cat) => {
+                    const st = form.organizing[cat]
+                    const opt = (v: 'chosen' | 'open' | 'na', label: string) => (
+                      <button type="button" onClick={() => setOrg(cat, v)}
+                        style={{ fontSize: 11, borderRadius: 99, padding: '3px 10px', cursor: 'pointer', border: `1px solid ${st === v ? primary : 'rgba(0,0,0,.15)'}`, background: st === v ? primary : '#fff', color: st === v ? '#fff' : '#555', fontWeight: st === v ? 600 : 400 }}>{label}</button>
+                    )
+                    return (
+                      <div key={cat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, textTransform: 'capitalize' }}>{cat}</span>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {opt('chosen', 'Già scelto')}
+                          {opt('open', 'Non ancora')}
+                          {opt('na', 'Non serve')}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {locationOpen && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={form.wants_location} onChange={(e) => setForm((f) => ({ ...f, wants_location: e.target.checked }))} />
+                    Vorrei ricevere qualche <b>proposta di location</b>
+                  </label>
+                )}
+              </div>
+            )}
           </>
         )}
 
