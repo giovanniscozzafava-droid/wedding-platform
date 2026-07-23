@@ -1,6 +1,6 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Image as ImageIcon, X, Plus, Trash2, Sparkles, Link as LinkIcon, Loader2 } from 'lucide-react'
+import { Image as ImageIcon, X, Plus, Trash2, Sparkles, Link as LinkIcon, Loader2, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   useAddModifier, useCategories, useCreateService, useRemoveModifier, useUpdateService,
-  useUploadPhoto, useDeletePhoto, type ServiceWithExtras,
+  useUploadPhoto, useDeletePhoto, useDeleteService, type ServiceWithExtras,
 } from '@/hooks/useCatalog'
 import { presetsFor, type ServicePreset } from '@/lib/service-presets'
 import { CategoryPicker } from '@/components/catalog/CategoryPicker'
@@ -45,6 +45,18 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
   const [photoProg, setPhotoProg] = useState<{ done: number; total: number; name?: string; pct?: number } | null>(null)
   const [savedId, setSavedId] = useState<string | null>(service?.id ?? null)
   const [newMod, setNewMod] = useState({ name: '', type: 'PERCENT' as ModType, value: '', date_from: '', date_to: '' })
+  // Foto tracciate localmente: la prop `service` non si aggiorna dopo la creazione,
+  // quindi la griglia mostrerebbe "Nessuna foto" anche dopo l'upload. Con questo stato
+  // le foto appena aggiunte compaiono subito e il gate "foto obbligatoria" è coerente.
+  const [localPhotos, setLocalPhotos] = useState<{ id: string; thumbnail_url: string }[]>(
+    (service?.service_photos ?? []).map((p) => ({ id: p.id, thumbnail_url: p.thumbnail_url })),
+  )
+  const photoCount = localPhotos.length
+  // La foto è obbligatoria solo in CREAZIONE: modificando un servizio legacy senza foto
+  // non blocchiamo (e non offriamo "elimina", che cancellerebbe un servizio reale).
+  const isNew = service === null
+  const delService = useDeleteService()
+  const photoSectionRef = useRef<HTMLDivElement | null>(null)
 
   // Auto-suggerimento categoria dal titolo: niente più default su cats[0]
   // (che sceglieva una categoria a caso). Se il titolo combacia con una
@@ -88,7 +100,8 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
       } else {
         const created = await create.mutateAsync(payload)
         setSavedId(created.id)
-        toast.success('Servizio creato')
+        toast.success('Servizio creato — ora aggiungi una foto (obbligatoria)')
+        setTimeout(() => photoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120)
         // Onboarding: marca first_offer_created sul profilo
         const { data: me } = await supabase.auth.getUser()
         if (me.user) {
@@ -160,7 +173,8 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
       const file = new File([arr], `import-${Date.now()}.${ext}`, { type: ct })
 
       // 3. Riutilizza useUploadPhoto (resize browser-side WebP + upload bucket + insert riga)
-      await upPhoto.mutateAsync({ serviceId: savedId, file })
+      const r = await upPhoto.mutateAsync({ serviceId: savedId, file })
+      setLocalPhotos((ps) => [...ps, { id: r.photo.id, thumbnail_url: r.photo.thumbnail_url }])
       toast.success('Foto importata')
       setImportUrl('')
     } catch (e) { toast.error((e as Error).message) }
@@ -175,12 +189,36 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     for (let i = 0; i < imgs.length; i++) {
       const f = imgs[i]!
       setPhotoProg({ done: i, total: imgs.length, name: f.name, pct: 0 })
-      try { await upPhoto.mutateAsync({ serviceId: savedId, file: f, onProgress: (pct) => setPhotoProg((p) => (p ? { ...p, pct } : p)) }); ok++ }
+      try {
+        const r = await upPhoto.mutateAsync({ serviceId: savedId, file: f, onProgress: (pct) => setPhotoProg((p) => (p ? { ...p, pct } : p)) })
+        setLocalPhotos((ps) => [...ps, { id: r.photo.id, thumbnail_url: r.photo.thumbnail_url }])
+        ok++
+      }
       catch (err) { toast.error(`«${f.name}»: ${err instanceof Error ? err.message : 'Upload fallito'}`) }
     }
     setPhotoProg(null)
     if (ok) toast.success(ok === 1 ? 'Foto caricata' : `${ok} foto caricate`)
     e.target.value = ''
+  }
+
+  // Foto obbligatoria: un servizio senza foto non è utile al cliente. Se provano a
+  // chiudere senza foto, non chiudo — li porto alla sezione foto (upload o link).
+  function requestClose() {
+    if (isNew && savedId && photoCount === 0) {
+      toast.error('Aggiungi almeno una foto: carica un file o incolla un link Instagram/Pinterest. È obbligatoria.')
+      photoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    onClose(!!savedId)
+  }
+  // Via di fuga senza restare intrappolati: elimina il servizio appena creato ed esci.
+  async function deleteAndClose() {
+    if (!savedId) { onClose(false); return }
+    try {
+      await delService.mutateAsync(savedId)
+      toast.success('Servizio eliminato')
+      onClose(false)
+    } catch (e) { toast.error((e as Error).message) }
   }
 
   return (
@@ -189,7 +227,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         role="dialog">
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => onClose(!!savedId)} />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={requestClose} />
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
           transition={{ type: 'spring', damping: 22, stiffness: 240 }}
@@ -199,7 +237,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
               <h2 className="font-display text-xl">{savedId ? 'Modifica servizio' : 'Nuovo servizio'}</h2>
               <p className="text-xs text-[rgb(var(--fg-subtle))]">{savedId ? 'Aggiorna i dettagli' : 'Compila i campi base, poi aggiungi modificatori e foto'}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onClose(!!savedId)} data-testid="close-modal">
+            <Button variant="ghost" size="icon" onClick={requestClose} data-testid="close-modal">
               <X size={18} />
             </Button>
           </header>
@@ -362,9 +400,16 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                   </div>
                 </div>
 
-                <div className="border-t pt-5" style={{ borderColor: 'rgb(var(--border))' }}>
+                <div ref={photoSectionRef} className="border-t pt-5" style={{ borderColor: 'rgb(var(--border))' }}>
+                  {isNew && photoCount === 0 && (
+                    <div className="mb-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-xs"
+                      style={{ background: 'rgb(var(--amber-100))', color: 'rgb(var(--amber-800))' }}>
+                      <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                      <span><strong>Foto obbligatoria.</strong> Aggiungi almeno una foto del servizio: <strong>carica un file</strong> oppure <strong>incolla un link Instagram/Pinterest</strong> qui sotto. Senza foto il servizio non è utile al cliente.</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                    <h3 className="font-medium text-sm">Foto (max 10)</h3>
+                    <h3 className="font-medium text-sm">Foto (max 10) <span style={{ color: 'rgb(var(--rose-500))' }}>*</span></h3>
                     <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors border"
                       style={{ borderColor: 'rgb(var(--border-strong))' }}>
                       <Plus size={14} /> Carica file
@@ -414,22 +459,28 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                     )}
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    {(service?.service_photos ?? []).map((p) => (
+                    {localPhotos.map((p) => (
                       <div key={p.id} className="relative aspect-square rounded-lg overflow-hidden group bg-[rgb(var(--bg-sunken))]">
                         <img src={p.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                        <button type="button" onClick={() => delPhoto.mutate(p.id)}
+                        <button type="button" onClick={() => { delPhoto.mutate(p.id); setLocalPhotos((ps) => ps.filter((x) => x.id !== p.id)) }}
                           className="absolute top-1 right-1 h-7 w-7 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <X size={12} />
                         </button>
                       </div>
                     ))}
-                    {(service?.service_photos ?? []).length === 0 && (
+                    {photoCount === 0 && (
                       <div className="col-span-4 rounded-lg border border-dashed py-8 text-center" style={{ borderColor: 'rgb(var(--border))' }}>
                         <ImageIcon size={20} className="mx-auto text-[rgb(var(--fg-subtle))]" />
                         <p className="text-xs text-[rgb(var(--fg-subtle))] mt-2">Nessuna foto ancora</p>
                       </div>
                     )}
                   </div>
+                  {isNew && photoCount === 0 && (
+                    <button type="button" onClick={deleteAndClose}
+                      className="mt-3 text-[11px] text-[rgb(var(--fg-subtle))] underline hover:text-[rgb(var(--rose-500))]">
+                      Non voglio aggiungere una foto ora: elimina il servizio ed esci
+                    </button>
+                  )}
                 </div>
               </>
             )}
