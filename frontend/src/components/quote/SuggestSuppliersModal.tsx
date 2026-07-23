@@ -1,13 +1,32 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
-import { X, Users, Send, Loader2, Check } from 'lucide-react'
+import { X, Users, Send, Loader2, Check, UserPlus, Mail } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSuppliers, useFollowedSuppliers } from '@/hooks/useSuppliers'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/input'
+import { Input, Textarea } from '@/components/ui/input'
 
 type Candidate = { id: string; name: string; subrole: string | null }
+
+// Settori più comuni per l'invito di un professionista NON ancora su Planfully.
+// Il valore è il subrole (hint): rende l'email di invito tarata sul suo mestiere.
+const INVITE_SUBROLES: { value: string; label: string }[] = [
+  { value: 'fotografo', label: 'Fotografo' },
+  { value: 'videomaker', label: 'Videomaker' },
+  { value: 'fioraio', label: 'Fioraio' },
+  { value: 'catering', label: 'Catering' },
+  { value: 'pasticcere', label: 'Pasticcere' },
+  { value: 'musica', label: 'Musica / DJ' },
+  { value: 'allestimenti', label: 'Allestimenti' },
+  { value: 'make_up', label: 'Make-up / Hair' },
+  { value: 'abiti', label: 'Atelier / Abiti' },
+  { value: 'auto', label: 'Auto e trasporti' },
+  { value: 'animazione', label: 'Animazione' },
+  { value: 'pirotecnico', label: 'Pirotecnico / Fuochi' },
+  { value: 'celebrante', label: 'Celebrante' },
+  { value: 'altro', label: 'Altro' },
+]
 
 // Modale "Suggerisci i miei fornitori a questo cliente": preseleziona TUTTI i fornitori che SEGUI
 // (criterio: basta seguirli) + eventuali collaborazioni ACTIVE, deselezionabili, + messaggio opzionale.
@@ -30,6 +49,10 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
   const [selected, setSelected] = useState<Set<string> | null>(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  // Invito di un professionista non ancora su Planfully, legato a questo preventivo.
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteSubrole, setInviteSubrole] = useState('')
+  const [inviteBusy, setInviteBusy] = useState(false)
 
   // Preselezione: tutti spuntati al primo render con dati.
   const sel = selected ?? new Set(suppliers.map((s) => s.id))
@@ -54,6 +77,25 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
       onClose()
     } catch (e) { toast.error(`Non riuscito: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
     finally { setBusy(false) }
+  }
+
+  // Invita un professionista NON ancora su Planfully a preparare il preventivo per
+  // QUESTO cliente. L'edge invite-supplier lega l'invito al preventivo (source_quote_id):
+  // all'accettazione il fornitore trova già il "suggerimento cieco" in /suggerimenti-ricevuti.
+  async function inviteNew() {
+    const em = inviteEmail.trim().toLowerCase()
+    if (!em || !em.includes('@')) { toast.error('Inserisci un\'email valida'); return }
+    setInviteBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-supplier', {
+        body: { email: em, subrole: inviteSubrole || undefined, source_quote_id: quoteId, message: message.trim() || undefined },
+      })
+      const err = (data as { error?: string } | null)?.error
+      if (error || err) { toast.error(`Non riuscito${err ? `: ${err}` : ''}`); return }
+      toast.success('Invito inviato: riceverà una mail per preparare il preventivo.')
+      setInviteEmail(''); setInviteSubrole('')
+    } catch (e) { toast.error(`Non riuscito: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
+    finally { setInviteBusy(false) }
   }
 
   return createPortal(
@@ -101,6 +143,32 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
               </div>
             </>
           )}
+
+          {/* Invita un professionista NON ancora su Planfully, legato a questo preventivo */}
+          <div className="mt-2 rounded-xl border border-dashed border-[rgb(var(--border-strong))] p-3.5 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <UserPlus size={15} className="text-[rgb(var(--gold-600))]" />
+              <span className="text-sm font-medium">Non è ancora su Planfully?</span>
+            </div>
+            <p className="text-[11px] text-[rgb(var(--fg-muted))] -mt-1">
+              Invitalo a preparare il preventivo per questo cliente. Riceve una mail con la data dell'evento (mai i tuoi dati cliente) e i passi per fare il preventivo.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Mail size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[rgb(var(--fg-subtle))]" />
+                <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="email del professionista" className="pl-8" />
+              </div>
+              <select value={inviteSubrole} onChange={(e) => setInviteSubrole(e.target.value)}
+                className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2.5 py-2 text-sm text-[rgb(var(--fg))] sm:w-40">
+                <option value="">Settore…</option>
+                {INVITE_SUBROLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => void inviteNew()} disabled={inviteBusy || !inviteEmail.trim()}>
+              {inviteBusy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Invita a preparare il preventivo
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 p-4 border-t border-[rgb(var(--border))]">

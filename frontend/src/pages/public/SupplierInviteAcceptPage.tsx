@@ -15,6 +15,7 @@ type InviteInfo = {
   expires_at?: string
   capo_name: string
   already?: boolean
+  is_referral?: boolean   // invito legato a un preventivo → atterra su /suggerimenti-ricevuti
   error?: string
 }
 
@@ -75,7 +76,9 @@ export default function SupplierInviteAcceptPage() {
       } else {
         toast.success(`Sei collegato/a a ${info.capo_name}`)
       }
-      nav('/onboarding', { replace: true })
+      // Referral (invito legato a un preventivo): dopo l'onboarding porta il fornitore
+      // direttamente sull'opportunità del cliente, non sul catalogo generico.
+      nav(info.is_referral ? `/onboarding?next=${encodeURIComponent('/suggerimenti-ricevuti')}` : '/onboarding', { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore registrazione')
     } finally { setBusy(false) }
@@ -91,7 +94,7 @@ export default function SupplierInviteAcceptPage() {
       // collega l'invito se ancora pendente (best-effort: se già accettato va bene lo stesso)
       try { await (supabase.rpc as any)('claim_supplier_invite', { p_token: token }) } catch { /* ignore */ }
       toast.success(`Bentornato/a! Sei dentro.`)
-      nav('/', { replace: true })
+      nav(info.is_referral ? '/suggerimenti-ricevuti' : '/', { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore login')
     } finally { setBusy(false) }

@@ -165,6 +165,30 @@ function presetFor(subrole: string | null | undefined): { greeting: string; what
   }
 }
 
+// Esempi concreti di "voci di catalogo" per settore — rendono pratico il primo passo
+// ("crea le voci del tuo catalogo") nell'email onboarding.
+const CATALOG_EXAMPLES: Record<string, string[]> = {
+  fotografo: ['Full day', 'Album 30×40', 'Riprese drone'],
+  videomaker: ['Highlight 3 min', 'Cerimonia integrale', 'Reel social'],
+  fioraio: ['Bouquet sposa', 'Centrotavola', 'Arco cerimonia'],
+  catering: ['Menu base', 'Open bar', 'Angolo dolci'],
+  pasticcere: ['Torta 3 piani', 'Confettata', 'Sweet table'],
+  musica: ['DJ set serata', 'Musica cerimonia', 'Aperitivo live'],
+  allestimenti: ['Sedute Chiavarine', 'Lighting scenografico', 'Lounge area'],
+  make_up: ['Prova + giorno', 'Make-up damigelle', 'Acconciatura sposa'],
+  abiti: ['Abito su misura', 'Prove sartoriali', 'Accessori'],
+  auto: ['Auto vintage', 'Addobbo floreale', 'Autista in livrea'],
+  animazione: ['Baby parking', 'Bolle giganti', 'Mascotte'],
+  celebrante: ['Rito simbolico', 'Rito civile', 'Cerimonia bilingue'],
+  pirotecnico: ['Spettacolo base', 'Fontane luminose', 'Cascata finale'],
+  fuochista: ['Spettacolo base', 'Fontane luminose', 'Cascata finale'],
+  wedding_planner: ['Full planning', 'Day coordination', 'Consulenza'],
+}
+function catalogExamplesFor(subrole: string | null | undefined): string[] {
+  const key = (subrole ?? '').toLowerCase().replace(/-/g, '_')
+  return CATALOG_EXAMPLES[key] ?? ['Pacchetto base', 'Extra', 'Supplementi']
+}
+
 async function sendInviteEmail(args: {
   to: string
   acceptUrl: string
@@ -173,6 +197,9 @@ async function sendInviteEmail(args: {
   inviterEmail: string | null // Reply-to
   customMessage: string | null
   subrole: string | null
+  // Se presente: invito a preventivare per un cliente specifico (referral).
+  // Contiene SOLO dati NON-PII dell'evento (mai nome/contatti del cliente).
+  referral?: { eventKind: string; eventDate: string | null; eventLocation: string | null; guestCount: number | null } | null
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const preset = presetFor(args.subrole)
   const inviterLabel = args.inviterBusiness
@@ -185,8 +212,9 @@ async function sendInviteEmail(args: {
 
   // Il "funnel" operativo, uguale per tutti i fornitori: catalogo → preventivo → firma → gestione.
   // Copy con HTML intenzionale (<strong>), quindi NON passa da escapeHtml.
+  const catExamples = catalogExamplesFor(args.subrole).map((e) => `«${escapeHtml(e)}»`).join(', ')
   const funnelSteps = [
-    '<strong>Crea le voci del tuo catalogo</strong> — i servizi che offri, ognuno con un prezzo (es. pacchetto base, extra, supplementi).',
+    `<strong>Crea le voci del tuo catalogo</strong> — i servizi che offri, ognuno con un prezzo. Per il tuo settore, ad esempio: ${catExamples}.`,
     '<strong>Componi il preventivo</strong> — scegli le voci dal catalogo, aggiungi le quantità e invialo alla coppia in un clic.',
     '<strong>La coppia lo apre, accetta e firma</strong> — il preventivo diventa contratto e la data resta bloccata per te.',
     '<strong>Gestisci evento e pagamenti</strong> — acconti, saldo e promemoria restano tracciati, senza rincorrere nessuno.',
@@ -195,7 +223,51 @@ async function sendInviteEmail(args: {
     .map((s, i) => `<li style="margin:0 0 8px"><span style="color:#25402F;font-weight:600">${i + 1}.</span> ${s}</li>`)
     .join('')
 
-  const bodyHtml = `
+  let eyebrow: string
+  let title: string
+  let bodyHtml: string
+  let subject: string
+  let ctaLabel: string
+
+  if (args.referral) {
+    // ── Variante REFERRAL: "un cliente aspetta il tuo preventivo" ─────────────
+    const r = args.referral
+    const isCouple = ['matrimonio', 'anniversario'].includes((r.eventKind || '').toLowerCase())
+    const eventWord = isCouple ? 'matrimonio' : 'evento'
+    const clientWord = isCouple ? 'una coppia' : 'un cliente'
+    const details = [
+      `<strong>Tipo:</strong> ${escapeHtml(eventWord)}`,
+      `<strong>Data:</strong> ${escapeHtml(fmtItDate(r.eventDate))}`,
+      r.eventLocation ? `<strong>Zona:</strong> ${escapeHtml(r.eventLocation)}` : null,
+      r.guestCount ? `<strong>Invitati:</strong> circa ${r.guestCount}` : null,
+    ].filter(Boolean).map((d) => `<li style="margin:0 0 6px">${d}</li>`).join('')
+
+    const refSteps = [
+      "<strong>Accetta l'invito e completa il profilo</strong> — bastano pochi minuti.",
+      '<strong>Crea le voci del tuo catalogo</strong> — i servizi che offri, ognuno con un prezzo.',
+      '<strong>Componi il preventivo</strong> — scegli le voci dal catalogo e invialo: lo riceve il cliente.',
+      '<strong>Se il cliente accetta</strong>, si sbloccano i suoi contatti e prosegui direttamente con lui.',
+    ].map((s, i) => `<li style="margin:0 0 8px"><span style="color:#25402F;font-weight:600">${i + 1}.</span> ${s}</li>`).join('')
+
+    eyebrow = 'Nuova opportunità'
+    title = 'Un cliente aspetta il tuo preventivo'
+    ctaLabel = 'Accetta e prepara il preventivo'
+    bodyHtml = `
+    <p style="margin:0 0 14px">Ciao, sono <strong>${escapeHtml(inviterLabel)}</strong>. Un cliente sta cercando un professionista come te e <strong>ti ho suggerito io</strong> su Planfully, lo strumento con cui organizzo i miei eventi con i fornitori di fiducia.</p>
+    <p style="margin:0 0 8px">Cosa so dell'evento — in questa fase <strong>non vedi i dati del cliente</strong>, solo la data e il tipo:</p>
+    <ul style="margin:0 0 16px;padding-left:18px;line-height:1.6;color:#3a3a34">${details}</ul>
+    ${args.customMessage ? `<div style="margin:16px 0;padding:14px 16px;background:#F4F3EE;border-left:3px solid #25402F"><strong style="display:block;font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;color:#25402F;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Messaggio personale</strong>${escapeHtml(args.customMessage)}</div>` : ''}
+    <h3 style="margin:22px 0 10px;font-size:15px;color:#181F1B">Come preparare il preventivo</h3>
+    <ol style="margin:0;padding-left:0;list-style:none;line-height:1.6">${refSteps}</ol>
+    <p style="margin:16px 0 0;font-size:13px;color:#3a3a34;line-height:1.6">I contatti del cliente restano riservati e si sbloccano solo se accetta la tua proposta.</p>
+    <p style="margin:20px 0 0;font-size:12px;color:#6B6B63">Pulsante che non funziona? Copia questo link:<br><a href="${args.acceptUrl}" style="color:#25402F;word-break:break-all">${args.acceptUrl}</a></p>`
+    subject = `${args.inviterName} ti ha suggerito a ${clientWord} — prepara il preventivo`
+  } else {
+    // ── Variante standard: invito a entrare nel network ───────────────────────
+    eyebrow = 'Invito personale'
+    title = `${args.inviterName} ti vuole nel suo network`
+    ctaLabel = `Accetta l'invito di ${args.inviterName}`
+    bodyHtml = `
     <p style="margin:0 0 14px">Ciao, sono <strong>${escapeHtml(inviterLabel)}</strong>. Ti scrivo da Planfully, lo strumento che uso per organizzare i miei matrimoni con i fornitori di fiducia — senza marketplace, senza commissioni sul tuo lavoro.</p>
     <p style="margin:0 0 14px">${escapeHtml(preset.greeting)}</p>
     ${args.customMessage ? `<div style="margin:16px 0;padding:14px 16px;background:#F4F3EE;border-left:3px solid #25402F"><strong style="display:block;font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;color:#25402F;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Messaggio personale</strong>${escapeHtml(args.customMessage)}</div>` : ''}
@@ -205,23 +277,20 @@ async function sendInviteEmail(args: {
     <p style="margin:0 0 10px;font-size:14px;color:#3a3a34;line-height:1.6">In pratica costruisci un piccolo funnel, tutto dentro Planfully:</p>
     <ol style="margin:0;padding-left:0;list-style:none;line-height:1.6">${funnelHtml}</ol>
     <p style="margin:20px 0 0;font-size:12px;color:#6B6B63">Pulsante che non funziona? Copia questo link:<br><a href="${args.acceptUrl}" style="color:#25402F;word-break:break-all">${args.acceptUrl}</a></p>`
+    subject = `${args.inviterName} ti invita su Planfully (${preset.greeting.split('—')[0].trim().slice(0, 40)}…)`
+  }
 
   const html = emailShell({
-    eyebrow: 'Invito personale',
-    title: `${args.inviterName} ti vuole nel suo network`,
+    eyebrow,
+    title,
     bodyHtml,
-    cta: { href: args.acceptUrl, label: `Accetta l'invito di ${args.inviterName}` },
+    cta: { href: args.acceptUrl, label: ctaLabel },
     contactHtml: args.inviterEmail ? `Puoi rispondere a questa email per parlare direttamente con ${escapeHtml(args.inviterName)} (${escapeHtml(args.inviterEmail)}).` : undefined,
   })
 
-  // FROM: "Nome Cognome · via Planfully <noreply@planfully.it>"
+  // FROM: "Nome Cognome via Planfully <noreply@planfully.it>"
   // Reply-to = email reale del WP (così risposte vanno a lui, non a noreply)
-  const fromLabel = args.inviterBusiness
-    ? `${args.inviterName} via Planfully`
-    : `${args.inviterName} via Planfully`
-  const from = `${fromLabel} <${RESEND_FROM_ADDR}>`
-
-  const subject = `${args.inviterName} ti invita su Planfully (${preset.greeting.split('—')[0].trim().slice(0, 40)}…)`
+  const from = `${args.inviterName} via Planfully <${RESEND_FROM_ADDR}>`
 
   const r = await sendEmailSES({
     to: args.to,
@@ -237,6 +306,15 @@ async function sendInviteEmail(args: {
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+}
+
+function fmtItDate(d: string | null): string {
+  if (!d) return 'da definire'
+  try {
+    return new Date(d).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch {
+    return d
+  }
 }
 
 const cors = {
@@ -268,10 +346,32 @@ Deno.serve(async (req) => {
   const body = (await req.json().catch(() => ({}))) as {
     email?: string; subrole?: string; message?: string; skip_email?: boolean
     entry_id?: string; role_key?: string   // invito legato a un EVENTO (condivisione foto)
+    source_quote_id?: string               // invito a preventivare per il cliente di questo preventivo (referral)
   }
   const email = (body.email ?? '').trim().toLowerCase()
   if (!email || !email.includes('@')) return json({ error: 'invalid email' }, 400)
   const skipEmail = body.skip_email === true
+
+  // Referral: invito legato a un preventivo. Il caller DEVE esserne il proprietario,
+  // altrimenti potrebbe agganciare i contatti di un cliente non suo (leak PII).
+  const sourceQuoteId = (body.source_quote_id ?? '').trim() || null
+  let referral: { eventKind: string; eventDate: string | null; eventLocation: string | null; guestCount: number | null } | null = null
+  let sourceQuote: { client_name: string | null; client_email: string | null } | null = null
+  if (sourceQuoteId) {
+    const { data: q } = await admin.from('quotes')
+      .select('owner_id, event_kind, event_date, event_location, guest_count, client_name, client_email')
+      .eq('id', sourceQuoteId).maybeSingle()
+    if (!q) return json({ error: 'preventivo di partenza non trovato' }, 404)
+    const qq = q as { owner_id?: string; event_kind?: string | null; event_date?: string | null; event_location?: string | null; guest_count?: number | null; client_name?: string | null; client_email?: string | null }
+    if (qq.owner_id !== callerId) return json({ error: 'non sei il proprietario di questo preventivo' }, 403)
+    referral = {
+      eventKind: qq.event_kind ?? 'matrimonio',
+      eventDate: qq.event_date ?? null,
+      eventLocation: qq.event_location ?? null,
+      guestCount: qq.guest_count ?? null,
+    }
+    sourceQuote = { client_name: qq.client_name ?? null, client_email: qq.client_email ?? null }
+  }
 
   // 1. Cerca user esistente per email
   const { data: existing } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
@@ -311,8 +411,30 @@ Deno.serve(async (req) => {
     const inviterBusiness = inviterProf?.business_name ?? null
     const inviterEmail = inviterAuth?.user?.email ?? null
 
-    // Invia email "ti hanno aggiunto al network" verso fornitore esistente
-    const acceptUrl = `${APP_BASE}/suppliers?invite_from=${callerId}`
+    // Referral verso un fornitore GIÀ iscritto: materializza subito il suggerimento
+    // cieco (PII cliente SOLO in _private) così lo trova in /suggerimenti-ricevuti.
+    if (sourceQuoteId && referral) {
+      const { data: sugg } = await admin.from('supplier_suggestions').upsert({
+        referrer_id: callerId, supplier_id: prof.id, source_quote_id: sourceQuoteId,
+        event_kind: referral.eventKind, event_date: referral.eventDate,
+        event_location: referral.eventLocation, guest_count: referral.guestCount, status: 'SENT',
+      }, { onConflict: 'referrer_id,supplier_id,source_quote_id' }).select('id').single()
+      if (sugg?.id) {
+        await admin.from('supplier_suggestions_private').upsert({
+          suggestion_id: sugg.id,
+          client_name: sourceQuote?.client_name ?? null,
+          client_email: sourceQuote?.client_email ?? null,
+          client_phone: null,
+          message: body.message ?? null,
+        }, { onConflict: 'suggestion_id' })
+      }
+    }
+
+    // Email: variante referral ("un cliente aspetta il tuo preventivo") oppure
+    // "ti hanno aggiunto al network".
+    const acceptUrl = referral
+      ? `${APP_BASE}/suggerimenti-ricevuti`
+      : `${APP_BASE}/suppliers?invite_from=${callerId}`
     const send = await sendInviteEmail({
       to: email,
       acceptUrl,
@@ -321,10 +443,11 @@ Deno.serve(async (req) => {
       inviterEmail,
       customMessage: body.message ?? null,
       subrole: body.subrole ?? null,
+      referral,
     })
     return json({
       ok: true,
-      mode: wasDuplicate ? 'collab_exists' : 'collab_direct',
+      mode: referral ? 'referral_existing' : (wasDuplicate ? 'collab_exists' : 'collab_direct'),
       email_id: send.ok ? send.id : null,
       email_error: send.ok ? null : send.error,
     })
@@ -338,6 +461,7 @@ Deno.serve(async (req) => {
     message: body.message ?? null,
     entry_id: body.entry_id ?? null,
     role_key: body.role_key ?? null,
+    source_quote_id: sourceQuoteId,
   }).select().single()
   if (insErr) {
     const msg = String(insErr.message ?? '').toLowerCase()
@@ -372,6 +496,7 @@ Deno.serve(async (req) => {
     inviterEmail,
     customMessage: body.message ?? null,
     subrole: body.subrole ?? null,
+    referral,
   })
   if (!send.ok) {
     return json({

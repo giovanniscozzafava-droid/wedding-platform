@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {  ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { toast } from 'sonner'
@@ -72,6 +72,7 @@ const ITALIAN_REGIONS = [
 export function ProviderOnboardingWizard() {
   const { user, profile, refreshProfile } = useAuth()
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
   const [coverFile, setCoverFile] = useState<File | null>(null)
@@ -182,7 +183,8 @@ export function ProviderOnboardingWizard() {
         // Fornitore: portalo subito a creare la prima offerta (con possibilità di skip).
         // Tutorial card si attiveranno in dashboard se chiude.
         if (profile?.role === 'FORNITORE') {
-          nav('/catalog?firstOffer=1', { replace: true })
+          // Referral: se arriva con ?next (es. /suggerimenti-ricevuti) atterra lì, non sul catalogo.
+          nav(searchParams.get('next') || '/catalog?firstOffer=1', { replace: true })
         } else if (profile?.role === 'WEDDING_PLANNER') {
           // Semina le parcelle di coordinamento come prodotti del pacchetto (matrimonio, compleanno,
           // evento aziendale, cerimonia, consulenza) e mostra il catalogo per personalizzarle.
