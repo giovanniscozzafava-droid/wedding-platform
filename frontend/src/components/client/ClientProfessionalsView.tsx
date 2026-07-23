@@ -26,7 +26,20 @@ type Brief = {
 type QuoteItem = {
   id: string; name: string; qty: number; unit: string; line_client: number
   supplier: string | null; client_decision: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO'
-  decline_reason: string | null
+  decline_reason: string | null; category: string | null
+}
+
+// Raggruppa le voci per categoria mantenendo l'ordine (le voci arrivano già
+// ordinate per categoria dalla RPC). Le voci senza categoria vanno in "Altro".
+function groupItemsByCategory(items: QuoteItem[]): { category: string; items: QuoteItem[] }[] {
+  const groups: { category: string; items: QuoteItem[] }[] = []
+  for (const it of items) {
+    const cat = (it.category ?? '').trim() || 'Altro'
+    let g = groups.find((x) => x.category === cat)
+    if (!g) { g = { category: cat, items: [] }; groups.push(g) }
+    g.items.push(it)
+  }
+  return groups
 }
 type Quote = {
   id: string; title: string; status: string; event_kind: string | null
@@ -201,6 +214,8 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
   const items = q.items ?? []
   const pending = items.filter((it) => it.client_decision === 'IN_ATTESA')
   const acceptedTotal = items.filter((it) => it.client_decision === 'ACCETTATO').reduce((s, it) => s + Number(it.line_client || 0), 0)
+  const grouped = groupItemsByCategory(items)
+  const multiCat = grouped.length > 1
 
   async function decide(it: QuoteItem, decision: 'ACCETTATO' | 'RIFIUTATO') {
     let reason: string | null = null
@@ -253,7 +268,6 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-[rgb(var(--fg-muted))]">
             {q.event_date && <span className="inline-flex items-center gap-1"><Calendar size={12} /> {fmtDate(q.event_date)}</span>}
             {q.event_location && <span className="inline-flex items-center gap-1"><MapPin size={12} /> {q.event_location}</span>}
-            <span className="font-medium text-[rgb(var(--fg))]">{fmtEuro(q.total_client)}</span>
           </div>
         </div>
         <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: st.c, background: `${st.c}1a` }}>{st.l}</span>
@@ -284,37 +298,44 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
               </span>
             )}
           </div>
-          <div className="space-y-1.5">
-            {items.map((it) => (
-              <div key={it.id} className="flex items-center gap-2 text-xs">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate">
-                    {it.name}
-                    {it.qty > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{it.qty}</span>}
-                    {it.supplier && <span className="text-[rgb(var(--fg-subtle))]"> · {it.supplier}</span>}
-                  </p>
-                  {it.client_decision === 'RIFIUTATO' && it.decline_reason && (
-                    <p className="text-[10px] text-[rgb(var(--fg-subtle))] italic truncate">Motivo: {it.decline_reason}</p>
-                  )}
-                </div>
-                <span className="shrink-0 tabular-nums text-[rgb(var(--fg-muted))]">{fmtEuro(it.line_client)}</span>
-                {it.client_decision === 'IN_ATTESA' ? (
-                  <div className="flex gap-1 shrink-0">
-                    <button disabled={busyId === it.id} onClick={() => void decide(it, 'ACCETTATO')}
-                      className="px-2 py-1 rounded-md text-white text-[11px] font-medium disabled:opacity-50" style={{ background: '#16a34a' }}>Accetta</button>
-                    <button disabled={busyId === it.id} onClick={() => void decide(it, 'RIFIUTATO')}
-                      className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>Rifiuta</button>
-                  </div>
-                ) : (
-                  <button disabled={busyId === it.id}
-                    onClick={() => void decide(it, it.client_decision === 'ACCETTATO' ? 'RIFIUTATO' : 'ACCETTATO')}
-                    className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full disabled:opacity-50"
-                    style={it.client_decision === 'ACCETTATO'
-                      ? { color: '#16a34a', background: '#16a34a1a' }
-                      : { color: '#dc2626', background: '#dc26261a' }}>
-                    {it.client_decision === 'ACCETTATO' ? '✓ Accettata' : '✕ Rifiutata'}
-                  </button>
+          <div className="space-y-2.5">
+            {grouped.map((grp) => (
+              <div key={grp.category} className="space-y-1.5">
+                {multiCat && (
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[rgb(var(--fg-subtle))]">{grp.category}</p>
                 )}
+                {grp.items.map((it) => (
+                  <div key={it.id} className="flex items-center gap-2 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate">
+                        {it.name}
+                        {it.qty > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{it.qty}</span>}
+                        {it.supplier && <span className="text-[rgb(var(--fg-subtle))]"> · {it.supplier}</span>}
+                      </p>
+                      {it.client_decision === 'RIFIUTATO' && it.decline_reason && (
+                        <p className="text-[10px] text-[rgb(var(--fg-subtle))] italic truncate">Motivo: {it.decline_reason}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 tabular-nums text-[rgb(var(--fg-muted))]">{fmtEuro(it.line_client)}</span>
+                    {it.client_decision === 'IN_ATTESA' ? (
+                      <div className="flex gap-1 shrink-0">
+                        <button disabled={busyId === it.id} onClick={() => void decide(it, 'ACCETTATO')}
+                          className="px-2 py-1 rounded-md text-white text-[11px] font-medium disabled:opacity-50" style={{ background: '#16a34a' }}>Accetta</button>
+                        <button disabled={busyId === it.id} onClick={() => void decide(it, 'RIFIUTATO')}
+                          className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>Rifiuta</button>
+                      </div>
+                    ) : (
+                      <button disabled={busyId === it.id}
+                        onClick={() => void decide(it, it.client_decision === 'ACCETTATO' ? 'RIFIUTATO' : 'ACCETTATO')}
+                        className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full disabled:opacity-50"
+                        style={it.client_decision === 'ACCETTATO'
+                          ? { color: '#16a34a', background: '#16a34a1a' }
+                          : { color: '#dc2626', background: '#dc26261a' }}>
+                        {it.client_decision === 'ACCETTATO' ? '✓ Accettata' : '✕ Rifiutata'}
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -332,22 +353,28 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
           <p className="text-xs font-semibold inline-flex items-center gap-1.5 mb-2" style={{ color: accent }}>
             <Sparkles size={13} /> L'offerta
           </p>
-          <div className="space-y-1.5">
-            {items.map((it) => (
-              <div key={it.id} className="flex items-center gap-2 text-xs">
-                <p className="min-w-0 flex-1 truncate">
-                  {it.name}
-                  {it.qty > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{it.qty}</span>}
-                  {it.supplier && <span className="text-[rgb(var(--fg-subtle))]"> · {it.supplier}</span>}
-                </p>
-                <span className="shrink-0 tabular-nums text-[rgb(var(--fg-muted))]">{fmtEuro(it.line_client)}</span>
+          <div className="space-y-2.5">
+            {grouped.map((grp) => (
+              <div key={grp.category} className="space-y-1.5">
+                {multiCat && (
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[rgb(var(--fg-subtle))]">{grp.category}</p>
+                )}
+                {grp.items.map((it) => (
+                  <div key={it.id} className="flex items-center gap-2 text-xs">
+                    <p className="min-w-0 flex-1 truncate">
+                      {it.name}
+                      {it.qty > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{it.qty}</span>}
+                      {it.supplier && <span className="text-[rgb(var(--fg-subtle))]"> · {it.supplier}</span>}
+                    </p>
+                    <span className="shrink-0 tabular-nums text-[rgb(var(--fg-muted))]">{fmtEuro(it.line_client)}</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
-          <div className="mt-2.5 pt-2.5 border-t flex items-center justify-between text-xs" style={{ borderColor: 'rgb(var(--border))' }}>
-            <span className="text-[rgb(var(--fg-muted))]">Totale offerta</span>
-            <span className="font-semibold tabular-nums" style={{ color: accent }}>{fmtEuro(q.total_client)}</span>
-          </div>
+          <p className="mt-2.5 pt-2.5 border-t text-[11px] text-[rgb(var(--fg-subtle))]" style={{ borderColor: 'rgb(var(--border))' }}>
+            Il totale comparirà quando accetti le voci che vuoi.
+          </p>
         </div>
       )}
 
