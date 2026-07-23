@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react'
-import { X, Heart, MessageSquare, Share2, FileText, Pin, Shield, Download, Loader2, AlertTriangle, Trash2 } from 'lucide-react'
+import { X, MessageSquare, Share2, FileText, Shield, Loader2, AlertTriangle, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
+import { SelectionRangeControl } from './SelectionRangeControl'
 
+// Solo i campi realmente consumati dalla galleria in-app. Gli 8 flag storici
+// (preferiti/colore/limite/download…) non erano letti da nessuna parte: rimossi
+// dalla UI (le colonne restano in tabella, innocue). Il "limite foto" vero e la
+// scadenza vivono in SelectionRangeControl, ora incorporato in questo pannello.
 export type GallerySettings = {
   gallery_id?: string
-  allow_favorites: boolean; favorites_color: string; show_favorites_count: boolean; favorites_limit: number | null; favorites_download: string
-  allow_comments: boolean; allow_social: boolean; show_filename: boolean; pin_icons: boolean
+  allow_comments: boolean; allow_social: boolean; show_filename: boolean
   watermark_enabled: boolean; watermark_text: string | null
-  allow_download_all: boolean; download_hd: boolean
 }
 
 export const DEFAULT_GALLERY_SETTINGS: GallerySettings = {
-  allow_favorites: true, favorites_color: '#25402F', show_favorites_count: false, favorites_limit: null, favorites_download: 'off',
-  allow_comments: true, allow_social: true, show_filename: false, pin_icons: false,
-  watermark_enabled: false, watermark_text: null, allow_download_all: false, download_hd: false,
+  allow_comments: true, allow_social: true, show_filename: false,
+  watermark_enabled: false, watermark_text: null,
 }
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
@@ -76,29 +78,9 @@ export function GallerySettingsPanel({ galleryId, onClose, onSaved, onDedup, ded
           <div className="p-10 text-center text-[rgb(var(--fg-muted))]"><Loader2 className="animate-spin mx-auto" /></div>
         ) : (
           <div className="overflow-y-auto p-4 divide-y divide-[rgb(var(--border))]">
-            <Row icon={<Heart size={18} />} title="Preferiti" desc="I clienti possono selezionare le foto preferite">
-              <Toggle on={s.allow_favorites} onChange={(v) => set('allow_favorites', v)} />
-            </Row>
-            {s.allow_favorites && (
-              <div className="pl-9 py-3 space-y-3">
-                <div className="flex items-center justify-between"><span className="text-sm">Numero preferiti in evidenza</span><Toggle on={s.show_favorites_count} onChange={(v) => set('show_favorites_count', v)} /></div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm">Limite foto scelte</span>
-                  <input type="number" min={0} value={s.favorites_limit ?? ''} onChange={(e) => set('favorites_limit', e.target.value ? Number(e.target.value) : null)} placeholder="nessun limite"
-                    className="w-32 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 text-sm" />
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm">Colore icona cuore</span>
-                  <input type="color" value={s.favorites_color} onChange={(e) => set('favorites_color', e.target.value)} className="h-8 w-12 rounded border border-[rgb(var(--border))]" />
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm">Scarica tutti i preferiti</span>
-                  <select value={s.favorites_download} onChange={(e) => set('favorites_download', e.target.value)} className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1.5 text-sm">
-                    <option value="off">Off</option><option value="web">Risoluzione web</option><option value="hi">Alta risoluzione</option>
-                  </select>
-                </div>
-              </div>
-            )}
+            {/* Le impostazioni che contano davvero: quante foto la coppia deve scegliere (min/max),
+                scadenza selezione, chiudi/riapri. Prima vivevano fuori dal pannello. */}
+            <div className="pb-1"><SelectionRangeControl galleryId={galleryId} /></div>
             <Row icon={<MessageSquare size={18} />} title="Commenti" desc="I clienti possono commentare ogni foto">
               <Toggle on={s.allow_comments} onChange={(v) => set('allow_comments', v)} />
             </Row>
@@ -108,25 +90,13 @@ export function GallerySettingsPanel({ galleryId, onClose, onSaved, onDedup, ded
             <Row icon={<FileText size={18} />} title="Nome file in evidenza" desc="Mostra il nome del file sulla foto">
               <Toggle on={s.show_filename} onChange={(v) => set('show_filename', v)} />
             </Row>
-            <Row icon={<Pin size={18} />} title="Fissa le icone" desc="Icone sempre visibili sopra le foto">
-              <Toggle on={s.pin_icons} onChange={(v) => set('pin_icons', v)} />
-            </Row>
-            <Row icon={<Shield size={18} />} title="Watermark" desc="Sovrimprime un testo sulle anteprime">
+            <Row icon={<Shield size={18} />} title="Watermark" desc="Sovrimprime un testo sulle anteprime (vista in-app)">
               <Toggle on={s.watermark_enabled} onChange={(v) => set('watermark_enabled', v)} />
             </Row>
             {s.watermark_enabled && (
               <div className="pl-9 py-3">
                 <input value={s.watermark_text ?? ''} onChange={(e) => set('watermark_text', e.target.value)} placeholder="Testo watermark (es. © Gisko Foto)"
                   className="w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm" />
-              </div>
-            )}
-            <Row icon={<Download size={18} />} title="Download di tutte le foto" desc="I clienti scaricano tutte le foto in ZIP">
-              <Toggle on={s.allow_download_all} onChange={(v) => set('allow_download_all', v)} />
-            </Row>
-            {s.allow_download_all && (
-              <div className="pl-9 py-3 flex items-center justify-between">
-                <span className="text-sm">Includi alta risoluzione (HD)</span>
-                <Toggle on={s.download_hd} onChange={(v) => set('download_hd', v)} />
               </div>
             )}
           </div>
