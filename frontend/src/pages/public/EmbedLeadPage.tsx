@@ -552,7 +552,7 @@ export default function EmbedLeadPage() {
         {/* DOMANDE SPECIFICHE DI CATEGORIA (dal subrole del professionista): le risposte
             arrivano automaticamente a chi crea il preventivo. */}
         {!compact && subrole && (() => {
-          const catSections = getQuestionsForSubrole(subrole).slice(0, 2).filter((s) => (s.questions?.length ?? 0) > 0)
+          const catSections = getQuestionsForSubrole(subrole).slice(0, 3).filter((s) => (s.questions?.length ?? 0) > 0)
           if (!catSections.length) return null
           return (
             <>
@@ -587,6 +587,7 @@ export default function EmbedLeadPage() {
                     ) : (
                       <input style={ui.input} value={(v as string) ?? ''} onChange={(e) => setCat(q.key, e.target.value)} placeholder={q.placeholder} />
                     )}
+                    {q.help && <p style={{ fontSize: 11, opacity: 0.55, marginTop: 3, lineHeight: 1.35 }}>{q.help}</p>}
                   </Field>
                 )
               })}
