@@ -183,12 +183,27 @@ async function sendInviteEmail(args: {
     .map((s, i) => `<li style="margin:0 0 8px"><span style="color:#25402F;font-weight:600">${i + 1}.</span> ${escapeHtml(s)}</li>`)
     .join('')
 
+  // Il "funnel" operativo, uguale per tutti i fornitori: catalogo → preventivo → firma → gestione.
+  // Copy con HTML intenzionale (<strong>), quindi NON passa da escapeHtml.
+  const funnelSteps = [
+    '<strong>Crea le voci del tuo catalogo</strong> — i servizi che offri, ognuno con un prezzo (es. pacchetto base, extra, supplementi).',
+    '<strong>Componi il preventivo</strong> — scegli le voci dal catalogo, aggiungi le quantità e invialo alla coppia in un clic.',
+    '<strong>La coppia lo apre, accetta e firma</strong> — il preventivo diventa contratto e la data resta bloccata per te.',
+    '<strong>Gestisci evento e pagamenti</strong> — acconti, saldo e promemoria restano tracciati, senza rincorrere nessuno.',
+  ]
+  const funnelHtml = funnelSteps
+    .map((s, i) => `<li style="margin:0 0 8px"><span style="color:#25402F;font-weight:600">${i + 1}.</span> ${s}</li>`)
+    .join('')
+
   const bodyHtml = `
     <p style="margin:0 0 14px">Ciao, sono <strong>${escapeHtml(inviterLabel)}</strong>. Ti scrivo da Planfully, lo strumento che uso per organizzare i miei matrimoni con i fornitori di fiducia — senza marketplace, senza commissioni sul tuo lavoro.</p>
     <p style="margin:0 0 14px">${escapeHtml(preset.greeting)}</p>
     ${args.customMessage ? `<div style="margin:16px 0;padding:14px 16px;background:#F4F3EE;border-left:3px solid #25402F"><strong style="display:block;font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;color:#25402F;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Messaggio personale</strong>${escapeHtml(args.customMessage)}</div>` : ''}
-    <h3 style="margin:22px 0 10px;font-size:15px;color:#181F1B">Cosa fare dopo aver accettato</h3>
+    <h3 style="margin:22px 0 10px;font-size:15px;color:#181F1B">Come iniziare, in 4 passi</h3>
     <ol style="margin:0;padding-left:0;list-style:none;line-height:1.6">${stepsHtml}</ol>
+    <h3 style="margin:24px 0 10px;font-size:15px;color:#181F1B">Come funziona il tuo lavoro su Planfully</h3>
+    <p style="margin:0 0 10px;font-size:14px;color:#3a3a34;line-height:1.6">In pratica costruisci un piccolo funnel, tutto dentro Planfully:</p>
+    <ol style="margin:0;padding-left:0;list-style:none;line-height:1.6">${funnelHtml}</ol>
     <p style="margin:20px 0 0;font-size:12px;color:#6B6B63">Pulsante che non funziona? Copia questo link:<br><a href="${args.acceptUrl}" style="color:#25402F;word-break:break-all">${args.acceptUrl}</a></p>`
 
   const html = emailShell({
