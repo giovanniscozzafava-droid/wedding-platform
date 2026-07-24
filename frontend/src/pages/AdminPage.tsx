@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Link } from 'react-router-dom'
-import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard, Trash2, Mail, ArrowLeft, Send } from 'lucide-react'
+import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard, Trash2, Mail, ArrowLeft, Send, Activity } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,14 @@ import { useAuth } from '@/lib/auth'
 import { startImpersonation } from '@/lib/impersonation'
 import { Eye } from 'lucide-react'
 
-type Tab = 'overview' | 'inbox' | 'errors' | 'bugs' | 'subs' | 'team' | 'funnel'
+type Tab = 'overview' | 'inbox' | 'errors' | 'bugs' | 'subs' | 'team' | 'funnel' | 'activity'
+// Attività fornitori: iscrizione + ultimo accesso + cose fatte (servizi, preventivi, eventi, foto).
+type ActRow = {
+  id: string; name: string | null; subrole: string | null; email: string
+  created_at: string; last_sign_in_at: string | null
+  n_services: number; n_services_active: number; n_quotes: number; n_events: number; n_photos: number
+  first_service_at: string | null
+}
 type MailRow = { id: string; from_addr: string; to_addr: string; subject: string; status: string; received_at: string; snippet: string }
 type MailFull = { id: string; from_addr: string; to_addr: string; subject: string; text: string | null; html: string | null; received_at: string; status: string }
 type Subs = { by_plan: Record<string, number>; fornitori_total: number; paying: number; mrr: number; pricing: { presence: number; region: number; national: number }; belly: { cap_per_category: number | null; cap_total: number | null } }
@@ -63,6 +70,9 @@ export default function AdminPage() {
   const [subs, setSubs] = useState<Subs | null>(null)
   const [forn, setForn] = useState<FornRow[]>([])
   const [fornSearch, setFornSearch] = useState('')
+  const [act, setAct] = useState<ActRow[]>([])
+  const [actSearch, setActSearch] = useState('')
+  const [actFilter, setActFilter] = useState<'all' | 'no_services' | 'with_services' | 'never_in' | 'dormant'>('all')
   const [capInput, setCapInput] = useState('')
   const [mails, setMails] = useState<MailRow[]>([])
   const [mailFilter, setMailFilter] = useState('UNREAD')
@@ -104,6 +114,10 @@ export default function AdminPage() {
   async function loadForn() {
     const { data, error } = await rpc('admin_list_fornitori', { p_search: fornSearch, p_plan: null })
     if (error) toast.error(error.message); else setForn((data ?? []) as FornRow[])
+  }
+  async function loadActivity() {
+    const { data, error } = await rpc('admin_supplier_activity', { p_search: actSearch, p_filter: 'all' })
+    if (error) toast.error(error.message); else setAct((data ?? []) as ActRow[])
   }
   async function setPlan(f: FornRow, plan: string) {
     setBusy(f.id)
@@ -169,7 +183,7 @@ export default function AdminPage() {
     void loadSubs()
   }
   useEffect(() => { void loadOverview(); void loadWaitlist() }, [])
-  useEffect(() => { if (tab === 'team') void loadUsers(); if (tab === 'errors') void loadErrors(); if (tab === 'bugs') void loadBugs(); if (tab === 'subs') void loadSubs(); if (tab === 'inbox') void loadMails() /* eslint-disable-next-line */ }, [tab])
+  useEffect(() => { if (tab === 'team') void loadUsers(); if (tab === 'errors') void loadErrors(); if (tab === 'bugs') void loadBugs(); if (tab === 'subs') void loadSubs(); if (tab === 'inbox') void loadMails(); if (tab === 'activity') void loadActivity() /* eslint-disable-next-line */ }, [tab])
   useEffect(() => { if (tab === 'inbox') void loadMails() /* eslint-disable-next-line */ }, [mailFilter])
   useEffect(() => { if (tab === 'errors') void loadErrors() /* eslint-disable-next-line */ }, [errFilter])
   useEffect(() => { if (tab === 'bugs') void loadBugs() /* eslint-disable-next-line */ }, [bugFilter])
@@ -220,6 +234,7 @@ export default function AdminPage() {
     ['errors', 'Errori', AlertTriangle, ov?.errors_new ?? 0],
     ['bugs', 'Segnalazioni', Bug, ov?.bugs_new ?? 0],
     ['subs', 'Abbonamenti', CreditCard, 0],
+    ['activity', 'Attività fornitori', Activity, 0],
     ['team', 'Team & staff', Users, 0],
     ['funnel', 'Funnel', Zap, 0],
   ] as const
@@ -421,6 +436,68 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+
+        ) : tab === 'activity' ? (
+          (() => {
+            const now = Date.now(); const DAY = 86400000
+            const isDormant = (a: ActRow) => !a.last_sign_in_at || (now - new Date(a.last_sign_in_at).getTime()) > 30 * DAY
+            const conServizi = act.filter((a) => a.n_services > 0).length
+            const senzaServizi = act.length - conServizi
+            const maiEntrati = act.filter((a) => !a.last_sign_in_at).length
+            const dormienti = act.filter(isDormant).length
+            const filtered = act.filter((a) =>
+              actFilter === 'no_services' ? a.n_services === 0
+                : actFilter === 'with_services' ? a.n_services > 0
+                  : actFilter === 'never_in' ? !a.last_sign_in_at
+                    : actFilter === 'dormant' ? isDormant(a)
+                      : true)
+            const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'
+            const statusOf = (a: ActRow) => !a.last_sign_in_at ? { l: 'Mai entrato', c: '#dc2626' }
+              : a.n_services === 0 ? { l: '0 servizi', c: '#d97706' }
+                : isDormant(a) ? { l: 'Dormiente', c: '#94a3b8' }
+                  : { l: 'Attivo', c: '#16a34a' }
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <Stat label="Fornitori" value={act.length} onClick={() => setActFilter('all')} />
+                  <Stat label="Con servizi" value={conServizi} onClick={() => setActFilter('with_services')} />
+                  <Stat label="Senza servizi" value={senzaServizi} alert={senzaServizi > 0} onClick={() => setActFilter('no_services')} />
+                  <Stat label="Mai entrati" value={maiEntrati} alert={maiEntrati > 0} onClick={() => setActFilter('never_in')} />
+                  <Stat label="Dormienti >30gg" value={dormienti} onClick={() => setActFilter('dormant')} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input value={actSearch} onChange={(e) => setActSearch(e.target.value)} placeholder="Cerca fornitore per nome o email…" />
+                  <Button variant="outline" size="sm" onClick={() => void loadActivity()}><Search size={14} /> Cerca</Button>
+                </div>
+                <p className="text-xs text-[rgb(var(--fg-muted))]">{filtered.length} fornitori{actFilter !== 'all' ? ' (filtro attivo)' : ''} · tocca un numero qui sopra per filtrare</p>
+                <Card className="overflow-x-auto p-0">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-[rgb(var(--fg-subtle))] border-b border-[rgb(var(--border))]">
+                        <th className="p-2.5">Fornitore</th><th className="p-2.5">Iscritto</th><th className="p-2.5">Ultimo accesso</th>
+                        <th className="p-2.5 text-center">Servizi</th><th className="p-2.5 text-center">Prev.</th><th className="p-2.5 text-center">Eventi</th><th className="p-2.5 text-center">Foto</th><th className="p-2.5">Stato</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((a) => { const st = statusOf(a); return (
+                        <tr key={a.id} className="border-b border-[rgb(var(--border))] last:border-0">
+                          <td className="p-2.5"><div className="font-medium truncate max-w-[200px]">{a.name || a.email}</div><div className="text-[11px] text-[rgb(var(--fg-subtle))] truncate max-w-[200px]">{a.subrole ?? '—'} · {a.email}</div></td>
+                          <td className="p-2.5 whitespace-nowrap">{fmt(a.created_at)}</td>
+                          <td className="p-2.5 whitespace-nowrap">{fmt(a.last_sign_in_at)}</td>
+                          <td className="p-2.5 text-center tabular-nums">{a.n_services_active}{a.n_services !== a.n_services_active ? <span className="text-[rgb(var(--fg-subtle))]">/{a.n_services}</span> : ''}</td>
+                          <td className="p-2.5 text-center tabular-nums">{a.n_quotes}</td>
+                          <td className="p-2.5 text-center tabular-nums">{a.n_events}</td>
+                          <td className="p-2.5 text-center tabular-nums">{a.n_photos}</td>
+                          <td className="p-2.5"><span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: st.c, background: `${st.c}1a` }}>{st.l}</span></td>
+                        </tr>
+                      )})}
+                      {filtered.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-[rgb(var(--fg-muted))]">Nessun fornitore.</td></tr>}
+                    </tbody>
+                  </table>
+                </Card>
+              </div>
+            )
+          })()
 
         ) : tab === 'team' ? (
           <div className="space-y-3">
