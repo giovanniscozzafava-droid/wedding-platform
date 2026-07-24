@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin } from 'lucide-react'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -122,6 +122,17 @@ export default function QuoteEditorPage() {
   const [locQuery, setLocQuery] = useState<string>('')
   const [locResults, setLocResults] = useState<Array<{ id: string; business_name: string | null; full_name: string | null; city: string | null; slug: string | null }>>([])
   const [locOpen, setLocOpen] = useState(false)
+  // Interesse del cliente voce per voce: cliccate (guardate) e opzionate (selected_by_client).
+  type EngItem = { item_id: string; name: string; is_optional: boolean; selected_by_client: boolean; client_decision: string | null; clicks: number; last_clicked_at: string | null }
+  const [engagement, setEngagement] = useState<EngItem[]>([])
+  useEffect(() => {
+    if (!id) return
+    void (async () => {
+      const { data } = await (supabase.rpc as any)('quote_item_engagement', { p_quote_id: id })
+      const r = data as { items?: EngItem[] } | null
+      if (r?.items) setEngagement(r.items)
+    })()
+  }, [id, quote?.status])
   const [blockDays, setBlockDays] = useState(15)
   const [notifyClient] = useState(true)
   const [blocking, setBlocking] = useState(false)
@@ -710,6 +721,26 @@ export default function QuoteEditorPage() {
         {clientAnswers && Object.keys(clientAnswers).length > 0 && (
           <div className="mb-4 space-y-3">
             <AnswersPanel answers={clientAnswers} title="Cosa desidera il cliente" note="Risposte dal questionario: usale per personalizzare le voci del preventivo." />
+            {engagement.some((e) => e.clicks > 0 || e.selected_by_client || e.client_decision === 'ACCETTATO') && (
+              <Card className="p-4 mb-4">
+                <h2 className="text-xs uppercase tracking-wider text-[rgb(var(--fg-muted))] mb-2">Interesse del cliente sulle voci</h2>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mb-3">Cosa ha guardato (cliccato) e cosa ha opzionato/accettato — così ti rendi conto di dove punta.</p>
+                <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+                  {engagement.map((e) => (
+                    <li key={e.item_id} className="py-2 flex items-center justify-between gap-3">
+                      <span className="text-sm truncate">{e.name}</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {e.clicks > 0 && <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title={e.last_clicked_at ? `Ultimo: ${new Date(e.last_clicked_at).toLocaleString('it-IT')}` : ''}><Eye size={11} /> {e.clicks}</span>}
+                        {e.is_optional && e.selected_by_client && <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ color: '#16a34a', background: '#16a34a1a' }}>Opzionata</span>}
+                        {e.client_decision === 'ACCETTATO' && <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ color: '#16a34a', background: '#16a34a1a' }}>Accettata</span>}
+                        {e.client_decision === 'RIFIUTATO' && <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ color: '#dc2626', background: '#dc26261a' }}>Rifiutata</span>}
+                        {e.clicks === 0 && !e.selected_by_client && e.client_decision !== 'ACCETTATO' && e.client_decision !== 'RIFIUTATO' && <span className="text-[11px] text-[rgb(var(--fg-subtle))]">non guardata</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
             <LikedStylesGallery cards={(clientAnswers as Record<string, unknown>).liked_style_cards} tags={(clientAnswers as Record<string, unknown>).liked_tags} />
           </div>
         )}

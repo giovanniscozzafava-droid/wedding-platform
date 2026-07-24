@@ -149,6 +149,20 @@ export default function AdminPage() {
     } catch (e) { toast.error((e as Error).message) }
     finally { setBusy(null) }
   }
+  async function deleteSupplier(a: ActRow) {
+    const name = a.name ?? a.email
+    if (!confirm(`Eliminare DEFINITIVAMENTE "${name}" (fornitore di test)?\n\nAccount e TUTTI i suoi dati (servizi, preventivi, eventi…) cancellati per sempre. Irreversibile.`)) return
+    if (!confirm(`Conferma finale: cancello "${name}". Procedere?`)) return
+    setBusy(a.id)
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', { body: { user_id: a.id } })
+      if (error) throw error
+      if ((data as any)?.error) throw new Error((data as any).error)
+      toast.success(`Eliminato: ${name}`)
+      setAct((prev) => prev.filter((x) => x.id !== a.id))
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setBusy(null) }
+  }
   async function loadMails() {
     const { data, error } = await rpc('admin_inbox_list', { p_status: mailFilter })
     if (error) toast.error(error.message); else setMails((data ?? []) as MailRow[])
@@ -475,7 +489,7 @@ export default function AdminPage() {
                     <thead>
                       <tr className="text-left text-[11px] uppercase tracking-wide text-[rgb(var(--fg-subtle))] border-b border-[rgb(var(--border))]">
                         <th className="p-2.5">Fornitore</th><th className="p-2.5">Iscritto</th><th className="p-2.5">Ultimo accesso</th>
-                        <th className="p-2.5 text-center">Servizi</th><th className="p-2.5 text-center">Prev.</th><th className="p-2.5 text-center">Eventi</th><th className="p-2.5 text-center">Foto</th><th className="p-2.5">Stato</th>
+                        <th className="p-2.5 text-center">Servizi</th><th className="p-2.5 text-center">Prev.</th><th className="p-2.5 text-center">Eventi</th><th className="p-2.5 text-center">Foto</th><th className="p-2.5">Stato</th><th className="p-2.5 text-right">Azioni</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -489,9 +503,10 @@ export default function AdminPage() {
                           <td className="p-2.5 text-center tabular-nums">{a.n_events}</td>
                           <td className="p-2.5 text-center tabular-nums">{a.n_photos}</td>
                           <td className="p-2.5"><span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: st.c, background: `${st.c}1a` }}>{st.l}</span></td>
+                          <td className="p-2.5 text-right"><button disabled={busy === a.id} onClick={() => void deleteSupplier(a)} title="Cancella fornitore (test)" className="p-1.5 rounded-md text-[rgb(var(--rose-600))] hover:bg-[rgb(var(--rose-50))] disabled:opacity-40"><Trash2 size={15} /></button></td>
                         </tr>
                       )})}
-                      {filtered.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-[rgb(var(--fg-muted))]">Nessun fornitore.</td></tr>}
+                      {filtered.length === 0 && <tr><td colSpan={9} className="p-8 text-center text-[rgb(var(--fg-muted))]">Nessun fornitore.</td></tr>}
                     </tbody>
                   </table>
                 </Card>

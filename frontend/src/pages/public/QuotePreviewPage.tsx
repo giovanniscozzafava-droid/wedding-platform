@@ -35,6 +35,13 @@ function QuotePreviewPageInner() {
   const [unlocked, setUnlocked] = useState(false)
   const [opt, setOpt] = useState<{ allowed: boolean; days: number; optioned: boolean } | null>(null)
   const [optBusy, setOptBusy] = useState(false)
+  const [openItems, setOpenItems] = useState<Set<string>>(new Set())
+  // Tap su una voce = la apre (mostra il dettaglio) e segna al pro che il cliente l'ha guardata.
+  function toggleItem(itemId: string) {
+    if (!itemId) return
+    setOpenItems((s) => { const n = new Set(s); n.has(itemId) ? n.delete(itemId) : n.add(itemId); return n })
+    void (supabase.rpc as any)('track_quote_item_click', { p_token: token, p_item_id: itemId })
+  }
 
   // Il pro ha abilitato l'opzione? Il cliente può tenere la data senza firmare.
   useEffect(() => {
@@ -153,17 +160,25 @@ function QuotePreviewPageInner() {
 
           <div className="px-6 sm:px-10">
             <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }} data-testid="public-items">
-              {data.items.map((it, i) => (
-                <li key={i} className="py-4 flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium">{it.name_snapshot}</p>
-                    <p className="text-xs text-[rgb(var(--fg-subtle))]">Quantità: {Number(it.quantity)}</p>
-                  </div>
-                  <p className="font-display text-lg tabular-nums shrink-0">
-                    {showPrice ? `€ ${Number(it.line_client).toLocaleString('it-IT')}` : <Lock size={15} className="text-[rgb(var(--fg-subtle))]" />}
-                  </p>
-                </li>
-              ))}
+              {data.items.map((it, i) => {
+                const itemId = (it as { id?: string }).id ?? ''
+                const desc = (it as { description_snapshot?: string | null }).description_snapshot
+                const isOpen = openItems.has(itemId)
+                return (
+                  <li key={itemId || i} className="py-4">
+                    <button type="button" onClick={() => toggleItem(itemId)} className="w-full flex items-start justify-between gap-4 text-left">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{it.name_snapshot}</p>
+                        <p className="text-xs text-[rgb(var(--fg-subtle))]">Quantità: {Number(it.quantity)}{desc ? ' · tocca per i dettagli' : ''}</p>
+                      </div>
+                      <p className="font-display text-lg tabular-nums shrink-0">
+                        {showPrice ? `€ ${Number(it.line_client).toLocaleString('it-IT')}` : <Lock size={15} className="text-[rgb(var(--fg-subtle))]" />}
+                      </p>
+                    </button>
+                    {isOpen && desc && <p className="mt-2 text-sm text-[rgb(var(--fg-muted))] whitespace-pre-wrap">{desc}</p>}
+                  </li>
+                )
+              })}
             </ul>
           </div>
 
