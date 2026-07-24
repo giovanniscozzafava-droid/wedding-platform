@@ -91,6 +91,10 @@ export type FollowedSupplier = { id: string; name: string | null; subrole: strin
 export function useFollowedSuppliers() {
   return useQuery<FollowedSupplier[]>({
     queryKey: ['followed-suppliers'],
+    // Sempre fresca all'apertura del modal: la lista dei professionisti seguiti cambia
+    // (nuovi follow, capostipiti) e non vogliamo servire una cache vecchia da 30s.
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data, error } = await (supabase as unknown as { rpc: (f: string) => Promise<{ data: unknown; error: Error | null }> }).rpc('followed_suppliers')
       if (error) throw error
