@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Link } from 'react-router-dom'
-import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard, Trash2, Mail, ArrowLeft, Send, Activity } from 'lucide-react'
+import { LayoutDashboard, Users, Zap, LifeBuoy, Loader2, Search, Power, Bug, AlertTriangle, ChevronDown, ChevronUp, CreditCard, Trash2, Mail, ArrowLeft, Send, Activity, UserCog } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { startImpersonation } from '@/lib/impersonation'
 import { Eye } from 'lucide-react'
+import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 
 type Tab = 'overview' | 'inbox' | 'errors' | 'bugs' | 'subs' | 'team' | 'funnel' | 'activity'
 // Attività fornitori: iscrizione + ultimo accesso + cose fatte (servizi, preventivi, eventi, foto).
@@ -41,7 +42,7 @@ type Overview = {
   errors_new: number; errors_total: number; error_occurrences: number
   bugs_new: number; bugs_total: number; inbox_unread: number
 }
-type UserRow = { id: string; full_name: string | null; business_name: string | null; role: string; email: string; is_support_staff: boolean; is_verified_customer?: boolean }
+type UserRow = { id: string; full_name: string | null; business_name: string | null; role: string; email: string; is_support_staff: boolean; is_verified_customer?: boolean; subrole?: string | null }
 type ErrRow = { id: string; fingerprint: string; message: string; stack: string | null; source: string; severity: string; status: string; count: number; url: string | null; last_seen: string; first_seen: string; last_user_agent: string | null }
 type BugRow = { id: string; message: string; url: string | null; severity: string; status: string; admin_notes: string | null; created_at: string; reporter: string | null }
 
@@ -61,6 +62,9 @@ export default function AdminPage() {
   const [wl, setWl] = useState<{ total: number; nuove: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<UserRow[]>([])
+  const [editRole, setEditRole] = useState<string | null>(null)   // id utente in correzione ruolo
+  const [roleDraft, setRoleDraft] = useState('')
+  const [subDraft, setSubDraft] = useState('')
   const [search, setSearch] = useState('')
   const [errors, setErrors] = useState<ErrRow[]>([])
   const [errFilter, setErrFilter] = useState('NEW')
@@ -151,7 +155,7 @@ export default function AdminPage() {
   }
   async function deleteSupplier(a: ActRow) {
     const name = a.name ?? a.email
-    if (!confirm(`Eliminare DEFINITIVAMENTE "${name}" (fornitore di test)?\n\nAccount e TUTTI i suoi dati (servizi, preventivi, eventi…) cancellati per sempre. Irreversibile.`)) return
+    if (!confirm(`Eliminare DEFINITIVAMENTE "${name}" (professionista di test)?\n\nAccount e TUTTI i suoi dati (servizi, preventivi, eventi…) cancellati per sempre. Irreversibile.`)) return
     if (!confirm(`Conferma finale: cancello "${name}". Procedere?`)) return
     setBusy(a.id)
     try {
@@ -218,6 +222,20 @@ export default function AdminPage() {
     toast.success(!u.is_verified_customer ? `${u.full_name ?? 'Cliente'} verificato` : 'Verifica rimossa')
     setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, is_verified_customer: !x.is_verified_customer } : x))
   }
+  function startEditRole(u: UserRow) {
+    setEditRole(u.id); setRoleDraft(u.role); setSubDraft(u.subrole ?? '')
+  }
+  async function saveRole(u: UserRow) {
+    if (roleDraft === 'FORNITORE' && !subDraft) { toast.error('Scegli il tipo di fornitore'); return }
+    setBusy(u.id)
+    const nextSub = roleDraft === 'FORNITORE' ? subDraft : null
+    const { error } = await rpc('admin_set_role', { p_user: u.id, p_role: roleDraft, p_subrole: nextSub })
+    setBusy(null)
+    if (error) { toast.error(error.message); return }
+    toast.success(`Profilo corretto: ${roleLabel(roleDraft)}${nextSub ? ' · ' + (SUPPLIER_SUBROLES.find((s) => s.v === nextSub)?.l ?? nextSub) : ''}`)
+    setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, role: roleDraft, subrole: nextSub } : x))
+    setEditRole(null)
+  }
   async function setErrStatus(e: ErrRow, status: string) {
     await rpc('admin_set_error_status', { p_id: e.id, p_status: status })
     toast.success('Stato aggiornato')
@@ -248,7 +266,7 @@ export default function AdminPage() {
     ['errors', 'Errori', AlertTriangle, ov?.errors_new ?? 0],
     ['bugs', 'Segnalazioni', Bug, ov?.bugs_new ?? 0],
     ['subs', 'Abbonamenti', CreditCard, 0],
-    ['activity', 'Attività fornitori', Activity, 0],
+    ['activity', 'Attività professionisti', Activity, 0],
     ['team', 'Team & staff', Users, 0],
     ['funnel', 'Funnel', Zap, 0],
   ] as const
@@ -473,22 +491,22 @@ export default function AdminPage() {
             return (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                  <Stat label="Fornitori" value={act.length} onClick={() => setActFilter('all')} />
+                  <Stat label="Professionisti" value={act.length} onClick={() => setActFilter('all')} />
                   <Stat label="Con servizi" value={conServizi} onClick={() => setActFilter('with_services')} />
                   <Stat label="Senza servizi" value={senzaServizi} alert={senzaServizi > 0} onClick={() => setActFilter('no_services')} />
                   <Stat label="Mai entrati" value={maiEntrati} alert={maiEntrati > 0} onClick={() => setActFilter('never_in')} />
                   <Stat label="Dormienti >30gg" value={dormienti} onClick={() => setActFilter('dormant')} />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Input value={actSearch} onChange={(e) => setActSearch(e.target.value)} placeholder="Cerca fornitore per nome o email…" />
+                  <Input value={actSearch} onChange={(e) => setActSearch(e.target.value)} placeholder="Cerca professionista per nome o email…" />
                   <Button variant="outline" size="sm" onClick={() => void loadActivity()}><Search size={14} /> Cerca</Button>
                 </div>
-                <p className="text-xs text-[rgb(var(--fg-muted))]">{filtered.length} fornitori{actFilter !== 'all' ? ' (filtro attivo)' : ''} · tocca un numero qui sopra per filtrare</p>
+                <p className="text-xs text-[rgb(var(--fg-muted))]">{filtered.length} professionisti{actFilter !== 'all' ? ' (filtro attivo)' : ''} · tocca un numero qui sopra per filtrare</p>
                 <Card className="overflow-x-auto p-0">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[11px] uppercase tracking-wide text-[rgb(var(--fg-subtle))] border-b border-[rgb(var(--border))]">
-                        <th className="p-2.5">Fornitore</th><th className="p-2.5">Iscritto</th><th className="p-2.5">Ultimo accesso</th>
+                        <th className="p-2.5">Professionista</th><th className="p-2.5">Iscritto</th><th className="p-2.5">Ultimo accesso</th>
                         <th className="p-2.5 text-center">Servizi</th><th className="p-2.5 text-center">Prev.</th><th className="p-2.5 text-center">Eventi</th><th className="p-2.5 text-center">Foto</th><th className="p-2.5">Stato</th><th className="p-2.5 text-right">Azioni</th>
                       </tr>
                     </thead>
@@ -503,10 +521,10 @@ export default function AdminPage() {
                           <td className="p-2.5 text-center tabular-nums">{a.n_events}</td>
                           <td className="p-2.5 text-center tabular-nums">{a.n_photos}</td>
                           <td className="p-2.5"><span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: st.c, background: `${st.c}1a` }}>{st.l}</span></td>
-                          <td className="p-2.5 text-right"><button disabled={busy === a.id} onClick={() => void deleteSupplier(a)} title="Cancella fornitore (test)" className="p-1.5 rounded-md text-[rgb(var(--rose-600))] hover:bg-[rgb(var(--rose-50))] disabled:opacity-40"><Trash2 size={15} /></button></td>
+                          <td className="p-2.5 text-right"><button disabled={busy === a.id} onClick={() => void deleteSupplier(a)} title="Cancella professionista (test)" className="p-1.5 rounded-md text-[rgb(var(--rose-600))] hover:bg-[rgb(var(--rose-50))] disabled:opacity-40"><Trash2 size={15} /></button></td>
                         </tr>
                       )})}
-                      {filtered.length === 0 && <tr><td colSpan={9} className="p-8 text-center text-[rgb(var(--fg-muted))]">Nessun fornitore.</td></tr>}
+                      {filtered.length === 0 && <tr><td colSpan={9} className="p-8 text-center text-[rgb(var(--fg-muted))]">Nessun professionista.</td></tr>}
                     </tbody>
                   </table>
                 </Card>
@@ -522,28 +540,51 @@ export default function AdminPage() {
             </form>
             <p className="text-xs text-[rgb(var(--fg-muted))]">Attiva lo <strong>staff assistenza</strong> per chi deve gestire ticket, errori e segnalazioni.</p>
             {users.map((u) => (
-              <Card key={u.id} className="p-4 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{u.business_name ?? u.full_name ?? u.email}
-                    {u.is_verified_customer && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full align-middle" style={{ color: 'rgb(var(--emerald-600))', background: 'rgb(var(--emerald-100))' }}>✓ Verificato</span>}
-                  </p>
-                  <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">{u.email} · {roleLabel(u.role)}</p>
+              <Card key={u.id} className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{u.business_name ?? u.full_name ?? u.email}
+                      {u.is_verified_customer && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full align-middle" style={{ color: 'rgb(var(--emerald-600))', background: 'rgb(var(--emerald-100))' }}>✓ Verificato</span>}
+                    </p>
+                    <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">{u.email} · {roleLabel(u.role)}{u.subrole ? ' · ' + (SUPPLIER_SUBROLES.find((s) => s.v === u.subrole)?.l ?? u.subrole) : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {u.role !== 'ADMIN' && (
+                      <Button size="sm" variant={editRole === u.id ? 'gold' : 'ghost'} disabled={busy === u.id} onClick={() => editRole === u.id ? setEditRole(null) : startEditRole(u)} title="Correggi ruolo / tipo fornitore"><UserCog size={14} /></Button>
+                    )}
+                    <Button size="sm" variant={u.is_verified_customer ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleVerified(u)} title="Cliente reale verificato">
+                      {u.is_verified_customer ? 'Verificato ✓' : 'Verifica'}
+                    </Button>
+                    <Button size="sm" variant={u.is_support_staff ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleStaff(u)}>
+                      {u.is_support_staff ? 'Staff ✓' : 'Rendi staff'}
+                    </Button>
+                    {!u.is_support_staff && u.role !== 'ADMIN' && (
+                      <>
+                        <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => void impersonate(u)} title="Accedi come (supporto)"><Eye size={14} /></Button>
+                        <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => void deleteUser(u)} title="Elimina definitivamente"
+                          className="text-[rgb(var(--rose-500))]"><Trash2 size={14} /></Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button size="sm" variant={u.is_verified_customer ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleVerified(u)} title="Cliente reale verificato">
-                    {u.is_verified_customer ? 'Verificato ✓' : 'Verifica'}
-                  </Button>
-                  <Button size="sm" variant={u.is_support_staff ? 'gold' : 'outline'} disabled={busy === u.id} onClick={() => void toggleStaff(u)}>
-                    {u.is_support_staff ? 'Staff ✓' : 'Rendi staff'}
-                  </Button>
-                  {!u.is_support_staff && u.role !== 'ADMIN' && (
-                    <>
-                      <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => void impersonate(u)} title="Accedi come (supporto)"><Eye size={14} /></Button>
-                      <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => void deleteUser(u)} title="Elimina definitivamente"
-                        className="text-[rgb(var(--rose-500))]"><Trash2 size={14} /></Button>
-                    </>
-                  )}
-                </div>
+                {editRole === u.id && (
+                  <div className="mt-3 pt-3 border-t border-[rgb(var(--border))] flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-[rgb(var(--fg-muted))]">Ruolo</span>
+                    <select value={roleDraft} onChange={(e) => { setRoleDraft(e.target.value); if (e.target.value !== 'FORNITORE') setSubDraft('') }}
+                      className="text-xs rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))] px-2 py-1.5">
+                      {[['FORNITORE', 'Fornitore'], ['WEDDING_PLANNER', 'Wedding Planner'], ['LOCATION', 'Location']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                    {roleDraft === 'FORNITORE' && (
+                      <select value={subDraft} onChange={(e) => setSubDraft(e.target.value)}
+                        className="text-xs rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))] px-2 py-1.5">
+                        <option value="">— tipo fornitore —</option>
+                        {SUPPLIER_SUBROLES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
+                      </select>
+                    )}
+                    <Button size="sm" variant="gold" disabled={busy === u.id} onClick={() => void saveRole(u)}>Salva</Button>
+                    <Button size="sm" variant="ghost" disabled={busy === u.id} onClick={() => setEditRole(null)}>Annulla</Button>
+                  </div>
+                )}
               </Card>
             ))}
             {users.length === 0 && <Card className="p-8 text-center text-sm text-[rgb(var(--fg-muted))]">Nessun utente trovato.</Card>}

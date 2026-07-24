@@ -51,7 +51,9 @@ export default function RegisterPage() {
   const destAfterSignup = nextUrl && nextUrl.startsWith('/') ? nextUrl : '/onboarding'
   const [form, setForm] = useState({
     full_name: '', business_name: '', email: '', password: '',
-    role: 'WEDDING_PLANNER' as AppRole, subrole: '', accept_referrals: false, platform_terms: false,
+    // Nessun ruolo preselezionato: l'iscritto DEVE sceglierlo (prima defaultava a
+    // WEDDING_PLANNER → fornitori come i fioristi restavano WP per inerzia).
+    role: '' as AppRole, subrole: '', accept_referrals: false, platform_terms: false,
     referral_code: refFromUrl.toUpperCase(),
   })
   const [busy, setBusy] = useState(false)
@@ -59,7 +61,7 @@ export default function RegisterPage() {
   const [showTerms, setShowTerms] = useState(false)
   const nav = useNavigate()
 
-  const subroles = SUBROLE_BY_ROLE[form.role]
+  const subroles = SUBROLE_BY_ROLE[form.role] ?? []
 
   useEffect(() => {
     if (refFromUrl) setForm((f) => ({ ...f, referral_code: refFromUrl.toUpperCase() }))
@@ -68,6 +70,10 @@ export default function RegisterPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    if (!form.role) {
+      setError('Scegli il tuo ruolo (Wedding Planner, Location o Fornitore) per continuare')
+      return
+    }
     const parsed = schema.safeParse(form)
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? 'Dati non validi')

@@ -70,11 +70,13 @@ export function AlbumPicker({ media, onClose, onChanged }: { media: AlbumMedia[]
             </div>
           ) : (
             <>
-              <div className="relative max-w-md w-full" style={{ aspectRatio: '3/4' }}>
-                {cur.media_type === 'VIDEO' && !isDrive(cur)
-                  ? <video src={cur.thumbnail_link ?? ''} controls className="w-full h-full object-cover rounded-2xl shadow-2xl" />
-                  : <img src={big(cur)} alt="" className="w-full h-full object-cover rounded-2xl shadow-2xl select-none" />}
-                {cur.media_type === 'VIDEO' && <span className="absolute top-3 left-3 inline-flex items-center gap-1 bg-black/55 text-white text-[11px] px-2 py-1 rounded-full"><Play size={11} className="fill-white" /> video</span>}
+              <div className="flex-1 min-h-0 w-full grid place-items-center">
+                <div className="relative max-h-full max-w-md grid place-items-center">
+                  {cur.media_type === 'VIDEO' && !isDrive(cur)
+                    ? <video src={cur.thumbnail_link ?? ''} controls className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl" />
+                    : <img src={big(cur)} alt="" className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl select-none" />}
+                  {cur.media_type === 'VIDEO' && <span className="absolute top-3 left-3 inline-flex items-center gap-1 bg-black/55 text-white text-[11px] px-2 py-1 rounded-full"><Play size={11} className="fill-white" /> video</span>}
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 <button disabled={busy} onClick={() => setChoice(cur.id, 'DISCARDED')}
