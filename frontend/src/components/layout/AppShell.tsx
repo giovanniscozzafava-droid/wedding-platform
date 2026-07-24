@@ -43,6 +43,28 @@ const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Admin',
 }
 
+// Sotto-brand di categoria sotto il logo: "Planfully · fotografi", "· fioristi", ecc.
+// Ogni professionista vede la propria verticale. Chiavi = subrole (SUPPLIER_SUBROLES).
+const VERTICAL_BY_SUBROLE: Record<string, string> = {
+  fotografo: 'fotografi', videomaker: 'videomaker', photobooth: 'photobooth',
+  livepainter: 'live painter', make_up: 'make-up artist', parrucchiere: 'parrucchieri',
+  estetista: 'beauty', fioraio: 'fioristi', allestimenti: 'wedding designer',
+  luci: 'light designer', fuochista: 'pirotecnici', noleggio: 'noleggi',
+  catering: 'catering', chef: 'personal chef', food_truck: 'food truck',
+  pasticcere: 'pasticceri', sweet_table: 'sweet table', bartender: 'bartender',
+  sommelier: 'sommelier', musica: 'musica', magia: 'magia', animazione: 'animazione',
+  animali: 'cerimonie con animali', auto: 'transfer', navetta: 'navette', valet: 'valet',
+  maitre: 'maître di sala', hostess: 'hostess', celebrante: 'celebranti', abiti: 'atelier',
+  stampe: 'stampe & inviti', calligrafo: 'calligrafi', bomboniere: 'bomboniere', altro: 'fornitori',
+}
+// Verticale mostrata sotto il wordmark. null = solo "Planfully" (clienti, admin).
+function brandVertical(role?: string | null, subrole?: string | null): string | null {
+  if (role === 'WEDDING_PLANNER') return 'wedding planner'
+  if (role === 'LOCATION') return 'location'
+  if (role === 'FORNITORE') return (subrole && VERTICAL_BY_SUBROLE[subrole]) || 'fornitori'
+  return null
+}
+
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: string }
 type NavGroup = { section: string | null; items: NavItem[] }
 
@@ -150,6 +172,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
   const isFornitore = profile?.role === 'FORNITORE'
+  const vertical = brandVertical(profile?.role, profile?.subrole)
   const isStaff = (profile as any)?.is_support_staff || profile?.role === 'ADMIN'
   // La sidebar tiene SOLO il flusso quotidiano; tutti gli altri strumenti (Portfolio, Crescita, Food cost,
   // Studio disegno, Richieste stampa, Bilancio, Calcolatore, Clienti…) vivono nella pagina hub /strumenti,
@@ -191,7 +214,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="px-6 pt-6 pb-4 flex items-center justify-between gap-2">
           <Link to="/" className="flex items-center gap-2" style={{ color: 'rgb(var(--fg))' }}>
             <img src="/brand/planfully-symbol.svg" alt="" className="h-8 w-8" style={{ color: 'rgb(var(--fg))' }} />
-            <span className="font-display text-lg tracking-tight">Planfully</span>
+            <span className="flex flex-col leading-none">
+              <span className="font-display text-lg tracking-tight">Planfully</span>
+              {vertical && <span className="text-[10px] uppercase tracking-[0.18em] mt-1" style={{ color: 'rgb(var(--gold-600))' }}>{vertical}</span>}
+            </span>
           </Link>
           <NotificationBell align="start" />
           <CandidacyInbox placement="beside" />
@@ -258,9 +284,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           style={{ background: 'rgb(var(--bg-elev))', borderRight: '1px solid rgb(var(--border))' }}
         >
           <div className="px-6 pt-6 pb-4 flex items-center justify-between" style={{ color: 'rgb(var(--fg))' }}>
-            <span className="font-display text-lg flex items-center gap-2">
+            <span className="flex items-center gap-2">
               <img src="/brand/planfully-symbol.svg" alt="" className="h-7 w-7" />
-              Planfully
+              <span className="flex flex-col leading-none">
+                <span className="font-display text-lg">Planfully</span>
+                {vertical && <span className="text-[10px] uppercase tracking-[0.18em] mt-1" style={{ color: 'rgb(var(--gold-600))' }}>{vertical}</span>}
+              </span>
             </span>
             <button onClick={() => setMobileOpen(false)} aria-label="Chiudi">
               <X size={20} />
@@ -306,9 +335,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button onClick={() => setMobileOpen(true)} aria-label="Menu">
             <Menu size={20} />
           </button>
-          <Link to="/" className="font-display text-base flex items-center gap-2" style={{ color: 'rgb(var(--fg))' }}>
-            <img src="/brand/planfully-symbol.svg" alt="" className="h-6 w-6" />
-            Planfully
+          <Link to="/" className="flex items-center gap-1.5 min-w-0" style={{ color: 'rgb(var(--fg))' }}>
+            <img src="/brand/planfully-symbol.svg" alt="" className="h-6 w-6 shrink-0" />
+            <span className="font-display text-base">Planfully</span>
+            {vertical && <span className="text-[10px] uppercase tracking-[0.14em] truncate" style={{ color: 'rgb(var(--gold-600))' }}>· {vertical}</span>}
           </Link>
           <div className="flex items-center gap-2">
             <HelpModeToggle compact />
