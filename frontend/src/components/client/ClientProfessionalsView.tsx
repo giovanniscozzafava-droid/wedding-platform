@@ -26,7 +26,7 @@ type Brief = {
 type QuoteItem = {
   id: string; name: string; qty: number; unit: string; line_client: number
   supplier: string | null; client_decision: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO'
-  decline_reason: string | null; category: string | null
+  decline_reason: string | null; category: string | null; photo: string | null
 }
 
 // Raggruppa le voci per categoria mantenendo l'ordine (le voci arrivano già
@@ -306,6 +306,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
                 )}
                 {grp.items.map((it) => (
                   <div key={it.id} className="flex items-center gap-2 text-xs">
+                    {it.photo && <img src={it.photo} alt="" loading="lazy" className="w-9 h-9 rounded object-cover shrink-0 bg-[rgb(var(--bg-sunken))]" />}
                     <div className="min-w-0 flex-1">
                       <p className="truncate">
                         {it.name}
@@ -361,6 +362,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
                 )}
                 {grp.items.map((it) => (
                   <div key={it.id} className="flex items-center gap-2 text-xs">
+                    {it.photo && <img src={it.photo} alt="" loading="lazy" className="w-9 h-9 rounded object-cover shrink-0 bg-[rgb(var(--bg-sunken))]" />}
                     <p className="min-w-0 flex-1 truncate">
                       {it.name}
                       {it.qty > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{it.qty}</span>}
