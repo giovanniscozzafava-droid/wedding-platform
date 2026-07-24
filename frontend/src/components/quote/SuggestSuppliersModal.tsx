@@ -64,16 +64,16 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
 
   async function send() {
     const ids = [...sel]
-    if (ids.length === 0) { toast.message('Scegli almeno un fornitore'); return }
+    if (ids.length === 0) { toast.message('Scegli almeno un professionista'); return }
     setBusy(true)
     try {
       const { data, error } = await supabase.functions.invoke('suggest-my-suppliers', {
         body: { quote_id: quoteId, supplier_ids: ids, message: message.trim() || undefined },
       })
       const err = (data as { error?: string } | null)?.error
-      if (error || err) { toast.error(err === 'no_valid_suppliers' ? 'Nessun fornitore valido tra i seguiti' : `Non riuscito${err ? `: ${err}` : ''}`); return }
+      if (error || err) { toast.error(err === 'no_valid_suppliers' ? 'Nessun professionista valido tra i seguiti' : `Non riuscito${err ? `: ${err}` : ''}`); return }
       const n = (data as { count?: number })?.count ?? ids.length
-      toast.success(`Suggeriti ${n} fornitori${(data as { client_sent?: boolean })?.client_sent ? ' · email inviata al cliente' : ''}`)
+      toast.success(`Suggeriti ${n} professionisti${(data as { client_sent?: boolean })?.client_sent ? ' · email inviata al cliente' : ''}`)
       onClose()
     } catch (e) { toast.error(`Non riuscito: ${String((e as Error)?.message ?? e).slice(0, 120)}`) }
     finally { setBusy(false) }
@@ -103,17 +103,17 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
       <div className="w-[min(94vw,560px)] max-h-[88vh] flex flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 p-5 border-b border-[rgb(var(--border))]">
           <div>
-            <div className="flex items-center gap-2"><Users size={18} className="text-[rgb(var(--gold-600))]" /><h2 className="font-display text-xl">Suggerisci i miei fornitori</h2></div>
-            <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">A {clientName ? <strong>{clientName}</strong> : 'questo cliente'}: mando una mail con i fornitori che segui e avviso ogni fornitore di preparare un'offerta. Il fornitore vede solo la data, non i tuoi dati cliente.</p>
+            <div className="flex items-center gap-2"><Users size={18} className="text-[rgb(var(--gold-600))]" /><h2 className="font-display text-xl">Suggerisci i miei professionisti</h2></div>
+            <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">A {clientName ? <strong>{clientName}</strong> : 'questo cliente'}: mando una mail con i professionisti che segui (fornitori e capostipiti) e avviso ognuno di preparare un'offerta. Vedono solo la data, non i tuoi dati cliente.</p>
           </div>
           <button onClick={onClose} className="shrink-0 h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-[rgb(var(--bg-sunken))]"><X size={16} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-3">
           {isLoading ? (
-            <div className="py-8 text-center text-[rgb(var(--fg-muted))]"><Loader2 size={18} className="animate-spin inline" /> Carico i tuoi fornitori…</div>
+            <div className="py-8 text-center text-[rgb(var(--fg-muted))]"><Loader2 size={18} className="animate-spin inline" /> Carico i tuoi professionisti…</div>
           ) : suppliers.length === 0 ? (
-            <div className="py-8 text-center text-sm text-[rgb(var(--fg-muted))]">Non segui ancora nessun fornitore. Aggiungili dalla pagina <strong>I tuoi fornitori</strong>.</div>
+            <div className="py-8 text-center text-sm text-[rgb(var(--fg-muted))]">Non segui ancora nessun professionista. Seguine qualcuno (fornitori o capostipiti) dalla <strong>Rete</strong>.</div>
           ) : (
             <>
               <div className="flex items-center justify-between text-xs text-[rgb(var(--fg-muted))]">

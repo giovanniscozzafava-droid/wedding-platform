@@ -707,8 +707,8 @@ export default function QuoteEditorPage() {
                   <MessageCircle /> Invia su WhatsApp
                 </Button>
                 {quote.client_email && (
-                  <Button variant="outline" onClick={() => setSuggestOpen(true)} title="Consiglia al cliente i fornitori che segui: avvisa loro di preparare un'offerta">
-                    <Users size={16} /> Suggerisci i miei fornitori
+                  <Button variant="outline" onClick={() => setSuggestOpen(true)} title="Consiglia al cliente i professionisti che segui (fornitori e capostipiti): avvisa loro di preparare un'offerta">
+                    <Users size={16} /> Suggerisci i miei professionisti
                   </Button>
                 )}
               </>
