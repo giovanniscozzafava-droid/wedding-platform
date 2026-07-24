@@ -939,6 +939,7 @@ type PreventivoData = {
     supplier_id?: string | null; created_at?: string | null
     client_decision?: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO' | 'FORSE'
     client_decline_reason?: string | null; contracted_at?: string | null
+    category?: string | null; photo?: string | null; sort_order?: number | null
   }>
   error?: string
 }
@@ -1139,68 +1140,90 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
           )}
         </div>
 
-        <h3 className="font-display text-lg mb-2">Servizi</h3>
+        <h3 className="font-display text-lg mb-2">La proposta</h3>
         {isFornitore ? (
           <p className="text-xs mb-3 rounded-lg px-3 py-2" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
-            Scegli i servizi che preferisci: il <strong>totale</strong> è la somma di quelli che approvi. Niente è vincolante finché non firmi. {ownerName} può applicare uno sconto, che vedrai qui prima della firma.
+            Le voci sono <strong>raggruppate per tipo</strong>: in ogni gruppo scegli l'opzione che preferisci. Il <strong>totale</strong> è la somma di quelle che approvi. Niente è vincolante finché non firmi. {ownerName} può applicare uno sconto, che vedrai qui prima della firma.
           </p>
         ) : hasLive && (
           <p className="text-xs mb-3 rounded-lg px-3 py-2" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
             Le voci con <strong>✓ Firmato nel preventivo</strong> sono già nel contratto firmato. Le altre sono <strong>integrazioni</strong> aggiunte dopo: puoi approvarle, metterle in forse o non accettarle. Nulla entra nel contratto finché non concludi e firmi.
           </p>
         )}
-        <ul className="divide-y mb-4" style={{ borderColor: 'rgb(var(--border))' }}>
-          {data.items.map((it) => {
-            const dec = it.client_decision ?? 'IN_ATTESA'
-            const isContracted = !!it.contracted_at
-            return (
-              <li key={it.id} className="py-3 flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-sm">{it.name_snapshot}</p>
-                    {isFornitore ? (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--fg-muted))', background: 'rgb(var(--bg-sunken))' }}>Opzione</span>
-                    ) : isContracted ? (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>✓ Firmato nel preventivo</span>
-                    ) : (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>Integrazione</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">
-                    {it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}
-                    {it.created_at && <span className="ml-2 text-[10px]">· aggiunta il {fmtAddTime(it.created_at)}</span>}
-                  </p>
-                  {dec === 'RIFIUTATO' && it.client_decline_reason && (
-                    <p className="text-[10px] italic text-[rgb(var(--fg-subtle))] mt-0.5">Motivo: {it.client_decline_reason}</p>
-                  )}
-                  {/* Decisione per-voce (solo integrazioni live, preventivo non concluso) */}
-                  {!isContracted && !isClosed && (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {dec === 'IN_ATTESA' ? (
-                        <>
-                          <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'ACCETTATO')} className="px-2 py-1 rounded-md text-white text-[11px] font-medium disabled:opacity-50" style={{ background: '#16a34a' }}>Approva</button>
-                          <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'FORSE')} className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>In forse</button>
-                          <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'RIFIUTATO')} className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>Non accetto</button>
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={
-                            dec === 'ACCETTATO' ? { color: '#16a34a', background: '#16a34a1a' }
-                            : dec === 'FORSE' ? { color: '#7c3aed', background: '#7c3aed1a' }
-                            : { color: '#dc2626', background: '#dc26261a' }}>
-                            {dec === 'ACCETTATO' ? '✓ Approvata' : dec === 'FORSE' ? '? In forse' : '✕ Non accettata'}
-                          </span>
-                          <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'IN_ATTESA' as any)} className="text-[10px] underline text-[rgb(var(--fg-subtle))] disabled:opacity-50">cambia</button>
+        {(() => {
+          // Raggruppa le voci per CATEGORIA (dal servizio d'origine), in ordine di prima comparsa,
+          // così il cliente vede insieme le opzioni dello stesso tipo (Servizio fotografico / Album…).
+          const groups: { category: string; items: typeof data.items }[] = []
+          for (const it of data.items) {
+            const cat = (it.category ?? '').trim() || 'Altro'
+            let g = groups.find((x) => x.category === cat)
+            if (!g) { g = { category: cat, items: [] }; groups.push(g) }
+            g.items.push(it)
+          }
+          return groups.map((grp) => (
+            <div key={grp.category} className="mb-5">
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--gold-700))] mb-1">{grp.category}</h4>
+              {grp.items.length > 1 && (
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mb-1.5">Scegli l'opzione che preferisci.</p>
+              )}
+              <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+                {grp.items.map((it) => {
+                  const dec = it.client_decision ?? 'IN_ATTESA'
+                  const isContracted = !!it.contracted_at
+                  return (
+                    <li key={it.id} className="py-3 flex items-start gap-3">
+                      {it.photo
+                        ? <img src={it.photo} alt="" loading="lazy" className="w-14 h-14 rounded-lg object-cover shrink-0 bg-[rgb(var(--bg-sunken))]" />
+                        : <div className="w-14 h-14 rounded-lg shrink-0 bg-[rgb(var(--bg-sunken))]" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-sm">{it.name_snapshot}</p>
+                          {isFornitore ? (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--fg-muted))', background: 'rgb(var(--bg-sunken))' }}>Opzione</span>
+                          ) : isContracted ? (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>✓ Firmato nel preventivo</span>
+                          ) : (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>Integrazione</span>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <p className="font-medium text-sm whitespace-nowrap">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-              </li>
-            )
-          })}
-        </ul>
+                        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">
+                          {it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}
+                          {it.created_at && <span className="ml-2 text-[10px]">· aggiunta il {fmtAddTime(it.created_at)}</span>}
+                        </p>
+                        {dec === 'RIFIUTATO' && it.client_decline_reason && (
+                          <p className="text-[10px] italic text-[rgb(var(--fg-subtle))] mt-0.5">Motivo: {it.client_decline_reason}</p>
+                        )}
+                        {/* Decisione per-voce (solo integrazioni live, preventivo non concluso) */}
+                        {!isContracted && !isClosed && (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {dec === 'IN_ATTESA' ? (
+                              <>
+                                <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'ACCETTATO')} className="px-2 py-1 rounded-md text-white text-[11px] font-medium disabled:opacity-50" style={{ background: '#16a34a' }}>Approva</button>
+                                <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'FORSE')} className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>In forse</button>
+                                <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'RIFIUTATO')} className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>Non accetto</button>
+                              </>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={
+                                  dec === 'ACCETTATO' ? { color: '#16a34a', background: '#16a34a1a' }
+                                  : dec === 'FORSE' ? { color: '#7c3aed', background: '#7c3aed1a' }
+                                  : { color: '#dc2626', background: '#dc26261a' }}>
+                                  {dec === 'ACCETTATO' ? '✓ Approvata' : dec === 'FORSE' ? '? In forse' : '✕ Non accettata'}
+                                </span>
+                                <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'IN_ATTESA' as any)} className="text-[10px] underline text-[rgb(var(--fg-subtle))] disabled:opacity-50">cambia</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <p className="font-medium text-sm whitespace-nowrap">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))
+        })()}
         {opt?.allowed && !opt.optioned && !signed && !isClosed && (
           <div className="rounded-lg border p-3 mb-4" style={{ borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
             <p className="text-sm mb-2">Non sei pronto a firmare? <strong>Tieni la data senza impegno</strong> per {opt.days} giorni. Anche altri clienti possono richiederla: <strong>chi firma per primo la prende</strong>.</p>
