@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search } from 'lucide-react'
+import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search, Archive, ArchiveRestore } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
-import { useCreateQuote, useDeleteQuote, useQuotes } from '@/hooks/useQuotes'
+import { useCreateQuote, useDeleteQuote, useQuotes, useUpdateQuote } from '@/hooks/useQuotes'
 import { HelpDot } from '@/components/help/HelpDot'
 import { QuotesMonthlyReport } from '@/components/quotes/QuotesMonthlyReport'
 import { useAuth } from '@/lib/auth'
@@ -50,18 +50,30 @@ export default function QuotesPage() {
   // Filtri lista: ricerca per nome (cliente/titolo) + stato accettati / non accettati.
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'accepted' | 'not'>('all')
+  // Accantonati: preventivi test/obsoleti nascosti al cliente e (di default) alla lista.
+  const [showArchived, setShowArchived] = useState(false)
+  const archivedCount = useMemo(() => (data ?? []).filter((x) => (x as { archived_at?: string | null }).archived_at).length, [data])
   const filtered = useMemo(() => {
     const ACCEPTED = new Set(['ACCETTATO', 'CONVERTITO_IN_CONTRATTO'])
     const q = search.trim().toLowerCase()
     return (data ?? []).filter((x) => {
+      const isArchived = !!(x as { archived_at?: string | null }).archived_at
+      if (showArchived ? !isArchived : isArchived) return false
       if (statusFilter === 'accepted' && !ACCEPTED.has(x.status)) return false
       if (statusFilter === 'not' && ACCEPTED.has(x.status)) return false
       if (q && !`${x.title ?? ''} ${x.client_name ?? ''}`.toLowerCase().includes(q)) return false
       return true
     })
-  }, [data, search, statusFilter])
+  }, [data, search, statusFilter, showArchived])
   const create = useCreateQuote()
   const del = useDeleteQuote()
+  const upd = useUpdateQuote()
+  async function toggleArchive(id: string, archived: boolean) {
+    try {
+      await upd.mutateAsync({ id, patch: { archived_at: archived ? new Date().toISOString() : null } as never })
+      toast.success(archived ? 'Preventivo accantonato: non è più visibile al cliente.' : 'Preventivo ripristinato.')
+    } catch (e) { toast.error((e as Error).message) }
+  }
   const nav = useNavigate()
   const [openNew, setOpenNew] = useState(false)
   const [form, setForm] = useState({
@@ -163,6 +175,12 @@ export default function QuotesPage() {
               {(([['all', 'Tutti'], ['accepted', 'Accettati'], ['not', 'Non accettati']]) as ['all' | 'accepted' | 'not', string][]).map(([k, l]) => (
                 <button key={k} onClick={() => setStatusFilter(k)} className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap ${statusFilter === k ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{l}</button>
               ))}
+              {archivedCount > 0 && (
+                <button onClick={() => setShowArchived((v) => !v)} title="Preventivi accantonati: nascosti al cliente"
+                  className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap inline-flex items-center gap-1 ${showArchived ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                  <Archive size={12} /> Accantonati ({archivedCount})
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -228,6 +246,11 @@ export default function QuotesPage() {
                   <div className="flex justify-end gap-2">
                     <Button asChild variant="outline" size="sm">
                       <Link to={`/quotes/${q.id}`}>Apri editor</Link>
+                    </Button>
+                    <Button variant="ghost" size="icon" disabled={upd.isPending}
+                      onClick={() => void toggleArchive(q.id, !(q as { archived_at?: string | null }).archived_at)}
+                      title={(q as { archived_at?: string | null }).archived_at ? 'Ripristina: torna visibile al cliente' : 'Accantona: nascondi al cliente (non elimina)'}>
+                      {(q as { archived_at?: string | null }).archived_at ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                     </Button>
                     <Button variant="ghost" size="icon"
                       onClick={async () => {
