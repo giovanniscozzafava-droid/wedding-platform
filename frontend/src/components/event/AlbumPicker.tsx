@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Heart, X, Undo2, RotateCcw, Check, Play, Images } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Heart, X, Undo2, RotateCcw, Check, Play, Images, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ export function AlbumPicker({ media, onClose, onChanged }: { media: AlbumMedia[]
   const [view, setView] = useState<'deck' | 'KEPT' | 'DISCARDED'>('deck')
   const [history, setHistory] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
+  const [viewer, setViewer] = useState<number | null>(null) // indice foto aperta a schermo intero
 
   const pending = useMemo(() => items.filter((m) => m.album_choice == null), [items])
   const kept = useMemo(() => items.filter((m) => m.album_choice === 'KEPT'), [items])
@@ -99,12 +100,14 @@ export function AlbumPicker({ media, onClose, onChanged }: { media: AlbumMedia[]
             <p className="text-white/60 text-sm text-center py-12 flex flex-col items-center gap-2"><Images size={28} /> {view === 'KEPT' ? 'Niente di tenuto ancora.' : 'Nessuno scarto.'}</p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-w-3xl mx-auto">
-              {(view === 'KEPT' ? kept : discarded).map((m) => (
-                <div key={m.id} className="relative rounded-md overflow-hidden bg-white/5" style={{ aspectRatio: '4/3' }}>
+              {(view === 'KEPT' ? kept : discarded).map((m, i) => (
+                <div key={m.id} onClick={() => setViewer(i)} className="relative rounded-md overflow-hidden bg-white/5 cursor-pointer group" style={{ aspectRatio: '4/3' }} title="Tocca per ingrandire">
                   {m.thumbnail_link && <img src={m.thumbnail_link} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                  <button onClick={() => setChoice(m.id, view === 'KEPT' ? 'DISCARDED' : 'KEPT')}
-                    className="absolute inset-0 bg-black/0 hover:bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition text-white text-[11px] gap-1">
-                    {view === 'KEPT' ? <><X size={14} /> scarta</> : <><RotateCcw size={14} /> recupera</>}
+                  {m.media_type === 'VIDEO' && <span className="absolute top-1 left-1 inline-flex items-center gap-0.5 bg-black/55 text-white text-[9px] px-1.5 py-0.5 rounded-full"><Play size={9} className="fill-white" /></span>}
+                  <button onClick={(e) => { e.stopPropagation(); void setChoice(m.id, view === 'KEPT' ? 'DISCARDED' : 'KEPT') }}
+                    title={view === 'KEPT' ? 'Scarta' : 'Recupera'}
+                    className="absolute top-1 right-1 h-7 w-7 rounded-full bg-black/55 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition hover:bg-black/75">
+                    {view === 'KEPT' ? <X size={14} /> : <RotateCcw size={14} />}
                   </button>
                 </div>
               ))}
@@ -112,6 +115,73 @@ export function AlbumPicker({ media, onClose, onChanged }: { media: AlbumMedia[]
           )}
         </div>
       )}
+
+      {viewer != null && view !== 'deck' && (
+        <FullViewer
+          items={view === 'KEPT' ? kept : discarded}
+          start={viewer}
+          actionLabel={view === 'KEPT' ? 'Scarta' : 'Recupera'}
+          actionIcon={view === 'KEPT' ? 'x' : 'recover'}
+          onDecide={(m) => void setChoice(m.id, view === 'KEPT' ? 'DISCARDED' : 'KEPT')}
+          onClose={() => setViewer(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Visore a schermo intero per rivedere Tenute/Scarti: FOTO INTERA (contain), non ritagliata.
+// PC: frecce laterali + tastiera ← → · Esc; il click sulla foto avanza (slideshow).
+// Mobile/tablet: swipe (trascina) sinistra/destra per scorrere, stile Tinder.
+function FullViewer({ items, start, actionLabel, actionIcon, onDecide, onClose }: {
+  items: AlbumMedia[]; start: number; actionLabel: string; actionIcon: 'x' | 'recover'
+  onDecide: (m: AlbumMedia) => void; onClose: () => void
+}) {
+  const [i, setI] = useState(start)
+  const [drag, setDrag] = useState(0)
+  const startRef = useRef<number | null>(null)
+  const idx = Math.min(i, items.length - 1)
+  const m = items[idx]
+
+  const go = (d: 1 | -1) => setI((v) => Math.max(0, Math.min(items.length - 1, v + d)))
+  useEffect(() => { if (items.length === 0) onClose() }, [items.length, onClose])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); go(1) }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1) }
+      else if (e.key === 'Escape') { e.preventDefault(); onClose() }
+    }
+    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
+  }, [items.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!m) return null
+  const onDown = (e: React.PointerEvent) => { startRef.current = e.clientX; try { (e.target as HTMLElement).setPointerCapture(e.pointerId) } catch { /* ok */ } }
+  const onMove = (e: React.PointerEvent) => { if (startRef.current != null) setDrag(e.clientX - startRef.current) }
+  const onUp = () => { const dx = drag; startRef.current = null; setDrag(0); if (dx < -70) go(1); else if (dx > 70) go(-1) }
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between p-3 text-white/90 shrink-0">
+        <span className="font-mono text-xs tracking-wide">{idx + 1} / {items.length}</span>
+        <button onClick={onClose} aria-label="Chiudi" className="grid place-items-center w-10 h-10 rounded-full hover:bg-white/10"><X size={20} /></button>
+      </div>
+      <div className="flex-1 relative grid place-items-center px-2 min-h-0 select-none touch-none overflow-hidden"
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+        <button onClick={() => go(-1)} disabled={idx === 0} aria-label="Precedente" className="hidden sm:grid place-items-center absolute left-3 z-10 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-25"><ChevronLeft size={26} /></button>
+        {m.media_type === 'VIDEO' && !isDrive(m)
+          ? <video src={m.thumbnail_link ?? ''} controls className="max-h-full max-w-full object-contain" />
+          : <img src={big(m)} alt="" draggable={false} onClick={() => go(1)}
+              className="max-h-full max-w-full object-contain"
+              style={{ transform: `translateX(${drag}px)`, transition: startRef.current == null ? 'transform .2s' : 'none' }} />}
+        <button onClick={() => go(1)} disabled={idx === items.length - 1} aria-label="Successiva" className="hidden sm:grid place-items-center absolute right-3 z-10 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-25"><ChevronRight size={26} /></button>
+      </div>
+      <div className="shrink-0 flex items-center justify-center gap-3 p-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <button onClick={() => onDecide(m)}
+          className="inline-flex items-center gap-2 rounded-full h-11 px-5 bg-white/10 text-white hover:bg-white/20 font-mono text-xs uppercase tracking-[0.14em]">
+          {actionIcon === 'x' ? <X size={16} /> : <RotateCcw size={16} />} {actionLabel}
+        </button>
+      </div>
+      <p className="sm:hidden text-center text-white/40 text-[10px] pb-2">scorri per cambiare foto</p>
     </div>
   )
 }
