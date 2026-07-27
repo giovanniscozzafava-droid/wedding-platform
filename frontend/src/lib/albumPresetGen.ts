@@ -120,12 +120,42 @@ function gridLayouts(n: number): Slot[][] {
   return out
 }
 
+// ARCHETIPI CREATIVI "da designer": composizioni HERO asimmetriche (una foto dominante + un cluster
+// di supporto) che i tagli guillotine ~simmetrici non producono. Sono i preset più d'impatto su una
+// tavola matrimonio (foto-eroe + dettagli). Coordinate 0..1 nella regione base.
+function heroArchetypes(n: number): Slot[][] {
+  const colN = (x: number, w: number, k: number): Slot[] => Array.from({ length: k }, (_, i) => ({ x, y: i / k, w, h: 1 / k }))
+  const rowN = (y: number, h: number, k: number): Slot[] => Array.from({ length: k }, (_, i) => ({ x: i / k, y, w: 1 / k, h }))
+  const out: Slot[][] = []
+  if (n === 2) {
+    out.push([{ x: 0, y: 0, w: 0.64, h: 1 }, { x: 0.64, y: 0, w: 0.36, h: 1 }])   // eroe a sinistra + colonna
+    out.push([{ x: 0, y: 0, w: 1, h: 0.64 }, { x: 0, y: 0.64, w: 1, h: 0.36 }])   // eroe in alto + fascia
+  } else if (n === 3) {
+    out.push([{ x: 0, y: 0, w: 0.62, h: 1 }, ...colN(0.62, 0.38, 2)])             // eroe sx + 2 impilate
+    out.push([{ x: 0, y: 0, w: 1, h: 0.62 }, ...rowN(0.62, 0.38, 2)])             // eroe alto + 2 sotto
+    out.push([...colN(0, 0.38, 2), { x: 0.38, y: 0, w: 0.62, h: 1 }])            // 2 sx + eroe dx
+  } else if (n === 4) {
+    out.push([{ x: 0, y: 0, w: 0.66, h: 1 }, ...colN(0.66, 0.34, 3)])            // eroe sx + colonna di 3
+    out.push([{ x: 0, y: 0, w: 1, h: 0.6 }, ...rowN(0.6, 0.4, 3)])               // eroe alto + riga di 3
+    out.push([{ x: 0, y: 0, w: 0.58, h: 0.62 }, { x: 0.58, y: 0, w: 0.42, h: 0.62 }, ...rowN(0.62, 0.38, 2)]) // 2 sopra + 2 sotto sbilanciato
+  } else if (n === 5) {
+    out.push([{ x: 0, y: 0, w: 0.6, h: 1 }, { x: 0.6, y: 0, w: 0.2, h: 0.5 }, { x: 0.8, y: 0, w: 0.2, h: 0.5 }, { x: 0.6, y: 0.5, w: 0.2, h: 0.5 }, { x: 0.8, y: 0.5, w: 0.2, h: 0.5 }]) // eroe sx + 2x2
+    out.push([{ x: 0, y: 0, w: 1, h: 0.58 }, ...rowN(0.58, 0.42, 4)])            // eroe panoramico alto + 4 sotto
+  } else if (n === 6) {
+    out.push([{ x: 0, y: 0, w: 0.62, h: 1 }, { x: 0.62, y: 0, w: 0.38, h: 0.2 }, { x: 0.62, y: 0.2, w: 0.38, h: 0.2 }, { x: 0.62, y: 0.4, w: 0.38, h: 0.2 }, { x: 0.62, y: 0.6, w: 0.38, h: 0.2 }, { x: 0.62, y: 0.8, w: 0.38, h: 0.2 }]) // eroe sx + colonna di 5
+  }
+  return out
+}
+
 // API: genera MOLTE disposizioni per N foto (orientamenti dati), ordinate dalla migliore. Include
 // varianti a vivo, con cornice bianca e a fascia (più creative). `max` = preset restituiti.
 export function genTavolaLayouts(photoOrients: Orient[], tavW: number, tavH: number, max = 48): GenLayout[] {
   const n = Math.max(1, photoOrients.length)
   // GRIGLIE sempre incluse (veloci e pulite, perfette per >8 foto anche in orizzontale).
   let base: { slots: Slot[]; q: number }[] = gridLayouts(n).map((slots) => ({ slots, q: uglyPenalty(slots, tavW, tavH) + balancePenalty(slots) }))
+  // ARCHETIPI HERO (asimmetrici): niente balancePenalty (lo squilibrio è voluto) + bonus per farli
+  // emergere tra le suggerite. Sono le disposizioni "da designer" richieste.
+  base = base.concat(heroArchetypes(n).map((slots) => ({ slots, q: uglyPenalty(slots, tavW, tavH) - 0.5 })))
   // GUILLOTINE (disposizioni creative a celle diverse) SOLO per N gestibile: con molte foto è
   // esponenziale (bloccava l'apertura del pannello) e le griglie coprono già il caso.
   if (n <= 8) {
