@@ -4,7 +4,7 @@ import { X, Send, Check, MapPin, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
-export type AlbumPin = { id: string; entry_id: string; page: number; x: number; y: number; comment: string | null; material: string | null; color: string | null; status: string; logo?: string | null; cover_photo?: boolean | null; pages?: number | null }
+export type AlbumPin = { id: string; entry_id: string; page: number; x: number; y: number; comment: string | null; material: string | null; color: string | null; status: string; logo?: string | null; cover_photo?: boolean | null; pages?: number | null; created_by?: string | null; author_name?: string | null; author_role?: string | null }
 type Msg = { id: string; author_role: string; body: string; created_at: string }
 
 // Pannello conversazione di un pin: il commento resta sul pin, materiale/colore, e il dialogo
@@ -76,7 +76,10 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
       <div className="relative w-full sm:max-w-md max-h-[92vh] flex flex-col bg-[rgb(var(--bg-elev))] rounded-t-3xl sm:rounded-3xl shadow-[var(--shadow-lift)]">
         <div className="flex items-center gap-2 px-5 py-3 border-b border-[rgb(var(--border))]">
           <span className="inline-flex items-center gap-1 text-[rgb(var(--gold-700))]"><MapPin size={16} /></span>
-          <p className="font-medium text-sm flex-1">Questo modello · pag. {pin.page}</p>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm truncate">Questo modello · pag. {pin.page}</p>
+            {pin.author_name && <p className="text-[11px] text-[rgb(var(--fg-subtle))] truncate">Pin di <strong className="text-[rgb(var(--fg-muted))]">{pin.author_name}</strong></p>}
+          </div>
           {pin.status === 'CHOSEN' && <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))]"><Check size={11} className="inline" /> scelto</span>}
           {pin.status === 'RESOLVED' && <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]"><Check size={11} className="inline" /> gestita</span>}
           <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-full hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
@@ -104,10 +107,12 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
           {msgs.length === 0 && <p className="text-center text-xs text-[rgb(var(--fg-subtle))] py-4">Nessun messaggio. Scrivi una domanda: il fotografo ti risponde qui.</p>}
           {msgs.map((m) => {
             const mine = (m.author_role === 'pro') === isPro
+            // etichetta lato cliente: il nome reale se il pin è di una coppia, altrimenti "Cliente"
+            const clientLabel = (pin.author_role && pin.author_role !== 'FORNITORE' && pin.author_name) ? pin.author_name : 'Cliente'
             return (
               <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${m.author_role === 'pro' ? 'bg-[rgb(var(--gold-100))] text-[rgb(var(--fg))]' : 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg))]'}`}>
-                  <p className="text-[10px] text-[rgb(var(--fg-subtle))] mb-0.5">{m.author_role === 'pro' ? 'Fotografo' : 'Cliente'}</p>
+                  <p className="text-[10px] text-[rgb(var(--fg-subtle))] mb-0.5">{m.author_role === 'pro' ? 'Fotografo' : clientLabel}</p>
                   {m.body}
                 </div>
               </div>

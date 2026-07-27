@@ -95,9 +95,9 @@ export function PdfFlipbook({
               const resolved = p.status === 'RESOLVED'
               return (
                 <button key={p.id} type="button" onClick={(e) => { e.stopPropagation(); onOpenPin?.(p) }}
-                  className={`absolute -translate-x-1/2 -translate-y-full drop-shadow-lg ${resolved ? 'opacity-45 hover:opacity-80' : ''}`} style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} title={p.comment ?? 'Apri'}>
+                  className={`absolute -translate-x-1/2 -translate-y-full drop-shadow-lg ${resolved ? 'opacity-45 hover:opacity-80' : ''}`} style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} title={[p.author_name, p.comment].filter(Boolean).join(' · ') || 'Apri'}>
                   <MapPin size={32} className={resolved ? 'text-[rgb(var(--fg-subtle))] fill-[rgb(var(--bg-sunken))]' : chosen ? 'text-emerald-600 fill-emerald-400' : 'text-[rgb(var(--gold-700))] fill-[rgb(var(--gold-500))]'} />
-                  {p.comment && !resolved && <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1.5 px-1.5 py-0.5 rounded-md text-[10px] bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] whitespace-nowrap max-w-[130px] truncate shadow">{p.comment}</span>}
+                  {(p.author_name || p.comment) && !resolved && <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1.5 px-1.5 py-0.5 rounded-md text-[10px] bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] whitespace-nowrap max-w-[150px] truncate shadow">{p.author_name ? <><strong>{p.author_name}</strong>{p.comment ? ` · ${p.comment}` : ''}</> : p.comment}</span>}
                 </button>
               )
             })}

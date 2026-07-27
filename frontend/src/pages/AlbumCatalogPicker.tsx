@@ -52,8 +52,15 @@ export default function AlbumCatalogPicker() {
   const deepDone = useRef(false)
 
   async function reloadPins() {
-    const { data } = await (supabase.from as any)('album_pins').select('id, entry_id, page, x, y, comment, material, color, status').eq('entry_id', entryId)
-    setPins((data ?? []) as AlbumPin[])
+    const { data } = await (supabase.from as any)('album_pins').select('id, entry_id, page, x, y, comment, material, color, status, created_by').eq('entry_id', entryId)
+    let list = (data ?? []) as AlbumPin[]
+    // Chi ha messo ogni pin (le policy profili non lasciano leggere la coppia: risolvo via RPC).
+    try {
+      const { data: authors } = await (supabase.rpc as any)('album_pin_author_names', { p_entry_id: entryId })
+      const map = new Map<string, { name: string; role: string }>(((authors ?? []) as any[]).map((a) => [a.user_id as string, { name: a.name as string, role: a.role as string }]))
+      list = list.map((p) => { const a = p.created_by ? map.get(p.created_by) : undefined; return a ? { ...p, author_name: a.name, author_role: a.role } : p })
+    } catch { /* nessun nome: resta l'etichetta generica */ }
+    setPins(list)
   }
 
   useEffect(() => {
@@ -158,7 +165,7 @@ export default function AlbumCatalogPicker() {
   async function dropPin(page: number, x: number, y: number) {
     const { data, error } = await (supabase.from as any)('album_pins')
       .insert({ entry_id: entryId, catalog_id: catalog?.id ?? null, page, x, y, status: 'OPEN' })
-      .select('id, entry_id, page, x, y, comment, material, color, status').single()
+      .select('id, entry_id, page, x, y, comment, material, color, status, created_by').single()
     if (error || !data) { toast.error('Pin non salvato'); return }
     setPins((ps) => [...ps, data as AlbumPin])
     setOpenPin(data as AlbumPin)
