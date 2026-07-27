@@ -23,6 +23,7 @@ import {
   Inbox,
   LayoutGrid,
   Settings,
+  Gift,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -80,6 +81,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/leads',     label: 'Lead',       icon: Inbox },
     { to: '/weddings',  label: 'Eventi',     icon: Gem },
     { to: '/quotes',    label: 'Preventivi', icon: FileText },
+    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti ricevuti', icon: Gift },
     { to: '/contracts', label: 'Contratti',  icon: FileSignature },
   ]},
   { section: 'Studio', items: [
@@ -104,6 +106,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/richieste',   label: 'Richieste',   icon: Inbox },
     { to: '/weddings',    label: 'Eventi',      icon: Gem },
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
+    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti ricevuti', icon: Gift },
     { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
   ]},
   { section: 'Studio', items: [
