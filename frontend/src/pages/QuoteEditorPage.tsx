@@ -2,9 +2,10 @@ import { useMemo, useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, ExternalLink, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye } from 'lucide-react'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { PdfViewButton } from '@/components/common/PdfBookViewer'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
@@ -1129,10 +1130,9 @@ export default function QuoteEditorPage() {
             {pdfUrl && (
               <div className="rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }} data-testid="pdf-link">
                 <p className="text-xs text-[rgb(var(--fg-subtle))] mb-1">Ultimo PDF</p>
-                <a href={pdfUrl} target="_blank" rel="noreferrer"
-                  className="text-sm font-medium inline-flex items-center gap-1 hover:underline">
-                  Apri <ExternalLink size={12} />
-                </a>
+                <PdfViewButton pdfUrl={pdfUrl} title="Anteprima preventivo" variant="ghost" size="sm">
+                  <FileDown size={13} /> Sfoglia
+                </PdfViewButton>
               </div>
             )}
             {sendResult?.access_token && (

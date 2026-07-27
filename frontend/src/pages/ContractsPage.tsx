@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { PdfViewButton } from '@/components/common/PdfBookViewer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SearchFilterBar } from '@/components/common/SearchFilterBar'
 import { supabase } from '@/lib/supabase'
@@ -383,11 +384,9 @@ export default function ContractsPage() {
                 </Button>
               )}
               {selected.pdf_url && (
-                <a href={selected.pdf_url} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium"
-                  style={{ background: 'rgb(var(--gold-500))', color: 'rgb(var(--bg))' }}>
-                  <FileDown size={14} /> Apri PDF
-                </a>
+                <PdfViewButton pdfUrl={selected.pdf_url} title={selected.title ? `Contratto · ${selected.title}` : 'Contratto'} variant="gold" size="sm">
+                  <FileDown size={14} /> Sfoglia PDF
+                </PdfViewButton>
               )}
             </div>
           </div>

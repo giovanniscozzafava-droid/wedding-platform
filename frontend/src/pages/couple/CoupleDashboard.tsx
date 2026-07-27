@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input, Select } from '@/components/ui/input'
+import { PdfViewButton } from '@/components/common/PdfBookViewer'
 import { supabase } from '@/lib/supabase'
 import { useMyWeddings } from '@/hooks/useCouple'
 import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTimeline, useTransport, useMoodMutations, usePlaylistMutations, useWedding } from '@/hooks/useWedding'
@@ -826,9 +827,9 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
           {quote ? (
             <div className="flex flex-wrap gap-2">
               {quote.pdf_url && (
-                <a href={quote.pdf_url} target="_blank" rel="noreferrer">
-                  <Button variant="outline" size="sm"><FileText size={13} /> Scarica PDF</Button>
-                </a>
+                <PdfViewButton pdfUrl={quote.pdf_url} title={quote.title ? `Preventivo · ${quote.title}` : 'Preventivo'} variant="outline" size="sm">
+                  <FileText size={13} /> Sfoglia PDF
+                </PdfViewButton>
               )}
               {quote.access_token && (
                 <a href={`/p/preview/${quote.access_token}`} target="_blank" rel="noreferrer">
@@ -868,9 +869,9 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
           {contracts.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {contracts[0].pdf_url && (
-                <a href={contracts[0].pdf_url} target="_blank" rel="noreferrer">
-                  <Button variant="outline" size="sm"><FileSignature size={13} /> Scarica PDF</Button>
-                </a>
+                <PdfViewButton pdfUrl={contracts[0].pdf_url} title={contracts[0].title ? `Contratto · ${contracts[0].title}` : 'Contratto'} variant="outline" size="sm">
+                  <FileSignature size={13} /> Sfoglia PDF
+                </PdfViewButton>
               )}
               {contracts[0].access_token && contracts[0].status !== 'FIRMATO' && (
                 <a href={`/p/contract/${contracts[0].access_token}`} target="_blank" rel="noreferrer">
@@ -1255,9 +1256,11 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
         )}
 
         {data.pdf_url && (
-          <a href={data.pdf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-[rgb(var(--gold-600))] hover:underline mb-4">
-            <FileText size={12} /> Scarica PDF preventivo <ExternalLink size={10} />
-          </a>
+          <div className="mb-4">
+            <PdfViewButton pdfUrl={data.pdf_url} title="Preventivo" variant="ghost" size="sm">
+              <FileText size={13} /> Sfoglia il preventivo
+            </PdfViewButton>
+          </div>
         )}
       </Card>
 
