@@ -63,6 +63,13 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
     onChoose({ ...pin, comment: comment.trim() || null, material: material.trim() || null, color: color.trim() || null, logo: logo.trim() || null, cover_photo: coverPhoto, pages: pages ? Math.max(1, Number(pages) || 0) : null, status: 'CHOSEN' })
   }
 
+  // Lato fotografo: segna la puntina come GESTITA (resta sul catalogo ma spenta) o la riapre.
+  async function setStatus(s: string) {
+    await (supabase.from as any)('album_pins').update({ status: s }).eq('id', pin.id)
+    onUpdated({ ...pin, status: s })
+    toast.success(s === 'RESOLVED' ? 'Puntina segnata come gestita' : 'Puntina riaperta')
+  }
+
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
@@ -71,6 +78,7 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
           <span className="inline-flex items-center gap-1 text-[rgb(var(--gold-700))]"><MapPin size={16} /></span>
           <p className="font-medium text-sm flex-1">Questo modello · pag. {pin.page}</p>
           {pin.status === 'CHOSEN' && <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))]"><Check size={11} className="inline" /> scelto</span>}
+          {pin.status === 'RESOLVED' && <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]"><Check size={11} className="inline" /> gestita</span>}
           <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-full hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
         </div>
 
@@ -120,6 +128,11 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
             <Button variant="gold" className="w-full !py-2.5" onClick={() => void choose()}>
               <Check size={16} /> Ok, scelgo questo!
             </Button>
+          )}
+          {isPro && (
+            pin.status === 'RESOLVED'
+              ? <Button variant="outline" className="w-full !py-2.5" onClick={() => void setStatus('OPEN')}>Riapri la puntina</Button>
+              : <Button variant="outline" className="w-full !py-2.5" onClick={() => void setStatus('RESOLVED')}><Check size={16} /> Segna come gestita</Button>
           )}
         </div>
       </div>

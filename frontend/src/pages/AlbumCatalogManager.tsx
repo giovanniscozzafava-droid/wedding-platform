@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ChevronLeft, Upload, Save, FileText, Loader2, Sparkles, Plus, Trash2, ImagePlus, Sliders } from 'lucide-react'
+import { ChevronLeft, Upload, Save, FileText, Loader2, Sparkles, Plus, Trash2, ImagePlus, Sliders, MapPin, MessageSquare, CheckCircle2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { supabase } from '@/lib/supabase'
 import { PdfHotspotEditor } from '@/components/album/catalog/PdfHotspotEditor'
 import { ModelOptionsEditor } from '@/components/album/catalog/ModelOptionsEditor'
 import { designAlbumCatalogModels } from '@/components/album/albumCatalog'
@@ -28,13 +29,25 @@ export default function AlbumCatalogManager() {
   const [daOpen, setDaOpen] = useState(false)            // modale "carica dal listino DesignAlbum"
   const [daQuery, setDaQuery] = useState('')
   const daList = useMemo(() => { const q = daQuery.toLowerCase().trim(); const all = designAlbumCatalogModels(); return q ? all.filter((m) => m.label.toLowerCase().includes(q)) : all }, [daQuery])
+  // Puntine di TUTTI i clienti in un solo posto (vista aggregata lato fotografo).
+  type InboxPin = { id: string; entry_id: string; catalog_id: string | null; pdf_path: string | null; page: number; comment: string | null; status: string; created_at: string; client_name: string; msg_count: number; last_msg_role: string | null; last_msg_at: string | null }
+  const [inbox, setInbox] = useState<InboxPin[]>([])
+  const [showResolved, setShowResolved] = useState(false)
+
+  async function loadInbox() {
+    try { const { data } = await (supabase as any).rpc('album_pins_inbox'); setInbox((data ?? []) as InboxPin[]) } catch { /* nessuna puntina */ }
+  }
 
   useEffect(() => {
     getMyModels().then((r) => {
       setCatalogs(r.catalogs); setModels(r.models); setMarkup(r.markup)
       setSelCat(r.catalogs[0]?.id ?? '')
     }).finally(() => setLoading(false))
+    void loadInbox()
   }, [])
+
+  const inboxOpen = useMemo(() => inbox.filter((p) => p.status === 'OPEN'), [inbox])
+  const inboxVisible = useMemo(() => (showResolved ? inbox : inbox.filter((p) => p.status !== 'RESOLVED')), [inbox, showResolved])
 
   const pdfModels = useMemo(() => models.filter((m) => m.catalog_id === selCat), [models, selCat])
   const manualCards = useMemo(() => models.filter((m) => !m.catalog_id), [models])
@@ -207,6 +220,41 @@ export default function AlbumCatalogManager() {
           <div className="grid place-items-center h-72 text-[rgb(var(--fg-subtle))]"><Loader2 className="animate-spin" /></div>
         ) : (
           <div className="space-y-6">
+            {/* Richieste dei clienti: le puntine di TUTTI i clienti in un solo posto. Clic → al punto esatto. */}
+            {inbox.length > 0 && (
+              <Card className="p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+                  <h3 className="font-display text-lg flex items-center gap-2">
+                    <MapPin size={18} className="text-[rgb(var(--gold-600))]" /> Richieste dei clienti
+                    {inboxOpen.length > 0 && <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">{inboxOpen.length} da gestire</span>}
+                  </h3>
+                  <button onClick={() => setShowResolved((v) => !v)} className="text-[12px] text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]">{showResolved ? 'Nascondi gestite' : 'Mostra anche gestite'}</button>
+                </div>
+                <div className="space-y-1.5">
+                  {inboxVisible.map((p) => {
+                    const resolved = p.status === 'RESOLVED'
+                    const chosen = p.status === 'CHOSEN'
+                    const waitsPro = p.last_msg_role === 'client' && !resolved  // il cliente aspetta risposta
+                    return (
+                      <button key={p.id} onClick={() => navigate(`/scegli-album/${p.entry_id}?pin=${p.id}`)}
+                        className={`w-full text-left rounded-xl border px-3 py-2.5 transition hover:border-[rgb(var(--gold-300))] ${resolved ? 'opacity-60 border-[rgb(var(--border))]' : waitsPro ? 'border-[rgb(var(--gold-400))] bg-[rgb(var(--gold-50))]' : 'border-[rgb(var(--border))]'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm truncate">{p.client_name}</span>
+                          <span className="text-[11px] text-[rgb(var(--fg-subtle))]">· pag. {p.page}</span>
+                          {chosen && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] inline-flex items-center gap-0.5"><CheckCircle2 size={10} /> scelto</span>}
+                          {resolved && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]">gestita</span>}
+                          {waitsPro && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-200))] text-[rgb(var(--gold-800))] ml-auto">rispondi</span>}
+                          {Number(p.msg_count) > 0 && <span className={`text-[11px] text-[rgb(var(--fg-subtle))] inline-flex items-center gap-0.5 ${waitsPro ? '' : 'ml-auto'}`}><MessageSquare size={11} /> {p.msg_count}</span>}
+                        </div>
+                        {p.comment && <p className="text-[12px] text-[rgb(var(--fg-muted))] mt-0.5 line-clamp-1">{p.comment}</p>}
+                      </button>
+                    )
+                  })}
+                  {inboxVisible.length === 0 && <p className="text-sm text-[rgb(var(--fg-muted))] py-2">Nessuna richiesta aperta. 🎉</p>}
+                </div>
+              </Card>
+            )}
+
             {/* Ricarico */}
             <Card className="p-4">
               <div className="flex items-center gap-2 flex-wrap">

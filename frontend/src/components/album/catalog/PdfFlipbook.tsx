@@ -92,11 +92,12 @@ export function PdfFlipbook({
             {/* PIN persistenti del cliente: marker col commento; si tocca per aprire la conversazione */}
             {(pins ?? []).filter((p) => p.page === page).map((p) => {
               const chosen = p.status === 'CHOSEN' || p.id === selected?.id
+              const resolved = p.status === 'RESOLVED'
               return (
                 <button key={p.id} type="button" onClick={(e) => { e.stopPropagation(); onOpenPin?.(p) }}
-                  className="absolute -translate-x-1/2 -translate-y-full drop-shadow-lg" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} title={p.comment ?? 'Apri'}>
-                  <MapPin size={32} className={chosen ? 'text-emerald-600 fill-emerald-400' : 'text-[rgb(var(--gold-700))] fill-[rgb(var(--gold-500))]'} />
-                  {p.comment && <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1.5 px-1.5 py-0.5 rounded-md text-[10px] bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] whitespace-nowrap max-w-[130px] truncate shadow">{p.comment}</span>}
+                  className={`absolute -translate-x-1/2 -translate-y-full drop-shadow-lg ${resolved ? 'opacity-45 hover:opacity-80' : ''}`} style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} title={p.comment ?? 'Apri'}>
+                  <MapPin size={32} className={resolved ? 'text-[rgb(var(--fg-subtle))] fill-[rgb(var(--bg-sunken))]' : chosen ? 'text-emerald-600 fill-emerald-400' : 'text-[rgb(var(--gold-700))] fill-[rgb(var(--gold-500))]'} />
+                  {p.comment && !resolved && <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1.5 px-1.5 py-0.5 rounded-md text-[10px] bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] whitespace-nowrap max-w-[130px] truncate shadow">{p.comment}</span>}
                 </button>
               )
             })}
