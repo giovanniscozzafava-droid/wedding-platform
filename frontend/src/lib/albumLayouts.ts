@@ -6,7 +6,8 @@ import { framesForPage, type AlbumPage, type Frame } from './albumEngine'
 export type FreeSlot = { x: number; y: number; w: number; h: number; rot: number }
 // `els` (facoltativo) = composizione LIBERA completa (con rotazione): se presente, il
 // preset si riapplica come modalità libera fedele, non come griglia.
-export type SavedLayout = { id: string; name: string; n: number; frames: Frame[]; els?: FreeSlot[] }
+// `shared` = preset della libreria condivisa Planfully (visibile a tutti, gestita da staff/admin).
+export type SavedLayout = { id: string; name: string; n: number; frames: Frame[]; els?: FreeSlot[]; shared?: boolean }
 const KEY = 'planfully:album:layouts'
 
 function uid(): string {

@@ -97,6 +97,7 @@ function justifiedSlots(aspectsArr: number[], spreadAspect: number): { x: number
 import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, neighborGaps, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
+import { listSharedPresets, saveSharedPreset, deleteSharedPreset, amIPresetCurator } from '@/lib/albumSharedPresets'
 import { genTavolaLayouts, assignPhotos, gutterSlot, classifyAspect, type Orient, type Slot, type GenLayout } from '@/lib/albumPresetGen'
 import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { shareAlbumCommission } from '@/hooks/useAlbumLab'
@@ -465,7 +466,12 @@ function AlbumDesignerInner() {
   const [selEl, setSelEl] = useState<string | null>(null)      // elemento libero "primario" (pannello/crop)
   const [multiSel, setMultiSel] = useState<string[]>([])        // selezione multipla (Shift) sulla tavola
   const [selSpreads, setSelSpreads] = useState<Set<number>>(new Set()) // tavole selezionate nel navigatore (Shift) da spostare insieme
-  const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // layout personalizzati salvati
+  const [layouts, setLayouts] = useState<SavedLayout[]>(() => listLayouts()) // preset personali (localStorage)
+  const [shared, setShared] = useState<SavedLayout[]>([])                     // libreria condivisa Planfully (tutti)
+  const [isCurator, setIsCurator] = useState(false)                          // staff/admin: puo' scrivere in libreria
+  useEffect(() => { void listSharedPresets().then(setShared); void amIPresetCurator().then(setIsCurator) }, [])
+  // Preset applicabili = libreria condivisa + i tuoi. Il filtro per numero foto avviene a valle.
+  const allLayouts = useMemo(() => [...shared, ...layouts], [shared, layouts])
   const [gutterMm, setGutterMm] = useState(3) // margine (mm) tra le foto quando si applica una disposizione
   const [momentFilter, setMomentFilter] = useState<string>('') // filtro libreria per "momento" (tag); '' = tutti
   const [importSelBusy, setImportSelBusy] = useState(false) // import selezione album da cuore sposi/fotografo
@@ -1182,7 +1188,7 @@ function AlbumDesignerInner() {
   // I TUOI preset applicabili alla tavola corrente: SOLO quelli con lo STESSO numero di foto della
   // tavola (3 foto → preset da 3, 10 foto → preset da 10). Le disposizioni devono combaciare col
   // numero di foto sulla tavola, sempre.
-  const myTavPresets = useMemo(() => layouts.filter((l) => (l.els?.length ?? 0) === tavEls.length && tavEls.length > 0), [layouts, tavEls.length])
+  const myTavPresets = useMemo(() => allLayouts.filter((l) => (l.els?.length ?? 0) === tavEls.length && tavEls.length > 0), [allLayouts, tavEls.length])
   useEffect(() => {
     setEverPlaced((prev) => {
       let changed = false; const next = new Set(prev)
@@ -1673,6 +1679,15 @@ function AlbumDesignerInner() {
     const label = page.mode === 'free' ? `Composizione libera ${frames.length} foto` : `Layout ${frames.length} foto`
     setLayouts(saveLayout(label, frames, els)); toast.success(page.mode === 'free' ? 'Composizione libera salvata come preset' : 'Layout salvato tra i tuoi')
   }
+  // CURATORE (staff/admin): salva il preset nella libreria CONDIVISA → distribuito a tutti, bucket per n foto.
+  async function saveSharedCur() {
+    const page = pages.find((p) => p.id === currentPageId); if (!page) { toast.error('Apri prima una pagina'); return }
+    const frames = pageToFrames(page); if (!frames.length) { toast.error('La pagina è vuota'); return }
+    const els = pageToFreeEls(page)
+    const item = await saveSharedPreset(`Libreria ${(els.length || frames.length)} foto`, frames, els)
+    if (item) { setShared((s) => [item, ...s]); toast.success('Preset aggiunto alla libreria di tutti i professionisti') }
+    else toast.error('Non hai i permessi per la libreria condivisa')
+  }
   // Applica un preset: se è una composizione LIBERA (els), ricrea gli elementi liberi
   // (con rotazione) mappando le foto già presenti nella pagina; altrimenti griglia template.
   function applyLayoutCur(l: SavedLayout) {
@@ -1686,7 +1701,10 @@ function AlbumDesignerInner() {
       return { ...p, mode: 'free' as const, bg: p.bg ?? '#ffffff', elements: els, mediaIds: [], cells: [] }
     })
   }
-  function removeLayout(id: string) { setLayouts(deleteLayout(id)) }
+  function removeLayout(id: string) {
+    if (shared.some((s) => s.id === id)) { setShared((s) => s.filter((x) => x.id !== id)); void deleteSharedPreset(id); return }
+    setLayouts(deleteLayout(id))
+  }
   // ── selezione multipla (Shift) + scorciatoie tastiera stile Canva ───────────
   function selectEl(id: string | null, additive = false) {
     setSelGuide(null) // selezionando/deselezionando una foto, il righello non è più "armato"
@@ -3633,6 +3651,7 @@ function AlbumDesignerInner() {
                   onSaveLayout={saveCurLayout}
                   presets={tavPresets} tavAspect={asp * 2} onApplyTavolaLayout={applyTavolaLayout}
                   myPresets={myTavPresets} onApplySaved={applySavedToTavola} onDeleteSaved={removeLayout}
+                  isCurator={isCurator} onSaveShared={saveSharedCur}
                   selCount={multiSel.length} onAlign={alignSel} onDistribute={distributeSel} onUniformGaps={uniformGapsSel}
                   gutterMm={gutterMm} onGutter={setGutterMm}
                   layers={[...(currentPage.elements ?? [])].reverse().map((e) => { const m = mediaById.get(e.mediaId); return { id: e.id, thumb: m ? thumbUrl(m) : '' } })}
@@ -3656,7 +3675,7 @@ function AlbumDesignerInner() {
                   onClearSlot={(s) => { clearSlot(currentPage.id, s); setActiveSlot(null) }}
                   onCrop={(s) => setCropFor(s)} onFree={() => convertToFree(currentPage.id)}
                   onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
-                  savedLayouts={layouts} onSaveLayout={saveCurLayout} onApplyLayout={applyLayoutCur} onDeleteLayout={removeLayout}
+                  savedLayouts={allLayouts} onSaveLayout={saveCurLayout} onApplyLayout={applyLayoutCur} onDeleteLayout={removeLayout} isCurator={isCurator} onSaveShared={saveSharedCur}
                   crop={(() => {
                     if (activeSlot == null) return null
                     const fr = framesForPage(currentPage)[activeSlot]
@@ -5321,9 +5340,10 @@ function PropsPanel(props: {
   onClearSlot: (s: number) => void; onCrop: (s: number) => void; onFree: () => void
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void
   savedLayouts: SavedLayout[]; onSaveLayout: () => void; onApplyLayout: (l: SavedLayout) => void; onDeleteLayout: (id: string) => void
+  isCurator?: boolean; onSaveShared?: () => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, activeSlot, mediaById, formatKey, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate, savedLayouts, onSaveLayout, onApplyLayout, onDeleteLayout, crop } = props
+  const { page, activeSlot, mediaById, formatKey, lite, onTemplate, onCycle, onCell, onClearSlot, onCrop, onFree, onAddPage, onDelPage, onDuplicate, savedLayouts, onSaveLayout, onApplyLayout, onDeleteLayout, isCurator, onSaveShared, crop } = props
   const moment = getMoment(page.moment)
   // foto in pagina: dalle celle template OPPURE dagli elementi liberi (pagina libera "congelata")
   const isFrozenFree = page.mode === 'free'
@@ -5385,17 +5405,21 @@ function PropsPanel(props: {
         {!lite && <Button variant="outline" size="sm" className="w-full mt-1.5" onClick={onFree}><Move size={13} /> Modifica libera (Canva)</Button>}
         {/* I TUOI LAYOUT: salva la disposizione corrente e riusala su qualsiasi pagina */}
         <div className="mt-3 border-t border-[rgb(var(--border))] pt-2">
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-xs font-medium text-[rgb(var(--fg-muted))]">I tuoi layout</p>
-            {!lite && <button onClick={onSaveLayout} className="text-[11px] inline-flex items-center gap-1 text-[rgb(var(--gold-700))] hover:underline"><Save size={12} /> Salva questo</button>}
-          </div>
+          <p className="text-xs font-medium text-[rgb(var(--fg-muted))] mb-1.5">I tuoi preset</p>
+          {!lite && (
+            <div className="flex flex-col gap-1.5 mb-2">
+              <Button variant="gold" size="sm" className="w-full" onClick={onSaveLayout}><Save size={14} /> Salva questa disposizione come preset</Button>
+              {isCurator && onSaveShared && <Button variant="outline" size="sm" className="w-full" onClick={onSaveShared}><Sparkles size={13} /> Salva nella libreria (tutti)</Button>}
+            </div>
+          )}
           {savedLayouts.length === 0
-            ? <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Nessun layout salvato.{!lite && ' Disponi la pagina e premi “Salva questo”.'}</p>
+            ? <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Nessun preset salvato.{!lite && ' Disponi la pagina e premi “Salva questa disposizione”.'}</p>
             : <div className="flex flex-wrap gap-1.5">
                 {savedLayouts.map((l) => (
                   <div key={l.id} className="relative group/lay">
-                    <button title={`${l.name} · applica`} onClick={() => onApplyLayout(l)}><FramesDiagram frames={l.frames} active={page.template === 'custom'} /></button>
-                    {!lite && <button title="Elimina layout" onClick={() => onDeleteLayout(l.id)} className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-rose-500 text-white text-[10px] leading-none hidden group-hover/lay:flex items-center justify-center">×</button>}
+                    <button title={`${l.name}${l.shared ? ' · libreria Planfully' : ''} · applica`} onClick={() => onApplyLayout(l)}><FramesDiagram frames={l.frames} active={page.template === 'custom'} /></button>
+                    {l.shared && <span title="Libreria Planfully (per tutti)" className="absolute -top-1.5 -left-1.5 h-4 w-4 rounded-full bg-[rgb(var(--gold-500))] text-white text-[9px] leading-none flex items-center justify-center shadow">★</span>}
+                    {!lite && (!l.shared || isCurator) && <button title="Elimina" onClick={() => onDeleteLayout(l.id)} className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-rose-500 text-white text-[10px] leading-none hidden group-hover/lay:flex items-center justify-center">×</button>}
                   </div>
                 ))}
               </div>}
@@ -5454,13 +5478,14 @@ function FreePanel(props: {
   onAddPage: () => void; onDelPage: () => void; onDuplicate: () => void; onSaveLayout?: () => void
   presets?: GenLayout[]; tavAspect?: number; onApplyTavolaLayout?: (slots: Slot[]) => void
   myPresets?: SavedLayout[]; onApplySaved?: (l: SavedLayout) => void; onDeleteSaved?: (id: string) => void
+  isCurator?: boolean; onSaveShared?: () => void
   selCount?: number; onAlign?: (k: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'bottom') => void; onDistribute?: (a: 'h' | 'v') => void
   onUniformGaps?: () => void
   gutterMm?: number; onGutter?: (mm: number) => void
   layers?: { id: string; thumb: string }[]; onSelectEl?: (id: string) => void; onReorderEl?: (id: string, dir: -1 | 1) => void
   crop?: { src: string; aspect: number; cell: Cell; onChange: (c: Cell) => void; onRotate90?: (dir: -1 | 1) => void } | null
 }) {
-  const { page, selEl, lite, onBg, onElUpdate, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, selCount, onAlign, onDistribute, onUniformGaps, gutterMm, onGutter, layers, onSelectEl, onReorderEl, crop } = props
+  const { page, selEl, lite, onBg, onElUpdate, onElRemove, onAddPage, onDelPage, onDuplicate, onSaveLayout, presets, tavAspect, onApplyTavolaLayout, myPresets, onApplySaved, onDeleteSaved, isCurator, onSaveShared, selCount, onAlign, onDistribute, onUniformGaps, gutterMm, onGutter, layers, onSelectEl, onReorderEl, crop } = props
   const el = (page.elements ?? []).find((e) => e.id === selEl)
   const SWATCHES = ['#ffffff', '#f7f3ee', '#1a1714', '#0a0a0a', '#e8d9c4', '#c9a87c', '#2b3a4a', '#d8a7b1']
   return (
@@ -5537,11 +5562,12 @@ function FreePanel(props: {
               <div className="grid grid-cols-3 gap-1.5 mb-3">
                 {myPresets.map((l) => (
                   <div key={l.id} className="relative group/mp">
-                    <button title={`${l.name} · applica`} onClick={() => onApplySaved?.(l)}
+                    <button title={`${l.name}${l.shared ? ' · libreria Planfully' : ''} · applica`} onClick={() => onApplySaved?.(l)}
                       className="w-full rounded-md overflow-hidden border border-[rgb(var(--gold-400))] hover:ring-1 hover:ring-[rgb(var(--gold-500))] transition">
                       <Wireframe slots={l.els ?? []} aspect={tavAspect ?? 2} />
                     </button>
-                    {onDeleteSaved && <button title="Elimina preset" onClick={() => onDeleteSaved(l.id)} className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-rose-500 text-white text-[10px] leading-none hidden group-hover/mp:flex items-center justify-center">×</button>}
+                    {l.shared && <span title="Libreria Planfully (per tutti)" className="absolute -top-1.5 -left-1.5 h-4 w-4 rounded-full bg-[rgb(var(--gold-500))] text-white text-[9px] leading-none flex items-center justify-center shadow">★</span>}
+                    {onDeleteSaved && (!l.shared || isCurator) && <button title="Elimina preset" onClick={() => onDeleteSaved(l.id)} className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-rose-500 text-white text-[10px] leading-none hidden group-hover/mp:flex items-center justify-center">×</button>}
                   </div>
                 ))}
               </div>
@@ -5599,7 +5625,8 @@ function FreePanel(props: {
             <Button variant="outline" size="sm" onClick={onDuplicate}><Copy size={13} /> Duplica</Button>
             <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
           </div>
-          {onSaveLayout && <Button variant="outline" size="sm" className="w-full" onClick={onSaveLayout}><Hash size={13} /> Salva questa composizione come preset</Button>}
+          {onSaveLayout && <Button variant="gold" size="sm" className="w-full" onClick={onSaveLayout}><Save size={13} /> Salva questa composizione come preset</Button>}
+          {isCurator && onSaveShared && <Button variant="outline" size="sm" className="w-full" onClick={onSaveShared}><Sparkles size={13} /> Salva nella libreria (tutti)</Button>}
         </div>
       )}
       {/* NAVIGATORE DI RITAGLIO inline (sotto i pulsanti): clic sulla foto → ritagli qui */}
