@@ -53,6 +53,7 @@ const ProvaLookClientPage = lazyWithRetry(() => import('@/pages/public/ProvaLook
 const IncassiSettingsPage = lazyWithRetry(() => import('@/pages/IncassiSettingsPage'))
 const BillingPage = lazyWithRetry(() => import('@/pages/BillingPage'))
 const MaggiorazioniSettingsPage = lazyWithRetry(() => import('@/pages/MaggiorazioniSettingsPage'))
+const FunnelSettingsPage = lazyWithRetry(() => import('@/pages/FunnelSettingsPage'))
 const PaymentResultPage = lazyWithRetry(() => import('@/pages/public/PaymentResultPage'))
 const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreviewPage'))
 const QuoteAcceptPage = lazyWithRetry(() => import('@/pages/public/QuoteAcceptPage'))
@@ -300,6 +301,14 @@ export default function App() {
             element={
               <RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
                 <MaggiorazioniSettingsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings/funnel"
+            element={
+              <RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}>
+                <FunnelSettingsPage />
               </RequireAuth>
             }
           />

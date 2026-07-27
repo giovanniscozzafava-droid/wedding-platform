@@ -8,6 +8,7 @@ const TABS: Tab[] = [
   { to: '/settings/brand', label: 'Brand' },
   { to: '/settings/incassi', label: 'Incassi' },
   { to: '/settings/maggiorazioni', label: 'Maggiorazioni' },
+  { to: '/settings/funnel', label: 'Funnel', show: (r) => r === 'FORNITORE' || r === 'WEDDING_PLANNER' || r === 'LOCATION' || r === 'ADMIN' },
   { to: '/settings/album-prezzi', label: 'Listino album', show: (r) => r === 'FORNITORE' || r === 'ADMIN' },
   { to: '/integrazione-sito', label: 'Integrazione sito' },
   { to: '/team', label: 'Team' },

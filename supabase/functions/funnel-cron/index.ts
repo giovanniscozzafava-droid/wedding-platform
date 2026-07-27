@@ -27,7 +27,7 @@ const ownerCache = new Map<string, any>()
 async function loadOwner(id: string) {
   if (ownerCache.has(id)) return ownerCache.get(id)
   const { data: p } = await admin.from('profiles')
-    .select('full_name, business_name, brand_primary_color, phone').eq('id', id).maybeSingle()
+    .select('full_name, business_name, brand_primary_color, phone, funnel_followup_enabled, funnel_contested_enabled').eq('id', id).maybeSingle()
   const { data: au } = await admin.auth.admin.getUserById(id)
   const o = { ...p, email: au?.user?.email ?? null }
   ownerCache.set(id, o)
@@ -99,6 +99,8 @@ Deno.serve(async (req) => {
     }
     const fc = q.followup_count ?? 0
     if (fc < SCHEDULE.length && days >= SCHEDULE[fc]) {
+      const owner = await loadOwner(q.owner_id)
+      if (owner?.funnel_followup_enabled === false) continue  // il professionista ha spento i follow-up automatici
       const copy = followupCopy(fc + 1, Number(q.open_count ?? 0) > 0)
       try {
         await sendBranded(q, copy.s, copy.i, copy.c)
@@ -121,6 +123,8 @@ Deno.serve(async (req) => {
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', q.owner_id).eq('event_date', q.event_date).neq('id', q.id)
     if ((count ?? 0) > 0 && q.client_email) {
+      const owner = await loadOwner(q.owner_id)
+      if (owner?.funnel_contested_enabled === false) continue  // il professionista ha spento l'email "data contesa"
       const dateFmt = new Date(q.event_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
       try {
         await sendBranded(q,
