@@ -32,6 +32,7 @@ export function useWeddings() {
           quote:quotes!calendar_entries_quote_fk(id, title, status, total_client, access_token, pdf_url, revision)
         `)
         .in('status', ['OPZIONATA', 'CONFERMATA', 'IN_TRATTATIVA'])
+        .is('archived_at', null)   // eventi accantonati (preventivo archiviato) fuori dalla lista
         .order('date_from', { ascending: true })
       if (error) throw error
       const base = (data ?? []).map((r) => flattenPrivate(r as Record<string, unknown>)) as unknown as WeddingRow[]
@@ -42,7 +43,7 @@ export function useWeddings() {
         .select('*')
         .in('status', ['OPZIONATA', 'CONFERMATA', 'IN_TRATTATIVA'])
         .order('date_from', { ascending: true })
-      const extra = ((collab.data ?? []) as unknown as WeddingRow[]).filter((r) => !seen.has(r.id))
+      const extra = ((collab.data ?? []) as unknown as WeddingRow[]).filter((r) => !seen.has(r.id) && !(r as { archived_at?: string | null }).archived_at)
       return [...base, ...extra].sort((a, b) => (a.date_from ?? '').localeCompare(b.date_from ?? ''))
     },
   })
