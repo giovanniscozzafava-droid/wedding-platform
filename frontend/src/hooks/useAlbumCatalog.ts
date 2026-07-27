@@ -86,7 +86,7 @@ export async function extractCatalogPrices(pdfPath: string): Promise<{ label: st
 export type InterpretedModel = {
   label: string; price: number | null; pages: number | null
   page: number; x: number; y: number; w: number; h: number
-  materials: ModelOption[]; colors: ModelOption[]; logos: ModelOption[]; coverPhoto: boolean
+  materials: ModelOption[]; colors: ModelOption[]; logos: ModelOption[]; coverPhoto: boolean; coverPhotoSurcharge: number
 }
 export async function interpretCatalog(pdfPath: string): Promise<InterpretedModel[]> {
   // Passiamo l'URL pubblico del PDF: lo scarica Claude (niente base64 → regge cataloghi grandi).

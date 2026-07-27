@@ -168,7 +168,7 @@ export default function AlbumCatalogManager() {
       const created: Hotspot[] = found.map((f, i) => ({
         catalog_id: selCat, page: f.page, x: f.x, y: f.y, w: f.w, h: f.h,
         label: f.label, cost: null, price: f.price ?? null, default_pages: f.pages ?? null, default_format: null, sort_order: i,
-        options: { materials: f.materials, colors: f.colors, logos: f.logos, coverPhoto: f.coverPhoto, coverPhotoSurcharge: 0 } as ModelOptions,
+        options: { materials: f.materials, colors: f.colors, logos: f.logos, coverPhoto: f.coverPhoto, coverPhotoSurcharge: f.coverPhotoSurcharge ?? 0 } as ModelOptions,
       }))
       setModels((ms) => [...ms.filter((m) => m.catalog_id !== selCat), ...created])
       setDirty(true)
