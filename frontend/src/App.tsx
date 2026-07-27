@@ -37,6 +37,7 @@ const SupplierDetailPage = lazyWithRetry(() => import('@/pages/SupplierDetailPag
 const QuotesPage = lazyWithRetry(() => import('@/pages/QuotesPage'))
 const QuoteEditorPage = lazyWithRetry(() => import('@/pages/QuoteEditorPage'))
 const SuggerimentiRicevutiPage = lazyWithRetry(() => import('@/pages/SuggerimentiRicevutiPage'))
+const SuggerimentiInviatiPage = lazyWithRetry(() => import('@/pages/SuggerimentiInviatiPage'))
 const ContractsPage = lazyWithRetry(() => import('@/pages/ContractsPage'))
 const SupplierContractsPage = lazyWithRetry(() => import('@/pages/SupplierContractsPage'))
 const FinancePage = lazyWithRetry(() => import('@/pages/FinancePage'))
@@ -135,16 +136,14 @@ function RouteFallback() {
   )
 }
 
-// /rete: deep-link storico delle notifiche (es. "un fornitore che hai suggerito ha inviato un
-// preventivo"). Non è una pagina a sé: reindirizza all'hub Rete del ruolo (fornitore → Scopri,
-// capostipite → gestione fornitori). Evita il link morto delle notifiche già inviate.
+// /rete: deep-link STORICO delle notifiche al referrer (es. "un fornitore che hai suggerito ha
+// inviato un preventivo"). Reindirizza al landing "Suggerimenti inviati", dove si vede l'esito.
+// Chi non suggerisce (clienti) torna alla home. Le notifiche nuove linkano già /suggerimenti-inviati.
 function ReteRedirect() {
   const { profile } = useAuth()
   const role = profile?.role
-  const to = role === 'FORNITORE' ? '/scopri'
-    : (role === 'WEDDING_PLANNER' || role === 'LOCATION' || role === 'ADMIN') ? '/suppliers'
-    : '/'
-  return <Navigate to={to} replace />
+  const canSuggest = role === 'FORNITORE' || role === 'WEDDING_PLANNER' || role === 'LOCATION' || role === 'ADMIN'
+  return <Navigate to={canSuggest ? '/suggerimenti-inviati' : '/'} replace />
 }
 
 export default function App() {
@@ -191,6 +190,7 @@ export default function App() {
           <Route path="/magazzino" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><MagazzinoPage /></RequireAuth>} />
           <Route path="/ragioniere" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><RagionierePage /></RequireAuth>} />
           <Route path="/suggerimenti-ricevuti" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SuggerimentiRicevutiPage /></RequireAuth>} />
+          <Route path="/suggerimenti-inviati" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SuggerimentiInviatiPage /></RequireAuth>} />
           <Route path="/rete" element={<RequireAuth><ReteRedirect /></RequireAuth>} />
           <Route path="/album-lab" element={<RequireAuth><AlbumLabPage /></RequireAuth>} />
           <Route path="/album-copertina/:entryId" element={<RequireAuth><CoverConfigurator /></RequireAuth>} />

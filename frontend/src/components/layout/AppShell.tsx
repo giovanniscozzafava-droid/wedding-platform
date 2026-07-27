@@ -24,6 +24,7 @@ import {
   LayoutGrid,
   Settings,
   Gift,
+  Send,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -88,6 +89,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/calendar',  label: 'Calendario', icon: CalendarDays },
     { to: '/catalog',   label: 'Catalogo',   icon: PackageSearch },
     { to: '/suppliers', label: 'Rete',       icon: Handshake },
+    { to: '/suggerimenti-inviati', label: 'Suggerimenti inviati', icon: Send },
   ]},
   { section: null, items: [
     { to: '/strumenti',   label: 'Strumenti',    icon: LayoutGrid },
@@ -113,6 +115,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/calendar',    label: 'Calendario',  icon: CalendarDays },
     { to: '/catalog',     label: 'Catalogo',    icon: PackageSearch },
     { to: '/scopri',      label: 'Rete',        icon: Handshake },
+    { to: '/suggerimenti-inviati', label: 'Suggerimenti inviati', icon: Send },
   ]},
   { section: null, items: [
     { to: '/strumenti',   label: 'Strumenti',    icon: LayoutGrid },
