@@ -176,7 +176,10 @@ export default function RegisterPage() {
               <input type="checkbox" checked={form.accept_referrals} className="mt-0.5 shrink-0"
                 onChange={(e) => setForm((f) => ({ ...f, accept_referrals: e.target.checked }))} />
               <span className="text-xs text-[rgb(var(--fg-muted))]">
-                <strong className="text-[rgb(var(--fg))]">Voglio essere suggerito da altri fornitori.</strong> Riconosco un credito di <strong>39€</strong> per ogni segnalazione che si trasforma in un contratto firmato (una commissione della piattaforma sarà definita in futuro). Potrai cambiare scelta in qualsiasi momento.
+                <strong className="text-[rgb(var(--fg))]">Voglio essere suggerito da altri fornitori.</strong>{' '}
+                {BETA_FREE
+                  ? 'Se un collega ti suggerisce a un suo cliente, potrai ricevere nuove richieste. Potrai cambiare scelta in qualsiasi momento.'
+                  : <>Riconosco un credito di <strong>39€</strong> per ogni segnalazione che si trasforma in un contratto firmato (una commissione della piattaforma sarà definita in futuro). Potrai cambiare scelta in qualsiasi momento.</>}
               </span>
             </label>
           )}

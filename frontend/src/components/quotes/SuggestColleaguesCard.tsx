@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { BETA_NO_MONEY } from '@/lib/beta'
 
 // ============================================================================
 // Dentro un preventivo firmato: suggerisci al cliente colleghi che SEGUI.
@@ -74,7 +75,9 @@ export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
         <h2 className="text-xs uppercase tracking-wider text-[rgb(var(--fg-muted))]">Suggerisci colleghi al cliente</h2>
       </div>
       <p className="text-xs text-[rgb(var(--fg-subtle))] mb-3">
-        Consiglia colleghi che segui (e che accettano di essere suggeriti). Se il cliente firmerà un contratto con uno di loro, ricevi <strong>39€ di credito</strong> automatico.
+        {BETA_NO_MONEY
+          ? 'Consiglia colleghi che segui (e che accettano di essere suggeriti). Se il cliente sceglie uno di loro, la tua segnalazione resta tracciata.'
+          : <>Consiglia colleghi che segui (e che accettano di essere suggeriti). Se il cliente firmerà un contratto con uno di loro, ricevi <strong>39€ di credito</strong> automatico.</>}
       </p>
 
       {list.length > 0 && (

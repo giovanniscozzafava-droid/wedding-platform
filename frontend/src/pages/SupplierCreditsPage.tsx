@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { BETA_NO_MONEY } from '@/lib/beta'
 
 // ============================================================================
 // Crediti tra fornitori: la rete si auto-organizza senza capostipite.
@@ -278,8 +279,9 @@ function ReferralOptIn() {
       <div className="text-sm">
         <p className="font-medium">Voglio essere suggerito da altri fornitori</p>
         <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
-          Riconosci <strong>39€</strong> di credito per ogni segnalazione che diventa un contratto firmato.
-          Una commissione della piattaforma sarà definita in futuro. Solo chi attiva questa opzione può essere suggerito.
+          {BETA_NO_MONEY
+            ? 'Solo chi attiva questa opzione può essere suggerito ai clienti dei colleghi e ricevere nuove richieste.'
+            : <>Riconosci <strong>39€</strong> di credito per ogni segnalazione che diventa un contratto firmato. Una commissione della piattaforma sarà definita in futuro. Solo chi attiva questa opzione può essere suggerito.</>}
         </p>
       </div>
     </Card>

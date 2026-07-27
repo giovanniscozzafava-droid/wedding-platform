@@ -3,6 +3,8 @@
 // ("non sbagli niente, si può cambiare"), spieghiamo a COSA serve e COSA farci.
 // Una voce per ogni elemento/sezione; <HelpDot id="..."/> la pesca da qui.
 
+import { BETA_NO_MONEY } from './beta'
+
 export type HelpEntry = { title: string; body: string }
 
 export const HELP_CONTENT: Record<string, HelpEntry> = {
@@ -57,7 +59,9 @@ export const HELP_CONTENT: Record<string, HelpEntry> = {
   },
   'page.scopri': {
     title: 'Scopri fornitori',
-    body: 'Esplora gli altri professionisti, guarda le loro vetrine e segui chi ti piace. Seguire un collega ti permette poi di suggerirlo ai tuoi clienti — e di guadagnare 39€ se firmano con lui.',
+    body: BETA_NO_MONEY
+      ? 'Esplora gli altri professionisti, guarda le loro vetrine e segui chi ti piace. Seguire un collega ti permette poi di suggerirlo ai tuoi clienti.'
+      : 'Esplora gli altri professionisti, guarda le loro vetrine e segui chi ti piace. Seguire un collega ti permette poi di suggerirlo ai tuoi clienti — e di guadagnare 39€ se firmano con lui.',
   },
   'page.crediti': {
     title: 'Crediti rete',
@@ -133,7 +137,9 @@ export const HELP_CONTENT: Record<string, HelpEntry> = {
   },
   'quote.suggerisci': {
     title: 'Suggerisci un collega',
-    body: 'Consiglia al cliente un professionista di cui ti fidi. Se firma con lui, ricevi 39€ di credito. Compaiono qui solo i colleghi che segui: passa dalle loro vetrine e seguili.',
+    body: BETA_NO_MONEY
+      ? 'Consiglia al cliente un professionista di cui ti fidi. Compaiono qui solo i colleghi che segui: passa dalle loro vetrine e seguili.'
+      : 'Consiglia al cliente un professionista di cui ti fidi. Se firma con lui, ricevi 39€ di credito. Compaiono qui solo i colleghi che segui: passa dalle loro vetrine e seguili.',
   },
 
   // ── Agenda / Calendario ──────────────────────────────────────────────────
