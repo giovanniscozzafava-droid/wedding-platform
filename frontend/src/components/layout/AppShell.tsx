@@ -67,7 +67,7 @@ function brandVertical(role?: string | null, subrole?: string | null): string | 
   return null
 }
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: string }
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: string; indent?: boolean }
 type NavGroup = { section: string | null; items: NavItem[] }
 
 // ── Menu CAPOSTIPITE (WP / LOCATION / ADMIN) ──────────────────────────────
@@ -82,7 +82,7 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/leads',     label: 'Lead',       icon: Inbox },
     { to: '/weddings',  label: 'Eventi',     icon: Gem },
     { to: '/quotes',    label: 'Preventivi', icon: FileText },
-    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti ricevuti', icon: Gift },
+    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti ricevuti', icon: Gift, indent: true },
     { to: '/contracts', label: 'Contratti',  icon: FileSignature },
   ]},
   { section: 'Studio', items: [
@@ -108,7 +108,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/richieste',   label: 'Richieste',   icon: Inbox },
     { to: '/weddings',    label: 'Eventi',      icon: Gem },
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
-    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti ricevuti', icon: Gift },
+    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti ricevuti', icon: Gift, indent: true },
     { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
   ]},
   { section: 'Studio', items: [
@@ -391,7 +391,8 @@ function NavGroups({ groups, onNavigate, dots }: { groups: NavGroup[]; onNavigat
               onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
-                  'group relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  'group relative flex items-center gap-3 rounded-lg font-medium transition-colors',
+                  n.indent ? 'pl-10 pr-3 py-1.5 text-[13px]' : 'px-3 py-2 text-sm',
                   isActive
                     ? 'bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg))]'
                     : 'text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))] hover:text-[rgb(var(--fg))]',
@@ -402,7 +403,9 @@ function NavGroups({ groups, onNavigate, dots }: { groups: NavGroup[]; onNavigat
                 <>
                   {/* Stato attivo = rail oro a sinistra (geometria costante) + icona oro. */}
                   {isActive && <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-[rgb(var(--gold-500))]" />}
-                  <n.icon size={18} strokeWidth={1.5} className={isActive ? 'text-[rgb(var(--gold-700))]' : undefined} />
+                  {/* Sotto-voce: trattino di connessione al genitore (es. Suggerimenti sotto Preventivi). */}
+                  {n.indent && <span aria-hidden className="absolute left-[18px] top-0 bottom-0 w-px bg-[rgb(var(--border))]" />}
+                  <n.icon size={n.indent ? 16 : 18} strokeWidth={1.5} className={isActive ? 'text-[rgb(var(--gold-700))]' : undefined} />
                   <span className="flex-1">{n.label}</span>
                   {dots?.has(n.to) && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} aria-label="Nuove notifiche" />}
                   {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
