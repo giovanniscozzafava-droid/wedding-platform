@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       await admin.rpc('push_user_notification', {
         p_user: c.supplier_id, p_type: 'SUGGESTION_RECEIVED',
         p_title: 'Sei stato suggerito',
-        p_body: `${referrerName} ti ha suggerito a ${coupleWord} per un ${eventWord} del ${dateStr}. Crea la tua offerta.`,
+        p_body: `${referrerName} ti ha suggerito a ${coupleWord} per un ${eventWord} del ${dateStr}. Non perdere l'occasione: crea la tua offerta partendo dal catalogo.`,
         p_link: '/suggerimenti-ricevuti', p_ref: c.id,
       })
     } catch { /* */ }

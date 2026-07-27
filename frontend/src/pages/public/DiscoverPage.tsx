@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase, BadgeCheck, Check } from 'lucide-react'
+import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase, BadgeCheck, Check, Send, Gift } from 'lucide-react'
 import { StarsBadge } from '@/components/social/StarsBadge'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
@@ -87,9 +87,15 @@ export default function DiscoverPage() {
       <section className="relative border-b" style={{ borderColor: 'rgb(var(--border))' }}>
         <div className="max-w-6xl mx-auto px-6 sm:px-10 py-6 sm:py-8">
           <button onClick={() => nav('/')}
-            className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-6">
+            className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline mb-4">
             <ArrowLeft size={14} /> Torna alla dashboard
           </button>
+          {user && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              <Link to="/suggerimenti-inviati" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><Send size={13} className="text-[rgb(var(--gold-600))]" /> Preventivi che ho suggerito</Link>
+              <Link to="/suggerimenti-ricevuti" className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><Gift size={13} className="text-[rgb(var(--gold-600))]" /> Suggerimenti ricevuti</Link>
+            </div>
+          )}
           <p className="text-xs uppercase tracking-[0.25em] mb-3 text-[rgb(var(--gold-600))]">
             <Sparkles size={12} className="inline mr-1" /> Il network dei professionisti degli eventi
           </p>

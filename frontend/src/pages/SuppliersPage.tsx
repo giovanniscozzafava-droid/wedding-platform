@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, UserPlus, Mail, PackageSearch, ImageIcon, ArrowUpRight, Clock, X, Link2, Copy, HardHat } from 'lucide-react'
+import { Plus, UserPlus, Mail, PackageSearch, ImageIcon, ArrowUpRight, Clock, X, Link2, Copy, HardHat, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -91,6 +91,9 @@ export default function SuppliersPage() {
           description="Collaborazioni attive + inviti in attesa. Apri un fornitore per il suo catalogo dedicato."
           actions={
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
+                <Link to="/suggerimenti-inviati"><Send /> Preventivi che ho suggerito</Link>
+              </Button>
               <Button variant="outline" asChild>
                 <Link to="/maestranze"><HardHat /> Maestranze</Link>
               </Button>
