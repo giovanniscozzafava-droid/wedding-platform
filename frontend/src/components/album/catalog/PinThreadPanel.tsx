@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { X, Send, Check, MapPin, Loader2 } from 'lucide-react'
+import { X, Send, Check, MapPin, Loader2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
@@ -70,6 +70,16 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
     toast.success(s === 'RESOLVED' ? 'Puntina segnata come gestita' : 'Puntina riaperta')
   }
 
+  // Lato fotografo: elimina definitivamente il pin (e la sua conversazione, in cascata) —
+  // da usare quando l'ordine commerciale su quel modello è risolto.
+  async function remove() {
+    if (!confirm('Eliminare questo pin e la conversazione collegata? L\'operazione è definitiva. Usalo quando l\'ordine è risolto.')) return
+    const { error } = await (supabase.from as any)('album_pins').delete().eq('id', pin.id)
+    if (error) { toast.error(error.message); return }
+    toast.success('Pin eliminato')
+    onClose()
+  }
+
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
@@ -135,9 +145,14 @@ export function PinThreadPanel({ pin, entryId, isPro, onClose, onUpdated, onChoo
             </Button>
           )}
           {isPro && (
-            pin.status === 'RESOLVED'
-              ? <Button variant="outline" className="w-full !py-2.5" onClick={() => void setStatus('OPEN')}>Riapri la puntina</Button>
-              : <Button variant="outline" className="w-full !py-2.5" onClick={() => void setStatus('RESOLVED')}><Check size={16} /> Segna come gestita</Button>
+            <div className="flex items-center gap-2">
+              {pin.status === 'RESOLVED'
+                ? <Button variant="outline" className="flex-1 !py-2.5" onClick={() => void setStatus('OPEN')}>Riapri la puntina</Button>
+                : <Button variant="outline" className="flex-1 !py-2.5" onClick={() => void setStatus('RESOLVED')}><Check size={16} /> Segna come gestita</Button>}
+              <Button variant="ghost" className="!py-2.5 text-[rgb(var(--rose-500))] shrink-0" onClick={() => void remove()} title="Elimina il pin (ordine risolto)">
+                <Trash2 size={16} /> Elimina
+              </Button>
+            </div>
           )}
         </div>
       </div>
