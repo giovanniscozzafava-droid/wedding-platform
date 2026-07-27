@@ -24,11 +24,13 @@ export default function FunnelSettingsPage() {
   const { profile, user, refreshProfile } = useAuth()
   const [followup, setFollowup] = useState(profile?.funnel_followup_enabled !== false)
   const [contested, setContested] = useState(profile?.funnel_contested_enabled !== false)
-  const [busy, setBusy] = useState<string | null>(null)
+  // busy per-chiave: due switch salvano in parallelo senza spegnersi a vicenda lo spinner
+  const [busy, setBusy] = useState<Set<string>>(() => new Set())
+  const setBusyKey = (col: string, on: boolean) => setBusy((s) => { const n = new Set(s); if (on) n.add(col); else n.delete(col); return n })
 
   async function persist(col: 'funnel_followup_enabled' | 'funnel_contested_enabled', val: boolean, revert: (v: boolean) => void) {
     if (!user) return
-    setBusy(col)
+    setBusyKey(col, true)
     try {
       const { error } = await (supabase.from as any)('profiles').update({ [col]: val }).eq('id', user.id)
       if (error) throw error
@@ -37,7 +39,7 @@ export default function FunnelSettingsPage() {
     } catch (e) {
       revert(!val) // ripristina lo switch se il salvataggio fallisce
       toast.error((e as Error).message || 'Salvataggio non riuscito')
-    } finally { setBusy(null) }
+    } finally { setBusyKey(col, false) }
   }
 
   const rows: { key: 'funnel_followup_enabled' | 'funnel_contested_enabled'; icon: React.ReactNode; title: string; desc: string; val: boolean; set: (v: boolean) => void }[] = [
@@ -64,8 +66,8 @@ export default function FunnelSettingsPage() {
                 <p className="text-sm text-[rgb(var(--fg-muted))] mt-0.5">{r.desc}</p>
               </div>
               <div className="shrink-0 flex items-center gap-2 pt-0.5">
-                {busy === r.key && <Loader2 size={14} className="animate-spin text-[rgb(var(--fg-subtle))]" />}
-                <Switch checked={r.val} disabled={busy === r.key}
+                {busy.has(r.key) && <Loader2 size={14} className="animate-spin text-[rgb(var(--fg-subtle))]" />}
+                <Switch checked={r.val} disabled={busy.has(r.key)}
                   onChange={(v) => { r.set(v); void persist(r.key, v, r.set) }} />
               </div>
             </Card>
