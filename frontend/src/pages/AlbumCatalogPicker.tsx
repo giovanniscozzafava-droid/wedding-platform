@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maximize2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -47,6 +47,9 @@ export default function AlbumCatalogPicker() {
   const [listino, setListino] = useState<{ covers: { id: string; label: string; price: number; included?: boolean }[]; accessories: { id: string; label: string; price: number; included?: boolean }[]; shipping: number; quoteTotal: number; quotePaid: number }>({ covers: [], accessories: [], shipping: 0, quoteTotal: 0, quotePaid: 0 })
   const [selCover, setSelCover] = useState<string | null>(null)
   const [selAcc, setSelAcc] = useState<Set<string>>(() => new Set())
+  const [sp] = useSearchParams()
+  const [deepPage, setDeepPage] = useState<number | null>(null)  // pagina della puntina da aprire (deep-link ?pin=)
+  const deepDone = useRef(false)
 
   async function reloadPins() {
     const { data } = await (supabase.from as any)('album_pins').select('id, entry_id, page, x, y, comment, material, color, status').eq('entry_id', entryId)
@@ -99,6 +102,14 @@ export default function AlbumCatalogPicker() {
       } catch { /* nessun listino */ }
     })()
   }, [entryId])
+
+  // Deep-link dalla notifica: /scegli-album/:entryId?pin=<id> → apre la puntina e porta il PDF alla sua pagina.
+  useEffect(() => {
+    const pinId = sp.get('pin')
+    if (!pinId || deepDone.current || pins.length === 0) return
+    const p = pins.find((x) => x.id === pinId)
+    if (p) { deepDone.current = true; setDeepPage(p.page); setOpenPin(p) }
+  }, [sp, pins])
 
   const sizes = useMemo(() => sizesForFormat(specs.format as Format), [specs.format])
   useEffect(() => { if (sizes.length && !sizes.find((s) => s.key === specs.size)) setSpecs((p) => ({ ...p, size: sizes[0]!.key })) }, [sizes]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -252,7 +263,7 @@ export default function AlbumCatalogPicker() {
                 <Maximize2 size={15} /> Ingrandisci e sfoglia in 3D
               </button>
             </div>
-            <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} pins={pins} onOpenPin={setOpenPin} />
+            <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} pins={pins} onOpenPin={setOpenPin} initialPage={deepPage ?? undefined} />
           </div>
 
           <div className="space-y-5">

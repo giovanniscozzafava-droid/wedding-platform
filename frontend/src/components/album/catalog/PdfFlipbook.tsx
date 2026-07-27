@@ -9,11 +9,13 @@ import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 // Due modi per scegliere il modello: i riquadri HOTSPOT definiti dal fotografo (se ci sono) OPPURE
 // — sempre — TOCCANDO la pagina si lascia un PIN sul punto che si vuole. Gira il telefono se serve.
 export function PdfFlipbook({
-  pdfUrl, hotspots, selected, onPick, onDropPin, pins, onOpenPin,
-}: { pdfUrl: string; hotspots: Hotspot[]; selected?: Hotspot | null; onPick: (h: Hotspot) => void; onDropPin?: (page: number, x: number, y: number) => void; pins?: AlbumPin[]; onOpenPin?: (p: AlbumPin) => void }) {
+  pdfUrl, hotspots, selected, onPick, onDropPin, pins, onOpenPin, initialPage,
+}: { pdfUrl: string; hotspots: Hotspot[]; selected?: Hotspot | null; onPick: (h: Hotspot) => void; onDropPin?: (page: number, x: number, y: number) => void; pins?: AlbumPin[]; onOpenPin?: (p: AlbumPin) => void; initialPage?: number }) {
   const [doc, setDoc] = useState<PdfDoc | null>(null)
   const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(initialPage ?? 1)
+  // Deep-link: salta alla pagina della puntina arrivata dalla notifica (?pin=).
+  useEffect(() => { if (initialPage && initialPage >= 1) setPage(initialPage) }, [initialPage])
   const [imgs, setImgs] = useState<Record<number, string>>({})
   const [err, setErr] = useState<string | null>(null)
   const [wide, setWide] = useState(false)
