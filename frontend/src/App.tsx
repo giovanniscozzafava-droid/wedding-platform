@@ -135,6 +135,18 @@ function RouteFallback() {
   )
 }
 
+// /rete: deep-link storico delle notifiche (es. "un fornitore che hai suggerito ha inviato un
+// preventivo"). Non è una pagina a sé: reindirizza all'hub Rete del ruolo (fornitore → Scopri,
+// capostipite → gestione fornitori). Evita il link morto delle notifiche già inviate.
+function ReteRedirect() {
+  const { profile } = useAuth()
+  const role = profile?.role
+  const to = role === 'FORNITORE' ? '/scopri'
+    : (role === 'WEDDING_PLANNER' || role === 'LOCATION' || role === 'ADMIN') ? '/suppliers'
+    : '/'
+  return <Navigate to={to} replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -179,6 +191,7 @@ export default function App() {
           <Route path="/magazzino" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><MagazzinoPage /></RequireAuth>} />
           <Route path="/ragioniere" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><RagionierePage /></RequireAuth>} />
           <Route path="/suggerimenti-ricevuti" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SuggerimentiRicevutiPage /></RequireAuth>} />
+          <Route path="/rete" element={<RequireAuth><ReteRedirect /></RequireAuth>} />
           <Route path="/album-lab" element={<RequireAuth><AlbumLabPage /></RequireAuth>} />
           <Route path="/album-copertina/:entryId" element={<RequireAuth><CoverConfigurator /></RequireAuth>} />
           {/* Catalogo PDF: il fotografo carica/marca; la coppia sfoglia, sceglie, firma → commessa */}
