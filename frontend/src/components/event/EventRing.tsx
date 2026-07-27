@@ -38,6 +38,8 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
   const [addBusy, setAddBusy] = useState<string | null>(null)
   // richieste pendenti da approvare (vista sposi)
   const [sugs, setSugs] = useState<CircleSuggestion[]>([])
+  // ruoli con un invito email gia' partito (fornitore non ancora iscritto) → mostra "inviata"
+  const [invited, setInvited] = useState<Set<string>>(() => new Set())
 
   const load = useCallback(async () => {
     if (!entryId) return
@@ -47,6 +49,8 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
       const sr = await rpc<{ suggestions?: CircleSuggestion[]; error?: string }>('list_circle_suggestions', { p_entry: entryId })
       setSugs(sr?.suggestions ?? [])
     }
+    const inv = await rpc<{ role_key: string }[]>('event_pending_invites', { p_entry: entryId })
+    if (Array.isArray(inv)) setInvited(new Set(inv.map((x) => x.role_key).filter(Boolean)))
   }, [entryId, view])
 
   useEffect(() => { void load() }, [load])
@@ -146,7 +150,10 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
       // Sii onesti: se l'email NON è partita (es. provider non configurato) non dire "email inviata".
       if (d?.mode === 'email_failed_link_fallback') toast.message(`Email non inviata a ${email} — ho aperto WhatsApp col link`)
       else toast.success(`Invito inviato a ${email} — email + WhatsApp`)
+      // Il ruolo mostra subito "inviata" nel cerchio (e resta tale finché il fornitore non entra).
+      if (pick?.roleKey) setInvited((s) => { const n = new Set(s); n.add(pick.roleKey); return n })
       setInvite({ email: '', sending: false })
+      void load()
     } catch (e) { waWin?.close(); toast.error((e as Error).message) } finally { setInvite((s) => ({ ...s, sending: false })) }
   }
 
@@ -263,10 +270,13 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
                 {role.covered && role.covered_by && view !== 'sposi' && (
                   <span className="text-[11px] text-[rgb(var(--fg-subtle))] truncate">· {role.covered_by}</span>
                 )}
+                {!role.covered && invited.has(role.role_key) && (
+                  <span className="text-[10px] font-medium rounded-full px-1.5 py-0.5 bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] inline-flex items-center gap-0.5 shrink-0"><Mail size={10} /> inviata</span>
+                )}
                 {!role.covered && canSuggest && (
                   <button type="button" onClick={() => openPicker(role.role_key, role.label)}
                     className="ml-auto text-[11px] font-medium text-[rgb(var(--gold-700))] hover:underline shrink-0">
-                    {view === 'capostipite' ? 'invita' : 'suggerisci'}
+                    {invited.has(role.role_key) ? 'di nuovo' : view === 'capostipite' ? 'invita' : 'suggerisci'}
                   </button>
                 )}
               </div>
