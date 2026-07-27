@@ -23,8 +23,6 @@ import {
   Inbox,
   LayoutGrid,
   Settings,
-  Gift,
-  Send,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -82,14 +80,12 @@ const NAV_CAPOSTIPITE_GROUPS: NavGroup[] = [
     { to: '/leads',     label: 'Lead',       icon: Inbox },
     { to: '/weddings',  label: 'Eventi',     icon: Gem },
     { to: '/quotes',    label: 'Preventivi', icon: FileText },
-    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti ricevuti', icon: Gift, indent: true },
     { to: '/contracts', label: 'Contratti',  icon: FileSignature },
   ]},
   { section: 'Studio', items: [
     { to: '/calendar',  label: 'Calendario', icon: CalendarDays },
     { to: '/catalog',   label: 'Catalogo',   icon: PackageSearch },
     { to: '/suppliers', label: 'Rete',       icon: Handshake },
-    { to: '/suggerimenti-inviati', label: 'Suggerimenti inviati', icon: Send },
   ]},
   { section: null, items: [
     { to: '/strumenti',   label: 'Strumenti',    icon: LayoutGrid },
@@ -108,14 +104,12 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
     { to: '/richieste',   label: 'Richieste',   icon: Inbox },
     { to: '/weddings',    label: 'Eventi',      icon: Gem },
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
-    { to: '/suggerimenti-ricevuti', label: 'Suggerimenti ricevuti', icon: Gift, indent: true },
     { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },
   ]},
   { section: 'Studio', items: [
     { to: '/calendar',    label: 'Calendario',  icon: CalendarDays },
     { to: '/catalog',     label: 'Catalogo',    icon: PackageSearch },
     { to: '/scopri',      label: 'Rete',        icon: Handshake },
-    { to: '/suggerimenti-inviati', label: 'Suggerimenti inviati', icon: Send },
   ]},
   { section: null, items: [
     { to: '/strumenti',   label: 'Strumenti',    icon: LayoutGrid },
@@ -142,6 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [unreadDots, setUnreadDots] = useState<Set<string>>(new Set())
+  const [navCounts, setNavCounts] = useState<Record<string, number>>({})   // badge numerico (es. suggerimenti in attesa su Richieste)
   const location = useLocation()
 
   // Pallino rosso accanto alla voce di menu che ha notifiche non lette: mappa il
@@ -165,6 +160,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           if (typeof due === 'number' && due > 0) dots.add('/recruiting')
         } catch { /* non bloccante */ }
         if (alive) setUnreadDots(dots)
+      } catch { /* non bloccante */ }
+      // Badge numerico: suggerimenti ricevuti in attesa di risposta → sotto "Richieste" (fornitore)
+      // o "Lead" (capostipite). Un suggerimento è di fatto una richiesta/lead.
+      try {
+        const { data: pend } = await (supabase.rpc as unknown as (f: string) => Promise<{ data: unknown }>)('pending_suggestions_count')
+        const n = typeof pend === 'number' ? pend : 0
+        if (alive) setNavCounts((prev) => ({ ...prev, '/richieste': n, '/leads': n }))
       } catch { /* non bloccante */ }
     }
     void loadDots()
@@ -231,7 +233,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="px-4 pb-2"><HelpModeToggle /></div>
 
         <nav className="flex-1 px-3 py-2 overflow-y-auto">
-          <NavGroups groups={NAV_GROUPS} dots={unreadDots} />
+          <NavGroups groups={NAV_GROUPS} dots={unreadDots} counts={navCounts} />
         </nav>
 
         <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -302,7 +304,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
           </div>
           <nav className="flex-1 px-3 py-2 overflow-y-auto">
-            <NavGroups groups={NAV_GROUPS} dots={unreadDots} onNavigate={() => setMobileOpen(false)} />
+            <NavGroups groups={NAV_GROUPS} dots={unreadDots} counts={navCounts} onNavigate={() => setMobileOpen(false)} />
           </nav>
           {/* Mobile drawer footer: user + logout */}
           <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -373,7 +375,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   )
 }
 
-function NavGroups({ groups, onNavigate, dots }: { groups: NavGroup[]; onNavigate?: () => void; dots?: Set<string> }) {
+function NavGroups({ groups, onNavigate, dots, counts }: { groups: NavGroup[]; onNavigate?: () => void; dots?: Set<string>; counts?: Record<string, number> }) {
   return (
     <div className="space-y-3">
       {groups.map((g, gi) => (
@@ -407,6 +409,7 @@ function NavGroups({ groups, onNavigate, dots }: { groups: NavGroup[]; onNavigat
                   {n.indent && <span aria-hidden className="absolute left-[18px] top-0 bottom-0 w-px bg-[rgb(var(--border))]" />}
                   <n.icon size={n.indent ? 16 : 18} strokeWidth={1.5} className={isActive ? 'text-[rgb(var(--gold-700))]' : undefined} />
                   <span className="flex-1">{n.label}</span>
+                  {counts?.[n.to] ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tabular-nums shrink-0" aria-label={`${counts[n.to]} in attesa`}>{counts[n.to]}</span> : null}
                   {dots?.has(n.to) && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} aria-label="Nuove notifiche" />}
                   {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
                 </>

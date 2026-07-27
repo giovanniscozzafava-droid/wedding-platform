@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { AnswersPanel } from '@/components/AnswersPanel'
+import { SuggerimentiRicevutiList } from '@/components/rete/SuggerimentiRicevutiList'
 import { LikedStylesGallery } from '@/components/LikedStylesGallery'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
@@ -78,6 +79,9 @@ export default function SupplierLeadsPage() {
       <div className="max-w-3xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader eyebrow="Pipeline" title="Richieste dirette"
           description="Le richieste arrivate dalla tua landing o dal form sul tuo sito. Trasformale in preventivi." />
+
+        {/* Suggerimenti da colleghi = richieste a tutti gli effetti: rispondi (preventivo o "non disponibile"). */}
+        <div className="mb-6"><SuggerimentiRicevutiList embedded /></div>
 
         <div className="flex items-center gap-2 mb-5 flex-wrap">
           <Filter size={15} className="text-[rgb(var(--fg-subtle))]" />

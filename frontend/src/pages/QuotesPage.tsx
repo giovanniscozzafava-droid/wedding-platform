@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search, Archive, ArchiveRestore } from 'lucide-react'
+import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search, Archive, ArchiveRestore, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -134,6 +134,11 @@ export default function QuotesPage() {
           description="Crea, invia e monitora i preventivi. Stato e margine aggiornati in tempo reale."
           actions={
             <span className="inline-flex items-center gap-1.5">
+              <Link to="/suggerimenti-inviati">
+                <Button variant="ghost" size="sm" title="I colleghi che hai suggerito ai tuoi clienti e a che punto è ognuno">
+                  <Send size={14} /> Suggerimenti inviati
+                </Button>
+              </Link>
               <Button variant="gold" onClick={() => setOpenNew(true)} data-testid="new-quote-btn">
                 <Plus /> Nuovo preventivo
               </Button>
