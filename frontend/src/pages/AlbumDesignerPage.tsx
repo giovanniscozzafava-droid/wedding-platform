@@ -102,7 +102,7 @@ import { albumRoleOf, primaryAction, statusLabel } from '@/lib/albumWorkflow'
 import { shareAlbumCommission } from '@/hooks/useAlbumLab'
 import { getCatalogModels } from '@/hooks/useAlbumCatalog'
 import { getDriveToken, ensureDriveFolder, uploadAnyToDrive, driveQuota, driveDownloadUrl } from '@/lib/driveUpload'
-import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Maximize2, Minimize2, AlertTriangle, ThumbsDown, RefreshCw, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
+import { Crop, Maximize, Grid3x3, Frame, Scissors, RotateCw, Move, Square, MessageSquare, Check, Shuffle, Copy, Sliders, Undo2, Redo2, Hash, ZoomIn, ZoomOut, Eye, Ruler, Magnet, Maximize2, Minimize2, AlertTriangle, ThumbsDown, RefreshCw, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import { photoQuality, qualityHint, countLowRes, elPrintMm, HIURL_CAP, type RealDim, type Quality } from '@/lib/albumQuality'
 import { MyStylePanel } from '@/components/album/MyStylePanel'
 import { FunnelSteps } from '@/components/album/FunnelSteps'
@@ -429,8 +429,11 @@ function AlbumDesignerInner() {
   const [pageNums, setPageNums] = useState(false)      // numeri di pagina
   const [zoom, setZoom] = useState(1)                  // zoom del canvas
   const [rulerOn, setRulerOn] = useState(() => { try { return localStorage.getItem('album:rulerOn') === '1' } catch { return false } })        // righello (cm) attorno alla tavola
+  // Guide sensibili (snapping magnetico): ON di default, ma ESCLUDIBILI per chi non le vuole.
+  const [snapOn, setSnapOn] = useState(() => { try { return localStorage.getItem('album:snapOn') !== '0' } catch { return true } })
   useEffect(() => { try { localStorage.setItem('album:gridOn', gridOn ? '1' : '0') } catch { /* no-op */ } }, [gridOn])
   useEffect(() => { try { localStorage.setItem('album:rulerOn', rulerOn ? '1' : '0') } catch { /* no-op */ } }, [rulerOn])
+  useEffect(() => { try { localStorage.setItem('album:snapOn', snapOn ? '1' : '0') } catch { /* no-op */ } }, [snapOn])
   const [guidesV, setGuidesV] = useState<number[]>([]) // guide verticali (frazione larghezza tavola) stile Photoshop
   const [guidesH, setGuidesH] = useState<number[]>([]) // guide orizzontali (frazione altezza tavola)
   const [fullscreen, setFullscreen] = useState(false)  // lavoro a piena pagina (nasconde la barra menu)
@@ -3293,6 +3296,8 @@ function AlbumDesignerInner() {
               <ToolToggle grouped on={marginsOn} onClick={() => setMarginsOn((v) => !v)} icon={<Frame size={14} />} label="Margini" />
               <ToolToggle grouped on={pageNums} onClick={() => setPageNums((v) => !v)} icon={<Hash size={14} />} label="Numeri" />
               <ToolToggle grouped on={rulerOn} onClick={() => setRulerOn((v) => !v)} icon={<Ruler size={14} />} label="Righello" />
+              <ToolToggle grouped on={snapOn} onClick={() => setSnapOn((v) => !v)} icon={<Magnet size={14} />} label="Guide" />
+
               {!lite && <ToolToggle grouped on={bleed} onClick={() => setBleed((v) => !v)} icon={<Scissors size={14} />} label="Abbondanza" />}
               {!lite && Object.keys(faceMap).length > 0 && <ToolToggle grouped on={showFaces} onClick={() => setShowFaces((v) => !v)} icon={<Eye size={14} />} label="Volti" />}
             </div>
@@ -3435,7 +3440,7 @@ function AlbumDesignerInner() {
                       const activate = () => { if (lp.id !== currentPageId) { setCurrentPageId(lp.id); setActiveSlot(null); setSelEl(null); setMultiSel([]) } }
                       return (
                         <div key={lp.id} onPointerDownCapture={activate} className="relative h-full" style={{ aspectRatio: String(asp * spreadPages.length) }}>
-                          <FreeStage page={lp} formatKey={format} spread bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={null}
+                          <FreeStage page={lp} formatKey={format} spread bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} snapOn={snapOn} pageNum={null}
                             aspects={aspects} realDims={realDims} mediaById={mediaById} thumb={thumbUrl} locked={!!lp.frozen} selEl={!lp.frozen ? selEl : null} multiSel={!lp.frozen ? multiSel : []}
                             onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(lp.id, id, patch)}
                             onUpdateMany={(patches) => freeUpdateMany(lp.id, patches)}
@@ -3450,7 +3455,7 @@ function AlbumDesignerInner() {
                       return (
                         <div key={p.id} onPointerDownCapture={activate} className="relative h-full" style={{ aspectRatio: String(asp) }}>
                           {p.mode === 'free' ? (
-                            <FreeStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} pageNum={pnum}
+                            <FreeStage page={p} formatKey={format} bleed={bleed} gridOn={gridOn} marginsOn={marginsOn} snapOn={snapOn} pageNum={pnum}
                               aspects={aspects} realDims={realDims} mediaById={mediaById} thumb={thumbUrl} locked={!!p.frozen} selEl={isAct && !p.frozen ? selEl : null} multiSel={isAct && !p.frozen ? multiSel : []}
                               onSelect={(id, additive) => selectEl(id, additive)} onUpdateEl={(id, patch) => freeUpdate(p.id, id, patch)}
                               onUpdateMany={(patches) => freeUpdateMany(p.id, patches)}
@@ -4746,9 +4751,11 @@ function FreeStage(props: {
   onContext?: (id: string, x: number, y: number) => void // tasto destro su una foto → menu contestuale
   locked?: boolean   // libera "uscita": mostra la composizione identica ma non editabile a mano
   spread?: boolean   // TAVOLA UNICA: superficie larga 2×W (la riga centrale è solo la piega)
+  snapOn?: boolean   // guide sensibili (snapping magnetico): se false, spostamento libero senza aggancio
   onStartMove?: (fromPageId: string, items: { elId: string; mediaId: string }[], e: import('react').PointerEvent) => void // trascina la foto verso il navigatore (sposta tra tavole)
 }) {
   const { page, formatKey, bleed, gridOn, marginsOn, pageNum, mediaById, thumb, selEl, multiSel, realDims, onSelect, onUpdateMany, onRemove, onDuplicateEl, onDropMedia, onReplaceEl, onSwapEls, onContext, locked, spread, onStartMove } = props
+  const snapOn = props.snapOn !== false   // default: guide ON
   const fmt = getFormat(formatKey)
   const effW = spread ? fmt.w * 2 : fmt.w
   const aspect = effW / fmt.h
@@ -4827,17 +4834,19 @@ function FreeStage(props: {
       // se nessun aggancio ai bordi su un asse, prova la spaziatura uguale tra foto
       const spaced = { ...moved, x: snap.x, y: snap.y }
       const sp = spacingSnap(spaced, otherEls)
-      const fx = snap.vGuides.length ? snap.x : sp.x
-      const fy = snap.hGuides.length ? snap.y : sp.y
+      const fx = !snapOn ? nx : (snap.vGuides.length ? snap.x : sp.x)
+      const fy = !snapOn ? ny : (snap.hGuides.length ? snap.y : sp.y)
       const dx = fx - d.el.x, dy = fy - d.el.y
       if (d.group.length > 1) applyLive(d.group.map((g) => ({ id: g.id, patch: moveEl(g, g.x + dx, g.y + dy) })))
       else applyLive([{ id: d.id, patch: { x: fx, y: fy } }])
-      setGuides({ v: snap.vGuides, h: snap.hGuides })
-      // righelli di distanza SEMPRE visibili verso i vicini (+ evidenzia la spaziatura uguale quando aggancia)
-      const finalEl = { ...moved, x: fx, y: fy }
-      const eq = new Set(sp.marks.map((mk) => `${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))
-      const live = neighborGaps(finalEl, otherEls)
-      setGapMarks([...sp.marks, ...live.filter((mk) => !eq.has(`${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))])
+      setGuides(snapOn ? { v: snap.vGuides, h: snap.hGuides } : { v: [], h: [] })
+      // righelli di distanza verso i vicini (solo con guide sensibili attive)
+      if (!snapOn) { setGapMarks([]) } else {
+        const finalEl = { ...moved, x: fx, y: fy }
+        const eq = new Set(sp.marks.map((mk) => `${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))
+        const live = neighborGaps(finalEl, otherEls)
+        setGapMarks([...sp.marks, ...live.filter((mk) => !eq.has(`${mk.axis}:${mk.a.toFixed(3)}:${mk.b.toFixed(3)}`))])
+      }
     } else if (d.kind === 'resize' && d.corner) {
       // SINGOLA: angolo = solo mouse LIBERO (w/h indip.), SHIFT = PROPORZIONALE; punto cardine
       // (lato) = un solo asse (e/w larghezza, n/s altezza). L'immagine non si deforma mai (cover).
@@ -4863,8 +4872,8 @@ function FreeStage(props: {
       applyLive([{ id: d.id, patch: { x: r.x, y: r.y, w: r.w, h: r.h } }])
       const otherEls = els.filter((x) => x.id !== d.id)
       const snap = snapMove(r, otherEls, mx, my)
-      setGuides({ v: snap.vGuides, h: snap.hGuides })
-      setGapMarks(neighborGaps(r, otherEls))
+      setGuides(snapOn ? { v: snap.vGuides, h: snap.hGuides } : { v: [], h: [] })
+      setGapMarks(snapOn ? neighborGaps(r, otherEls) : [])
     } else if (d.kind === 'gresize' && d.anchor && d.h0) {
       // GRUPPO: angolo = due assi (LIBERO indipendenti, o SHIFT = uniforme); maniglia di lato
       // (punto cardine) = un solo asse → solo larghezza (e/w) o solo altezza (n/s).
@@ -4890,12 +4899,12 @@ function FreeStage(props: {
       const others = els.filter((x) => !d.group.some((gg) => gg.id === x.id))
       const bb = { ...d.el, x: Math.min(a.x, nx2), y: Math.min(a.y, ny2), w: Math.abs(nx2 - a.x), h: Math.abs(ny2 - a.y) }
       const snap = snapMove(bb, others, mx, my)
-      setGuides({ v: snap.vGuides, h: snap.hGuides })
-      setGapMarks(neighborGaps(bb, others))
+      setGuides(snapOn ? { v: snap.vGuides, h: snap.hGuides } : { v: [], h: [] })
+      setGapMarks(snapOn ? neighborGaps(bb, others) : [])
     } else if (d.kind === 'rotate') {
       const cx = d.el.x + d.el.w / 2, cy = d.el.y + d.el.h / 2
       const deg = (Math.atan2(f.y - cy, f.x - cx) * 180) / Math.PI + 90
-      applyLive([{ id: d.id, patch: { rot: snapAngle(deg) } }])
+      applyLive([{ id: d.id, patch: { rot: snapOn ? snapAngle(deg) : deg } }])
     }
   }
   function up() {
