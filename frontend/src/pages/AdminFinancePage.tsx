@@ -3,7 +3,7 @@ import {
   Wallet, TrendingUp, TrendingDown, Plus, Trash2, Target, Sparkles, Rocket,
   Compass, BarChart3, BookOpen, CheckCircle2, Circle, Flag, Users, Repeat, Megaphone, Zap,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

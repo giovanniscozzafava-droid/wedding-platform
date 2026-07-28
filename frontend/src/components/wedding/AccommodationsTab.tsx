@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus, Trash2, BedDouble, MapPin, ExternalLink, Download, Users } from 'lucide-react'
 import { exportTableToPdf } from '@/lib/pdf-export'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Plus, Trash2, Save, Calculator, TrendingUp, Flower2, Sparkles } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'

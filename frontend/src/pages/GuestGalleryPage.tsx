@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Download, X, ChevronLeft, ChevronRight, Loader2, Upload, Play, QrCode, Heart, Mic, Camera, BookHeart, Image as ImageIcon, ArrowLeft, Check } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '@/lib/supabase'

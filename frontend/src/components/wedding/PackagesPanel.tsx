@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Package, Plus, Trash2, Pencil, Calculator, Save, X as XIcon, Check } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Heart, Send, Loader2, Share2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 
 // Like + commenti su una foto/video (restano nell'app). Pensato per il lightbox scuro.

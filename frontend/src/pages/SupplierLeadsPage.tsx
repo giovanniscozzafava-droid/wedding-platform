@@ -9,7 +9,7 @@ import { SuggerimentiRicevutiList } from '@/components/rete/SuggerimentiRicevuti
 import { LikedStylesGallery } from '@/components/LikedStylesGallery'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 // ============================================================================
 // Richieste dirette al fornitore (pipeline supplier_leads): NEW→…→WON/LOST.

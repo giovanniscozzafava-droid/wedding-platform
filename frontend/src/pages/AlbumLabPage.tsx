@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Link } from 'react-router-dom'
 import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle, Download, LogOut, ArrowLeft, Images, X, UserRound } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'

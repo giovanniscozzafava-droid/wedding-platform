@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Church, Heart, Sparkles, Building2, Users as UsersIcon, MoreHorizontal, Save, Upload, Trash2, MapPin, CheckCircle2, Clock4, AlertCircle, XCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'

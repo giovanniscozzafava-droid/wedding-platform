@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutGrid, Square, RectangleVertical, Smartphone, Shuffle, Download, FileDown, Trash2, Sparkles, Type } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 
 // ─────────────────────────────────────────────────────────────────────────────

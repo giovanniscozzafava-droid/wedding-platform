@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { ArrowDownCircle, ArrowUpCircle, Plus, RefreshCw, Trash2, Pencil, X, Wallet, TrendingUp, TrendingDown, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'

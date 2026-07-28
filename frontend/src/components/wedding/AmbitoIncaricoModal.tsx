@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Briefcase, ClipboardCheck, Sparkles } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 

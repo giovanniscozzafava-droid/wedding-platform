@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Trash2, Search, Link as LinkIcon, ImageIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'

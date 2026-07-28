@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Heart, X, Undo2, ArrowLeft, Loader2, Check, Images } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 // SELEZIONE LATO FOTOGRAFO, stile "Tinder" (come lo swipe degli sposi ma per il tuo cuore).
 // Passata a tutto schermo: destra = tieni, sinistra = scarta. Scrive pick_photographer (owner-only,

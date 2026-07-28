@@ -5,7 +5,7 @@ import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 // ============================================================================
 // Editor del "brief di competenza" che il FORNITORE comunica al cliente per il

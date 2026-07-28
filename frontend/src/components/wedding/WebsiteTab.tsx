@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Globe, ExternalLink, Eye, EyeOff, Plane, Sparkles, ImagePlus, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'

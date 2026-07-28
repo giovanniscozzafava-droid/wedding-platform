@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CalendarPlus, X, Loader2, Copy, Check } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 

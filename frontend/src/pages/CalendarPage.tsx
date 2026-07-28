@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Plus, Download } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { HelpDot } from '@/components/help/HelpDot'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'

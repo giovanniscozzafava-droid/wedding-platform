@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { X, Users, Send, Loader2, Check, UserPlus, Mail } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSuppliers, useFollowedSuppliers } from '@/hooks/useSuppliers'

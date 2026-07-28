@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X, Loader2, Check, Printer } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { POSTER_TEMPLATES, templateForTheme } from '@/lib/tableauPosters'
 import { exportPlaceCards, exportTableSigns, exportMenu } from '@/lib/eventPrintables'

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { Upload, X, FileText, Check, Download } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'

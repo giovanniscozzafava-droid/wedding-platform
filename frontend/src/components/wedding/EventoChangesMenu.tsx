@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { MoreVertical, CalendarClock, UserX, Ban, AlertTriangle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'

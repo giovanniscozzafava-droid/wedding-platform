@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Upload, Loader2, Trash2, ImageIcon, Check } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useEventFloorPlan, useFloorPlanLibrary, useFloorPlanMutations } from '@/hooks/useWedding'

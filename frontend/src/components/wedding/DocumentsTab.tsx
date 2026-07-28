@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Upload, FolderOpen, Trash2, FileText } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/input'

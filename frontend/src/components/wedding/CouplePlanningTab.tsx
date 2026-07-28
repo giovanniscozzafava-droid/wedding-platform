@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ClipboardList, Save, Plus, X, AlertCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { eurInt } from '@/lib/money'
 import { Badge } from '@/components/ui/badge'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { useWedding, useUpdateWedding } from '@/hooks/useWedding'
 import { OverviewTab } from '@/components/wedding/OverviewTab'
 import { TimelineTab } from '@/components/wedding/TimelineTab'

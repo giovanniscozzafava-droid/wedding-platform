@@ -7,7 +7,7 @@ import {
   ChevronDown, LayoutGrid, Palette, Image as ImageIcon,
 } from 'lucide-react'
 import type { Cell } from '@/lib/albumGeometry'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { coverImgStyle, coverWindow, DEFAULT_CELL } from '@/lib/albumGeometry'

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, Heart, Sparkles, UserPlus, X, Loader2, Mail, Plus } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'

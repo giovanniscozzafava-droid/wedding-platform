@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Image as ImageIcon, Upload, X, Plus, Loader2, Tag as TagIcon, Link2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

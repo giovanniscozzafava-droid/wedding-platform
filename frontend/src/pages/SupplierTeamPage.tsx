@@ -12,7 +12,7 @@ import { teamRoleSuggestions } from '@/lib/teamRoleSuggestions'
 import { runsheetTemplate } from '@/lib/runsheetTemplates'
 import { inventoryStarterPack } from '@/lib/inventoryTemplates'
 import { buildEventPdf, fetchLogoDataUrl, type RunItem as PdfRunItem, type PackItem as PdfPackItem } from '@/lib/runsheetPdf'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 // ============================================================================
 // Team / sotto-fornitori. Il fornitore registra il proprio team, poi per ogni

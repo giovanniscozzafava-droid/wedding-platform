@@ -30,7 +30,7 @@ const friendlyErr = (e: unknown) => {
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import { eventTerm } from '@/lib/eventKind'
 import { isPhotoOnlyEvent, PHOTO_ONLY_KEYS } from '@/lib/eventMode'

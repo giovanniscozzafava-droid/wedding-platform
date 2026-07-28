@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2, Sparkles, PenLine, Users2, AlertTriangle, CheckCircle2, Unlock } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X, MessageSquare, Share2, FileText, Shield, Loader2, AlertTriangle, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { SelectionRangeControl } from './SelectionRangeControl'

@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { ShieldAlert, Trash2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'

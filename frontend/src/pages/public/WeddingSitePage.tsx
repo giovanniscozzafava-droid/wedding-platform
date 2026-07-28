@@ -5,6 +5,7 @@ import { Heart, MapPin, Calendar, Plane, Gift, BedDouble, Bus, Car, Train, Ship,
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
+import { humanErrorLine } from '@/lib/humanizeError'
 
 type SiteData = {
   wedding: {
@@ -29,7 +30,7 @@ export default function WeddingSitePage() {
     if (!slug) return
     supabase.rpc('wedding_site_get', { p_slug: slug })
       .then(({ data, error }) => {
-        if (error) { setErr(error.message); return }
+        if (error) { setErr(humanErrorLine(error)); return }
         setData((data as unknown as SiteData) ?? null)
         if (!data) setErr('Wedding website non trovato o non pubblicato.')
       })
@@ -54,7 +55,7 @@ export default function WeddingSitePage() {
       if (!ok) throw new Error('Impossibile registrare RSVP')
       setRsvpDone(true)
     } catch (e) {
-      setErr((e as Error).message)
+      setErr(humanErrorLine(e))
     }
   }
 

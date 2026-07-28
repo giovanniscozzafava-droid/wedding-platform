@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Plus, Trash2, Euro, User, Sparkles, Check, Circle, CheckCircle2, X,
   Gift, Camera, Candy, Cookie, Aperture, DoorOpen, BookHeart, Cake, Cigarette, Martini, SprayCan, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'

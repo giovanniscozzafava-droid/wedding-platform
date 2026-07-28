@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import {
   Paintbrush, Pencil, PenTool, Highlighter, Droplets, Brush, Feather, Flower2, SprayCan, Eraser,
   Minus, Square, Circle, ArrowUpRight, PaintBucket, Type, Pipette, Hand, Move,

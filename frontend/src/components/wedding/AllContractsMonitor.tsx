@@ -3,7 +3,7 @@ import { FileSignature, CheckCircle2, Clock, AlertCircle, Plus, Copy, ExternalLi
 import { Link } from 'react-router-dom'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'

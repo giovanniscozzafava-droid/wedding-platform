@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { SettingsTabs } from '@/components/settings/SettingsTabs'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 // ============================================================================
 // Integrazione sito: il professionista (WP, location, fornitore) copia il
