@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { MapPin, Users, Globe, Heart, ArrowLeft, AlertCircle, Send, BadgeCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { ServiceSlideshow } from '@/components/catalog/ServiceSlideshow'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
@@ -395,8 +396,9 @@ export default function PublicSupplierPage() {
               {data.services.map((s) => (
                 <div key={s.id} className="p-4 rounded-lg border" style={{ borderColor: 'rgb(var(--border))' }}>
                   {s.photos.length > 0 && (
-                    <img src={s.photos[0]!.url} alt={s.photos[0]!.caption ?? s.name}
-                      className="w-full h-32 object-cover rounded-md mb-3" />
+                    <div className="relative w-full h-32 rounded-md overflow-hidden mb-3">
+                      <ServiceSlideshow photos={s.photos.map((p) => ({ url: p.url }))} alt={s.name} />
+                    </div>
                   )}
                   <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--gold-600))]">{s.category ?? 'Servizio'}</p>
                   <h3 className="font-medium mt-0.5">{s.name}</h3>

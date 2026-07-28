@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Phone, FileText, ImageIcon, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ServiceSlideshow } from '@/components/catalog/ServiceSlideshow'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useServicesBySupplier } from '@/hooks/useCatalog'
@@ -133,9 +134,8 @@ export default function SupplierDetailPage() {
                     <Card key={s.id} onClick={() => { setOpenSvc(s); setPhotoIdx(0) }}
                       className="overflow-hidden hover:shadow-[var(--shadow-lift)] transition-shadow cursor-pointer">
                       <div className="aspect-[16/10] bg-[rgb(var(--bg-sunken))] overflow-hidden relative">
-                        {s.service_photos[0] ? (
-                          <img src={s.service_photos[0].thumbnail_url} alt={s.name}
-                            className="h-full w-full object-cover" />
+                        {s.service_photos.length > 0 ? (
+                          <ServiceSlideshow photos={s.service_photos.map((p: any) => ({ url: p.thumbnail_url }))} alt={s.name} />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-[rgb(var(--fg-subtle))]">
                             <ImageIcon size={28} />

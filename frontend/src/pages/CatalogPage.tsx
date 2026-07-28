@@ -5,6 +5,7 @@ import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIc
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ServiceSlideshow } from '@/components/catalog/ServiceSlideshow'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { ServiceForm } from '@/components/catalog/ServiceForm'
@@ -471,9 +472,8 @@ function ServiceCard({ s, isProvider, onEdit, onDelete, onDuplicate, onView }: {
       onClick={clickable ? handleCardClick : undefined}
       className={`surface surface-elev overflow-hidden group transition-all ${clickable ? 'cursor-pointer hover:shadow-[var(--shadow-lift)] hover:border-[rgb(var(--gold-500))]' : 'hover:shadow-[var(--shadow-lift)]'}`}>
       <div className="relative aspect-[16/10] bg-[rgb(var(--bg-sunken))] overflow-hidden">
-        {s.service_photos[0] ? (
-          <img src={s.service_photos[0].thumbnail_url} alt={s.name}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        {s.service_photos.length > 0 ? (
+          <ServiceSlideshow photos={s.service_photos.map((p) => ({ url: p.thumbnail_url }))} alt={s.name} />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-[rgb(var(--fg-subtle))]">
             <ImageIcon size={28} strokeWidth={1.4} />
