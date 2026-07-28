@@ -40,13 +40,15 @@ export default function WeddingSitePage() {
     if (!slug) return
     try {
       const { data: ok, error } = await supabase.rpc('wedding_site_rsvp', {
+        // null (non undefined): supabase-js SCARTA le chiavi undefined, e senza p_diet/p_notes
+        // la firma a 7 parametri non combaciava → "Could not find the function ... in the schema cache".
         p_slug: slug,
         p_full_name: rsvp.full_name,
-        p_email: rsvp.email || undefined,
+        p_email: rsvp.email || null,
         p_rsvp: rsvp.rsvp,
         p_party: Number(rsvp.party_size || 1),
-        p_diet: rsvp.diet || undefined,
-        p_notes: rsvp.notes || undefined,
+        p_diet: rsvp.diet || null,
+        p_notes: rsvp.notes || null,
       } as any)
       if (error) throw error
       if (!ok) throw new Error('Impossibile registrare RSVP')
