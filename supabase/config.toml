@@ -439,3 +439,12 @@ verify_jwt = false
 # è idempotente e autorevole (stato letto da Stripe), input = payment_id (uuid). verify_jwt = false.
 [functions.payment-verify]
 verify_jwt = false
+
+# Callback OAuth Google: è GOOGLE a richiamarli (redirect con ?code&state), SENZA JWT Supabase.
+# L'utente è identificato dal `state` (tabella *_oauth_states), non dall'Authorization header.
+# Con verify_jwt=true il gateway li respingeva → "Missing authorization header" e connessione fallita.
+[functions.drive-oauth-callback]
+verify_jwt = false
+
+[functions.gcal-oauth-callback]
+verify_jwt = false
