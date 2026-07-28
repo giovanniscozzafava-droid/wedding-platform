@@ -45,23 +45,29 @@ export default function SuggerimentiInviatiPage() {
     enabled: !!user,
     queryFn: async () => {
       const blindQ = (supabase.from as any)('supplier_suggestions')
-        .select('id, status, event_kind, event_date, quote_id, created_at, supplier:profiles!supplier_suggestions_supplier_id_fkey(business_name, full_name, subrole), priv:supplier_suggestions_private(client_name)')
+        .select('id, status, event_kind, event_date, quote_id, created_at, supplier_id, priv:supplier_suggestions_private(client_name)')
         .eq('referrer_id', user!.id).order('created_at', { ascending: false })
       const openQ = (supabase.from as any)('supplier_referrals')
-        .select('id, status, event_kind, client_name, quote_id, created_at, supplier:profiles!supplier_referrals_suggested_id_fkey(business_name, full_name, subrole)')
+        .select('id, status, event_kind, client_name, quote_id, created_at, suggested_id')
         .eq('referrer_id', user!.id).neq('status', 'CANCELLED').order('created_at', { ascending: false })
+      // Nomi dei fornitori suggeriti: via RPC (le policy profili non lasciano leggere chi non è
+      // PUBLIC/collaboratore → altrimenti comparirebbe il generico "Fornitore").
+      const namesQ = (supabase.rpc as any)('suggested_supplier_names')
 
-      const [blindR, openR] = await Promise.all([blindQ, openQ])
+      const [blindR, openR, namesR] = await Promise.all([blindQ, openQ, namesQ])
       if (blindR.error) throw blindR.error
       if (openR.error) throw openR.error
+      const names = new Map<string, { business_name: string | null; full_name: string | null; subrole: string | null }>(
+        ((namesR.data ?? []) as any[]).map((n) => [n.supplier_id as string, { business_name: n.name, full_name: n.name, subrole: n.subrole }]))
+      const sup = (id: string | null | undefined) => (id ? names.get(id) ?? null : null)
 
       const blind: Sent[] = ((blindR.data ?? []) as any[]).map((s) => ({
         channel: 'blind', id: s.id, status: s.status, event_kind: s.event_kind, event_date: s.event_date,
-        quote_id: s.quote_id, created_at: s.created_at, supplier: s.supplier, client_name: s.priv?.client_name ?? null,
+        quote_id: s.quote_id, created_at: s.created_at, supplier: sup(s.supplier_id), client_name: s.priv?.client_name ?? null,
       }))
       const open: Sent[] = ((openR.data ?? []) as any[]).map((s) => ({
         channel: 'open', id: s.id, status: s.status, event_kind: s.event_kind, event_date: null,
-        quote_id: s.quote_id, created_at: s.created_at, supplier: s.supplier, client_name: s.client_name ?? null,
+        quote_id: s.quote_id, created_at: s.created_at, supplier: sup(s.suggested_id), client_name: s.client_name ?? null,
       }))
       return [...blind, ...open].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
     },
