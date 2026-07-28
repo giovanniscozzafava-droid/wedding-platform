@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { uploadWithProgress } from '@/lib/uploadWithProgress'
+import { resizeImageUnder } from '@/lib/imageResize'
 import type { Database } from '@/lib/database.types'
 
 type ServiceRow = Database['public']['Tables']['services']['Row']
@@ -191,36 +192,8 @@ export function useRemoveModifier() {
   })
 }
 
-// Resize lato browser: max 1400px lato lungo, prima webp q=0.78, fallback jpeg q=0.78.
-// WebP ha ~30% bytes in meno a parita di qualita visiva → ottimizza storage cloud.
-// Riduce tipica foto 5MB → ~200KB e bypassa il file_size_limit 2MB.
-async function resizeImage(file: File, maxDim = 1400, quality = 0.78): Promise<{ blob: Blob; ext: 'webp' | 'jpg'; contentType: string }> {
-  const dataUrl = await new Promise<string>((res, rej) => {
-    const r = new FileReader()
-    r.onload = () => res(r.result as string)
-    r.onerror = rej
-    r.readAsDataURL(file)
-  })
-  const img = await new Promise<HTMLImageElement>((res, rej) => {
-    const i = new Image()
-    i.onload = () => res(i)
-    i.onerror = rej
-    i.src = dataUrl
-  })
-  const ratio = Math.min(1, maxDim / Math.max(img.width, img.height))
-  const w = Math.round(img.width * ratio)
-  const h = Math.round(img.height * ratio)
-  const canvas = document.createElement('canvas')
-  canvas.width = w; canvas.height = h
-  const ctx = canvas.getContext('2d')!
-  ctx.drawImage(img, 0, 0, w, h)
-  // prova webp, fallback jpeg
-  const webp = await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), 'image/webp', quality))
-  if (webp && webp.size > 0) return { blob: webp, ext: 'webp', contentType: 'image/webp' }
-  const jpeg = await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), 'image/jpeg', quality))
-  if (!jpeg) throw new Error('Impossibile generare immagine compressa')
-  return { blob: jpeg, ext: 'jpg', contentType: 'image/jpeg' }
-}
+// Ridimensionamento foto: sistema interno condiviso (lib/imageResize) che garantisce di stare
+// SOTTO il cap del bucket service-photos (2MB) — niente più 413, anche su Safari/iPadOS.
 
 export function useUploadPhoto() {
   const qc = useQueryClient()
@@ -237,7 +210,7 @@ export function useUploadPhoto() {
       // Se decodifica fallisce, mostra messaggio chiaro.
       let resized
       try {
-        resized = await resizeImage(file)
+        resized = await resizeImageUnder(file)
       } catch (e) {
         const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name)
         if (isHeic) {
