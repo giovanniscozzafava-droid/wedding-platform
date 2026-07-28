@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye } from 'lucide-react'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { PdfViewButton } from '@/components/common/PdfBookViewer'
@@ -173,6 +173,14 @@ export default function QuoteEditorPage() {
     } catch (e) { toast.error((e as Error).message) }
   }
   const [eventKind, setEventKind] = useState<string>('matrimonio')
+  // Regola TRASFERTA attiva del professionista (se c'è, mostro il campo km nel preventivo).
+  const [distanceRule, setDistanceRule] = useState<{ per_km: number; free_km: number; base_place: string | null } | null>(null)
+  useEffect(() => {
+    let alive = true
+    ;(supabase.from as any)('price_surcharges').select('per_km, free_km, base_place').eq('kind', 'DISTANCE').eq('active', true).limit(1)
+      .then(({ data }: { data: any[] | null }) => { if (alive) setDistanceRule(data && data[0] ? data[0] : null) })
+    return () => { alive = false }
+  }, [])
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [sendResult, setSendResult] = useState<{ access_token?: string } | null>(null)
   const [pickSupplier, setPickSupplier] = useState<string>('')
@@ -593,6 +601,13 @@ export default function QuoteEditorPage() {
     try {
       await update.mutateAsync({ id, patch: safe })
     } catch (e) { toast.error((e as Error).message) }
+  }
+  // Km trasferta: il trigger DB ricalcola il totale (maggiorazione €/km oltre soglia).
+  async function handleDistanceKm(km: number) {
+    if (!id) return
+    const safe = Number.isFinite(km) && km > 0 ? Math.round(km * 10) / 10 : null
+    try { await update.mutateAsync({ id, patch: { distance_km: safe } as any }) }
+    catch (e) { toast.error((e as Error).message) }
   }
 
   // Scarica davvero il file: fetch→blob forza il download (anche cross-origin storage);
@@ -1105,6 +1120,19 @@ export default function QuoteEditorPage() {
                   className="h-8 w-24 text-xs" />
                 <span className="text-xs text-[rgb(var(--fg-subtle))]">€ fissi</span>
               </div>
+              {/* Trasferta: km fino alla location → €/km oltre la soglia gratuita (regola Maggiorazioni). */}
+              {distanceRule && (
+                <div className="flex items-center gap-2 flex-wrap text-sm">
+                  <span className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] inline-flex items-center gap-1"><Navigation size={12} /> Trasferta{distanceRule.base_place ? ` da ${distanceRule.base_place}` : ''}</span>
+                  <Input type="number" step="1" min={0} key={`dkm-${id}-${(quote as any).distance_km ?? 0}`}
+                    defaultValue={Number((quote as any).distance_km ?? 0)}
+                    onBlur={(e) => handleDistanceKm(Number(e.target.value))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                    title="Distanza in km fino alla location. Applica la tariffa €/km oltre i km gratuiti."
+                    className="h-8 w-20 text-xs" />
+                  <span className="text-xs text-[rgb(var(--fg-subtle))]">km · {distanceRule.free_km} gratuiti · {distanceRule.per_km}€/km</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
                 <Totals label="Costo" value={quote.total_cost} />
                 {(quote as any).subtotal_client != null && Number((quote as any).subtotal_client) !== Number(quote.total_client) && (
@@ -1113,6 +1141,9 @@ export default function QuoteEditorPage() {
                 {Number((quote as any).surcharge_percent ?? 0) > 0 && (
                   <Totals label={`Maggior. +${Number((quote as any).surcharge_percent)}%`}
                     value={Number(quote.total_client) - Number(quote.total_client) / (1 + Number((quote as any).surcharge_percent) / 100)} />
+                )}
+                {Number((quote as any).distance_surcharge ?? 0) > 0 && (
+                  <Totals label={`Trasferta ${Number((quote as any).distance_km ?? 0)} km`} value={Number((quote as any).distance_surcharge)} />
                 )}
                 <Totals label="Cliente" value={quote.total_client} accent />
                 <Totals label="Margine" value={quote.margin_amount} />
