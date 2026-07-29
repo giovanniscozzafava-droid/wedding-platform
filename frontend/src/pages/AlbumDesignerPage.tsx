@@ -232,11 +232,13 @@ function Wireframe({ slots, aspect }: { slots: { x: number; y: number; w: number
 // di modifica. Il cliente tocca un punto → onPlaceAt(x,y) (con la foto sotto il dito). Cliccando
 // una puntina si apre la sua bolla (renderBubble). Stesso componente per cliente (posa) e fotografo
 // (legge/segna fatto). Va dentro un contenitore `relative` esattamente grande come la tavola.
-function PostitLayer({ pins, openId, onOpen, canPlace, onPlaceAt, placing, composer, renderBubble }: {
+function PostitLayer({ pins, openId, onOpen, canPlace, onPlaceAt, placing, composer, renderBubble, boxOf }: {
   pins: Postit[]; openId: string | null; onOpen: (id: string | null) => void
   canPlace?: boolean; onPlaceAt?: (x: number, y: number) => void
   placing?: { x: number; y: number } | null; composer?: ReactNode
   renderBubble?: (pin: Postit) => ReactNode
+  // Box (0..1 tavola) della foto di un pin → il pin si ancora ALLA FOTO e la segue. Assente = pin sul punto.
+  boxOf?: (mediaId: string) => { x: number; y: number; w: number; h: number } | null
 }) {
   // canPlace → il layer cattura i tocchi (per posare). Altrimenti è "trasparente" (pointer-events
   // none) così sotto resta interagibile (il fotografo trascina le foto in FreeStage); solo puntine
@@ -253,8 +255,12 @@ function PostitLayer({ pins, openId, onOpen, canPlace, onPlaceAt, placing, compo
       {pins.map((p, i) => {
         if (p.anchor_x == null || p.anchor_y == null) return null
         const open = openId === p.id, done = p.status === 'DONE'
+        // Se il pin è su una foto ancora presente sulla tavola, l'anchor è RELATIVO alla foto → la segue.
+        const box = p.media_id ? boxOf?.(p.media_id) : null
+        const px = box ? box.x + p.anchor_x * box.w : p.anchor_x
+        const py = box ? box.y + p.anchor_y * box.h : p.anchor_y
         return (
-          <div key={p.id} className="absolute" style={{ left: `${p.anchor_x * 100}%`, top: `${p.anchor_y * 100}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'auto' }}>
+          <div key={p.id} className="absolute" style={{ left: `${px * 100}%`, top: `${py * 100}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'auto' }}>
             <button onPointerDown={(e) => { e.stopPropagation(); onOpen(open ? null : p.id) }}
               className={`grid place-items-center h-6 w-6 rounded-full rounded-bl-none shadow-md ring-2 ring-white text-[11px] font-bold text-white transition-transform ${open ? 'scale-125' : ''} ${done ? 'bg-emerald-500' : p.kind === 'REMOVE' ? 'bg-rose-500' : 'bg-[rgb(var(--gold-500))]'}`}
               title={p.body}>{done ? '✓' : p.kind === 'REMOVE' ? '✕' : i + 1}</button>
@@ -1974,6 +1980,14 @@ function AlbumDesignerInner() {
     for (let i = els.length - 1; i >= 0; i--) { const e = els[i]!; if (x >= e.x && x <= e.x + e.w && y >= e.y && y <= e.y + e.h) return e.mediaId }
     return null
   }
+  // Box (coord. tavola 0..1) della foto sulla tavola: serve ad ANCORARE il pin ALLA FOTO (non alla
+  // pagina) → il pin segue la foto quando viene spostata/reimpaginata.
+  function mediaBoxOf(tavLeft: AlbumPage | undefined, mediaId: string | null): { x: number; y: number; w: number; h: number } | null {
+    if (!mediaId) return null
+    const els = tavLeft?.tavolaFree ? (tavLeft.elements ?? []) : []
+    for (let i = els.length - 1; i >= 0; i--) { const e = els[i]!; if (e.mediaId === mediaId) return { x: e.x, y: e.y, w: e.w, h: e.h } }
+    return null
+  }
   async function savePostit() {
     if (!placing || !entryId) return
     const body = revBody.trim()
@@ -1982,9 +1996,14 @@ function AlbumDesignerInner() {
     const defText = isRemove ? 'Questa foto non mi convince: la toglierei dall\'album'
       : isReplace ? (replaceId ? 'Sostituisci con la foto indicata' : 'Sostituisci questa foto')
       : '(senza testo)'
+    // Se il pin è su una foto, salvo l'anchor RELATIVO al box della foto (0..1) → il pin la segue
+    // quando viene spostata/reimpaginata. Senza foto (tocco sul vuoto): anchor assoluto sulla tavola.
+    const box = mediaBoxOf(pages[placing.tav * 2], placing.mediaId)
+    const ax = box ? Math.min(1, Math.max(0, (placing.x - box.x) / box.w)) : placing.x
+    const ay = box ? Math.min(1, Math.max(0, (placing.y - box.y) / box.h)) : placing.y
     const { error } = await (supabase.from as any)('album_revision_requests').insert({
       entry_id: entryId, body: body || defText, page_index: placing.tav * 2 + 1,
-      tavola_index: placing.tav, anchor_x: placing.x, anchor_y: placing.y, media_id: placing.mediaId,
+      tavola_index: placing.tav, anchor_x: ax, anchor_y: ay, media_id: placing.mediaId,
       kind: isRemove ? 'REMOVE' : isReplace ? 'REPLACE' : 'NOTE', replace_media_id: isReplace ? replaceId : null,
     })
     if (error) { toast.error(error.message); return }
@@ -2736,6 +2755,7 @@ function AlbumDesignerInner() {
         <PostitLayer
           pins={tavPins(si)} openId={interactive ? openPin : null} onOpen={interactive ? setOpenPin : () => {}}
           canPlace={!!interactive && isCouple}
+          boxOf={(mid) => mediaBoxOf(pair[0], mid)}
           onPlaceAt={(x, y) => { setRevBody(''); setReplaceMode(false); setRemoveMode(false); setReplaceId(null); setPlacing({ tav: si, x, y, mediaId: hitMediaAt(pair[0], x, y) }) }}
           placing={placing && placing.tav === si ? placing : null}
           composer={interactive && placing && placing.tav === si ? (
@@ -3561,6 +3581,7 @@ function AlbumDesignerInner() {
                     {spreadPages.length === 2 && !spreadPages[0]?.tavolaFree && <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-[rgba(184,146,63,.55)] pointer-events-none z-50" title="Dorso (non viene stampato)" />}
                     {/* POST-IT del cliente, appuntati sulla tavola: il fotografo li legge e li segna fatti */}
                     <PostitLayer pins={revList.filter((r) => r.anchor_x != null && effTav(r) === activeSpread)} openId={openPin} onOpen={setOpenPin}
+                      boxOf={(mid) => mediaBoxOf(pages[activeSpread * 2], mid)}
                       renderBubble={(p) => {
                         const isRepl = p.kind === 'REPLACE'
                         const rep = p.replace_media_id ? mediaById.get(p.replace_media_id) : null
