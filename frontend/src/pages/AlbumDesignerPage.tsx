@@ -94,7 +94,7 @@ function justifiedSlots(aspectsArr: number[], spreadAspect: number): { x: number
   })
   return out
 }
-import { placeInPage, clearSlotInPage, setCell, setPageTemplate, insertPageAfter, removePage } from '@/lib/albumOps'
+import { placeInPage, clearSlotInPage, setCell, setPageTemplate } from '@/lib/albumOps'
 import { toFreeElements, newFreeEl, moveEl, resizeEl, snapMove, snapAngle, spacingSnap, neighborGaps, moveManyBy, removeFreeEl, removeManyFree, updateFreeEl, bringToFront, type FreeEl, type Corner, type GapMark } from '@/lib/albumFree'
 import { listLayouts, saveLayout, deleteLayout, applyLayout, pageToFrames, pageToFreeEls, type SavedLayout } from '@/lib/albumLayouts'
 import { listSharedPresets, saveSharedPreset, deleteSharedPreset, amIPresetCurator } from '@/lib/albumSharedPresets'
@@ -418,7 +418,6 @@ function AlbumDesignerInner() {
   const [exporting, setExporting] = useState(false)
   const [exportProg, setExportProg] = useState<{ done: number; total: number; zip?: number } | null>(null) // barra avanzamento export (zip = % compressione finale)
   const aiCancel = useRef(false); const qualityCancel = useRef(false); const exportCancel = useRef(false) // flag "Interrompi"
-  const [activePage, setActivePage] = useState<string | null>(null)
   const [activeSlot, setActiveSlot] = useState<number | null>(null)
   const [bleed, setBleed] = useState(false)            // abbondanza per la stampa
   const [aspects, setAspects] = useState<Record<string, number>>({}) // aspetto naturale per crop
@@ -1262,11 +1261,6 @@ function AlbumDesignerInner() {
   }
   function setTemplate(pageId: string, t: TemplateKey) { updatePage(pageId, (p) => ({ ...setPageTemplate(materializeFree(p), t), mode: 'template' as const })) }
   function cycleLayout(pageId: string) { updatePage(pageId, (p) => { const mp = materializeFree(p); return { ...setPageTemplate(mp, cycleTemplate(mp.template, mp.mediaIds.length)), mode: 'template' as const } }) }
-  function duplicatePage(pageId: string) {
-    const src = pages.find((p) => p.id === pageId); if (!src) return
-    const copy: AlbumPage = { ...src, id: newPage().id, cells: src.cells ? src.cells.map((c) => (c ? { ...c } : c)) : undefined, elements: src.elements ? src.elements.map((e) => ({ ...e, id: newPage().id, cell: { ...e.cell } })) : undefined }
-    setPages((a) => insertPageAfter(a, pageId, () => copy)); setCurrentPageId(copy.id)
-  }
   // ── TAVOLE (spread = 2 pagine affiancate, come in stampa) ───────────────────
   function addSpread() {
     // nuova tavola = superficie UNICA vuota (tavolaFree) + pagina destra svuotata: si apre intera.
@@ -1421,6 +1415,18 @@ function AlbumDesignerInner() {
     toast.success('Foto scambiate')
   }
   function delSpread(si: number) { setPages((arr) => arr.filter((_, i) => i !== si * 2 && i !== si * 2 + 1)); setCurrentPageId(null) }
+  // Indice di TAVOLA (spread) dalla pagina: l'album è sempre a coppie, mai pagine singole.
+  const spreadIdxOf = (pageId: string | null) => { if (!pageId) return -1; const i = pages.findIndex((p) => p.id === pageId); return i < 0 ? -1 : Math.floor(i / 2) }
+  // Duplica l'INTERA tavola (le due pagine), non una pagina singola → l'album resta a tavole.
+  function duplicateSpread(si: number) {
+    const a = pages[si * 2]; if (!a) return
+    const b = pages[si * 2 + 1]
+    const copyPage = (src: AlbumPage): AlbumPage => ({ ...src, id: newPage().id, cells: src.cells ? src.cells.map((c) => (c ? { ...c } : c)) : undefined, elements: src.elements ? src.elements.map((e) => ({ ...e, id: newPage().id, cell: { ...e.cell } })) : undefined })
+    const na = copyPage(a)
+    const nb = b ? copyPage(b) : { ...newPage(), tavolaFree: false }
+    setPages((arr) => { const at = si * 2 + 2; return [...arr.slice(0, at), na, nb, ...arr.slice(at)] })
+    setCurrentPageId(na.id); toast.success('Tavola duplicata')
+  }
   function moveSpread(si: number, dir: -1 | 1) {
     setPages((arr) => { const blocks: AlbumPage[][] = []; for (let k = 0; k < arr.length; k += 2) blocks.push(arr.slice(k, k + 2)); const j = si + dir; if (j < 0 || j >= blocks.length) return arr; const t = blocks[si]!; blocks[si] = blocks[j]!; blocks[j] = t; return blocks.flat() })
   }
@@ -1853,7 +1859,6 @@ function AlbumDesignerInner() {
     if (selSpreads.size > 1 && selSpreads.has(from)) moveSpreadsInsert([...selSpreads], to)
     else { setSelSpreads(new Set()); moveSpreadInsert(from, to) }
   }
-  function delPage(id: string) { setPages((a) => removePage(a, id)); if (activePage === id) setActivePage(null) }
 
   async function save(nextStatus?: string, silent = false) {
     if (!entryId) return
@@ -3647,7 +3652,7 @@ function AlbumDesignerInner() {
                   onBg={(c) => setPageBg(currentPage.id, c)}
                   onElUpdate={(id, patch) => freeUpdate(currentPage.id, id, patch)}
                   onElRemove={(id) => freeRemove(currentPage.id, id)}
-                  onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
+                  onAddPage={() => addSpread()} onDelPage={() => delSpread(spreadIdxOf(currentPage.id))} onDuplicate={() => duplicateSpread(spreadIdxOf(currentPage.id))}
                   onSaveLayout={saveCurLayout}
                   presets={tavPresets} tavAspect={asp * 2} onApplyTavolaLayout={applyTavolaLayout}
                   myPresets={myTavPresets} onApplySaved={applySavedToTavola} onDeleteSaved={removeLayout}
@@ -3674,7 +3679,7 @@ function AlbumDesignerInner() {
                   onCell={(s, partial) => updateCell(currentPage.id, s, partial)}
                   onClearSlot={(s) => { clearSlot(currentPage.id, s); setActiveSlot(null) }}
                   onCrop={(s) => setCropFor(s)} onFree={() => convertToFree(currentPage.id)}
-                  onAddPage={() => addSpread()} onDelPage={() => delPage(currentPage.id)} onDuplicate={() => duplicatePage(currentPage.id)}
+                  onAddPage={() => addSpread()} onDelPage={() => delSpread(spreadIdxOf(currentPage.id))} onDuplicate={() => duplicateSpread(spreadIdxOf(currentPage.id))}
                   savedLayouts={allLayouts} onSaveLayout={saveCurLayout} onApplyLayout={applyLayoutCur} onDeleteLayout={removeLayout} isCurator={isCurator} onSaveShared={saveSharedCur}
                   crop={(() => {
                     if (activeSlot == null) return null
