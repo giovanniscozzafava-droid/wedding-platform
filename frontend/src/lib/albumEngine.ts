@@ -136,6 +136,9 @@ export function autoLayout(selected: MediaLite[], formatKey: string): AlbumLayou
       pages.push({ id: uid(), moment: key === '_senza' ? null : key, template: chooseTemplate(chunk.length, aspect), mediaIds: chunk })
     }
   }
+  // L'album è SEMPRE a tavole (spread di 2 pagine): mai una pagina singola spaiata.
+  // Se il totale è dispari, completo l'ultima tavola con una pagina vuota.
+  if (pages.length % 2 === 1) pages.push({ id: uid(), moment: null, template: chooseTemplate(1, aspect), mediaIds: [] })
   return { pages }
 }
 
