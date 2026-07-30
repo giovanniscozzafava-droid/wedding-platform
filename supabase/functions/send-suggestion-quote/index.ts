@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
   const caller = au?.user
   if (!caller) return json({ error: 'unauthorized' }, 401)
 
+  try {
   const { data: q } = await admin.from('quotes')
     .select('id, owner_id, title, revision, access_token, event_date, event_kind, quote_origin, sent_email_log')
     .eq('id', body.quote_id).maybeSingle()
@@ -43,10 +44,12 @@ Deno.serve(async (req) => {
   if (q.quote_origin !== 'SUPPLIER_SUGGESTION') return json({ error: 'not_a_suggestion_quote' }, 400)
 
   // Suggerimento collegato + contatti privati del cliente (service role: nessuna RLS).
-  const { data: sugg } = await admin.from('supplier_suggestions').select('id, referrer_id').eq('quote_id', q.id).maybeSingle()
+  // limit(1): se per qualche motivo ci fossero 2 righe suggestion sullo stesso quote, non esplode.
+  const { data: suggRows } = await admin.from('supplier_suggestions').select('id, referrer_id').eq('quote_id', q.id).order('created_at', { ascending: false }).limit(1)
+  const sugg = suggRows?.[0]
   if (!sugg) return json({ error: 'suggestion_not_found' }, 404)
-  const { data: priv } = await admin.from('supplier_suggestions_private').select('client_name, client_email').eq('suggestion_id', sugg.id).maybeSingle()
-  const clientEmail = priv?.client_email
+  const { data: privRows } = await admin.from('supplier_suggestions_private').select('client_name, client_email').eq('suggestion_id', sugg.id).limit(1)
+  const clientEmail = privRows?.[0]?.client_email
   if (!clientEmail) return json({ error: 'client_email_missing' }, 400)
 
   // token + stato inviato
@@ -76,4 +79,5 @@ Deno.serve(async (req) => {
   try { await sendEmailSES({ to: String(clientEmail), subject: `${supName} ti ha preparato un preventivo`, html }); sent = true } catch { /* */ }
 
   return json({ ok: true, sent })
+  } catch (e) { return json({ error: 'exception', detail: String((e as Error)?.message ?? e).slice(0, 200) }, 500) }
 })

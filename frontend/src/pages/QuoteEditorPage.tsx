@@ -687,9 +687,16 @@ export default function QuoteEditorPage() {
     setSendingSugg(true)
     try {
       const { data, error } = await supabase.functions.invoke('send-suggestion-quote', { body: { quote_id: id } })
-      const err = (data as { error?: string } | null)?.error
-      if (error || err) { toast.error(err === 'client_email_missing' ? 'Manca il contatto del cliente suggerito' : `Invio non riuscito${err ? `: ${err}` : ''}`); return }
-      toast.success('Preventivo inviato al cliente suggerito')
+      const d = data as { error?: string; detail?: string; ok?: boolean; sent?: boolean } | null
+      const err = d?.error
+      if (error || err) {
+        const msg = err === 'client_email_missing' ? 'Manca il contatto del cliente suggerito'
+          : err === 'suggestion_not_found' ? 'Suggerimento collegato non trovato'
+          : err === 'not_a_suggestion_quote' ? 'Questo preventivo non è un suggerimento'
+          : `Invio non riuscito${err ? `: ${err}` : ''}${d?.detail ? ` (${d.detail})` : ''}${error ? ` (${error.message})` : ''}`
+        toast.error(msg); return
+      }
+      toast.success(d?.sent === false ? 'Preventivo pronto, ma l’email al cliente non è partita (riprova o avvisalo tu)' : 'Preventivo inviato al cliente suggerito')
     } catch (e) { toast.error((e as Error).message) } finally { setSendingSugg(false) }
   }
 
