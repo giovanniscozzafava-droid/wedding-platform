@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine,
+  ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine, Ruler, ChevronLeft, ChevronRight,
   ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2, Maximize2,
   Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight,
   ChevronDown, LayoutGrid, Palette, Image as ImageIcon,
@@ -112,6 +112,7 @@ function snapGeo<T extends Geo>(e: T, n: number): T {
 type M = {
   id: string; drive_file_id: string; thumbnail_link: string | null
   media_type: 'PHOTO' | 'VIDEO'; carousel_pick?: boolean | null
+  source_name?: string | null   // nome file originale = sequenza fotocamera → ordine cronologico
 }
 const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:')
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
@@ -197,6 +198,9 @@ export default function CaroselloPage() {
   const stripRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [curSlide, setCurSlide] = useState(0)
+  const [rulerOn, setRulerOn] = useState(() => { try { return localStorage.getItem('carosello:rulerOn') === '1' } catch { return false } })
+  const [libChrono, setLibChrono] = useState(false)   // libreria in ordine cronologico (per nome file)
+  useEffect(() => { try { localStorage.setItem('carosello:rulerOn', rulerOn ? '1' : '0') } catch { /* no-op */ } }, [rulerOn])
   const autoTimer = useRef<number | undefined>(undefined)
 
   const fmt = getCarouselFormat(format)
@@ -205,6 +209,10 @@ export default function CaroselloPage() {
   // così una foto già piazzata nella slide resta visibile anche se la togli dalla selezione.
   const media = useMemo(() => allPhotos.filter((m) => m.carousel_pick), [allPhotos])
   const keptIds = useMemo(() => media.map((m) => m.id), [media])
+  // Libreria mostrata: opzionalmente in ORDINE CRONOLOGICO (per nome file = sequenza fotocamera).
+  const libPhotos = useMemo(() => (
+    libChrono ? [...allPhotos].sort((a, b) => (a.source_name ?? '').localeCompare(b.source_name ?? '', undefined, { numeric: true, sensitivity: 'base' })) : allPhotos
+  ), [allPhotos, libChrono])
   const mediaById = useMemo(() => new Map(allPhotos.map((m) => [m.id, m] as const)), [allPhotos])
   const elements = strip.elements ?? []
   const sel = elements.find((e) => e.id === selId) ?? null
@@ -222,7 +230,7 @@ export default function CaroselloPage() {
       const { data: gal } = await (supabase.from as any)('event_galleries').select('owner_id').eq('entry_id', entryId).maybeSingle()
       setIsOwner(!!gal && (gal as { owner_id: string }).owner_id === myUid)
       const { data: gm } = await (supabase.from as any)('gallery_media')
-        .select('id, drive_file_id, thumbnail_link, media_type, carousel_pick')
+        .select('id, drive_file_id, thumbnail_link, media_type, carousel_pick, source_name')
         .eq('entry_id', entryId).eq('media_type', 'PHOTO').order('id')
       const all = (gm as M[] | null) ?? []
       setAllPhotos(all)
@@ -460,6 +468,30 @@ export default function CaroselloPage() {
     setElements(move(elements)); setTexts(move(texts)); setModelKey(null); setSelId(null); setSelText(null)
   }
 
+  // Aggiunge una TAVOLA in coda SENZA scomporre il lavoro fatto: n→n+1 e riscala x,w di n/(n+1),
+  // così ogni foto/testo resta ESATTAMENTE dov'era (stessa posizione assoluta in slide) e la nuova
+  // tavola (l'ultima) è vuota.
+  function addTavola() {
+    if (n >= 20) { toast.error('Massimo 20 tavole'); return }
+    snapshot()
+    const f = n / (n + 1)
+    setElements(elements.map((e) => ({ ...e, x: e.x * f, w: e.w * f })))
+    setTexts(texts.map((t) => ({ ...t, x: ((t as any).x ?? 0) * f, ...((t as any).w != null ? { w: (t as any).w * f } : {}) })) as TextEl[])
+    setN(n + 1)
+    setCurSlide(n)   // vai alla nuova (indice n)
+    setTimeout(() => goToSlide(n), 30)
+    setModelKey(null); setSelId(null); setSelText(null)
+  }
+
+  // Sposta la tavola corrente a sinistra/destra (riordina). Riusa swapSlides.
+  function moveTavola(dir: -1 | 1) {
+    const to = curSlide + dir
+    if (to < 0 || to >= n) return
+    swapSlides(curSlide, to)
+    setCurSlide(to)
+    setTimeout(() => goToSlide(to), 30)
+  }
+
   // ── LOGO / grafica (data-URL: vive nel layout, niente upload) ────────────────
   const logoInputRef = useRef<HTMLInputElement>(null)
   function addLogoFile(file: File) {
@@ -615,6 +647,8 @@ export default function CaroselloPage() {
         </Menu>
 
         <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addLogoFile(f); e.currentTarget.value = '' }} />
+        <Button variant="outline" size="sm" onClick={addTavola} title="Aggiungi una tavola in fondo (il lavoro già fatto resta identico)"><Plus size={14} /> Tavola</Button>
+        <button onClick={() => setRulerOn((v) => !v)} title="Righelli" className={`h-9 inline-flex items-center gap-1.5 px-2.5 rounded-md border text-sm transition-colors ${rulerOn ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] bg-[rgb(var(--bg))] hover:bg-[rgb(var(--bg-sunken))]'}`}><Ruler size={14} /> Righelli</button>
         <span className="ml-auto text-[11px] text-[rgb(var(--fg-subtle))]">{savedAt ? '✓ salvato' : 'bozza'}</span>
       </div>
 
@@ -628,6 +662,11 @@ export default function CaroselloPage() {
                 className={`h-7 min-w-[28px] px-1.5 rounded-md text-[11px] font-medium tabular-nums shrink-0 border transition-colors ${curSlide === i ? 'bg-[rgb(var(--gold-500))] text-white border-[rgb(var(--gold-500))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{i + 1}</button>
             ))}
           </div>
+          {/* Riordina: sposta la tavola corrente a sinistra/destra */}
+          <div className="flex items-center gap-0.5 shrink-0 ml-1 border-l border-[rgb(var(--border))] pl-2">
+            <button onClick={() => moveTavola(-1)} disabled={curSlide <= 0} title="Sposta questa tavola a sinistra" className="h-7 w-7 grid place-items-center rounded-md border border-[rgb(var(--border))] disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))]"><ChevronLeft size={15} /></button>
+            <button onClick={() => moveTavola(1)} disabled={curSlide >= n - 1} title="Sposta questa tavola a destra" className="h-7 w-7 grid place-items-center rounded-md border border-[rgb(var(--border))] disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))]"><ChevronRight size={15} /></button>
+          </div>
         </div>
       )}
 
@@ -640,6 +679,20 @@ export default function CaroselloPage() {
             className="relative shadow-2xl select-none touch-none"
             style={{ height: 'min(64vh, 620px)', aspectRatio: String(stripAspect), background: strip.bg ?? '#fff', containerType: 'size' }}
             onPointerDown={(e) => e.stopPropagation()}>
+            {/* RIGHELLI: confini tavola (rossi) + numero tavola + tacche in cima */}
+            {rulerOn && (
+              <div className="absolute inset-0 pointer-events-none z-20">
+                {Array.from({ length: n - 1 }, (_, i) => (
+                  <div key={`b${i}`} className="absolute top-0 bottom-0" style={{ left: `${((i + 1) / n) * 100}%`, width: 1, background: 'rgba(220,38,38,0.55)' }} />
+                ))}
+                {Array.from({ length: n }, (_, k) => (
+                  <span key={`n${k}`} className="absolute top-0.5 text-[9px] font-semibold text-red-600 tabular-nums -translate-x-1/2" style={{ left: `${((k + 0.5) / n) * 100}%` }}>{k + 1}</span>
+                ))}
+                {Array.from({ length: n * 10 + 1 }, (_, i) => (
+                  <div key={`t${i}`} className="absolute top-0" style={{ left: `${(i / (n * 10)) * 100}%`, width: 1, height: i % 10 === 0 ? 9 : 4, background: 'rgba(0,0,0,0.28)' }} />
+                ))}
+              </div>
+            )}
             {/* elementi foto */}
             {elements.map((el) => {
               const direct = !!el.mediaId && isDirectSrc(el.mediaId)
@@ -884,14 +937,20 @@ export default function CaroselloPage() {
               <p className="font-display text-lg flex items-center gap-2"><Heart size={16} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> Seleziona le foto del carosello</p>
               <p className="text-xs text-[rgb(var(--fg-muted))]">La <strong>tua</strong> selezione, separata da quella dell’album degli sposi · {media.length} scelte su {allPhotos.length}</p>
             </div>
-            <Button variant="gold" size="sm" onClick={() => setPickerOpen(false)}><Check size={14} /> Fatto</Button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setLibChrono((v) => !v)} title="Ordina la libreria in ordine cronologico (per nome file = sequenza di scatto)"
+                className={`h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md border text-xs transition-colors ${libChrono ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                <ArrowUpToLine size={13} /> {libChrono ? 'Cronologico' : 'Ordine originale'}
+              </button>
+              <Button variant="gold" size="sm" onClick={() => setPickerOpen(false)}><Check size={14} /> Fatto</Button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             {allPhotos.length === 0 ? (
               <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Nessuna foto nel servizio: carica le foto dalla sezione «Foto» dell’evento e torna qui.</p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
-                {allPhotos.map((m) => {
+                {libPhotos.map((m) => {
                   const on = !!m.carousel_pick
                   return (
                     <button key={m.id} type="button" onClick={() => void togglePick(m)} disabled={pickBusy === m.id}
