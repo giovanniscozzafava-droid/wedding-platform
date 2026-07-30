@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { EntryForm } from '@/components/calendar/EntryForm'
+import { IcalImportPanel } from '@/components/calendar/IcalImportPanel'
 import { useCalendarEntries, useEnsureExportToken, type EntryWithParticipants } from '@/hooks/useCalendar'
 import { useSupplierEarnings } from '@/hooks/useSupplierEarnings'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -52,7 +53,7 @@ export default function CalendarPage() {
   const { profile } = useAuth()
   const [cursor, setCursor] = useState(() => new Date())
   const range = useMemo(() => monthRange(cursor), [cursor])
-  const { data, isLoading, error } = useCalendarEntries(range)
+  const { data, isLoading, error, refetch } = useCalendarEntries(range)
   const ensureToken = useEnsureExportToken()
   const [editing, setEditing] = useState<EntryWithParticipants | null>(null)
   const [creating, setCreating] = useState<{ date?: string } | null>(null)
@@ -214,6 +215,8 @@ export default function CalendarPage() {
             </>
           }
         />
+
+        {canAvail && <IcalImportPanel onSynced={() => { void refetch() }} />}
 
         {isLoading && <p className="text-[rgb(var(--fg-subtle))]">Caricamento...</p>}
         {error && <p className="text-[rgb(var(--rose-500))]">{(error as Error).message}</p>}
