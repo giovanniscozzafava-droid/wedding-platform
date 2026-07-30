@@ -12,9 +12,12 @@ type PhotoRow = Database['public']['Tables']['service_photos']['Row']
 type ModifierRow = Database['public']['Tables']['service_modifiers']['Row']
 type ModifierInsert = Database['public']['Tables']['service_modifiers']['Insert']
 
+export type ServicePlusRow = { id: string; service_id: string; name: string; price: number; sort_order: number }
+
 export type ServiceWithExtras = ServiceRow & {
   service_photos: PhotoRow[]
   service_modifiers: ModifierRow[]
+  service_plus: ServicePlusRow[]
   service_categories: Pick<CategoryRow, 'id' | 'name' | 'slug' | 'subrole'> | null
 }
 
@@ -29,7 +32,7 @@ export function useServices(opts?: { onlyActive?: boolean }) {
       let q = supabase
         .from('services')
         .select(
-          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
+          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, service_photos(*), service_modifiers(*), service_plus(id, service_id, name, price, sort_order), service_categories(id, name, slug, subrole)',
         )
         .order('display_order', { ascending: true })
         .order('updated_at', { ascending: false })
@@ -49,7 +52,7 @@ export function useServicesBySupplier(supplierId: string | null) {
       const { data, error } = await supabase
         .from('services')
         .select(
-          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, service_photos(*), service_modifiers(*), service_categories(id, name, slug, subrole)',
+          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, service_photos(*), service_modifiers(*), service_plus(id, service_id, name, price, sort_order), service_categories(id, name, slug, subrole)',
         )
         .eq('fornitore_id', supplierId!)
         .eq('is_active', true)
@@ -186,6 +189,30 @@ export function useRemoveModifier() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('service_modifiers').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
+  })
+}
+
+// "Plus" del servizio: sotto-voci con prezzo proprio → il catalogo mostra "A partire da".
+export function useAddPlus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { service_id: string; name: string; price: number; sort_order?: number }) => {
+      const { data, error } = await (supabase.from as any)('service_plus').insert(payload).select().single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
+  })
+}
+
+export function useRemovePlus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.from as any)('service_plus').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),

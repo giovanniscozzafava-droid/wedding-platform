@@ -490,12 +490,22 @@ function ServiceCard({ s, isProvider, onEdit, onDelete, onDuplicate, onView }: {
             <p className="text-sm text-[rgb(var(--fg-muted))] line-clamp-2 mt-1">{s.description}</p>
           )}
         </div>
-        <div className="flex items-baseline gap-1">
-          <span className="font-display text-2xl tabular-nums">€ {Number(s.base_price).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-          <span className="text-xs text-[rgb(var(--fg-subtle))] uppercase tracking-wide">
-            /{s.unit.toLowerCase()}
-          </span>
-        </div>
+        {(() => {
+          const plusPrices = (s.service_plus ?? []).map((p) => Number(p.price)).filter((n) => n > 0)
+          const base = Number(s.base_price)
+          const hasPlus = plusPrices.length > 0
+          // "A partire da" = prezzo piu' basso acquistabile (base se >0, altrimenti il Plus piu' economico).
+          const startingFrom = hasPlus ? Math.min(...(base > 0 ? [base, ...plusPrices] : plusPrices)) : base
+          return (
+            <div className="flex items-baseline gap-1 flex-wrap">
+              {hasPlus && <span className="text-[11px] text-[rgb(var(--fg-subtle))] mr-0.5">A partire da</span>}
+              <span className="font-display text-2xl tabular-nums">€ {startingFrom.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-xs text-[rgb(var(--fg-subtle))] uppercase tracking-wide">
+                /{s.unit.toLowerCase()}
+              </span>
+            </div>
+          )
+        })()}
         {s.service_modifiers.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {s.service_modifiers.slice(0, 3).map((m) => (

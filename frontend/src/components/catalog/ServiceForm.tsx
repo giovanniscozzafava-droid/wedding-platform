@@ -8,7 +8,7 @@ import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   useAddModifier, useCategories, useCreateService, useRemoveModifier, useUpdateService,
-  useUploadPhoto, useDeletePhoto, useDeleteService, type ServiceWithExtras,
+  useUploadPhoto, useDeletePhoto, useDeleteService, useAddPlus, useRemovePlus, type ServiceWithExtras,
 } from '@/hooks/useCatalog'
 import { presetsFor, type ServicePreset } from '@/lib/service-presets'
 import { CategoryPicker } from '@/components/catalog/CategoryPicker'
@@ -28,6 +28,8 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
   const update = useUpdateService()
   const addMod = useAddModifier()
   const remMod = useRemoveModifier()
+  const addPlus = useAddPlus()
+  const remPlus = useRemovePlus()
   const upPhoto = useUploadPhoto()
   const delPhoto = useDeletePhoto()
   const { data: cats } = useCategories(subrole)
@@ -45,6 +47,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
   const [photoProg, setPhotoProg] = useState<{ done: number; total: number; name?: string; pct?: number } | null>(null)
   const [savedId, setSavedId] = useState<string | null>(service?.id ?? null)
   const [newMod, setNewMod] = useState({ name: '', type: 'PERCENT' as ModType, value: '', date_from: '', date_to: '' })
+  const [newPlus, setNewPlus] = useState({ name: '', price: '' })
   // Foto tracciate localmente: la prop `service` non si aggiorna dopo la creazione,
   // quindi la griglia mostrerebbe "Nessuna foto" anche dopo l'upload. Con questo stato
   // le foto appena aggiunte compaiono subito e il gate "foto obbligatoria" è coerente.
@@ -131,6 +134,18 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
       } as any)
       setNewMod({ name: '', type: 'PERCENT', value: '', date_from: '', date_to: '' })
       toast.success('Modificatore aggiunto')
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  async function handleAddPlus() {
+    if (!savedId || !newPlus.name.trim()) return
+    try {
+      await addPlus.mutateAsync({
+        service_id: savedId, name: newPlus.name.trim(), price: Number(newPlus.price || 0),
+        sort_order: (service?.service_plus ?? []).length,
+      })
+      setNewPlus({ name: '', price: '' })
+      toast.success('Plus aggiunto')
     } catch (e) { toast.error((e as Error).message) }
   }
 
@@ -397,6 +412,36 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                       <span>→</span>
                       <Input type="date" className="h-8 w-auto" value={newMod.date_to} onChange={(e) => setNewMod((m) => ({ ...m, date_to: e.target.value }))} />
                     </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-5" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <h3 className="font-medium text-sm mb-1">Plus (opzioni con prezzo)</h3>
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] mb-3">Sotto-voci opzionali con un prezzo proprio (es. “Copertina in legno +80”, “Pagina extra +12”). Nel catalogo il servizio mostrerà <strong>“A partire da”</strong>.</p>
+                  <ul className="space-y-2 mb-4">
+                    {(service?.service_plus ?? []).slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((p) => (
+                      <li key={p.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
+                        <div>
+                          <p className="font-medium">{p.name}</p>
+                          <p className="text-xs text-[rgb(var(--fg-subtle))]">+ € {Number(p.price).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remPlus.mutate(p.id)}>
+                          <Trash2 size={14} />
+                        </Button>
+                      </li>
+                    ))}
+                    {(service?.service_plus ?? []).length === 0 && (
+                      <li className="text-xs text-[rgb(var(--fg-subtle))]">Nessun plus. Aggiungine uno qui sotto.</li>
+                    )}
+                  </ul>
+                  <div className="grid grid-cols-12 gap-2">
+                    <Input className="col-span-8" placeholder="Es. Copertina in legno" value={newPlus.name}
+                      onChange={(e) => setNewPlus((p) => ({ ...p, name: e.target.value }))} />
+                    <Input className="col-span-3" type="number" step="0.01" placeholder="Prezzo €" value={newPlus.price}
+                      onChange={(e) => setNewPlus((p) => ({ ...p, price: e.target.value }))} />
+                    <Button type="button" variant="outline" size="icon" className="col-span-1" onClick={handleAddPlus}>
+                      <Plus size={16} />
+                    </Button>
                   </div>
                 </div>
 
