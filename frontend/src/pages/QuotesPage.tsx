@@ -108,12 +108,17 @@ export default function QuotesPage() {
   async function handleCreate(e: FormEvent) {
     e.preventDefault()
     setCreateErr(null)
+    // Regola: un preventivo nasce SEMPRE con email cliente + data evento (servono anche a
+    // riconoscere l'evento in modo univoco). Niente preventivi senza.
+    const email = form.client_email.trim()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setCreateErr('Serve l’email del cliente: un preventivo nasce sempre con email e data.'); return }
+    if (!form.event_date) { setCreateErr('Serve la data dell’evento: un preventivo nasce sempre con email e data.'); return }
     try {
       const q = await create.mutateAsync({
         title: form.title.trim(),
         client_name: form.client_name || null,
-        client_email: form.client_email || null,
-        event_date: form.event_date || null,
+        client_email: email,
+        event_date: form.event_date,
         guest_count: form.guest_count ? Number(form.guest_count) : null,
         event_location: form.event_location || null,
         event_kind: form.event_kind || 'matrimonio',
@@ -308,12 +313,12 @@ export default function QuotesPage() {
                     <Input id="cname" value={form.client_name} onChange={(e) => setForm((f) => ({ ...f, client_name: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="cemail">Email</Label>
-                    <Input id="cemail" type="email" value={form.client_email} onChange={(e) => setForm((f) => ({ ...f, client_email: e.target.value }))} />
+                    <Label htmlFor="cemail">Email <span className="text-[rgb(var(--rose-500))]">*</span></Label>
+                    <Input id="cemail" type="email" required value={form.client_email} onChange={(e) => setForm((f) => ({ ...f, client_email: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="edate">Data evento</Label>
-                    <Input id="edate" type="date" value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} />
+                    <Label htmlFor="edate">Data evento <span className="text-[rgb(var(--rose-500))]">*</span></Label>
+                    <Input id="edate" type="date" required value={form.event_date} onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="gc">Invitati</Label>
