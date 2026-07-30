@@ -130,7 +130,20 @@ export default function CoupleDashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Tab iniziale leggibile da URL (?tab=preventivo) — es. atterraggio post-questionario.
   const wantedTab = searchParams.get('tab') as Tab | null
-  const [tab, setTab] = useState<Tab>(wantedTab ?? 'overview')
+  // Regola insindacabile: se non c'e' un tab esplicito nell'URL, l'atterraggio dipende dalla firma:
+  // NON ha firmato → sempre "Preventivo"; ha firmato almeno un preventivo → "Overview" (principale).
+  const [tab, setTab] = useState<Tab | null>(wantedTab)
+  useEffect(() => {
+    if (tab !== null) return // gia' deciso (URL esplicito o scelta utente)
+    let alive = true
+    void (async () => {
+      try {
+        const { data } = await (supabase.rpc as any)('couple_has_signed')
+        if (alive) setTab(data === true ? 'overview' : 'preventivo')
+      } catch { if (alive) setTab('preventivo') } // fallback prudente: la regola vuole Preventivo
+    })()
+    return () => { alive = false }
+  }, [tab])
 
   const list = weddings ?? []
   const wid = selectedId ?? list[0]?.entry?.id ?? null
@@ -201,7 +214,7 @@ export default function CoupleDashboard() {
         </div>
       )}
 
-      {selected && wid && <WeddingView wedding={selected.entry} memberRole={selected.role} entryId={wid} tab={tab} setTab={setTab} />}
+      {selected && wid && tab && <WeddingView wedding={selected.entry} memberRole={selected.role} entryId={wid} tab={tab} setTab={setTab} />}
       <AppFooter />
     </div>
   )
