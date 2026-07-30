@@ -5,6 +5,7 @@ import { HelmetProvider } from 'react-helmet-async'
 import { Toaster } from '@/lib/toast'
 import App from './App.tsx'
 import { ThemeProvider } from './lib/theme.tsx'
+import { I18nProvider } from './lib/i18n.tsx'
 import { installErrorReporting } from './lib/errorReporting'
 import { hardReloadOnce } from './lib/lazyWithRetry'
 import './index.css'
@@ -44,6 +45,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HelmetProvider>
       <ThemeProvider>
+        <I18nProvider>
         <QueryClientProvider client={queryClient}>
           <App />
           <Toaster
@@ -58,6 +60,7 @@ createRoot(document.getElementById('root')!).render(
           }}
           />
         </QueryClientProvider>
+        </I18nProvider>
       </ThemeProvider>
     </HelmetProvider>
   </StrictMode>,

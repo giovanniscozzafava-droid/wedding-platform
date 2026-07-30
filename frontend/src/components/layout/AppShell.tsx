@@ -34,6 +34,8 @@ import { ConflictAlertsBanner } from '@/components/ConflictAlertsBanner'
 import { Filo } from '@/components/filo/Filo'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
+import { useT } from '@/lib/i18n'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { cn } from '@/lib/utils'
 
 const ROLE_LABEL: Record<string, string> = {
@@ -134,6 +136,7 @@ const NAV_FALLBACK_GROUPS: NavGroup[] = [
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile, user, signOut } = useAuth()
   const { theme, toggle } = useTheme()
+  const { t } = useT()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [unreadDots, setUnreadDots] = useState<Set<string>>(new Set())
   const [navCounts, setNavCounts] = useState<Record<string, number>>({})   // badge numerico (es. suggerimenti in attesa su Richieste)
@@ -230,7 +233,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NotificationBell align="start" />
           <CandidacyInbox placement="beside" />
         </div>
-        <div className="px-4 pb-2"><HelpModeToggle /></div>
+        <div className="px-4 pb-2 flex items-center justify-between gap-2"><HelpModeToggle /><LanguageSwitcher /></div>
 
         <nav className="flex-1 px-3 py-2 overflow-y-auto">
           <NavGroups groups={NAV_GROUPS} dots={unreadDots} counts={navCounts} />
@@ -267,7 +270,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors hover:bg-[rgb(var(--rose-100))]"
               style={{ color: 'rgb(var(--fg-muted))' }}>
               <LogOut size={14} />
-              <span>Esci</span>
+              <span>{t('Esci')}</span>
             </button>
           </div>
         </div>
@@ -329,7 +332,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="w-full inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium hover:bg-[rgb(var(--rose-100))]"
               style={{ color: 'rgb(var(--rose-500))' }}>
               <LogOut size={14} />
-              <span>Esci</span>
+              <span>{t('Esci')}</span>
             </button>
           </div>
         </aside>
@@ -376,13 +379,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function NavGroups({ groups, onNavigate, dots, counts }: { groups: NavGroup[]; onNavigate?: () => void; dots?: Set<string>; counts?: Record<string, number> }) {
+  const { t } = useT()
   return (
     <div className="space-y-3">
       {groups.map((g, gi) => (
         <div key={g.section ?? `g${gi}`} className="space-y-0.5">
           {g.section && (
             <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--fg-subtle))]">
-              {g.section}
+              {t(g.section)}
             </p>
           )}
           {g.items.map((n) => (
@@ -408,7 +412,7 @@ function NavGroups({ groups, onNavigate, dots, counts }: { groups: NavGroup[]; o
                   {/* Sotto-voce: trattino di connessione al genitore (es. Suggerimenti sotto Preventivi). */}
                   {n.indent && <span aria-hidden className="absolute left-[18px] top-0 bottom-0 w-px bg-[rgb(var(--border))]" />}
                   <n.icon size={n.indent ? 16 : 18} strokeWidth={1.5} className={isActive ? 'text-[rgb(var(--gold-700))]' : undefined} />
-                  <span className="flex-1">{n.label}</span>
+                  <span className="flex-1">{t(n.label)}</span>
                   {counts?.[n.to] ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tabular-nums shrink-0" aria-label={`${counts[n.to]} in attesa`}>{counts[n.to]}</span> : null}
                   {dots?.has(n.to) && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} aria-label="Nuove notifiche" />}
                   {n.badge && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] tracking-widest">{n.badge}</span>}
