@@ -79,11 +79,41 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
     const yes = yesList.length
     const no = list.filter((g: any) => g.rsvp === 'NO').length
     const pending = list.filter((g: any) => g.rsvp === 'PENDING').length
-    const adults  = yesList.filter((g: any) => (g.age_group ?? 'ADULT') === 'ADULT').reduce((s: number, g: any) => s + (g.party_size ?? 1), 0)
-    const kids    = yesList.filter((g: any) => g.age_group === 'CHILD').reduce((s: number, g: any) => s + (g.party_size ?? 1), 0)
+    // Regola scelta: 1 riga = 1 persona. Adulti/Bambini/Infant contano le RIGHE confermate
+    // per fascia d'eta' → Adulti + Bambini + Infant = Confermati (i numeri tornano).
+    const adults  = yesList.filter((g: any) => (g.age_group ?? 'ADULT') === 'ADULT').length
+    const kids    = yesList.filter((g: any) => g.age_group === 'CHILD').length
     const infants = yesList.filter((g: any) => g.age_group === 'INFANT').length
+    // Il '+1' non gonfia le fasce d'eta': lo mostriamo a parte come accompagnatori.
+    const companions = yesList.reduce((s: number, g: any) => s + Math.max(0, (g.party_size ?? 1) - 1), 0)
     const accessibility = list.filter((g: any) => (Array.isArray(g.accessibility_needs) && g.accessibility_needs.length > 0) || g.accessibility_notes).length
-    return { total, yes, no, pending, adults, kids, infants, accessibility }
+    // Pezzi inviti/bomboniere per NUCLEO: un invito per nucleo (etichetta gruppo), le righe
+    // senza gruppo contano 1 invito a testa. Le bomboniere si contano per persona confermata.
+    const groups = new Set<string>()
+    let soloInvites = 0
+    for (const g of list) {
+      const gl = String(g.group_label ?? '').trim().toLowerCase()
+      if (gl) groups.add(gl); else soloInvites++
+    }
+    const inviti = groups.size + soloInvites
+    const bomboniere = yes
+    return { total, yes, no, pending, adults, kids, infants, companions, accessibility, inviti, bomboniere, nuclei: groups.size }
+  }, [guests])
+
+  // Riepilogo "pezzi inviti per nucleo": per ogni gruppo (o singolo) quante persone e quanti confermati.
+  const [showInviti, setShowInviti] = useState(false)
+  const invitiBreakdown = useMemo(() => {
+    const map = new Map<string, { label: string; persone: number; confermati: number }>()
+    for (const g of (guests ?? []) as any[]) {
+      const raw = String(g.group_label ?? '').trim()
+      const key = raw ? raw.toLowerCase() : `__solo__${g.id}`
+      const label = raw || (g.full_name ?? 'Senza nucleo')
+      const cur = map.get(key) ?? { label, persone: 0, confermati: 0 }
+      cur.persone += 1
+      if (g.rsvp === 'YES') cur.confermati += 1
+      map.set(key, cur)
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, 'it'))
   }, [guests])
 
   async function quickAdd() {
@@ -143,15 +173,46 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
         </div>
       </header>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-3">
         <Stat label="Totale" value={stats.total} />
         <Stat label="Confermati" value={stats.yes} tone="emerald" />
         <Stat label="In attesa" value={stats.pending} tone="amber" />
         <Stat label="Adulti" value={stats.adults} />
         <Stat label="Bambini" value={stats.kids} />
         <Stat label="Infant" value={stats.infants} />
+        <Stat label="Accompagnatori" value={stats.companions} />
         <Stat label="♿ Esigenze" value={stats.accessibility} tone={stats.accessibility > 0 ? 'amber' : undefined} />
       </div>
+
+      {/* Pezzi inviti/bomboniere per NUCLEO: evita gli schemi cartacei */}
+      <Card className="p-3 mb-5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-2xl tabular-nums">{stats.inviti}</span>
+            <span className="text-sm text-[rgb(var(--fg-muted))]">inviti <span className="text-[rgb(var(--fg-subtle))]">({stats.nuclei} nuclei + {stats.inviti - stats.nuclei} singoli)</span></span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-2xl tabular-nums">{stats.bomboniere}</span>
+            <span className="text-sm text-[rgb(var(--fg-muted))]">bomboniere <span className="text-[rgb(var(--fg-subtle))]">(1 per confermato)</span></span>
+          </div>
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setShowInviti((v) => !v)}>
+            {showInviti ? 'Nascondi' : 'Dettaglio per nucleo'}
+          </Button>
+        </div>
+        {showInviti && (
+          <div className="mt-3 border-t pt-3" style={{ borderColor: 'rgb(var(--border))' }}>
+            <p className="text-[11px] text-[rgb(var(--fg-subtle))] mb-2">Un invito per nucleo (stessa etichetta “gruppo”); chi non ha gruppo conta 1 invito. Imposta il gruppo nella colonna “Gruppo”.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 text-sm">
+              {invitiBreakdown.map((b, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 border-b border-dashed py-0.5" style={{ borderColor: 'rgb(var(--border))' }}>
+                  <span className="truncate">{b.label}</span>
+                  <span className="text-[rgb(var(--fg-subtle))] tabular-nums shrink-0">{b.persone} pers · {b.confermati} conf.</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
 
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <div className="relative flex-1 sm:max-w-md">
@@ -201,6 +262,7 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
               <th className="px-4 py-3 text-xs uppercase tracking-wider">RSVP</th>
               <th className="px-4 py-3 text-xs uppercase tracking-wider">Diet</th>
               <th className="px-4 py-3 text-xs uppercase tracking-wider">Lato</th>
+              <th className="px-4 py-3 text-xs uppercase tracking-wider">Gruppo</th>
               <th className="px-4 py-3 text-xs uppercase tracking-wider">Tavolo</th>
               <th className="px-4 py-3 text-xs uppercase tracking-wider">+1</th>
               <th className="px-4 py-3 text-xs uppercase tracking-wider">Età</th>
@@ -210,7 +272,7 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-[rgb(var(--fg-subtle))]">Nessun invitato.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-10 text-center text-[rgb(var(--fg-subtle))]">Nessun invitato.</td></tr>
             )}
             {filtered.map((g: any) => (
               <tr key={g.id}
@@ -257,6 +319,10 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
                     <option value="SPOSO">{sideLabels.SPOSO}</option>
                     <option value="ENTRAMBI">{sideLabels.ENTRAMBI}</option>
                   </select>
+                </td>
+                <td className="px-4 py-2">
+                  <Input className="h-8 text-sm w-32" defaultValue={g.group_label ?? ''} placeholder="es. Fam. Rossi"
+                    onBlur={(e) => { if (e.target.value !== (g.group_label ?? '')) update.mutate({ id: g.id, patch: { group_label: e.target.value || null } }) }} />
                 </td>
                 <td className="px-4 py-2">
                   <select className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
@@ -326,6 +392,11 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
                 <span className="text-[10px] uppercase text-[rgb(var(--fg-muted))]">Dieta / allergie</span>
                 <Input className="h-8 text-xs" defaultValue={g.diet ?? ''} placeholder="vegan, allergie..."
                   onBlur={(e) => { if (e.target.value !== (g.diet ?? '')) update.mutate({ id: g.id, patch: { diet: e.target.value || null } }) }} />
+              </label>
+              <label className="flex flex-col gap-1 col-span-2">
+                <span className="text-[10px] uppercase text-[rgb(var(--fg-muted))]">Gruppo / nucleo (es. Fam. Rossi)</span>
+                <Input className="h-8 text-xs" defaultValue={g.group_label ?? ''} placeholder="Fam. Rossi, Amici lavoro..."
+                  onBlur={(e) => { if (e.target.value !== (g.group_label ?? '')) update.mutate({ id: g.id, patch: { group_label: e.target.value || null } }) }} />
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-[10px] uppercase text-[rgb(var(--fg-muted))]">Tavolo</span>
