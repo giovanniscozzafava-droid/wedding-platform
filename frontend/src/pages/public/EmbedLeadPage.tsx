@@ -106,6 +106,7 @@ export default function EmbedLeadPage() {
 
   // Viewport stretto (iframe su mobile): i campi a 2 colonne si impilano.
   const [narrow, setNarrow] = useState(false)
+  const [wantsSuggestions, setWantsSuggestions] = useState(false)  // "ti suggerisco dei nominativi?" → esplode bloccato/in cerca
   useEffect(() => {
     const check = () => setNarrow((rootRef.current?.clientWidth ?? window.innerWidth) < 480)
     check()
@@ -459,35 +460,43 @@ export default function EmbedLeadPage() {
               </Field>
             </div>
 
-            {/* A CHE PUNTO SIETE: cosa hanno già scelto → il lead sa quali categorie suggerire. */}
+            {/* TI SUGGERISCO DEI NOMINATIVI? → esplode: cosa hai già BLOCCATO e cosa STAI CERCANDO.
+                Le categorie 'in cerca' generano il lead per suggerirti professionisti di fiducia. */}
             {orgCats.length > 0 && (
               <div style={{ marginTop: 6, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.08)' }}>
-                <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>A che punto siete con l'organizzazione?</p>
-                <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Segnate cosa avete già scelto: così {proName || 'chi vi seguirà'} sa dove può darvi una mano.</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {orgCats.map((cat) => {
-                    const st = form.organizing[cat]
-                    const opt = (v: 'chosen' | 'open' | 'na', label: string) => (
-                      <button type="button" onClick={() => setOrg(cat, v)}
-                        style={{ fontSize: 11, borderRadius: 99, padding: '3px 10px', cursor: 'pointer', border: `1px solid ${st === v ? primary : 'rgba(0,0,0,.15)'}`, background: st === v ? primary : '#fff', color: st === v ? '#fff' : '#555', fontWeight: st === v ? 600 : 400 }}>{label}</button>
-                    )
-                    return (
-                      <div key={cat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 13, textTransform: 'capitalize' }}>{cat}</span>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          {opt('chosen', 'Già scelto')}
-                          {opt('open', 'Non ancora')}
-                          {opt('na', 'Non serve')}
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={wantsSuggestions} onChange={(e) => setWantsSuggestions(e.target.checked)} style={{ marginTop: 3 }} />
+                  <span>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>Ti piacerebbe se ti suggerissi anche dei nominativi?</span>
+                    <span style={{ display: 'block', fontSize: 12, opacity: 0.6, marginTop: 2 }}>Segna cosa hai già bloccato e cosa stai ancora cercando: così {proName || 'chi ti seguirà'} può proporti professionisti di fiducia per quello che ti manca.</span>
+                  </span>
+                </label>
+                {wantsSuggestions && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+                    {orgCats.map((cat) => {
+                      const st = form.organizing[cat]
+                      const opt = (v: 'chosen' | 'open' | 'na', label: string) => (
+                        <button type="button" onClick={() => setOrg(cat, v)}
+                          style={{ fontSize: 11, borderRadius: 99, padding: '3px 10px', cursor: 'pointer', border: `1px solid ${st === v ? primary : 'rgba(0,0,0,.15)'}`, background: st === v ? primary : '#fff', color: st === v ? '#fff' : '#555', fontWeight: st === v ? 600 : 400 }}>{label}</button>
+                      )
+                      return (
+                        <div key={cat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, textTransform: 'capitalize' }}>{cat}</span>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {opt('chosen', 'Già bloccato')}
+                            {opt('open', 'Sto cercando')}
+                            {opt('na', 'Non serve')}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                {locationOpen && (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={form.wants_location} onChange={(e) => setForm((f) => ({ ...f, wants_location: e.target.checked }))} />
-                    Vorrei ricevere qualche <b>proposta di location</b>
-                  </label>
+                      )
+                    })}
+                    {locationOpen && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 13, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={form.wants_location} onChange={(e) => setForm((f) => ({ ...f, wants_location: e.target.checked }))} />
+                        Vorrei ricevere qualche <b>proposta di location</b>
+                      </label>
+                    )}
+                  </div>
                 )}
               </div>
             )}
