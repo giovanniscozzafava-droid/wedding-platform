@@ -1083,11 +1083,6 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   const confirmedTotal = data.items
     .filter((it) => it.contracted_at || it.client_decision === 'ACCETTATO')
     .reduce((s, it) => s + Number(it.line_client || 0), 0)
-  const fmtAddTime = (d?: string | null) => {
-    if (!d) return null
-    try { return new Date(d).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }
-    catch { return null }
-  }
 
   return (
     <div className="space-y-5">
@@ -1167,61 +1162,57 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
               {grp.items.length > 1 && (
                 <p className="text-[11px] text-[rgb(var(--fg-subtle))] mb-1.5">Scegli l'opzione che preferisci.</p>
               )}
-              <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+              {/* CARD cliccabili: tocca per SCEGLIERE (si somma al totale). Ritocca per togliere.
+                  Molto piu' chiaro di un elenco: il cliente compone la sua selezione. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {grp.items.map((it) => {
                   const dec = it.client_decision ?? 'IN_ATTESA'
                   const isContracted = !!it.contracted_at
+                  const selected = isContracted || dec === 'ACCETTATO'
+                  const rejected = dec === 'RIFIUTATO'
+                  const maybe = dec === 'FORSE'
+                  const clickable = !isContracted && !isClosed
                   return (
-                    <li key={it.id} className="py-3 flex items-start gap-3">
-                      {it.photo
-                        ? <img src={it.photo} alt="" loading="lazy" className="w-14 h-14 rounded-lg object-cover shrink-0 bg-[rgb(var(--bg-sunken))]" />
-                        : <div className="w-14 h-14 rounded-lg shrink-0 bg-[rgb(var(--bg-sunken))]" />}
-                      <div className="flex-1 min-w-0">
+                    <div key={it.id}
+                      role={clickable ? 'button' : undefined} tabIndex={clickable ? 0 : undefined}
+                      onClick={() => { if (clickable && busyItem !== it.id) void decide(it.id, selected ? ('IN_ATTESA' as any) : 'ACCETTATO') }}
+                      onKeyDown={(e) => { if (clickable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); void decide(it.id, selected ? ('IN_ATTESA' as any) : 'ACCETTATO') } }}
+                      className={`relative text-left rounded-2xl border overflow-hidden transition ${clickable ? 'cursor-pointer' : ''} ${busyItem === it.id ? 'opacity-60' : ''} ${rejected ? 'opacity-55' : ''}`}
+                      style={selected
+                        ? { borderColor: 'rgb(var(--gold-500))', boxShadow: '0 0 0 2px rgb(var(--gold-500) / 0.35)', background: 'rgb(var(--gold-500) / 0.06)' }
+                        : { borderColor: 'rgb(var(--border))' }}>
+                      {it.photo && <img src={it.photo} alt="" loading="lazy" className="w-full h-28 object-cover bg-[rgb(var(--bg-sunken))]" />}
+                      {/* Spunta di selezione in alto a destra */}
+                      {clickable && (
+                        <span className="absolute top-2 right-2 h-6 w-6 rounded-full grid place-items-center text-[13px] font-bold shadow"
+                          style={selected ? { background: 'rgb(var(--gold-600))', color: '#fff' } : { background: 'rgb(var(--bg-elev))', color: 'rgb(var(--fg-subtle))', border: '1px solid rgb(var(--border))' }}>
+                          {selected ? '✓' : '+'}
+                        </span>
+                      )}
+                      <div className="p-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-sm">{it.name_snapshot}</p>
-                          {isFornitore ? (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--fg-muted))', background: 'rgb(var(--bg-sunken))' }}>Opzione</span>
-                          ) : isContracted ? (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>✓ Firmato nel preventivo</span>
-                          ) : (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>Integrazione</span>
-                          )}
+                          {!isFornitore && isContracted && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>✓ nel contratto</span>}
+                          {!isFornitore && !isContracted && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>Integrazione</span>}
                         </div>
-                        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">
-                          {it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}
-                          {it.created_at && <span className="ml-2 text-[10px]">· aggiunta il {fmtAddTime(it.created_at)}</span>}
-                        </p>
-                        {dec === 'RIFIUTATO' && it.client_decline_reason && (
-                          <p className="text-[10px] italic text-[rgb(var(--fg-subtle))] mt-0.5">Motivo: {it.client_decline_reason}</p>
-                        )}
-                        {/* Decisione per-voce (solo integrazioni live, preventivo non concluso) */}
-                        {!isContracted && !isClosed && (
-                          <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {dec === 'IN_ATTESA' ? (
-                              <>
-                                <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'ACCETTATO')} className="px-2 py-1 rounded-md text-white text-[11px] font-medium disabled:opacity-50" style={{ background: '#16a34a' }}>Approva</button>
-                                <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'FORSE')} className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>In forse</button>
-                                <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'RIFIUTATO')} className="px-2 py-1 rounded-md text-[11px] font-medium border disabled:opacity-50" style={{ borderColor: 'rgb(var(--border))' }}>Non accetto</button>
-                              </>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={
-                                  dec === 'ACCETTATO' ? { color: '#16a34a', background: '#16a34a1a' }
-                                  : dec === 'FORSE' ? { color: '#7c3aed', background: '#7c3aed1a' }
-                                  : { color: '#dc2626', background: '#dc26261a' }}>
-                                  {dec === 'ACCETTATO' ? '✓ Approvata' : dec === 'FORSE' ? '? In forse' : '✕ Non accettata'}
-                                </span>
-                                <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'IN_ATTESA' as any)} className="text-[10px] underline text-[rgb(var(--fg-subtle))] disabled:opacity-50">cambia</button>
-                              </div>
-                            )}
+                        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">{it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}</p>
+                        <p className="font-display text-xl mt-1">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                        {selected && clickable && <p className="text-[11px] font-medium mt-1" style={{ color: 'rgb(var(--gold-700))' }}>✓ Scelta — si somma al totale</p>}
+                        {maybe && <p className="text-[11px] font-medium mt-1" style={{ color: '#7c3aed' }}>? In forse</p>}
+                        {rejected && <p className="text-[11px] font-medium mt-1" style={{ color: '#dc2626' }}>Scartata</p>}
+                        {/* Azioni secondarie: non tolgono chiarezza al clic principale */}
+                        {clickable && (
+                          <div className="mt-1.5 flex flex-wrap gap-3" onClick={(e) => e.stopPropagation()}>
+                            {!maybe && <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'FORSE')} className="text-[11px] underline text-[rgb(var(--fg-subtle))] disabled:opacity-50">In forse</button>}
+                            {!rejected && <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'RIFIUTATO')} className="text-[11px] underline text-[rgb(var(--fg-subtle))] disabled:opacity-50">Non fa per me</button>}
+                            {(maybe || rejected) && <button disabled={busyItem === it.id} onClick={() => void decide(it.id, 'IN_ATTESA' as any)} className="text-[11px] underline text-[rgb(var(--fg-subtle))] disabled:opacity-50">annulla</button>}
                           </div>
                         )}
                       </div>
-                      <p className="font-medium text-sm whitespace-nowrap">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-                    </li>
+                    </div>
                   )
                 })}
-              </ul>
+              </div>
             </div>
           ))
         })()}
