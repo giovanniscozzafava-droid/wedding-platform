@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '@/lib/toast'
 import { X, Users, Send, Loader2, Check, UserPlus, Mail } from 'lucide-react'
@@ -46,6 +46,16 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
     }
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
   }, [collabs, followed])
+  // Professionisti GIA' suggeriti per QUESTO cliente: restano in lista ma NON piu' spuntabili.
+  const [already, setAlready] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const { data } = await (supabase.from as any)('supplier_suggestions').select('supplier_id').eq('source_quote_id', quoteId)
+      if (alive && Array.isArray(data)) setAlready(new Set((data as { supplier_id: string }[]).map((r) => r.supplier_id)))
+    })()
+    return () => { alive = false }
+  }, [quoteId])
   const [selected, setSelected] = useState<Set<string> | null>(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -54,9 +64,11 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
   const [inviteSubrole, setInviteSubrole] = useState('')
   const [inviteBusy, setInviteBusy] = useState(false)
 
-  // Preselezione: tutti spuntati al primo render con dati.
-  const sel = selected ?? new Set(suppliers.map((s) => s.id))
+  // Preselezione: tutti i NON ancora suggeriti (i gia' suggeriti restano in lista ma non spuntabili).
+  const selectable = useMemo(() => suppliers.filter((s) => !already.has(s.id)), [suppliers, already])
+  const sel = selected ?? new Set(selectable.map((s) => s.id))
   const toggle = (id: string) => {
+    if (already.has(id)) return // gia' suggerito → non spuntabile
     const next = new Set(sel)
     next.has(id) ? next.delete(id) : next.add(id)
     setSelected(next)
@@ -117,21 +129,23 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
           ) : (
             <>
               <div className="flex items-center justify-between text-xs text-[rgb(var(--fg-muted))]">
-                <span><strong>{sel.size}</strong>/{suppliers.length} selezionati</span>
-                <button className="hover:underline" onClick={() => setSelected(sel.size === suppliers.length ? new Set() : new Set(suppliers.map((s) => s.id)))}>{sel.size === suppliers.length ? 'Deseleziona tutti' : 'Seleziona tutti'}</button>
+                <span><strong>{sel.size}</strong>/{selectable.length} selezionati{already.size > 0 ? ` · ${already.size} già suggeriti` : ''}</span>
+                {selectable.length > 0 && <button className="hover:underline" onClick={() => setSelected(sel.size === selectable.length ? new Set() : new Set(selectable.map((s) => s.id)))}>{sel.size === selectable.length ? 'Deseleziona tutti' : 'Seleziona tutti'}</button>}
               </div>
               <div className="space-y-1.5">
                 {suppliers.map((s) => {
-                  const on = sel.has(s.id)
+                  const done = already.has(s.id)
+                  const on = !done && sel.has(s.id)
                   const name = s.name
                   return (
-                    <button key={s.id} onClick={() => toggle(s.id)}
-                      className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]/40' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
-                      <span className={`h-5 w-5 shrink-0 rounded-md border flex items-center justify-center ${on ? 'bg-[rgb(var(--gold-500))] border-transparent text-white' : 'border-[rgb(var(--border-strong))]'}`}>{on && <Check size={13} />}</span>
+                    <button key={s.id} onClick={() => toggle(s.id)} disabled={done}
+                      className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${done ? 'border-[rgb(var(--border))] opacity-60 cursor-default' : on ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]/40' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                      <span className={`h-5 w-5 shrink-0 rounded-md border flex items-center justify-center ${done ? 'bg-[rgb(var(--emerald-500))] border-transparent text-white' : on ? 'bg-[rgb(var(--gold-500))] border-transparent text-white' : 'border-[rgb(var(--border-strong))]'}`}>{(done || on) && <Check size={13} />}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium truncate">{name}</span>
                         {s.subrole && <span className="block text-[11px] text-[rgb(var(--fg-subtle))] capitalize">{s.subrole}</span>}
                       </span>
+                      {done && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--emerald-700))', background: 'rgb(var(--emerald-500) / 0.14)' }}>Già suggerito</span>}
                     </button>
                   )
                 })}
