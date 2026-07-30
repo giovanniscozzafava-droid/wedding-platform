@@ -958,6 +958,7 @@ type PreventivoData = {
   error?: string
 }
 
+type ReceivedQuote = { quote_id: string; professionista: string | null; subrole: string | null; role: string | null; status: string; total_client: number | null; is_main: boolean; quote_origin: string | null }
 function PreventivoCouple({ entryId }: { entryId: string }) {
   const [data, setData] = useState<PreventivoData | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -965,26 +966,43 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   const [signed, setSigned] = useState(false)
   const [busyItem, setBusyItem] = useState<string | null>(null)
   const [concluding, setConcluding] = useState(false)
+  // Tutti i preventivi ricevuti per l'evento (fotografo + suggeriti), come "cartelle" per categoria.
+  const [received, setReceived] = useState<ReceivedQuote[]>([])
+  const [selQuoteId, setSelQuoteId] = useState<string | null>(null)
 
   async function load(initial = false) {
     if (initial) setLoading(true)
     try {
-      const { data: res, error } = await (supabase.rpc as any)('couple_get_quote_for_entry', { p_entry_id: entryId })
+      // Dettaglio del preventivo selezionato (per-quote); fallback al principale dell'evento.
+      const { data: res, error } = selQuoteId
+        ? await (supabase.rpc as any)('couple_get_quote_detail', { p_quote_id: selQuoteId })
+        : await (supabase.rpc as any)('couple_get_quote_for_entry', { p_entry_id: entryId })
       if (error) throw error
       const p = res as PreventivoData
       if (p?.error) {
         if (p.error === 'no_quote') setErr('Il tuo organizzatore non ha ancora generato un preventivo.')
-        else if (p.error === 'not_couple_member') setErr('Non fai parte di questo evento.')
+        else if (p.error === 'not_couple_member' || p.error === 'forbidden') setErr('Non fai parte di questo evento.')
+        else if (p.error === 'quote_not_found') setErr('Preventivo non trovato.')
         else setErr(p.error)
         return
       }
-      setData(p)
-      if (p.accepted_at) setSigned(true)
+      setErr(null); setData(p)
+      setSigned(!!p.accepted_at)
     } catch (e) { setErr((e as Error).message) }
     finally { if (initial) setLoading(false) }
   }
 
-  useEffect(() => { void load(true) }, [entryId])
+  // Elenco preventivi ricevuti → cartelle. Seleziona di default il principale (o il primo).
+  useEffect(() => {
+    void (async () => {
+      const { data } = await (supabase.rpc as any)('couple_received_quotes', { p_entry: entryId })
+      const list = (data ?? []) as ReceivedQuote[]
+      setReceived(list)
+      setSelQuoteId((cur) => cur ?? (list.find((x) => x.is_main)?.quote_id ?? list[0]?.quote_id ?? null))
+    })()
+  }, [entryId])
+
+  useEffect(() => { void load(true) }, [entryId, selQuoteId])
 
   // Traccia la visita del cliente (una per sessione per evento) → alimenta "Attività del cliente" lato pro.
   useEffect(() => {
@@ -1099,6 +1117,24 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
 
   return (
     <div className="space-y-5">
+      {/* CARTELLE: tutti i preventivi ricevuti per l'evento (fotografo + suggeriti), per categoria. */}
+      {received.length > 1 && (
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">I preventivi che hai ricevuto ({received.length}) — scegli la categoria</p>
+          <div className="flex flex-wrap gap-2">
+            {received.map((r) => {
+              const on = r.quote_id === selQuoteId
+              return (
+                <button key={r.quote_id} onClick={() => setSelQuoteId(r.quote_id)}
+                  className={`text-left rounded-xl border px-3 py-2 transition ${on ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]/50' : 'border-[rgb(var(--border))] hover:border-[rgb(var(--gold-300))]'}`}>
+                  <span className="block text-[10px] uppercase tracking-wider capitalize text-[rgb(var(--gold-700))]">{r.subrole || r.role || 'Servizio'}{r.is_main ? ' · principale' : ''}</span>
+                  <span className="block text-sm font-medium truncate max-w-[180px]">{r.professionista ?? 'Professionista'}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
       {pendingCount > 0 && !isClosed && (
         <Card className="p-4 flex items-center gap-3" style={{ background: 'rgb(var(--gold-100))', borderColor: 'rgb(var(--gold-500))' }}>
           
