@@ -123,12 +123,16 @@ export function TablesTab({ entryId }: { entryId: string }) {
     } catch (e) { toast.error((e as Error).message) }
   }
 
-  function exportPlan(format: TableauFormat) {
+  function exportPlan(format: TableauFormat, opts?: { withGuests?: boolean }) {
+    const withGuests = opts?.withGuests ?? true
     void exportTableauPlanPdf((tables ?? []) as any, (guests ?? []) as any, {
       format,
+      withGuests,
       title: (wedding as any)?.client_name ? `Tableau · ${(wedding as any).client_name}` : 'Tableau Mariage',
-      subtitle: `${(tables ?? []).length} tavoli · ${(guests ?? []).filter((g: any) => g.table_id).length} invitati seduti`,
-      filename: `tableau-${format.toLowerCase()}.pdf`,
+      subtitle: withGuests
+        ? `${(tables ?? []).length} tavoli · ${(guests ?? []).filter((g: any) => g.table_id).length} invitati seduti`
+        : `${(tables ?? []).length} tavoli · disposizione in sala`,
+      filename: `${withGuests ? 'tableau' : 'piantina'}-${format.toLowerCase()}.pdf`,
     })
   }
 
@@ -250,9 +254,9 @@ export function TablesTab({ entryId }: { entryId: string }) {
             <button onClick={() => setView('list')} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${view === 'list' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><List size={13} /> Elenco</button>
           </div>
           <Button variant="gold" size="sm" onClick={() => setPosterOpen(true)}><Sparkles size={14} /> Poster da esporre</Button>
-          <Button variant="ghost" size="sm" onClick={() => exportPlan('A3')} title="Piantina tecnica A3"><Download size={14} /> Piantina A3</Button>
-          <Button variant="ghost" size="sm" onClick={() => exportPlan('70x100')} title="Piantina tecnica 70×100"><Download size={14} /> 70×100</Button>
-          <Button variant="ghost" size="sm" onClick={exportPdf} title="Elenco testuale"><Download size={14} /> Lista</Button>
+          <Button variant="ghost" size="sm" onClick={() => exportPlan('70x100', { withGuests: false })} title="Solo il disegno: numero/nome tavolo e posizione, senza i nomi delle persone (70×100, grande)"><Download size={14} /> Disegno piantina</Button>
+          <Button variant="ghost" size="sm" onClick={exportPdf} title="Solo l'elenco delle persone divise per tavolo, senza disegno"><Download size={14} /> Elenco per tavolo</Button>
+          <Button variant="ghost" size="sm" onClick={() => exportPlan('A3')} title="Piantina con i nomi degli invitati seduti (A3)"><Download size={14} /> Piantina + nomi</Button>
         </div>
       </header>
 

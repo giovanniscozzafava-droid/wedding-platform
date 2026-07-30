@@ -366,7 +366,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                         <div>
                           <p className="font-medium">{m.name}</p>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
-                            {m.modifier_type === 'PERCENT' ? `${m.value}%` : `€ ${m.value}`}
+                            {m.modifier_type === 'PERCENT' ? `${m.value}%` : `€ ${Number(m.value).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                             {(m as { date_from?: string | null }).date_from && (
                               <> · solo dal {new Date((m as { date_from?: string }).date_from!).toLocaleDateString('it-IT')} al {new Date(((m as { date_to?: string; date_from?: string }).date_to ?? (m as { date_from?: string }).date_from)!).toLocaleDateString('it-IT')}</>
                             )}

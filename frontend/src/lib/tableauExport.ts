@@ -31,8 +31,8 @@ function positions(tables: T[]): Array<{ t: T; x: number; y: number }> {
   })
 }
 
-export async function exportTableauPlanPdf(tables: T[], guests: G[], opts: { format?: TableauFormat; title?: string; subtitle?: string; filename?: string } = {}) {
-  const { format = 'A3', title = 'Tableau Mariage', subtitle = '', filename } = opts
+export async function exportTableauPlanPdf(tables: T[], guests: G[], opts: { format?: TableauFormat; title?: string; subtitle?: string; filename?: string; withGuests?: boolean } = {}) {
+  const { format = 'A3', title = 'Tableau Mariage', subtitle = '', filename, withGuests = true } = opts
   const [W, H] = SIZES[format]
   const { default: jsPDF } = await import('jspdf')
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [W, H] })
@@ -49,7 +49,8 @@ export async function exportTableauPlanPdf(tables: T[], guests: G[], opts: { for
   const m = format === '70x100' ? 50 : 18
   const roomX = m, roomY = top, roomW = W - 2 * m, roomH = H - top - m
   const seatedBy = (id: string) => guests.filter((g) => g.table_id === id)
-  const scale = format === '70x100' ? 1.9 : 1
+  // Disegno-only (senza nomi): tavoli piu' grandi e leggibili, c'e' piu' spazio.
+  const scale = (format === '70x100' ? 1.9 : 1) * (withGuests ? 1 : 1.35)
 
   for (const { t, x, y } of positions(tables)) {
     const cx = roomX + x * roomW, cy = roomY + y * roomH
@@ -72,6 +73,15 @@ export async function exportTableauPlanPdf(tables: T[], guests: G[], opts: { for
     } else { // RECT / IMPERIALE / SQUARE
       const w = (t.shape === 'SQUARE' ? 11 : 22) * scale, h = (t.shape === 'SQUARE' ? 11 : 6) * scale
       pdf.roundedRect(cx - w / 2, cy - h / 2, w, h, 1.5, 1.5, 'FD')
+    }
+
+    if (!withGuests) {
+      // SOLO DISEGNO: numero/nome del tavolo grande sopra la forma, nessun nome di persona.
+      pdf.setFont('helvetica', 'bold'); pdf.setTextColor(20, 20, 20)
+      pdf.setFontSize(format === '70x100' ? 24 : 14)
+      const nameY = cy - (t.shape === 'ROUND' ? 11 : 8) * scale
+      pdf.text(labelOf(t), cx, nameY, { align: 'center', maxWidth: 72 * scale })
+      continue
     }
 
     // nome tavolo (sopra)

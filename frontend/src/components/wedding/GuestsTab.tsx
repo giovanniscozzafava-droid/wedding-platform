@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Trash2, Filter, Download, Accessibility, GripVertical, Star, ArrowDownAZ, Heart, Baby } from 'lucide-react'
+import { Plus, Trash2, Filter, Download, Accessibility, GripVertical, Star, ArrowDownAZ, Heart, Baby, ListOrdered } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -56,6 +56,12 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
     const arr = [...((guests ?? []) as any[])].sort((a, b) =>
       (b.is_close_family ? 1 : 0) - (a.is_close_family ? 1 : 0) || a.full_name.localeCompare(b.full_name, 'it'))
     void persistOrder(arr).then(() => toast.success('Parenti più stretti in cima'))
+  }
+  // Ordine di inserimento: come sono stati aggiunti (created_at). Utile per rileggere
+  // famiglie/coppie nell'ordine in cui le hai inserite, prima del calcolo inviti.
+  function sortByCreated() {
+    const arr = [...((guests ?? []) as any[])].sort((a, b) => String(a.created_at ?? '').localeCompare(String(b.created_at ?? '')))
+    void persistOrder(arr).then(() => toast.success('Ordine di inserimento applicato'))
   }
 
   const filtered = useMemo(() => {
@@ -166,6 +172,7 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
         <span className="text-xs text-[rgb(var(--fg-muted))]">Ordina:</span>
         <Button variant="outline" size="sm" onClick={sortAlphabetical}><ArrowDownAZ size={14} /> Alfabetico</Button>
         <Button variant="outline" size="sm" onClick={sortCloseFamily}><Heart size={14} /> Parenti più stretti</Button>
+        <Button variant="outline" size="sm" onClick={sortByCreated}><ListOrdered size={14} /> Ordine inserimento</Button>
         <span className="text-[11px] text-[rgb(var(--fg-subtle))]">
           {canReorder ? 'oppure trascina ⠿ una riga su/giù per l’ordine manuale · ★ = parente stretto' : 'azzera i filtri per riordinare a mano'}
         </span>

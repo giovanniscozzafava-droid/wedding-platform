@@ -341,7 +341,7 @@ export default function CatalogPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{s.name}</p>
                     <p className="text-xs text-[rgb(var(--fg-subtle))] truncate">
-                      {s.service_categories?.name ?? 'Senza categoria'} · € {Number(s.base_price).toLocaleString('it-IT')}
+                      {s.service_categories?.name ?? 'Senza categoria'} · € {Number(s.base_price).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
                 </Reorder.Item>
@@ -410,7 +410,7 @@ function ServiceDetailModal({ s, onClose }: { s: ServiceWithExtras; onClose: () 
               {!s.is_active && <Badge tone="rose">Inattivo</Badge>}
             </div>
             <p className="text-xs text-[rgb(var(--fg-muted))] mt-1">
-              € {Number(s.base_price).toLocaleString('it-IT')} / {s.unit.toLowerCase()}
+              € {Number(s.base_price).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {s.unit.toLowerCase()}
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Chiudi"><XIcon size={18} /></Button>
@@ -439,7 +439,7 @@ function ServiceDetailModal({ s, onClose }: { s: ServiceWithExtras; onClose: () 
                   <li key={m.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'rgb(var(--border))' }}>
                     <span className="font-medium">{m.name}</span>
                     <span className="text-xs text-[rgb(var(--fg-muted))]">
-                      {m.modifier_type === 'PERCENT' ? `${m.value}%` : `€ ${m.value}`}
+                      {m.modifier_type === 'PERCENT' ? `${m.value}%` : `€ ${Number(m.value).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </span>
                   </li>
                 ))}
@@ -491,7 +491,7 @@ function ServiceCard({ s, isProvider, onEdit, onDelete, onDuplicate, onView }: {
           )}
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="font-display text-2xl tabular-nums">€ {Number(s.base_price).toLocaleString('it-IT')}</span>
+          <span className="font-display text-2xl tabular-nums">€ {Number(s.base_price).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           <span className="text-xs text-[rgb(var(--fg-subtle))] uppercase tracking-wide">
             /{s.unit.toLowerCase()}
           </span>

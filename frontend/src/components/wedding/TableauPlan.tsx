@@ -234,7 +234,7 @@ export function TableauPlan({
           <button onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(2)))} title="Riduci"
             className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><ZoomOut size={14} /></button>
           <span className="text-[11px] tabular-nums w-10 text-center">{Math.round(zoom * 100)}%</span>
-          <button onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.2).toFixed(2)))} title="Ingrandisci"
+          <button onClick={() => setZoom((z) => Math.min(4, +(z + 0.2).toFixed(2)))} title="Ingrandisci"
             className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><ZoomIn size={14} /></button>
           <button onClick={() => setZoom(1)} title="Adatta" disabled={zoom === 1}
             className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-40 text-[11px]"><Maximize size={13} /> Adatta</button>
@@ -273,7 +273,7 @@ export function TableauPlan({
         )}
 
         {/* Contenitore scrollabile per lo zoom */}
-        <div className="w-full overflow-auto rounded-xl border border-[rgb(var(--border))]" style={{ maxHeight: '70vh' }}>
+        <div className="w-full overflow-auto rounded-xl border border-[rgb(var(--border))]" style={{ maxHeight: '82vh' }}>
         <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
           className="relative overflow-hidden select-none"
           style={{

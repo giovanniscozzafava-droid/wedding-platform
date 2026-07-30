@@ -203,7 +203,7 @@ export function PackImportPicker({ onClose, onImported }: Props) {
                       <div className="mt-2 flex items-center gap-2 flex-wrap">
                         {t.prezzo_base != null && (
                           <span className="font-display text-base tabular-nums">
-                            € {Number(t.prezzo_base).toLocaleString('it-IT')}
+                            € {Number(t.prezzo_base).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         )}
                         {t.service_unit && (
