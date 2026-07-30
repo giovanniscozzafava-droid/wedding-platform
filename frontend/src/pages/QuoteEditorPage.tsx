@@ -1145,9 +1145,28 @@ export default function QuoteEditorPage() {
                 {Number((quote as any).distance_surcharge ?? 0) > 0 && (
                   <Totals label={`Trasferta ${Number((quote as any).distance_km ?? 0)} km`} value={Number((quote as any).distance_surcharge)} />
                 )}
-                <Totals label="Cliente" value={quote.total_client} accent />
-                <Totals label="Margine" value={quote.margin_amount} />
-                <Totals label="Margine %" value={`${Number(quote.margin_percent).toFixed(2)}%`} raw />
+                {(() => {
+                  // MENU A SCELTA: se ci sono piu' voci, il cliente ne sceglie → NON mostrare la
+                  // somma-megacifra (spaventa). Mostra un RANGE "da €min a €max"; il totale vero
+                  // e' la somma delle sole voci che il cliente spunta.
+                  const vals = (quote.quote_items ?? []).map((it: any) => Number(it.line_client) || 0).filter((v: number) => v > 0)
+                  const euro = (n: number) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+                  if (vals.length >= 2) {
+                    const minC = Math.min(...vals), maxC = vals.reduce((s: number, v: number) => s + v, 0)
+                    return (
+                      <div className="col-span-2 sm:col-span-3">
+                        <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Cliente</p>
+                        <p className="font-display text-xl text-[rgb(var(--gold-700))]">{euro(minC)} – {euro(maxC)}</p>
+                        <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Il totale sono le voci che sceglie il cliente: spuntando simula, non si vincola. La somma si fa sulle voci scelte.</p>
+                      </div>
+                    )
+                  }
+                  return <>
+                    <Totals label="Cliente" value={quote.total_client} accent />
+                    <Totals label="Margine" value={quote.margin_amount} />
+                    <Totals label="Margine %" value={`${Number(quote.margin_percent).toFixed(2)}%`} raw />
+                  </>
+                })()}
               </div>
             </div>
           </Card>
