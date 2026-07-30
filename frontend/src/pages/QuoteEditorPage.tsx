@@ -128,12 +128,25 @@ export default function QuoteEditorPage() {
   const [engagement, setEngagement] = useState<EngItem[]>([])
   useEffect(() => {
     if (!id) return
-    void (async () => {
+    let alive = true
+    const loadEng = async () => {
       const { data } = await (supabase.rpc as any)('quote_item_engagement', { p_quote_id: id })
       const r = data as { items?: EngItem[] } | null
-      if (r?.items) setEngagement(r.items)
-    })()
+      if (alive && r?.items) setEngagement(r.items)
+    }
+    void loadEng()
+    // LIVE: il professionista vede crescere il totale mentre il cliente opziona le voci.
+    const t = setInterval(() => void loadEng(), 12000)
+    return () => { alive = false; clearInterval(t) }
   }, [id, quote?.status])
+  // Totale che il PRO vede = somma delle sole voci OPZIONATE dal cliente (non il menu intero).
+  const selectedIds = useMemo(() => new Set(engagement.filter((e) => e.selected_by_client || e.client_decision === 'ACCETTATO').map((e) => e.item_id)), [engagement])
+  const sel = useMemo(() => {
+    const its = ((quote as any)?.quote_items ?? []).filter((it: any) => selectedIds.has(it.id))
+    const client = its.reduce((s: number, it: any) => s + (Number(it.line_client) || 0), 0)
+    const cost = its.reduce((s: number, it: any) => s + (Number(it.line_cost) || 0), 0)
+    return { count: its.length, client, cost, margin: client - cost }
+  }, [quote, selectedIds])
   const [blockDays, setBlockDays] = useState(15)
   const [notifyClient] = useState(true)
   const [blocking, setBlocking] = useState(false)
@@ -1133,40 +1146,18 @@ export default function QuoteEditorPage() {
                   <span className="text-xs text-[rgb(var(--fg-subtle))]">km · {distanceRule.free_km} gratuiti · {distanceRule.per_km}€/km</span>
                 </div>
               )}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
-                <Totals label="Costo" value={quote.total_cost} />
-                {(quote as any).subtotal_client != null && Number((quote as any).subtotal_client) !== Number(quote.total_client) && (
-                  <Totals label="Subtotale" value={(quote as any).subtotal_client} />
-                )}
-                {Number((quote as any).surcharge_percent ?? 0) > 0 && (
-                  <Totals label={`Maggior. +${Number((quote as any).surcharge_percent)}%`}
-                    value={Number(quote.total_client) - Number(quote.total_client) / (1 + Number((quote as any).surcharge_percent) / 100)} />
-                )}
-                {Number((quote as any).distance_surcharge ?? 0) > 0 && (
-                  <Totals label={`Trasferta ${Number((quote as any).distance_km ?? 0)} km`} value={Number((quote as any).distance_surcharge)} />
-                )}
-                {(() => {
-                  // MENU A SCELTA: se ci sono piu' voci, il cliente ne sceglie → NON mostrare la
-                  // somma-megacifra (spaventa). Mostra un RANGE "da €min a €max"; il totale vero
-                  // e' la somma delle sole voci che il cliente spunta.
-                  const vals = (quote.quote_items ?? []).map((it: any) => Number(it.line_client) || 0).filter((v: number) => v > 0)
-                  const euro = (n: number) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
-                  if (vals.length >= 2) {
-                    const minC = Math.min(...vals), maxC = vals.reduce((s: number, v: number) => s + v, 0)
-                    return (
-                      <div className="col-span-2 sm:col-span-3">
-                        <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Cliente</p>
-                        <p className="font-display text-xl text-[rgb(var(--gold-700))]">{euro(minC)} – {euro(maxC)}</p>
-                        <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Il totale sono le voci che sceglie il cliente: spuntando simula, non si vincola. La somma si fa sulle voci scelte.</p>
-                      </div>
-                    )
-                  }
-                  return <>
-                    <Totals label="Cliente" value={quote.total_client} accent />
-                    <Totals label="Margine" value={quote.margin_amount} />
-                    <Totals label="Margine %" value={`${Number(quote.margin_percent).toFixed(2)}%`} raw />
-                  </>
-                })()}
+              {/* MENU A SCELTA: il PRO vede il totale delle sole voci OPZIONATE dal cliente (live),
+                  non la somma dell'intero menu. Finche' il cliente non sceglie, e' 0 e cresce live. */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <Totals label="Costo" value={sel.cost} />
+                <Totals label="Cliente" value={sel.client} accent />
+                <Totals label="Margine" value={sel.margin} />
+                <Totals label="Margine %" value={`${sel.client > 0 ? ((sel.margin / sel.client) * 100).toFixed(2) : '0.00'}%`} raw />
+                <p className="col-span-2 sm:col-span-4 text-[11px] text-[rgb(var(--fg-muted))]">
+                  {sel.count === 0
+                    ? 'Totale delle voci opzionate dal cliente: al momento nessuna voce scelta. Cresce in tempo reale man mano che il cliente compone la sua selezione (il menu completo non fa somma).'
+                    : `Totale di ${sel.count} ${sel.count === 1 ? 'voce opzionata' : 'voci opzionate'} dal cliente · si aggiorna in tempo reale.`}
+                </p>
               </div>
             </div>
           </Card>
