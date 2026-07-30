@@ -93,6 +93,17 @@ export default function QuoteEditorPage() {
       return ((data as { answers?: Record<string, unknown> } | null)?.answers ?? null)
     },
   })
+  // Motore evento: posso controsuggerire su questo preventivo? No se sono io stesso un suggerito
+  // per lo stesso evento (riconosciuto per email cliente + data, anche se creato da altri).
+  const { data: suggestGuard } = useQuery({
+    queryKey: ['suggest-guard', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await (supabase.rpc as any)('suggest_guard_for_quote', { p_quote_id: id })
+      return (data as { can_suggest?: boolean; reason?: string } | null) ?? { can_suggest: true }
+    },
+  })
+  const canSuggest = suggestGuard?.can_suggest !== false
   const qc = useQueryClient()
   const [closingQuote, setClosingQuote] = useState(false)
   // Flusso fornitore (sia direct quote sia owner ruolo FORNITORE): nasconde
@@ -742,10 +753,13 @@ export default function QuoteEditorPage() {
                   style={{ background: '#25D366', borderColor: '#25D366' }} title="Consigliato: l'email può finire in spam">
                   <MessageCircle /> Invia su WhatsApp
                 </Button>
-                {quote.client_email && (
+                {quote.client_email && canSuggest && (
                   <Button variant="outline" onClick={() => setSuggestOpen(true)} title="Consiglia al cliente i professionisti che segui (fornitori e capostipiti): avvisa loro di preparare un'offerta">
                     <Users size={16} /> Suggerisci i miei professionisti
                   </Button>
+                )}
+                {quote.client_email && !canSuggest && suggestGuard?.reason === 'is_recipient' && (
+                  <span className="text-[11px] text-[rgb(var(--fg-subtle))] max-w-[220px]">Sei stato suggerito per questo evento: non puoi controsuggerire.</span>
                 )}
               </>
             )}
