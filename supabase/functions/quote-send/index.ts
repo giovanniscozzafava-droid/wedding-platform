@@ -61,6 +61,10 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
+  // 0. blocco preventivo vuoto: non si invia (né si genera PDF) senza almeno una voce.
+  const { count: itemCount } = await admin.from('quote_items').select('id', { count: 'exact', head: true }).eq('quote_id', body.quote_id)
+  if (!itemCount || itemCount === 0) return json({ error: 'empty_quote' }, 400)
+
   // 1. genera PDF (riusa Edge Function). Header apikey serve a Kong gateway.
   const pdfRes = await fetch(`${SUPABASE_URL}/functions/v1/quote-generate-pdf`, {
     method: 'POST',

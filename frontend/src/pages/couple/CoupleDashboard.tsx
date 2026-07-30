@@ -1074,6 +1074,23 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
     finally { setBusyItem(null) }
   }
 
+  // Il cliente sceglie la quantita' della voce (es. 2 album). Ricalcola la riga e il totale.
+  async function setQty(itemId: string, qty: number) {
+    if (qty < 1 || qty > 99) return
+    setBusyItem(itemId)
+    try {
+      const { data, error } = await (supabase.rpc as any)('couple_set_item_quantity', { p_item_id: itemId, p_qty: qty })
+      const err = (data as { error?: string } | null)?.error
+      if (error || err) {
+        toast.error(err === 'not_selectable' ? 'Questa voce dipende dal numero di invitati'
+          : err === 'contracted' ? 'Voce gia\' a contratto: non modificabile'
+          : err === 'forbidden' ? 'Non puoi modificarla' : 'Modifica non riuscita')
+        return
+      }
+      await load()
+    } catch (e) { toast.error((e as Error).message) } finally { setBusyItem(null) }
+  }
+
   async function conclude() {
     if (!data) return
     if (!window.confirm('Concludere il preventivo? Le voci approvate verranno integrate nel contratto con un addendum da firmare.')) return
@@ -1244,7 +1261,19 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
                           {!isFornitore && isContracted && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>✓ nel contratto</span>}
                           {!isFornitore && !isContracted && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>Integrazione</span>}
                         </div>
-                        <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">{it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}</p>
+                        {clickable ? (
+                          <div className="mt-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-[11px] text-[rgb(var(--fg-subtle))]">Quantità</span>
+                            <div className="inline-flex items-center rounded-lg border border-[rgb(var(--border))] overflow-hidden">
+                              <button aria-label="Diminuisci" disabled={busyItem === it.id || Number(it.quantity) <= 1} onClick={() => void setQty(it.id, Number(it.quantity) - 1)} className="h-7 w-7 grid place-items-center text-base leading-none disabled:opacity-40 hover:bg-[rgb(var(--surface-2))]">−</button>
+                              <span className="w-9 text-center text-sm tabular-nums font-medium">{it.quantity}</span>
+                              <button aria-label="Aumenta" disabled={busyItem === it.id || Number(it.quantity) >= 99} onClick={() => void setQty(it.id, Number(it.quantity) + 1)} className="h-7 w-7 grid place-items-center text-base leading-none disabled:opacity-40 hover:bg-[rgb(var(--surface-2))]">+</button>
+                            </div>
+                            {it.unit_snapshot && <span className="text-[11px] text-[rgb(var(--fg-subtle))]">{String(it.unit_snapshot).toLowerCase()}</span>}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">{it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}</p>
+                        )}
                         <p className="font-display text-xl mt-1">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
                         {selected && clickable && <p className="text-[11px] font-medium mt-1" style={{ color: 'rgb(var(--gold-700))' }}>✓ Scelta — si somma al totale</p>}
                         {maybe && <p className="text-[11px] font-medium mt-1" style={{ color: '#7c3aed' }}>? In forse</p>}

@@ -43,6 +43,10 @@ Deno.serve(async (req) => {
   if (q.owner_id !== caller.id) return json({ error: 'forbidden' }, 403)
   if (q.quote_origin !== 'SUPPLIER_SUGGESTION') return json({ error: 'not_a_suggestion_quote' }, 400)
 
+  // Blocco preventivo vuoto: non si invia un'offerta senza almeno una voce.
+  const { count: itemCount } = await admin.from('quote_items').select('id', { count: 'exact', head: true }).eq('quote_id', q.id)
+  if (!itemCount || itemCount === 0) return json({ error: 'empty_quote' }, 400)
+
   // Suggerimento collegato + contatti privati del cliente (service role: nessuna RLS).
   // limit(1): se per qualche motivo ci fossero 2 righe suggestion sullo stesso quote, non esplode.
   const { data: suggRows } = await admin.from('supplier_suggestions').select('id, referrer_id').eq('quote_id', q.id).order('created_at', { ascending: false }).limit(1)
@@ -63,8 +67,9 @@ Deno.serve(async (req) => {
   // nome del fornitore (mittente logico)
   const { data: sup } = await admin.from('profiles').select('full_name, business_name, subrole').eq('id', q.owner_id).maybeSingle()
   const supName = sup?.business_name ?? sup?.full_name ?? 'Un fornitore'
-  // Atterra sulla dashboard aggregata del cliente (tutte le offerte insieme), previo accesso.
-  const link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
+  // Atterra SEMPRE sul tab Preventivo della dashboard coppia (tutte le offerte ricevute come cartelle,
+  // anche da mobile), previo accesso. ?tab=preventivo forza il tab a prescindere dalla firma.
+  const link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/couple?tab=preventivo')}`
 
   const html = emailShell({
     eyebrow: 'Preventivo dedicato',

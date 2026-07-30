@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye, Navigation } from 'lucide-react'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye, Navigation, AlertTriangle } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { PdfViewButton } from '@/components/common/PdfBookViewer'
@@ -663,8 +663,17 @@ export default function QuoteEditorPage() {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  // Blocco preventivo vuoto: non si può inviare un'offerta senza almeno una voce.
+  function ensureHasItems(): boolean {
+    if (((quote as any)?.quote_items?.length ?? 0) === 0) {
+      toast.error('Aggiungi almeno un servizio al preventivo prima di inviarlo')
+      return false
+    }
+    return true
+  }
+
   async function handleSend() {
-    if (!id) return
+    if (!id || !ensureHasItems()) return
     try {
       const r = await sendQ.mutateAsync(id)
       setSendResult(r)
@@ -676,7 +685,7 @@ export default function QuoteEditorPage() {
   // Invio su WhatsApp: assicura il link cliente (se serve genera/invia), poi apre
   // WhatsApp con messaggio + link. Consigliato perché la mail può finire in spam.
   async function handleSendWhatsApp() {
-    if (!id || !quote) return
+    if (!id || !quote || !ensureHasItems()) return
     try {
       let token = (quote as any).access_token ?? sendResult?.access_token
       if (!token) {
@@ -685,8 +694,8 @@ export default function QuoteEditorPage() {
       }
       if (!token) { toast.error('Non riesco a generare il link cliente'); return }
       // Niente cifre/firma fuori dalla piattaforma: il link porta all'accesso cliente,
-      // poi atterra sulla dashboard aggregata (tutte le offerte insieme).
-      const url = `${window.location.origin}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
+      // poi atterra sul tab Preventivo (tutte le offerte ricevute come cartelle, anche da mobile).
+      const url = `${window.location.origin}/area-cliente/accedi?next=${encodeURIComponent('/couple?tab=preventivo')}`
       shareWhatsAppLink(waQuoteToClient({ clientName: quote.client_name, title: quote.title }), url)
     } catch (e) { toast.error((e as Error).message) }
   }
@@ -694,7 +703,7 @@ export default function QuoteEditorPage() {
   // Invio del preventivo "cieco" (quote_origin=SUPPLIER_SUGGESTION): la piattaforma risolve
   // il contatto reale del cliente (nascosto al fornitore) e gli manda il link. Vedi edge send-suggestion-quote.
   async function handleSendSuggestion() {
-    if (!id) return
+    if (!id || !ensureHasItems()) return
     setSendingSugg(true)
     try {
       const { data, error } = await supabase.functions.invoke('send-suggestion-quote', { body: { quote_id: id } })
@@ -702,6 +711,7 @@ export default function QuoteEditorPage() {
       const err = d?.error
       if (error || err) {
         const msg = err === 'client_email_missing' ? 'Manca il contatto del cliente suggerito'
+          : err === 'empty_quote' ? 'Aggiungi almeno un servizio al preventivo prima di inviarlo'
           : err === 'suggestion_not_found' ? 'Suggerimento collegato non trovato'
           : err === 'not_a_suggestion_quote' ? 'Questo preventivo non è un suggerimento'
           : `Invio non riuscito${err ? `: ${err}` : ''}${d?.detail ? ` (${d.detail})` : ''}${error ? ` (${error.message})` : ''}`
@@ -729,6 +739,11 @@ export default function QuoteEditorPage() {
               {quote.event_date && <span>· {new Date(quote.event_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span>}
             </div>
           </div>
+          {((quote as any).quote_items?.length ?? 0) === 0 && (
+            <div className="w-full mb-2 rounded-lg px-3 py-2 text-sm flex items-center gap-2" style={{ background: '#d977061a', color: '#b45309' }}>
+              <AlertTriangle size={16} className="shrink-0" /> Aggiungi almeno un servizio: un preventivo vuoto non può essere inviato.
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 items-center">
             <span className="inline-flex items-center gap-1">
               <Button variant="outline" onClick={() => handlePdf('NEUTRA')} disabled={genPdf.isPending} data-testid="pdf-neutra">
@@ -737,19 +752,19 @@ export default function QuoteEditorPage() {
               <HelpDot id="quote.pdf" />
             </span>
             {(quote as any).quote_origin === 'SUPPLIER_SUGGESTION' ? (
-              <Button variant="gold" onClick={handleSendSuggestion} disabled={sendingSugg}
+              <Button variant="gold" onClick={handleSendSuggestion} disabled={sendingSugg || ((quote as any).quote_items?.length ?? 0) === 0}
                 title="Il cliente ti è stato suggerito: invii il preventivo tramite la piattaforma (non vedi i suoi contatti finché non accetta)">
                 <Send /> {sendingSugg ? 'Invio…' : 'Invia al cliente suggerito'}
               </Button>
             ) : (
               <>
                 <span className="inline-flex items-center gap-1">
-                  <Button variant="outline" onClick={handleSend} disabled={sendQ.isPending} data-testid="send-quote-btn">
+                  <Button variant="outline" onClick={handleSend} disabled={sendQ.isPending || ((quote as any).quote_items?.length ?? 0) === 0} data-testid="send-quote-btn">
                     <Send /> {sendQ.isPending ? 'Invio...' : 'Invia via email'}
                   </Button>
                   <HelpDot id="quote.invia" />
                 </span>
-                <Button variant="gold" onClick={handleSendWhatsApp} disabled={sendQ.isPending}
+                <Button variant="gold" onClick={handleSendWhatsApp} disabled={sendQ.isPending || ((quote as any).quote_items?.length ?? 0) === 0}
                   style={{ background: '#25D366', borderColor: '#25D366' }} title="Consigliato: l'email può finire in spam">
                   <MessageCircle /> Invia su WhatsApp
                 </Button>
