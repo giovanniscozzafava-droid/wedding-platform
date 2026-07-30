@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FileSignature, FileDown, X, Copy, Mail, MessageCircle, Sparkles } from 'lucide-react'
 import { shareWhatsAppLink } from '@/lib/share'
@@ -218,8 +218,17 @@ export default function ContractsPage() {
             <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun contratto corrisponde ai filtri.</p>
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((c, i) => (
-            <motion.div key={c.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}>
+          {(() => {
+            // Contratti DIVISI PER ANNO (per data evento; se manca, per data creazione).
+            const gy = (c: typeof filtered[number]) => { const d = c.event_date || c.created_at; const y = d ? new Date(d).getFullYear() : 0; return Number.isFinite(y) ? y : 0 }
+            const byYear = [...filtered].sort((a, b) => gy(b) - gy(a))
+            return byYear.map((c, i) => {
+            const yy = gy(c)
+            const showHead = i === 0 || gy(byYear[i - 1]!) !== yy
+            return (
+            <Fragment key={c.id}>
+            {showHead && <div className="md:col-span-2 lg:col-span-3 mt-3 first:mt-0"><h3 className="text-sm font-semibold text-[rgb(var(--fg-muted))]">{yy ? yy : 'Senza data'}</h3></div>}
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}>
               <button
                 type="button"
                 onClick={() => setSelected(c)}
@@ -252,7 +261,10 @@ export default function ContractsPage() {
                 </Card>
               </button>
             </motion.div>
-          ))}
+            </Fragment>
+            )
+            })
+          })()}
           </div>
           )}
         </>
