@@ -185,7 +185,8 @@ export default function CalendarPage() {
   async function genIcs() {
     try {
       const t = await ensureToken.mutateAsync()
-      const url = `http://127.0.0.1:54321/functions/v1/calendar-export-ics?token=${t}`
+      const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? ''
+      const url = `${base}/functions/v1/calendar-export-ics?token=${t}`
       await navigator.clipboard.writeText(url).catch(() => {})
       toast.success('URL iCal copiato negli appunti', { description: url })
     } catch (e) { toast.error((e as Error).message) }
