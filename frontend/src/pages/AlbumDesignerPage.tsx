@@ -934,6 +934,59 @@ function AlbumDesignerInner() {
     if (ok) toast.success('Foto tolta dalla selezione')
     else toast.error('Non sono riuscito a togliere la foto dalla selezione')
   }
+
+  // TIENI SOLO LE FOTO SCELTE DALLA COPPIA: riporta l'album alla selezione confermata dagli sposi
+  // (album_choice='KEPT'; se manca, ripiego sul cuore-sposi pick_couple). Rimuove dalle TAVOLE e dal
+  // cassetto tutte le foto NON scelte, e allinea i cuori del fotografo alle sole scelte. Layout salvato
+  // dall'autosave; annullabile con Undo (Cmd/Ctrl+Z). Non tocca la selezione della coppia né il disco.
+  async function keepOnlyCoupleSelected() {
+    let keepList = photos.filter((m) => (m as any).album_choice === 'KEPT')
+    if (keepList.length === 0) keepList = photos.filter((m) => (m as any).pick_couple)
+    if (keepList.length === 0) { toast.error('Non trovo una selezione confermata dalla coppia (né scelte album né swipe). Operazione annullata per sicurezza.'); return }
+    const keepSet = new Set(keepList.map((m) => m.id))
+    // Da rimuovere: foto NON scelte dalla coppia ma piazzate / in memoria / col cuore fotografo.
+    const removeList = photos.filter((m) => !keepSet.has(m.id) && (placedIds.has(m.id) || everPlaced.has(m.id) || !!m.pick_photographer))
+    const placedRemoving = removeList.filter((m) => placedIds.has(m.id)).length
+    // Cuori mancanti sulle scelte (per far tornare il cassetto a esattamente le scelte della coppia).
+    const missingPick = keepList.filter((m) => !m.pick_photographer)
+    if (removeList.length === 0 && missingPick.length === 0) { toast('L’album contiene già solo le foto scelte dalla coppia'); return }
+    if (!window.confirm(
+      `Tengo solo le ${keepSet.size} foto scelte dalla coppia.\n` +
+      `Rimuovo ${removeList.length} foto non scelte${placedRemoving ? ` (di cui ${placedRemoving} sono sulle tavole → verranno tolte, potresti avere celle vuote da rifinire)` : ''}.\n\n` +
+      `Puoi annullare con Cmd/Ctrl+Z. Procedere?`,
+    )) return
+
+    const removeIds = new Set(removeList.map((m) => m.id))
+    // 1) pulisci il LAYOUT in un colpo solo (autosave + undo automatici)
+    if (removeIds.size > 0) {
+      setPages((prev) => prev.map((p) => {
+        let np: AlbumPage = p
+        const els = p.elements ?? []
+        if (els.some((e) => removeIds.has(e.mediaId))) np = { ...np, elements: els.filter((e) => !removeIds.has(e.mediaId)) }
+        const mids = p.mediaIds ?? []
+        if (mids.some((id) => removeIds.has(id))) {
+          const keepIdx = mids.map((id, i) => (removeIds.has(id) ? -1 : i)).filter((i) => i >= 0)
+          np = { ...np, mediaIds: keepIdx.map((i) => mids[i]!), cells: p.cells ? keepIdx.map((i) => p.cells![i] ?? null) : np.cells }
+        }
+        if (np.spreadImage && removeIds.has(np.spreadImage.mediaId)) np = { ...np, spreadImage: null }
+        return np
+      }))
+      setEverPlaced((prev) => { const nx = new Set(prev); removeIds.forEach((id) => nx.delete(id)); return nx })
+      setSelEl((s) => (s && removeIds.has(s) ? null : s))
+      setMultiSel((s) => s.filter((x) => !removeIds.has(x)))
+    }
+    // 2) allinea i cuori del fotografo: false sulle rimosse, true sulle scelte non ancora col cuore
+    const removePick = removeList.filter((m) => m.pick_photographer).map((m) => m.id)
+    const addPick = missingPick.map((m) => m.id)
+    setMedia((arr) => arr.map((x) => (removeIds.has(x.id) ? { ...x, pick_photographer: false } : keepSet.has(x.id) ? { ...x, pick_photographer: true } : x)))
+    try {
+      if (removePick.length) { const { error } = await (supabase.rpc as any)('photographer_set_picks', { p_ids: removePick, p_pick: false }); if (error) throw error }
+      if (addPick.length) { const { error } = await (supabase.rpc as any)('photographer_set_picks', { p_ids: addPick, p_pick: true }); if (error) throw error }
+      toast.success(`Album ridotto alle ${keepSet.size} foto scelte dalla coppia — salvataggio automatico in corso`)
+    } catch (e) {
+      toast.error(`Cuori non del tutto salvati: ${(e as Error).message}. Le tavole sono state comunque pulite.`)
+    }
+  }
   // Seleziona/deseleziona TUTTI i cuori del FOTOGRAFO in un colpo (RPC atomica).
   async function setKeepAll(choice: 'KEPT' | 'DISCARDED') {
     const pick = choice === 'KEPT'
@@ -3407,6 +3460,10 @@ function AlbumDesignerInner() {
               {!isCouple && (
                 <button type="button" disabled={importSelBusy} onClick={() => void importAlbumSelection()} title="Copia la selezione degli sposi nella tua, poi rifinisci. La loro non si tocca."
                   className="w-full inline-flex items-center justify-center gap-1 text-[10px] py-1 mb-1.5 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"><Heart size={10} className="fill-rose-500 text-rose-500" /> Parti dalla selezione sposi</button>
+              )}
+              {!isCouple && (
+                <button type="button" onClick={() => void keepOnlyCoupleSelected()} title="Rimuove da cassetto e tavole tutte le foto NON confermate dalla coppia: resta solo la loro selezione. Annullabile con Cmd/Ctrl+Z."
+                  className="w-full inline-flex items-center justify-center gap-1 text-[10px] py-1 mb-1.5 rounded border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]"><Check size={10} /> Tieni solo le scelte della coppia</button>
               )}
               <div className="grid grid-cols-2 gap-1.5">
                 {trayFiltered.map((m) => (
