@@ -1070,6 +1070,10 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
       if (error) throw error
       if ((r as any)?.error) throw new Error((r as any).error)
       await load()
+      // Il cliente sta valutando: avvisa il professionista (notifica + email, una volta sola lato server).
+      if ((decision === 'ACCETTATO' || decision === 'FORSE') && selQuoteId) {
+        void supabase.functions.invoke('quote-engagement-notify', { body: { quote_id: selQuoteId } }).catch(() => {})
+      }
     } catch (e) { toast.error(friendlyErr(e)) }
     finally { setBusyItem(null) }
   }
