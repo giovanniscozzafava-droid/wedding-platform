@@ -210,9 +210,10 @@ export default function CaroselloPage() {
   const media = useMemo(() => allPhotos.filter((m) => m.carousel_pick), [allPhotos])
   const keptIds = useMemo(() => media.map((m) => m.id), [media])
   // Libreria mostrata: opzionalmente in ORDINE CRONOLOGICO (per nome file = sequenza fotocamera).
-  const libPhotos = useMemo(() => (
-    libChrono ? [...allPhotos].sort((a, b) => (a.source_name ?? '').localeCompare(b.source_name ?? '', undefined, { numeric: true, sensitivity: 'base' })) : allPhotos
-  ), [allPhotos, libChrono])
+  const byChrono = (a: M, b: M) => (a.source_name ?? '').localeCompare(b.source_name ?? '', undefined, { numeric: true, sensitivity: 'base' })
+  const libPhotos = useMemo(() => (libChrono ? [...allPhotos].sort(byChrono) : allPhotos), [allPhotos, libChrono])
+  // Pool trascinabile dell'editor (la "libreria" da cui trascini), anch'esso ordinabile cronologicamente.
+  const mediaSorted = useMemo(() => (libChrono ? [...media].sort(byChrono) : media), [media, libChrono])
   const mediaById = useMemo(() => new Map(allPhotos.map((m) => [m.id, m] as const)), [allPhotos])
   const elements = strip.elements ?? []
   const sel = elements.find((e) => e.id === selId) ?? null
@@ -891,17 +892,21 @@ export default function CaroselloPage() {
       <div className="sticky bottom-0 z-20 bg-[rgb(var(--bg))] border-t border-[rgb(var(--border))] px-3 py-2">
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <p className="text-[11px] text-[rgb(var(--fg-muted))]">Tocca una foto → va sulla pagina che stai guardando · <strong>trascinala dove vuoi</strong> sulla tavola (o su uno slot) · <kbd className="px-1 rounded bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))]">Canc</kbd> elimina · la <strong>tua</strong> selezione ({media.length})</p>
-          {isOwner && (
-            <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button onClick={() => setLibChrono((v) => !v)} title="Ordina la libreria in ordine cronologico (per nome file = sequenza di scatto)"
+              className={`h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md border text-xs transition-colors ${libChrono ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+              <ArrowUpToLine size={13} /> {libChrono ? 'Cronologico' : 'Ordine originale'}
+            </button>
+            {isOwner && (<>
               <Button variant="outline" size="sm" disabled={importing} onClick={() => void importFromSelection('COUPLE')} title="Riempi il carosello con la selezione degli sposi (sostituisce)"><Heart size={12} className="fill-rose-500 text-rose-500" /> Sposi</Button>
               <Button variant="outline" size="sm" disabled={importing} onClick={() => void importFromSelection('PHOTOGRAPHER')} title="Riempi il carosello con la tua selezione (cuori fotografo) — sostituisce"><Heart size={12} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> La mia</Button>
               <Button variant="gold" size="sm" onClick={() => setPickerOpen(true)}><Heart size={13} /> Seleziona foto</Button>
-            </div>
-          )}
+            </>)}
+          </div>
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {media.length === 0 && <p className="text-sm text-[rgb(var(--fg-subtle))] py-2">{isOwner ? 'Nessuna foto selezionata: tocca «Seleziona foto» e scegli i tuoi scatti (cuori) per il carosello.' : 'Il fotografo non ha ancora selezionato foto per il carosello.'}</p>}
-          {media.map((m) => {
+          {mediaSorted.map((m) => {
             const used = elements.some((e) => e.mediaId === m.id)
             return (
               <button key={m.id} onClick={() => assignPhoto(m.id)} draggable
