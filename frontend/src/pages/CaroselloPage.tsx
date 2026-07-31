@@ -507,31 +507,43 @@ export default function CaroselloPage() {
   // Pre-scarica le foto della strip come BLOB (same-origin) così il canvas non si "sporca" di
   // cross-origin: le foto Drive passano dal proxy CORS (con grant + header auth), le altre via fetch.
   // Prima il resolver ritornava un URL Drive senza CORS → canvas tainted/immagini vuote in export.
-  async function buildBlobResolver(): Promise<{ resolve: (id: string) => string; revoke: () => void }> {
+  async function buildBlobResolver(): Promise<{ resolve: (id: string) => string; revoke: () => void; failed: string[] }> {
     const SB = import.meta.env.VITE_SUPABASE_URL, AK = import.meta.env.VITE_SUPABASE_ANON_KEY
     const { data: { session } } = await supabase.auth.getSession()
     let grant: string | null = null
     try { const { data } = await (supabase.rpc as any)('album_export_grant', { p_entry: entryId }); grant = (data as string) ?? null } catch { grant = null }
     const ids = [...new Set((strip.elements ?? []).map((e) => e.mediaId).filter(Boolean))] as string[]
     const map = new Map<string, string>()
-    await Promise.all(ids.map(async (id) => {
+    const failed: string[] = []
+    // Scarica UNA foto con RETRY (3 tentativi + backoff): Drive/Storage a volte rate-limitano (429/5xx)
+    // e prima il fetch che falliva veniva saltato in silenzio → foto mancante nell'export.
+    async function fetchOne(id: string): Promise<void> {
       if (isDirectSrc(id)) { map.set(id, id); return }
-      const m = mediaById.get(id); if (!m) return
-      try {
-        let url = hiUrl(m); let init: RequestInit | undefined
-        if (isDrive(m)) {
-          if (!grant) return
-          url = hiResProxyUrl(SB, AK, grant, id)
-          init = { headers: { apikey: AK, Authorization: `Bearer ${session?.access_token ?? AK}` } }
-        }
-        if (!url) return
-        const r = await fetch(url, init); if (!r.ok) return
-        map.set(id, URL.createObjectURL(await r.blob()))
-      } catch { /* foto saltata → resterà grigia */ }
-    }))
+      const m = mediaById.get(id); if (!m) { failed.push(id); return }
+      let url = hiUrl(m); let init: RequestInit | undefined
+      if (isDrive(m)) {
+        if (!grant) { failed.push(id); return }
+        url = hiResProxyUrl(SB, AK, grant, id)
+        init = { headers: { apikey: AK, Authorization: `Bearer ${session?.access_token ?? AK}` } }
+      }
+      if (!url) { failed.push(id); return }
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const r = await fetch(url, init)
+          if (r.ok) { map.set(id, URL.createObjectURL(await r.blob())); return }
+        } catch { /* rete → riprova */ }
+        if (attempt < 3) await new Promise((res) => setTimeout(res, 400 * attempt))
+      }
+      failed.push(id)   // esaurito i tentativi: la segnaliamo, niente skip silenzioso
+    }
+    // Concorrenza LIMITATA (5 alla volta) per non farsi rate-limitare da Drive con decine di foto.
+    let idx = 0
+    const worker = async () => { while (idx < ids.length) { await fetchOne(ids[idx++]!) } }
+    await Promise.all(Array.from({ length: Math.min(5, ids.length) }, worker))
     return {
       resolve: (id: string) => (isDirectSrc(id) ? id : (map.get(id) ?? '')),
       revoke: () => { for (const u of map.values()) if (u.startsWith('blob:')) URL.revokeObjectURL(u) },
+      failed,
     }
   }
   const onZipProg = (z: number) => setExportProg((p) => (p ? { ...p, zip: z } : { done: n, total: n, zip: z }))
@@ -539,7 +551,8 @@ export default function CaroselloPage() {
     if (exporting || driveBusy) return
     if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
     setExporting(true); setExportProg({ done: 0, total: n })
-    const { resolve, revoke } = await buildBlobResolver()
+    const { resolve, revoke, failed } = await buildBlobResolver()
+    if (failed.length > 0) { revoke(); setExporting(false); setExportProg(null); toast.error(`${failed.length} foto non si sono caricate (limite temporaneo di Google Drive). Riprova l'export tra qualche secondo: così escono tutte.`); return }
     try {
       await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, {
         texts, filename: `carosello-${n}slide.zip`,
@@ -555,7 +568,9 @@ export default function CaroselloPage() {
     if (exporting || driveBusy) return
     if (!elements.some((e) => e.mediaId && slideOf(e) === curSlide)) { toast.error('Questa tavola è vuota'); return }
     setExporting(true)
-    const { resolve, revoke } = await buildBlobResolver()
+    const { resolve, revoke, failed } = await buildBlobResolver()
+    const failedHere = failed.length > 0 && elements.some((e) => e.mediaId && slideOf(e) === curSlide && failed.includes(e.mediaId))
+    if (failedHere) { revoke(); setExporting(false); toast.error('Una foto di questa tavola non si è caricata (limite temporaneo di Google Drive). Riprova tra qualche secondo.'); return }
     try {
       await exportCaroselloSlide(strip, fmt.w, fmt.h, n, curSlide, resolve, { texts, filename: `slide-${String(curSlide + 1).padStart(2, '0')}.jpg` })
       toast.success(`Tavola ${curSlide + 1} esportata`)
@@ -566,7 +581,8 @@ export default function CaroselloPage() {
     if (exporting || driveBusy) return
     if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
     setDriveBusy(true); setExportProg({ done: 0, total: n })
-    const { resolve, revoke } = await buildBlobResolver()
+    const { resolve, revoke, failed } = await buildBlobResolver()
+    if (failed.length > 0) { revoke(); setDriveBusy(false); setExportProg(null); toast.error(`${failed.length} foto non si sono caricate (limite temporaneo di Google Drive). Riprova tra qualche secondo: così escono tutte.`); return }
     try {
       const blob = await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, { texts, returnBlob: true, onProgress: (done, total) => setExportProg({ done, total }), onZip: onZipProg }) as Blob
       setExportProg(null)
