@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AvailabilityBanner } from '@/components/quote/AvailabilityBanner'
 import { SuggestSuppliersModal } from '@/components/quote/SuggestSuppliersModal'
+import { QuoteThread } from '@/components/quote/QuoteThread'
 import { AnswersPanel } from '@/components/AnswersPanel'
 import { LikedStylesGallery } from '@/components/LikedStylesGallery'
 import { supabase } from '@/lib/supabase'
@@ -809,6 +810,9 @@ export default function QuoteEditorPage() {
             <LikedStylesGallery cards={(clientAnswers as Record<string, unknown>).liked_style_cards} tags={(clientAnswers as Record<string, unknown>).liked_tags} />
           </div>
         )}
+
+        {/* Chat col cliente + "Richiedi una call" */}
+        {id && <div className="mb-4"><QuoteThread quoteId={id} /></div>}
 
         {/* Banner: preventivo firmato → lock modifiche + convert-to-contract */}
         {(quote.status === 'ACCETTATO' || quote.status === 'CONVERTITO_IN_CONTRATTO') && (

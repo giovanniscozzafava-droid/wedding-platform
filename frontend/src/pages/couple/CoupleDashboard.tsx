@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input, Select } from '@/components/ui/input'
 import { PdfViewButton } from '@/components/common/PdfBookViewer'
+import { QuoteThread } from '@/components/quote/QuoteThread'
 import { supabase } from '@/lib/supabase'
 import { useMyWeddings } from '@/hooks/useCouple'
 import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTimeline, useTransport, useMoodMutations, usePlaylistMutations, useWedding } from '@/hooks/useWedding'
@@ -1368,6 +1369,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
           </p>
         </Card>
       )}
+      {data?.id && <div className="mt-4"><QuoteThread quoteId={data.id} /></div>}
     </div>
   )
 }
