@@ -25,10 +25,18 @@ export default function LoginPage() {
     setError(null); setInfo(null); setBusy(true)
     try {
       if (magicMode) {
+        // shouldCreateUser: false → il magic-link ENTRA solo in account ESISTENTI, non ne crea di
+        // nuovi. (Prima creava un utente senza ruolo → il trigger lo defaultava a Wedding Planner:
+        // così un fornitore che provava a "entrare" si ritrovava registrato come WP.)
         const { error: err } = await supabase.auth.signInWithOtp({
-          email, options: { emailRedirectTo: `${window.location.origin}/` },
+          email, options: { emailRedirectTo: `${window.location.origin}/`, shouldCreateUser: false },
         })
-        if (err) throw err
+        if (err) {
+          if (/not.*found|not.*exist|signups.*not.*allowed|user.*not/i.test(err.message)) {
+            throw new Error('Nessun account con questa email. Registrati prima (scegliendo il tuo ruolo).')
+          }
+          throw err
+        }
         setInfo('Ti abbiamo inviato un link via email.')
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password })
