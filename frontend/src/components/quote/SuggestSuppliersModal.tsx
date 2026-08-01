@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '@/lib/toast'
-import { X, Users, Send, Loader2, Check, UserPlus, Mail } from 'lucide-react'
+import { X, Users, Send, Loader2, Check, UserPlus, Mail, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSuppliers, useFollowedSuppliers } from '@/hooks/useSuppliers'
 import { Button } from '@/components/ui/button'
@@ -63,6 +63,25 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteSubrole, setInviteSubrole] = useState('')
   const [inviteBusy, setInviteBusy] = useState(false)
+  // Ricerca di QUALSIASI professionista (non solo quelli seguiti): ognuno e' suggeribile.
+  const [q, setQ] = useState('')
+  const [searchRes, setSearchRes] = useState<Candidate[]>([])
+  const [searching, setSearching] = useState(false)
+  useEffect(() => {
+    const term = q.trim()
+    if (term.length < 2) { setSearchRes([]); return }
+    let alive = true; setSearching(true)
+    const h = setTimeout(async () => {
+      const { data } = await (supabase.rpc as any)('search_professionals', { p_q: term })
+      if (!alive) return
+      const known = new Set(suppliers.map((s) => s.id))
+      setSearchRes(((data ?? []) as { id: string; name: string | null; subrole: string | null }[])
+        .filter((r) => !known.has(r.id))
+        .map((r) => ({ id: r.id, name: r.name ?? 'Professionista', subrole: r.subrole })))
+      setSearching(false)
+    }, 300)
+    return () => { alive = false; clearTimeout(h) }
+  }, [q, suppliers])
 
   // Preselezione: tutti i NON ancora suggeriti (i gia' suggeriti restano in lista ma non spuntabili).
   const selectable = useMemo(() => suppliers.filter((s) => !already.has(s.id)), [suppliers, already])
@@ -158,6 +177,39 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
             </>
           )}
 
+          {/* Cerca e suggerisci QUALSIASI professionista su Planfully (anche non seguito) */}
+          <div className="rounded-xl border border-[rgb(var(--border))] p-3.5 space-y-2">
+            <div className="flex items-center gap-2">
+              <Search size={15} className="text-[rgb(var(--gold-600))]" />
+              <span className="text-sm font-medium">Cerca un professionista da suggerire</span>
+            </div>
+            <p className="text-[11px] text-[rgb(var(--fg-muted))] -mt-1">Puoi suggerire chiunque sia su Planfully, anche se non lo segui (fornitori e capostipiti).</p>
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome, attività, mestiere o città…" />
+            {searching && <p className="text-[11px] text-[rgb(var(--fg-subtle))]"><Loader2 size={11} className="animate-spin inline" /> Cerco…</p>}
+            {searchRes.length > 0 && (
+              <div className="space-y-1.5">
+                {searchRes.map((s) => {
+                  const done = already.has(s.id)
+                  const on = !done && sel.has(s.id)
+                  return (
+                    <button key={s.id} onClick={() => toggle(s.id)} disabled={done}
+                      className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${done ? 'border-[rgb(var(--border))] opacity-60 cursor-default' : on ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]/40' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                      <span className={`h-5 w-5 shrink-0 rounded-md border flex items-center justify-center ${done ? 'bg-[rgb(var(--emerald-500))] border-transparent text-white' : on ? 'bg-[rgb(var(--gold-500))] border-transparent text-white' : 'border-[rgb(var(--border-strong))]'}`}>{(done || on) && <Check size={13} />}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium truncate">{s.name}</span>
+                        {s.subrole && <span className="block text-[11px] text-[rgb(var(--fg-subtle))] capitalize">{s.subrole}</span>}
+                      </span>
+                      {done && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--emerald-700))', background: 'rgb(var(--emerald-500) / 0.14)' }}>Già suggerito</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            {q.trim().length >= 2 && !searching && searchRes.length === 0 && (
+              <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Nessun professionista trovato. Se non è ancora su Planfully, invitalo qui sotto.</p>
+            )}
+          </div>
+
           {/* Invita un professionista NON ancora su Planfully, legato a questo preventivo */}
           <div className="mt-2 rounded-xl border border-dashed border-[rgb(var(--border-strong))] p-3.5 space-y-2.5">
             <div className="flex items-center gap-2">
@@ -187,7 +239,7 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
 
         <div className="flex items-center justify-end gap-2 p-4 border-t border-[rgb(var(--border))]">
           <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>Annulla</Button>
-          <Button variant="gold" size="sm" onClick={() => void send()} disabled={busy || suppliers.length === 0 || sel.size === 0}>
+          <Button variant="gold" size="sm" onClick={() => void send()} disabled={busy || sel.size === 0}>
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Invia suggerimenti
           </Button>
         </div>

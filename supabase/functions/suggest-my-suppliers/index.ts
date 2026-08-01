@@ -55,18 +55,13 @@ Deno.serve(async (req) => {
   if (q.owner_id !== caller.id && me?.role !== 'ADMIN') return json({ error: 'forbidden' }, 403)
   const referrerName = me?.business_name ?? me?.full_name ?? 'Un professionista'
 
-  // Criterio: fornitori che il referrer SEGUE (follows APPROVED) — seguire è sufficiente.
-  // In più, per non regredire i capostipiti, accettiamo anche le collaborazioni ACTIVE.
-  const [{ data: fol }, { data: collabs }] = await Promise.all([
-    admin.from('follows')
-      .select('followed_id').eq('follower_id', q.owner_id).eq('status', 'APPROVED').in('followed_id', supplierIds),
-    admin.from('collaborations')
-      .select('fornitore_id').eq('capostipite_id', q.owner_id).eq('status', 'ACTIVE').in('fornitore_id', supplierIds),
-  ])
-  const validIds = [...new Set([
-    ...(fol ?? []).map((f: { followed_id: string }) => f.followed_id),
-    ...(collabs ?? []).map((c: { fornitore_id: string }) => c.fornitore_id),
-  ])]
+  // Suggeribile QUALSIASI professionista (regola: ogni profilo professionale nasce suggeribile).
+  // Validiamo solo che gli id siano profili professionali reali (non clienti/admin), senza
+  // richiedere follow/collaborazione.
+  const PRO_ROLES = ['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'FOTOLAB', 'MAESTRANZA']
+  const { data: pros } = await admin.from('profiles')
+    .select('id, role').in('id', supplierIds).in('role', PRO_ROLES)
+  const validIds = [...new Set((pros ?? []).map((p: { id: string }) => p.id))]
   if (validIds.length === 0) return json({ error: 'no_valid_suppliers' }, 400)
 
   const { data: sup } = await admin.from('profiles')
