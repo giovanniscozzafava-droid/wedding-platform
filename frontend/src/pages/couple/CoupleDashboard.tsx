@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input, Select } from '@/components/ui/input'
 import { PdfViewButton } from '@/components/common/PdfBookViewer'
 import { QuoteThread } from '@/components/quote/QuoteThread'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { supabase } from '@/lib/supabase'
 import { useMyWeddings } from '@/hooks/useCouple'
 import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTimeline, useTransport, useMoodMutations, usePlaylistMutations, useWedding } from '@/hooks/useWedding'
@@ -194,6 +195,7 @@ export default function CoupleDashboard() {
             <Link to="/faq" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Domande frequenti" aria-label="FAQ">
               <HelpCircle size={14} />
             </Link>
+            <LanguageSwitcher />
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Cambia tema">{theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}</Button>
             <Link to="/profile" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Profilo / Privacy" aria-label="Profilo">
               <Sparkles size={14} />

@@ -1,53 +1,24 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { setAutoLang } from '@/lib/autoTranslate'
 
-// Fondazione multilingue (IT/EN). Approccio "stringa sorgente": avvolgi la stringa italiana in
-// t('...') e aggiungi la traduzione in EN qui sotto. Nessuna chiave da inventare: l'italiano è la
-// chiave. Regola d'ora in avanti: ogni nuova stringa utente passa da t() e ha la sua voce EN.
-export type Lang = 'it' | 'en'
+// Multilingue dell'INTERA app. L'italiano e' la lingua sorgente; per le altre lingue traduciamo
+// automaticamente a runtime tutto cio' che e' visibile (vedi lib/autoTranslate.ts): niente chiavi da
+// mantenere a mano. t() resta come identita' (torna la stringa italiana): la traduzione avviene sul DOM.
+export type Lang = 'it' | 'en' | 'es' | 'fr' | 'de'
+export const LANGS: { code: Lang; label: string }[] = [
+  { code: 'it', label: 'IT' }, { code: 'en', label: 'EN' }, { code: 'es', label: 'ES' },
+  { code: 'fr', label: 'FR' }, { code: 'de', label: 'DE' },
+]
 const KEY = 'planfully_lang'
+const VALID: Lang[] = ['it', 'en', 'es', 'fr', 'de']
 
 function detect(): Lang {
   try {
-    const saved = localStorage.getItem(KEY)
-    if (saved === 'it' || saved === 'en') return saved
+    const saved = localStorage.getItem(KEY) as Lang | null
+    if (saved && VALID.includes(saved)) return saved
   } catch { /* ignore */ }
-  const n = (typeof navigator !== 'undefined' ? navigator.language : 'it').toLowerCase()
-  return n.startsWith('it') ? 'it' : 'en'
-}
-
-// Dizionario IT → EN. Aggiungi qui le traduzioni delle stringhe avvolte in t().
-const EN: Record<string, string> = {
-  // — Navigazione —
-  'Dashboard': 'Dashboard',
-  'Richieste': 'Requests',
-  'Eventi': 'Events',
-  'Preventivi': 'Quotes',
-  'Contratti': 'Contracts',
-  'Suggerimenti ricevuti': 'Referrals received',
-  'Suggerimenti inviati': 'Referrals sent',
-  'Calendario': 'Calendar',
-  'Catalogo': 'Catalog',
-  'Rete': 'Network',
-  'Strumenti': 'Tools',
-  'Impostazioni': 'Settings',
-  'Lead': 'Leads',
-  'Profilo': 'Profile',
-  'Assistenza': 'Support',
-  'Esci': 'Log out',
-  // — Azioni comuni —
-  'Salva': 'Save',
-  'Annulla': 'Cancel',
-  'Elimina': 'Delete',
-  'Conferma': 'Confirm',
-  'Aggiungi': 'Add',
-  'Modifica': 'Edit',
-  'Chiudi': 'Close',
-  'Indietro': 'Back',
-  'Avanti': 'Next',
-  'Cerca': 'Search',
-  'Nuovo preventivo': 'New quote',
-  'Ordine cronologico': 'Chronological order',
-  'Più recenti': 'Most recent',
+  const n = (typeof navigator !== 'undefined' ? navigator.language : 'it').slice(0, 2).toLowerCase()
+  return (VALID as string[]).includes(n) ? (n as Lang) : 'it'
 }
 
 type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (it: string, vars?: Record<string, string | number>) => string }
@@ -60,21 +31,22 @@ function interpolate(s: string, vars?: Record<string, string | number>): string 
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(detect)
-  useEffect(() => { try { document.documentElement.lang = lang } catch { /* ignore */ } }, [lang])
+  // Applica la lingua al DOM (traduzione automatica) a ogni cambio + al primo mount.
+  useEffect(() => {
+    try { document.documentElement.lang = lang } catch { /* ignore */ }
+    setAutoLang(lang)
+  }, [lang])
   const setLang = useCallback((l: Lang) => {
     setLangState(l)
     try { localStorage.setItem(KEY, l) } catch { /* ignore */ }
   }, [])
-  const t = useCallback((it: string, vars?: Record<string, string | number>) => {
-    const base = lang === 'en' ? (EN[it] ?? it) : it
-    return interpolate(base, vars)
-  }, [lang])
+  // t() = identita': la traduzione dell'intera UI e' gestita a runtime sul DOM.
+  const t = useCallback((it: string, vars?: Record<string, string | number>) => interpolate(it, vars), [])
   return <I18nCtx.Provider value={{ lang, setLang, t }}>{children}</I18nCtx.Provider>
 }
 
 export function useT() {
   const ctx = useContext(I18nCtx)
-  // Fallback fuori dal provider: nessuna traduzione (identità), per non rompere componenti isolati.
   if (!ctx) return { lang: 'it' as Lang, setLang: () => {}, t: (it: string, vars?: Record<string, string | number>) => interpolate(it, vars) }
   return ctx
 }
