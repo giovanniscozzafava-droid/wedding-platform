@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { humanErrorLine } from '@/lib/humanizeError'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 type SiteData = {
   wedding: {
@@ -70,6 +71,8 @@ export default function WeddingSitePage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
+      {/* Selettore lingua per gli ospiti (spesso internazionali): l'intero sito si traduce da solo. */}
+      <div className="fixed top-3 right-3 z-50 rounded-md backdrop-blur" style={{ background: 'rgba(255,255,255,.7)' }}><LanguageSwitcher /></div>
       {/* Hero fotografico full-bleed con velo scuro NEUTRO (mai gradienti colorati sopra le foto). */}
       <header className="relative overflow-hidden" style={{ background: '#1A1408' }}>
         <img src={w.data?.couple_photo_url ?? '/hero/preview.jpg'} alt={`${w.title} — foto`}
