@@ -362,6 +362,9 @@ export function useContracts(quoteId?: string | null) {
     queryFn: async () => {
       let q = supabase.from('contracts').select('*').order('updated_at', { ascending: false })
       if (quoteId) q = q.eq('quote_id', quoteId)
+      // Contratti accantonati insieme al preventivo/evento non compaiono nella lista globale del pro
+      // (con quoteId e' un lookup mirato: li' non filtriamo).
+      else q = q.is('archived_at', null)
       const { data, error } = await q
       if (error) throw error
       return data ?? []

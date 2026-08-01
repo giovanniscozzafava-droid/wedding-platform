@@ -2562,6 +2562,7 @@ export type Database = {
         Row: {
           access_token: string | null
           access_token_expires_at: string | null
+          archived_at: string | null
           client_address: string | null
           client_business_name: string | null
           client_city: string | null
@@ -2608,6 +2609,7 @@ export type Database = {
         Insert: {
           access_token?: string | null
           access_token_expires_at?: string | null
+          archived_at?: string | null
           client_address?: string | null
           client_business_name?: string | null
           client_city?: string | null
@@ -2654,6 +2656,7 @@ export type Database = {
         Update: {
           access_token?: string | null
           access_token_expires_at?: string | null
+          archived_at?: string | null
           client_address?: string | null
           client_business_name?: string | null
           client_city?: string | null
