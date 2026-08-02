@@ -1,7 +1,8 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from '@/lib/toast'
-import { ShieldAlert, Trash2, Sparkles } from 'lucide-react'
+import { ShieldAlert, Trash2, Sparkles, Languages } from 'lucide-react'
+import { useT, LANGS, LANG_NAMES } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +22,7 @@ import { StopAtQuoteCard } from '@/components/event/StopAtQuoteCard'
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth()
+  const { lang, setLang, isAuto, setAuto } = useT()
   const nuovoModello = useNuovoModello()
   const setNuovoModello = useSetNuovoModello()
   const [togglingFlag, setTogglingFlag] = useState(false)
@@ -421,6 +423,33 @@ export default function ProfilePage() {
                 <button type="button" onClick={() => void recoverPassword()} disabled={accBusy}
                   className="text-[11px] text-[rgb(var(--gold-600))] hover:underline">Non la ricordi? Invia link di recupero via email</button>
               </div>
+            </div>
+          </Card>
+
+          {/* Lingua dell'interfaccia — preferenza personale. Default: la lingua del dispositivo da cui
+              gestisci ("da dove stai gestendo"); qui puoi forzarne una. */}
+          <Card className="p-6 mt-6">
+            <div className="flex items-start gap-3 mb-3">
+              <Languages className="text-[rgb(var(--gold-600))] shrink-0 mt-0.5" size={20} />
+              <div className="flex-1">
+                <h3 className="font-display text-lg">Lingua</h3>
+                <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
+                  Di default Planfully parla la lingua del dispositivo da cui gestisci. Puoi sceglierne un'altra qui:
+                  l'intera interfaccia viene tradotta automaticamente.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2" data-notranslate>
+              <button type="button" onClick={setAuto} aria-pressed={isAuto}
+                className={`px-3 py-2 rounded-lg border text-sm transition-colors ${isAuto ? 'border-[rgb(var(--gold))] bg-[rgb(var(--bg-sunken))] font-medium' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                Automatico{isAuto ? ` · ${LANG_NAMES[lang]}` : ''}
+              </button>
+              {LANGS.map(({ code }) => (
+                <button key={code} type="button" onClick={() => setLang(code)} aria-pressed={!isAuto && lang === code}
+                  className={`px-3 py-2 rounded-lg border text-sm transition-colors ${!isAuto && lang === code ? 'border-[rgb(var(--gold))] bg-[rgb(var(--bg-sunken))] font-medium' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
+                  {LANG_NAMES[code]}
+                </button>
+              ))}
             </div>
           </Card>
 

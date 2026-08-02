@@ -35,7 +35,6 @@ import { Filo } from '@/components/filo/Filo'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { useT } from '@/lib/i18n'
-import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { cn } from '@/lib/utils'
 
 const ROLE_LABEL: Record<string, string> = {
@@ -233,7 +232,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NotificationBell align="start" />
           <CandidacyInbox placement="beside" />
         </div>
-        <div className="px-4 pb-2 flex items-center justify-between gap-2"><HelpModeToggle /><LanguageSwitcher /></div>
+        {/* La lingua ora si sceglie in Impostazioni › Profilo (preferenza personale). */}
+        <div className="px-4 pb-2 flex items-center gap-2"><HelpModeToggle /></div>
 
         <nav className="flex-1 px-3 py-2 overflow-y-auto">
           <NavGroups groups={NAV_GROUPS} dots={unreadDots} counts={navCounts} />
