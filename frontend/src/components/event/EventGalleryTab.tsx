@@ -94,6 +94,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   }
   const [printPhoto, setPrintPhoto] = useState<Media | null>(null)
   const [printOn, setPrintOn] = useState(false)
+  // Sito personale del professionista: l'interruttore compare solo a chi ne ha uno
+  // collegato, e vale per QUESTO evento — non per tutto l'archivio.
+  const [siteSyncOn, setSiteSyncOn] = useState(false)
+  const [siteExport, setSiteExport] = useState(false)
 
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
@@ -110,6 +114,28 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       setDriveConnected(!!data)
     })()
   }, [me, role])
+  // Sito personale collegato + stato dell'evento
+  useEffect(() => {
+    if (role === 'sposi' || !me) { setSiteSyncOn(false); return }
+    void (async () => {
+      const { data: prof } = await (supabase.from as any)('profiles').select('personal_site_sync').eq('id', me).maybeSingle()
+      setSiteSyncOn(!!prof?.personal_site_sync)
+      if (!prof?.personal_site_sync) return
+      const { data: ce } = await (supabase.from as any)('calendar_entries').select('site_export').eq('id', entryId).maybeSingle()
+      setSiteExport(!!ce?.site_export)
+    })()
+  }, [me, role, entryId])
+  async function toggleSiteExport() {
+    const next = !siteExport
+    setSiteExport(next)                                   // ottimistico
+    const { error } = await (supabase.from as any)('calendar_entries').update({ site_export: next }).eq('id', entryId)
+    if (error) {
+      setSiteExport(!next)
+      toast.error('Non sono riuscito a cambiare l\'impostazione')
+      return
+    }
+    toast.success(next ? 'Evento abilitato al tuo sito' : 'Evento escluso dal tuo sito')
+  }
   // Blocco "coatto" uscita pagina durante l'upload: il browser mostra l'avviso nativo "Lasciare il sito?"
   useEffect(() => {
     if (!uploading) return
@@ -658,6 +684,24 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <p className="text-xs text-[rgb(var(--fg-muted))]">La tua scelta a swipe, come gli sposi: destra tieni, sinistra scarta. È il tuo cuore, separato dal loro.</p>
           </div>
           <Link to={`/foto-selezione/${entryId}`}><Button variant="gold" size="sm"><Heart size={14} /> Fai la selezione</Button></Link>
+        </Card>
+      )}
+
+      {/* SITO PERSONALE — l'evento entra nell'archivio del proprio sito solo se lo dici qui.
+          Due condizioni perché una foto finisca online: questo interruttore + il tuo cuore. */}
+      {isOwner && siteSyncOn && (
+        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-medium flex items-center gap-2"><Globe size={16} className="text-[rgb(var(--gold-600))]" /> Il mio sito personale</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">
+              {siteExport
+                ? 'Questo evento è abilitato: le foto con il tuo cuore possono passare al sito. Le altre restano qui.'
+                : 'Evento escluso. Abilitalo solo se hai la liberatoria per pubblicare le foto di questo matrimonio.'}
+            </p>
+          </div>
+          <Button variant={siteExport ? 'gold' : 'outline'} size="sm" onClick={() => void toggleSiteExport()}>
+            <Globe size={14} /> {siteExport ? 'Abilitato' : 'Abilita per il sito'}
+          </Button>
         </Card>
       )}
 

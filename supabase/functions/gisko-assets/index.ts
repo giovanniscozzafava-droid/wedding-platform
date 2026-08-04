@@ -36,7 +36,7 @@ type Row = {
   guest_tag_name: string | null
   no_minors: boolean | null
   created_at: string
-  calendar_entries: { id: string; title: string; date_from: string; owner_id: string } | null
+  calendar_entries: { id: string; title: string; date_from: string; owner_id: string; site_export: boolean } | null
 }
 
 /** Access token Drive dell'owner, dal refresh token cifrato. */
@@ -94,10 +94,12 @@ Deno.serve(async (req) => {
     // l'evento deve essere suo: nessuno scarica gli originali di un altro professionista
     const { data: entry } = await admin
       .from('calendar_entries')
-      .select('owner_id')
+      .select('owner_id, site_export')
       .eq('id', m.entry_id)
       .maybeSingle()
     if (!entry || entry.owner_id !== uid) return json({ ok: false, error: 'forbidden' }, 403)
+    // stesso vincolo dell'elenco: senza flag sull'evento non esce nessun originale
+    if (!entry.site_export) return json({ ok: false, error: 'event_not_enabled' }, 403)
 
     const imgHeaders = (ct: string) => ({ ...CORS, 'Content-Type': ct, 'Cache-Control': 'private, max-age=600' })
 
@@ -126,18 +128,28 @@ Deno.serve(async (req) => {
   // ---------- POST {action:'list'} : la mia selezione, tutti i miei eventi ----------
   if (req.method !== 'POST') return json({ ok: false, error: 'method' }, 405)
 
-  const { data, error } = await admin
-    .from('gallery_media')
-    .select(
-      'id, entry_id, drive_file_id, thumbnail_link, media_type, album_moment, guest_tag_name, no_minors, created_at, calendar_entries!inner(id, title, date_from, owner_id)',
-    )
-    .eq('pick_photographer', true)
-    .eq('media_type', 'PHOTO')
-    .eq('calendar_entries.owner_id', uid)
-    .order('created_at', { ascending: true })
-  if (error) return json({ ok: false, error: 'query', detail: error.message }, 500)
-
-  const rows = (data ?? []) as unknown as Row[]
+  // PostgREST tronca a 1000 righe per risposta: senza paginare, una selezione
+  // grande sembrerebbe finire tonda a 1000 e il resto sparirebbe in silenzio.
+  const PAGE = 1000
+  const rows: Row[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await admin
+      .from('gallery_media')
+      .select(
+        'id, entry_id, drive_file_id, thumbnail_link, media_type, album_moment, guest_tag_name, no_minors, created_at, calendar_entries!inner(id, title, date_from, owner_id, site_export)',
+      )
+      .eq('pick_photographer', true)
+      .eq('media_type', 'PHOTO')
+      .eq('calendar_entries.owner_id', uid)
+      // due condizioni, non una: l'evento dev'essere abilitato al sito E la foto scelta
+      .eq('calendar_entries.site_export', true)
+      .order('created_at', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) return json({ ok: false, error: 'query', detail: error.message }, 500)
+    const batch = (data ?? []) as unknown as Row[]
+    rows.push(...batch)
+    if (batch.length < PAGE) break
+  }
   const photos = rows.map((r) => ({
     id: r.id,
     entry_id: r.entry_id,
