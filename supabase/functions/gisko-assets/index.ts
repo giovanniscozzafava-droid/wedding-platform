@@ -1,6 +1,9 @@
 // Edge function: gisko-assets
-// Ponte PRIVATO fra la selezione del FOTOGRAFO su Planfully (gallery_media.pick_photographer)
-// e la libreria asset del suo sito personale (gisko.net).
+// Ponte PRIVATO fra la selezione del FOTOGRAFO su Planfully (gallery_media.carousel_pick,
+// la selezione del carosello) e la libreria asset del suo sito personale (gisko.net).
+//
+// Perche' il carosello e non pick_photographer: quel cuore su diversi eventi coincide
+// con la selezione dell'album (foto da stampare), quindi non dice "questa va pubblicata".
 //
 // Due azioni, entrambe riservate all'owner degli eventi (JWT utente, nessun accesso anonimo):
 //   POST {action:'list'}       -> elenco delle foto che il fotografo ha messo nella SUA selezione
@@ -91,7 +94,7 @@ Deno.serve(async (req) => {
       .eq('id', mediaId)
       .maybeSingle()
     if (!m) return json({ ok: false, error: 'not_found' }, 404)
-    if (!m.pick_photographer && !m.carousel_pick) return json({ ok: false, error: 'not_picked' }, 403)
+    if (!m.carousel_pick) return json({ ok: false, error: 'not_picked' }, 403)
 
     // l'evento deve essere suo: nessuno scarica gli originali di un altro professionista
     const { data: entry } = await admin
@@ -140,9 +143,10 @@ Deno.serve(async (req) => {
       .select(
         'id, entry_id, drive_file_id, thumbnail_link, media_type, album_moment, guest_tag_name, no_minors, pick_photographer, carousel_pick, created_at, calendar_entries!inner(id, title, date_from, owner_id, site_export)',
       )
-      // le selezioni del fotografo sono due e sono entrambe sue: il cuore
-      // dell'impaginatore e quella del carosello. Vale l'unione.
-      .or('pick_photographer.eq.true,carousel_pick.eq.true')
+      // La selezione buona per il sito e' quella del CAROSELLO, non il cuore
+      // dell'impaginatore: il cuore su alcuni eventi coincide con l'album (foto
+      // scelte per stampare, non per pubblicare) e trascinerebbe dentro tutto.
+      .eq('carousel_pick', true)
       .eq('media_type', 'PHOTO')
       .eq('calendar_entries.owner_id', uid)
       // due condizioni, non una: l'evento dev'essere abilitato al sito E la foto scelta
