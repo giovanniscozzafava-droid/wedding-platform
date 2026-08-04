@@ -38,6 +38,7 @@ type Row = {
   album_moment: string | null
   guest_tag_name: string | null
   no_minors: boolean | null
+  album_choice: string | null
   pick_photographer: boolean | null
   carousel_pick: boolean | null
   created_at: string
@@ -90,11 +91,12 @@ Deno.serve(async (req) => {
 
     const { data: m } = await admin
       .from('gallery_media')
-      .select('id, entry_id, drive_file_id, thumbnail_link, pick_photographer, carousel_pick')
+      .select('id, entry_id, drive_file_id, thumbnail_link, pick_photographer, carousel_pick, album_choice')
       .eq('id', mediaId)
       .maybeSingle()
     if (!m) return json({ ok: false, error: 'not_found' }, 404)
-    if (!m.carousel_pick) return json({ ok: false, error: 'not_picked' }, 403)
+    if (!m.pick_photographer && !m.carousel_pick) return json({ ok: false, error: 'not_picked' }, 403)
+    if (m.album_choice === 'KEPT') return json({ ok: false, error: 'album_photo' }, 403)
 
     // l'evento deve essere suo: nessuno scarica gli originali di un altro professionista
     const { data: entry } = await admin
@@ -141,12 +143,15 @@ Deno.serve(async (req) => {
     const { data, error } = await admin
       .from('gallery_media')
       .select(
-        'id, entry_id, drive_file_id, thumbnail_link, media_type, album_moment, guest_tag_name, no_minors, pick_photographer, carousel_pick, created_at, calendar_entries!inner(id, title, date_from, owner_id, site_export)',
+        'id, entry_id, drive_file_id, thumbnail_link, media_type, album_moment, album_choice, guest_tag_name, no_minors, pick_photographer, carousel_pick, created_at, calendar_entries!inner(id, title, date_from, owner_id, site_export)',
       )
-      // La selezione buona per il sito e' quella del CAROSELLO, non il cuore
-      // dell'impaginatore: il cuore su alcuni eventi coincide con l'album (foto
-      // scelte per stampare, non per pubblicare) e trascinerebbe dentro tutto.
-      .eq('carousel_pick', true)
+      // Il fotografo sceglie ora col cuore ora col carosello, a seconda dell'evento:
+      // valgono entrambe. Restano pero' fuori le foto finite nell'ALBUM (album_choice
+      // KEPT): quelle sono scelte per la stampa, non per la pubblicazione, e su un
+      // evento arrivavano a coincidere col cuore trascinando dentro tutto l'impaginato.
+      // (le KEPT si tolgono dopo, in codice: in SQL "album_choice <> 'KEPT'" scarta
+      //  anche le righe senza valore, che sono la maggioranza)
+      .or('pick_photographer.eq.true,carousel_pick.eq.true')
       .eq('media_type', 'PHOTO')
       .eq('calendar_entries.owner_id', uid)
       // due condizioni, non una: l'evento dev'essere abilitato al sito E la foto scelta
@@ -158,7 +163,8 @@ Deno.serve(async (req) => {
     rows.push(...batch)
     if (batch.length < PAGE) break
   }
-  const photos = rows.map((r) => ({
+  // fuori le foto dell'album: scelte per la stampa, non per la pubblicazione
+  const photos = rows.filter((r) => r.album_choice !== 'KEPT').map((r) => ({
     id: r.id,
     entry_id: r.entry_id,
     event_title: r.calendar_entries?.title ?? null,
