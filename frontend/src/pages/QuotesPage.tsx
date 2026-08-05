@@ -243,8 +243,10 @@ export default function QuotesPage() {
                   <div className={`grid ${isFornitore ? 'grid-cols-1' : 'grid-cols-3'} gap-3 pt-3 border-t`} style={{ borderColor: 'rgb(var(--border))' }}>
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Cliente</p>
+                      {/* Totale = solo i servizi ACCETTATI dal cliente (0 finché non sceglie). Il totale
+                          pieno dell'offerta resta nel documento (editor/PDF/pagina di accettazione). */}
                       <p className="font-display text-lg tabular-nums">
-                        € {Number(q.total_client).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                        € {Number((q as { total_client_selected?: number }).total_client_selected ?? 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
                       </p>
                     </div>
                     {!isFornitore && (

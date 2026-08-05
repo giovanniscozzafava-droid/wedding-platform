@@ -11799,6 +11799,7 @@ export type Database = {
           token_hash: string | null
           token_revoked_at: string | null
           total_client: number
+          total_client_selected: number
           total_cost: number
           total_discount_amount: number
           total_discount_percent: number
@@ -11856,6 +11857,7 @@ export type Database = {
           token_hash?: string | null
           token_revoked_at?: string | null
           total_client?: number
+          total_client_selected?: number
           total_cost?: number
           total_discount_amount?: number
           total_discount_percent?: number
@@ -11913,6 +11915,7 @@ export type Database = {
           token_hash?: string | null
           token_revoked_at?: string | null
           total_client?: number
+          total_client_selected?: number
           total_cost?: number
           total_discount_amount?: number
           total_discount_percent?: number

@@ -63,7 +63,7 @@ function useRecentActivity() {
     queryKey: ['home-activity'],
     queryFn: async () => {
       const [q, e] = await Promise.all([
-        supabase.from('quotes').select('id, title, status, updated_at, total_client').order('updated_at', { ascending: false }).limit(5),
+        supabase.from('quotes').select('id, title, status, updated_at, total_client, total_client_selected').order('updated_at', { ascending: false }).limit(5),
         supabase.from('calendar_entries').select('id, title, status, date_from').order('date_from', { ascending: true }).limit(5),
       ])
       const quotes = (q.data ?? []) as any[]
@@ -260,7 +260,7 @@ export default function HomePage() {
                       </Link>
                       <div className="flex items-center gap-3 ml-4 shrink-0">
                         <span className="font-display text-base tabular-nums">
-                          € {Number(q.total_client).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                          € {Number((q as { total_client_selected?: number }).total_client_selected ?? 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
                         </span>
                         <Badge status={q.status} />
                       </div>
