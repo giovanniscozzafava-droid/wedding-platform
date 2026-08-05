@@ -62,7 +62,10 @@ Deno.serve(async (req) => {
   }).select('id').single()
   if (bkErr) {
     if (slot?.id) await admin.from('supplier_availability_slots').delete().eq('id', slot.id)
-    return json({ error: 'insert_failed', detail: bkErr.message }, 500)
+    // 23P01 = exclusion_violation del constraint bookings_no_overlap: slot preso da un'altra
+    // prenotazione concorrente (la garanzia atomica è il constraint, non il SELECT sopra).
+    const taken = (bkErr as { code?: string }).code === '23P01' || /bookings_no_overlap|exclusion/i.test(bkErr.message)
+    return json(taken ? { error: 'slot_taken' } : { error: 'insert_failed', detail: bkErr.message }, taken ? 409 : 500)
   }
 
   const proName = (prof.business_name || prof.full_name || 'Il professionista') as string
