@@ -597,8 +597,12 @@ export default function QuoteEditorPage() {
 
   async function handleChangeItemQty(itemId: string, qty: number) {
     if (!id) return
+    // Valida/clampa: campo vuoto o non numerico → 0; niente negativi; tetto ragionevole (99.999).
+    const safe = Math.max(0, Math.min(99999, Number.isFinite(qty) ? qty : 0))
+    const current = Number(quote?.quote_items.find((x) => x.id === itemId)?.quantity ?? NaN)
+    if (safe === current) return  // nessun cambiamento reale → niente mutation/refetch inutile
     try {
-      await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { quantity: qty } })
+      await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { quantity: safe } })
     } catch (e) { toast.error((e as Error).message) }
   }
   // Sconto sulla singola voce (% sul prezzo cliente; negativo = maggiorazione).
@@ -1114,9 +1118,16 @@ export default function QuoteEditorPage() {
                             <option key={k} value={k}>{v.label}</option>
                           ))}
                         </Select>
-                        <Input type="number" step="0.5" min={0} value={Number(it.quantity)}
-                          onChange={(e) => handleChangeItemQty(it.id, Number(e.target.value))}
-                          title={basis === 'PER_GUEST' || basis === 'PER_TABLE' ? 'Quantità modificabile: scrivi un numero diverso dal totale (es. solo 10 invitati)' : undefined}
+                        {/* Quantità: commit su blur/Invio (NON a ogni tasto). Il pattern controllato
+                            + mutateAsync per-keystroke scatenava una raffica di refetch mentre la lista
+                            (motion.ul/li layout) ri-animava → crash "removeChild" digitando numeri a piu'
+                            cifre (es. 50 partecipazioni). key resetta il defaultValue se la quantita' cambia. */}
+                        <Input type="number" step="0.5" min={0} inputMode="decimal"
+                          key={`qty-${it.id}-${Number(it.quantity)}`}
+                          defaultValue={Number(it.quantity)}
+                          onBlur={(e) => handleChangeItemQty(it.id, Number(e.target.value))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                          title={basis === 'PER_GUEST' || basis === 'PER_TABLE' ? 'Quantità modificabile: scrivi un numero diverso dal totale (es. solo 10 invitati). Premi Invio o esci dal campo per applicare.' : 'Premi Invio o esci dal campo per applicare.'}
                           className="h-8 w-24 text-xs" />
                         <span className="text-xs text-[rgb(var(--fg-subtle))]">{it.unit_snapshot.toLowerCase()}</span>
                         <span className="text-xs text-[rgb(var(--fg-subtle))] ml-2">sconto</span>
