@@ -39,7 +39,10 @@ Deno.serve(async (req) => {
     const { count: ec } = await admin.from('suggest_attempts').select('*', { count: 'exact', head: true }).gte('attempted_at', since).ilike('email', client_email)
     if ((ec ?? 0) >= EMAIL_MAX) return json({ error: 'rate_limited' }, 429)
     await admin.from('suggest_attempts').insert({ ip_address: ip, email: client_email })
-  } catch { /* se la tabella non esiste ancora, non bloccare il flusso */ }
+  } catch {
+    // FAIL-CLOSED: se il rate limiter non può girare non proseguiamo (niente harvesting illimitato).
+    return json({ error: 'rate_limited' }, 429)
+  }
 
   const { data, error } = await admin.rpc('suggest_alternatives_full', { p_slug: slug, p_date: date })
   if (error) return json({ error: error.message }, 500)
@@ -48,15 +51,26 @@ Deno.serve(async (req) => {
   if (!r?.found || alts.length === 0) return json({ ok: true, sent: false, reason: 'no_alternatives' })
 
   const dateIt = new Date(date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+  const suggestedIds = alts.map((a) => a.id).filter(Boolean) as string[]
+  // I contatti (telefono/email) NON arrivano più dalla RPC pubblica: li recuperiamo qui lato server
+  // (service_role) SOLO per comporre l'email al lead. Così la RPC pubblica non fa harvesting.
+  const contactsById: Record<string, { phone?: string | null; email?: string | null }> = {}
+  if (suggestedIds.length > 0) {
+    const { data: cData } = await admin.rpc('suggest_alternatives_contacts', { p_ids: suggestedIds })
+    for (const c of ((cData as { id: string; phone?: string | null; email?: string | null }[]) ?? [])) {
+      contactsById[c.id] = { phone: c.phone, email: c.email }
+    }
+  }
   // Contatti DIRETTI (nome, email, telefono). Niente link al profilo: la
   // piattaforma è riservata ai fornitori, non aperta al pubblico.
   const cards = alts.map((a) => {
     const sector = [a.subrole, a.city].filter(Boolean).join(' · ')
+    const ct = (a.id && contactsById[a.id]) || {}
     return `<div style="background:#F4F3EE;border:1px solid #E2DFD4;padding:16px;margin:10px 0">
       <p style="margin:0 0 4px;font-weight:600;font-size:16px">${esc(a.full_name ?? a.name)}</p>
       ${sector ? `<p style="margin:0 0 10px;font-size:13px;color:#6B6B63">${esc(sector)}</p>` : ''}
-      ${a.phone ? `<p style="margin:0 0 6px;font-size:14px">Tel: <a href="tel:${esc(a.phone)}" style="color:#25402F;text-decoration:none">${esc(a.phone)}</a></p>` : ''}
-      ${a.email ? `<p style="margin:0;font-size:14px">Email: <a href="mailto:${esc(a.email)}" style="color:#25402F;text-decoration:none">${esc(a.email)}</a></p>` : ''}
+      ${ct.phone ? `<p style="margin:0 0 6px;font-size:14px">Tel: <a href="tel:${esc(ct.phone)}" style="color:#25402F;text-decoration:none">${esc(ct.phone)}</a></p>` : ''}
+      ${ct.email ? `<p style="margin:0;font-size:14px">Email: <a href="mailto:${esc(ct.email)}" style="color:#25402F;text-decoration:none">${esc(ct.email)}</a></p>` : ''}
     </div>`
   }).join('')
 
@@ -77,7 +91,6 @@ Deno.serve(async (req) => {
   // contratto con questo cliente (stessa email), scatta il credito automatico
   // (trigger autocredit_on_referred_contract): lo paga il suggerito, lo incassa
   // il professionista occupato che ha girato il lead.
-  const suggestedIds = alts.map((a) => a.id).filter(Boolean)
   if (suggestedIds.length > 0) {
     await admin.rpc('record_auto_suggestions', {
       p_slug: slug, p_client_email: client_email, p_client_name: clientName,
