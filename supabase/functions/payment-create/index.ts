@@ -49,10 +49,14 @@ Deno.serve(async (req) => {
     // (stesso criterio di client_decide_quote_item).
     kind = b.kind === 'QUOTE_BALANCE' ? 'QUOTE_BALANCE' : 'QUOTE_DEPOSIT'
     const { data: q } = await admin.from('quotes')
-      .select('id, owner_id, client_email, total_client, title').eq('id', refId).maybeSingle()
+      .select('id, owner_id, client_email, total_client, total_client_selected, title').eq('id', refId).maybeSingle()
     if (!q) return json({ error: 'quote_not_found' }, 200)
     if (!callerEmail || String(q.client_email ?? '').toLowerCase() !== callerEmail) return json({ error: 'forbidden' }, 403)
-    const totalCents = Math.round(Number(q.total_client ?? 0) * 100)
+    // Base d'incasso = i servizi effettivamente SCELTI dal cliente (client_decision='ACCETTATO', voce
+    // per voce). Se il preventivo è stato firmato per intero (nessuna scelta per-voce → selected=0),
+    // si ripiega sul total_client pieno. Così il cliente non paga acconto/saldo su voci non scelte.
+    const selCents = Math.round(Number(q.total_client_selected ?? 0) * 100)
+    const totalCents = selCents > 0 ? selCents : Math.round(Number(q.total_client ?? 0) * 100)
     if (totalCents <= 0) return json({ error: 'bad_amount' }, 200)
     // quanto già incassato (PAID) per questo preventivo → evita doppioni e calcola il saldo
     const { data: paidRows } = await admin.from('payments')
