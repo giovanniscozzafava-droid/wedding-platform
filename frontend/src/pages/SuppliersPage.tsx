@@ -92,6 +92,9 @@ export default function SuppliersPage() {
           actions={
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" asChild>
+                <Link to="/scopri"><PackageSearch /> Trova professionisti</Link>
+              </Button>
+              <Button variant="outline" asChild>
                 <Link to="/suggerimenti-inviati"><Send /> Preventivi che ho suggerito</Link>
               </Button>
               <Button variant="outline" asChild>
