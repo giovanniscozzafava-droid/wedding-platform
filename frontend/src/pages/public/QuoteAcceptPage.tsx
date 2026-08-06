@@ -35,6 +35,7 @@ type QuoteItem = {
   quantity: number
   unit_snapshot: string | null
   line_client: number
+  supplier: { name?: string; slug?: string | null; subrole?: string | null } | null
 }
 
 export default function QuoteAcceptPage() {
@@ -124,6 +125,7 @@ function QuoteAcceptPageInner() {
           quantity: Number(it.quantity ?? 1),
           unit_snapshot: it.unit_snapshot,
           line_client: Number(it.line_client ?? 0),
+          supplier: it.supplier ?? null,
         })))
         if (q.client_name && !signerName) setSignerName(q.client_name)
       } catch (e) { setErr((e as Error).message) }
@@ -244,6 +246,14 @@ function QuoteAcceptPageInner() {
                       <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
                         {it.quantity} {(it.unit_snapshot ?? '').toLowerCase()}
                       </p>
+                      {it.supplier?.name && (
+                        <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                          A cura di {it.supplier.slug
+                            ? <a href={`/w/${it.supplier.slug}`} target="_blank" rel="noreferrer" className="underline">{it.supplier.name}</a>
+                            : <span className="font-medium">{it.supplier.name}</span>}
+                          {it.supplier.subrole ? <span className="capitalize"> · {it.supplier.subrole}</span> : null}
+                        </p>
+                      )}
                       {it.description_snapshot && (
                         <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1 italic line-clamp-2">{it.description_snapshot}</p>
                       )}
