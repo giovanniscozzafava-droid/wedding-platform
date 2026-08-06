@@ -175,6 +175,18 @@ function QuotePreviewPageInner() {
                         {showPrice ? `€ ${Number(it.line_client).toLocaleString('it-IT')}` : <Lock size={15} className="text-[rgb(var(--fg-subtle))]" />}
                       </p>
                     </button>
+                    {(() => {
+                      const sup = (it as { supplier?: { name?: string; slug?: string | null; subrole?: string | null } | null }).supplier
+                      if (!sup?.name) return null   // voce blind → nessun fornitore mostrato
+                      return (
+                        <p className="mt-1 text-xs text-[rgb(var(--fg-muted))]">
+                          A cura di {sup.slug
+                            ? <a href={`/w/${sup.slug}`} target="_blank" rel="noreferrer" className="underline" style={{ color: primary }}>{sup.name}</a>
+                            : <span className="font-medium">{sup.name}</span>}
+                          {sup.subrole ? <span className="text-[rgb(var(--fg-subtle))] capitalize"> · {sup.subrole}</span> : null}
+                        </p>
+                      )
+                    })()}
                     {isOpen && desc && <p className="mt-2 text-sm text-[rgb(var(--fg-muted))] whitespace-pre-wrap">{desc}</p>}
                   </li>
                 )

@@ -19,6 +19,7 @@ import { BookingSettingsCard } from '@/components/event/BookingSettingsCard'
 import { PrintShopSettingsCard } from '@/components/event/PrintShopSettingsCard'
 import { AmbitoDefaultCard } from '@/components/event/AmbitoDefaultCard'
 import { StopAtQuoteCard } from '@/components/event/StopAtQuoteCard'
+import { SaleModeCard } from '@/components/event/SaleModeCard'
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth()
@@ -459,6 +460,7 @@ export default function ProfilePage() {
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN'].includes(profile?.role ?? '') && <PrintShopSettingsCard />}
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE'].includes(profile?.role ?? '') && <AmbitoDefaultCard />}
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE'].includes(profile?.role ?? '') && <StopAtQuoteCard />}
+          {['WEDDING_PLANNER', 'LOCATION'].includes(profile?.role ?? '') && <SaleModeCard />}
 
           {/* Aiuto contestuale — sostituisce il vecchio tutorial a card */}
           {profile?.role === 'FORNITORE' && (

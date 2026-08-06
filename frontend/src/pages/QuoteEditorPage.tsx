@@ -595,6 +595,15 @@ export default function QuoteEditorPage() {
     } catch (e) { toast.error((e as Error).message) }
   }
 
+  // Capostipite: mostra/nascondi il nome del fornitore al cliente su questa voce (blind per-voce).
+  // supplier_blind: true = nascosto, false = visibile. (Default a monte dalla modalità di vendita.)
+  async function handleToggleSupplierBlind(itemId: string, blind: boolean) {
+    if (!id) return
+    try {
+      await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { supplier_blind: blind } as never })
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
   async function handleChangeItemQty(itemId: string, qty: number) {
     if (!id) return
     // Valida/clampa: campo vuoto o non numerico → 0; niente negativi; tetto ragionevole (99.999).
@@ -1139,6 +1148,21 @@ export default function QuoteEditorPage() {
                           className="h-8 w-16 text-xs" />
                         <span className="text-xs text-[rgb(var(--fg-subtle))]">%</span>
                       </div>
+                      {/* Capostipite: blind per-voce sul nome del fornitore (default dalla modalità di vendita). */}
+                      {(profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION')
+                        && (it as any).supplier_id && (it as any).supplier_id !== profile?.id && (() => {
+                        const mode = (profile as unknown as { capostipite_sale_mode?: string })?.capostipite_sale_mode ?? 'BUNDLE'
+                        const blind = (it as any).supplier_blind ?? (mode === 'BUNDLE')
+                        return (
+                          <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer select-none">
+                            <input type="checkbox" checked={!blind}
+                              onChange={(e) => void handleToggleSupplierBlind(it.id, !e.target.checked)} />
+                            <span className="text-[rgb(var(--fg-muted))]">
+                              {blind ? 'Fornitore nascosto al cliente' : 'Mostra il nome del fornitore al cliente'}
+                            </span>
+                          </label>
+                        )
+                      })()}
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         <Wallet size={12} className="text-[rgb(var(--fg-subtle))]" />
                         <span className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Pagamento</span>
