@@ -158,14 +158,30 @@ function QuotePreviewPageInner() {
             )}
           </div>
 
-          <div className="px-6 sm:px-10">
-            <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }} data-testid="public-items">
-              {data.items.map((it, i) => {
-                const itemId = (it as { id?: string }).id ?? ''
-                const desc = (it as { description_snapshot?: string | null }).description_snapshot
-                const isOpen = openItems.has(itemId)
-                return (
-                  <li key={itemId || i} className="py-4">
+          <div className="px-6 sm:px-10" data-testid="public-items">
+            {(() => {
+              // Raggruppa le voci per CATEGORIA (Fotografia, Catering, Fiori…), nell'ordine di prima
+              // comparsa: così il cliente legge tutto ordinato invece di una lista piatta.
+              const groups: { cat: string; items: typeof data.items }[] = []
+              const gidx = new Map<string, number>()
+              for (const it of data.items) {
+                const cat = (((it as { category?: string }).category ?? '').trim()) || 'Altri servizi'
+                if (!gidx.has(cat)) { gidx.set(cat, groups.length); groups.push({ cat, items: [] }) }
+                groups[gidx.get(cat)!]!.items.push(it)
+              }
+              const single = groups.length <= 1
+              return groups.map((g, gi) => (
+                <div key={g.cat}>
+                  {!single && (
+                    <p className="pt-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: primary }}>{g.cat}</p>
+                  )}
+                  <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+                    {g.items.map((it, i) => {
+                      const itemId = (it as { id?: string }).id ?? ''
+                      const desc = (it as { description_snapshot?: string | null }).description_snapshot
+                      const isOpen = openItems.has(itemId)
+                      return (
+                        <li key={itemId || `${gi}-${i}`} className="py-4">
                     <button type="button" onClick={() => toggleItem(itemId)} className="w-full flex items-start justify-between gap-4 text-left">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{it.name_snapshot}</p>
@@ -188,10 +204,13 @@ function QuotePreviewPageInner() {
                       )
                     })()}
                     {isOpen && desc && <p className="mt-2 text-sm text-[rgb(var(--fg-muted))] whitespace-pre-wrap">{desc}</p>}
-                  </li>
-                )
-              })}
-            </ul>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))
+            })()}
           </div>
 
           {showPrice ? (

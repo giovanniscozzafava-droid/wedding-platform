@@ -36,6 +36,7 @@ type QuoteItem = {
   unit_snapshot: string | null
   line_client: number
   supplier: { name?: string; slug?: string | null; subrole?: string | null } | null
+  category: string
 }
 
 export default function QuoteAcceptPage() {
@@ -126,6 +127,7 @@ function QuoteAcceptPageInner() {
           unit_snapshot: it.unit_snapshot,
           line_client: Number(it.line_client ?? 0),
           supplier: it.supplier ?? null,
+          category: (String(it.category ?? '').trim()) || 'Altri servizi',
         })))
         if (q.client_name && !signerName) setSignerName(q.client_name)
       } catch (e) { setErr((e as Error).message) }
@@ -238,32 +240,48 @@ function QuoteAcceptPageInner() {
           {items.length > 0 && (
             <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
               <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Cosa stai acquistando ({items.length} {items.length === 1 ? 'voce' : 'voci'})</p>
-              <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
-                {items.map((it, i) => (
-                  <li key={i} className="py-2.5 flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{it.name_snapshot}</p>
-                      <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
-                        {it.quantity} {(it.unit_snapshot ?? '').toLowerCase()}
-                      </p>
-                      {it.supplier?.name && (
-                        <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
-                          A cura di {it.supplier.slug
-                            ? <a href={`/w/${it.supplier.slug}`} target="_blank" rel="noreferrer" className="underline">{it.supplier.name}</a>
-                            : <span className="font-medium">{it.supplier.name}</span>}
-                          {it.supplier.subrole ? <span className="capitalize"> · {it.supplier.subrole}</span> : null}
-                        </p>
-                      )}
-                      {it.description_snapshot && (
-                        <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1 italic line-clamp-2">{it.description_snapshot}</p>
-                      )}
-                    </div>
-                    <span className="text-sm font-medium tabular-nums whitespace-nowrap">
-                      € {Number(it.line_client).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {(() => {
+                // Raggruppa per categoria (Fotografia, Catering, Fiori…) nell'ordine di comparsa.
+                const groups: { cat: string; items: QuoteItem[] }[] = []
+                const gidx = new Map<string, number>()
+                for (const it of items) {
+                  const cat = it.category || 'Altri servizi'
+                  if (!gidx.has(cat)) { gidx.set(cat, groups.length); groups.push({ cat, items: [] }) }
+                  groups[gidx.get(cat)!]!.items.push(it)
+                }
+                const single = groups.length <= 1
+                return groups.map((g) => (
+                  <div key={g.cat}>
+                    {!single && <p className="pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[rgb(var(--fg-muted))]">{g.cat}</p>}
+                    <ul className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+                      {g.items.map((it, i) => (
+                        <li key={i} className="py-2.5 flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{it.name_snapshot}</p>
+                            <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
+                              {it.quantity} {(it.unit_snapshot ?? '').toLowerCase()}
+                            </p>
+                            {it.supplier?.name && (
+                              <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                                A cura di {it.supplier.slug
+                                  ? <a href={`/w/${it.supplier.slug}`} target="_blank" rel="noreferrer" className="underline">{it.supplier.name}</a>
+                                  : <span className="font-medium">{it.supplier.name}</span>}
+                                {it.supplier.subrole ? <span className="capitalize"> · {it.supplier.subrole}</span> : null}
+                              </p>
+                            )}
+                            {it.description_snapshot && (
+                              <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1 italic line-clamp-2">{it.description_snapshot}</p>
+                            )}
+                          </div>
+                          <span className="text-sm font-medium tabular-nums whitespace-nowrap">
+                            € {Number(it.line_client).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              })()}
             </div>
           )}
           <div className="flex items-center justify-between mt-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
