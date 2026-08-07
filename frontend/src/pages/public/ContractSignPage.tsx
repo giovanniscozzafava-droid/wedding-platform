@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
 import { decodeCodiceFiscale, birthPlaceFromCF } from '@/lib/codiceFiscale'
+import { isValidCodiceFiscale } from '@/lib/codice-fiscale'
+import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
 
 type ContractData = {
   id: string
@@ -136,6 +138,7 @@ export default function ContractSignPage() {
     e.preventDefault()
     if (!token) return
     if (!signature) { setErr('Firma sul riquadro.'); return }
+    if (signerFiscal.trim() && !isValidCodiceFiscale(signerFiscal)) { setErr('Il codice fiscale non è valido: controlla le 16 cifre.'); return }
     if (!consentTerms || !consentPrivacy) { setErr('Devi accettare le condizioni e la privacy.'); return }
     setBusy(true); setErr(null)
     try {
@@ -263,7 +266,7 @@ export default function ContractSignPage() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="fiscal">Codice fiscale *</Label>
-                    <Input id="fiscal" required value={signerFiscal} onChange={(e) => setSignerFiscal(e.target.value)} placeholder="XXXXXX00X00X000X" />
+                    <CodiceFiscaleInput id="fiscal" required value={signerFiscal} onChange={setSignerFiscal} />
                   </div>
                 </div>
 

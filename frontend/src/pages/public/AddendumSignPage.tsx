@@ -7,6 +7,8 @@ import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
+import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
+import { isValidCodiceFiscale } from '@/lib/codice-fiscale'
 
 type Item = { name: string; qty: number; line_client: number; decision: string }
 type AddendumData = {
@@ -62,6 +64,7 @@ export default function AddendumSignPage() {
     e.preventDefault()
     if (!token) return
     if (!signature) { setErr('Firma sul riquadro.'); return }
+    if (signerFiscal.trim() && !isValidCodiceFiscale(signerFiscal)) { setErr('Il codice fiscale non è valido: controlla le 16 cifre.'); return }
     if (!consentTerms || !consentPrivacy) { setErr('Devi accettare le condizioni e la privacy.'); return }
     setBusy(true); setErr(null)
     try {
@@ -182,7 +185,7 @@ export default function AddendumSignPage() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="fiscal">Codice fiscale *</Label>
-                    <Input id="fiscal" required value={signerFiscal} onChange={(e) => setSignerFiscal(e.target.value)} placeholder="XXXXXX00X00X000X" />
+                    <CodiceFiscaleInput id="fiscal" required value={signerFiscal} onChange={setSignerFiscal} />
                   </div>
                 </div>
 

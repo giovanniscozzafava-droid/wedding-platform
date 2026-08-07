@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
+import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
+import { isValidCodiceFiscale } from '@/lib/codice-fiscale'
 import { QuoteAuthGate } from '@/components/QuoteAuthGate'
 import { trackQuoteOpen } from '@/lib/trackQuoteOpen'
 import { getQuestionsFor, getMoodboardSectionsForCapostipite, extractInspirationsFromAnswers } from '@/lib/eventQuestions'
@@ -140,6 +142,7 @@ function QuoteAcceptPageInner() {
     if (!signerName.trim()) return toast.error('Inserisci nome e cognome')
     // Codice fiscale obbligatorio solo per clienti italiani; per gli esteri basta il documento locale.
     if (!isForeign && !fiscalCode.trim()) return toast.error('Codice fiscale obbligatorio')
+    if (!isForeign && !isValidCodiceFiscale(fiscalCode)) return toast.error('Il codice fiscale non è valido: controlla le 16 cifre')
     if (!address.trim() || !city.trim()) return toast.error('Indirizzo e città obbligatori')
     if (!docNumber.trim()) return toast.error(isForeign ? 'Inserisci il numero del documento (es. passaporto)' : 'Inserisci numero documento')
     if (!signature) return toast.error('Firma sul riquadro')
@@ -399,9 +402,7 @@ function QuoteAcceptPageInner() {
             {!isForeign ? (
               <div className="space-y-1">
                 <Label>Codice fiscale <span className="text-[rgb(var(--rose-500))]">*</span></Label>
-                <Input value={fiscalCode} maxLength={16}
-                  onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
-                  placeholder="RSSMRA80A01H501Z" />
+                <CodiceFiscaleInput value={fiscalCode} onChange={setFiscalCode} required />
               </div>
             ) : (
               <div className="space-y-1">
@@ -476,7 +477,7 @@ function QuoteAcceptPageInner() {
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setStep(1)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
               <Button variant="gold" onClick={() => setStep(3)}
-                disabled={(!isForeign && !fiscalCode.trim()) || !address.trim() || !city.trim()}
+                disabled={(!isForeign && !isValidCodiceFiscale(fiscalCode)) || !address.trim() || !city.trim()}
                 className="flex-1">
                 Continua <ChevronRight size={14} />
               </Button>
