@@ -23,6 +23,7 @@ import {
   Inbox,
   LayoutGrid,
   Settings,
+  ClipboardCheck,
 } from 'lucide-react'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
@@ -103,6 +104,7 @@ const NAV_FORNITORE_GROUPS: NavGroup[] = [
   ]},
   { section: 'Pipeline', items: [
     { to: '/richieste',   label: 'Richieste',   icon: Inbox },
+    { to: '/lavori-da-confermare', label: 'Da confermare', icon: ClipboardCheck },
     { to: '/weddings',    label: 'Eventi',      icon: Gem },
     { to: '/quotes',      label: 'Preventivi',  icon: FileText },
     { to: '/my-contracts', label: 'Contratti',  icon: FileSignature },

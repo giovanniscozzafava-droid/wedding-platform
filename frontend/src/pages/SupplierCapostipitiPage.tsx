@@ -100,6 +100,21 @@ export default function SupplierCapostipitiPage() {
     }
   }
 
+  async function leave(c: Collab) {
+    const who = c.capostipite?.business_name || c.capostipite?.full_name || 'questo referente'
+    if (!confirm(`Uscire dalla collaborazione con ${who}? Non riceverai più sue proposte finché non vi ricollegate.`)) return
+    try {
+      const { data, error } = await (supabase.rpc as any)('supplier_leave_collaboration', { p_capostipite_id: c.capostipite_id })
+      if (error) throw error
+      const r = data as { ok?: boolean; error?: string }
+      if (r?.error) { toast.error('Non è stato possibile uscire. Riprova.'); return }
+      toast.success(`Sei uscito dalla collaborazione con ${who}.`)
+      await load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore uscita collaborazione')
+    }
+  }
+
   async function openPricing(c: Collab) {
     setEditing(c)
     setMarkupMod(c.supplier_markup_modifier_percent.toString())
@@ -252,6 +267,9 @@ export default function SupplierCapostipitiPage() {
                     <div className="flex items-center gap-2 mt-auto pt-2">
                       <Button size="sm" variant="outline" onClick={() => void openPricing(c)} disabled={c.status !== 'ACTIVE'}>
                         <Pencil size={13} /> Prezziario
+                      </Button>
+                      <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void leave(c)} disabled={c.status !== 'ACTIVE'} title="Esci dalla collaborazione">
+                        Esci
                       </Button>
                     </div>
                   </Card>
