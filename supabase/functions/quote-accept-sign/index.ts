@@ -386,7 +386,10 @@ async function generateAcceptancePdf(
     doc.text('IMPORTO ACCETTATO', M, y); y += 16
     doc.setFontSize(20)
     doc.setTextColor(26, 23, 20)
-    const totFmt = fmtEur.format(Number(quote.total_client))
+    // R1 "solo l'accettato": se il cliente ha selezionato per-voce (>0) mostra
+    // quel totale, altrimenti l'intero preventivo (firma piena).
+    const totAcc = Number(quote.total_client_selected) > 0 ? quote.total_client_selected : quote.total_client
+    const totFmt = fmtEur.format(Number(totAcc))
     doc.text(totFmt, M, y); y += 28
 
     // Firma
@@ -454,7 +457,9 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
   const { data: ownerAuth } = await admin.auth.admin.getUserById(quote.owner_id)
   const ownerEmail = ownerAuth?.user?.email
 
-  const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(quote.total_client))
+  // R1 "solo l'accettato": totale accettato (selezione per-voce se presente).
+  const totAcc = Number(quote.total_client_selected) > 0 ? quote.total_client_selected : quote.total_client
+  const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(totAcc))
   // Display name owner: business_name > full_name > email local part (mai email piena)
   const cleanName = (s: string | null | undefined): string | null => {
     if (!s) return null
