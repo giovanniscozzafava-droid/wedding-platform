@@ -39,12 +39,13 @@ export default function SupplierPendingPage() {
     try {
       const me = (await supabase.auth.getUser()).data.user?.id
       if (!me) { setGroups([]); return }
-      // Mostra solo i preventivi ANCORA DA DECIDERE: presenza null o "Forse".
-      // "Ci sono" (SI) e "Non ci sono" (NO) escono dalla lista.
+      // Mostra TUTTI i preventivi vivi in cui il fornitore è coinvolto — decisi e non —
+      // così può anche CAMBIARE idea su una decisione già presa (reversibile). I preventivi
+      // rifiutati/archiviati vengono esclusi più sotto.
       const { data } = await (supabase.from as any)('quote_items')
         .select('id, name_snapshot, description_snapshot, quantity, line_client, quote_id, supplier_presence, supplier_confirmed_at')
-        .eq('supplier_id', me).is('supplier_confirmed_at', null).order('created_at', { ascending: false })
-      const items = ((data ?? []) as Item[]).filter((x) => x.supplier_presence == null || x.supplier_presence === 'FORSE')
+        .eq('supplier_id', me).order('created_at', { ascending: false })
+      const items = (data ?? []) as Item[]
 
       // Raggruppa per preventivo.
       const byQuote = new Map<string, Group>()
@@ -60,9 +61,10 @@ export default function SupplierPendingPage() {
         // Qui devono arrivare SOLO i preventivi dei capostipiti: escludo quelli
         // di cui il fornitore stesso è il proprietario (i suoi preventivi diretti).
         const { data: quotes } = await (supabase.from as any)('quotes')
-          .select('id, title, owner_id, event_date').in('id', quoteIds)
+          .select('id, title, owner_id, event_date, status, archived_at').in('id', quoteIds)
         for (const q of (quotes ?? []) as any[]) {
-          if (q.owner_id === me) { byQuote.delete(q.id); continue }
+          // Escludo i preventivi diretti del fornitore e quelli morti (rifiutati/archiviati).
+          if (q.owner_id === me || q.status === 'RIFIUTATO' || q.archived_at) { byQuote.delete(q.id); continue }
           const g = byQuote.get(q.id)
           if (g) { g.entry_title = q.title; g.event_date = q.event_date } // fallback dal preventivo
         }
@@ -94,7 +96,7 @@ export default function SupplierPendingPage() {
     <div className="min-h-full">
       <div className="max-w-3xl mx-auto px-6 sm:px-10 py-8">
         <PageHeader eyebrow="Pipeline" title="Lavori da confermare"
-          description="Un capostipite (wedding planner / location) ti ha inserito in un preventivo. Dichiara se ci sei: confermare la presenza serve a chiudere il budget totale del capostipite. Non sono contratti." />
+          description="Un capostipite (wedding planner / location) ti ha inserito in un preventivo. Dichiara se ci sei: confermare la presenza serve a chiudere il budget totale del capostipite. Non sono contratti — e puoi cambiare la tua risposta quando vuoi." />
         {loading ? (
           <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">Carico…</Card>
         ) : groups.length === 0 ? (
@@ -112,7 +114,9 @@ export default function SupplierPendingPage() {
                       <h3 className="font-medium">{g.entry_title ?? 'Preventivo'}</h3>
                       {g.event_date && <span className="text-[11px] text-[rgb(var(--fg-subtle))]">{new Date(g.event_date).toLocaleDateString('it-IT')}</span>}
                       {g.client_name && <span className="text-[11px] text-[rgb(var(--fg-subtle))]">· {g.client_name}</span>}
-                      {g.presence === 'FORSE' && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>in valutazione</span>}
+                      {g.presence === 'SI' && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--sage-100))' }}>Ci sei</span>}
+                      {g.presence === 'FORSE' && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>In valutazione</span>}
+                      {g.presence === 'NO' && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--danger,220_38_38))' }}>Hai declinato</span>}
                     </div>
                     {/* Le voci sono solo di riepilogo: NON si confermano una per una. */}
                     <ul className="mt-2 space-y-1">

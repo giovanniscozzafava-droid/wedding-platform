@@ -73,6 +73,11 @@ export default function SupplierAvailabilityPage() {
       const newStatus: Status | null = cur?.status === 'BUSY' ? 'TENTATIVE'
         : cur?.status === 'TENTATIVE' ? null  // delete
         : 'BUSY' // new
+      // SXF-7: se il BUSY nasce da un preventivo/contratto accettato, chiedi conferma
+      // prima di declassarlo (declassare libera una data su cui sei impegnato).
+      if (cur?.status === 'BUSY' && /preventivo|contratto/i.test(cur.notes ?? '')) {
+        if (!confirm('Questa data è bloccata da un preventivo/contratto accettato. Declassarla la libera per altre richieste e rischi una doppia prenotazione. Vuoi procedere?')) return
+      }
       if (newStatus === null && cur) {
         const { error } = await (supabase.from('supplier_availability' as any) as any).delete().eq('id', cur.id)
         if (error) throw error

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { subroleLabel } from '@/lib/supplierQuestions'
 
 // ============================================================================
@@ -231,7 +232,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
       if (r?.error) throw new Error(r.error)
       onChanged()
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'Errore')
+      toast.error(e instanceof Error ? e.message : 'Errore')
     } finally { setBusyId(null) }
   }
 

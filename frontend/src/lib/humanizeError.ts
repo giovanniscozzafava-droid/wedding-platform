@@ -18,6 +18,13 @@ const RULES: { re: RegExp; message: string; hint: string }[] = [
   { re: /supplier_declined/i,
     message: 'Un fornitore si è tirato indietro su una voce del preventivo.',
     hint: 'Rimuovi o sostituisci quella voce, poi reinvia il preventivo.' },
+  // Decisione cliente su voce già a contratto / non modificabile
+  { re: /already_contracted|^contracted$|already contracted/i,
+    message: 'Questa voce è già passata a contratto e non è più modificabile.',
+    hint: 'Per cambiarla, parlane con chi ti segue.' },
+  { re: /not_selectable/i,
+    message: 'Questa voce dipende dal numero di invitati e non si cambia da qui.',
+    hint: '' },
   // PostgREST: funzione/tabella/colonna non trovata (server non allineato)
   { re: /could not find the function|schema cache|pgrst202|function .* does not exist/i,
     message: 'Questa funzione non è ancora disponibile sul server.',
