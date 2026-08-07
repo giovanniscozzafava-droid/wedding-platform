@@ -40,6 +40,7 @@ export default function MaggiorazioniSettingsPage() {
     if (form.kind === 'DISTANCE') {
       const perKm = num(form.per_km), freeKm = num(form.free_km) || 0
       if (!(perKm > 0)) return toast.error('Imposta la tariffa €/km')
+      if (freeKm < 0) return toast.error('I km gratuiti non possono essere negativi')
       if (!form.base_place.trim()) return toast.error('Indica il punto di partenza')
       setBusy(true)
       try {

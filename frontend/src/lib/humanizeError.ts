@@ -29,6 +29,10 @@ const RULES: { re: RegExp; message: string; hint: string }[] = [
   { re: /uq_contracts_quote|contracts_quote_client/i,
     message: 'Il contratto per questo preventivo è già stato generato.',
     hint: 'Ricarica la pagina: lo trovi tra i contratti.' },
+  // Fornitore che tenta di cambiare presenza su un preventivo non più aperto.
+  { re: /quote_not_open/i,
+    message: 'Questo preventivo non è più aperto: non puoi cambiare la tua presenza.',
+    hint: 'Vale solo per i preventivi ancora inviati e in attesa.' },
   // PostgREST: funzione/tabella/colonna non trovata (server non allineato)
   { re: /could not find the function|schema cache|pgrst202|function .* does not exist/i,
     message: 'Questa funzione non è ancora disponibile sul server.',

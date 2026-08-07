@@ -63,8 +63,10 @@ export default function SupplierPendingPage() {
         const { data: quotes } = await (supabase.from as any)('quotes')
           .select('id, title, owner_id, event_date, status, archived_at').in('id', quoteIds)
         for (const q of (quotes ?? []) as any[]) {
-          // Escludo i preventivi diretti del fornitore e quelli morti (rifiutati/archiviati).
-          if (q.owner_id === me || q.status === 'RIFIUTATO' || q.archived_at) { byQuote.delete(q.id); continue }
+          // Solo preventivi VIVI e già inviati: escludo i diretti del fornitore, le bozze
+          // ancora in lavorazione del capostipite (non inviate), gli accettati/convertiti
+          // (presenza ormai bloccata) e i morti (rifiutati/archiviati).
+          if (q.owner_id === me || q.status !== 'INVIATO' || q.archived_at) { byQuote.delete(q.id); continue }
           const g = byQuote.get(q.id)
           if (g) { g.entry_title = q.title; g.event_date = q.event_date } // fallback dal preventivo
         }
