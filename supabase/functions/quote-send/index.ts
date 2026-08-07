@@ -65,6 +65,18 @@ Deno.serve(async (req) => {
   const { count: itemCount } = await admin.from('quote_items').select('id', { count: 'exact', head: true }).eq('quote_id', body.quote_id)
   if (!itemCount || itemCount === 0) return json({ error: 'empty_quote' }, 400)
 
+  // Consenso fornitore (Pilastro 1): se un fornitore ha dichiarato "Non ci sono"
+  // (supplier_presence='NO') su una sua voce, il preventivo NON parte al cliente.
+  // Il capostipite deve rimuovere o sostituire quella voce. Non blocca il re-invio
+  // forzato post-firma (force_resend), dove la rete ha già confermato.
+  if (!body.force_resend) {
+    const { data: declined } = await admin.from('quote_items')
+      .select('name_snapshot').eq('quote_id', body.quote_id).eq('supplier_presence', 'NO').limit(1)
+    if (declined && declined.length > 0) {
+      return json({ error: 'supplier_declined', detail: declined[0].name_snapshot ?? '' }, 409)
+    }
+  }
+
   // 1. genera PDF (riusa Edge Function). Header apikey serve a Kong gateway.
   const pdfRes = await fetch(`${SUPABASE_URL}/functions/v1/quote-generate-pdf`, {
     method: 'POST',

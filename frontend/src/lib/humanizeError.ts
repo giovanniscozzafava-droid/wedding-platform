@@ -14,6 +14,10 @@ function rawText(input: unknown): string {
 
 // Regole: [test sul testo tecnico] → messaggio chiaro + cosa fare.
 const RULES: { re: RegExp; message: string; hint: string }[] = [
+  // Consenso fornitore: una voce è stata declinata dal suo fornitore ("Non ci sono").
+  { re: /supplier_declined/i,
+    message: 'Un fornitore si è tirato indietro su una voce del preventivo.',
+    hint: 'Rimuovi o sostituisci quella voce, poi reinvia il preventivo.' },
   // PostgREST: funzione/tabella/colonna non trovata (server non allineato)
   { re: /could not find the function|schema cache|pgrst202|function .* does not exist/i,
     message: 'Questa funzione non è ancora disponibile sul server.',

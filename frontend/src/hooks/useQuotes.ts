@@ -202,7 +202,14 @@ export function useSendQuote() {
         'quote-send',
         { body: { quote_id: quoteId } },
       )
-      if (error) throw error
+      if (error) {
+        // Estrae il codice/dettaglio dal corpo dell'errore edge (FunctionsHttpError.context = Response),
+        // così un blocco "consenso fornitore" mostra un messaggio chiaro invece del generico non-2xx.
+        let code = ''; let detail = ''
+        try { const b = await (error as any)?.context?.clone?.().json?.(); code = b?.error ?? ''; detail = b?.detail ?? '' } catch { /* ignora */ }
+        if (code === 'supplier_declined') throw new Error(detail ? `supplier_declined · «${detail}»` : 'supplier_declined')
+        throw error
+      }
       return data!
     },
     onSuccess: () => {
