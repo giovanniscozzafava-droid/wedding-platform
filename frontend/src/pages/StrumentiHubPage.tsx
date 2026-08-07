@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Brush, Images, BookImage, Carrot, CalendarDays, Boxes, Calculator, PiggyBank, NotebookPen,
   Receipt, Newspaper, PenSquare, PhoneCall, Gift, Coins, Users as UsersIcon, Contact, Printer,
-  CheckSquare, TicketPercent, Search,
+  CheckSquare, TicketPercent, Search, Wallet,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -33,6 +33,7 @@ const GROUPS: Group[] = [
   ]},
   { key: 'amministrazione', title: 'Amministrazione', tools: [
     { to: '/bilancio', label: 'Bilancio', desc: 'Entrate, uscite e margine dei tuoi eventi.', icon: PiggyBank, show: (r) => cap(r) || forn(r) },
+    { to: '/finanze-rete', label: 'Finanze rete', desc: 'I conti con i tuoi fornitori: da pagare e da incassare.', icon: Wallet, show: (r) => cap(r) },
     { to: '/prima-nota', label: 'Prima nota', desc: 'Registra i movimenti di cassa giorno per giorno.', icon: NotebookPen, show: (r) => loc(r) },
     { to: '/ragioniere', label: 'Ragioniere', desc: 'Legge bolle e scontrini e concilia i conti.', icon: Receipt, show: (r) => loc(r) },
     { to: '/calcolatore', label: 'Calcolatore', desc: 'Preventiva al volo servizi e supplementi.', icon: Calculator, show: (r) => forn(r) },
