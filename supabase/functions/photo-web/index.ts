@@ -5,6 +5,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 const isDrive = (id: string) => !!id && !id.startsWith('demo-') && !id.startsWith('guest:')
 
@@ -13,6 +14,19 @@ Deno.serve(async (req) => {
   const u = new URL(req.url)
   const mediaId = u.searchParams.get('m') ?? ''
   if (!mediaId) return new Response('bad_request', { status: 400, headers: cors })
+
+  // SEC / GP-1 (CRITICO): prima serviva il full-res di QUALSIASI media by-id senza auth
+  // (bastava la anon key pubblica). Ora richiediamo il JWT dell'utente e verifichiamo
+  // via RLS che possa davvero leggere quel media (owner galleria / coppia / partecipante /
+  // ospite con visibilità). Se la RLS non restituisce la riga → 403. Nessun altro
+  // chiamante oltre al fotografo autenticato in EventGalleryTab.
+  const authHeader = req.headers.get('Authorization') ?? ''
+  if (!authHeader.toLowerCase().startsWith('bearer ')) return new Response('unauthorized', { status: 401, headers: cors })
+  const asUser = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } })
+  const { data: gu } = await asUser.auth.getUser()
+  if (!gu?.user) return new Response('unauthorized', { status: 401, headers: cors })
+  const { data: allowed } = await asUser.from('gallery_media').select('id').eq('id', mediaId).maybeSingle()
+  if (!allowed) return new Response('forbidden', { status: 403, headers: cors })
 
   const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } })
   const { data: m } = await admin.from('gallery_media').select('drive_file_id, thumbnail_link, media_type, guest_tag_name').eq('id', mediaId).maybeSingle()
