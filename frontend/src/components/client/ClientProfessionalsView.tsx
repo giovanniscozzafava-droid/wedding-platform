@@ -26,7 +26,7 @@ type Brief = {
 
 type QuoteItem = {
   id: string; name: string; qty: number; unit: string; line_client: number
-  supplier: string | null; client_decision: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO'
+  supplier: string | null; client_decision: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO' | 'FORSE'
   decline_reason: string | null; category: string | null; photo: string | null
 }
 
@@ -332,8 +332,10 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
                         className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full disabled:opacity-50"
                         style={it.client_decision === 'ACCETTATO'
                           ? { color: '#16a34a', background: '#16a34a1a' }
+                          : it.client_decision === 'FORSE'
+                          ? { color: '#7c3aed', background: '#7c3aed1a' }
                           : { color: '#dc2626', background: '#dc26261a' }}>
-                        {it.client_decision === 'ACCETTATO' ? '✓ Accettata' : '✕ Rifiutata'}
+                        {it.client_decision === 'ACCETTATO' ? '✓ Accettata' : it.client_decision === 'FORSE' ? 'In forse' : '✕ Rifiutata'}
                       </button>
                     )}
                   </div>

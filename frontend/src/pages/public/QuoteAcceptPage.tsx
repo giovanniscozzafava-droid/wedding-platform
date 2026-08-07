@@ -476,7 +476,7 @@ function QuoteAcceptPageInner() {
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setStep(1)} className="flex-1"><ChevronLeft size={14} /> Indietro</Button>
               <Button variant="gold" onClick={() => setStep(3)}
-                disabled={!fiscalCode.trim() || !address.trim() || !city.trim()}
+                disabled={(!isForeign && !fiscalCode.trim()) || !address.trim() || !city.trim()}
                 className="flex-1">
                 Continua <ChevronRight size={14} />
               </Button>

@@ -134,7 +134,10 @@ export default function CoupleDashboard() {
   const wantedTab = searchParams.get('tab') as Tab | null
   // Regola insindacabile: se non c'e' un tab esplicito nell'URL, l'atterraggio dipende dalla firma:
   // NON ha firmato → sempre "Preventivo"; ha firmato almeno un preventivo → "Overview" (principale).
-  const [tab, setTab] = useState<Tab | null>(wantedTab)
+  // Un ?tab= sconosciuto (typo, link vecchio) NON deve dare una dashboard vuota:
+  // se non è una tab reale, ricadi sulla regola firma/overview (wantedTab = null).
+  const validWantedTab = wantedTab && TABS.some((t) => t.key === wantedTab) ? wantedTab : null
+  const [tab, setTab] = useState<Tab | null>(validWantedTab)
   useEffect(() => {
     if (tab !== null) return // gia' deciso (URL esplicito o scelta utente)
     let alive = true

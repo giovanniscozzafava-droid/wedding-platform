@@ -126,11 +126,16 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
 
   async function handleAddMod() {
     if (!savedId || !newMod.name.trim()) return
+    // Range date: se c'è solo la fine, usala come giorno singolo (niente supplemento "sempre attivo");
+    // niente periodi invertiti.
+    const df = newMod.date_from || newMod.date_to || null
+    const dt = newMod.date_to || newMod.date_from || null
+    if (df && dt && df > dt) { toast.error('Il periodo del supplemento è invertito: la data di inizio deve precedere la fine.'); return }
     try {
       await addMod.mutateAsync({
         service_id: savedId, name: newMod.name.trim(),
         modifier_type: newMod.type, value: Number(newMod.value || 0),
-        date_from: newMod.date_from || null, date_to: newMod.date_to || newMod.date_from || null,
+        date_from: df, date_to: dt,
       } as any)
       setNewMod({ name: '', type: 'PERCENT', value: '', date_from: '', date_to: '' })
       toast.success('Modificatore aggiunto')

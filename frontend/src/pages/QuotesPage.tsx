@@ -388,7 +388,7 @@ export default function QuotesPage() {
                 {createErr && <p className="text-sm text-[rgb(var(--rose-500))]" role="alert" data-testid="quote-create-error">{createErr}</p>}
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={() => setOpenNew(false)}>Annulla</Button>
-                  <Button type="submit" variant="gold">Crea e apri</Button>
+                  <Button type="submit" variant="gold" disabled={create.isPending}>{create.isPending ? 'Creo…' : 'Crea e apri'}</Button>
                 </div>
               </form>
             </motion.div>

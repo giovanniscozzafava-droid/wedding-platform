@@ -43,7 +43,7 @@ function useStats() {
         supabase.from('collaborations').select('id', { count: 'exact', head: true }).eq('status', 'ACTIVE'),
         supabase.from('calendar_entries').select('id', { count: 'exact', head: true }).gte('date_from', today).lte('date_from', in60),
         supabase.from('quotes').select('id', { count: 'exact', head: true }).in('status', ['BOZZA', 'INVIATO']),
-        supabase.from('quotes').select('margin_amount').eq('status', 'ACCETTATO'),
+        supabase.from('quotes').select('margin_amount').in('status', ['ACCETTATO', 'CONVERTITO_IN_CONTRATTO']),
       ])
       const marginMonth = (qAccepted.data ?? []).reduce((s: number, q: any) => s + Number(q.margin_amount ?? 0), 0)
       return {
@@ -162,7 +162,7 @@ export default function HomePage() {
             <Annot
               label={isCapostipite ? 'Margine generato' : 'Preventivi attivi'}
               value={isCapostipite ? eurInt(stats?.marginMonth ?? 0) : (stats?.quotesActive ?? 0)}
-              context={isCapostipite ? 'questo mese' : 'in cui compari'}
+              context={isCapostipite ? 'in corso' : 'in cui compari'}
             />
           </div>
         </div>

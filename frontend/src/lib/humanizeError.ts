@@ -25,6 +25,10 @@ const RULES: { re: RegExp; message: string; hint: string }[] = [
   { re: /not_selectable/i,
     message: 'Questa voce dipende dal numero di invitati e non si cambia da qui.',
     hint: '' },
+  // Contratto già generato per lo stesso preventivo (unique index parziale).
+  { re: /uq_contracts_quote|contracts_quote_client/i,
+    message: 'Il contratto per questo preventivo è già stato generato.',
+    hint: 'Ricarica la pagina: lo trovi tra i contratti.' },
   // PostgREST: funzione/tabella/colonna non trovata (server non allineato)
   { re: /could not find the function|schema cache|pgrst202|function .* does not exist/i,
     message: 'Questa funzione non è ancora disponibile sul server.',

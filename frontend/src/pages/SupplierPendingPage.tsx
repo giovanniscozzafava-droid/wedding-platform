@@ -53,7 +53,7 @@ export default function SupplierPendingPage() {
         let g = byQuote.get(it.quote_id)
         if (!g) { g = { quote_id: it.quote_id, items: [], presence: it.supplier_presence, total: 0 }; byQuote.set(it.quote_id, g) }
         g.items.push(it)
-        g.total += Number(it.line_client) * Number(it.quantity || 1)
+        g.total += Number(it.line_client) // line_client è GIÀ il totale di riga (qtà inclusa)
         if (it.supplier_presence === 'FORSE') g.presence = 'FORSE'
       }
       const quoteIds = Array.from(byQuote.keys())
@@ -123,7 +123,7 @@ export default function SupplierPendingPage() {
                       {g.items.map((it) => (
                         <li key={it.id} className="text-xs text-[rgb(var(--fg-muted))] flex items-center justify-between gap-2">
                           <span className="truncate">• {it.name_snapshot}{Number(it.quantity) > 1 ? ` ×${Number(it.quantity)}` : ''}</span>
-                          <span className="shrink-0 text-[rgb(var(--fg-subtle))]">€ {(Number(it.line_client) * Number(it.quantity || 1)).toLocaleString('it-IT', { maximumFractionDigits: 2 })}</span>
+                          <span className="shrink-0 text-[rgb(var(--fg-subtle))]">€ {Number(it.line_client).toLocaleString('it-IT', { maximumFractionDigits: 2 })}</span>
                         </li>
                       ))}
                     </ul>

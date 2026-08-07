@@ -773,7 +773,7 @@ export default function QuoteEditorPage() {
             ) : (
               <>
                 <span className="inline-flex items-center gap-1">
-                  <Button variant="outline" onClick={handleSend} disabled={sendQ.isPending || ((quote as any).quote_items?.length ?? 0) === 0} data-testid="send-quote-btn">
+                  <Button variant="outline" onClick={handleSend} disabled={sendQ.isPending || ((quote as any).quote_items?.length ?? 0) === 0 || !clientEmail.trim()} data-testid="send-quote-btn" title={!clientEmail.trim() ? "Manca l'email del cliente: usa WhatsApp o il link" : undefined}>
                     <Send /> {sendQ.isPending ? 'Invio...' : 'Invia via email'}
                   </Button>
                   <HelpDot id="quote.invia" />

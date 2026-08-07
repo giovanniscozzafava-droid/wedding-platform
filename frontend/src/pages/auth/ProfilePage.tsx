@@ -412,7 +412,7 @@ export default function ProfilePage() {
                     onChange={(e) => setAccEmail(e.target.value)} />
                   <Button type="button" variant="outline" disabled={accBusy} onClick={() => void updateEmail()}>Aggiorna</Button>
                 </div>
-                <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Riceverai un'email di conferma al nuovo indirizzo.</p>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))]">L'email di accesso cambia subito: da adesso usa la nuova per entrare.</p>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="acc_pass">Nuova password</Label>
