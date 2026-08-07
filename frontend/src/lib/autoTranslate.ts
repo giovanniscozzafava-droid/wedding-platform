@@ -30,6 +30,9 @@ function skipText(s: string): boolean {
   if (/^\S+@\S+\.\S+$/.test(t)) return true           // email
   if (/^https?:\/\//i.test(t)) return true            // URL
   if (/^[+\d][\d\s().\/-]{5,}$/.test(t)) return true  // telefono/IBAN-like
+  // IX-2: token singolo alfanumerico con almeno una cifra (codici referral/ID/versioni) → non tradurre,
+  // così il codice a schermo resta identico a quello nell'URL ?ref=.
+  if (/^[A-Za-z0-9._-]{3,}$/.test(t) && /[0-9]/.test(t)) return true
   return false
 }
 
