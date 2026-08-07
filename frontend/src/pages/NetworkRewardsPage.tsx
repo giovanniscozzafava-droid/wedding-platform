@@ -68,6 +68,13 @@ const REASON_LABELS: Record<Credit['reason'], string> = {
   ADJUSTMENT:     'Aggiustamento',
 }
 
+const STATUS_LABELS: Record<Credit['status'], string> = {
+  PENDING:  'In attesa',
+  APPROVED: 'Approvato',
+  PAID:     'Liquidato',
+  REVERSED: 'Stornato',
+}
+
 export default function NetworkRewardsPage() {
   const { user } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
@@ -240,10 +247,16 @@ export default function NetworkRewardsPage() {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-medium tabular-nums" style={{ color: c.status === 'PAID' ? 'rgb(var(--emerald-500))' : 'rgb(var(--gold-600))' }}>
-                      + {eur(c.amount_cents)}
+                    <p className="font-medium tabular-nums"
+                       style={{
+                         color: c.status === 'REVERSED' ? 'rgb(var(--fg-subtle))'
+                              : c.status === 'PAID' ? 'rgb(var(--emerald-500))'
+                              : 'rgb(var(--gold-600))',
+                         textDecoration: c.status === 'REVERSED' ? 'line-through' : undefined,
+                       }}>
+                      {c.status === 'REVERSED' ? '− ' : '+ '}{eur(c.amount_cents)}
                     </p>
-                    <p className="text-[10px] text-[rgb(var(--fg-subtle))]">{c.status}</p>
+                    <p className="text-[10px] text-[rgb(var(--fg-subtle))]">{STATUS_LABELS[c.status] ?? c.status}</p>
                   </div>
                 </div>
               ))}

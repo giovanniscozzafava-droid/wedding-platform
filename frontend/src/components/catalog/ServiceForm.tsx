@@ -144,9 +144,11 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
 
   async function handleAddPlus() {
     if (!savedId || !newPlus.name.trim()) return
+    const plusPrice = Number(newPlus.price || 0)
+    if (Number.isNaN(plusPrice) || plusPrice < 0) { toast.error('Il prezzo di un plus non può essere negativo'); return }
     try {
       await addPlus.mutateAsync({
-        service_id: savedId, name: newPlus.name.trim(), price: Number(newPlus.price || 0),
+        service_id: savedId, name: newPlus.name.trim(), price: plusPrice,
         sort_order: (service?.service_plus ?? []).length,
       })
       setNewPlus({ name: '', price: '' })
@@ -442,7 +444,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                   <div className="grid grid-cols-12 gap-2">
                     <Input className="col-span-8" placeholder="Es. Copertina in legno" value={newPlus.name}
                       onChange={(e) => setNewPlus((p) => ({ ...p, name: e.target.value }))} />
-                    <Input className="col-span-3" type="number" step="0.01" placeholder="Prezzo €" value={newPlus.price}
+                    <Input className="col-span-3" type="number" min="0" step="0.01" placeholder="Prezzo €" value={newPlus.price}
                       onChange={(e) => setNewPlus((p) => ({ ...p, price: e.target.value }))} />
                     <Button type="button" variant="outline" size="icon" className="col-span-1" onClick={handleAddPlus}>
                       <Plus size={16} />
