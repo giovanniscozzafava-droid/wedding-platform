@@ -214,8 +214,18 @@ export default function GuestGalleryPage() {
     try {
       const { data, error } = await supabase.functions.invoke('guest-signup', { body: { email: gemail.trim(), name: gname.trim(), gallery_id: galleryId, token, commercial: gmarketing } })
       if (error) throw error
-      const d = data as { token_hash?: string; error?: string; returning?: boolean; name?: string }
-      if (d?.error || !d?.token_hash) throw new Error(d?.error === 'bad_token' ? 'Link non valido o scaduto.' : 'Registrazione non riuscita. Riprova.')
+      const d = data as { token_hash?: string; existing?: boolean; error?: string; returning?: boolean; name?: string }
+      if (d?.error) throw new Error(d.error === 'bad_token' ? 'Link non valido o scaduto.' : 'Registrazione non riuscita. Riprova.')
+      if (d?.existing) {
+        // SEC/EF-1: questa email ha già un account (professionista/coppia). Niente login
+        // istantaneo: mandiamo un link di accesso via email, così entra solo chi possiede
+        // davvero la casella.
+        const { error: otpErr } = await supabase.auth.signInWithOtp({ email: gemail.trim(), options: { shouldCreateUser: false, emailRedirectTo: window.location.href } })
+        if (otpErr) throw otpErr
+        toast.success('Questa email ha già un account: ti abbiamo inviato un link di accesso via email. Controlla la posta.')
+        return
+      }
+      if (!d?.token_hash) throw new Error('Registrazione non riuscita. Riprova.')
       let v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'magiclink' })
       // alcune versioni di Supabase verificano il token_hash del magic-link come type 'email'
       if (v.error) v = await supabase.auth.verifyOtp({ token_hash: d.token_hash, type: 'email' })

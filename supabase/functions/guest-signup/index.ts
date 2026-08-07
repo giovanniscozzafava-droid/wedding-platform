@@ -44,6 +44,15 @@ Deno.serve(async (req) => {
   }
   const userId = link.data.user.id
 
+  // SEC / EF-1 (CRITICO): NON consegnare una sessione (token_hash) a chi non ha
+  // provato di possedere quella casella email. Il login istantaneo è ammesso SOLO
+  // per gli account OSPITE (role='GUEST') — quelli nuovi appena creati qui, o gli
+  // ospiti di ritorno. Se l'email appartiene a un professionista/coppia/admin
+  // (role diverso da GUEST) NON restituiamo il token: si accede via OTP email
+  // (solo il proprietario della casella lo completa). Chiude l'account-takeover.
+  const { data: prof } = await admin.from('profiles').select('role').eq('id', userId).maybeSingle()
+  const allowInstant = (prof?.role ?? 'GUEST') === 'GUEST'
+
   // RIENTRO: era già ospite di QUESTO evento? (per dare il "bentornato").
   const { data: prev } = await admin.from('gallery_guests')
     .select('full_name_searched').eq('entry_id', gal.entry_id).eq('guest_user_id', userId).maybeSingle()
@@ -65,5 +74,10 @@ Deno.serve(async (req) => {
     source: 'guest_gallery',
   })
 
+  // Account OSPITE → login istantaneo (UX "degna di zia Pina"). Account già esistente
+  // di un pro/coppia/admin → nessun token: il frontend manda un OTP via email.
+  if (!allowInstant) {
+    return json({ ok: true, existing: true, returning, name: greetName })
+  }
   return json({ ok: true, token_hash: link.data.properties.hashed_token, returning, name: greetName })
 })

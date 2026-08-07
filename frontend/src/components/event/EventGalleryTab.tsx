@@ -988,7 +988,18 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <div className="flex items-center justify-between gap-2 p-3" onClick={(e) => e.stopPropagation()}>
               <span className="text-xs text-white/70">{box.i + 1} / {box.list.length}</span>
               <div className="flex items-center gap-2">
-                <a href={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/photo-web?m=${m.id}&apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`} download><Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" title="Scarica JPEG web (~2048px), file reale"><Download size={14} /> Web</Button></a>
+                <Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" title="Scarica JPEG web (~2048px), file reale" onClick={async () => {
+                  // SEC/GP-1: download autenticato — la edge photo-web ora esige il JWT
+                  // dell'utente e verifica la RLS. Niente più anon key in query.
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession()
+                    if (!session) { toast.error('Sessione scaduta, riaccedi'); return }
+                    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/photo-web?m=${m.id}`, { headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_ANON_KEY } })
+                    if (!res.ok) { toast.error('Download non riuscito'); return }
+                    const url = URL.createObjectURL(await res.blob())
+                    const a = document.createElement('a'); a.href = url; a.download = `${base}-web.jpg`; a.click(); URL.revokeObjectURL(url)
+                  } catch { toast.error('Download non riuscito') }
+                }}><Download size={14} /> Web</Button>
                 {m.media_type !== 'VIDEO' && printOn && <Button variant="gold" size="sm" onClick={() => setPrintPhoto(m)} title="Ordina una stampa di questa foto"><Printer size={14} /> Stampa</Button>}
                 {role === 'sposi' && <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione — riservato agli sposi"><Download size={14} /> Originale</Button>}
                 {m.uploaded_by && (isOwner || role === 'sposi') && (
