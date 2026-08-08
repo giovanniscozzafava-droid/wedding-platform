@@ -61,6 +61,21 @@ Deno.serve(async (req) => {
               status: 'PAID', paid_at: new Date().toISOString(),
               payment_intent_id: (s.payment_intent as string) ?? null,
             }).eq('id', payId).neq('status', 'REFUNDED')
+            // N-B: avvisa il pro che ha ricevuto il pagamento (al cliente diciamo
+            // "il professionista è stato avvisato"). Niente cifra: rispetta la beta.
+            const { data: pay } = await admin.from('payments')
+              .select('payee_id, kind, ref_type, ref_id').eq('id', payId).maybeSingle()
+            if (pay?.payee_id) {
+              const link = pay.ref_type === 'quote' && pay.ref_id ? `/quotes/${pay.ref_id}` : null
+              await admin.from('user_notifications').insert({
+                user_id: pay.payee_id, type: 'PAYMENT_RECEIVED',
+                title: 'Pagamento ricevuto',
+                body: pay.kind === 'DEPOSIT'
+                  ? 'Un cliente ha versato l’acconto per il tuo servizio.'
+                  : 'Un cliente ha completato un pagamento per il tuo servizio.',
+                link, ref_id: pay.ref_id ?? null,
+              })
+            }
           }
         }
         break
