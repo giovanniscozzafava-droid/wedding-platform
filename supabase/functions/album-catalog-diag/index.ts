@@ -33,6 +33,10 @@ async function tryQwen(url: string, model = 'qwen-vl-max') {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+  // Endpoint di diagnostica temporaneo DISATTIVATO: era senza auth e lanciava
+  // Claude/Qwen su URL arbitrari (abuso di budget). Non rimuovo il file ma lo
+  // rendo inerte finché non lo si cancella del tutto.
+  return json({ ok: false, error: 'gone' }, 410)
   let body: { url?: string; provider?: string }
   try { body = await req.json() } catch { return json({ ok: false, error: 'bad_json' }) }
   const url = body.url || ''

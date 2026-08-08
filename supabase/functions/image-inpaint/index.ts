@@ -6,6 +6,9 @@
 // maschera. NB: l'inpainting a maschera vero (wanx2.1-imageedit) è solo regione Beijing → non usabile con
 // chiave internazionale ("Model not exist"). verify_jwt=true.
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 const IMG_MODEL = Deno.env.get('OPENAI_IMAGE_MODEL') ?? 'dall-e-2'
 const REPLICATE_TOKEN = Deno.env.get('REPLICATE_API_TOKEN') ?? ''
@@ -66,6 +69,13 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!DS_KEY && !BFL_API_KEY && !REPLICATE_TOKEN && !OPENAI_API_KEY) return json({ error: 'no_engine', hint: 'Imposta DASHSCOPE_API_KEY (Qwen) / BFL_API_KEY / REPLICATE_API_TOKEN / OPENAI_API_KEY' }, 503)
+
+  // AUTH: endpoint di AI a pagamento — solo utenti autenticati (verify_jwt=true non
+  // basta: la anon key è un JWT valido). Chiude l'abuso di budget da parte di chiunque.
+  const authHeader = req.headers.get('Authorization') ?? ''
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+  const { data: caller } = await admin.auth.getUser(authHeader.slice(7))
+  if (!caller?.user) return json({ error: 'unauthorized' }, 401)
 
   let body: { image?: string; mask?: string; marked?: string; prompt?: string; size?: string; variants?: number }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
