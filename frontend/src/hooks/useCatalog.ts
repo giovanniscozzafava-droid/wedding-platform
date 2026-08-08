@@ -32,7 +32,7 @@ export function useServices(opts?: { onlyActive?: boolean }) {
       let q = supabase
         .from('services')
         .select(
-          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, imported_template_id, service_photos(*), service_modifiers(*), service_plus(id, service_id, name, price, sort_order), service_categories(id, name, slug, subrole)',
+          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, imported_template_id, capostipite_can_edit, service_photos(*), service_modifiers(*), service_plus(id, service_id, name, price, sort_order), service_categories(id, name, slug, subrole)',
         )
         .order('display_order', { ascending: true })
         .order('updated_at', { ascending: false })
@@ -52,7 +52,7 @@ export function useServicesBySupplier(supplierId: string | null) {
       const { data, error } = await supabase
         .from('services')
         .select(
-          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, imported_template_id, service_photos(*), service_modifiers(*), service_plus(id, service_id, name, price, sort_order), service_categories(id, name, slug, subrole)',
+          'id, fornitore_id, category_id, name, description, base_price, unit, is_active, display_order, tags, created_at, updated_at, imported_template_id, capostipite_can_edit, service_photos(*), service_modifiers(*), service_plus(id, service_id, name, price, sort_order), service_categories(id, name, slug, subrole)',
         )
         .eq('fornitore_id', supplierId!)
         .eq('is_active', true)

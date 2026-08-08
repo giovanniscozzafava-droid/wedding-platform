@@ -41,6 +41,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
     unit: (service?.unit ?? 'PEZZO') as Unit,
     category_id: service?.category_id ?? '',
     is_active: service?.is_active ?? true,
+    capostipite_can_edit: (service as { capostipite_can_edit?: boolean } | null)?.capostipite_can_edit ?? false,
     tags: ((service as { tags?: string[] } | null)?.tags ?? []).join(', '),
   })
   const [busy, setBusy] = useState(false)
@@ -92,6 +93,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
         unit: form.unit,
         category_id: form.category_id,
         is_active: form.is_active,
+        capostipite_can_edit: form.capostipite_can_edit,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
       } as any
       if (Number.isNaN(payload.base_price) || payload.base_price < 0) {
@@ -359,6 +361,12 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                   Attivo
                 </label>
               </div>
+              {/* Consenso: solo se il fornitore mette la spunta, un capostipite della sua rete può modificare questa voce. */}
+              <label className="flex items-start gap-2 text-sm mt-1">
+                <input type="checkbox" className="size-4 accent-[rgb(var(--gold-500))] mt-0.5"
+                  checked={form.capostipite_can_edit} onChange={(e) => setForm((f) => ({ ...f, capostipite_can_edit: e.target.checked }))} />
+                <span>Consenti al capostipite della rete di <strong>modificare</strong> questa voce<span className="block text-[11px] text-[rgb(var(--fg-subtle))]">Senza la spunta, il capostipite può solo vederla, non modificarla.</span></span>
+              </label>
               <div className="flex justify-end pt-2">
                 <Button type="submit" variant="gold" disabled={busy}>
                   {busy ? 'Salvataggio...' : savedId ? 'Aggiorna' : 'Crea'}

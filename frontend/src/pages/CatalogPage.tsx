@@ -323,7 +323,8 @@ export default function CatalogPage() {
                     </div>
                   </Link>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {items.map((s) => <ServiceCard key={s.id} s={s} isProvider={false} onView={() => setViewing(s)} />)}
+                    {items.map((s) => <ServiceCard key={s.id} s={s} isProvider={false} onView={() => setViewing(s)}
+                      onEdit={(s as { capostipite_can_edit?: boolean }).capostipite_can_edit ? () => setEditing(s) : undefined} />)}
                   </div>
                 </section>
               )
@@ -536,6 +537,13 @@ function ServiceCard({ s, isProvider, onEdit, onDelete, onDuplicate, onView }: {
             {onDuplicate && <Button variant="outline" size="sm" onClick={onDuplicate}>Duplica</Button>}
             {/* Voce importata da un pacchetto → "Disimporta"; voce creata a mano → "Elimina". */}
             <Button variant="ghost" size="sm" onClick={onDelete}>{(s as any).imported_template_id ? 'Disimporta' : 'Elimina'}</Button>
+          </div>
+        )}
+        {/* Capostipite: modifica una voce di RETE solo se il fornitore l'ha consentito (spunta). */}
+        {!isProvider && onEdit && (s as any).capostipite_can_edit && (
+          <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+            <Button variant="outline" size="sm" onClick={onEdit}>Modifica</Button>
+            <span className="text-[11px] text-[rgb(var(--fg-subtle))]">consentito dal fornitore</span>
           </div>
         )}
       </div>
