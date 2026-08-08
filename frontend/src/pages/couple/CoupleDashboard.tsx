@@ -949,6 +949,7 @@ type PreventivoData = {
   status: string
   revision: number
   total_client: number | null
+  total_client_selected: number | null
   pdf_url: string | null
   accepted_at: string | null
   closed_at: string | null
@@ -1138,9 +1139,10 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   const hasLive = liveItems.length > 0
   const isClosed = !!data.closed_at
   const pendingCount = liveItems.filter((it) => (it.client_decision ?? 'IN_ATTESA') === 'IN_ATTESA').length
-  const confirmedTotal = data.items
-    .filter((it) => it.contracted_at || it.client_decision === 'ACCETTATO')
-    .reduce((s, it) => s + Number(it.line_client || 0), 0)
+  // Totale VINCOLANTE delle voci selezionate: viene dal motore (total_client_selected,
+  // che include sconto/maggiorazione/trasferta), non dalla somma grezza dei line_client —
+  // così coincide con contratto/atto/acconto (R1/M3). 0 se non hai ancora scelto nulla.
+  const confirmedTotal = Number(data.total_client_selected || 0)
 
   return (
     <div className="space-y-5">
@@ -1330,7 +1332,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
         )}
         {isFornitore && !signed && (
           <div className="rounded-lg border p-3 mb-4 text-xs text-[rgb(var(--fg-muted))]" style={{ borderColor: 'rgb(var(--border))' }}>
-            Totale selezionato: <strong className="text-[rgb(var(--fg))]">€ {confirmedTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong> — somma delle voci che hai approvato. Procedi alla firma qui sotto.
+            Totale selezionato: <strong className="text-[rgb(var(--fg))]">€ {confirmedTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong> — è l'importo che firmerai, già con eventuali sconti e maggiorazioni. Procedi alla firma qui sotto.
           </div>
         )}
 

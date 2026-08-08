@@ -263,12 +263,18 @@ Deno.serve(async (req) => {
     }).eq('id', quote.direct_client_id)
   }
 
-  // 8. Genera PDF atto di accettazione
-  const { data: items } = await admin
+  // 8. Genera PDF atto di accettazione.
+  // M2: se il cliente ha fatto una selezione per-voce (total_client_selected>0),
+  // l'atto "VOCI ACCETTATE" deve elencare SOLO le voci accettate — così la somma
+  // delle righe coincide con "IMPORTO ACCETTATO". Sulla firma intera (nessuna
+  // selezione) si elencano tutte le voci.
+  const hasSelection = Number(quote.total_client_selected) > 0
+  let itemsQuery = admin
     .from('quote_items')
     .select('name_snapshot, description_snapshot, quantity, unit_snapshot, line_client, sort_order')
     .eq('quote_id', quote.id)
-    .order('sort_order', { ascending: true })
+  if (hasSelection) itemsQuery = itemsQuery.eq('client_decision', 'ACCETTATO')
+  const { data: items } = await itemsQuery.order('sort_order', { ascending: true })
   const actPdfUrl = await generateAcceptancePdf(admin, quote, acceptance, signatureBytes, ip, ua, pdfHash, items ?? [])
   if (actPdfUrl) {
     await admin.from('quote_acceptances').update({ acceptance_pdf_url: actPdfUrl }).eq('id', acceptance.id)
