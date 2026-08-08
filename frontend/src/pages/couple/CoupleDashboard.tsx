@@ -147,6 +147,12 @@ export default function CoupleDashboard() {
     })()
     return () => { alive = false }
   }, [tab])
+  // L-A: navigazione in-SPA verso una tab valida (?tab=preventivo, es. da un link
+  // notifica) — sincronizza la tab anche senza remount.
+  useEffect(() => {
+    const w = searchParams.get('tab') as Tab | null
+    if (w && TABS.some((t) => t.key === w)) setTab(w)
+  }, [searchParams])
 
   const list = weddings ?? []
   const wid = selectedId ?? list[0]?.entry?.id ?? null

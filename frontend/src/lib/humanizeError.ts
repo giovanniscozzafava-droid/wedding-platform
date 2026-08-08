@@ -33,6 +33,13 @@ const RULES: { re: RegExp; message: string; hint: string }[] = [
   { re: /quote_not_open/i,
     message: 'Questo preventivo non è più aperto: non puoi cambiare la tua presenza.',
     hint: 'Vale solo per i preventivi ancora inviati e in attesa.' },
+  // Acconto già in corso (una sessione di pagamento è ancora aperta).
+  { re: /deposit_in_progress/i,
+    message: 'C’è già un pagamento dell’acconto in corso.',
+    hint: 'Completa o attendi qualche minuto prima di riprovare.' },
+  { re: /deposit_already_paid/i,
+    message: 'L’acconto per questo preventivo risulta già pagato.',
+    hint: '' },
   // PostgREST: funzione/tabella/colonna non trovata (server non allineato)
   { re: /could not find the function|schema cache|pgrst202|function .* does not exist/i,
     message: 'Questa funzione non è ancora disponibile sul server.',

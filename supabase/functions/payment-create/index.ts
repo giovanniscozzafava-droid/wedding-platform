@@ -64,6 +64,14 @@ Deno.serve(async (req) => {
     const paidTotal = (paidRows ?? []).reduce((s, p: any) => s + (p.amount_cents ?? 0), 0)
     if (kind === 'QUOTE_DEPOSIT') {
       if ((paidRows ?? []).some((p: any) => p.kind === 'QUOTE_DEPOSIT')) return json({ error: 'deposit_already_paid' }, 200)
+      // T-C: evita il doppio acconto da doppio click, prima che il primo risulti
+      // PAID. Blocca solo su un acconto PENDING RECENTE (15 min): le sessioni
+      // abbandonate scadono → FAILED, quindi non bloccano per sempre.
+      const since = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+      const { data: pendingDep } = await admin.from('payments')
+        .select('id').eq('ref_type', 'quote').eq('ref_id', q.id)
+        .eq('kind', 'QUOTE_DEPOSIT').eq('status', 'PENDING').gte('created_at', since).limit(1)
+      if (pendingDep && pendingDep.length > 0) return json({ error: 'deposit_in_progress' }, 200)
       amount = Math.round(totalCents * 0.30) // acconto 30% (default; configurabile in futuro)
     } else {
       amount = Math.max(0, totalCents - paidTotal)
