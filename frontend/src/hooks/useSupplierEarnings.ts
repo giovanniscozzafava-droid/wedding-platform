@@ -18,7 +18,7 @@ export function useSupplierEarnings(entryIds: string[]) {
 
   return useQuery({
     enabled: isSupplier && !!user && entryIds.length > 0,
-    queryKey: ['supplier-earnings', user?.id, entryIds.sort().join(',')],
+    queryKey: ['supplier-earnings', user?.id, entryIds.slice().sort().join(',')],
     queryFn: async () => {
       // Step 1: trova quote_id per ogni entry
       const { data: entries } = await supabase

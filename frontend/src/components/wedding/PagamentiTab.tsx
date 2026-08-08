@@ -65,6 +65,7 @@ export function PagamentiTab({ entryId }: { entryId: string }) {
     note: '',
   }
   const [draft, setDraft] = useState(emptyDraft)
+  const [saving, setSaving] = useState(false)
 
   async function load(silent = false) {
     if (!silent) setLoading(true)
@@ -105,10 +106,12 @@ export function PagamentiTab({ entryId }: { entryId: string }) {
   }, [entryId])
 
   async function addVoce() {
+    if (saving) return // niente doppie voci da doppio tap
     if (!draft.titolo.trim()) return toast.error('Titolo richiesto')
     const importo = Number(draft.importo_eur)
     if (!Number.isFinite(importo) || importo < 0) return toast.error('Importo non valido')
 
+    setSaving(true)
     try {
       const payload: any = {
         entry_id: entryId,
@@ -129,6 +132,7 @@ export function PagamentiTab({ entryId }: { entryId: string }) {
       setShowForm(false)
       await load()
     } catch (e) { toast.error((e as Error).message) }
+    finally { setSaving(false) }
   }
 
   async function togglePagato(v: Voce) {
@@ -246,8 +250,8 @@ export function PagamentiTab({ entryId }: { entryId: string }) {
             <Button variant="ghost" onClick={() => { setShowForm(false); setDraft(emptyDraft) }} className="min-h-[44px]">
               Annulla
             </Button>
-            <Button variant="gold" onClick={addVoce} className="min-h-[44px]">
-              <Plus size={14} /> Salva voce
+            <Button variant="gold" onClick={addVoce} disabled={saving} className="min-h-[44px]">
+              <Plus size={14} /> {saving ? 'Salvo…' : 'Salva voce'}
             </Button>
           </div>
         </Card>

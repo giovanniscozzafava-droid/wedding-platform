@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { Upload, Move } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,13 @@ export default function BrandSettingsPage() {
   const [secondary, setSecondary] = useState(profile?.brand_secondary_color ?? '#D4AF37')
   const [busy, setBusy] = useState(false)
   const [cropSrc, setCropSrc] = useState<string | null>(null)
+  // Sincronizza i color-picker quando il profilo arriva (deep-link/refresh con
+  // profile ancora in caricamento): altrimenti si salverebbero i default sopra i
+  // colori veri del brand.
+  useEffect(() => {
+    if (profile?.brand_primary_color) setPrimary(profile.brand_primary_color)
+    if (profile?.brand_secondary_color) setSecondary(profile.brand_secondary_color)
+  }, [profile?.brand_primary_color, profile?.brand_secondary_color])
 
   async function saveColors(e: FormEvent) {
     e.preventDefault()

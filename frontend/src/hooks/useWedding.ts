@@ -192,8 +192,11 @@ export const useGuestMutations = (entryId: string) => genericMutations('event_gu
 export const useTaskMutations = (entryId: string) => genericMutations('wedding_tasks', 'tasks', entryId)
 export const useMoodMutations = (entryId: string) => genericMutations('mood_images', 'mood', entryId)
 export const usePlaylistMutations = (entryId: string) => genericMutations('event_playlist', 'playlist', entryId)
-export const useBudgetCatMutations = (entryId: string) => genericMutations('budget_categories', 'budget-cats', entryId)
-export const useBudgetEntryMutations = (entryId: string) => genericMutations('budget_entries', 'budget-entries', entryId)
+// La lista Budget si legge con la key ['budget', entryId] (useBudget): le mutation
+// devono invalidare QUELLA, non 'budget-cats'/'budget-entries' (altrimenti la UI
+// non si aggiorna dopo add/update/remove).
+export const useBudgetCatMutations = (entryId: string) => genericMutations('budget_categories', 'budget', entryId)
+export const useBudgetEntryMutations = (entryId: string) => genericMutations('budget_entries', 'budget', entryId)
 export const useAccommodationMutations = (entryId: string) => genericMutations('event_accommodations', 'accommodations', entryId)
 export const useTransportMutations = (entryId: string) => genericMutations('event_transport', 'transport', entryId)
 export const useGadgetMutations = (entryId: string) => genericMutations('event_gadgets', 'gadgets', entryId)
