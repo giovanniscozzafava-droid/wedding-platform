@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { isFrozen } from '@/lib/frozenModules'
 
 // Registro strumenti: ogni voce dichiara a quali ruoli è visibile. La sidebar tiene solo il flusso
 // quotidiano; tutto il resto vive qui, raggruppato per mestiere. Rotte invariate.
@@ -78,7 +79,7 @@ export default function StrumentiHubPage() {
   const visibleGroups = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return GROUPS
-      .map((g) => ({ ...g, tools: g.tools.filter((t) => t.show(role, sub, photo) && (!needle || `${t.label} ${t.desc}`.toLowerCase().includes(needle))) }))
+      .map((g) => ({ ...g, tools: g.tools.filter((t) => !isFrozen(t.to) && t.show(role, sub, photo) && (!needle || `${t.label} ${t.desc}`.toLowerCase().includes(needle))) }))
       .filter((g) => g.tools.length > 0)
   }, [role, sub, photo, q])
 

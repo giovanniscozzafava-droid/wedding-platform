@@ -10,6 +10,7 @@ import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 
 // Eager: pagine sul critical path (auth + home pubblica + dashboard interna).
 import HomePage from '@/pages/HomePage'
+import { FrozenGate } from '@/pages/FrozenModulePage'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import PublicHomePage from '@/pages/public/PublicHomePage'
@@ -186,11 +187,11 @@ export default function App() {
               </RequireAuth>
             }
           />
-          <Route path="/food-cost" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><FoodCostPage /></RequireAuth>} />
+          <Route path="/food-cost" element={<FrozenGate><RequireAuth roles={['LOCATION', 'ADMIN']}><FoodCostPage /></RequireAuth></FrozenGate>} />
           <Route path="/prova" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><ProvaLookPage /></RequireAuth>} />
-          <Route path="/prove-menu" element={<RequireAuth roles={['LOCATION', 'WEDDING_PLANNER', 'ADMIN']}><TastingSessionsPage /></RequireAuth>} />
-          <Route path="/magazzino" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><MagazzinoPage /></RequireAuth>} />
-          <Route path="/ragioniere" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><RagionierePage /></RequireAuth>} />
+          <Route path="/prove-menu" element={<FrozenGate><RequireAuth roles={['LOCATION', 'WEDDING_PLANNER', 'ADMIN']}><TastingSessionsPage /></RequireAuth></FrozenGate>} />
+          <Route path="/magazzino" element={<FrozenGate><RequireAuth roles={['LOCATION', 'ADMIN']}><MagazzinoPage /></RequireAuth></FrozenGate>} />
+          <Route path="/ragioniere" element={<FrozenGate><RequireAuth roles={['LOCATION', 'ADMIN']}><RagionierePage /></RequireAuth></FrozenGate>} />
           <Route path="/suggerimenti-ricevuti" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SuggerimentiRicevutiPage /></RequireAuth>} />
           <Route path="/suggerimenti-inviati" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SuggerimentiInviatiPage /></RequireAuth>} />
           <Route path="/rete" element={<RequireAuth><ReteRedirect /></RequireAuth>} />
@@ -386,7 +387,7 @@ export default function App() {
           <Route path="/blog/nuovo" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><BlogEditorPage /></RequireAuth>} />
           <Route path="/blog/modifica/:id" element={<RequireAuth roles={['WEDDING_PLANNER','LOCATION','FORNITORE','ADMIN']}><BlogEditorPage /></RequireAuth>} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
-          <Route path="/calcolatore" element={<RequireAuth><CompositionCalculatorPage /></RequireAuth>} />
+          <Route path="/calcolatore" element={<FrozenGate><RequireAuth><CompositionCalculatorPage /></RequireAuth></FrozenGate>} />
           {/* Disponibilità accorpata nel Calendario (gestione appuntamenti/blocchi). */}
           <Route path="/disponibilita" element={<Navigate to="/calendar" replace />} />
           <Route path="/clienti" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><SupplierClientsPage /></RequireAuth>} />
@@ -415,10 +416,10 @@ export default function App() {
           <Route path="/admin/osservatorio" element={<RequireAuth roles={['ADMIN']}><ObservatoryPage /></RequireAuth>} />
           <Route path="/admin/maestranze/waitlist" element={<RequireAuth roles={['ADMIN']}><MaestranzeWaitlistAdminPage /></RequireAuth>} />
           <Route path="/admin/richieste-accesso" element={<RequireAuth roles={['ADMIN']}><AccessRequestsAdminPage /></RequireAuth>} />
-          <Route path="/bilancio" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth>} />
+          <Route path="/bilancio" element={<FrozenGate><RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><BilancioPage /></RequireAuth></FrozenGate>} />
           <Route path="/finanze-rete" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><FinanzeRetePage /></RequireAuth>} />
           <Route path="/strumenti" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN']}><StrumentiHubPage /></RequireAuth>} />
-          <Route path="/prima-nota" element={<RequireAuth roles={['LOCATION', 'ADMIN']}><PrimaNotaPage /></RequireAuth>} />
+          <Route path="/prima-nota" element={<FrozenGate><RequireAuth roles={['LOCATION', 'ADMIN']}><PrimaNotaPage /></RequireAuth></FrozenGate>} />
           <Route path="/finanziamento" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><FinancePage /></RequireAuth>} />
           <Route path="/assicurazione" element={<RequireAuth roles={['WEDDING_PLANNER', 'LOCATION', 'ADMIN', 'COUPLE']}><InsurancePage /></RequireAuth>} />
           <Route path="/couple" element={
