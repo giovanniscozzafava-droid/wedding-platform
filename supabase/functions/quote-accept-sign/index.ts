@@ -497,7 +497,7 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
     bodyHtml: `<p style="margin:0 0 10px">Grazie ${esc(a.signer_name)}, abbiamo ricevuto la tua accettazione del preventivo per <strong>${totFmt}</strong>.</p>
       <p style="margin:0">${esc(wpName)} ti contatterà a breve per i prossimi passi.</p>`,
     cta: actPdfUrl ? { href: actPdfUrl, label: 'Scarica atto firmato' } : undefined,
-    contactHtml: 'Il link al documento ha validità decennale. Conservalo per i tuoi atti.',
+    contactHtml: 'Scarica subito l’atto: il link è valido per poco tempo. Salva il PDF per i tuoi atti.',
   })
 
   await sendEmail(toClient, `Accettazione preventivo confermata · ${quote.title}`, clientHtml, {
@@ -520,7 +520,7 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
           ${row('Quando', esc(new Date(a.accepted_at).toLocaleString('it-IT')))}
           ${row('IP', esc(a.ip_address ?? '—'))}
         </table>
-        ${actPdfUrl ? `<p style="font-size:12px;margin:14px 0 0"><a href="${actPdfUrl}" style="color:#25402F;text-decoration:underline">Scarica l'atto firmato (PDF)</a> <span style="color:#6B6B63">— il link scade dopo qualche giorno; trovi sempre tutto nel gestionale.</span></p>` : ''}
+        ${actPdfUrl ? `<p style="font-size:12px;margin:14px 0 0"><a href="${actPdfUrl}" style="color:#25402F;text-decoration:underline">Scarica l'atto firmato (PDF)</a> <span style="color:#6B6B63">— il link è valido per poco tempo; trovi sempre tutto nel gestionale.</span></p>` : ''}
         <p style="font-size:12px;color:#6B6B63;margin-top:16px">Hash PDF preventivo: <code>${esc((a.quote_pdf_hash ?? '—').slice(0, 32))}…</code></p>`,
       cta: { href: `${APP_BASE}/quotes/${quote.id}`, label: 'Apri nel tuo gestionale' },
     })
