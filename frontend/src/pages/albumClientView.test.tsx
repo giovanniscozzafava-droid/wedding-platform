@@ -19,8 +19,9 @@ const DATA = (): Record<string, any> => ({
 function builder(table: string) {
   const result = DATA()[table] ?? { data: null }
   const b: any = {}
-  for (const m of ['select', 'eq', 'order', 'insert', 'update']) b[m] = () => b
+  for (const m of ['select', 'eq', 'neq', 'order', 'insert', 'update', 'delete', 'upsert', 'limit', 'range', 'gte', 'lte', 'in', 'is', 'not', 'or', 'ilike', 'contains', 'filter']) b[m] = () => b
   b.maybeSingle = () => Promise.resolve(result)
+  b.single = () => Promise.resolve(result)
   b.then = (res: any, rej?: any) => Promise.resolve(result).then(res, rej)
   return b
 }

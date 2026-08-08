@@ -39,7 +39,9 @@ describe('SCENARIO PESANTE — template, tutti i formati', () => {
         for (let pi = 0; pi < pages.length; pi++) {
           let p = pages[pi]!
           const frames = framesForPage(p)
-          expect(frames.length).toBe(p.mediaIds.length)
+          // Una pagina VUOTA (spacer per completare la tavola pari, vedi autoLayout) ha 0 mediaIds
+          // ma comunque >=1 frame template: l'invariante "un frame per foto" vale sulle pagine con foto.
+          if (p.mediaIds.length > 0) expect(frames.length).toBe(p.mediaIds.length)
           // applica un crop deterministico a ogni cella
           for (let i = 0; i < p.mediaIds.length; i++) {
             const fr = frames[i]!
