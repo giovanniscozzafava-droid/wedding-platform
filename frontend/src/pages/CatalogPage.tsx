@@ -16,6 +16,7 @@ import { useCreateService, useDeleteService, useReorderServices, useServices, ty
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProfessione } from '@/hooks/useProfessione'
 import { PackImportPicker } from '@/components/professione/PackImportPicker'
+import { PackDisimportPicker } from '@/components/professione/PackDisimportPicker'
 
 type Filters = {
   q: string
@@ -54,6 +55,7 @@ export default function CatalogPage() {
   const [viewing, setViewing] = useState<ServiceWithExtras | null>(null)
   const [creating, setCreating] = useState(false)
   const [showPackPicker, setShowPackPicker] = useState(false)
+  const [showDisimport, setShowDisimport] = useState(false)
   const [reorderMode, setReorderMode] = useState(false)
   const [reorderList, setReorderList] = useState<ServiceWithExtras[]>([])
   const reorder = useReorderServices()
@@ -179,6 +181,11 @@ export default function CatalogPage() {
                     <PackageCheck /> Starter pack
                   </Button>
                 )}
+                {!reorderMode && (data ?? []).some((s) => (s as any).imported_template_id && s.fornitore_id === profile?.id) && (
+                  <Button variant="outline" onClick={() => setShowDisimport(true)} data-testid="disimport-pack-btn">
+                    <PackageCheck /> Disimporta
+                  </Button>
+                )}
                 <Button variant="gold" onClick={() => setCreating(true)} data-testid="new-service-btn">
                   <Plus /> Nuovo servizio
                 </Button>
@@ -284,7 +291,7 @@ export default function CatalogPage() {
                     onEdit={() => setEditing(s)}
                     onDuplicate={() => void handleDuplicate(s)}
                     onDelete={async () => {
-                      if (!confirm(`Eliminare "${s.name}"?`)) return
+                      if (!confirm(`${(s as any).imported_template_id ? 'Disimportare' : 'Eliminare'} "${s.name}"?`)) return
                       try { await del.mutateAsync(s.id); toast.success('Eliminato') }
                       catch (e) { toast.error((e as Error).message) }
                     }} />
@@ -368,7 +375,7 @@ export default function CatalogPage() {
                       onEdit={() => setEditing(s)}
                       onDuplicate={() => void handleDuplicate(s)}
                       onDelete={async () => {
-                        if (!confirm(`Eliminare "${s.name}"?`)) return
+                        if (!confirm(`${(s as any).imported_template_id ? 'Disimportare' : 'Eliminare'} "${s.name}"?`)) return
                         try { await del.mutateAsync(s.id); toast.success('Eliminato') }
                         catch (e) { toast.error((e as Error).message) }
                       }} />
@@ -394,6 +401,14 @@ export default function CatalogPage() {
         <PackImportPicker
           onClose={() => setShowPackPicker(false)}
           onImported={() => setShowPackPicker(false)}
+        />
+      )}
+
+      {showDisimport && (
+        <PackDisimportPicker
+          services={data ?? []}
+          onClose={() => setShowDisimport(false)}
+          onDone={() => setShowDisimport(false)}
         />
       )}
     </div>

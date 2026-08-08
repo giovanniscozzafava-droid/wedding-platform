@@ -175,6 +175,21 @@ export function useDeleteService() {
   })
 }
 
+// Disimporta in BLOCCO: elimina più servizi importati in un colpo. Ritorna quanti ne ha davvero
+// tolti (RLS filtra a quelli di proprietà) così l'UI non mente sull'esito.
+export function useBulkDeleteServices() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!ids.length) return { deleted: 0 }
+      const { data, error } = await supabase.from('services').delete().in('id', ids).select('id')
+      if (error) throw error
+      return { deleted: data?.length ?? 0 }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
+  })
+}
+
 export function useAddModifier() {
   const qc = useQueryClient()
   return useMutation({
