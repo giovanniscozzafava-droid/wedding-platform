@@ -119,6 +119,14 @@ Deno.serve(async (req) => {
   }
   if (!quote.client_email) return json({ error: 'preventivo senza email cliente' }, 400)
 
+  // A1: il link deve essere ancora valido. Coerente con tutte le altre RPC token
+  // (quote_get_by_token, quote_accept_by_token, contract_sign_by_token): un link
+  // revocato dal pro o scaduto NON può produrre una firma FES legalmente vincolante.
+  if (quote.token_revoked_at) return json({ error: 'Questo link è stato revocato e non è più valido.' }, 409)
+  if (quote.access_token_expires_at && new Date(quote.access_token_expires_at) <= new Date()) {
+    return json({ error: 'Questo link è scaduto e non è più valido.' }, 409)
+  }
+
   // 1a-bis. Auto-invio: il trigger quotes_validate_status_transition vieta il
   // salto diretto BOZZA -> ACCETTATO. Se la coppia firma su un quote ancora
   // BOZZA (atterrata direttamente sull'accept page senza passare per quote-send),
