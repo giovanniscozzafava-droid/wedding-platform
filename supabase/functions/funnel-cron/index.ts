@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     return new Response('unauthorized', { status: 401 })
   }
   const now = Date.now()
-  const result = { followups: 0, archived: 0, contested: 0 }
+  const result = { followups: 0, archived: 0, contested: 0, suggestion_reminders: 0 }
 
   // ── Follow-up + archiviazione ────────────────────────────────────────────
   const { data: actives } = await admin.from('quotes')
@@ -135,6 +135,39 @@ Deno.serve(async (req) => {
         result.contested++
       } catch (_e) { /* skip */ }
     }
+  }
+
+  // ── Reminder ai FORNITORI SUGGERITI ──────────────────────────────────────
+  // Se dopo 48h dal suggerimento il pro non ha ancora inviato il preventivo né declinato, un
+  // promemoria (UNO solo, via reminder_sent_at): "invia il preventivo alla coppia, o segnala che
+  // non ci sei". Non tocca gli stati QUOTE_SENT/ACCEPTED/DECLINED/EXPIRED (chi ha gia' agito).
+  const SUGG_REMINDER_MS = 48 * 60 * 60 * 1000
+  const suggCutoff = new Date(now - SUGG_REMINDER_MS).toISOString()
+  const { data: pendingSugg } = await admin.from('supplier_suggestions')
+    .select('id, supplier_id, referrer_id, event_kind')
+    .in('status', ['SENT', 'VIEWED', 'QUOTE_CREATED'])
+    .is('reminder_sent_at', null)
+    .lt('created_at', suggCutoff)
+  for (const s of (pendingSugg ?? []) as any[]) {
+    try {
+      const stamp = async () => { await admin.from('supplier_suggestions').update({ reminder_sent_at: new Date().toISOString() }).eq('id', s.id) }
+      const { data: au } = await admin.auth.admin.getUserById(s.supplier_id)
+      const to = au?.user?.email
+      if (!to) { await stamp(); continue } // niente email → segna comunque (niente re-tentativi infiniti)
+      const ref = await loadOwner(s.referrer_id)
+      const refName = ref?.business_name ?? ref?.full_name ?? 'Un collega'
+      const html = emailShell({
+        eyebrow: 'Un cliente ti aspetta',
+        title: `${esc(refName)} ti ha suggerito a una coppia`,
+        subtitleHtml: `Per un <strong>${esc(s.event_kind ?? 'evento')}</strong>: invia il tuo preventivo, oppure segnala che non sei disponibile.`,
+        bodyHtml: `<p style="margin:0">Se ti interessa, prepara e invia l'offerta dalla tua area <strong>Suggerimenti ricevuti</strong>. Se non sei disponibile, con un clic puoi dire <strong>"Non disponibile"</strong> e liberare la richiesta.</p>`,
+        cta: { href: `${APP_BASE}/suggerimenti-ricevuti`, label: 'Vai ai suggerimenti' },
+        contactHtml: `Ricevi questa email perché un collega ti ha suggerito a un suo cliente su Planfully.`,
+      })
+      await sendEmail({ to, subject: `${refName} ti ha suggerito a una coppia — invia il preventivo o segnala che non ci sei`, html, from: FROM })
+      await stamp()
+      result.suggestion_reminders++
+    } catch (_e) { /* continua col prossimo */ }
   }
 
   return new Response(JSON.stringify({ ok: true, ...result }), { headers: { 'content-type': 'application/json' } })
