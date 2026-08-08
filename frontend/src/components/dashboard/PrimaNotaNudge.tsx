@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { NotebookPen, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { isFrozen } from '@/lib/frozenModules'
 
 // Promemoria NON bloccante: solo per le LOCATION. Mostra quanti movimenti di cassa
 // del mese (incassi preventivo / ordini F&B ricevuti) non sono ancora in prima nota.
@@ -11,7 +12,7 @@ export function PrimaNotaNudge() {
   const [count, setCount] = useState<number | null>(null)
 
   useEffect(() => {
-    if (profile?.role !== 'LOCATION') return
+    if (profile?.role !== 'LOCATION' || isFrozen('/prima-nota')) return
     void (async () => {
       const { data, error } = await (supabase as unknown as {
         rpc: (fn: string) => Promise<{ data: unknown; error: Error | null }>
@@ -20,6 +21,8 @@ export function PrimaNotaNudge() {
     })()
   }, [profile?.role])
 
+  // Modulo in pausa (refocus rete): non spingere l'utente in un dead-end.
+  if (isFrozen('/prima-nota')) return null
   if (profile?.role !== 'LOCATION' || !count || count <= 0) return null
 
   return (

@@ -85,7 +85,7 @@ export default function StrumentiHubPage() {
 
   // Contatore = solo gli strumenti del ruolo corrente (Location vede i suoi, ecc.).
   const total = visibleGroups.reduce((n, g) => n + g.tools.length, 0)
-  const allVisible = useMemo(() => GROUPS.flatMap((g) => g.tools).filter((t) => t.show(role, sub, photo)), [role, sub, photo])
+  const allVisible = useMemo(() => GROUPS.flatMap((g) => g.tools).filter((t) => !isFrozen(t.to) && t.show(role, sub, photo)), [role, sub, photo])
   // Recenti = scorciatoie compatte, non card: solo icona+nome, al massimo 4.
   const recentTools = (recent.map((to) => allVisible.find((t) => t.to === to)).filter(Boolean) as Tool[]).slice(0, 4)
 
