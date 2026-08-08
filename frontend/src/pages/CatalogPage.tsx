@@ -78,7 +78,10 @@ export default function CatalogPage() {
   // WP e LOCATION possono emettere propri servizi (organizzazione/coordinamento)
   // oltre a vedere il catalogo di rete. Fornitore solo i propri.
   const isProvider = profile?.role === 'FORNITORE' || profile?.role === 'LOCATION' || profile?.role === 'WEDDING_PLANNER'
-  const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'ADMIN'
+  // La LOCATION è un capostipite come il WP (aggrega la rete): stesso catalogo "I miei servizi" +
+  // rete in sola lettura. Senza LOCATION qui, cadeva nella griglia fornitore con Modifica/Elimina
+  // anche sulle voci dei fornitori di rete → azioni bloccate da RLS = "Qualcosa non ha funzionato".
+  const isCapostipite = profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION' || profile?.role === 'ADMIN'
 
   const filtered = useMemo(() => {
     if (!data) return []
