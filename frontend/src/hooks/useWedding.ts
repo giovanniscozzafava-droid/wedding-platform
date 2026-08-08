@@ -49,9 +49,16 @@ export function useWeddings() {
   })
 }
 
-export function useWedding(entryId: string | null) {
+export function useWedding(entryId: string | null, opts?: { coupleSafe?: boolean }) {
+  const coupleSafe = opts?.coupleSafe === true
+  // BLIND (C1): la COPPIA non deve ricevere l'identità del fornitore (né supplier_id,
+  // markup/sconto di voce) sulle voci del preventivo — il masking blind lo protegge.
+  // Il pro riceve il join completo (gli serve davvero); la coppia una versione mascherata.
+  const quoteItemsSelect = coupleSafe
+    ? 'quote_items(id, quote_id, service_id, name_snapshot, description_snapshot, unit_snapshot, quantity, modifiers_applied, line_client, sort_order, created_at, updated_at, quantity_basis, is_optional, alternative_group, selected_by_client, client_selected_at, payment_status, paid_amount, paid_at, payment_method, client_decision, client_decided_at, client_decline_reason)'
+    : 'quote_items(id, quote_id, service_id, supplier_id, name_snapshot, description_snapshot, unit_snapshot, quantity, modifiers_applied, line_client, sort_order, created_at, updated_at, quantity_basis, is_optional, alternative_group, selected_by_client, client_selected_at, payment_status, paid_amount, paid_at, payment_method, supplier_confirmed_at, supplier_confirmed_by, erogatore_e_capostipite, supplier_presence, item_discount_percent, client_decision, client_decided_at, client_decline_reason, supplier:profiles!quote_items_supplier_id_fkey(id, full_name, business_name, subrole))'
   return useQuery({
-    queryKey: ['wedding', entryId],
+    queryKey: ['wedding', entryId, coupleSafe],
     enabled: !!entryId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -60,7 +67,7 @@ export function useWedding(entryId: string | null) {
           *,
           ${PRIV_SELECT},
           owner:profiles!calendar_entries_owner_id_fkey(id, full_name, business_name, subrole, role),
-          quote:quotes!calendar_entries_quote_fk(id, owner_id, title, client_name, client_email, event_date, guest_count, status, revision, access_token, total_client, pdf_url, pdf_variant, sent_at, accepted_at, rejected_at, rejection_reason, sent_email_log, client_response_log, created_at, updated_at, table_count, direct_client_id, event_location, event_kind, access_token_expires_at, forced_without_questionnaire, token_hash, token_revoked_at, token_consumed_at, quote_origin, quote_context, first_opened_at, last_opened_at, open_count, total_discount_percent, total_discount_amount, subtotal_client, followup_count, last_followup_at, archived_at, date_contested_notified_at, funnel_paused, closed_at, quote_items(id, quote_id, service_id, supplier_id, name_snapshot, description_snapshot, unit_snapshot, quantity, modifiers_applied, line_client, sort_order, created_at, updated_at, quantity_basis, is_optional, alternative_group, selected_by_client, client_selected_at, payment_status, paid_amount, paid_at, payment_method, supplier_confirmed_at, supplier_confirmed_by, erogatore_e_capostipite, supplier_presence, item_discount_percent, client_decision, client_decided_at, client_decline_reason, supplier:profiles!quote_items_supplier_id_fkey(id, full_name, business_name, subrole))),
+          quote:quotes!calendar_entries_quote_fk(id, owner_id, title, client_name, client_email, event_date, guest_count, status, revision, access_token, total_client, pdf_url, pdf_variant, sent_at, accepted_at, rejected_at, rejection_reason, sent_email_log, client_response_log, created_at, updated_at, table_count, direct_client_id, event_location, event_kind, access_token_expires_at, forced_without_questionnaire, token_hash, token_revoked_at, token_consumed_at, quote_origin, quote_context, first_opened_at, last_opened_at, open_count, total_discount_percent, total_discount_amount, subtotal_client, followup_count, last_followup_at, archived_at, date_contested_notified_at, funnel_paused, closed_at, ${quoteItemsSelect}),
           calendar_entry_participants(*, user:profiles!calendar_entry_participants_user_id_fkey(id, full_name, business_name, subrole))
         `)
         .eq('id', entryId!)

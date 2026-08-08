@@ -103,8 +103,6 @@ const TAB_GROUPS: Array<{ label: string; keys: Tab[] }> = [
   { label: 'Organizzazione', keys: ['chat', 'preventivo', 'fornitori', 'documenti', 'checklist', 'alloggi', 'trasporti', 'planning'] },
 ]
 
-const RESTAURATION_SUBROLES = new Set(['location', 'catering', 'chef', 'food_truck', 'pasticcere', 'sweet_table', 'bartender', 'sommelier'])
-
 // Quali tab mostrare per tipo evento. Le tab "base" (overview, preventivo,
 // documenti, programma, invitati, tavoli) ci sono sempre; le altre dipendono
 // dal tipo. Così tutta la dashboard è centrata sull'evento.
@@ -230,14 +228,16 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
   const primary = wedding.owner?.brand_primary_color ?? '#C9A961'
   const eventDate = new Date(wedding.date_from)
   const daysLeft = Math.max(0, Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-  const { data: fullWedding } = useWedding(entryId)
+  // C1 (blind): la coppia usa la versione couple-safe (niente identità fornitore
+  // sulle voci del preventivo).
+  const { data: fullWedding } = useWedding(entryId, { coupleSafe: true })
   const quoteItems: Array<any> = (fullWedding as any)?.quote?.quote_items ?? []
   // Mostra la tab Menu SOLO se il preventivo include almeno un servizio di
-  // ristorazione (location, catering, chef, ...). Se il quote non e` ancora
-  // caricato o e` vuoto, fallback a mostrare la tab (non sappiamo ancora).
+  // ristorazione. Senza il fornitore (blind), lo deduciamo dal NOME della voce
+  // (parole chiave). Quote vuoto/non caricato → fallback a mostrare la tab.
   const hasRestauration = quoteItems.length === 0
     ? true
-    : quoteItems.some((it) => RESTAURATION_SUBROLES.has(String(it?.supplier?.subrole ?? '').toLowerCase()))
+    : quoteItems.some((it) => /catering|banqueting|menu|men[uù]|pranzo|cena|buffet|ristora|banchett|cucina|chef|degustaz|open bar|beverage|sala\b/i.test(String(it?.name_snapshot ?? '')))
   const eventKind = wedding.event_kind ?? 'matrimonio'
   const term = eventTerm(eventKind)
   // Tutta la dashboard è centrata sul tipo evento: mostriamo SOLO le tab
