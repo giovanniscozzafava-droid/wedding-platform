@@ -86,6 +86,7 @@ export function PackImportPicker({ onClose, onImported }: Props) {
         unit: (t.service_unit ?? professione?.unita_default.service_unit_default ?? 'EVENTO') as
           | 'PEZZO' | 'PERSONA' | 'ORA' | 'EVENTO',
         is_active: true,
+        imported_template_id: t.id, // provenienza: consente il "Disimporta" mirato nel catalogo
       }))
       const { error } = await (supabase as any).from('services').insert(payload)
       if (error) throw error

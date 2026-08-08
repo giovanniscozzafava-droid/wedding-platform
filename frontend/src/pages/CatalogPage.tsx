@@ -519,7 +519,8 @@ function ServiceCard({ s, isProvider, onEdit, onDelete, onDuplicate, onView }: {
           <div className="flex flex-wrap gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
             <Button variant="outline" size="sm" onClick={onEdit} data-testid={`edit-${s.id}`}>Modifica</Button>
             {onDuplicate && <Button variant="outline" size="sm" onClick={onDuplicate}>Duplica</Button>}
-            <Button variant="ghost" size="sm" onClick={onDelete}>Elimina</Button>
+            {/* Voce importata da un pacchetto → "Disimporta"; voce creata a mano → "Elimina". */}
+            <Button variant="ghost" size="sm" onClick={onDelete}>{(s as any).imported_template_id ? 'Disimporta' : 'Elimina'}</Button>
           </div>
         )}
       </div>
