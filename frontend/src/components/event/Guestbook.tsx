@@ -101,7 +101,9 @@ export function Guestbook({ entryId, readOnly = false }: { entryId: string; read
       {entries.length > 0 && (
         <div className="grid sm:grid-cols-2 gap-3">
           {entries.map((e) => (
-            <div key={e.id} className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-3">
+            // data-notranslate: messaggio e nome dell'ospite sono contenuto privato,
+            // non vanno mandati al servizio di traduzione (cache condivisa).
+            <div key={e.id} data-notranslate className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-3">
               {e.message && <p className="text-sm italic">“{e.message}”</p>}
               {e.signature_path && <img src={pub(e.signature_path)} alt="firma" className="mt-2 h-16 object-contain self-start" />}
               <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-1">— {e.author_name ?? 'Un invitato'}</p>

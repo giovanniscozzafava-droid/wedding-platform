@@ -85,7 +85,7 @@ export function AudioWishes({ entryId, readOnly = false }: { entryId: string; re
         <div className="space-y-2 pt-1">
           {wishes.map((w) => (
             <div key={w.id} className="flex items-center gap-2 rounded-lg bg-[rgb(var(--bg))] border border-[rgb(var(--border))] p-2">
-              <span className="text-xs font-medium shrink-0 w-20 truncate">da {w.author_name ?? 'Invitato'}</span>
+              <span data-notranslate className="text-xs font-medium shrink-0 w-20 truncate">da {w.author_name ?? 'Invitato'}</span>
               <audio controls preload="none" src={pub(w.storage_path)} className="h-8 flex-1 min-w-0" />
             </div>
           ))}
