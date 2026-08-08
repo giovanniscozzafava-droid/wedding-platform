@@ -161,8 +161,15 @@ export function useDeleteService() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('services').delete().eq('id', id)
+      // .select() ci dice quante righe ha davvero eliminato: se 0 (RLS filtra la riga perché non
+      // e' tua, o un trigger la protegge) NON dobbiamo mostrare un falso "Eliminato". Un eventuale
+      // errore di cascade (es. voce collegata a un preventivo) risale in chiaro via `error`.
+      const { data, error } = await supabase.from('services').delete().eq('id', id).select('id')
       if (error) throw error
+      if (!data || data.length === 0) {
+        throw new Error('Non è stato eliminato nulla: il servizio non risulta tuo oppure è protetto (collegato a un preventivo/contratto). Se è importato, aggiornalo o riprova; se persiste segnalacelo.')
+      }
+      return data
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
   })
