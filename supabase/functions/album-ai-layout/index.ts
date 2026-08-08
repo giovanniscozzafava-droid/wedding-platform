@@ -7,6 +7,9 @@
 // comunque con un'euristica per momento, riportando il motivo (`degraded`+`reason`). Non-2xx SOLO per
 // chiave mancante / niente foto / json rotto. Legge OPENAI_API_KEY (secret server). verify_jwt=true.
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+const SB_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SB_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 // VISIONE (tante chiamate): CASCATA dal più preciso al sicuro (5.1 mappa bene i VOLTI). Override via
 // env OPENAI_MODEL (es. 'gpt-4o-mini' per andare economici/veloci sui grandi album).
@@ -170,6 +173,13 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!OPENAI_API_KEY) return json({ error: 'missing_openai_key', hint: 'Imposta il secret OPENAI_API_KEY' }, 503)
+
+  // AUTH: endpoint AI a pagamento (gpt-vision su decine di URL) — solo utenti
+  // autenticati (la anon key passa verify_jwt ma non è autenticazione). Chiude
+  // l'abuso di budget OpenAI.
+  const { data: caller } = await createClient(SB_URL, SB_SERVICE, { auth: { persistSession: false } })
+    .auth.getUser((req.headers.get('Authorization') ?? '').slice(7))
+  if (!caller?.user) return json({ error: 'unauthorized' }, 401)
 
   let body: { photos?: InPhoto[]; analyses?: Analysis[]; format?: string; albumOrient?: string; eventTerm?: string; maxPerSpread?: number; style?: string; groupBw?: boolean; groupShots?: boolean; chronological?: boolean; doublePct?: number; fullPct?: number; maxPages?: number; styleProfile?: { perSpread: number; times: number }[]; learnedStyle?: { fullbleedPct?: number; avgPhotos?: number; whiteAvg?: number; vertPct?: number; horizPct?: number } }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
