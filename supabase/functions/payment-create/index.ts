@@ -72,7 +72,11 @@ Deno.serve(async (req) => {
         .select('id').eq('ref_type', 'quote').eq('ref_id', q.id)
         .eq('kind', 'QUOTE_DEPOSIT').eq('status', 'PENDING').gte('created_at', since).limit(1)
       if (pendingDep && pendingDep.length > 0) return json({ error: 'deposit_in_progress' }, 200)
-      amount = Math.round(totalCents * 0.30) // acconto 30% (default; configurabile in futuro)
+      // PAY-2: l'acconto non deve mai far superare il 100% incassato. Se il cliente ha gia' pagato
+      // (es. il saldo intero), il residuo e' 0 → niente addebito. Altrimenti = min(30%, residuo).
+      const remaining = Math.max(0, totalCents - paidTotal)
+      if (remaining <= 0) return json({ error: 'already_paid' }, 200)
+      amount = Math.min(Math.round(totalCents * 0.30), remaining) // acconto 30%, mai oltre il residuo
     } else {
       amount = Math.max(0, totalCents - paidTotal)
       if (amount <= 0) return json({ error: 'already_paid' }, 200)

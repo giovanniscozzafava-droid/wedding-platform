@@ -106,6 +106,22 @@ Deno.serve(async (req) => {
         if (pid) await applySub(pid, sub)
         break
       }
+      case 'charge.refunded':
+      case 'charge.dispute.created': {
+        // PAY-6: un rimborso o una contestazione deve riflettersi nel ledger, altrimenti il
+        // pagamento resta PAID e il saldo (total - PAID) risulta gia' incassato per sempre.
+        // Segnamo REFUNDED la riga col payment_intent corrispondente (cosi' non conta piu' come
+        // pagato e il saldo si riapre). NB: rimborso PARZIALE marcato come intero (v1).
+        const obj = event.data.object as { payment_intent?: string }
+        const pi = obj.payment_intent ?? null
+        if (pi) await admin.from('payments').update({ status: 'REFUNDED' }).eq('payment_intent_id', pi).eq('status', 'PAID')
+        break
+      }
+      case 'payment_intent.canceled': {
+        const pi = (event.data.object as { id?: string }).id ?? null
+        if (pi) await admin.from('payments').update({ status: 'FAILED' }).eq('payment_intent_id', pi).eq('status', 'PENDING')
+        break
+      }
       default:
         break // ignora gli altri eventi
     }
