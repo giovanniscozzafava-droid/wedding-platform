@@ -140,6 +140,15 @@ Deno.serve(async (req) => {
     return json(res, res.ok ? 200 : 400)
   }
 
+  // Modo 1: scan view (digest di MASSA a tutti gli utenti). Solo con il segreto
+  // cron (fail-closed): senza, chiunque con la anon key potrebbe innescare un
+  // invio di massa a ogni richiesta. Il cron per-utente (Modo 2, sopra) non è
+  // toccato.
+  const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
+  if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) {
+    return json({ error: 'unauthorized_mass_digest' }, 401)
+  }
+
   // Modo 1: scan view.
   const { data, error } = await admin
     .from('v_notifiche_digest_per_utente')
