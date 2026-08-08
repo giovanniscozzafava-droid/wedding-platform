@@ -53,6 +53,15 @@ Deno.serve(async (req) => {
   const { data: prof } = await admin.from('profiles').select('role').eq('id', userId).maybeSingle()
   const allowInstant = (prof?.role ?? 'GUEST') === 'GUEST'
 
+  // M2/SEC: se l'email appartiene a un account NON ospite (pro/coppia/admin) non
+  // scriviamo NULLA — niente registrazione ospite, niente consenso marketing
+  // (altrimenti chiunque, con solo il guest_token, forgerebbe un consenso GDPR a
+  // nome di un terzo). Nessun token: si accede via OTP email.
+  if (!allowInstant) {
+    return json({ ok: true, existing: true })
+  }
+
+  // Da qui è un OSPITE (nuovo o di ritorno): possiamo registrarlo e loggarlo.
   // RIENTRO: era già ospite di QUESTO evento? (per dare il "bentornato").
   const { data: prev } = await admin.from('gallery_guests')
     .select('full_name_searched').eq('entry_id', gal.entry_id).eq('guest_user_id', userId).maybeSingle()
@@ -74,10 +83,5 @@ Deno.serve(async (req) => {
     source: 'guest_gallery',
   })
 
-  // Account OSPITE → login istantaneo (UX "degna di zia Pina"). Account già esistente
-  // di un pro/coppia/admin → nessun token: il frontend manda un OTP via email.
-  if (!allowInstant) {
-    return json({ ok: true, existing: true, returning, name: greetName })
-  }
   return json({ ok: true, token_hash: link.data.properties.hashed_token, returning, name: greetName })
 })
