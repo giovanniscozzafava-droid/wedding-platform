@@ -32,7 +32,7 @@ async function assertPublicHost(urlStr: string): Promise<void> {
   let h: string
   try { h = new URL(urlStr).hostname } catch { throw new Error('invalid url') }
   const bare = h.replace(/^\[|\]$/g, '')
-  if (bare === 'localhost' || bare.endsWith('.localhost') || bare.endsWith('.internal')) throw new Error('blocked host')
+  if (bare === 'localhost' || bare.endsWith('.localhost') || bare.endsWith('.internal') || bare.endsWith('.local')) throw new Error('blocked host')
   if (/^[\d.]+$/.test(bare) || bare.includes(':')) { if (isPrivateIp(bare)) throw new Error('blocked private ip'); return }
   const v4 = await Deno.resolveDns(bare, 'A').catch(() => [] as string[])
   const v6 = await Deno.resolveDns(bare, 'AAAA').catch(() => [] as string[])
@@ -56,6 +56,9 @@ Deno.serve(async (req) => {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PlanfullyBot/1.0; +https://planfully.it)', 'Accept': 'text/html' },
       redirect: 'follow',
     })
+    // SSRF: dopo eventuali redirect, ri-valida l'host finale (un URL pubblico può
+    // reindirizzare a un host interno).
+    try { await assertPublicHost(res.url) } catch { return json({ error: 'blocked_redirect' }, 400) }
     const html = (await res.text()).slice(0, 600000)
     let img = pick(html, [
       /<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["']/i,
