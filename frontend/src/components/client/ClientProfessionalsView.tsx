@@ -214,7 +214,9 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
   const isLive = !q.closed_at && (q.status === 'ACCETTATO' || q.status === 'CONVERTITO_IN_CONTRATTO')
   const items = q.items ?? []
   const pending = items.filter((it) => it.client_decision === 'IN_ATTESA')
-  const acceptedTotal = items.filter((it) => it.client_decision === 'ACCETTATO').reduce((s, it) => s + Number(it.line_client || 0), 0)
+  // T-A: totale VINCOLANTE dal motore (con sconto/maggiorazione/trasferta), non la
+  // somma grezza dei line_client — così coincide con contratto/atto/acconto (R1/M3).
+  const acceptedTotal = Number((q as any).total_client_selected ?? 0)
   const grouped = groupItemsByCategory(items)
   const multiCat = grouped.length > 1
 
