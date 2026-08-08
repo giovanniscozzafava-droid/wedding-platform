@@ -90,6 +90,14 @@ async function sendDigestForUser(
   const userEmail: string | undefined = userResp?.user?.email
   if (!userEmail) return { ok: false, reason: 'no_email' }
 
+  // Idempotenza (FN-3): un digest per destinatario al giorno. Claim atomico: se la riga di oggi
+  // esiste già, è già stato inviato → non re-inviare (blocca doppioni pg_net e abuso ripetuto anon).
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: claimed } = await admin.from('digest_sends')
+    .upsert({ destinatario_id: payload.destinatario_id, data_digest: today }, { onConflict: 'destinatario_id,data_digest', ignoreDuplicates: true })
+    .select('destinatario_id')
+  if (!claimed || claimed.length === 0) return { ok: true, email: userEmail, reason: 'already_sent_today' }
+
   // 2) Display name (best-effort).
   const { data: profile } = await admin.from('profiles')
     .select('full_name,business_name')
@@ -106,7 +114,11 @@ async function sendDigestForUser(
     html,
   })
 
-  if (!result.ok) return { ok: false, email: userEmail, reason: result.reason }
+  if (!result.ok) {
+    // Invio fallito: rilascio il claim così un retry (oggi) può riprovare.
+    await admin.from('digest_sends').delete().eq('destinatario_id', payload.destinatario_id).eq('data_digest', today)
+    return { ok: false, email: userEmail, reason: result.reason }
+  }
   return { ok: true, email: userEmail }
 }
 
