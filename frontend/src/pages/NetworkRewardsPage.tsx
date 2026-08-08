@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { BETA_NO_MONEY } from '@/lib/beta'
 import { InviteCapostipiteCard } from '@/components/network/InviteCapostipiteCard'
 
 type Tier = {
@@ -111,6 +112,22 @@ export default function NetworkRewardsPage() {
 
   if (loading) return <div className="p-10 text-[rgb(var(--fg-muted))]">Caricamento…</div>
   if (!stats) return <div className="p-10 text-[rgb(var(--rose-500))]">Impossibile caricare i dati</div>
+
+  // M4: durante la beta nessun money-talk (importi/success-fee/credito) nelle UI utente.
+  if (BETA_NO_MONEY) {
+    return (
+      <div className="min-h-full">
+        <div className="max-w-2xl mx-auto px-6 sm:px-10 py-16">
+          <PageHeader eyebrow="Network Rewards" title="Cresci con la tua rete"
+            description="Il programma di riconoscimenti della rete arriverà a breve." />
+          <div className="mt-6 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))] p-8 text-sm text-[rgb(var(--fg-muted))]">
+            Durante la beta l’attività è gratuita: nessun costo, nessuna commissione.
+            Continua a costruire la tua rete — i riconoscimenti si attiveranno più avanti.
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const tierMeta = TIER_META[stats.tier.tier]
   const eur = (cents: number) => (cents / 100).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })

@@ -53,6 +53,20 @@ export default function SupplierCreditsPage() {
   const totalCredit = balances.filter((b) => b.net > 0).reduce((s, b) => s + b.net, 0)
   const totalDebt = balances.filter((b) => b.net < 0).reduce((s, b) => s + Math.abs(b.net), 0)
 
+  // M4/beta: nessun importo/credito in euro nelle UI utente durante la beta.
+  if (BETA_NO_MONEY) {
+    return (
+      <div className="min-h-full">
+        <div className="max-w-2xl mx-auto px-6 sm:px-10 py-16">
+          <PageHeader title="Crediti tra colleghi" description="I riconoscimenti tra professionisti arriveranno a breve." />
+          <div className="mt-6 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))] p-8 text-sm text-[rgb(var(--fg-muted))]">
+            Durante la beta segnalare un collega è gratis e senza obblighi: i crediti si attiveranno più avanti.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-full">
       <div className="max-w-3xl mx-auto px-6 sm:px-10 py-10">
