@@ -981,6 +981,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
   const [signed, setSigned] = useState(false)
   const [busyItem, setBusyItem] = useState<string | null>(null)
   const [concluding, setConcluding] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
   // Tutti i preventivi ricevuti per l'evento (fotografo + suggeriti), come "cartelle" per categoria.
   const [received, setReceived] = useState<ReceivedQuote[]>([])
   const [selQuoteId, setSelQuoteId] = useState<string | null>(null)
@@ -1091,6 +1092,21 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
       }
     } catch (e) { toast.error(friendlyErr(e)) }
     finally { setBusyItem(null) }
+  }
+
+  // Scarica il PDF COMPILATO del preventivo selezionato (anche dei suggeriti): contiene solo le voci
+  // ACCETTATE. Se non ne hai ancora accettata nessuna il PDF sarebbe vuoto → alert, niente download.
+  async function downloadReceivedPdf() {
+    if (!data?.id) return
+    const accepted = (data.items ?? []).filter((it) => it.client_decision === 'ACCETTATO').length
+    if (accepted === 0) { toast.error('Opziona le voci che ti interessano prima di scaricare il PDF compilato'); return }
+    setPdfBusy(true)
+    try {
+      const { data: r, error } = await supabase.functions.invoke('quote-generate-pdf', { body: { quote_id: data.id } })
+      const url = (r as { url?: string } | null)?.url
+      if (error || !url) { toast.error('Non riesco a generare il PDF, riprova tra poco'); return }
+      window.open(url, '_blank', 'noopener')
+    } catch (e) { toast.error(friendlyErr(e)) } finally { setPdfBusy(false) }
   }
 
   // Il cliente sceglie la quantita' della voce (es. 2 album). Ricalcola la riga e il totale.
@@ -1344,13 +1360,18 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
           </div>
         )}
 
-        {data.pdf_url && (
-          <div className="mb-4">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {data.pdf_url && (
             <PdfViewButton pdfUrl={data.pdf_url} title="Preventivo" variant="ghost" size="sm">
               <FileText size={13} /> Sfoglia il preventivo
             </PdfViewButton>
-          </div>
-        )}
+          )}
+          {/* Scarica il PDF compilato (anche dei suggeriti): solo le voci accettate. Se non ne hai
+              ancora accettata nessuna → alert, per non scaricare un PDF vuoto. */}
+          <Button variant="outline" size="sm" disabled={pdfBusy} onClick={() => void downloadReceivedPdf()}>
+            <FileText size={13} /> {pdfBusy ? 'Preparo il PDF…' : 'Scarica PDF (voci accettate)'}
+          </Button>
+        </div>
       </Card>
 
       {!signed ? (
