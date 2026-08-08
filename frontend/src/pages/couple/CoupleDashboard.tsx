@@ -1192,7 +1192,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
             </p>
           </div>
           <Badge>
-            {signed ? '✓ Firmato' : data.status}
+            {signed ? 'Firmato' : data.status}
           </Badge>
         </div>
 
@@ -1229,7 +1229,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
           </p>
         ) : hasLive && (
           <p className="text-xs mb-3 rounded-lg px-3 py-2" style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
-            Le voci con <strong>✓ Firmato nel preventivo</strong> sono già nel contratto firmato. Le altre sono <strong>integrazioni</strong> aggiunte dopo: puoi approvarle, metterle in forse o non accettarle. Nulla entra nel contratto finché non concludi e firmi.
+            Le voci con <strong>Firmato nel preventivo</strong> sono già nel contratto firmato. Le altre sono <strong>integrazioni</strong> aggiunte dopo: puoi approvarle, metterle in forse o non accettarle. Nulla entra nel contratto finché non concludi e firmi.
           </p>
         )}
         {(() => {
@@ -1278,7 +1278,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
                       <div className="p-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-sm">{it.name_snapshot}</p>
-                          {!isFornitore && isContracted && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>✓ nel contratto</span>}
+                          {!isFornitore && isContracted && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#16a34a', background: '#16a34a1a' }}>nel contratto</span>}
                           {!isFornitore && !isContracted && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>Integrazione</span>}
                         </div>
                         {clickable ? (
@@ -1295,7 +1295,7 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
                           <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">{it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}</p>
                         )}
                         <p className="font-display text-xl mt-1">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-                        {selected && clickable && <p className="text-[11px] font-medium mt-1" style={{ color: 'rgb(var(--gold-700))' }}>✓ Scelta — si somma al totale</p>}
+                        {selected && clickable && <p className="text-[11px] font-medium mt-1" style={{ color: 'rgb(var(--gold-700))' }}>Scelta — si somma al totale</p>}
                         {maybe && <p className="text-[11px] font-medium mt-1" style={{ color: '#7c3aed' }}>? In forse</p>}
                         {rejected && <p className="text-[11px] font-medium mt-1" style={{ color: '#dc2626' }}>Scartata</p>}
                         {/* Azioni secondarie: non tolgono chiarezza al clic principale */}

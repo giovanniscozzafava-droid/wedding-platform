@@ -337,7 +337,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
                           : it.client_decision === 'FORSE'
                           ? { color: '#7c3aed', background: '#7c3aed1a' }
                           : { color: '#dc2626', background: '#dc26261a' }}>
-                        {it.client_decision === 'ACCETTATO' ? '✓ Accettata' : it.client_decision === 'FORSE' ? 'In forse' : '✕ Rifiutata'}
+                        {it.client_decision === 'ACCETTATO' ? 'Accettata' : it.client_decision === 'FORSE' ? 'In forse' : 'Rifiutata'}
                       </button>
                     )}
                   </div>
