@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase'
 
 type Item = {
   item_id: string; name: string; quote_id: string; quote_title: string | null
-  client_name: string | null; event_date: string | null; line_client: number
+  client_name: string | null; event_date: string | null; line_cost: number
   decision: 'RIFIUTATO' | 'FORSE'; decline_reason: string | null
   discount_percent: number | null; counter_note: string | null; wp: string | null
 }
@@ -84,7 +84,7 @@ export default function SupplierReviewItemsPage() {
                         </div>
                         <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
                           {it.quote_title ?? 'Preventivo'} · {it.client_name ?? 'cliente'}
-                          {it.wp ? ` · via ${it.wp}` : ''} · prezzo attuale {fmtEuro(Number(it.line_client))}
+                          {it.wp ? ` · via ${it.wp}` : ''} · il tuo prezzo {fmtEuro(Number(it.line_cost))}
                         </p>
                         {it.decline_reason && (
                           <p className="text-xs italic text-[rgb(var(--fg-subtle))] mt-1">Motivo del cliente: {it.decline_reason}</p>

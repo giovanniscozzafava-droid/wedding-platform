@@ -27,8 +27,6 @@ type PendingItem = {
   description_snapshot: string | null
   unit_snapshot: string
   quantity: number
-  snapshot_price: number
-  line_client: number
   supplier_confirmed_at: string | null
   quote_id: string
   entry_id: string | null
@@ -86,7 +84,7 @@ export default function SupplierContractsPage() {
         (supabase.from as any)('supplier_contract_templates').select('*').order('created_at', { ascending: false }),
         (supabase as any).rpc('list_supplier_contracts'),
         me ? (supabase.from as any)('quote_items')
-          .select('id, name_snapshot, description_snapshot, unit_snapshot, quantity, snapshot_price, line_client, supplier_confirmed_at, quote_id')
+          .select('id, name_snapshot, description_snapshot, unit_snapshot, quantity, supplier_confirmed_at, quote_id')
           .eq('supplier_id', me)
           .is('supplier_confirmed_at', null)
           .order('created_at', { ascending: false })

@@ -16,7 +16,7 @@ import { toast } from '@/lib/toast'
 
 type Item = {
   id: string; name_snapshot: string; description_snapshot: string | null
-  quantity: number; line_client: number; quote_id: string
+  quantity: number; line_cost: number; quote_id: string
   supplier_presence: 'SI' | 'NO' | 'FORSE' | null
 }
 type Group = {
@@ -42,8 +42,10 @@ export default function SupplierPendingPage() {
       // Mostra TUTTI i preventivi vivi in cui il fornitore è coinvolto — decisi e non —
       // così può anche CAMBIARE idea su una decisione già presa (reversibile). I preventivi
       // rifiutati/archiviati vengono esclusi più sotto.
+      // Il fornitore vede il PROPRIO importo (line_cost = quanto gli paga il
+      // capostipite), MAI line_client, che include il markup blind del capostipite.
       const { data } = await (supabase.from as any)('quote_items')
-        .select('id, name_snapshot, description_snapshot, quantity, line_client, quote_id, supplier_presence, supplier_confirmed_at')
+        .select('id, name_snapshot, description_snapshot, quantity, line_cost, quote_id, supplier_presence, supplier_confirmed_at')
         .eq('supplier_id', me).order('created_at', { ascending: false })
       const items = (data ?? []) as Item[]
 
@@ -53,7 +55,7 @@ export default function SupplierPendingPage() {
         let g = byQuote.get(it.quote_id)
         if (!g) { g = { quote_id: it.quote_id, items: [], presence: it.supplier_presence, total: 0 }; byQuote.set(it.quote_id, g) }
         g.items.push(it)
-        g.total += Number(it.line_client) // line_client è GIÀ il totale di riga (qtà inclusa)
+        g.total += Number(it.line_cost) // line_cost = incasso fornitore, GIÀ totale di riga (qtà inclusa)
         if (it.supplier_presence === 'FORSE') g.presence = 'FORSE'
       }
       const quoteIds = Array.from(byQuote.keys())
@@ -125,12 +127,12 @@ export default function SupplierPendingPage() {
                       {g.items.map((it) => (
                         <li key={it.id} className="text-xs text-[rgb(var(--fg-muted))] flex items-center justify-between gap-2">
                           <span className="truncate">• {it.name_snapshot}{Number(it.quantity) > 1 ? ` ×${Number(it.quantity)}` : ''}</span>
-                          <span className="shrink-0 text-[rgb(var(--fg-subtle))]">€ {Number(it.line_client).toLocaleString('it-IT', { maximumFractionDigits: 2 })}</span>
+                          <span className="shrink-0 text-[rgb(var(--fg-subtle))]">€ {Number(it.line_cost).toLocaleString('it-IT', { maximumFractionDigits: 2 })}</span>
                         </li>
                       ))}
                     </ul>
                     <div className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">
-                      {g.items.length} voci · totale € {g.total.toLocaleString('it-IT', { maximumFractionDigits: 2 })}
+                      {g.items.length} voci · tuo compenso € {g.total.toLocaleString('it-IT', { maximumFractionDigits: 2 })}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button variant="gold" disabled={busy === g.quote_id} onClick={() => setPresence(g.quote_id, 'SI')} className="min-h-[40px]">
