@@ -324,7 +324,7 @@ export default function QuotesPage() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="gc">Invitati</Label>
-                    <Input id="gc" type="number" value={form.guest_count} onChange={(e) => setForm((f) => ({ ...f, guest_count: e.target.value }))} />
+                    <Input id="gc" type="number" min={1} value={form.guest_count} onChange={(e) => setForm((f) => ({ ...f, guest_count: e.target.value }))} />
                   </div>
                 </div>
                 {/* Alert disponibilità data */}

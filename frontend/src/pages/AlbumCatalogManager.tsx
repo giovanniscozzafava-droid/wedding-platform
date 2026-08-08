@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ChevronLeft, Upload, Save, FileText, Loader2, Sparkles, Plus, Trash2, ImagePlus, Sliders, MapPin, MessageSquare, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, Upload, Save, FileText, Loader2, Sparkles, Plus, Trash2, ImagePlus, Sliders, MapPin, MessageSquare, CheckCircle2, X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -250,7 +250,7 @@ export default function AlbumCatalogManager() {
                       </button>
                     )
                   })}
-                  {inboxVisible.length === 0 && <p className="text-sm text-[rgb(var(--fg-muted))] py-2">Nessuna richiesta aperta. 🎉</p>}
+                  {inboxVisible.length === 0 && <p className="text-sm text-[rgb(var(--fg-muted))] py-2">Nessuna richiesta aperta.</p>}
                 </div>
               </Card>
             )}
@@ -313,7 +313,7 @@ export default function AlbumCatalogManager() {
                   <div className="flex max-h-[85vh] w-[min(94vw,560px)] flex-col rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-start justify-between gap-3 border-b border-[rgb(var(--border))] p-4">
                       <div><h3 className="font-display text-lg">Dal listino DesignAlbum</h3><p className="mt-0.5 text-[11px] text-[rgb(var(--fg-muted))]">Aggiungi al tuo catalogo SOLO i modelli che vuoi offrire (il cliente vede solo questi). Costo dal listino, prezzo col tuo ricarico ({markup}%). Poi aggiungi una foto alla card.</p></div>
-                      <button onClick={() => setDaOpen(false)} className="shrink-0 rounded-full px-2 py-1 text-lg leading-none hover:bg-[rgb(var(--bg-sunken))]">✕</button>
+                      <button onClick={() => setDaOpen(false)} aria-label="Chiudi" className="shrink-0 rounded-full p-1.5 leading-none hover:bg-[rgb(var(--bg-sunken))]"><X size={18} strokeWidth={1.5} /></button>
                     </div>
                     <div className="border-b border-[rgb(var(--border))] p-3"><Input value={daQuery} onChange={(e) => setDaQuery(e.target.value)} placeholder="Cerca un modello…" /></div>
                     <div className="min-h-0 flex-1 space-y-0.5 overflow-auto p-2">

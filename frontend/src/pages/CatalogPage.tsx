@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion, Reorder } from 'framer-motion'
-import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check, PackageCheck } from 'lucide-react'
+import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check, PackageCheck, Star } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,6 +36,7 @@ export default function CatalogPage() {
   const del = useDeleteService()
   const dup = useCreateService()
   async function handleDuplicate(s: ServiceWithExtras) {
+    if (dup.isPending) return // niente doppioni da doppio click
     try {
       await dup.mutateAsync({
         name: `${s.name} (copia)`,
@@ -273,7 +274,7 @@ export default function CatalogPage() {
           return (
             <section className="mb-12">
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-[rgb(var(--gold-500))]">⭐</span>
+                <Star size={18} strokeWidth={1.5} className="text-[rgb(var(--gold-500))]" />
                 <h3 className="font-display text-xl">I miei servizi</h3>
                 <span className="text-xs text-[rgb(var(--fg-subtle))]">{mine.length} {mine.length === 1 ? 'voce' : 'voci'}</span>
               </div>

@@ -86,7 +86,11 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     && location.pathname !== '/feed'
     && !location.pathname.startsWith('/feed/')
     && !location.pathname.startsWith('/scopri')
-    && !location.pathname.startsWith('/fornitore/')
+    // vetrine pubbliche e link a token (contratto/accettazione): il prefisso reale è /p/
+    // (prima c'era /fornitore/, rotta inesistente → i link pubblici venivano rimbalzati).
+    && !location.pathname.startsWith('/p/')
+    // carosello Instagram generato dal fotografo: la coppia ci accede dal suo cruscotto.
+    && !location.pathname.startsWith('/carosello/')
     // album impaginato dal fotografo e revisione video: la coppia ci accede dal suo cruscotto
     // (link in EventGalleryTab → /album/:id e /video/:id, target=_blank). Senza queste eccezioni
     // il confinamento la rimbalzava su /couple → "l'album non si apre".
@@ -105,8 +109,7 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     && !location.pathname.startsWith('/area-cliente')
     && location.pathname !== '/profile'
     && !location.pathname.startsWith('/faq')
-    && !location.pathname.startsWith('/p/')
-    && !location.pathname.startsWith('/fornitore/')) {
+    && !location.pathname.startsWith('/p/')) {
     return <Navigate to="/area-cliente" replace />
   }
   // Ruolo sbagliato per questa rotta → NON un vicolo cieco: lo riportiamo alla sua home
