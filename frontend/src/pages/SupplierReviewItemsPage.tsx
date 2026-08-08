@@ -44,7 +44,7 @@ export default function SupplierReviewItemsPage() {
       })
       if (error) throw error
       if ((data as any)?.error) throw new Error((data as any).error)
-      toast.success('Offerta scontata inviata al cliente')
+      toast.success('Sconto proposto: il capostipite lo approverà prima di riproporlo al cliente')
       await load()
     } catch (e) { toast.error((e as Error).message) }
     finally { setBusy(null) }

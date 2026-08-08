@@ -630,6 +630,18 @@ export default function QuoteEditorPage() {
         : msg)
     }
   }
+  // N4: il capostipite approva o rifiuta lo sconto PROPOSTO da un fornitore.
+  // Approva → lo sconto diventa item_discount_percent (ricalcolo + torna al cliente);
+  // rifiuta → la proposta sparisce, nessuna modifica al prezzo/margine.
+  async function handleResolveSupplierDiscount(itemId: string, approve: boolean) {
+    if (!id) return
+    try {
+      const { error } = await (supabase as any).rpc('capostipite_resolve_supplier_discount', { p_item_id: itemId, p_approve: approve })
+      if (error) { toast.error(error); return }
+      toast.success(approve ? 'Sconto applicato e rimandato al cliente' : 'Proposta di sconto rifiutata')
+      await qc.invalidateQueries({ queryKey: ['quote', id] })
+    } catch (e) { toast.error((e as Error).message) }
+  }
   // Sconto sul TOTALE del preventivo (% e/o € fisso).
   async function handleTotalDiscount(patch: { total_discount_percent?: number; total_discount_amount?: number }) {
     if (!id) return
@@ -1163,6 +1175,20 @@ export default function QuoteEditorPage() {
                           </label>
                         )
                       })()}
+                      {/* N4: proposta di sconto da un fornitore, in attesa dell'ok del capostipite. */}
+                      {(it as any).supplier_proposed_discount_percent != null && (
+                        <div className="mt-2 rounded-lg border p-2.5 text-xs" style={{ borderColor: 'rgb(var(--gold-300))', background: 'rgb(var(--gold-100))' }}>
+                          <div className="flex items-center gap-1.5" style={{ color: 'rgb(var(--gold-700))' }}>
+                            <Wallet size={12} />
+                            <span>Un fornitore propone uno sconto del <strong>{Number((it as any).supplier_proposed_discount_percent)}%</strong> su questa voce.</span>
+                          </div>
+                          {(it as any).supplier_counter_note && <p className="mt-1 text-[rgb(var(--fg-muted))]">«{(it as any).supplier_counter_note}»</p>}
+                          <div className="mt-2 flex gap-2">
+                            <Button variant="gold" size="sm" onClick={() => void handleResolveSupplierDiscount(it.id, true)}>Approva</Button>
+                            <Button variant="ghost" size="sm" onClick={() => void handleResolveSupplierDiscount(it.id, false)}>Rifiuta</Button>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         <Wallet size={12} className="text-[rgb(var(--fg-subtle))]" />
                         <span className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Pagamento</span>
