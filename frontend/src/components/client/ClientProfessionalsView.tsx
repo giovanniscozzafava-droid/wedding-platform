@@ -263,7 +263,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
       }
       if (r.error) throw new Error(msg[r.error] ?? ('Pagamento non avviato: ' + r.error))
       if (r.url) { window.location.href = r.url; return }
-    } catch (e) { window.alert(e instanceof Error ? e.message : 'Errore') }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Errore') }
     finally { setPayBusy(false) }
   }
 
@@ -315,7 +315,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
                   <div key={it.id} className="flex items-center gap-2 text-xs">
                     {it.photo && <img src={it.photo} alt="" loading="lazy" className="w-9 h-9 rounded object-cover shrink-0 bg-[rgb(var(--bg-sunken))]" />}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate">
+                      <p className="truncate" data-notranslate>
                         {it.name}
                         {it.qty > 1 && <span className="text-[rgb(var(--fg-subtle))]"> ×{it.qty}</span>}
                         {it.supplier && <span className="text-[rgb(var(--fg-subtle))]"> · {it.supplier}</span>}

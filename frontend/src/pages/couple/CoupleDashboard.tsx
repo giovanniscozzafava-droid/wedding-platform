@@ -271,7 +271,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
               ? <><Heart size={11} /> Il vostro grande giorno <Heart size={11} /></>
               : <><Sparkles size={11} /> {term.Label} <Sparkles size={11} /></>}
           </span>
-          <h1 className="font-display text-4xl sm:text-5xl tracking-tight">{wedding.title}</h1>
+          <h1 className="font-display text-4xl sm:text-5xl tracking-tight" data-notranslate>{wedding.title}</h1>
           <p className="text-base text-white/85 mt-2">
             {eventDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
@@ -453,7 +453,7 @@ function OverviewCouple({ wedding, entryId, memberRole }: { wedding: any; entryI
         <Card className="p-6">
           <h2 className="font-display text-xl mb-3">Note dell'organizzatore</h2>
           <p className="text-sm text-[rgb(var(--fg-muted))]">
-            {wedding.client_name && `Per: ${wedding.client_name}`}
+            {wedding.client_name && <span data-notranslate>{`Per: ${wedding.client_name}`}</span>}
           </p>
           <p className="text-sm mt-3">
             Le info sensibili (note interne, valore economico) sono riservate all'organizzatore.
