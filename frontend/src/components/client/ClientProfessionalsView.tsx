@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 import { eur } from '@/lib/money'
+import { BETA_NO_MONEY } from '@/lib/beta'
 import { subroleLabel } from '@/lib/supplierQuestions'
 
 // ============================================================================
@@ -279,7 +280,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
         <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: st.c, background: `${st.c}1a` }}>{st.l}</span>
       </div>
 
-      {isLive && (
+      {isLive && !BETA_NO_MONEY && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button disabled={payBusy} onClick={() => void payQuote('QUOTE_DEPOSIT')}
             className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ background: accent }}>

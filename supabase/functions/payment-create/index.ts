@@ -62,22 +62,26 @@ Deno.serve(async (req) => {
     const { data: paidRows } = await admin.from('payments')
       .select('amount_cents, kind').eq('ref_type', 'quote').eq('ref_id', q.id).eq('status', 'PAID')
     const paidTotal = (paidRows ?? []).reduce((s, p: any) => s + (p.amount_cents ?? 0), 0)
+    // Sessioni PENDING recenti (15 min): una Checkout non ancora conclusa "prenota"
+    // già il residuo. Guardando SIA acconto SIA saldo evitiamo il doppio acconto, il
+    // doppio saldo e l'overpay incrociato (deposito mentre un saldo è in corso). Le
+    // sessioni abbandonate scadono → FAILED e non bloccano per sempre.
+    const since = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+    const { data: pendingRows } = await admin.from('payments')
+      .select('kind').eq('ref_type', 'quote').eq('ref_id', q.id).eq('status', 'PENDING').gte('created_at', since)
+    const pendingActive = (pendingRows ?? []).some((p: any) => p.kind === 'QUOTE_DEPOSIT' || p.kind === 'QUOTE_BALANCE')
     if (kind === 'QUOTE_DEPOSIT') {
       if ((paidRows ?? []).some((p: any) => p.kind === 'QUOTE_DEPOSIT')) return json({ error: 'deposit_already_paid' }, 200)
-      // T-C: evita il doppio acconto da doppio click, prima che il primo risulti
-      // PAID. Blocca solo su un acconto PENDING RECENTE (15 min): le sessioni
-      // abbandonate scadono → FAILED, quindi non bloccano per sempre.
-      const since = new Date(Date.now() - 15 * 60 * 1000).toISOString()
-      const { data: pendingDep } = await admin.from('payments')
-        .select('id').eq('ref_type', 'quote').eq('ref_id', q.id)
-        .eq('kind', 'QUOTE_DEPOSIT').eq('status', 'PENDING').gte('created_at', since).limit(1)
-      if (pendingDep && pendingDep.length > 0) return json({ error: 'deposit_in_progress' }, 200)
+      if (pendingActive) return json({ error: 'deposit_in_progress' }, 200)
       // PAY-2: l'acconto non deve mai far superare il 100% incassato. Se il cliente ha gia' pagato
       // (es. il saldo intero), il residuo e' 0 → niente addebito. Altrimenti = min(30%, residuo).
       const remaining = Math.max(0, totalCents - paidTotal)
       if (remaining <= 0) return json({ error: 'already_paid' }, 200)
       amount = Math.min(Math.round(totalCents * 0.30), remaining) // acconto 30%, mai oltre il residuo
     } else {
+      // QUOTE_BALANCE: blocca se c'è già una sessione (acconto o saldo) in corso →
+      // altrimenti due click su "Paga intero importo" creano due addebiti del saldo.
+      if (pendingActive) return json({ error: 'balance_in_progress' }, 200)
       amount = Math.max(0, totalCents - paidTotal)
       if (amount <= 0) return json({ error: 'already_paid' }, 200)
     }

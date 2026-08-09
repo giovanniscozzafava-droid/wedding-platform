@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
               await admin.from('user_notifications').insert({
                 user_id: pay.payee_id, type: 'PAYMENT_RECEIVED',
                 title: 'Pagamento ricevuto',
-                body: pay.kind === 'DEPOSIT'
+                body: pay.kind === 'QUOTE_DEPOSIT'
                   ? 'Un cliente ha versato l’acconto per il tuo servizio.'
                   : 'Un cliente ha completato un pagamento per il tuo servizio.',
                 link, ref_id: pay.ref_id ?? null,
