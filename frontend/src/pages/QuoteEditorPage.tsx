@@ -650,6 +650,12 @@ export default function QuoteEditorPage() {
     if (safe.total_discount_amount != null) safe.total_discount_amount = Math.max(0, Number.isFinite(safe.total_discount_amount) ? safe.total_discount_amount : 0)
     try {
       await update.mutateAsync({ id, patch: safe })
+      // BUG2: avviso NON bloccante se lo sconto totale porta il preventivo sotto
+      // costo (margine negativo) — resta una scelta del capostipite.
+      const { data: q } = await supabase.from('quotes').select('margin_amount').eq('id', id).maybeSingle()
+      if (q && Number((q as any).margin_amount) < 0) {
+        toast('Attenzione: con questo sconto il preventivo va sotto costo (margine negativo). Puoi comunque procedere.')
+      }
     } catch (e) { toast.error((e as Error).message) }
   }
   // Km trasferta: il trigger DB ricalcola il totale (maggiorazione €/km oltre soglia).
