@@ -665,7 +665,7 @@ function MoodCouple({ entryId, eventKind }: { entryId: string; eventKind?: strin
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {(data ?? []).map((m: any) => (
             <Card key={m.id} className="relative overflow-hidden group">
-              <img src={m.url} alt={m.caption ?? ''} className="aspect-square w-full object-cover" />
+              <img src={m.url} alt={m.caption ?? ''} loading="lazy" className="aspect-square w-full object-cover" />
               <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/60 text-white">{m.tag}</span>
               {m.source === 'pinterest' && (
                 <span className="absolute bottom-2 left-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[rgb(var(--rose-500))] text-white">Pin</span>

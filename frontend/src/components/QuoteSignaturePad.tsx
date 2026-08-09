@@ -19,20 +19,37 @@ export function QuoteSignaturePad({ onChange, height = 200 }: Props) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ratio = window.devicePixelRatio || 1
-    const cssW = canvas.offsetWidth
-    canvas.width = cssW * ratio
-    canvas.height = height * ratio
-    const ctx = canvas.getContext('2d')!
-    ctx.scale(ratio, ratio)
-    // Sfondo bianco SOLIDO (atto legale, no trasparenza nel PNG esportato)
-    ctx.fillStyle = '#FFFFFF'
-    ctx.fillRect(0, 0, cssW, height)
-    // Tratto firma nero
-    ctx.strokeStyle = '#000000'
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
+    let lastW = 0
+    // (Ri)dimensiona il canvas alla larghezza CSS reale. Su rotazione/resize la
+    // dimensione interna deve seguire quella visiva, altrimenti getBoundingClientRect
+    // e canvas.width divergono e il tratto finisce spostato/scalato (firma legale!).
+    const setup = () => {
+      const cssW = canvas.offsetWidth
+      if (cssW === lastW || cssW === 0) return
+      lastW = cssW
+      const ratio = window.devicePixelRatio || 1
+      canvas.width = cssW * ratio
+      canvas.height = height * ratio
+      const ctx = canvas.getContext('2d')!
+      ctx.scale(ratio, ratio)
+      // Sfondo bianco SOLIDO (atto legale, no trasparenza nel PNG esportato)
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(0, 0, cssW, height)
+      // Tratto firma nero
+      ctx.strokeStyle = '#000000'
+      ctx.lineWidth = 2
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      // Il ridimensionamento azzera il canvas: reset coerente della firma.
+      hasInkRef.current = false
+      setEmpty(true)
+      onChange(null)
+    }
+    setup()
+    const ro = new ResizeObserver(setup)
+    ro.observe(canvas)
+    return () => ro.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [height])
 
   function getPoint(e: MouseEvent | TouchEvent | PointerEvent): { x: number; y: number } {

@@ -37,11 +37,19 @@ export default function PublicGalleryPage() {
   async function toggleFav(m: GMedia) {
     if (!token || submitted || !m.in_pool) return
     const wantKeep = m.decision !== true
+    const prevDecision = m.decision // per il rollback in caso di errore rete
     // ottimistico
     setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, decision: wantKeep ? true : null } : x)))
     setKept((k) => Math.max(0, k + (wantKeep ? 1 : (m.decision === true ? -1 : 0))))
-    const res = wantKeep ? await decideMedia(token, m.id, true) : await undoMedia(token, m.id)
-    if (typeof res.kept === 'number') setKept(res.kept)
+    try {
+      const res = wantKeep ? await decideMedia(token, m.id, true) : await undoMedia(token, m.id)
+      if ((res as { error?: string })?.error) throw new Error((res as { error?: string }).error)
+      if (typeof res.kept === 'number') setKept(res.kept)
+    } catch {
+      // rollback: la scelta non è stata salvata, ripristina lo stato precedente
+      setMedia((arr) => arr.map((x) => (x.id === m.id ? { ...x, decision: prevDecision } : x)))
+      setKept((k) => Math.max(0, k + (wantKeep ? -1 : (prevDecision === true ? 1 : 0))))
+    }
   }
 
   if (loading) return <div className="min-h-screen grid place-items-center bg-[rgb(var(--bg))]"><Loader2 className="animate-spin text-[rgb(var(--fg-subtle))]" size={26} /></div>
