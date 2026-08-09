@@ -96,9 +96,9 @@ export function ClientProfessionalsView({ emptyEmail }: { emptyEmail?: string | 
     const { data, error } = await (supabase as unknown as { rpc: (fn: string, a?: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
       .rpc('client_portal_overview')
     if (error) throw error
-    const r = data as { ok?: boolean; error?: string; professionals?: Professional[] }
-    if (r.error) throw new Error(r.error)
-    setPros(r.professionals ?? [])
+    const r = (data ?? {}) as { ok?: boolean; error?: string; professionals?: Professional[] }
+    if (r?.error) throw new Error(r.error)
+    setPros(r?.professionals ?? [])
   }
 
   useEffect(() => {

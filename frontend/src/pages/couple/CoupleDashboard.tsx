@@ -234,7 +234,9 @@ export default function CoupleDashboard() {
 
 function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: any; memberRole: string; entryId: string; tab: Tab; setTab: (t: Tab) => void }) {
   const primary = wedding.owner?.brand_primary_color ?? '#C9A961'
-  const eventDate = new Date(wedding.date_from)
+  // Fallback a oggi se manca la data (new Date(null) darebbe il 1970): evita
+  // 'Invalid Date'/date assurde a schermo e daysLeft NaN.
+  const eventDate = wedding.date_from ? new Date(wedding.date_from) : new Date()
   const daysLeft = Math.max(0, Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
   // C1 (blind): la coppia usa la versione couple-safe (niente identità fornitore
   // sulle voci del preventivo).
