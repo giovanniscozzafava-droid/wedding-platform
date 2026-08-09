@@ -77,7 +77,10 @@ Deno.serve(async (req) => {
       // (es. il saldo intero), il residuo e' 0 → niente addebito. Altrimenti = min(30%, residuo).
       const remaining = Math.max(0, totalCents - paidTotal)
       if (remaining <= 0) return json({ error: 'already_paid' }, 200)
-      amount = Math.min(Math.round(totalCents * 0.30), remaining) // acconto 30%, mai oltre il residuo
+      // #2: l'acconto usa la % del piano pagamenti del professionista (default 30).
+      const { data: ownerPlan } = await admin.from('profiles').select('pay_deposit_pct').eq('id', q.owner_id).maybeSingle()
+      const depPct = Number(ownerPlan?.pay_deposit_pct ?? 30)
+      amount = Math.min(Math.round(totalCents * depPct / 100), remaining) // acconto = piano del pro, mai oltre il residuo
     } else {
       // QUOTE_BALANCE: blocca se c'è già una sessione (acconto o saldo) in corso →
       // altrimenti due click su "Paga intero importo" creano due addebiti del saldo.
