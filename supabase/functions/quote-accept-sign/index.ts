@@ -324,6 +324,11 @@ async function generateAcceptancePdf(
     doc.text(`Data accettazione: ${new Date(a.accepted_at).toLocaleString('it-IT')}`, M, 116)
 
     let y = 150
+    // Paginazione: se manca lo spazio per il blocco successivo, nuova pagina.
+    // Senza questo, con molte voci FIRMA/EVIDENZA/disclaimer (prova FES) finivano
+    // tagliati fuori dalla A4.
+    const H = doc.internal.pageSize.getHeight()
+    const ensure = (needed: number) => { if (y + needed > H - 70) { doc.addPage(); y = 60 } }
 
     // Dati firmatario
     doc.setFontSize(11)
@@ -362,6 +367,7 @@ async function generateAcceptancePdf(
       doc.setFont('helvetica', 'normal')
       const colRight = W - M
       for (const it of items) {
+        ensure(56) // spazio per una voce; se non c'è, nuova pagina
         const name = safeText(it.name_snapshot)
         const qty = Number(it.quantity)
         const unit = it.unit_snapshot ? safeText(it.unit_snapshot).toLowerCase() : ''
@@ -394,6 +400,7 @@ async function generateAcceptancePdf(
     }
 
     // Importo totale
+    ensure(50)
     doc.setFontSize(11)
     doc.setTextColor(196, 154, 92)
     doc.setFont('helvetica', 'bold')
@@ -406,7 +413,8 @@ async function generateAcceptancePdf(
     const totFmt = fmtEur.format(Number(totAcc))
     doc.text(totFmt, M, y); y += 28
 
-    // Firma
+    // Firma (immagine 80pt + etichetta): tienila tutta nella stessa pagina.
+    ensure(120)
     doc.setFontSize(11)
     doc.setTextColor(196, 154, 92)
     doc.setFont('helvetica', 'bold')
@@ -416,7 +424,8 @@ async function generateAcceptancePdf(
     doc.line(M, y + 84, M + 200, y + 84)
     y += 100
 
-    // Evidenza digitale (audit trail)
+    // Evidenza digitale (audit trail) — prova FES, non deve mai finire tagliata.
+    ensure(110)
     doc.setFontSize(9)
     doc.setTextColor(196, 154, 92)
     doc.setFont('helvetica', 'bold')
@@ -437,6 +446,7 @@ async function generateAcceptancePdf(
     y += 14
 
     // Disclaimer legale
+    ensure(70)
     doc.setFontSize(8)
     doc.setTextColor(110, 110, 110)
     doc.setFont('helvetica', 'italic')
