@@ -418,7 +418,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                     </Select>
                     <Input className="col-span-2" type="number" step="0.01" placeholder="Valore" value={newMod.value}
                       onChange={(e) => setNewMod((m) => ({ ...m, value: e.target.value }))} />
-                    <Button type="button" variant="outline" size="icon" className="col-span-1" onClick={handleAddMod}>
+                    <Button type="button" variant="outline" size="icon" className="col-span-1" disabled={addMod.isPending} onClick={handleAddMod}>
                       <Plus size={16} />
                     </Button>
                     <div className="col-span-12 flex flex-wrap items-center gap-2 text-xs text-[rgb(var(--fg-muted))]">
