@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Trash2, Filter, Download, Accessibility, GripVertical, Star, ArrowDownAZ, Heart, Baby, ListOrdered } from 'lucide-react'
 import { toast } from '@/lib/toast'
@@ -298,7 +298,7 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
                   </div>
                 </td>
                 <td className="px-4 py-2">
-                  <select className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
+                  <select aria-label={`Conferma di ${g.full_name}`} className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
                     value={g.rsvp} onChange={(e) => update.mutate({ id: g.id, patch: { rsvp: e.target.value } })}>
                     <option value="PENDING">In attesa</option>
                     <option value="YES">Sì</option>
@@ -312,7 +312,7 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
                     onBlur={(e) => { if (e.target.value !== (g.diet ?? '')) update.mutate({ id: g.id, patch: { diet: e.target.value || null } }) }} />
                 </td>
                 <td className="px-4 py-2">
-                  <select className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
+                  <select aria-label={`Lato di ${g.full_name}`} className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
                     value={g.side ?? ''} onChange={(e) => update.mutate({ id: g.id, patch: { side: e.target.value || null } })}>
                     <option value="">—</option>
                     <option value="SPOSA">{sideLabels.SPOSA}</option>
@@ -325,7 +325,7 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
                     onBlur={(e) => { if (e.target.value !== (g.group_label ?? '')) update.mutate({ id: g.id, patch: { group_label: e.target.value || null } }) }} />
                 </td>
                 <td className="px-4 py-2">
-                  <select className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
+                  <select aria-label={`Tavolo di ${g.full_name}`} className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
                     value={g.table_id ?? ''} onChange={(e) => update.mutate({ id: g.id, patch: { table_id: e.target.value || null } })}>
                     <option value="">—</option>
                     {(tables ?? []).map((t: any) => <option key={t.id} value={t.id}>{t.label ?? `Tavolo ${t.table_no}`}</option>)}
@@ -336,12 +336,12 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
                     onBlur={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 1) { e.target.value = String(g.party_size ?? 1); return } if (n !== g.party_size) update.mutate({ id: g.id, patch: { party_size: n } }) }} />
                 </td>
                 <td className="px-4 py-2">
-                  <select className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
+                  <select aria-label={`Età di ${g.full_name}`} className="h-8 rounded-md border border-[rgb(var(--border-strong))] bg-[rgb(var(--bg-elev))] px-2 text-xs"
                     value={g.age_group ?? 'ADULT'}
                     onChange={(e) => update.mutate({ id: g.id, patch: { age_group: e.target.value } })}>
-                    <option value="ADULT">👤 Adulto</option>
-                    <option value="CHILD">🧒 Bambino</option>
-                    <option value="INFANT">👶 Infant</option>
+                    <option value="ADULT">Adulto</option>
+                    <option value="CHILD">Bambino</option>
+                    <option value="INFANT">Neonato</option>
                   </select>
                 </td>
                 <td className="px-4 py-2">
@@ -456,6 +456,13 @@ function AccessibilityBtn({ guest, onSave }: {
 
   const hasAny = initialNeeds.length > 0 || !!guest.accessibility_notes
 
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
   function toggle(v: string) {
     setNeeds((arr) => arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
   }
@@ -479,7 +486,7 @@ function AccessibilityBtn({ guest, onSave }: {
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgb(0 0 0 / 0.4)' }} onClick={() => setOpen(false)}>
-          <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <Card role="dialog" aria-modal="true" aria-label={`Esigenze speciali di ${guest.full_name}`} className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
               <h3 className="font-display text-lg">Esigenze speciali — {guest.full_name}</h3>
               <p className="text-xs text-[rgb(var(--fg-muted))]">Tutto ciò che serve per l'accoglienza inclusiva.</p>

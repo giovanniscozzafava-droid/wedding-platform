@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MessageSquarePlus, X } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,14 @@ export function ChangeRequestModal({
   const [description, setDescription] = useState('')
   const create = useCreateChangeRequest(weddingId)
 
+  // Chiudi il modale con Escape (a11y).
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
   async function submit() {
     if (!title.trim()) { toast.error('Titolo richiesta obbligatorio'); return }
     try {
@@ -52,14 +60,14 @@ export function ChangeRequestModal({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)}>
-          <div className="bg-[rgb(var(--bg-elev))] w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl border max-h-[90vh] overflow-y-auto"
+          <div role="dialog" aria-modal="true" aria-label="Richiedi modifica" className="bg-[rgb(var(--bg-elev))] w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl border max-h-[90vh] overflow-y-auto"
             style={{ borderColor: 'rgb(var(--border))' }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b sticky top-0 bg-[rgb(var(--bg-elev))]" style={{ borderColor: 'rgb(var(--border))' }}>
               <div>
                 <h3 className="font-display text-lg">Richiedi modifica</h3>
                 <p className="text-xs text-[rgb(var(--fg-subtle))]">{entityLabel(entityType)} → invia al wedding planner</p>
               </div>
-              <button onClick={() => setOpen(false)} className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-[rgb(var(--bg-sunken))]">
+              <button onClick={() => setOpen(false)} aria-label="Chiudi" className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-[rgb(var(--bg-sunken))]">
                 <X size={16} />
               </button>
             </div>
