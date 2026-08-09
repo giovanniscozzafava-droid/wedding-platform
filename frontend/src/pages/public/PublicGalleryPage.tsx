@@ -139,7 +139,7 @@ export default function PublicGalleryPage() {
                       <figcaption className="absolute left-2 top-2 font-mono text-[10px] tracking-wide text-white/90 drop-shadow">Nº {pad3(startNo + i + 1)}</figcaption>
                       {!submitted && m.in_pool && (
                         <button onClick={() => toggleFav(m)} aria-label={fav ? 'Togli dall’album' : 'Tieni per l’album'} aria-pressed={fav}
-                          className={`absolute bottom-2 right-2 grid place-items-center rounded-full transition-all min-w-[44px] min-h-[44px] ${fav ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/45 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-black/60'}`}>
+                          className={`absolute bottom-2 right-2 grid place-items-center rounded-full transition-all min-w-[44px] min-h-[44px] ${fav ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-black/45 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 hover:bg-black/60'}`}>
                           {fav ? <Check size={20} /> : <Plus size={20} />}
                         </button>
                       )}

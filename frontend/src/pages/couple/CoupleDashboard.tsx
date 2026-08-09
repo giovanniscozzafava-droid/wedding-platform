@@ -668,8 +668,8 @@ function MoodCouple({ entryId, eventKind }: { entryId: string; eventKind?: strin
               {m.source === 'pinterest' && (
                 <span className="absolute bottom-2 left-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[rgb(var(--rose-500))] text-white">Pin</span>
               )}
-              <button onClick={() => remove.mutate(m.id)}
-                className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center">
+              <button onClick={() => remove.mutate(m.id)} aria-label="Rimuovi immagine"
+                className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center">
                 ×
               </button>
             </Card>
