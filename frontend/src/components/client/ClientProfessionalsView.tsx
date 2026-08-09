@@ -7,6 +7,7 @@ import {
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
+import { eur } from '@/lib/money'
 import { subroleLabel } from '@/lib/supplierQuestions'
 
 // ============================================================================
@@ -78,8 +79,10 @@ function fmtDate(d: string | null) {
   try { return new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) }
   catch { return d }
 }
+// Usa il formatter condiviso (2 decimali) così l'importo mostrato al cliente
+// coincide coi centesimi di contratto/acconto, invece di arrotondare all'intero.
 function fmtEuro(n: number) {
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0)
+  return eur(n)
 }
 
 export function ClientProfessionalsView({ emptyEmail }: { emptyEmail?: string | null }) {
