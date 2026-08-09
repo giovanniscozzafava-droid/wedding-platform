@@ -37,6 +37,14 @@ Deno.serve(async (req) => {
   const isLab = !!prof?.is_album_lab || prof?.role === 'FOTOLAB'
   if (!isOwner && !cm && prof?.role !== 'ADMIN' && !isLab) return json({ error: 'forbidden' }, 403)
 
+  // Una stamperia può scaricare gli originali SOLO se per quell'evento esiste un
+  // ordine album (commessa). Senza, un lab globale potrebbe esfiltrare gli
+  // originali a piena risoluzione di eventi mai inviati in stampa.
+  if (isLab && !isOwner && !cm && prof?.role !== 'ADMIN') {
+    const { data: ord } = await admin.from('album_orders').select('id').eq('entry_id', entry_id).limit(1).maybeSingle()
+    if (!ord) return json({ error: 'no_order' }, 403)
+  }
+
   const { data: media } = await admin.from('gallery_media')
     .select('drive_file_id, thumbnail_link, media_type, guest_tag_name')
     .eq('entry_id', entry_id).eq('album_choice', 'KEPT').limit(300)
