@@ -33,6 +33,16 @@ Deno.serve(async (req) => {
     return json({ error: 'bad_input' }, 400)
   }
 
+  // Honeypot: campo invisibile compilato solo dai bot -> fingi successo, non fare nulla.
+  if ((b as { hp?: string }).hp && String((b as { hp?: string }).hp).trim()) return json({ ok: true }, 200)
+  // Rate-limit per IP: max 8 prenotazioni/ora (anti sabotaggio calendario + email bombing).
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'sconosciuto'
+  const since = new Date(Date.now() - 3600_000).toISOString()
+  const { count: recenti } = await admin.from('public_form_attempts')
+    .select('*', { count: 'exact', head: true }).eq('ip', ip).eq('kind', 'book').gte('created_at', since)
+  if ((recenti ?? 0) >= 8) return json({ error: 'too_many', detail: 'Troppe prenotazioni da questo dispositivo. Riprova più tardi.' }, 429)
+  await admin.from('public_form_attempts').insert({ ip, kind: 'book' })
+
   const { data: prof } = await admin.from('profiles').select('id, business_name, full_name').eq('slug', slug).maybeSingle()
   if (!prof) return json({ error: 'not_found' }, 404)
   const { data: s } = await admin.from('booking_settings').select('*').eq('professional_id', prof.id).maybeSingle()

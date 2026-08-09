@@ -20,6 +20,15 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } })
 
+  // Honeypot + rate-limit per IP (anti spam / email bombing del fotografo).
+  if (b.hp && String(b.hp).trim()) return json({ ok: true }, 200)
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'sconosciuto'
+  const since = new Date(Date.now() - 3600_000).toISOString()
+  const { count: recenti } = await admin.from('public_form_attempts')
+    .select('*', { count: 'exact', head: true }).eq('ip', ip).eq('kind', 'print').gte('created_at', since)
+  if ((recenti ?? 0) >= 8) return json({ error: 'too_many', detail: 'Troppe richieste da questo dispositivo. Riprova più tardi.' }, 429)
+  await admin.from('public_form_attempts').insert({ ip, kind: 'print' })
+
   // risolvi il fotografo
   let pid: string | null = null
   if (b.entryId) {
