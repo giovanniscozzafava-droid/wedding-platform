@@ -45,7 +45,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [me, setMe] = useState<string | null>(null)
   const [gallery, setGallery] = useState<Gallery | null>(null)
   const [folders, setFolders] = useState<Folder[]>([])
-  const [consentOn, setConsentOn] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [galleryProg, setGalleryProg] = useState<{ done: number; total: number; name?: string; frac?: number } | null>(null)
@@ -179,8 +178,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     setLikeCounts(lcMap)
     const { data: flag } = await (supabase.from as any)('feature_flags').select('enabled').eq('key', 'photo_sales_enabled').maybeSingle()
     setSalesEnabled(!!flag?.enabled)
-    const { data: c } = await (supabase.from as any)('gallery_consents').select('granted_at, revoked_at').eq('entry_id', entryId).eq('scope', 'LAVORO_INTERO').maybeSingle()
-    setConsentOn(!!c && c.granted_at && !c.revoked_at)
     setLoading(false)
   }, [entryId])
 
@@ -254,11 +251,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 
-  async function toggleShared(f: Folder) {
-    const { error } = await (supabase.from as any)('gallery_folders').update({ shared: !f.shared }).eq('id', f.id)
-    if (error) { toast.error(error.message); return }
-    await load()
-  }
 
   // Rende la cartella visibile (sola lettura) a TUTTI gli ospiti registrati, o la nasconde di nuovo.
   async function toggleGuestVisible(f: Folder) {
@@ -484,22 +476,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     } catch (e) { toast.error((e as Error).message) } finally { setDedupBusy(false) }
   }
 
-  async function setConsent(on: boolean) {
-    setBusy(true)
-    try {
-      const uid = (await supabase.auth.getUser()).data.user?.id
-      if (on) {
-        const { error } = await (supabase.from as any)('gallery_consents')
-          .upsert({ entry_id: entryId, scope: 'LAVORO_INTERO', granted_by: uid, granted_at: new Date().toISOString(), revoked_at: null }, { onConflict: 'entry_id,scope' })
-        if (error) throw error
-      } else {
-        const { error } = await (supabase.from as any)('gallery_consents').update({ revoked_at: new Date().toISOString(), revoked_by: uid }).eq('entry_id', entryId).eq('scope', 'LAVORO_INTERO')
-        if (error) throw error
-      }
-      await load()
-    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
-  }
-
   const totalMedia = folders.reduce((s, f) => s + f.gallery_media.length, 0)
   const chosenCount = folders.reduce((s, f) => s + f.gallery_media.filter((m) => m.album_choice === 'KEPT').length, 0)
 
@@ -602,20 +578,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           <span className="text-sm text-[rgb(var(--fg-muted))]"><strong className="text-[rgb(var(--fg))]">{totalMedia}</strong> foto · <strong className="text-[rgb(var(--gold-700))]">{chosenCount}</strong> scelte</span>
           <Button variant="outline" size="sm" className="ml-auto" onClick={() => setSettingsOpen(true)}><Settings size={14} /> Impostazioni galleria</Button>
         </div>
-      )}
-
-      {/* Consenso sposi al lavoro intero */}
-      {role === 'sposi' && (
-        <Card className="p-4 flex items-start gap-3">
-          <ShieldCheck size={20} className="shrink-0 mt-0.5" style={{ color: consentOn ? 'rgb(var(--emerald-600))' : 'rgb(var(--fg-subtle))' }} />
-          <div className="flex-1">
-            <p className="text-sm font-medium">Condivisione del servizio completo con i fornitori del cerchio</p>
-            <p className="text-xs text-[rgb(var(--fg-muted))]">{consentOn ? 'Hai acconsentito: i fornitori del cerchio possono vedere il lavoro intero (revocabile).' : 'Senza il tuo consenso, i fornitori NON vedono le foto con i vostri primi piani.'}</p>
-          </div>
-          <Button variant={consentOn ? 'outline' : 'gold'} size="sm" disabled={busy} onClick={() => setConsent(!consentOn)}>
-            {consentOn ? 'Revoca' : 'Acconsento'}
-          </Button>
-        </Card>
       )}
 
       {/* Sposi: selezione foto/video per l'album (stile Tinder) */}
@@ -818,9 +780,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 {lvl && <lvl.icon size={16} className="shrink-0 text-[rgb(var(--gold-700))]" />}
                 <h3 className="font-medium truncate">{f.name} <span className="text-xs font-normal text-[rgb(var(--fg-subtle))]">({f.gallery_media.length} foto)</span></h3>
                 <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))] text-[10px] shrink-0">{lvl?.l ?? f.level}</Badge>
-                {f.level === 'LAVORO_INTERO' && (f.shared
-                  ? <Badge className="bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] text-[10px]"><Check size={10} /> condivisa</Badge>
-                  : <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] text-[10px]">non condivisa</Badge>)}
                 {salesEnabled && f.is_for_sale && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px] shrink-0">€{((f.price_cents ?? 0) / 100).toFixed(0)} a pagamento</Badge>}
                 {f.level !== 'INVITATI' && f.guest_visible && <Badge className="bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] text-[10px] shrink-0 inline-flex items-center gap-0.5"><Globe size={10} /> visibile agli ospiti</Badge>}
                 {!(f.album_selectable ?? true) && <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] text-[10px] shrink-0">fuori selezione album</Badge>}
@@ -829,7 +788,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 <div className="flex items-center gap-1.5">
                   <Button variant="ghost" size="icon" title="Sposta su" disabled={busy} onClick={() => moveFolder(f, -1)}><ArrowUp size={13} /></Button>
                   <Button variant="ghost" size="icon" title="Sposta giù" disabled={busy} onClick={() => moveFolder(f, 1)}><ArrowDown size={13} /></Button>
-                  {f.level === 'LAVORO_INTERO' && <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleShared(f)}>{f.shared ? 'Non condividere' : 'Condividi al cerchio'}</Button>}
                   {f.level !== 'INVITATI' && (
                     <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleGuestVisible(f)}
                       title="Rendi questa cartella visibile (sola lettura) a tutti gli ospiti registrati">
