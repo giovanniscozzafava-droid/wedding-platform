@@ -27,7 +27,10 @@ export function useCoupleMembers(entryId: string | null) {
 
 export function useCoupleMemberMutations(entryId: string) {
   const qc = useQueryClient()
-  const inv = () => qc.invalidateQueries({ queryKey: ['couple-members', entryId] })
+  const inv = () => {
+    qc.invalidateQueries({ queryKey: ['couple-members', entryId] })
+    qc.invalidateQueries({ queryKey: ['my-couple-weddings'] }) // aggiorna anche la lista weddings dopo invito/rimozione membro
+  }
   return {
     invite: useMutation({
       mutationFn: async (payload: { email: string; full_name?: string; role?: CoupleMember['role'] }) => {

@@ -41,10 +41,13 @@ export default function BrandSettingsPage() {
     finally { setBusy(false) }
   }
 
+  // Chiude il cropper e revoca l'object URL se era un blob (evita il memory leak).
+  const closeCrop = () => setCropSrc((prev) => { if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev); return null })
+
   // Selezione file → apre il cropper circolare (no upload diretto).
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
-    if (f) setCropSrc(URL.createObjectURL(f))
+    if (f) { closeCrop(); setCropSrc(URL.createObjectURL(f)) }
     e.target.value = ''
   }
 
@@ -60,7 +63,7 @@ export default function BrandSettingsPage() {
       const { error } = await supabase.from('profiles').update({ brand_logo_url: data.publicUrl }).eq('id', user.id)
       if (error) throw error
       await refreshProfile()
-      setCropSrc(null)
+      closeCrop()
       toast.success('Logo aggiornato')
     } catch (e) { toast.error((e as Error).message) }
     finally { setBusy(false) }
@@ -70,7 +73,7 @@ export default function BrandSettingsPage() {
     <div className="min-h-full">
       <SettingsTabs />
       {cropSrc && (
-        <LogoCropper src={cropSrc} onCancel={() => setCropSrc(null)} onSave={saveCroppedLogo} />
+        <LogoCropper src={cropSrc} onCancel={closeCrop} onSave={saveCroppedLogo} />
       )}
       <div className="max-w-5xl mx-auto px-6 sm:px-10 py-10">
         <PageHeader
