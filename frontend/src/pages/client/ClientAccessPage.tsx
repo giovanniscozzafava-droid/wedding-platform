@@ -52,7 +52,12 @@ export default function ClientAccessPage() {
     if (!emailOk(email)) { setErr('Inserisci prima la tua email, poi premi qui'); return }
     setBusy(true)
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/reset-password` })
+      // Recupero robusto: l'edge password-reset genera il link e lo spedisce via
+      // Resend (l'SMTP interno di Supabase non consegnava). Risposta sempre ok:
+      // se l'email non ha un account, l'edge manda comunque una mail che lo spiega.
+      const { error } = await supabase.functions.invoke('password-reset', {
+        body: { email: email.trim().toLowerCase(), redirectTo: `${window.location.origin}/reset-password` },
+      })
       if (error) throw error
       setResetSent(true)
     } catch (e) { setErr(e instanceof Error ? e.message : 'Invio non riuscito') } finally { setBusy(false) }

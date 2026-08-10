@@ -17,8 +17,10 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setError(null); setBusy(true)
     try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // Recupero robusto via edge password-reset (link spedito con Resend, non con
+      // l'SMTP interno di Supabase che non consegnava). Risposta sempre ok.
+      const { error: err } = await supabase.functions.invoke('password-reset', {
+        body: { email: email.trim().toLowerCase(), redirectTo: `${window.location.origin}/reset-password` },
       })
       if (err) throw err
       setSent(true)
