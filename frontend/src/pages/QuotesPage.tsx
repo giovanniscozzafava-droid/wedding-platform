@@ -126,7 +126,11 @@ export default function QuotesPage() {
       toast.success('Preventivo creato')
       nav(`/quotes/${q.id}`)
     } catch (err) {
-      setCreateErr(err instanceof Error ? err.message : 'Errore')
+      // Gli errori Supabase NON sono istanze di Error → mostravano "Errore" nudo, nascondendo la causa
+      // (es. limite preventivi, RLS). Estraiamo il messaggio reale dall'oggetto errore.
+      const msg = (err as { message?: string; error_description?: string } | null)?.message
+        || (err as { error_description?: string } | null)?.error_description
+      setCreateErr(msg && String(msg).trim() ? String(msg) : 'Errore imprevisto: riprova o segnalacelo')
     }
   }
 
