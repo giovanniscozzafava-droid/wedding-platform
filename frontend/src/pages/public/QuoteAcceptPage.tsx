@@ -17,6 +17,7 @@ import { getQuestionsFor, getMoodboardSectionsForCapostipite, extractInspiration
 import { getQuestionsForSupplierContext, subroleLabel } from '@/lib/supplierQuestions'
 import { eventTerm } from '@/lib/eventKind'
 import { QuestionnaireForm } from '@/components/QuestionnaireForm'
+import { hasPartialSelection, shownTotal, itemIncluded } from '@/lib/quoteSelection'
 
 type DocType = 'CARTA_IDENTITA' | 'PASSAPORTO' | 'PATENTE'
 
@@ -26,6 +27,7 @@ type QuoteInfo = {
   client_name: string | null
   client_email: string | null
   total_client: number
+  total_client_selected: number
   status: string
   revision: number
   event_date: string | null
@@ -39,6 +41,7 @@ type QuoteItem = {
   line_client: number
   supplier: { name?: string; slug?: string | null; subrole?: string | null } | null
   category: string
+  client_decision?: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO' | 'FORSE' | null
 }
 
 export default function QuoteAcceptPage() {
@@ -103,6 +106,7 @@ function QuoteAcceptPageInner() {
           id: q.id, title: q.title,
           client_name: q.client_name, client_email: q.client_email,
           total_client: Number(q.total_client ?? 0),
+          total_client_selected: Number(q.total_client_selected ?? 0),
           status: q.status, revision: q.revision,
           event_date: q.event_date,
         })
@@ -130,6 +134,7 @@ function QuoteAcceptPageInner() {
           line_client: Number(it.line_client ?? 0),
           supplier: it.supplier ?? null,
           category: (String(it.category ?? '').trim()) || 'Altri servizi',
+          client_decision: it.client_decision ?? null,
         })))
         if (q.client_name && !signerName) setSignerName(q.client_name)
       } catch (e) { setErr((e as Error).message) }
@@ -222,7 +227,12 @@ function QuoteAcceptPageInner() {
   // Regola: prezzo (e accettazione) solo dopo registrazione + consenso dati.
   if (priceLocked) return <AcceptPriceConsent token={token!} clientName={quote.client_name} clientEmail={quote.client_email} onUnlocked={() => { void load() }} />
 
-  const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(quote.total_client)
+  // Regola R1: il cliente firma e vede SOLO ciò che ha selezionato. Se ha accettato
+  // solo alcune voci, il totale (e l'atto) sono quelli; la lista mostra solo quelle.
+  const hasSel = hasPartialSelection(quote.total_client_selected)
+  const shown = shownTotal(quote.total_client, quote.total_client_selected)
+  const visibleItems = hasSel ? items.filter((it) => itemIncluded(it.client_decision, true)) : items
+  const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(shown)
 
   return (
     <div className="min-h-screen px-4 py-6 sm:py-12" style={{ background: '#FDFBF6', color: '#1A1714', colorScheme: 'light' }}>
@@ -240,14 +250,15 @@ function QuoteAcceptPageInner() {
         <div className="surface surface-lift p-5 mb-4">
           <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--gold-600))]">Stai accettando il preventivo</p>
           <h1 className="font-display text-2xl sm:text-3xl mt-1">{quote.title}</h1>
-          {items.length > 0 && (
+          {visibleItems.length > 0 && (
             <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Cosa stai acquistando ({items.length} {items.length === 1 ? 'voce' : 'voci'})</p>
+              <p className="text-xs uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Cosa stai acquistando ({visibleItems.length} {visibleItems.length === 1 ? 'voce' : 'voci'})</p>
               {(() => {
                 // Raggruppa per categoria (Fotografia, Catering, Fiori…) nell'ordine di comparsa.
+                // Con selezione parziale, `visibleItems` contiene già solo le voci accettate.
                 const groups: { cat: string; items: QuoteItem[] }[] = []
                 const gidx = new Map<string, number>()
-                for (const it of items) {
+                for (const it of visibleItems) {
                   const cat = it.category || 'Altri servizi'
                   if (!gidx.has(cat)) { gidx.set(cat, groups.length); groups.push({ cat, items: [] }) }
                   groups[gidx.get(cat)!]!.items.push(it)

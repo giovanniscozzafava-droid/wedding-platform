@@ -230,9 +230,12 @@ export async function publicQuoteByToken(token: string) {
     status: string
     revision: number
     total_client: number
+    // Totale delle sole voci accettate dal cliente (0 se nessuna selezione per-voce).
+    // Regola R1: il totale MOSTRATO è selected>0 ? selected : total_client.
+    total_client_selected: number
     pdf_url: string | null
     owner: { business_name: string | null; full_name: string | null; brand_primary_color: string | null; brand_logo_url: string | null }
-    items: Array<{ name_snapshot: string; quantity: number; snapshot_price: number; line_client: number }>
+    items: Array<{ id?: string; name_snapshot: string; quantity: number; snapshot_price: number; line_client: number; client_decision?: 'IN_ATTESA' | 'ACCETTATO' | 'RIFIUTATO' | 'FORSE' | null; is_optional?: boolean }>
   } | null
 }
 

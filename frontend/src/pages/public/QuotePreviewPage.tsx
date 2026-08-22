@@ -11,6 +11,7 @@ import { publicQuoteByToken } from '@/hooks/useQuotes'
 import { QuoteAuthGate } from '@/components/QuoteAuthGate'
 import { trackQuoteOpen } from '@/lib/trackQuoteOpen'
 import { eventLabel } from '@/lib/eventKind'
+import { hasPartialSelection, shownTotal, itemIncluded } from '@/lib/quoteSelection'
 
 const CONSENT_CLAUSES = [
   { key: 'registration', text: 'Mi registro su Planfully per visualizzare il prezzo del preventivo.' },
@@ -105,6 +106,10 @@ function QuotePreviewPageInner() {
   // il cliente si è già registrato e ha firmato. Niente gate di registrazione.
   const alreadyDecided = data.status === 'ACCETTATO' || data.status === 'CONVERTITO_IN_CONTRATTO'
   const showPrice = unlocked || alreadyDecided
+  // Regola R1: se il cliente ha accettato solo alcune voci, mostra SOLO il totale
+  // di quelle. Le voci non incluse restano visibili ma marcate "Non incluso".
+  const hasSel = hasPartialSelection(data.total_client_selected)
+  const shown = shownTotal(data.total_client, data.total_client_selected)
 
   return (
     <div className="min-h-screen py-8 sm:py-14 px-4 relative" style={{ background: 'rgb(var(--bg))' }}>
@@ -180,14 +185,20 @@ function QuotePreviewPageInner() {
                       const itemId = (it as { id?: string }).id ?? ''
                       const desc = (it as { description_snapshot?: string | null }).description_snapshot
                       const isOpen = openItems.has(itemId)
+                      // Con selezione parziale, le voci non accettate restano visibili ma
+                      // marcate "Non incluso" e non concorrono al totale mostrato.
+                      const included = itemIncluded((it as { client_decision?: string | null }).client_decision as never, hasSel)
                       return (
-                        <li key={itemId || `${gi}-${i}`} className="py-4">
+                        <li key={itemId || `${gi}-${i}`} className="py-4" style={included ? undefined : { opacity: 0.55 }}>
                     <button type="button" onClick={() => toggleItem(itemId)} className="w-full flex items-start justify-between gap-4 text-left">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium">{it.name_snapshot}</p>
-                        <p className="text-xs text-[rgb(var(--fg-subtle))]">Quantità: {Number(it.quantity)}{desc ? ' · tocca per i dettagli' : ''}</p>
+                        <p className="font-medium" style={included ? undefined : { textDecoration: 'line-through' }}>{it.name_snapshot}</p>
+                        <p className="text-xs text-[rgb(var(--fg-subtle))]">
+                          Quantità: {Number(it.quantity)}{desc ? ' · tocca per i dettagli' : ''}
+                          {!included && <span className="ml-1.5 font-semibold uppercase tracking-wide" style={{ color: 'rgb(var(--fg-muted))' }}>· Non incluso</span>}
+                        </p>
                       </div>
-                      <p className="font-display text-lg tabular-nums shrink-0">
+                      <p className="font-display text-lg tabular-nums shrink-0" style={included ? undefined : { textDecoration: 'line-through', color: 'rgb(var(--fg-subtle))' }}>
                         {showPrice ? `€ ${Number(it.line_client).toLocaleString('it-IT')}` : <Lock size={15} className="text-[rgb(var(--fg-subtle))]" />}
                       </p>
                     </button>
@@ -217,11 +228,16 @@ function QuotePreviewPageInner() {
             <>
               <div className="px-6 sm:px-10 py-6 mt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Totale</span>
+                  <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">{hasSel ? 'Totale selezionato' : 'Totale'}</span>
                   <span className="font-display text-3xl sm:text-4xl tabular-nums" style={{ color: primary }}>
-                    € {Number(data.total_client).toLocaleString('it-IT')}
+                    € {Number(shown).toLocaleString('it-IT')}
                   </span>
                 </div>
+                {hasSel && (
+                  <p className="mt-1 text-xs text-[rgb(var(--fg-muted))] text-right">
+                    Solo le voci che hai scelto. Le altre restano disponibili se le vuoi aggiungere.
+                  </p>
+                )}
               </div>
               {data.pdf_url && (
                 <div className="px-6 sm:px-10 pb-4">

@@ -37,6 +37,7 @@ import { toast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import { eventTerm } from '@/lib/eventKind'
 import { isPhotoOnlyEvent, PHOTO_ONLY_KEYS } from '@/lib/eventMode'
+import { hasPartialSelection, shownTotal } from '@/lib/quoteSelection'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
 import { MenuTab } from '@/components/wedding/MenuTab'
 import { GuestsTab } from '@/components/wedding/GuestsTab'
@@ -802,7 +803,7 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
     void (async () => {
       try {
         if (wedding.quote_id) {
-          const { data } = await supabase.from('quotes').select('id, title, status, revision, total_client, sent_at, accepted_at, pdf_url, access_token').eq('id', wedding.quote_id).maybeSingle()
+          const { data } = await supabase.from('quotes').select('id, title, status, revision, total_client, total_client_selected, sent_at, accepted_at, pdf_url, access_token').eq('id', wedding.quote_id).maybeSingle()
           setQuote(data)
         }
         const { data: cs } = await (supabase.from('contracts' as any) as any)
@@ -846,7 +847,7 @@ function DocumentiCouple({ wedding, entryId }: { wedding: any; entryId: string }
               <h3 className="font-display text-xl mt-1">{quote?.title ?? 'Nessun preventivo'}</h3>
               {quote && (
                 <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
-                  Revisione v{quote.revision} · {fmtEUR(quote.total_client)}
+                  Revisione v{quote.revision} · {fmtEUR(shownTotal(quote.total_client, (quote as { total_client_selected?: number }).total_client_selected))}
                   {quote.accepted_at && ' · accettato'}
                 </p>
               )}
@@ -1234,8 +1235,9 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
             </div>
           ) : data.total_client != null && (
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Totale</p>
-              <p className="font-display text-2xl mt-0.5">€ {Number(data.total_client).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+              {/* Regola R1: se ha scelto solo alcune voci, mostra il totale di QUELLE. */}
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{hasPartialSelection(data.total_client_selected) ? 'Totale selezionato' : 'Totale'}</p>
+              <p className="font-display text-2xl mt-0.5">€ {shownTotal(data.total_client, data.total_client_selected).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
             </div>
           )}
         </div>
