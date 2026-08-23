@@ -31,6 +31,18 @@ const STAGE: Record<string, { l: string; c: string }> = {
   RIFIUTATO: { l: 'Rifiutato', c: '#dc2626' },
 }
 
+// Raggruppamento per STATO ("da lavorare prima"): ciò su cui agire in cima.
+// In trattativa (inviato, in attesa di risposta) → Confermati → Bozze → Chiusi.
+const QUOTE_BUCKETS: { rank: number; label: string; match: (s: string) => boolean }[] = [
+  { rank: 0, label: 'In trattativa', match: (s) => s === 'INVIATO' },
+  { rank: 1, label: 'Confermati', match: (s) => s === 'ACCETTATO' || s === 'CONVERTITO_IN_CONTRATTO' },
+  { rank: 2, label: 'Bozze', match: (s) => s === 'BOZZA' },
+  { rank: 3, label: 'Chiusi', match: () => true },
+]
+function quoteBucket(status: string) {
+  return QUOTE_BUCKETS.find((b) => b.match(status)) ?? QUOTE_BUCKETS[QUOTE_BUCKETS.length - 1]!
+}
+
 export default function QuotesPage() {
   const { data, isLoading } = useQuotes()
   const { profile } = useAuth()
@@ -52,6 +64,8 @@ export default function QuotesPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'accepted' | 'not'>('all')
   // Accantonati: preventivi test/obsoleti nascosti al cliente e (di default) alla lista.
   const [showArchived, setShowArchived] = useState(false)
+  // Ordinamento lista: per STATO ("da lavorare prima", default) o per ANNO/data evento.
+  const [sortMode, setSortMode] = useState<'stato' | 'anno'>('stato')
   const archivedCount = useMemo(() => (data ?? []).filter((x) => (x as { archived_at?: string | null }).archived_at).length, [data])
   const filtered = useMemo(() => {
     const ACCEPTED = new Set(['ACCETTATO', 'CONVERTITO_IN_CONTRATTO'])
@@ -196,6 +210,11 @@ export default function QuotesPage() {
                 </button>
               )}
             </div>
+            <div className="flex items-center gap-1" title="Ordina i preventivi">
+              {(([['stato', 'Per stato'], ['anno', 'Per anno']]) as ['stato' | 'anno', string][]).map(([k, l]) => (
+                <button key={k} onClick={() => setSortMode(k)} className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap ${sortMode === k ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{l}</button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -205,15 +224,26 @@ export default function QuotesPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(() => {
-            // Preventivi DIVISI PER ANNO (per data evento; se manca, per data creazione).
+            // Due ordinamenti: PER STATO ("da lavorare prima": In trattativa → Confermati
+            // → Bozze → Chiusi) oppure PER ANNO (data evento; fallback data creazione).
             const gy = (q: typeof filtered[number]) => { const d = (q as any).event_date || (q as any).created_at; const y = d ? new Date(d).getFullYear() : 0; return Number.isFinite(y) ? y : 0 }
-            const byYear = [...filtered].sort((a, b) => gy(b) - gy(a))
-            return byYear.map((q, idx) => {
-            const yy = gy(q)
-            const showHead = idx === 0 || gy(byYear[idx - 1]!) !== yy
+            const dstr = (q: typeof filtered[number]) => String((q as any).event_date || (q as any).created_at || '')
+            const ordered = sortMode === 'stato'
+              ? [...filtered].sort((a, b) => {
+                  const ra = quoteBucket(a.status).rank, rb = quoteBucket(b.status).rank
+                  if (ra !== rb) return ra - rb
+                  return dstr(b).localeCompare(dstr(a))   // nel bucket, più recenti in cima
+                })
+              : [...filtered].sort((a, b) => gy(b) - gy(a))
+            const headOf = (q: typeof filtered[number]) => sortMode === 'stato'
+              ? quoteBucket(q.status).label
+              : (gy(q) ? String(gy(q)) : 'Senza data')
+            return ordered.map((q, idx) => {
+            const head = headOf(q)
+            const showHead = idx === 0 || headOf(ordered[idx - 1]!) !== head
             return (
             <Fragment key={q.id}>
-            {showHead && <div className="md:col-span-2 mt-3 first:mt-0"><h3 className="text-sm font-semibold text-[rgb(var(--fg-muted))]">{yy ? yy : 'Senza data'}</h3></div>}
+            {showHead && <div className="md:col-span-2 mt-3 first:mt-0"><h3 className="text-sm font-semibold text-[rgb(var(--fg-muted))]">{head}</h3></div>}
             <motion.div data-testid={`quote-${q.id}`}
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(idx * 0.02, 0.3) }}
             >

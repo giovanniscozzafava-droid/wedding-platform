@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
+import { CONFIRMED_EVENT_STATUSES } from '@/lib/eventStatus'
 
 // Campi sensibili spostati in calendar_entries_private (split P5): ri-appiattiti
 // nel risultato per i consumer owner/coppia.
@@ -31,7 +32,9 @@ export function useWeddings() {
           ${PRIV_SELECT},
           quote:quotes!calendar_entries_quote_fk(id, title, status, total_client, access_token, pdf_url, revision)
         `)
-        .in('status', ['OPZIONATA', 'CONFERMATA', 'IN_TRATTATIVA'])
+        // REGOLA: è un evento SOLO se il preventivo è confermato (OPZIONATA/CONFERMATA).
+        // Gli IN_TRATTATIVA restano nella lista Preventivi, non tra gli eventi.
+        .in('status', [...CONFIRMED_EVENT_STATUSES])
         .is('archived_at', null)   // eventi accantonati (preventivo archiviato) fuori dalla lista
         .order('date_from', { ascending: true })
       if (error) throw error
@@ -41,7 +44,7 @@ export function useWeddings() {
       const seen = new Set(base.map((r) => r.id))
       const collab = await (supabase.from('calendar_entries_collab' as never) as any)
         .select('*')
-        .in('status', ['OPZIONATA', 'CONFERMATA', 'IN_TRATTATIVA'])
+        .in('status', [...CONFIRMED_EVENT_STATUSES])
         .order('date_from', { ascending: true })
       const extra = ((collab.data ?? []) as unknown as WeddingRow[]).filter((r) => !seen.has(r.id) && !(r as { archived_at?: string | null }).archived_at)
       return [...base, ...extra].sort((a, b) => (a.date_from ?? '').localeCompare(b.date_from ?? ''))

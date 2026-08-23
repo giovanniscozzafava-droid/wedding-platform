@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { eurInt } from '@/lib/money'
+import { CONFIRMED_EVENT_STATUSES } from '@/lib/eventStatus'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
@@ -41,7 +42,7 @@ function useStats() {
       const [services, collab, upcoming, qActive, qAccepted] = await Promise.all([
         supabase.from('services').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('collaborations').select('id', { count: 'exact', head: true }).eq('status', 'ACTIVE'),
-        supabase.from('calendar_entries').select('id', { count: 'exact', head: true }).gte('date_from', today).lte('date_from', in60),
+        supabase.from('calendar_entries').select('id', { count: 'exact', head: true }).in('status', [...CONFIRMED_EVENT_STATUSES]).gte('date_from', today).lte('date_from', in60),
         supabase.from('quotes').select('id', { count: 'exact', head: true }).in('status', ['BOZZA', 'INVIATO']),
         supabase.from('quotes').select('margin_amount').in('status', ['ACCETTATO', 'CONVERTITO_IN_CONTRATTO']),
       ])
@@ -64,7 +65,7 @@ function useRecentActivity() {
     queryFn: async () => {
       const [q, e] = await Promise.all([
         supabase.from('quotes').select('id, title, status, updated_at, total_client, total_client_selected').order('updated_at', { ascending: false }).limit(5),
-        supabase.from('calendar_entries').select('id, title, status, date_from').order('date_from', { ascending: true }).limit(5),
+        supabase.from('calendar_entries').select('id, title, status, date_from').in('status', [...CONFIRMED_EVENT_STATUSES]).order('date_from', { ascending: true }).limit(5),
       ])
       const quotes = (q.data ?? []) as any[]
       // Tracciamento apertura: il cliente ha aperto davvero il preventivo?
@@ -89,7 +90,7 @@ function useAgenda() {
       const today = nowIso.slice(0, 10)
       const [bk, ev] = await Promise.all([
         (supabase.from as any)('bookings').select('id, starts_at, client_name, status').eq('status', 'CONFIRMED').gte('starts_at', nowIso).order('starts_at').limit(8),
-        supabase.from('calendar_entries').select('id, title, status, date_from').gte('date_from', today).order('date_from').limit(8),
+        supabase.from('calendar_entries').select('id, title, status, date_from').in('status', [...CONFIRMED_EVENT_STATUSES]).gte('date_from', today).order('date_from').limit(8),
       ])
       const items: AgendaItem[] = []
       for (const b of (bk.data ?? []) as any[]) items.push({ id: 'b' + b.id, when: b.starts_at, title: `Appuntamento · ${b.client_name}`, kind: 'appt', status: b.status, timed: true })

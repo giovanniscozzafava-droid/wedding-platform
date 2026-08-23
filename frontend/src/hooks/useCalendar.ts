@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
+import { CONFIRMED_EVENT_STATUSES } from '@/lib/eventStatus'
 
 type EntryRow = Database['public']['Tables']['calendar_entries']['Row']
 type EntryInsert = Database['public']['Tables']['calendar_entries']['Insert']
@@ -39,6 +40,8 @@ export function useCalendarEntries(range: { from: string; to: string }) {
         )
         .or(`date_from.gte.${range.from},date_to.gte.${range.from}`)
         .lte('date_from', range.to)
+        // Solo eventi confermati sul calendario (gli IN_TRATTATIVA non sono eventi).
+        .in('status', [...CONFIRMED_EVENT_STATUSES])
         .order('date_from', { ascending: true })
       if (error) throw error
       // Ri-appiattisci i campi sensibili (null per chi non è owner/coppia/admin → RLS).
