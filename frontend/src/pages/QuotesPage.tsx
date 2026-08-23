@@ -44,6 +44,12 @@ function quoteBucket(status: string) {
   return QUOTE_BUCKETS.find((b) => b.match(status)) ?? QUOTE_BUCKETS[QUOTE_BUCKETS.length - 1]!
 }
 
+// Etichette leggibili per l'origine del contatto (statistiche provenienza).
+const SOURCE_LABEL: Record<string, string> = {
+  SITO: 'Sito', PASSAPAROLA: 'Passaparola', PRO_ALTRO_SETTORE: 'Altro settore',
+  SOCIAL: 'Social', PLANFULLY: 'Planfully', ALTRO: 'Altro', NON_INDICATO: 'Non indicato',
+}
+
 export default function QuotesPage() {
   const { data, isLoading } = useQuotes()
   const { profile } = useAuth()
@@ -67,6 +73,14 @@ export default function QuotesPage() {
   const [showArchived, setShowArchived] = useState(false)
   // Ordinamento lista: per STATO ("da lavorare prima", default) o per ANNO/data evento.
   const [sortMode, setSortMode] = useState<'stato' | 'anno'>('stato')
+  // Statistiche provenienza contatti (da dove arrivano i lead).
+  const [sourceStats, setSourceStats] = useState<{ lead_source: string; n: number }[]>([])
+  useEffect(() => {
+    void (async () => {
+      const { data: r } = await (supabase.rpc as unknown as (f: string) => Promise<{ data: unknown }>)('lead_source_stats')
+      setSourceStats((r as { lead_source: string; n: number }[]) ?? [])
+    })()
+  }, [])
   const archivedCount = useMemo(() => (data ?? []).filter((x) => (x as { archived_at?: string | null }).archived_at).length, [data])
   const filtered = useMemo(() => {
     const ACCEPTED = new Set(['ACCETTATO', 'CONVERTITO_IN_CONTRATTO'])
@@ -222,6 +236,28 @@ export default function QuotesPage() {
         {!isLoading && (data ?? []).length > 0 && filtered.length === 0 && (
           <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun preventivo corrisponde ai filtri.</p>
         )}
+
+        {/* Provenienza contatti: da dove arrivano i lead (statistiche). */}
+        {(() => {
+          const tot = sourceStats.reduce((s, r) => s + Number(r.n), 0)
+          if (tot === 0) return null
+          return (
+            <div className="mb-4 rounded-xl border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
+              <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Provenienza contatti</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                {sourceStats.map((r) => {
+                  const pct = Math.round((Number(r.n) / tot) * 100)
+                  return (
+                    <div key={r.lead_source} className="flex items-center gap-1.5 text-sm">
+                      <span className="font-medium">{SOURCE_LABEL[r.lead_source] ?? r.lead_source}</span>
+                      <span className="tabular-nums text-[rgb(var(--fg-muted))]">{r.n} · {pct}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(() => {

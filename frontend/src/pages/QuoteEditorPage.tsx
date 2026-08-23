@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye, Navigation, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye, Navigation, AlertTriangle, Lock } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { PdfViewButton } from '@/components/common/PdfBookViewer'
@@ -128,6 +128,9 @@ export default function QuoteEditorPage() {
   const [title, setTitle] = useState<string>('')
   const [clientName, setClientName] = useState<string>('')
   const [clientEmail, setClientEmail] = useState<string>('')
+  // Origine del contatto (statistiche) + consenso a ricevere preventivi da altri pro.
+  const [leadSource, setLeadSource] = useState<string>('')
+  const [allowSuggest, setAllowSuggest] = useState<boolean>(false)
   const [eventDate, setEventDate] = useState<string>('')
   // LUOGO evento: testo mostrato (eventLocation) + link opzionale a una location registrata (locationId).
   const [eventLocation, setEventLocation] = useState<string>('')
@@ -372,6 +375,8 @@ export default function QuoteEditorPage() {
       setTitle(quote.title ?? '')
       setClientName(quote.client_name ?? '')
       setClientEmail(quote.client_email ?? '')
+      setLeadSource((quote as any).lead_source ?? '')
+      setAllowSuggest(!!(quote as any).allow_supplier_suggestions)
       setEventDate(quote.event_date ?? '')
       setEventLocation((quote as any).event_location ?? '')
       setLocationId((quote as any).location_id ?? null)
@@ -512,8 +517,21 @@ export default function QuoteEditorPage() {
         default_markup_percent: Number(defaultMarkup || 0),
         guest_count: guestCount ? Number(guestCount) : null,
         table_count: tableCount ? Number(tableCount) : null,
+        lead_source: leadSource || null,
+        allow_supplier_suggestions: allowSuggest,
       } as any })
       toast.success('Preventivo aggiornato')
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  // Sblocca "Suggerisci professionisti" quando il cliente non ha (ancora) acconsentito:
+  // registra il consenso sul preventivo e apre subito il modale.
+  async function unlockSuggest() {
+    if (!id) return
+    try {
+      await update.mutateAsync({ id, patch: { allow_supplier_suggestions: true } as any })
+      setAllowSuggest(true)
+      setSuggestOpen(true)
     } catch (e) { toast.error((e as Error).message) }
   }
 
@@ -550,6 +568,8 @@ export default function QuoteEditorPage() {
         default_markup_percent: Number(defaultMarkup || 0),
         guest_count: guestCount ? Number(guestCount) : null,
         table_count: tableCount ? Number(tableCount) : null,
+        lead_source: leadSource || null,
+        allow_supplier_suggestions: allowSuggest,
         revision: (quote.revision ?? 1) + 1,
       } as any })
       // 2. Notify cliente via Resend (edge function quote-send già esiste con FROM verificato)
@@ -819,9 +839,17 @@ export default function QuoteEditorPage() {
                   style={{ background: '#25D366', borderColor: '#25D366' }} title="Consigliato: l'email può finire in spam">
                   <MessageCircle /> Invia su WhatsApp
                 </Button>
-                {quote.client_email && canSuggest && (
+                {/* Gate consenso: la voce "Suggerisci" è attiva solo se il contatto è
+                    aperto a ricevere preventivi da altri pro; altrimenti bloccata (sbloccabile). */}
+                {quote.client_email && canSuggest && allowSuggest && (
                   <Button variant="outline" onClick={() => setSuggestOpen(true)} title="Consiglia al cliente i professionisti che segui (fornitori e capostipiti): avvisa loro di preparare un'offerta">
                     <Users size={16} /> Suggerisci i miei professionisti
+                  </Button>
+                )}
+                {quote.client_email && canSuggest && !allowSuggest && (
+                  <Button variant="outline" onClick={() => void unlockSuggest()} disabled={isLocked}
+                    title="Il cliente non ha (ancora) acconsentito a ricevere preventivi da altri professionisti. Sblocca per abilitare.">
+                    <Lock size={14} /> Suggerisci professionisti · sblocca
                   </Button>
                 )}
                 {quote.client_email && !canSuggest && suggestGuard?.reason === 'is_recipient' && (
@@ -1006,6 +1034,28 @@ export default function QuoteEditorPage() {
               <Label>Email cliente</Label>
               <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} disabled={isLocked}
                 placeholder="sposi@example.it" />
+            </div>
+            <div className="space-y-1">
+              <Label>Da dove arriva il contatto?</Label>
+              <Select value={leadSource} onChange={(e) => setLeadSource(e.target.value)} disabled={isLocked}>
+                <option value="">— Non indicato —</option>
+                <option value="SITO">Dal mio sito</option>
+                <option value="PASSAPAROLA">Passaparola / cliente</option>
+                <option value="PRO_ALTRO_SETTORE">Professionista di altro settore</option>
+                <option value="SOCIAL">Social (Instagram/Facebook)</option>
+                <option value="PLANFULLY">Rete Planfully (suggerito)</option>
+                <option value="ALTRO">Altro</option>
+              </Select>
+              <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Alimenta le statistiche di provenienza dei tuoi contatti.</p>
+            </div>
+            <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input type="checkbox" className="mt-0.5 size-4 accent-[rgb(var(--gold-500))]"
+                  checked={allowSuggest} onChange={(e) => setAllowSuggest(e.target.checked)} disabled={isLocked} />
+                <span>Il cliente è aperto a ricevere preventivi da <strong>altri professionisti collegati</strong>.
+                  <span className="block text-[10px] text-[rgb(var(--fg-subtle))]">Se attivo, puoi usare “Suggerisci i miei professionisti”. Se spento resta bloccato, ma sbloccabile al volo.</span>
+                </span>
+              </label>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end mt-4 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
