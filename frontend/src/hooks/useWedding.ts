@@ -16,7 +16,7 @@ function flattenPrivate(row: any): any {
 
 export type WeddingRow = Database['public']['Tables']['calendar_entries']['Row'] & Partial<WeddingPrivate> & {
   quote: (Pick<Database['public']['Tables']['quotes']['Row'],
-    'id' | 'title' | 'status' | 'total_client' | 'access_token' | 'pdf_url' | 'revision'> & {
+    'id' | 'title' | 'status' | 'total_client' | 'total_client_selected' | 'access_token' | 'pdf_url' | 'revision'> & {
     quote_items?: Array<{ count: number }>
   }) | null
 }
@@ -30,7 +30,7 @@ export function useWeddings() {
         .select(`
           *,
           ${PRIV_SELECT},
-          quote:quotes!calendar_entries_quote_fk(id, title, status, total_client, access_token, pdf_url, revision)
+          quote:quotes!calendar_entries_quote_fk(id, title, status, total_client, total_client_selected, access_token, pdf_url, revision)
         `)
         // REGOLA: è un evento SOLO se il preventivo è confermato (OPZIONATA/CONFERMATA).
         // Gli IN_TRATTATIVA restano nella lista Preventivi, non tra gli eventi.
@@ -76,7 +76,7 @@ export function useWedding(entryId: string | null, opts?: { coupleSafe?: boolean
           *,
           ${privSelect},
           owner:profiles!calendar_entries_owner_id_fkey(id, full_name, business_name, subrole, role),
-          quote:quotes!calendar_entries_quote_fk(id, owner_id, title, client_name, client_email, event_date, guest_count, status, revision, access_token, total_client, pdf_url, pdf_variant, sent_at, accepted_at, rejected_at, rejection_reason, sent_email_log, client_response_log, created_at, updated_at, table_count, direct_client_id, event_location, event_kind, access_token_expires_at, forced_without_questionnaire, token_hash, token_revoked_at, token_consumed_at, quote_origin, quote_context, first_opened_at, last_opened_at, open_count, total_discount_percent, total_discount_amount, subtotal_client, followup_count, last_followup_at, archived_at, date_contested_notified_at, funnel_paused, closed_at, ${quoteItemsSelect}),
+          quote:quotes!calendar_entries_quote_fk(id, owner_id, title, client_name, client_email, event_date, guest_count, status, revision, access_token, total_client, pdf_url, pdf_variant, sent_at, accepted_at, rejected_at, rejection_reason, sent_email_log, client_response_log, created_at, updated_at, table_count, direct_client_id, event_location, event_kind, access_token_expires_at, forced_without_questionnaire, token_hash, token_revoked_at, token_consumed_at, quote_origin, quote_context, first_opened_at, last_opened_at, open_count, total_discount_percent, total_discount_amount, subtotal_client, total_client_selected, followup_count, last_followup_at, archived_at, date_contested_notified_at, funnel_paused, closed_at, ${quoteItemsSelect}),
           calendar_entry_participants(*, user:profiles!calendar_entry_participants_user_id_fkey(id, full_name, business_name, subrole))
         `)
         .eq('id', entryId!)

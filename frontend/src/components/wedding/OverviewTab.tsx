@@ -7,9 +7,13 @@ import { useBudget, useGuests, useMood, usePlaylist, useTables, useTasks, useTim
 import { useChangeRequests, useReviewChangeRequest, entityLabel } from '@/hooks/useChangeRequests'
 import { useAuth } from '@/lib/auth'
 import { eurInt } from '@/lib/money'
+import { shownTotal } from '@/lib/quoteSelection'
 
 export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: string) => void }) {
   const eid = wedding.id
+  // Valore mostrato al PRO = ciò che il cliente ha opzionato (regola R1: selezionato
+  // se c'è, altrimenti totale pieno). Coerente con il cliente e col contratto.
+  const quoteShown = wedding.quote ? shownTotal(wedding.quote.total_client, wedding.quote.total_client_selected) : null
   const { profile } = useAuth()
   // /suppliers/:id è riservata ai capostipiti/admin: per un fornitore il link
   // porterebbe a un vicolo cieco "accesso non consentito".
@@ -104,7 +108,7 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
             <Row k="Data" v={new Date(wedding.date_from).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} />
             <Row k="Invitati" v={wedding.guest_count?.toString() ?? '—'} />
             <Row k="Tavoli" v={wedding.table_count?.toString() ?? '—'} />
-            <Row k="Valore" v={eurInt(wedding.value_amount ?? 0)} />
+            <Row k="Valore" v={eurInt(quoteShown ?? wedding.value_amount ?? 0)} />
           </dl>
           {wedding.notes && (
             <div className="mt-4 pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
@@ -142,7 +146,7 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <Row k="Stato" v={wedding.quote.status} />
               <Row k="Revisione" v={`v${wedding.quote.revision}`} />
-              <Row k="Cliente" v={eurInt(wedding.quote.total_client)} />
+              <Row k="Cliente" v={eurInt(quoteShown ?? 0)} />
               <Row k="Costo" v={eurInt(wedding.quote.total_cost ?? 0)} />
             </div>
           </section>

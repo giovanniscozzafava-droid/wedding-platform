@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search, Archive, ArchiveRestore, Send } from 'lucide-react'
 import { toast } from '@/lib/toast'
+import { shownTotal } from '@/lib/quoteSelection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -277,10 +278,10 @@ export default function QuotesPage() {
                   <div className={`grid ${isFornitore ? 'grid-cols-1' : 'grid-cols-3'} gap-3 pt-3 border-t`} style={{ borderColor: 'rgb(var(--border))' }}>
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Cliente</p>
-                      {/* Totale = solo i servizi ACCETTATI dal cliente (0 finché non sceglie). Il totale
-                          pieno dell'offerta resta nel documento (editor/PDF/pagina di accettazione). */}
+                      {/* Totale = ciò che il cliente ha opzionato (regola R1: selezionato se c'è,
+                          altrimenti l'offerta piena). Stesso numero che vede il cliente. */}
                       <p className="font-display text-lg tabular-nums">
-                        € {Number((q as { total_client_selected?: number }).total_client_selected ?? 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                        € {Number(shownTotal(q.total_client, (q as { total_client_selected?: number }).total_client_selected)).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
                       </p>
                     </div>
                     {!isFornitore && (
