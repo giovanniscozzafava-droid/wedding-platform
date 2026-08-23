@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye, Navigation, AlertTriangle } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
@@ -391,6 +391,25 @@ export default function QuoteEditorPage() {
     }
     return out
   }, [services])
+
+  // Le voci GIÀ nel preventivo si scalano dal catalogo: un servizio aggiunto non
+  // ricompare tra quelli da aggiungere (per service_id). Migliora il "feeling".
+  const addedServiceIds = useMemo(
+    () => new Set(((quote as any)?.quote_items ?? []).map((it: any) => it.service_id).filter(Boolean)),
+    [quote],
+  )
+
+  // Monetina "Mario Bros": schizza in alto dal punto del click quando aggiungi.
+  const [coins, setCoins] = useState<{ id: number; x: number; y: number }[]>([])
+  const coinSeq = useRef(0)
+  function popCoin(e: { currentTarget: EventTarget | null }) {
+    const el = e.currentTarget as HTMLElement | null
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const id = ++coinSeq.current
+    setCoins((cs) => [...cs, { id, x: r.left + r.width / 2, y: r.top + r.height / 2 }])
+    window.setTimeout(() => setCoins((cs) => cs.filter((c) => c.id !== id)), 800)
+  }
 
   // REVISIONE D: in SOLO_PROPRI_SERVIZI forza pickSupplier al capostipite
   // stesso (il dropdown e' nascosto), cosi' la card "Aggiungi voce dal
@@ -1354,34 +1373,70 @@ export default function QuoteEditorPage() {
                   </p>
                 </div>
               )}
-              {(pickSupplier || isFornitoreFlow) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {(grouped.get(isFornitoreFlow ? (profile?.id ?? quote.owner_id) : pickSupplier) ?? []).map((s) => (
-                    <div key={s.id} className="rounded-lg border p-3 flex gap-3 hover:bg-[rgb(var(--bg-sunken))] transition-colors"
-                      style={{ borderColor: 'rgb(var(--border))' }}>
-                      {s.service_photos[0] && (
-                        <img src={s.service_photos[0].thumbnail_url} alt=""
-                          className="h-14 w-14 rounded-md object-cover shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate text-sm">{s.name}</p>
-                        <p className="text-xs text-[rgb(var(--fg-subtle))]">
-                          € {s.base_price} /{s.unit.toLowerCase()} · auto-basis {BASIS_LABEL[defaultBasisFor(s.unit)].label}
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={() => handleAddItem(s.fornitore_id, s.id)}>
-                        <Plus size={14} />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {(pickSupplier || isFornitoreFlow) && (() => {
+                // Solo i servizi NON ancora nel preventivo: quelli aggiunti si scalano.
+                const catalog = (grouped.get(isFornitoreFlow ? (profile?.id ?? quote.owner_id) : pickSupplier) ?? [])
+                  .filter((s) => !addedServiceIds.has(s.id))
+                if (catalog.length === 0) {
+                  return (
+                    <p className="text-sm text-[rgb(var(--fg-subtle))] py-3">
+                      Hai già aggiunto tutte le voci di questo catalogo al preventivo. 🎉
+                    </p>
+                  )
+                }
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <AnimatePresence mode="popLayout">
+                      {catalog.map((s) => (
+                        <motion.div key={s.id} layout
+                          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.18 } }}
+                          className="rounded-lg border p-3 flex gap-3 hover:bg-[rgb(var(--bg-sunken))] transition-colors"
+                          style={{ borderColor: 'rgb(var(--border))' }}>
+                          {s.service_photos[0] && (
+                            <img src={s.service_photos[0].thumbnail_url} alt=""
+                              className="h-14 w-14 rounded-md object-cover shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate text-sm">{s.name}</p>
+                            <p className="text-xs text-[rgb(var(--fg-subtle))]">
+                              € {s.base_price} /{s.unit.toLowerCase()} · auto-basis {BASIS_LABEL[defaultBasisFor(s.unit)].label}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={(e) => { popCoin(e); void handleAddItem(s.fornitore_id, s.id) }}>
+                            <Plus size={14} />
+                          </Button>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )
+              })()}
             </div>
           </Card>
         </div>
 
         {/* Sezione "Cosa vede il cliente (area cliente)" rimossa: poco utile. */}
       </div>
+
+      {/* Monetine "Mario Bros": schizzano in alto dal punto del click quando aggiungi. */}
+      <AnimatePresence>
+        {coins.map((c) => (
+          <motion.div key={c.id}
+            initial={{ opacity: 1, scale: 0.5, y: 0, rotateY: 0 }}
+            animate={{ opacity: [1, 1, 0], scale: 1, y: -74, rotateY: 360 }}
+            transition={{ duration: 0.7, ease: [0.2, 0.9, 0.3, 1], times: [0, 0.55, 1] }}
+            style={{ position: 'fixed', left: c.x - 13, top: c.y - 13, zIndex: 9999, pointerEvents: 'none' }}>
+            <span style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 26, height: 26, borderRadius: '50%',
+              background: 'radial-gradient(circle at 35% 30%, #ffe9a3, #f5c542 55%, #c9971f)',
+              boxShadow: '0 0 0 2px rgba(201,151,31,0.5), 0 2px 8px rgba(0,0,0,0.25)',
+              color: '#8a6a12', fontWeight: 800, fontSize: 14, lineHeight: 1,
+            }}>€</span>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   )
 }
