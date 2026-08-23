@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, Users, Mail, Phone, Calendar, Trash2, Pencil, FileText, X, CalendarHeart } from 'lucide-react'
+import { Plus, Users, Mail, Phone, Calendar, Trash2, Pencil, FileText, X, CalendarHeart, FlaskConical } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,6 +66,16 @@ export default function SupplierClientsPage() {
     setEditing(null)
     setForm(EMPTY_FORM)
     setOpen(true)
+  }
+
+  // Segna/togli il cliente come "test": i clienti test (e i loro preventivi/contratti)
+  // sono esclusi da tutte le statistiche.
+  async function toggleTest(c: SupplierClientWithStats) {
+    const now = !((c as { is_test?: boolean }).is_test)
+    try {
+      await update.mutateAsync({ id: c.id, patch: { is_test: now } as never })
+      toast.success(now ? 'Cliente di prova: escluso dalle statistiche' : 'Cliente riportato nelle statistiche')
+    } catch (e) { toast.error((e as Error).message) }
   }
 
   function openEdit(c: SupplierClientWithStats) {
@@ -212,7 +222,8 @@ export default function SupplierClientsPage() {
             <motion.div key={c.id}
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(idx * 0.02, 0.3) }}>
-              <Card className="hover:shadow-[var(--shadow-lift)] transition-shadow h-full flex flex-col">
+              <Card className="hover:shadow-[var(--shadow-lift)] transition-shadow h-full flex flex-col"
+                style={(c as { is_test?: boolean }).is_test ? { opacity: 0.6 } : undefined}>
                 <div className="p-5 flex flex-col gap-3 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -226,6 +237,12 @@ export default function SupplierClientsPage() {
                         </span>
                         {c.event_kind && (
                           <span className="text-[10px] text-[rgb(var(--fg-subtle))] capitalize">{c.event_kind}</span>
+                        )}
+                        {(c as { is_test?: boolean }).is_test && (
+                          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                            style={{ background: 'rgb(var(--amber-100, 254 243 199))', color: 'rgb(var(--amber-700, 180 83 9))' }}>
+                            <FlaskConical size={10} /> Test
+                          </span>
                         )}
                       </div>
                     </div>
@@ -276,6 +293,11 @@ export default function SupplierClientsPage() {
                         <FileText size={14} /> Preventivo
                       </Button>
                     )}
+                    <Button size="sm" variant="ghost" onClick={() => void toggleTest(c)}
+                      title={(c as { is_test?: boolean }).is_test ? 'Togli da test: rientra nelle statistiche' : 'Segna come cliente di prova: escluso dalle statistiche'}
+                      style={(c as { is_test?: boolean }).is_test ? { color: 'rgb(var(--amber-700, 180 83 9))' } : undefined}>
+                      <FlaskConical size={14} />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                       <Pencil size={14} />
                     </Button>
