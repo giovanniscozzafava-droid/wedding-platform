@@ -64,6 +64,43 @@ async function sendBranded(q: any, subject: string, intro: string, cta: string) 
   })
 }
 
+// Promemoria "opzione data" al CLIENTE: la coppia tiene la data senza firmare e
+// la tenuta sta per scadere. Tono caldo, poco invadente; link diretto alla firma.
+async function sendOptionReminder(entry: any, q: any, kind: 'soft' | 'final') {
+  const to = entry.option_requested_by || q.client_email
+  if (!to) return
+  const o = await loadOwner(q.owner_id)
+  const wpName = o?.business_name ?? o?.full_name ?? 'Il tuo referente'
+  const primary = o?.brand_primary_color ?? '#25402F'
+  const fromAddr = (FROM.match(/<(.+)>/)?.[1]) ?? FROM
+  const dateFmt = entry.date_from ? new Date(entry.date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
+  const expFmt = entry.option_expires_at ? new Date(entry.option_expires_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' }) : ''
+  const firstName = q.client_name ? esc(String(q.client_name).trim().split(/\s+/)[0]) : ''
+  const hi = firstName ? `Ciao ${firstName}, ` : 'Ciao, '
+  const body = kind === 'soft'
+    ? `${hi}la data del <strong>${esc(dateFmt)}</strong> è ancora riservata per te fino al <strong>${esc(expFmt)}</strong>. Nessuna fretta: quando te la senti, puoi confermarla in un minuto. Se hai qualche dubbio o vuoi cambiare qualcosa, sono qui.`
+    : `${hi}la tenuta della data del <strong>${esc(dateFmt)}</strong> sta per scadere (${esc(expFmt)}). Se vuoi assicurartela, ti basta confermare il preventivo: bastano pochi minuti. Se preferisci aspettare ancora, nessun problema — fammelo solo sapere.`
+  const html = emailShell({
+    accent: primary,
+    eyebrow: kind === 'soft' ? 'La tua data è tenuta per te' : 'Ultimo promemoria sulla tua data',
+    title: q.title,
+    bodyHtml: `<p style="margin:0">${body}</p>`,
+    cta: { href: `${APP_BASE}/p/accept/${q.access_token}`, label: kind === 'soft' ? 'Rivedi e conferma' : 'Conferma la data' },
+    contactHtml: `— ${esc(wpName)}${o?.phone ? ' · ' + esc(o.phone) : ''}`,
+  })
+  await sendEmail({
+    to: q.client_name ? `${String(q.client_name).replace(/[",;<>\r\n]/g, ' ')} <${to}>` : to,
+    subject: kind === 'soft' ? `La tua data del ${dateFmt} è ancora riservata` : `La tenuta della tua data sta per scadere`,
+    html,
+    from: `${wpName.replace(/[",;<>\r\n]/g, ' ').slice(0, 60)} via Planfully <${fromAddr}>`,
+    reply_to: o?.email ?? undefined,
+    headers: {
+      'List-Unsubscribe': `<mailto:${o?.email ?? fromAddr}?subject=unsubscribe>`,
+      'X-Entity-Ref-ID': String(q.id),
+    },
+  })
+}
+
 function followupCopy(step: number, opened: boolean) {
   if (step === 1) return opened
     ? { s: 'Hai dato un’occhiata al preventivo?', i: 'Ho visto che hai aperto il preventivo: sono qui per qualsiasi dubbio o modifica. Vuoi che ne parliamo?', c: 'Rivedi il preventivo' }
@@ -82,7 +119,7 @@ Deno.serve(async (req) => {
     return new Response('unauthorized', { status: 401 })
   }
   const now = Date.now()
-  const result = { followups: 0, archived: 0, contested: 0, suggestion_reminders: 0 }
+  const result = { followups: 0, archived: 0, contested: 0, suggestion_reminders: 0, option_reminders: 0 }
 
   // ── Follow-up + archiviazione ────────────────────────────────────────────
   const { data: actives } = await admin.from('quotes')
@@ -167,6 +204,40 @@ Deno.serve(async (req) => {
       await sendEmail({ to, subject: `${refName} ti ha suggerito a una coppia — invia il preventivo o segnala che non ci sei`, html, from: FROM })
       await stamp()
       result.suggestion_reminders++
+    } catch (_e) { /* continua col prossimo */ }
+  }
+
+  // ── Funnel "opzione data": promemoria gentili prima della scadenza ────────
+  // La coppia tiene la data (calendar_entries OPZIONATA, option_expires_at futuro)
+  // ma il preventivo NON è ancora firmato: 2 tocchi non invadenti — ~5gg e ~1g
+  // prima della scadenza — che ricordano che la data è tenuta ed è il momento di
+  // firmare. Idempotenza via option_reminder1_at / option_reminder2_at.
+  const { data: opts } = await admin.from('calendar_entries')
+    .select('id, date_from, option_expires_at, option_requested_by, option_reminder1_at, option_reminder2_at, quote:quotes!calendar_entries_quote_fk(id, title, client_name, client_email, access_token, total_client, status, accepted_at, owner_id, funnel_paused, archived_at)')
+    .eq('status', 'OPZIONATA')
+    .not('option_expires_at', 'is', null)
+    .gt('option_expires_at', new Date(now).toISOString())
+
+  for (const e of (opts ?? []) as any[]) {
+    const q = e.quote
+    // Solo tenute ancora da firmare: se il preventivo è accettato/archiviato/in
+    // pausa o non più "INVIATO", niente promemoria (l'OPZIONATA può derivare anche
+    // dalla firma, ma in quel caso accepted_at è valorizzato → escluso qui).
+    if (!q || q.accepted_at || q.archived_at || q.funnel_paused || q.status !== 'INVIATO') continue
+    if (!e.option_requested_by && !q.client_email) continue
+    const daysLeft = (new Date(e.option_expires_at).getTime() - now) / DAY
+    const owner = await loadOwner(q.owner_id)
+    if (owner?.funnel_followup_enabled === false) continue  // il pro ha spento i follow-up automatici
+    try {
+      if (daysLeft <= 1.5 && !e.option_reminder2_at) {
+        await sendOptionReminder(e, q, 'final')
+        await admin.from('calendar_entries').update({ option_reminder2_at: new Date().toISOString() }).eq('id', e.id)
+        result.option_reminders++
+      } else if (daysLeft <= 5 && !e.option_reminder1_at) {
+        await sendOptionReminder(e, q, 'soft')
+        await admin.from('calendar_entries').update({ option_reminder1_at: new Date().toISOString() }).eq('id', e.id)
+        result.option_reminders++
+      }
     } catch (_e) { /* continua col prossimo */ }
   }
 
