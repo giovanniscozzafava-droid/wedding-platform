@@ -23,3 +23,20 @@ export function itemIncluded(decision: CoupleDecision, hasSelection: boolean): b
   if (!hasSelection) return true
   return decision === 'ACCETTATO'
 }
+
+/**
+ * Valore da mostrare al PROFESSIONISTA nelle liste (Preventivi/Home/evento):
+ *  - preventivo NON accettato → SOLO ciò che il cliente ha opzionato; 0 se niente
+ *    (così una proposta piena non sembra "gonfia" prima che il cliente scelga).
+ *  - preventivo ACCETTATO (ha scelto tutto firmando, o un sottoinsieme) → valore
+ *    vincolante = shownTotal (selezionato se >0, altrimenti totale pieno).
+ */
+export function pipelineValue(
+  status: string | null | undefined,
+  totalClient: number | null | undefined,
+  totalClientSelected: number | null | undefined,
+): number {
+  const accepted = status === 'ACCETTATO' || status === 'CONVERTITO_IN_CONTRATTO'
+  if (accepted) return shownTotal(totalClient, totalClientSelected)
+  return Number(totalClientSelected ?? 0)
+}

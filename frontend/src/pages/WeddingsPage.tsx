@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchUnreadByEntry, type UnreadEntry } from '@/lib/notifGuide'
 import { motion } from 'framer-motion'
@@ -137,8 +137,17 @@ export default function WeddingsPage() {
           <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun evento corrisponde alla ricerca.</p>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map((w, idx) => (
-            <motion.div key={w.id}
+          {(() => {
+            // Eventi in ordine CRONOLOGICO, raggruppati per ANNO (i più vicini prima).
+            const gy = (w: typeof filtered[number]) => { const d = w.date_from; const y = d ? new Date(d).getFullYear() : 0; return Number.isFinite(y) ? y : 0 }
+            const byYear = [...filtered].sort((a, b) => (gy(a) || 9999) - (gy(b) || 9999))
+            return byYear.map((w, idx) => {
+            const yy = gy(w)
+            const showHead = idx === 0 || gy(byYear[idx - 1]!) !== yy
+            return (
+            <Fragment key={w.id}>
+            {showHead && <div className="md:col-span-2 mt-3 first:mt-0"><h3 className="text-sm font-semibold text-[rgb(var(--fg-muted))]">{yy ? yy : 'Senza data'}</h3></div>}
+            <motion.div
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}>
               <Card className="hover:shadow-[var(--shadow-lift)] transition-shadow overflow-hidden">
@@ -198,7 +207,10 @@ export default function WeddingsPage() {
                 </div>
               </Card>
             </motion.div>
-          ))}
+            </Fragment>
+            )
+            })
+          })()}
         </div>
       </div>
     </div>

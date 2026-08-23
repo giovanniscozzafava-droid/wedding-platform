@@ -18,7 +18,7 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { eurInt } from '@/lib/money'
 import { CONFIRMED_EVENT_STATUSES } from '@/lib/eventStatus'
-import { shownTotal } from '@/lib/quoteSelection'
+import { pipelineValue } from '@/lib/quoteSelection'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
@@ -262,7 +262,7 @@ export default function HomePage() {
                       </Link>
                       <div className="flex items-center gap-3 ml-4 shrink-0">
                         <span className="font-display text-base tabular-nums">
-                          € {Number(shownTotal((q as { total_client?: number }).total_client, (q as { total_client_selected?: number }).total_client_selected)).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                          € {Number(pipelineValue((q as { status?: string }).status, (q as { total_client?: number }).total_client, (q as { total_client_selected?: number }).total_client_selected)).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
                         </span>
                         <Badge status={q.status} />
                       </div>

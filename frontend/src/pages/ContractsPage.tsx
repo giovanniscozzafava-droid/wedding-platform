@@ -30,12 +30,26 @@ type ContractRow = {
   created_at: string
 }
 
+// Raggruppamento per STATO (secondario; la classificazione PRIMARIA è cronologica).
+// Ordine "da lavorare prima": da firmare → bozze → firmati → chiusi.
+const CONTRACT_BUCKETS: { rank: number; label: string; match: (s: string) => boolean }[] = [
+  { rank: 0, label: 'Da firmare', match: (s) => s === 'INVIATO' },
+  { rank: 1, label: 'Bozze', match: (s) => s === 'BOZZA' },
+  { rank: 2, label: 'Firmati', match: (s) => s === 'FIRMATO' },
+  { rank: 3, label: 'Altri', match: () => true },
+]
+function contractBucket(status: string) {
+  return CONTRACT_BUCKETS.find((b) => b.match(status)) ?? CONTRACT_BUCKETS[CONTRACT_BUCKETS.length - 1]!
+}
+
 export default function ContractsPage() {
   const [rows, setRows] = useState<ContractRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<ContractRow | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'signed' | 'unsigned'>('all')
+  // Ordinamento: PRIMARIO cronologico ('data', default) o per STATO ('stato').
+  const [sortMode, setSortMode] = useState<'data' | 'stato'>('data')
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return rows.filter((c) => {
@@ -214,20 +228,36 @@ export default function ContractsPage() {
           <SearchFilterBar value={search} onChange={setSearch} placeholder="Cerca per nome cliente, email o titolo…"
             chips={[{ key: 'all', label: 'Tutti' }, { key: 'signed', label: 'Firmati' }, { key: 'unsigned', label: 'Da firmare' }]}
             active={statusFilter} onChip={(k) => setStatusFilter(k as 'all' | 'signed' | 'unsigned')} />
+          <div className="flex items-center gap-1 mb-4" title="Ordina i contratti">
+            {(([['data', 'Per data'], ['stato', 'Per stato']]) as ['data' | 'stato', string][]).map(([k, l]) => (
+              <button key={k} onClick={() => setSortMode(k)} className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap ${sortMode === k ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{l}</button>
+            ))}
+          </div>
           {filtered.length === 0 ? (
             <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun contratto corrisponde ai filtri.</p>
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(() => {
-            // Contratti DIVISI PER ANNO (per data evento; se manca, per data creazione).
+            // Classificazione PRIMARIA cronologica (per ANNO); in alternativa per STATO
+            // ("da lavorare prima": Da firmare → Bozze → Firmati → Altri).
             const gy = (c: typeof filtered[number]) => { const d = c.event_date || c.created_at; const y = d ? new Date(d).getFullYear() : 0; return Number.isFinite(y) ? y : 0 }
-            const byYear = [...filtered].sort((a, b) => gy(b) - gy(a))
-            return byYear.map((c, i) => {
-            const yy = gy(c)
-            const showHead = i === 0 || gy(byYear[i - 1]!) !== yy
+            const dstr = (c: typeof filtered[number]) => String(c.event_date || c.created_at || '')
+            const ordered = sortMode === 'stato'
+              ? [...filtered].sort((a, b) => {
+                  const ra = contractBucket(a.status ?? 'BOZZA').rank, rb = contractBucket(b.status ?? 'BOZZA').rank
+                  if (ra !== rb) return ra - rb
+                  return dstr(b).localeCompare(dstr(a))
+                })
+              : [...filtered].sort((a, b) => gy(b) - gy(a))
+            const headOf = (c: typeof filtered[number]) => sortMode === 'stato'
+              ? contractBucket(c.status ?? 'BOZZA').label
+              : (gy(c) ? String(gy(c)) : 'Senza data')
+            return ordered.map((c, i) => {
+            const head = headOf(c)
+            const showHead = i === 0 || headOf(ordered[i - 1]!) !== head
             return (
             <Fragment key={c.id}>
-            {showHead && <div className="md:col-span-2 lg:col-span-3 mt-3 first:mt-0"><h3 className="text-sm font-semibold text-[rgb(var(--fg-muted))]">{yy ? yy : 'Senza data'}</h3></div>}
+            {showHead && <div className="md:col-span-2 lg:col-span-3 mt-3 first:mt-0"><h3 className="text-sm font-semibold text-[rgb(var(--fg-muted))]">{head}</h3></div>}
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}>
               <button
                 type="button"

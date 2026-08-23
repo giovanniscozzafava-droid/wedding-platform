@@ -7,13 +7,14 @@ import { useBudget, useGuests, useMood, usePlaylist, useTables, useTasks, useTim
 import { useChangeRequests, useReviewChangeRequest, entityLabel } from '@/hooks/useChangeRequests'
 import { useAuth } from '@/lib/auth'
 import { eurInt } from '@/lib/money'
-import { shownTotal } from '@/lib/quoteSelection'
+import { pipelineValue } from '@/lib/quoteSelection'
 
 export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: string) => void }) {
   const eid = wedding.id
-  // Valore mostrato al PRO = ciò che il cliente ha opzionato (regola R1: selezionato
-  // se c'è, altrimenti totale pieno). Coerente con il cliente e col contratto.
-  const quoteShown = wedding.quote ? shownTotal(wedding.quote.total_client, wedding.quote.total_client_selected) : null
+  // Valore mostrato al PRO = solo l'opzionato finché il preventivo non è accettato
+  // (0 se il cliente non ha scelto nulla, così non sembra gonfio); da accettato
+  // diventa il valore reale (selezionato o pieno).
+  const quoteShown = wedding.quote ? pipelineValue(wedding.quote.status, wedding.quote.total_client, wedding.quote.total_client_selected) : null
   const { profile } = useAuth()
   // /suppliers/:id è riservata ai capostipiti/admin: per un fornitore il link
   // porterebbe a un vicolo cieco "accesso non consentito".
