@@ -1089,6 +1089,9 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
       if (error) throw error
       if ((r as any)?.error) throw new Error((r as any).error)
       await load()
+      // Rigenera il PDF così il link scaricabile riflette SOLO le voci opzionate
+      // (il pdf_url in cache, generato all'invio, elencava tutte le voci → totale gonfiato).
+      if (selQuoteId) void supabase.functions.invoke('quote-generate-pdf', { body: { quote_id: selQuoteId } }).catch(() => {})
       // Il cliente sta valutando: avvisa il professionista (notifica + email, una volta sola lato server).
       if ((decision === 'ACCETTATO' || decision === 'FORSE') && selQuoteId) {
         void supabase.functions.invoke('quote-engagement-notify', { body: { quote_id: selQuoteId } }).catch(() => {})
@@ -1126,6 +1129,8 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
         return
       }
       await load()
+      // La quantità cambia il totale delle voci accettate → rigenera il PDF scaricabile.
+      if (selQuoteId) void supabase.functions.invoke('quote-generate-pdf', { body: { quote_id: selQuoteId } }).catch(() => {})
     } catch (e) { toast.error((e as Error).message) } finally { setBusyItem(null) }
   }
 

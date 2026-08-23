@@ -237,6 +237,10 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
       const r = data as { error?: string }
       if (r?.error) throw new Error(r.error)
       onChanged()
+      // Rigenera il PDF così il link scaricabile riflette SOLO le voci opzionate:
+      // il pdf_url in cache era generato all'invio con TUTTE le voci (totale "monster").
+      void (supabase as unknown as { functions: { invoke: (f: string, o: { body: unknown }) => Promise<unknown> } })
+        .functions.invoke('quote-generate-pdf', { body: { quote_id: q.id } }).catch(() => {})
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Errore')
     } finally { setBusyId(null) }
