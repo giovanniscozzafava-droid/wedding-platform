@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { HelpModeProvider } from '@/lib/helpMode'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { CookieBanner } from '@/components/CookieBanner'
+import { UpdateBanner } from '@/components/UpdateBanner'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 
 // Eager: pagine sul critical path (auth + home pubblica + dashboard interna).
@@ -152,6 +153,7 @@ function ReteRedirect() {
 export default function App() {
   return (
     <BrowserRouter>
+      <UpdateBanner />
       <AuthProvider>
         <HelpModeProvider>
         <RouteErrorBoundary>
