@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
   const body = (await req.json().catch(() => ({}))) as {
     token?: string
     signer_name?: string
+    signer_email?: string
     signer_phone?: string
     doc_type?: 'CARTA_IDENTITA' | 'PASSAPORTO' | 'PATENTE'
     doc_number?: string
@@ -117,7 +118,27 @@ Deno.serve(async (req) => {
   if (quote.status === 'ACCETTATO' || quote.status === 'CONVERTITO_IN_CONTRATTO') {
     return json({ error: 'Preventivo già accettato. Non è possibile firmarlo una seconda volta.' }, 409)
   }
-  if (!quote.client_email) return json({ error: 'preventivo senza email cliente' }, 400)
+  // SBLOCCO CONTATTO. Il preventivo "suggerito" è blind: il professionista non vede
+  // i dati della coppia. Con la FIRMA il cliente accetta, quindi i suoi dati reali
+  // (email — già nota dal login e passata dal client — e nome) diventano visibili al
+  // professionista suggerito. Serve anche perché l'atto/le email abbiano destinatario.
+  const unlock: Record<string, string> = {}
+  if (!quote.client_email || !quote.client_email.trim()) {
+    const provided = (body.signer_email ?? '').trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(provided)) {
+      return json({ error: 'Manca l\'email del cliente: riapri il link dopo aver effettuato l\'accesso.' }, 400)
+    }
+    quote.client_email = provided
+    unlock.client_email = provided
+  }
+  const realName = (body.signer_name ?? '').trim()
+  if (realName && (!quote.client_name || !quote.client_name.trim() || quote.client_name.trim().toLowerCase() === 'cliente suggerito')) {
+    quote.client_name = realName
+    unlock.client_name = realName
+  }
+  if (Object.keys(unlock).length > 0) {
+    await admin.from('quotes').update(unlock).eq('id', quote.id)
+  }
 
   // A1: il link deve essere ancora valido. Coerente con tutte le altre RPC token
   // (quote_get_by_token, quote_accept_by_token, contract_sign_by_token): un link
@@ -469,9 +490,9 @@ async function generateAcceptancePdf(
       contentType: 'application/pdf', upsert: false,
     })
     if (up.error) return null
-    // URL di LETTURA effimero (15 min). Il PDF resta nel bucket privato; per
-    // riaprirlo in seguito va rigenerato un link on-demand (vedi NOTTE-REPORT).
-    const { data: signed } = await admin.storage.from('quote-signatures').createSignedUrl(key, 60 * 15)
+    // Atto legale: il cliente deve poterlo riscaricare a lungo dall'email. Link a
+    // LUNGA durata (5 anni). Il PDF resta comunque nel bucket privato.
+    const { data: signed } = await admin.storage.from('quote-signatures').createSignedUrl(key, 60 * 60 * 24 * 365 * 5)
     return signed?.signedUrl ?? null
   } catch { return null }
 }
@@ -507,7 +528,7 @@ async function sendEmails(admin: any, quote: any, a: any, actPdfUrl: string | nu
     bodyHtml: `<p style="margin:0 0 10px">Grazie ${esc(a.signer_name)}, abbiamo ricevuto la tua accettazione del preventivo per <strong>${totFmt}</strong>.</p>
       <p style="margin:0">${esc(wpName)} ti contatterà a breve per i prossimi passi.</p>`,
     cta: actPdfUrl ? { href: actPdfUrl, label: 'Scarica atto firmato' } : undefined,
-    contactHtml: 'Scarica subito l’atto: il link è valido per poco tempo. Salva il PDF per i tuoi atti.',
+    contactHtml: 'Conserva questo PDF: è il tuo atto di accettazione firmato. Il link resta valido a lungo, ma ti consigliamo di salvarne una copia.',
   })
 
   await sendEmail(toClient, `Accettazione preventivo confermata · ${quote.title}`, clientHtml, {

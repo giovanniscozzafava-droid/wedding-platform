@@ -71,6 +71,7 @@ function QuoteAcceptPageInner() {
   const [, setQuestionnaireDone] = useState(false)
   const [savingQ, setSavingQ] = useState(false)
   const [signerName, setSignerName] = useState('')
+  const [signerEmail, setSignerEmail] = useState('')
   const [signerPhone, setSignerPhone] = useState('')
   const [docType, setDocType] = useState<DocType>('CARTA_IDENTITA')
   const [docNumber, setDocNumber] = useState('')
@@ -137,14 +138,25 @@ function QuoteAcceptPageInner() {
           client_decision: it.client_decision ?? null,
         })))
         if (q.client_name && !signerName) setSignerName(q.client_name)
+        if (q.client_email && !signerEmail) setSignerEmail(q.client_email)
       } catch (e) { setErr((e as Error).message) }
       finally { setLoading(false) }
   }
   useEffect(() => { if (token) void load() }, [token])
+  // Email del cliente: già nota (la coppia è loggata) → precompilata dall'account,
+  // senza farla ridigitare. Il preventivo prevale se ne ha già una.
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      const email = data.user?.email
+      if (email) setSignerEmail((cur) => cur.trim() || email)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function submit() {
     if (!token) return
     if (!signerName.trim()) return toast.error('Inserisci nome e cognome')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signerEmail.trim())) return toast.error('Inserisci una email valida: serve per ricevere il preventivo firmato')
     // Codice fiscale obbligatorio solo per clienti italiani; per gli esteri basta il documento locale.
     if (!isForeign && !fiscalCode.trim()) return toast.error('Codice fiscale obbligatorio')
     if (!isForeign && !isValidCodiceFiscale(fiscalCode)) return toast.error('Il codice fiscale non è valido: controlla le 16 cifre')
@@ -158,6 +170,7 @@ function QuoteAcceptPageInner() {
         body: {
           token,
           signer_name: signerName.trim(),
+          signer_email: signerEmail.trim().toLowerCase(),
           signer_phone: signerPhone.trim() || null,
           doc_type: docType,
           doc_number: docNumber.trim(),
@@ -384,10 +397,15 @@ function QuoteAcceptPageInner() {
               <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} placeholder="Mario Rossi" />
             </div>
             <div className="space-y-1">
+              <Label>Email</Label>
+              <Input type="email" autoComplete="email" value={signerEmail} onChange={(e) => setSignerEmail(e.target.value)} placeholder="tua@email.it" />
+              <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Ci serve per inviarti il preventivo firmato e le comunicazioni.</p>
+            </div>
+            <div className="space-y-1">
               <Label>Telefono (opzionale)</Label>
               <Input type="tel" value={signerPhone} onChange={(e) => setSignerPhone(e.target.value)} placeholder="+39 333 1234567" />
             </div>
-            <Button variant="gold" className="w-full" onClick={() => setStep(2)} disabled={!signerName.trim()}>
+            <Button variant="gold" className="w-full" onClick={() => setStep(2)} disabled={!signerName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signerEmail.trim())}>
               Continua <ChevronRight size={14} />
             </Button>
           </div>
