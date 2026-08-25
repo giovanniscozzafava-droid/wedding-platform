@@ -810,7 +810,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 {!(f.album_selectable ?? true) && <Badge className="bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))] text-[10px] shrink-0">fuori selezione album</Badge>}
               </button>
               {isOwner && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center justify-end gap-1.5 min-w-0">
                   <Button variant="ghost" size="icon" title="Sposta su" disabled={busy} onClick={() => moveFolder(f, -1)}><ArrowUp size={13} /></Button>
                   <Button variant="ghost" size="icon" title="Sposta giù" disabled={busy} onClick={() => moveFolder(f, 1)}><ArrowDown size={13} /></Button>
                   {f.level !== 'INVITATI' && (
