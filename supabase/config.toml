@@ -448,3 +448,8 @@ verify_jwt = false
 
 [functions.gcal-oauth-callback]
 verify_jwt = false
+
+# Proxy immagini CORS per l'editor foto: caricato dal tag <img> (nessun header
+# possibile) e ristretto a host consentiti nel codice → verify_jwt = false.
+[functions.img-proxy]
+verify_jwt = false

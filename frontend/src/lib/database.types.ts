@@ -8037,6 +8037,7 @@ export type Database = {
           carousel_pick: boolean
           created_at: string
           drive_file_id: string
+          edited_url: string | null
           entry_id: string
           folder_id: string
           gallery_id: string
@@ -8059,6 +8060,7 @@ export type Database = {
           carousel_pick?: boolean
           created_at?: string
           drive_file_id: string
+          edited_url?: string | null
           entry_id: string
           folder_id: string
           gallery_id: string
@@ -8081,6 +8083,7 @@ export type Database = {
           carousel_pick?: boolean
           created_at?: string
           drive_file_id?: string
+          edited_url?: string | null
           entry_id?: string
           folder_id?: string
           gallery_id?: string

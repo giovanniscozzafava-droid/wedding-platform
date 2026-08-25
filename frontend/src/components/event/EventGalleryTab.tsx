@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from '@/lib/toast'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer, Crop } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
 import { MOMENTS, getMoment } from '@/lib/albumMoments'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { PhotoEditorModal } from './PhotoEditorModal'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -28,7 +29,7 @@ import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 // carica; gli sposi vedono tutto + danno il consenso; i fornitori vedono solo
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null; pick_photographer?: boolean | null; pick_couple?: boolean | null }
+type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null; pick_photographer?: boolean | null; pick_couple?: boolean | null; edited_url?: string | null }
 type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; album_selectable?: boolean; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string; share_token: string | null }
 
@@ -92,11 +93,29 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     } catch { toast.error('Momento non salvato') }
   }
   const [printPhoto, setPrintPhoto] = useState<Media | null>(null)
+  const [editPhoto, setEditPhoto] = useState<Media | null>(null)
   const [printOn, setPrintOn] = useState(false)
   // Sito personale del professionista: l'interruttore compare solo a chi ne ha uno
   // collegato, e vale per QUESTO evento — non per tutto l'archivio.
   const [siteSyncOn, setSiteSyncOn] = useState(false)
   const [siteExport, setSiteExport] = useState(false)
+
+  // Salva la versione MODIFICATA (crop/ruota/flip/raddrizza): carica il JPEG sul bucket
+  // pubblico wedding-photos e scrive edited_url. L'originale su Drive resta INTATTO;
+  // da qui in poi edited_url prevale ovunque (cartella, galleria coppia, download).
+  async function saveEdit(m: Media, blob: Blob) {
+    // Il path DEVE iniziare con l'entryId (calendar_entries.id): la RLS insert del
+    // bucket controlla split_part(name,'/',1) contro l'evento del proprietario.
+    const key = `${entryId}/edited/${m.id}-${Date.now()}.jpg`
+    const { error: upErr } = await supabase.storage.from('wedding-photos').upload(key, blob, { contentType: 'image/jpeg', upsert: true })
+    if (upErr) { toast.error('Non sono riuscito a caricare la modifica'); throw upErr }
+    const url = supabase.storage.from('wedding-photos').getPublicUrl(key).data.publicUrl
+    const { error: dbErr } = await supabase.from('gallery_media').update({ edited_url: url }).eq('id', m.id)
+    if (dbErr) { toast.error('Modifica caricata ma non salvata'); throw dbErr }
+    setFolders((fs) => fs.map((fo) => ({ ...fo, gallery_media: fo.gallery_media.map((x) => x.id === m.id ? { ...x, edited_url: url } : x) })))
+    setBox((b) => b ? { ...b, list: b.list.map((x) => x.id === m.id ? { ...x, edited_url: url } : x) } : b)
+    toast.success('Modifica applicata a questa foto')
+  }
 
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
@@ -162,7 +181,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const media: any[] = []
     for (let from = 0; ; from += 1000) {
       const { data: page, error } = await (supabase.from as any)('gallery_media')
-        .select('id, folder_id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, album_moment, uploaded_by, uploader_name, guest_tags, no_minors, pick_photographer, pick_couple')
+        .select('id, folder_id, thumbnail_link, drive_file_id, media_type, guest_tag_name, price_cents, album_choice, album_moment, uploaded_by, uploader_name, guest_tags, no_minors, pick_photographer, pick_couple, edited_url')
         .eq('entry_id', entryId).order('id').range(from, from + 999)
       if (error || !page?.length) break
       media.push(...page)
@@ -207,8 +226,14 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
   // un media è su Drive vero (non demo Pexels) → URL pubblici per anteprima/intero/download
   const isDrive = (m: Media) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:')
-  const fullSrc = (m: Media) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w2000` : (m.thumbnail_link ?? ''))
-  const origUrl = (m: Media) => (isDrive(m) ? `https://drive.google.com/uc?export=download&id=${m.drive_file_id}` : (m.thumbnail_link ?? ''))
+  // Se esiste una versione MODIFICATA (crop/ruota/flip) esportata dal fotografo,
+  // prevale ovunque (anteprima e download); l'originale Drive resta il backup.
+  const fullSrc = (m: Media) => (m.edited_url ?? (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w2000` : (m.thumbnail_link ?? '')))
+  const origUrl = (m: Media) => (m.edited_url ?? (isDrive(m) ? `https://drive.google.com/uc?export=download&id=${m.drive_file_id}` : (m.thumbnail_link ?? '')))
+  // URL per l'editor: passa dal proxy CORS così il canvas può leggere le immagini Drive.
+  const editorSrc = (m: Media) => `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/img-proxy?url=${encodeURIComponent(m.edited_url ?? fullSrc(m))}`
+  // Miniatura di griglia: se c'è la versione modificata prevale anche qui.
+  const gridThumb = (m: Media) => m.edited_url ?? m.thumbnail_link ?? ''
 
   // scarica: prova blob (per forzare il download), fallback ad aprire l'URL (Drive
   // serve l'originale come allegato comunque). I byte NON passano da Planfully.
@@ -830,7 +855,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                     className="group relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] cursor-zoom-in" style={{ aspectRatio: '4/3' }}>
                     {m.media_type === 'VIDEO' && !isDrive(m)
                       ? <video src={m.thumbnail_link ?? ''} muted preload="metadata" className="w-full h-full object-cover" />
-                      : m.thumbnail_link && <img src={m.thumbnail_link} alt={m.guest_tag_name ?? ''} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />}
+                      : gridThumb(m) && <img src={gridThumb(m)} alt={m.guest_tag_name ?? ''} className="w-full h-full object-cover transition group-hover:scale-105" loading="lazy" />}
                     <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition">
                       {m.media_type === 'VIDEO'
                         ? <Play size={20} className="text-white opacity-80 fill-white" />
@@ -863,7 +888,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                         className="relative rounded-md overflow-hidden bg-[rgb(var(--bg-sunken))] cursor-zoom-in" style={{ aspectRatio: '1' }}>
                         {m.media_type === 'VIDEO' && !isDrive(m)
                           ? <video src={m.thumbnail_link ?? ''} muted preload="metadata" className="w-full h-full object-cover" />
-                          : m.thumbnail_link && <img src={m.thumbnail_link} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                          : gridThumb(m) && <img src={gridThumb(m)} alt="" className="w-full h-full object-cover" loading="lazy" />}
                         {m.media_type === 'VIDEO' && <span className="absolute inset-0 grid place-items-center"><Play size={16} className="text-white/90 fill-white" /></span>}
                       </button>
                     ))}
@@ -958,6 +983,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                     const a = document.createElement('a'); a.href = url; a.download = `${base}-web.jpg`; a.click(); URL.revokeObjectURL(url)
                   } catch { toast.error('Download non riuscito') }
                 }}><Download size={14} /> Web</Button>
+                {isOwner && m.media_type !== 'VIDEO' && <Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" onClick={() => setEditPhoto(m)} title="Modifica: messa in quadro, ruota, specchia, ritaglia"><Crop size={14} /> Modifica</Button>}
                 {m.media_type !== 'VIDEO' && printOn && <Button variant="gold" size="sm" onClick={() => setPrintPhoto(m)} title="Ordina una stampa di questa foto"><Printer size={14} /> Stampa</Button>}
                 {role === 'sposi' && <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione — riservato agli sposi"><Download size={14} /> Originale</Button>}
                 {m.uploaded_by && (isOwner || role === 'sposi') && (
@@ -1013,6 +1039,15 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
       <PrintOrderSheet open={!!printPhoto} onClose={() => setPrintPhoto(null)} entryId={entryId}
         photo={printPhoto ? { driveId: printPhoto.drive_file_id, thumb: printPhoto.thumbnail_link } : undefined} />
+
+      {editPhoto && (
+        <PhotoEditorModal
+          src={editorSrc(editPhoto)}
+          title={editPhoto.guest_tag_name ?? 'Modifica foto'}
+          onClose={() => setEditPhoto(null)}
+          onSave={(blob) => saveEdit(editPhoto, blob)}
+        />
+      )}
     </div>
   )
 }
