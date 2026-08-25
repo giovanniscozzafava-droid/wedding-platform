@@ -107,7 +107,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     // Il path DEVE iniziare con l'entryId (calendar_entries.id): la RLS insert del
     // bucket controlla split_part(name,'/',1) contro l'evento del proprietario.
     const key = `${entryId}/edited/${m.id}-${Date.now()}.jpg`
-    const { error: upErr } = await supabase.storage.from('wedding-photos').upload(key, blob, { contentType: 'image/jpeg', upsert: true })
+    const { error: upErr } = await supabase.storage.from('wedding-photos').upload(key, blob, { contentType: 'image/jpeg', upsert: false })
     if (upErr) { toast.error('Non sono riuscito a caricare la modifica'); throw upErr }
     const url = supabase.storage.from('wedding-photos').getPublicUrl(key).data.publicUrl
     const { error: dbErr } = await supabase.from('gallery_media').update({ edited_url: url }).eq('id', m.id)
