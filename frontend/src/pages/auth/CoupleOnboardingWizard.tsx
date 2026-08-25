@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
@@ -392,7 +392,7 @@ export function CoupleOnboardingWizard() {
                 {step === 4 && (
                   <>
                     <h2 className="font-display text-xl mb-2 flex items-center gap-2">
-                      <Sparkles size={20} className="text-[rgb(var(--gold-500))]" /> Tutto pronto
+                       Tutto pronto
                     </h2>
                     <p className="text-sm text-[rgb(var(--fg-muted))]">
                       Riepilogo {term.ofIt}:

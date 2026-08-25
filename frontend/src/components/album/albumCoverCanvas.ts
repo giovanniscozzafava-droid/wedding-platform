@@ -51,6 +51,13 @@ export class CoverCanvas {
     return null
   }
 
+  // Marchio ufficiale, nella variante leggibile sul fondo: inchiostro su chiaro,
+  // carta su scuro. Passa dalla cache di img(), quindi la copertina si ridipinge
+  // da sola appena il file e' caricato.
+  private logoPlanfully(fondoChiaro: boolean): HTMLImageElement | null {
+    return this.img(fondoChiaro ? '/brand/planfully-symbol.png' : '/brand/planfully-symbol-light.png')
+  }
+
   setAspect(aspect: number) {
     const a = Math.max(0.5, Math.min(2, aspect))
     if (Math.abs(a - this.aspect) < 0.001 && this.canvas.width) return
@@ -114,7 +121,7 @@ export class CoverCanvas {
     if (fin.includes('iniziali')) brassInitials(ctx, W, H, initialsOf(cover.title))
     if (fin.includes('swarovski') && layout !== 'oblique' && !layout.startsWith('swarovski')) crystalLine(ctx, W * 0.18, H * 0.8, W * 0.82, H * 0.8)
     if (fin.includes('targhetta')) plaque(ctx, W / 2, H * 0.86, W * 0.3, H * 0.09, false, '')
-    if (fin.includes('logo')) logoMark(ctx, W / 2, H * 0.92, H * 0.05, inkSoft)
+    if (fin.includes('logo')) logoMark(ctx, W / 2, H * 0.92, H * 0.05, this.logoPlanfully(light))
     if (fin.includes('data')) smallCaps(ctx, new Date().getFullYear().toString(), W / 2, H * 0.935, H * 0.028, inkSoft)
     drawBorder(ctx, W, H, cover.borderKey ?? 'none', cover.accentColor || (light ? '#8a6a35' : '#ead8b5'))
 
@@ -173,7 +180,7 @@ export class CoverCanvas {
       case 'plate': { // placca metallo centrale (Rimboccato/Adel/Almond-base)
         if (customText) break
         plaque(ctx, W / 2, H * 0.5, W * 0.32, H * 0.18, decoro === 'ottone', '')
-        logoMark(ctx, W / 2, H * 0.5, H * 0.045, 'rgba(20,22,26,0.6)')
+        logoMark(ctx, W / 2, H * 0.5, H * 0.045, this.logoPlanfully(true))
         if (o.names) script(ctx, o.names, W / 2, H * 0.74, H * 0.055, o.ink)
         break
       }
@@ -489,10 +496,16 @@ function metallicInitials(ctx: CanvasRenderingContext2D, text: string, cx: numbe
   ctx.fillText(text, cx, cy)
   ctx.restore()
 }
-function logoMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string) {
-  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.2, r * 0.12)
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke()
-  ctx.beginPath(); ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore()
+// Logo Planfully, quello vero. Qui prima c'erano due cerchi concentrici disegnati a
+// mano: un glifo di ripiego che sulla copertina di un album faceva le veci del marchio.
+// Sugli artefatti Planfully va sempre e solo il logo originale; se l'immagine non e'
+// ancora pronta non si disegna nulla e si ridipinge al load (mai un sostituto).
+function logoMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, logo: HTMLImageElement | null) {
+  if (!logo) return
+  const lato = r * 2
+  ctx.save()
+  ctx.drawImage(logo, cx - lato / 2, cy - lato / 2, lato, lato)
+  ctx.restore()
 }
 function engraved(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, size: number, light: boolean) {
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { Search, MapPin, Heart, Camera, Building2, Briefcase, Sparkles, ArrowRight } from 'lucide-react'
+import { Search, MapPin, Heart, Camera, Building2, Briefcase, ArrowRight, Eye } from 'lucide-react'
 import { Input, Select } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -110,7 +110,7 @@ export default function PublicHomePage() {
         <div className="relative z-10 max-w-4xl mx-auto px-6 sm:px-10 py-24 text-center w-full">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <p className="text-xs uppercase tracking-[0.35em] mb-4" style={{ color: 'rgb(var(--gold-300, 230 200 120))' }}>
-              <Sparkles size={12} className="inline mr-1" /> Il portale dei professionisti degli eventi
+               Il portale dei professionisti degli eventi
             </p>
             <h1 className="font-display text-4xl sm:text-6xl tracking-tight leading-[1.05] text-white mb-5">
               Trova chi organizza<br />il tuo evento.
@@ -258,7 +258,7 @@ export default function PublicHomePage() {
             <div className="grid grid-cols-2 gap-3">
               <FeatureCard icon={Camera} title="Mostra i tuoi lavori" copy="Foto, articoli, storie di eventi reali." />
               <FeatureCard icon={Heart} title="Costruisci la tua rete" copy="Invita i fornitori che già conosci." />
-              <FeatureCard icon={Sparkles} title="Fatti scoprire" copy="Algoritmo trending stile social." />
+              <FeatureCard icon={Eye} title="Fatti scoprire" copy="Algoritmo trending stile social." />
               <FeatureCard icon={Briefcase} title="Ricevi clienti" copy="Lead diretti dal portale pubblico." />
             </div>
           </div>

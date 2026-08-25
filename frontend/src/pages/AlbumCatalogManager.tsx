@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ChevronLeft, Upload, Save, FileText, Loader2, Sparkles, Plus, Trash2, ImagePlus, Sliders, MapPin, MessageSquare, CheckCircle2, X } from 'lucide-react'
+import { ChevronLeft, Upload, Save, FileText, Loader2, Plus, Trash2, ImagePlus, Sliders, MapPin, MessageSquare, CheckCircle2, X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -200,13 +200,13 @@ export default function AlbumCatalogManager() {
           {(nModels > 0 || catalogs.length > 0) && (
             <div className="flex gap-2 flex-wrap">
               {selCatalog && <Button variant="gold" onClick={interpretPdf} disabled={busy} title="L'AI legge tutto il PDF e crea i modelli da zero: riquadri cliccabili + prezzo + materiali/colori/logo/foto, con le intersezioni. Tu controlli e salvi.">
-                {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Interpreta catalogo (AI)
+                {busy ? <Loader2 size={16} className="animate-spin" /> : null} Interpreta catalogo (AI)
               </Button>}
               {selCatalog && <Button variant="outline" onClick={readCosts} disabled={busy} title="L'AI legge solo i COSTI dal PDF selezionato">
-                {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Leggi costi (AI)
+                {busy ? <Loader2 size={16} className="animate-spin" /> : null} Leggi costi (AI)
               </Button>}
               <label className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-xl border border-[rgb(var(--border))] cursor-pointer hover:border-[rgb(var(--gold-300))] ${busy ? 'opacity-50 pointer-events-none' : ''}`} title="Carica il tuo listino PREZZI DI VENDITA (PDF): l'AI li associa ai modelli. Margine = prezzo − costo.">
-                <Sparkles size={16} /> Prezzi vendita (AI)
+                 Prezzi vendita (AI)
                 <input type="file" accept="application/pdf" className="hidden" onChange={readSellingPrices} disabled={busy} />
               </label>
               <Button onClick={onSave} disabled={busy || !dirty}>

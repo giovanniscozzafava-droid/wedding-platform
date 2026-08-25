@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Heart, Sparkles, UserPlus, X, Loader2, Mail, Plus } from 'lucide-react'
+import { Check, UserPlus, X, Loader2, Mail, Plus, CircleDashed } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -221,10 +221,10 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
               <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: N * 0.04 }}
                 className="inline-flex h-12 w-12 items-center justify-center rounded-full"
                 style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-                <Heart size={22} className="fill-[rgb(var(--gold-600))]" />
+                <Check size={22} strokeWidth={2.4} />
               </motion.span>
             ) : (
-              <Heart size={22} style={{ color: 'rgb(var(--fg-subtle))' }} />
+              <CircleDashed size={22} style={{ color: 'rgb(var(--fg-subtle))' }} />
             )}
           </div>
         </div>
@@ -234,7 +234,7 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
           {ring.closed ? (
             <div className="mb-3">
               <h3 className="font-display text-lg flex items-center gap-2" style={{ color: 'rgb(var(--gold-700))' }}>
-                <Sparkles size={18} /> Il cerchio si è chiuso
+                 Il cerchio si è chiuso
               </h3>
               <p className="text-sm text-[rgb(var(--fg-muted))]">
                 {view === 'sposi' ? 'La tua squadra è al completo.' : 'Una rete, un evento completo.'}
@@ -251,7 +251,7 @@ export function EventRing({ entryId, view }: { entryId: string; view: 'capostipi
               {ring.wp.map((w, i) => (
                 <div key={`${w.name}-${i}`} className="flex items-center gap-2 text-sm">
                   <span className="inline-flex h-4 w-4 items-center justify-center rounded-full shrink-0" style={{ background: 'rgb(var(--gold-600))' }}>
-                    <Sparkles size={10} className="text-white" />
+                    <Check size={10} className="text-white" />
                   </span>
                   <span className="font-medium truncate">{w.name}</span>
                   <span className="text-[11px] text-[rgb(var(--fg-subtle))] shrink-0">· {wpRoleLabel(w.role)}</span>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, Sparkles, CalendarClock, Star, Check, Wallet, Lock, ImagePlus } from 'lucide-react'
+import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, CalendarClock, Star, Check, Wallet, Lock, ImagePlus } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -599,7 +599,7 @@ export function MenuTab({ entryId, readOnly = false }: { entryId: string; readOn
           <div className="surface surface-elev max-w-4xl w-full max-h-[90vh] flex flex-col rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
               <div>
-                <h3 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} /> Catalogo offerte</h3>
+                <h3 className="font-display text-xl flex items-center gap-2"> Catalogo offerte</h3>
                 <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
                   {filteredPresets.length} stazioni tipiche italiane (isole, show cooking, carrelli). Click "Importa" per aggiungere al tuo menu — modificabile dopo.
                 </p>

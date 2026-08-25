@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Wallet, TrendingUp, TrendingDown, Plus, Trash2, Target, Sparkles, Rocket,
-  Compass, BarChart3, BookOpen, CheckCircle2, Circle, Flag, Users, Repeat, Megaphone, Zap,
-} from 'lucide-react'
+import { Wallet, TrendingUp, TrendingDown, Plus, Trash2, Target, Rocket, Compass, BarChart3, BookOpen, CheckCircle2, Circle, Flag, Users, Repeat, Megaphone, Zap } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -75,7 +72,7 @@ export default function AdminFinancePage() {
   const TABS: Array<{ k: Tab; label: string; icon: typeof Wallet }> = [
     { k: 'panoramica', label: 'Panoramica', icon: BarChart3 },
     { k: 'stadio', label: 'Stadio & Roadmap', icon: Compass },
-    { k: 'strategia', label: 'Strategia', icon: Sparkles },
+    { k: 'strategia', label: 'Strategia', icon: Compass },
     { k: 'conti', label: 'Costi & Entrate', icon: Wallet },
     { k: 'report', label: 'Report', icon: TrendingUp },
   ]
@@ -341,7 +338,7 @@ function Strategia({ M, ov }: { M: Metrics; ov: Overview }) {
       </div>
 
       <Card className="p-5">
-        <h2 className="font-display text-lg mb-1 flex items-center gap-2"><Sparkles size={18} className="text-[rgb(var(--gold-600))]" /> Simulatore di budget</h2>
+        <h2 className="font-display text-lg mb-1 flex items-center gap-2"> Simulatore di budget</h2>
         <p className="text-xs text-[rgb(var(--fg-subtle))] mb-4">Ragiona in soldi: una base di abbonamenti <strong>mista</strong> (chi 29, chi 59, chi 79 — prezzi modificabili) più le <strong>percentuali sui matrimoni</strong>.</p>
 
         <p className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))] mb-2">1 · Abbonamenti (mix)</p>

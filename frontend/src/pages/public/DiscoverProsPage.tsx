@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { Search, MapPin, ArrowLeft, Briefcase, Users, Sparkles } from 'lucide-react'
+import { Search, MapPin, ArrowLeft, Briefcase, Users } from 'lucide-react'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 
@@ -73,7 +73,7 @@ export default function DiscoverProsPage() {
             <ArrowLeft size={14} /> Indietro
           </button>
           <p className="text-xs uppercase tracking-[0.25em] mb-3" style={{ color: 'rgb(var(--gold-600))' }}>
-            <Sparkles size={12} className="inline mr-1" /> Professionisti
+            Professionisti
           </p>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-tight mb-3">
             Wedding planner, location ed event planner italiani.

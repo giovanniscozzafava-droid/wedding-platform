@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutGrid, Square, RectangleVertical, Smartphone, Shuffle, Download, FileDown, Trash2, Sparkles, Type } from 'lucide-react'
+import { LayoutGrid, Square, RectangleVertical, Smartphone, Shuffle, Download, FileDown, Trash2, Type } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 
@@ -145,7 +145,7 @@ export function MoodBoardStudio({ entryId, images, title, dateText, location, br
 
   const Toolbar = (
     <div className="flex flex-wrap items-center gap-2 mb-3">
-      <span className="text-xs font-medium text-[rgb(var(--fg-muted))] inline-flex items-center gap-1"><Sparkles size={13} /> Stile:</span>
+      <span className="text-xs font-medium text-[rgb(var(--fg-muted))] inline-flex items-center gap-1"> Stile:</span>
       {PRESETS.map((p) => (
         <button key={p.key} onClick={() => setPreset(p.key)}
           className={`text-xs px-2.5 py-1 rounded-full border ${preset === p.key ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] border-transparent' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>{p.label}</button>

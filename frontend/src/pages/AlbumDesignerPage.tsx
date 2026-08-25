@@ -3,7 +3,7 @@ import HTMLFlipBook from 'react-pageflip'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ArrowLeft, Wand2, Sparkles, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X, FlipHorizontal2, FlipVertical2, BadgeEuro, Snowflake, ListChecks } from 'lucide-react'
+import { ArrowLeft, Wand2, Save, Plus, Trash2, ChevronLeft, ChevronRight, Heart, Loader2, LayoutGrid, FileImage, FileText, X, FlipHorizontal2, FlipVertical2, BadgeEuro, Snowflake, ListChecks } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -3327,7 +3327,7 @@ function AlbumDesignerInner() {
           {!lite && !isCouple && kept.length >= 2 && (
             <div className="mb-4 flex items-center justify-between gap-3 flex-wrap rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-100))] px-4 py-3">
               <p className="text-sm text-[rgb(var(--fg))]">Hai <strong>{kept.length}</strong> foto selezionate. Lascia impaginare l'album all'AI: guarda le foto, le raggruppa in tavole e sceglie il ritaglio.</p>
-              <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)}>{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>
+              <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)}>{aiBusy ? <Loader2 size={14} className="animate-spin" /> : null} Impagina con AI</Button>
             </div>
           )}
           <SelectStep
@@ -3361,10 +3361,10 @@ function AlbumDesignerInner() {
             {lite && <span className="text-[11px] px-2 py-1 rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]">Versione cliente · sposta/cambia le foto e scrivi le modifiche</span>}
 
             {/* GENERA: azione principale + assistenti AI */}
-            {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Impagina con AI</Button>}
+            {!lite && <Button variant="gold" size="sm" disabled={busy || aiBusy} onClick={() => setAiPick(true)} title="L'AI guarda le foto, capisce i momenti, le raggruppa in tavole, sceglie la sequenza e il ritaglio giusto — al posto tuo, seguendo il tuo stile">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : null} Impagina con AI</Button>}
             {!lite && (
               <div className="inline-flex items-center gap-0.5 rounded-lg border border-[rgb(var(--border))] p-0.5">
-                <Button variant="ghost" size="sm" disabled={busy || aiBusy || curateBusy} onClick={() => void aiCurate()} title="Troppe foto o momenti ripetuti? L'AI cura la selezione: taglia doppioni e ripetizioni, tiene il meglio del racconto con più respiro. Poi rivedi e applichi.">{curateBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} AI seleziona</Button>
+                <Button variant="ghost" size="sm" disabled={busy || aiBusy || curateBusy} onClick={() => void aiCurate()} title="Troppe foto o momenti ripetuti? L'AI cura la selezione: taglia doppioni e ripetizioni, tiene il meglio del racconto con più respiro. Poi rivedi e applichi.">{curateBusy ? <Loader2 size={14} className="animate-spin" /> : null} AI seleziona</Button>
                 <Button variant="ghost" size="sm" disabled={busy || aiBusy} onClick={() => setPages(autoLayout(placeableKept.map((m) => ({ id: m.id, moment: m.album_moment })), format).pages)} title="Impaginazione automatica veloce (senza AI): raggruppa per momento"><Wand2 size={14} /> Auto rapida</Button>
                 <Button variant="ghost" size="sm" disabled={busy || qualityBusy} onClick={() => void rankQuality()} title="L'AI valuta la qualità TECNICA di stampa di ogni foto (esposizione, neri chiusi, alte luci, fuoco/mosso, rumore) e dà un voto 0-100 con il perché e cosa fare">{qualityBusy ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />} Valuta qualità</Button>
                 {Object.keys(qualityScores).length > 0 && <Button variant="ghost" size="sm" onClick={() => setQualityOpen(true)} title="Riapri il report qualità di stampa"><FileText size={14} /> Report</Button>}
@@ -3971,7 +3971,7 @@ function AlbumDesignerInner() {
                   {AI_STYLES.map((s) => (
                     <button key={s.key} onClick={() => setAiStyle(s.key)}
                       className={`rounded-xl border p-2.5 text-left transition-colors ${aiStyle === s.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:border-[rgb(var(--gold-400))]'}`}>
-                      <div className="flex items-center gap-2 text-sm font-medium">{aiStyle === s.key ? <Check size={14} className="text-[rgb(var(--gold-600))]" /> : <Sparkles size={14} className="text-[rgb(var(--gold-600))]" />} {s.label}</div>
+                      <div className="flex items-center gap-2 text-sm font-medium">{aiStyle === s.key ? <Check size={14} className="text-[rgb(var(--gold-600))]" /> : null} {s.label}</div>
                       <p className="mt-0.5 text-[11px] text-[rgb(var(--fg-muted))]">{s.desc}</p>
                     </button>
                   ))}
@@ -4028,7 +4028,7 @@ function AlbumDesignerInner() {
 
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setAiPick(false)}>Annulla</Button>
-                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat, maxPages: aiMaxPages, autoSelect: aiAutoSelect, groupShots: aiGroupShots }) }}><Sparkles size={14} /> Impagina</Button>
+                  <Button variant="gold" size="sm" onClick={() => { setAiPick(false); void aiLayout({ style: aiStyle, maxPerSpread: aiMaxPer || undefined, groupBw: aiGroupBw, heroDouble: aiHeroDouble, doublePct: aiDoublePct, fullPct: aiFullPct, respectFormat: aiRespectFormat, maxPages: aiMaxPages, autoSelect: aiAutoSelect, groupShots: aiGroupShots }) }}> Impagina</Button>
                 </div>
               </div>
             </div>
@@ -4222,7 +4222,7 @@ function AlbumDesignerInner() {
           {curateProg && (
             <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4">
               <div className="w-[min(92vw,380px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl">
-                <div className="flex items-center gap-2"><Sparkles size={16} className="animate-pulse text-[rgb(var(--gold-600))]" /> <p className="font-display text-base">AI seleziona…</p></div>
+                <div className="flex items-center gap-2"> <p className="font-display text-base">AI seleziona…</p></div>
                 <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">{curateProg.phase ?? 'Analizzo la selezione…'} <span className="tabular-nums">{curateProg.done}/{curateProg.total}</span></p>
                 <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
                   <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${Math.round((curateProg.done / Math.max(1, curateProg.total)) * 100)}%` }} />
@@ -5277,7 +5277,7 @@ function AiThinkingOverlay({ thumbs, progress, onCancel }: { thumbs: string[]; p
       <div className="w-[min(92vw,420px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-6 text-center shadow-2xl">
         <div className="relative mx-auto mb-4 h-16 w-16">
           <div className="absolute inset-0 animate-spin rounded-full border-2 border-[rgb(var(--gold-400))]/30 border-t-[rgb(var(--gold-500))]" />
-          <div className="absolute inset-0 flex items-center justify-center"><Sparkles size={26} className="animate-pulse text-[rgb(var(--gold-600))]" /></div>
+          <div className="absolute inset-0 flex items-center justify-center"></div>
         </div>
         <p className="font-display text-base font-semibold">L'AI sta ragionando…</p>
         <p className="mt-1 min-h-[20px] text-sm text-[rgb(var(--fg-muted))]">{progress?.phase ?? MSGS[mi]}</p>
@@ -5492,7 +5492,7 @@ function PropsPanel(props: {
           {!lite && (
             <div className="flex flex-col gap-1.5 mb-2">
               <Button variant="gold" size="sm" className="w-full" onClick={onSaveLayout}><Save size={14} /> Salva questa disposizione come preset</Button>
-              {isCurator && onSaveShared && <Button variant="outline" size="sm" className="w-full" onClick={onSaveShared}><Sparkles size={13} /> Salva nella libreria (tutti)</Button>}
+              {isCurator && onSaveShared && <Button variant="outline" size="sm" className="w-full" onClick={onSaveShared}> Salva nella libreria (tutti)</Button>}
             </div>
           )}
           {savedLayouts.length === 0
@@ -5709,7 +5709,7 @@ function FreePanel(props: {
             <Button variant="outline" size="sm" className="text-rose-500" onClick={onDelPage}><Trash2 size={13} /> Elimina</Button>
           </div>
           {onSaveLayout && <Button variant="gold" size="sm" className="w-full" onClick={onSaveLayout}><Save size={13} /> Salva questa composizione come preset</Button>}
-          {isCurator && onSaveShared && <Button variant="outline" size="sm" className="w-full" onClick={onSaveShared}><Sparkles size={13} /> Salva nella libreria (tutti)</Button>}
+          {isCurator && onSaveShared && <Button variant="outline" size="sm" className="w-full" onClick={onSaveShared}> Salva nella libreria (tutti)</Button>}
         </div>
       )}
       {/* NAVIGATORE DI RITAGLIO inline (sotto i pulsanti): clic sulla foto → ritagli qui */}

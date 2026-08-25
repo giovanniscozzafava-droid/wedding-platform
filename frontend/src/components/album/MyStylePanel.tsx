@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Upload, Loader2, Sparkles, Trash2, X, Plus } from 'lucide-react'
+import { Upload, Loader2, Trash2, X, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Card } from '@/components/ui/card'
@@ -118,7 +118,7 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
         {pdfs.map((p) => (
           <div key={p.id} className="group relative overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))]">
             <div className="aspect-[4/3] w-full overflow-hidden bg-white">
-              {p.thumb ? <img src={p.thumb} alt="" className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-[rgb(var(--fg-subtle))]"><Sparkles size={20} /></div>}
+              {p.thumb ? <img src={p.thumb} alt="" className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-[rgb(var(--fg-subtle))]"></div>}
             </div>
             <div className="flex items-center justify-between gap-1 px-2 py-1.5">
               <div className="min-w-0"><p className="truncate text-xs font-medium">{p.name}</p><p className="text-[10px] text-[rgb(var(--fg-muted))]">{p.samples} tavole</p></div>
@@ -139,7 +139,7 @@ export function MyStylePanel({ onClose }: { onClose?: () => void }) {
 
       {profile && (
         <Card className="mt-4 p-4">
-          <p className="mb-3 flex items-center gap-2 font-medium"><Sparkles size={16} className="text-[rgb(var(--gold-600))]" /> Stile medio su {pdfs.length} album <span className="text-xs text-[rgb(var(--emerald-600))]">· salvato</span></p>
+          <p className="mb-3 flex items-center gap-2 font-medium"> Stile medio su {pdfs.length} album <span className="text-xs text-[rgb(var(--emerald-600))]">· salvato</span></p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[['Tavole lette', profile.samples], ['Media foto/tavola', profile.avgPhotos], ['Doppia pagina', `${profile.fullbleedPct}%`], ['Bianco e nero', `${profile.bwPct}%`]].map(([k, v]) => (
               <div key={String(k)} className="rounded-lg bg-[rgb(var(--bg-sunken))] p-3"><p className="font-display text-xl">{String(v)}</p><p className="text-[11px] text-[rgb(var(--fg-muted))]">{k}</p></div>

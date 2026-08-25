@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import {
-  FileText, FileSignature, Calendar, MapPin, Package, CheckCircle2, Clock,
-  CalendarClock, ListMusic, ExternalLink, Sparkles, CreditCard,
-} from 'lucide-react'
+import { FileText, FileSignature, Calendar, MapPin, Package, CheckCircle2, Clock, CalendarClock, ListMusic, ExternalLink, CreditCard } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
@@ -301,7 +298,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
         <div className="mt-3 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: accent }}>
-              <Sparkles size={13} /> Le voci del preventivo
+               Le voci del preventivo
             </p>
             {pending.length > 0 && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: '#d97706', background: '#d977061a' }}>
@@ -365,7 +362,7 @@ function QuoteCard({ q, accent, onChanged }: { q: Quote; accent: string; onChang
       {!isLive && q.status === 'INVIATO' && items.length > 0 && (
         <div className="mt-3 rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
           <p className="text-xs font-semibold inline-flex items-center gap-1.5 mb-2" style={{ color: accent }}>
-            <Sparkles size={13} /> L'offerta
+            L'offerta
           </p>
           <div className="space-y-2.5">
             {grouped.map((grp) => (

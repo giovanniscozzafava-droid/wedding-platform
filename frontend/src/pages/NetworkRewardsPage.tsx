@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Gift, Copy, Sparkles, TrendingUp, Users, Wallet, Award, Check, Share2, Trophy } from 'lucide-react'
+import { Gift, Copy, TrendingUp, Users, Wallet, Award, Check, Share2, Trophy } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -157,7 +157,7 @@ export default function NetworkRewardsPage() {
                 <Trophy size={11} className="inline mr-1" /> {tierMeta.label} · {stats.tier.percentage}%
               </Badge>
               {stats.tier.is_founding && (
-                <Badge tone="gold"><Sparkles size={11} className="inline mr-1" /> Founding Member</Badge>
+                <Badge tone="gold"> Founding Member</Badge>
               )}
             </div>
             <p className="text-sm text-[rgb(var(--fg-muted))] mb-4">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Globe, ExternalLink, Eye, EyeOff, Plane, Sparkles, ImagePlus, Trash2 } from 'lucide-react'
+import { Globe, ExternalLink, Eye, EyeOff, Plane, ImagePlus, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -186,7 +186,7 @@ export function WebsiteTab({ wedding }: { wedding: any }) {
           </div>
 
           <div className="pt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-            <h4 className="font-medium mb-2 flex items-center gap-1"><Sparkles size={14} /> Luna di miele</h4>
+            <h4 className="font-medium mb-2 flex items-center gap-1"> Luna di miele</h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <Input placeholder="Destinazione" value={honeyDest} onChange={(e) => setHoneyDest(e.target.value)} />
               <Input type="date" value={honeyStart} onChange={(e) => setHoneyStart(e.target.value)} />

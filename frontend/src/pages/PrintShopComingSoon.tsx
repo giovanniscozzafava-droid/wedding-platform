@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Image, Frame, Palette, LayoutPanelTop, ShoppingBag, Crop, Truck, Award, Clock3, ArrowLeft, Sparkles } from 'lucide-react'
+import { Image, Frame, Palette, LayoutPanelTop, ShoppingBag, Crop, Truck, Award, Clock3, ArrowLeft } from 'lucide-react'
 
 // Vetrina "Prossimamente" del Negozio Stampe (PRP-4). NON è il modulo commerciale (niente Stripe,
 // ordini, prezzi): è una presentazione da mostrare ai clienti finché il modulo vero è dietro il gate.
@@ -28,7 +28,7 @@ export default function PrintShopComingSoon() {
 
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="text-center max-w-2xl mx-auto">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider px-3 py-1 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-            <Sparkles size={12} /> Novità
+            Novità
           </span>
           <h1 className="font-display text-4xl sm:text-5xl mt-4 leading-tight">Le tue foto, stampe d&rsquo;autore</h1>
           <p className="text-[rgb(var(--fg-muted))] mt-4 text-lg">
@@ -70,7 +70,7 @@ export default function PrintShopComingSoon() {
         <div className="surface rounded-2xl p-6 mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-[rgb(var(--fg-muted))]">
           <span className="inline-flex items-center gap-2"><Award size={16} className="text-[rgb(var(--gold-600))]" /> Carte e materiali da galleria</span>
           <span className="inline-flex items-center gap-2"><Clock3 size={16} className="text-[rgb(var(--gold-600))]" /> Colori garantiti nel tempo</span>
-          <span className="inline-flex items-center gap-2"><Sparkles size={16} className="text-[rgb(var(--gold-600))]" /> Anteprima fedele prima di ordinare</span>
+          <span className="inline-flex items-center gap-2"> Anteprima fedele prima di ordinare</span>
         </div>
 
         <p className="text-center text-sm text-[rgb(var(--fg-muted))] mt-10">

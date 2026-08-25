@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Trash2, Save, Calculator, TrendingUp, Flower2, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Save, Calculator, TrendingUp, Flower2 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -310,7 +310,7 @@ export default function CompositionCalculatorPage() {
           <div className="flex items-center gap-2 mb-3">
             <Flower2 size={18} className="text-[rgb(var(--gold-600))]" />
             <h2 className="font-medium flex-1">{borsaLabel}</h2>
-            <Button size="sm" variant="ghost" onClick={() => void loadBorsaStarter()}><Sparkles size={13} className="mr-1" /> Borsa di partenza</Button>
+            <Button size="sm" variant="ghost" onClick={() => void loadBorsaStarter()}> Borsa di partenza</Button>
             <Button size="sm" variant="outline" onClick={() => void addIngredient()}><Plus size={13} className="mr-1" /> Voce</Button>
           </div>
           <p className="text-xs text-[rgb(var(--fg-subtle))] mb-3">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Search, MapPin, Users, Sparkles, Briefcase, BadgeCheck, Check, Send, Gift } from 'lucide-react'
+import { ArrowLeft, Search, MapPin, Users, Briefcase, BadgeCheck, Check, Send, Gift } from 'lucide-react'
 import { StarsBadge } from '@/components/social/StarsBadge'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
@@ -97,7 +97,7 @@ export default function DiscoverPage() {
             </div>
           )}
           <p className="text-xs uppercase tracking-[0.25em] mb-3 text-[rgb(var(--gold-600))]">
-            <Sparkles size={12} className="inline mr-1" /> Il network dei professionisti degli eventi
+             Il network dei professionisti degli eventi
           </p>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-tight mb-4">
             Scopri i migliori professionisti<br />degli eventi italiani.
@@ -192,7 +192,7 @@ export default function DiscoverPage() {
                   {s.discover_tier === 'PREMIUM' && (
                     <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0"
                       style={{ background: 'rgb(var(--gold-500))', color: 'white' }}>
-                      <Sparkles size={9} className="inline mr-0.5" /> Pro
+                      Pro
                     </span>
                   )}
                 </div>

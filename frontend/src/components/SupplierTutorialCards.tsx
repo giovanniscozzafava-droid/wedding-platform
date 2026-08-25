@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, X, ChevronRight, ChevronLeft, Lightbulb, Camera, Calendar, FileText, CheckCircle2 } from 'lucide-react'
+import { X, ChevronRight, ChevronLeft, Lightbulb, Camera, Calendar, FileText, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -14,10 +14,16 @@ type TutorialState = {
   completed_at?: string | null
 }
 
+// Il benvenuto porta il marchio Planfully, non un'icona qualsiasi: e' il primo
+// segno che il professionista vede entrando.
+const MarchioPlanfully = ({ size = 16 }: { size?: number }) => (
+  <img src="/brand/planfully-symbol.svg" alt="Planfully" width={size} height={size} className="shrink-0" />
+)
+
 const STEPS = [
   {
     key: 'welcome',
-    icon: Sparkles,
+    icon: MarchioPlanfully,
     title: 'Benvenuto su Planfully',
     body: 'Tre passi semplici per partire. Ti accompagneremo con messaggi grandi e chiari. Non sbagli niente: tutto si può cambiare in qualunque momento.',
     cta: 'Cominciamo',
@@ -223,7 +229,7 @@ export function SupplierTutorialCards() {
             className="ml-auto block rounded-full shadow-lg px-4 h-10 inline-flex items-center gap-2 text-sm font-medium"
             style={{ background: 'rgb(var(--gold-500))', color: 'white' }}
           >
-            <Sparkles size={14} /> Riprendi tutorial · {stepIdx + 1}/{STEPS.length}
+             Riprendi tutorial · {stepIdx + 1}/{STEPS.length}
           </motion.button>
         )}
       </AnimatePresence>

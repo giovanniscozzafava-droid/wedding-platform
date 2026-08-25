@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, CheckCircle2, ListChecks, Sparkles } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ListChecks } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -151,7 +151,7 @@ export function ProssimaMossa({ limit = 5, entryId, title = 'La tua prossima mos
                   className="mt-0.5 inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-full"
                   style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}
                 >
-                  <Sparkles size={16} />
+                  <ArrowRight size={16} />
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 flex-wrap">

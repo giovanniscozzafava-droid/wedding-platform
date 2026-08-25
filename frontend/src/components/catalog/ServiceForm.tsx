@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Image as ImageIcon, X, Plus, Trash2, Sparkles, Link as LinkIcon, Loader2, AlertCircle } from 'lucide-react'
+import { Image as ImageIcon, X, Plus, Trash2, Link as LinkIcon, Loader2, AlertCircle, ListPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
@@ -270,7 +270,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
             {!savedId && presetsFor(subrole).length > 0 && (
               <div className="rounded-xl p-4 border" style={{ borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--bg-sunken))' }}>
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles size={14} className="text-[rgb(var(--gold-600))]" />
+                  <ListPlus size={14} className="text-[rgb(var(--gold-600))]" />
                   <p className="text-sm font-medium">Servizi rapidi per {subrole}</p>
                 </div>
                 <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">

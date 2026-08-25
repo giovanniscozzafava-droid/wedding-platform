@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, Sparkles } from 'lucide-react'
+import { LogOut, UserRound } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useMyWeddings } from '@/hooks/useCouple'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
@@ -27,7 +27,7 @@ export default function ClientPortalPage() {
     <div className="min-h-screen" style={{ background: 'rgb(var(--bg))' }}>
       <header className="border-b sticky top-0 z-10" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg))' }}>
         <div className="max-w-4xl mx-auto px-5 py-3 flex items-center gap-3">
-          <Sparkles size={18} className="text-[rgb(var(--gold-500))]" />
+          <UserRound size={18} className="text-[rgb(var(--gold-500))]" />
           <span className="font-display text-lg">La mia area</span>
           <span className="ml-auto text-xs text-[rgb(var(--fg-muted))] hidden sm:block">{user?.email}</span>
           <Link to="/faq" className="text-xs text-[rgb(var(--fg-muted))] hover:underline">FAQ</Link>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Users, Download, Sparkles, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid, Music, Wrench, Printer } from 'lucide-react'
+import { Plus, Trash2, Users, Download, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid, Music, Wrench, Printer, Shapes } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -253,7 +253,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
             <button onClick={() => setView('plan')} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${view === 'plan' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><MapIcon size={13} /> Piantina</button>
             <button onClick={() => setView('list')} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${view === 'list' ? 'bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]' : 'hover:bg-[rgb(var(--bg-sunken))]'}`}><List size={13} /> Elenco</button>
           </div>
-          <Button variant="gold" size="sm" onClick={() => setPosterOpen(true)}><Sparkles size={14} /> Poster da esporre</Button>
+          <Button variant="gold" size="sm" onClick={() => setPosterOpen(true)}> Poster da esporre</Button>
           <Button variant="ghost" size="sm" onClick={() => exportPlan('70x100', { withGuests: false })} title="Solo il disegno: numero/nome tavolo e posizione, senza i nomi delle persone (70×100, grande)"><Download size={14} /> Disegno piantina</Button>
           <Button variant="ghost" size="sm" onClick={exportPdf} title="Solo l'elenco delle persone divise per tavolo, senza disegno"><Download size={14} /> Elenco per tavolo</Button>
           <Button variant="ghost" size="sm" onClick={() => exportPlan('A3')} title="Piantina con i nomi degli invitati seduti (A3)"><Download size={14} /> Piantina + nomi</Button>
@@ -381,7 +381,7 @@ export function TablesTab({ entryId }: { entryId: string }) {
                     style={!active ? { borderColor: 'rgb(var(--border))' } : undefined}>
                     {s === 'Numerati' ? <span className="inline-block mr-1">#</span>
                       : s === 'Libero' ? <span className="inline-block mr-1">✎</span>
-                      : <Sparkles size={10} className="inline mr-1" />}
+                      : <Shapes size={10} className="inline mr-1" />}
                     {s}
                   </button>
                 )

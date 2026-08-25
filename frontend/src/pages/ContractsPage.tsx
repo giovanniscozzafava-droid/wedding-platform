@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileSignature, FileDown, X, Copy, Mail, MessageCircle, Sparkles } from 'lucide-react'
+import { FileSignature, FileDown, X, Copy, Mail, MessageCircle } from 'lucide-react'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'
 import { toast } from '@/lib/toast'
@@ -399,7 +399,7 @@ export default function ContractsPage() {
                   <div className="mr-auto flex flex-wrap items-center gap-2">
                     <Button variant="gold" size="sm" onClick={aiFill} disabled={aiBusy}
                       title="Ribalta tutti i dati del preventivo nel contratto: dati fiscali, offerta, importi">
-                      <Sparkles size={14} /> {aiBusy ? 'Compilo…' : 'Compila con AI dal preventivo'}
+                       {aiBusy ? 'Compilo…' : 'Compila con AI dal preventivo'}
                     </Button>
                     <Button variant="outline" size="sm" onClick={startEdit}>Modifica testo</Button>
                   </div>

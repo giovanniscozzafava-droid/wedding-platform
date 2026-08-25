@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles, Heart, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Check } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -146,12 +146,11 @@ export default function CoupleInviteAcceptPage() {
         <div className="px-8 pt-8 pb-6 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
           <div className="flex items-center gap-2 mb-3">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgb(var(--rose-500))', color: 'rgb(var(--bg))' }}>
-              <Heart size={16} strokeWidth={2.5} />
+              <Check size={16} strokeWidth={2.5} />
             </span>
             <span className="font-display text-lg">Planfully</span>
           </div>
           <h1 className="font-display text-2xl tracking-tight">
-            <Sparkles size={20} className="inline mr-2 text-[rgb(var(--gold-500))]" />
             {headline}
           </h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mt-2">

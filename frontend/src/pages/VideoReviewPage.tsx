@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ArrowLeft, Film, MessageSquarePlus, Check, Play, Save, Loader2, Music, Scissors, Palette, Sparkles } from 'lucide-react'
+import { ArrowLeft, Film, MessageSquarePlus, Check, Play, Save, Loader2, Music, Scissors, Palette, LayoutList } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ type Project = { draft_url: string | null; final_url: string | null; status: str
 type Comment = { id: string; author_name: string | null; t_seconds: number; target: string; kind: string; body: string; status: string }
 
 const KINDS = [
-  { k: 'generale', label: 'Generale', icon: Sparkles },
+  { k: 'generale', label: 'Generale', icon: LayoutList },
   { k: 'montaggio', label: 'Montaggio', icon: Scissors },
   { k: 'musica', label: 'Musica', icon: Music },
   { k: 'colore', label: 'Colore', icon: Palette },

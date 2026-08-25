@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Church, Heart, Sparkles, Building2, Users as UsersIcon, MoreHorizontal, Save, Upload, Trash2, MapPin, CheckCircle2, Clock4, AlertCircle, XCircle } from 'lucide-react'
+import { Church, Heart, Building2, Users as UsersIcon, MoreHorizontal, Save, Upload, Trash2, MapPin, CheckCircle2, Clock4, AlertCircle, XCircle, Flame } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,7 +27,7 @@ type CeremonyStatus = 'TO_DEFINE' | 'EVALUATING' | 'REQUESTED' | 'BOOKED' | 'CAN
 const TYPES: Array<{ v: CeremonyType; label: string; icon: typeof Church; hint: string }> = [
   { v: 'RELIGIOUS', label: 'Religioso',   icon: Church,       hint: 'Chiesa, sinagoga, moschea, tempio…' },
   { v: 'CIVIL',     label: 'Civile',       icon: Building2,    hint: 'Municipio, sala consiliare, location autorizzata' },
-  { v: 'SYMBOLIC',  label: 'Simbolico',    icon: Sparkles,     hint: 'Celebrante laico, rito personale' },
+  { v: 'SYMBOLIC',  label: 'Simbolico',    icon: Flame,        hint: 'Celebrante laico, rito personale' },
   { v: 'ELOPEMENT', label: 'Elopement',    icon: Heart,        hint: 'Fuga d\'amore, pochi presenti, luogo intimo' },
   { v: 'MIXED',     label: 'Misto',        icon: UsersIcon,    hint: 'Religioso + civile insieme' },
   { v: 'OTHER',     label: 'Altro',        icon: MoreHorizontal, hint: 'Formato non standard' },

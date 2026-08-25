@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Users, Network, Calendar, FileText, ShieldCheck, Sparkles, ArrowRight, Handshake, Compass, Lock as LockIcon } from 'lucide-react'
+import { Mail, Lock, Users, Network, Calendar, FileText, ShieldCheck, ArrowRight, Handshake, Compass, Lock as LockIcon, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -162,7 +162,7 @@ export default function LoginPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
             <div className="lg:col-span-7">
               <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[rgb(var(--gold-600))] mb-4">
-                <Sparkles size={12} /> Network indipendente per gli eventi italiani
+                Network indipendente per gli eventi italiani
               </span>
               <h2 className="font-display text-4xl sm:text-5xl tracking-tight leading-[1.05] mb-5">
                 Crea il <em className="text-[rgb(var(--gold-600))] not-italic">tuo</em> network professionale.<br />
@@ -253,7 +253,7 @@ export default function LoginPage() {
             <Feature icon={FileText} title="Preventivi & contratti" copy="Versioning, PDF, link cliente, firma digitale." />
             <Feature icon={ShieldCheck} title="Pagamenti tracciati" copy="Stato per ogni voce: chi paga cosa, quando, come." />
             <Feature icon={Network} title="Rete fornitori" copy="Invito nominale. Loro vedono solo i tuoi eventi." />
-            <Feature icon={Sparkles} title="Sito evento" copy="Sito pubblico per ospiti con foto e programma." />
+            <Feature icon={Globe} title="Sito evento" copy="Sito pubblico per ospiti con foto e programma." />
             <Feature icon={LockIcon} title="GDPR-first" copy="Cancellazione account, privacy, export dati." />
             <Feature icon={Compass} title="Finanziamento & polizze" copy="Partner per il cliente finale. Esclusive di rete." />
           </div>

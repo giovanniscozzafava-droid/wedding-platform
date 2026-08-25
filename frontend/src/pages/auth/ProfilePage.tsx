@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from '@/lib/toast'
-import { ShieldAlert, Trash2, Sparkles, Languages } from 'lucide-react'
+import { ShieldAlert, Trash2, Languages, FileText } from 'lucide-react'
 import { useT, LANGS, LANG_NAMES } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
@@ -475,7 +475,7 @@ export default function ProfilePage() {
           {/* Feature flag — Nuovo modello (workflow guidato) */}
           <Card className="p-6 mt-6">
             <div className="flex items-start gap-3">
-              <Sparkles className="text-[rgb(var(--gold-600))] shrink-0 mt-0.5" size={20} />
+              <FileText className="text-[rgb(var(--gold-600))] shrink-0 mt-0.5" size={20} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">

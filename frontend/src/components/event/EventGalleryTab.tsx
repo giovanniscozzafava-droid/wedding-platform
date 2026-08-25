@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from '@/lib/toast'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Sparkles, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
 import { MOMENTS, getMoment } from '@/lib/albumMoments'
@@ -497,7 +497,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   // ONBOARDING primo utilizzo del fotografo: spiega il flusso passo-passo (una volta sola).
   const onboarding = role !== 'sposi' && me ? (
     <AlbumOnboarding storageKey={`pf_album_onb_v1_${me}`} steps={[
-      { icon: <Sparkles size={18} />, title: 'Benvenuto! Ecco come funziona', body: "In breve: le tue foto vivono sul tuo Google Drive; qui le organizzi, gli sposi scelgono le preferite e l'AI ti aiuta a costruire l'album. Cinque passi." },
+      { icon: null, title: 'Benvenuto! Ecco come funziona', body: "In breve: le tue foto vivono sul tuo Google Drive; qui le organizzi, gli sposi scelgono le preferite e l'AI ti aiuta a costruire l'album. Cinque passi." },
       { icon: <HardDrive size={18} />, title: '1 · Collega Google Drive', body: 'Primo passo, dal tuo profilo. Senza Drive collegato non puoi caricare né gestire nulla: le foto stanno lì.' },
       { icon: <Upload size={18} />, title: '2 · Carica le foto', body: 'Crea le cartelle e carica il servizio. Gli sposi vedono la galleria e scelgono le loro preferite (i cuori).' },
       { icon: <Images size={18} />, title: '3 · AI seleziona', body: "Se le foto scelte sono troppe e ripetono gli stessi momenti, l'AI cura la selezione: taglia doppioni e ripetizioni e tiene il meglio, con più respiro. Rivedi e applichi tu." },
@@ -672,10 +672,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       {isOwner && folders.some((f) => f.gallery_media.length > 0) && (
         <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium flex items-center gap-2"><Sparkles size={16} className="text-[rgb(var(--gold-600))]" /> Carosello Instagram</p>
+            <p className="text-sm font-medium flex items-center gap-2"> Carosello Instagram</p>
             <p className="text-xs text-[rgb(var(--fg-muted))]">Scegli tu gli scatti (i cuori del carosello sono una tua selezione, separata da quella degli sposi) e monta le slide collegate con effetto seamless.</p>
           </div>
-          <Link to={`/carosello/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><Sparkles size={14} /> Apri Carosello</Button></Link>
+          <Link to={`/carosello/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"> Apri Carosello</Button></Link>
         </Card>
       )}
 
@@ -799,7 +799,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                     <Heart size={12} /> {(f.album_selectable ?? true) ? 'Escludi da album' : 'Includi in album'}
                   </Button>
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>
-                  <Button variant="outline" size="sm" disabled={busy} onClick={() => addDemoPhotos(f)}><Sparkles size={12} /> Foto demo</Button>
+                  <Button variant="outline" size="sm" disabled={busy} onClick={() => addDemoPhotos(f)}> Foto demo</Button>
                   {salesEnabled && <Button variant="outline" size="sm" onClick={() => setFolderPrice(f)}>{f.is_for_sale ? `€${((f.price_cents ?? 0) / 100).toFixed(0)}` : 'Prezzo'}</Button>}
                   <Button variant="ghost" size="icon" onClick={() => deleteFolder(f)}><Trash2 size={13} /></Button>
                 </div>

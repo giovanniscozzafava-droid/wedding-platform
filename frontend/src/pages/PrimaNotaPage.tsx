@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { ArrowDownCircle, ArrowUpCircle, Plus, RefreshCw, Trash2, Pencil, X, Wallet, TrendingUp, TrendingDown, Sparkles } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, Plus, RefreshCw, Trash2, Pencil, X, Wallet, TrendingUp, TrendingDown, Scale } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -179,7 +179,7 @@ export default function PrimaNotaPage() {
         <Kpi label="Saldo cassa" value={eur(kpi.saldoTot)} icon={Wallet} accent={kpi.saldoTot >= 0 ? 'gold' : 'rose'} />
         <Kpi label="Entrate del mese" value={eur(kpi.entrate)} icon={TrendingUp} accent="emerald" />
         <Kpi label="Uscite del mese" value={eur(kpi.uscite)} icon={TrendingDown} accent="rose" />
-        <Kpi label="Saldo del mese" value={eur(kpi.saldoMese)} icon={Sparkles} accent={kpi.saldoMese >= 0 ? 'emerald' : 'rose'} />
+        <Kpi label="Saldo del mese" value={eur(kpi.saldoMese)} icon={Scale} accent={kpi.saldoMese >= 0 ? 'emerald' : 'rose'} />
       </div>
 
       {/* Filtri */}

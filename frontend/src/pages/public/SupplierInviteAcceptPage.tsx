@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import {  Heart, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -144,7 +144,7 @@ export default function SupplierInviteAcceptPage() {
             <span className="font-display text-lg">Planfully</span>
           </div>
           <h1 className="font-display text-2xl tracking-tight">
-            <Heart size={20} className="inline mr-2 text-[rgb(var(--rose-500))]" />
+            
             {info.already ? 'Bentornato/a su Planfully' : `${info.capo_name} ti ha invitato come fornitore`}
           </h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mt-2">

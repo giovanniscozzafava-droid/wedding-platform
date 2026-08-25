@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Trash2, Filter, Download, Accessibility, GripVertical, Star, ArrowDownAZ, Heart, Baby, ListOrdered } from 'lucide-react'
+import { Plus, Trash2, Filter, Download, Accessibility, GripVertical, Star, ArrowDownAZ, Baby, ListOrdered, Users } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -232,7 +232,7 @@ export function GuestsTab({ entryId, eventKind }: { entryId: string; eventKind?:
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <span className="text-xs text-[rgb(var(--fg-muted))]">Ordina:</span>
         <Button variant="outline" size="sm" onClick={sortAlphabetical}><ArrowDownAZ size={14} /> Alfabetico</Button>
-        <Button variant="outline" size="sm" onClick={sortCloseFamily}><Heart size={14} /> Parenti più stretti</Button>
+        <Button variant="outline" size="sm" onClick={sortCloseFamily}><Users size={14} /> Parenti più stretti</Button>
         <Button variant="outline" size="sm" onClick={sortByCreated}><ListOrdered size={14} /> Ordine inserimento</Button>
         <span className="text-[11px] text-[rgb(var(--fg-subtle))]">
           {canReorder ? 'oppure trascina ⠿ una riga su/giù per l’ordine manuale · ★ = parente stretto' : 'azzera i filtri per riordinare a mano'}

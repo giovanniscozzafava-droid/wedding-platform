@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2, Sparkles, PenLine, Users2, AlertTriangle, CheckCircle2, Unlock } from 'lucide-react'
+import { FileSignature, Send, Plus, Lock, MessageCircle, BookMarked, Wand2, PenLine, Users2, AlertTriangle, CheckCircle2, Unlock } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -289,7 +289,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
                 <span className="inline-flex items-center gap-1">
                   <Button variant="gold" size="sm" onClick={() => aiFromCard(c)} disabled={aiCardId === c.id}
                     title="Ribalta tutti i dati del preventivo nel contratto (dati fiscali, offerta, importi)">
-                    <Sparkles size={14} /> {aiCardId === c.id ? 'Compilo…' : 'Compila con AI dal preventivo'}
+                     {aiCardId === c.id ? 'Compilo…' : 'Compila con AI dal preventivo'}
                   </Button>
                   <HelpDot id="contract.ai" />
                 </span>
@@ -406,7 +406,7 @@ export function ContractTab({ wedding }: { wedding: any }) {
                     setEditing({ ...editing, sections: ns })
                   }}><Plus size={14} /> Aggiungi articolo</Button>
                   <Button variant="ghost" size="sm" onClick={fillData}><Wand2 size={14} /> Riempi dati</Button>
-                  <Button variant="ghost" size="sm" onClick={aiDraft} disabled={aiBusy}><Sparkles size={14} /> {aiBusy ? 'Genero…' : 'Perfeziona con AI'}</Button>
+                  <Button variant="ghost" size="sm" onClick={aiDraft} disabled={aiBusy}> {aiBusy ? 'Genero…' : 'Perfeziona con AI'}</Button>
                   <Button variant="ghost" size="sm" onClick={saveAsTemplate}><BookMarked size={14} /> Salva come modello</Button>
                 </div>
               )}

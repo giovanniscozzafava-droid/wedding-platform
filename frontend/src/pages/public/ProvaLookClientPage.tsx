@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Loader2, Check, Sparkles, Images } from 'lucide-react'
+import { Loader2, Check, Images } from 'lucide-react'
 import { loadByToken, setFavorite, type LookClientData } from '@/lib/provaLook'
 
 export default function ProvaLookClientPage() {
@@ -47,7 +47,7 @@ export default function ProvaLookClientPage() {
     <div className="min-h-screen bg-[rgb(var(--bg))] text-[rgb(var(--fg))]">
       <header className="max-w-5xl mx-auto px-6 sm:px-10 pt-16 pb-8 text-center">
         {data.logo && <img src={data.logo} alt={studio} className="h-9 mx-auto mb-7 opacity-80" />}
-        <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[rgb(var(--gold-700))] mb-4 inline-flex items-center gap-2"><Sparkles size={12} /> Prova {kindLabel} · Beta</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[rgb(var(--gold-700))] mb-4 inline-flex items-center gap-2"> Prova {kindLabel} · Beta</p>
         <h1 className="font-display text-4xl sm:text-5xl leading-[1.06]">{data.client_label ? `${data.client_label}, ecco le vostre proposte` : 'Le vostre proposte'}</h1>
         <p className="font-display italic text-lg text-[rgb(var(--fg-muted))] mt-4">Preparate da {studio}. Tocca il cuore sulla vostra preferita.</p>
       </header>

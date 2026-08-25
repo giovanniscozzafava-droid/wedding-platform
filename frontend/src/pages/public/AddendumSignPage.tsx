@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FileSignature, CheckCircle2, Sparkles } from 'lucide-react'
+import { FileSignature, CheckCircle2, PenLine } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -111,7 +111,7 @@ export default function AddendumSignPage() {
             <div className="flex items-center gap-2 mb-2">
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-md"
                 style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-                <Sparkles size={14} strokeWidth={2.2} />
+                <PenLine size={14} strokeWidth={2.2} />
               </span>
               <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">Addendum da firmare</span>
             </div>

@@ -1,4 +1,4 @@
-import { ImagePlus, Sparkles, Square, Type, Palette } from 'lucide-react'
+import { ImagePlus, Square, Type, Palette } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import type { Cover } from '../albumCatalog'
 import {
@@ -60,7 +60,7 @@ export function PersonalizePanel({
 
       <div className="grid sm:grid-cols-2 gap-6">
         <div>
-          <SectionLabel><Sparkles size={12} className="inline -mt-0.5 mr-1" />Ghirigori</SectionLabel>
+          <SectionLabel>Ghirigori</SectionLabel>
           <div className="grid grid-cols-2 gap-2">
             {COVER_DECORATIONS.map((d) => (
               <button key={d.key} type="button" onClick={() => set({ decorationKey: d.key })}

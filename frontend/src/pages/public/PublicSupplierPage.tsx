@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { MapPin, Users, Globe, Heart, ArrowLeft, AlertCircle, Send, BadgeCheck } from 'lucide-react'
+import { MapPin, Users, Globe, ArrowLeft, AlertCircle, Send, BadgeCheck, Check, Clock, UserPlus } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { ServiceSlideshow } from '@/components/catalog/ServiceSlideshow'
@@ -330,15 +330,15 @@ export default function PublicSupplierPage() {
                 ) : canAddTarget ? (
                   existingCollab === 'ACTIVE' ? (
                     <Button variant="outline" size="sm" disabled className="text-emerald-600">
-                      <Heart size={14} className="fill-emerald-600" /> Già nel tuo team
+                      <Check size={14} className="text-emerald-600" /> Già nel tuo team
                     </Button>
                   ) : existingCollab === 'PENDING' ? (
                     <Button variant="outline" size="sm" disabled>
-                      <Heart size={14} /> Invito in attesa
+                      <Clock size={14} /> Invito in attesa
                     </Button>
                   ) : (
                     <Button variant="gold" disabled={requesting} onClick={requestCollaboration}>
-                      <Heart size={14} /> {requesting ? 'Invio…' : 'Aggiungi al mio team'}
+                      <UserPlus size={14} /> {requesting ? 'Invio…' : 'Aggiungi al mio team'}
                     </Button>
                   )
                 ) : isFornitoreViewer ? (

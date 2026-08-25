@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users, Plus, Trash2, CalendarPlus, FileDown, Check, X, HelpCircle, ChevronLeft, MessageCircle, Clock, Package, Sparkles, Download } from 'lucide-react'
+import { Users, Plus, Trash2, CalendarPlus, FileDown, Check, X, HelpCircle, ChevronLeft, MessageCircle, Clock, Package, Download } from 'lucide-react'
 import { shareFileOrWhatsApp } from '@/lib/share'
 import { waTeamSheet } from '@/lib/waMessages'
 import { Card } from '@/components/ui/card'
@@ -505,7 +505,7 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
             {[event.event_date && new Date(event.event_date).toLocaleDateString('it-IT'), event.call_time && `Ritrovo ${event.call_time}`, event.location].filter(Boolean).join(' · ') || '—'}
           </p>
         </div>
-        <Button variant="gold" disabled={!!exporting} onClick={() => void doExport('vetrina')}><Sparkles size={15} className="mr-1" /> PDF cliente</Button>
+        <Button variant="gold" disabled={!!exporting} onClick={() => void doExport('vetrina')}> PDF cliente</Button>
         <Button variant="outline" disabled={!!exporting} onClick={() => void doExport('operativo')}><FileDown size={15} className="mr-1" /> PDF team</Button>
         <Button variant="outline" disabled={!!exporting} onClick={() => void doExport('operativo', true)}><MessageCircle size={15} className="mr-1" /> WhatsApp</Button>
       </div>
@@ -522,7 +522,7 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
           <Clock size={16} className="text-[rgb(var(--gold-600))]" />
           <h2 className="font-medium flex-1">Programma operativo</h2>
           {!readOnly && (event.quote_id || event.entry_id) && <Button size="sm" variant="ghost" onClick={() => void importProgram()}><Download size={13} className="mr-1" /> Dal programma evento</Button>}
-          {!readOnly && <Button size="sm" variant="ghost" onClick={() => void loadRunTemplate()}><Sparkles size={13} className="mr-1" /> Modello</Button>}
+          {!readOnly && <Button size="sm" variant="ghost" onClick={() => void loadRunTemplate()}> Modello</Button>}
         </div>
         {runItems.length === 0 ? (
           <p className="text-xs text-[rgb(var(--fg-subtle))] italic">{readOnly ? 'Nessun momento ancora inserito.' : 'Nessun momento. Carica un modello o aggiungi le righe della giornata.'}</p>
@@ -558,7 +558,7 @@ function EventRoster({ event, members, supplierName, onBack, readOnly = false }:
           <Package size={16} className="text-[rgb(var(--gold-600))]" />
           <h2 className="font-medium flex-1">Checklist attrezzatura</h2>
           <Button size="sm" variant="ghost" onClick={() => void importMagazzino()}><Download size={13} className="mr-1" /> Dal magazzino</Button>
-          <Button size="sm" variant="ghost" onClick={() => void loadStarterPack()}><Sparkles size={13} className="mr-1" /> Starter pack</Button>
+          <Button size="sm" variant="ghost" onClick={() => void loadStarterPack()}> Starter pack</Button>
         </div>
         {packing.length === 0 ? (
           <p className="text-xs text-[rgb(var(--fg-subtle))] italic">Niente da portare ancora. Carica lo starter pack o aggiungi le tue voci.</p>
@@ -771,7 +771,7 @@ function MagazzinoTab({ uid }: { uid: string }) {
           Il tuo magazzino: l'attrezzatura che possiedi. Da qui la importi nella checklist di ogni turno, senza riscriverla ogni volta.
         </p>
         {items.length === 0 && (
-          <Button variant="gold" className="mt-3" onClick={() => void loadStarter()}><Sparkles size={14} className="mr-1" /> Parti dallo starter pack</Button>
+          <Button variant="gold" className="mt-3" onClick={() => void loadStarter()}> Parti dallo starter pack</Button>
         )}
       </Card>
 
@@ -789,7 +789,7 @@ function MagazzinoTab({ uid }: { uid: string }) {
           </div>
           <div className="flex gap-2 mt-3">
             <Button size="sm" variant="outline" onClick={() => void add()}><Plus size={14} className="mr-1" /> Aggiungi</Button>
-            <Button size="sm" variant="ghost" onClick={() => void loadStarter()}><Sparkles size={13} className="mr-1" /> Aggiungi starter pack</Button>
+            <Button size="sm" variant="ghost" onClick={() => void loadStarter()}> Aggiungi starter pack</Button>
           </div>
         </Card>
       )}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Mail, Copy, CheckCircle2, Clock, Trash2, Heart } from 'lucide-react'
+import { Plus, Mail, Copy, CheckCircle2, Clock, Trash2, Users } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -60,7 +60,7 @@ export function MembersTab({ entryId }: { entryId: string }) {
 
       {(members ?? []).length === 0 && (
         <Card className="p-10 text-center">
-          <Heart size={28} className="mx-auto mb-3 text-[rgb(var(--fg-subtle))]" />
+          <Users size={28} className="mx-auto mb-3 text-[rgb(var(--fg-subtle))]" />
           <p className="text-[rgb(var(--fg-muted))]">Nessun cliente invitato. Inizia dalla casella sopra.</p>
         </Card>
       )}

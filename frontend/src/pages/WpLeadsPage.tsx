@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Inbox, Mail, Phone, Calendar, MapPin, Users, Euro, MessageSquare, Check, X, Eye, FileText, AlertCircle, Sparkles } from 'lucide-react'
+import { Inbox, Mail, Phone, Calendar, MapPin, Users, Euro, MessageSquare, Check, X, Eye, FileText, AlertCircle } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -302,7 +302,7 @@ function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose:
         {/* Profilazione raccolta nel form pubblico */}
         {lead.profile_answers && Object.keys(lead.profile_answers).length > 0 && (
           <div className="surface p-4 mb-5">
-            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2 flex items-center gap-1"><Sparkles size={11} /> Profilazione</p>
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2 flex items-center gap-1"> Profilazione</p>
             <dl className="space-y-1.5 text-sm">
               {Object.entries(lead.profile_answers).map(([k, v]) => (
                 <div key={k} className="flex gap-2">
@@ -321,7 +321,7 @@ function LeadDetailModal({ lead, onClose, onTransition }: { lead: Lead; onClose:
         {lead.status !== 'CLOSED_WON' && lead.status !== 'CLOSED_LOST' && lead.status !== 'SPAM' && (
           <div className="pt-4 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
             <Button variant="gold" className="w-full" onClick={convertToEvent} disabled={converting}>
-              <Sparkles size={14} /> {converting ? 'Creo evento…' : 'Crea evento + preventivo da questo lead'}
+               {converting ? 'Creo evento…' : 'Crea evento + preventivo da questo lead'}
             </Button>
             <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1.5 text-center">
               I dati del lead (contatto, data, tipo evento, invitati) vengono pre-compilati e ti seguono per tutto il matrimonio.

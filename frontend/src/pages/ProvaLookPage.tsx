@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Loader2, Upload, Sparkles, Check, X, Send, Copy, Wand2, Image as ImageIcon } from 'lucide-react'
+import { Loader2, Upload, Check, X, Send, Copy, Wand2, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -131,7 +131,7 @@ export default function ProvaLookPage() {
             <label className="text-sm text-[rgb(var(--fg-muted))]">Nome cliente (facoltativo)</label>
             <div className="flex gap-2 mt-1.5">
               <Input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="es. Giulia" />
-              <Button onClick={startSession}><Sparkles size={16} /> Inizia</Button>
+              <Button onClick={startSession}> Inizia</Button>
             </div>
           </div>
         ) : (

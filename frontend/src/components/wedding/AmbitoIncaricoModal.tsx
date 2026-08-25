@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Briefcase, ClipboardCheck, Sparkles } from 'lucide-react'
+import { Briefcase, ClipboardCheck, Store } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -52,7 +52,7 @@ const OPTIONS: Array<{
     title: 'Solo propri servizi',
     desc:
       'Stai erogando solo servizi tuoi: componi menu e gestisci il tuo catalogo, senza raccogliere preventivi esterni.',
-    icon: Sparkles,
+    icon: Store,
     accent: 'rgb(var(--gold-700))',
   },
 ]

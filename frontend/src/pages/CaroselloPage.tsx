@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import {
-  ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine, Ruler, ChevronLeft, ChevronRight,
-  ZoomIn, ZoomOut, ImagePlus, Sparkles, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2, Maximize2,
-  Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight,
-  ChevronDown, LayoutGrid, Palette, Image as ImageIcon,
-} from 'lucide-react'
+import { ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine, Ruler, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, ImagePlus, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight, ChevronDown, LayoutGrid, Palette, Image as ImageIcon } from 'lucide-react'
 import type { Cell } from '@/lib/albumGeometry'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
@@ -604,7 +599,7 @@ export default function CaroselloPage() {
       <header className="sticky top-0 z-30 bg-[rgb(var(--bg))] border-b border-[rgb(var(--border))] px-3 sm:px-5 py-2 flex items-center gap-3 flex-wrap">
         <Link to={`/album/${entryId}`} className="p-1.5 -ml-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]"><ArrowLeft size={20} /></Link>
         <div className="min-w-0">
-          <p className="font-display text-lg leading-tight flex items-center gap-2"><Sparkles size={16} className="text-[rgb(var(--gold-600))]" /> Carosello</p>
+          <p className="font-display text-lg leading-tight flex items-center gap-2"> Carosello</p>
           <p className="text-[11px] text-[rgb(var(--fg-muted))]">{savedAt ? '✓ salvato' : 'Slide Instagram collegate · flusso unico'}</p>
         </div>
         <div className="flex items-center gap-2 ml-auto flex-wrap">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Loader2, Check, Sparkles } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 
@@ -47,7 +47,7 @@ export default function WaitlistPage() {
             </div>
           ) : (
             <>
-              <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--gold-600))] flex items-center gap-1.5"><Sparkles size={14} /> Accesso su invito</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--gold-600))] flex items-center gap-1.5"> Accesso su invito</p>
               <h1 className="font-display text-2xl sm:text-3xl mt-1">Entra nella lista d'attesa</h1>
               <p className="text-sm text-[rgb(var(--fg-muted))] mt-2">Stiamo aprendo Planfully a poche realtà per volta. Lascia i tuoi contatti: ti avvisiamo appena tocca a te.</p>
               <form onSubmit={submit} className="mt-5 space-y-3">

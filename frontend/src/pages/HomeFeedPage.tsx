@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sparkles, RefreshCw } from 'lucide-react'
+import { RefreshCw, Newspaper } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
@@ -146,7 +146,7 @@ export default function HomeFeedPage() {
 
         {!loading && posts.length === 0 && (
           <div className="surface p-10 text-center">
-            <Sparkles className="mx-auto mb-3 opacity-40" size={32} />
+            <Newspaper className="mx-auto mb-3 opacity-40" size={32} />
             <p className="font-display text-xl mb-2">Il feed è ancora vuoto</p>
             <p className="text-sm text-[rgb(var(--fg-muted))] max-w-md mx-auto">
               {filter === 'MINE'

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Music, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Music, ListMusic } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -65,7 +65,7 @@ export function PlaylistTab({ entryId }: { entryId: string }) {
       {/* Preset banner */}
       <Card className="p-4 mb-4" style={{ background: 'rgb(var(--bg-sunken))', borderColor: 'rgb(var(--gold-500))' }}>
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles size={14} className="text-[rgb(var(--gold-600))]" />
+          <ListMusic size={14} className="text-[rgb(var(--gold-600))]" />
           <p className="text-sm font-medium">Playlist rapide</p>
         </div>
         <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">

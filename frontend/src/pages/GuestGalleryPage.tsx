@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { Download, X, ChevronLeft, ChevronRight, Loader2, Upload, Play, QrCode, Heart, Mic, Camera, BookHeart, Image as ImageIcon, ArrowLeft, Check } from 'lucide-react'
+import { Download, X, ChevronLeft, ChevronRight, Loader2, Upload, Play, QrCode, Mic, Camera, BookHeart, Image as ImageIcon, ArrowLeft, Check } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
@@ -245,7 +245,7 @@ export default function GuestGalleryPage() {
       <Frame>
         <div className="max-w-sm mx-auto py-8 space-y-6">
           <div className="text-center space-y-2">
-            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]"><Heart size={26} className="fill-[rgb(var(--gold-500))]" /></span>
+            <img src="/brand/planfully-symbol.svg" alt="Planfully" className="mx-auto h-14 w-14" />
             <h1 className="font-display text-2xl">Le foto dell’evento</h1>
             <p className="text-sm text-[rgb(var(--fg-muted))]">Scrivi nome ed email ed entri subito: <strong>carichi le tue foto e i tuoi video</strong> e li condividi con tutti. Se gli organizzatori lo attivano, qui trovi anche le <strong>foto ufficiali</strong> da rivedere e scaricare.</p>
           </div>
@@ -264,7 +264,7 @@ export default function GuestGalleryPage() {
               <span className="text-[11px] text-[rgb(var(--fg-muted))]">Acconsento a essere ricontattato/a anche per finalità commerciali da Planfully e dai fornitori. <span className="text-[rgb(var(--fg-subtle))]">(facoltativo)</span></span>
             </label>
             <Button type="submit" variant="gold" className="w-full !py-3 !text-base" disabled={signingUp || !gprivacy}>
-              {signingUp ? <Loader2 size={18} className="animate-spin" /> : <Heart size={18} className="fill-current" />} Entra e guarda le foto
+              {signingUp ? <Loader2 size={18} className="animate-spin" /> : null} Entra e guarda le foto
             </Button>
           </form>
           <p className="text-center text-xs text-[rgb(var(--fg-subtle))]">Hai già un account o sei un professionista? <Link to="/login" state={{ from: location }} className="underline">Accedi</Link></p>
@@ -283,7 +283,7 @@ export default function GuestGalleryPage() {
       {/* Hero: nome degli sposi + QR a scomparsa */}
       <div className="mb-6 text-center space-y-2">
         <h1 className="font-display text-2xl sm:text-3xl flex items-center justify-center gap-2">
-          <Heart size={20} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> Le foto di {eventName ?? 'questo matrimonio'}
+          Le foto di {eventName ?? 'questo matrimonio'}
         </h1>
         <button onClick={() => setShowQr((s) => !s)} className="text-xs text-[rgb(var(--gold-700))] underline inline-flex items-center gap-1">
           <QrCode size={13} /> {showQr ? 'Nascondi QR' : 'Mostra QR per far entrare gli altri invitati'}

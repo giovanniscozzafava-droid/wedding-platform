@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Heart, AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { acceptCoupleInvite } from '@/hooks/useCouple'
@@ -45,7 +45,7 @@ export default function CoupleAcceptPage() {
             <>
               <span className="inline-flex h-14 w-14 items-center justify-center rounded-full mb-4"
                 style={{ background: 'rgb(var(--emerald-100))', color: 'rgb(var(--emerald-500))' }}>
-                <Heart size={28} fill="currentColor" />
+                <img src="/brand/planfully-symbol.svg" alt="Planfully" width={28} height={28} />
               </span>
               <h1 className="font-display text-3xl tracking-tight">Benvenuti!</h1>
               <p className="text-sm text-[rgb(var(--fg-muted))] mt-2 mb-6">

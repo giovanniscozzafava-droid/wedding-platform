@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Inbox, Check, X, Sparkles } from 'lucide-react'
+import { Inbox, Check, X } from 'lucide-react'
 import { StarsBadge } from '@/components/social/StarsBadge'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
@@ -110,7 +110,7 @@ export function CandidacyInbox({ placement = 'below' }: { placement?: 'below' | 
               {loading && <p className="p-4 text-sm text-[rgb(var(--fg-subtle))]">Caricamento…</p>}
               {!loading && count === 0 && (
                 <div className="px-4 py-10 text-center text-sm text-[rgb(var(--fg-muted))]">
-                  <Sparkles size={18} className="mx-auto mb-2 text-[rgb(var(--fg-subtle))]" />
+                  <Inbox size={18} className="mx-auto mb-2 text-[rgb(var(--fg-subtle))]" />
                   Nessuna candidatura in attesa.
                   <p className="text-xs text-[rgb(var(--fg-subtle))] mt-1">
                     Quando un fornitore si candida al tuo team la trovi qui.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { X, Check, Loader2, Sparkles } from 'lucide-react'
+import { X, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { PRINT_PRODUCTS, PRODUCT_BY_KEY, type PrintProduct } from '@/lib/printCatalog'
@@ -91,7 +91,7 @@ export function PrintOrderSheet({ open, onClose, entryId, slug, photo }: Props) 
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-md max-h-[92vh] overflow-y-auto bg-[rgb(var(--bg-elev))] rounded-t-3xl sm:rounded-3xl shadow-[var(--shadow-lift)] animate-in slide-in-from-bottom duration-300">
         <div className="sticky top-0 z-10 flex items-center gap-2 px-5 py-3 border-b border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))]">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}><Sparkles size={11} /> Stampe</span>
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}> Stampe</span>
           <p className="font-medium text-sm flex-1">Ordina una stampa</p>
           <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-full hover:bg-[rgb(var(--bg-sunken))]"><X size={18} /></button>
         </div>

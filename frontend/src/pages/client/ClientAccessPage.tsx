@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Sparkles, Mail, ArrowRight } from 'lucide-react'
+import { Mail, ArrowRight, UserRound } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -67,7 +67,7 @@ export default function ClientAccessPage() {
     <div className="min-h-screen flex items-center justify-center px-5" style={{ background: 'rgb(var(--bg))' }}>
       <Card className="w-full max-w-md p-7">
         <div className="flex items-center gap-2 mb-5">
-          <Sparkles size={20} className="text-[rgb(var(--gold-500))]" />
+          <UserRound size={20} className="text-[rgb(var(--gold-500))]" />
           <span className="font-display text-xl">La mia area cliente</span>
         </div>
 

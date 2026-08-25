@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music,
-  Users as UsersIcon, Globe, Sparkles, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Church, Package, ListChecks,
-} from 'lucide-react'
+import { Heart, LogOut, Sun, Moon, CalendarClock, BedDouble, Bus, Gift, Palette, Music, Users as UsersIcon, Globe, MapPin, PartyPopper, FileText, FileSignature, ExternalLink, Utensils, HelpCircle, Church, Package, ListChecks, UserRound, CheckCircle2 } from 'lucide-react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -208,7 +205,7 @@ export default function CoupleDashboard() {
             <LanguageSwitcher />
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Cambia tema">{theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}</Button>
             <Link to="/profile" className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-muted))]" title="Profilo / Privacy" aria-label="Profilo">
-              <Sparkles size={14} />
+              <UserRound size={14} />
             </Link>
             <Button variant="ghost" size="icon" onClick={logout} aria-label="Esci"><LogOut size={14} /></Button>
           </div>
@@ -269,8 +266,8 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
         <div className="relative max-w-4xl mx-auto px-6 py-16 text-center text-white">
           <span className="inline-flex items-center gap-1 text-xs uppercase tracking-[0.3em] text-white/80 mb-3">
             {term.hasCoupleConcept
-              ? <><Heart size={11} /> Il vostro grande giorno <Heart size={11} /></>
-              : <><Sparkles size={11} /> {term.Label} <Sparkles size={11} /></>}
+              ? <>Il vostro grande giorno</>
+              : <>{term.Label}</>}
           </span>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight" data-notranslate>{wedding.title}</h1>
           <p className="text-base text-white/85 mt-2">
@@ -278,7 +275,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
           </p>
           {daysLeft > 0 && (
             <div className="inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur px-4 py-1.5 text-sm mt-4">
-              <Sparkles size={12} /> Mancano <strong>{daysLeft}</strong> giorni
+               Mancano <strong>{daysLeft}</strong> giorni
             </div>
           )}
         </div>
@@ -352,7 +349,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
         <div className="flex-1 min-w-0">
         {photoOnly && (
           <div className="mb-5 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
-            <Sparkles size={15} className="text-[rgb(var(--gold-600))] shrink-0" />
+            <CheckCircle2 size={15} className="text-[rgb(var(--gold-600))] shrink-0" />
             <span className="text-[rgb(var(--fg-muted))]">Evento concluso: qui trovi i tuoi <strong className="text-[rgb(var(--fg))]">ricordi</strong> — Foto e Video.</span>
           </div>
         )}

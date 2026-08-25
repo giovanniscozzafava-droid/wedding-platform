@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, CheckSquare, Download, Sparkles } from 'lucide-react'
+import { Plus, Trash2, CheckSquare, Download, ListChecks } from 'lucide-react'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
@@ -108,7 +108,7 @@ export function ChecklistTab({ entryId, eventKind }: { entryId: string; eventKin
       {(tasks?.length ?? 0) < 5 && (
         <Card className="p-4 mb-4" style={{ background: 'rgb(var(--bg-sunken))', borderColor: 'rgb(var(--gold-500))' }}>
           <div className="flex items-center gap-2 mb-2">
-            <Sparkles size={14} className="text-[rgb(var(--gold-600))]" />
+            <ListChecks size={14} className="text-[rgb(var(--gold-600))]" />
             <p className="text-sm font-medium">Inizia da una checklist standard</p>
           </div>
           <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
@@ -116,7 +116,7 @@ export function ChecklistTab({ entryId, eventKind }: { entryId: string; eventKin
           </p>
           <div className="flex flex-wrap gap-1.5">
             <Button variant="gold" size="sm" onClick={importAllPresets}>
-              <Sparkles size={12} /> Importa checklist completa
+               Importa checklist completa
             </Button>
             {(['12_MESI','6_MESI','3_MESI','1_MESE','1_SETTIMANA','DAY_OF'] as const).map((ph) => {
               const n = CHECKLIST_PRESETS.filter(p => p.phase === ph).length

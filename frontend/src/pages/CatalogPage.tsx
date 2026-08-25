@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion, Reorder } from 'framer-motion'
-import { Plus, Search, Sparkles, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check, PackageCheck, Star } from 'lucide-react'
+import { Plus, Search, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check, PackageCheck, Star, BookOpen } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -564,7 +564,7 @@ function EmptyState({ isProvider, onCreate, emptyLabel, onImport }: {
     <div className="surface surface-elev p-8 sm:p-12 text-center max-w-xl mx-auto">
       <span className="inline-flex h-12 w-12 items-center justify-center rounded-full mb-4"
         style={{ background: 'rgb(var(--gold-100))', color: 'rgb(var(--gold-700))' }}>
-        <Sparkles size={20} />
+        <BookOpen size={20} />
       </span>
       <h3 className="font-display text-xl mb-1">
         {emptyLabel ?? 'Nessun servizio'}

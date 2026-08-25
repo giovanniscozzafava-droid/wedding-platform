@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Palette as PaletteIcon, Sparkles, Save, RefreshCw } from 'lucide-react'
+import { Palette as PaletteIcon, Save, RefreshCw } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -204,7 +204,6 @@ export function PaletteSection({ entryId, readOnly = false }: Props) {
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border hover:bg-[rgb(var(--bg-sunken))] transition-colors"
                   style={{ borderColor: 'rgb(var(--border))' }}
                   title={k.hint}>
-                  <Sparkles size={10} className="text-[rgb(var(--gold-600))]" />
                   {k.label}
                 </button>
               ))}

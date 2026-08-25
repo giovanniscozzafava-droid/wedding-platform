@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Plus, Trash2, Euro, User, Sparkles, Check, Circle, CheckCircle2, X,
-  Gift, Camera, Candy, Cookie, Aperture, DoorOpen, BookHeart, Cake, Cigarette, Martini, SprayCan, type LucideIcon } from 'lucide-react'
+import { Plus, Trash2, Euro, User, Check, Circle, CheckCircle2, X, Gift, Camera, Candy, Cookie, Aperture, DoorOpen, BookHeart, Cake, Cigarette, Martini, SprayCan, type LucideIcon, Shapes } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,9 +11,9 @@ const eur = (n: number) => (n || 0).toLocaleString('it-IT', { style: 'currency',
 // Icone in stile Planfully (tratto lineare) per ogni tipo di angolo — niente emoji.
 const CORNER_ICONS: Record<string, LucideIcon> = {
   BOMBONIERE: Gift, POLAROID: Camera, CONFETTATA: Candy, CANDY: Cookie, PHOTOBOOTH: Aperture,
-  WELCOME: DoorOpen, GUESTBOOK: BookHeart, SWEET: Cake, CIGAR: Cigarette, DRINK: Martini, PROFUMI: SprayCan, ALTRO: Sparkles,
+  WELCOME: DoorOpen, GUESTBOOK: BookHeart, SWEET: Cake, CIGAR: Cigarette, DRINK: Martini, PROFUMI: SprayCan, ALTRO: Shapes,
 }
-const cornerIcon = (kind: string): LucideIcon => CORNER_ICONS[kind] ?? Sparkles
+const cornerIcon = (kind: string): LucideIcon => CORNER_ICONS[kind] ?? Shapes
 
 // Strumento "Angoli": il professionista mette insieme accessori per costruire angoli a tema
 // (bomboniere, polaroid, confettata…). Parte da preset modificabili o da un angolo vuoto.
@@ -80,7 +79,7 @@ export function CornersTab({ entryId }: { entryId: string }) {
 
       {list.length === 0 && !picker && (
         <Card className="p-8 text-center">
-          <Sparkles size={26} className="mx-auto mb-2 text-[rgb(var(--gold-600))]" />
+          <Gift size={26} className="mx-auto mb-2 text-[rgb(var(--gold-600))]" />
           <p className="text-sm text-[rgb(var(--fg-muted))] mb-3">Ancora nessun angolo. Crea il primo: angolo bomboniere, polaroid, confettata…</p>
           <Button variant="gold" onClick={() => setPicker(true)}><Plus size={14} /> Nuovo angolo</Button>
         </Card>
