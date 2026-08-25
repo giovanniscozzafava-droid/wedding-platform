@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Send, Phone, MessageCircle, Loader2 } from 'lucide-react'
+import { Send, Phone, MessageCircle, Loader2, Check, CheckCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 
-type Msg = { id: string; sender_role: 'CLIENT' | 'PRO'; kind: 'MESSAGE' | 'CALL_REQUEST'; body: string; created_at: string; mine: boolean }
+type Msg = { id: string; sender_role: 'CLIENT' | 'PRO'; kind: 'MESSAGE' | 'CALL_REQUEST'; body: string; created_at: string; read_at: string | null; mine: boolean }
 
 // Chat sul PREVENTIVO tra cliente e professionista. Stesso componente per entrambi i lati:
 // il "party" (PRO/CLIENT) lo decide il server. Il professionista può anche "Richiedere una call".
@@ -58,7 +58,7 @@ export function QuoteThread({ quoteId }: { quoteId: string }) {
             {party === 'PRO' ? 'Nessun messaggio. Puoi scrivere al cliente o proporgli una call.' : 'Hai domande su questo preventivo? Scrivi al professionista.'}
           </p>
         ) : msgs.map((m) => (
-          <div key={m.id} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
+          <div key={m.id} className={`flex flex-col ${m.mine ? 'items-end' : 'items-start'}`}>
             <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${m.kind === 'CALL_REQUEST' ? 'border' : ''} ${m.mine ? 'bg-[rgb(var(--gold-500))] text-white' : 'bg-[rgb(var(--bg-sunken))]'}`}
               style={m.kind === 'CALL_REQUEST' && !m.mine ? { borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--gold-100))' } : undefined}>
               {m.kind === 'CALL_REQUEST' && (
@@ -66,6 +66,12 @@ export function QuoteThread({ quoteId }: { quoteId: string }) {
               )}
               <span className="whitespace-pre-wrap break-words">{m.body}</span>
             </div>
+            {m.mine && (
+              <span className={`text-[10px] mt-0.5 px-1 inline-flex items-center gap-0.5 ${m.read_at ? 'text-[rgb(var(--gold-700))]' : 'text-[rgb(var(--fg-subtle))]'}`}
+                title={m.read_at ? `Letto ${new Date(m.read_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : 'Consegnato, non ancora letto'}>
+                {m.read_at ? <><CheckCheck size={12} /> Letto</> : <><Check size={12} /> Inviato</>}
+              </span>
+            )}
           </div>
         ))}
         <div ref={endRef} />
