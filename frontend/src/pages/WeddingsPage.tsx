@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SearchFilterBar } from '@/components/common/SearchFilterBar'
 import { useWeddings } from '@/hooks/useWedding'
+import { shownTotal } from '@/lib/quoteSelection'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { DirectEventButton } from '@/components/event/DirectEventButton'
@@ -196,7 +197,7 @@ export default function WeddingsPage() {
                   </div>
                   <Link to={`/weddings/${w.id}`}>
                     <div className="grid grid-cols-3 gap-3 pt-3 border-t text-xs" style={{ borderColor: 'rgb(var(--border))' }}>
-                      <Stat label="Valore" value={`€ ${Number(w.value_amount ?? 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`} />
+                      <Stat label="Valore" value={`€ ${Number(w.quote ? shownTotal(w.quote.total_client, w.quote.total_client_selected) : (w.value_amount ?? 0)).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`} />
                       <Stat label="Preventivo" value={w.quote?.status ?? '—'} />
                       <Stat label="Revision" value={`v${w.quote?.revision ?? 1}`} />
                     </div>

@@ -9,6 +9,7 @@ import {
   Scale, MessageCircle, ChevronLeft, ChevronRight, Check,
 } from 'lucide-react'
 import { eurInt } from '@/lib/money'
+import { shownTotal } from '@/lib/quoteSelection'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/lib/toast'
 import { useWedding, useUpdateWedding } from '@/hooks/useWedding'
@@ -317,11 +318,18 @@ export default function WeddingDashboard() {
               {/* "Tutto WP" è una scelta commerciale da capostipite/WP (contratto unico
                   + sub-appalto fornitori). Un fornitore non la gestisce. */}
               {!isFornitore && <BusinessModelToggle wedding={wedding} />}
-              {wedding.value_amount && (
-                <span className="font-display text-2xl tabular-nums whitespace-nowrap" style={{ color: 'rgb(var(--gold-700))' }}>
-                  {eurInt(wedding.value_amount)}
-                </span>
-              )}
+              {(() => {
+                // Valore impegnato: dal preventivo (selezionato se >0, altrimenti totale),
+                // non lo snapshot value_amount che può essere il totale pieno.
+                const dashValue = wedding.quote
+                  ? shownTotal(wedding.quote.total_client, wedding.quote.total_client_selected)
+                  : (wedding.value_amount ?? 0)
+                return dashValue ? (
+                  <span className="font-display text-2xl tabular-nums whitespace-nowrap" style={{ color: 'rgb(var(--gold-700))' }}>
+                    {eurInt(dashValue)}
+                  </span>
+                ) : null
+              })()}
               {eventPassed && (
                 <Button variant="gold" size="sm" onClick={() => setRateOpen(true)}>
                   <Star size={14} /> Valuta collaborazione
