@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Cropper from 'react-easy-crop'
 import { RotateCcw, RotateCw, FlipHorizontal2, FlipVertical2, X, Check, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,10 @@ export function PhotoEditorModal({ src, title, onClose, onSave }: {
   const [error, setError] = useState<string | null>(null)
 
   const effRotation = ((rotation + straighten) % 360 + 360) % 360
+  // Rapporto nativo della foto: chip "Originale" per ritagliare mantenendo le
+  // proporzioni di partenza (utile per raddrizzare/ruotare senza ricomporre).
+  const origAspect = baseImg ? baseImg.naturalWidth / baseImg.naturalHeight : undefined
+  const initedAspect = useRef(false)
 
   useEffect(() => {
     let alive = true
@@ -55,11 +59,16 @@ export function PhotoEditorModal({ src, title, onClose, onSave }: {
     return () => { alive = false }
   }, [baseImg, flipH, flipV, src])
 
+  // All'apertura il ritaglio parte nel formato ORIGINALE della foto.
+  useEffect(() => {
+    if (baseImg && !initedAspect.current) { initedAspect.current = true; setAspect(baseImg.naturalWidth / baseImg.naturalHeight) }
+  }, [baseImg])
+
   const onCropComplete = useCallback((_: Area, px: Area) => setPixels(px), [])
 
   function reset() {
     setCrop({ x: 0, y: 0 }); setZoom(1); setRotation(0); setStraighten(0)
-    setFlipH(false); setFlipV(false); setAspect(undefined)
+    setFlipH(false); setFlipV(false); setAspect(origAspect)
   }
 
   async function save() {
@@ -106,6 +115,12 @@ export function PhotoEditorModal({ src, title, onClose, onSave }: {
       <div className="px-4 py-3 space-y-3" style={{ background: 'rgba(20,24,28,0.98)' }}>
         {/* Aspetto (proporzioni) */}
         <div className="flex flex-wrap gap-1.5">
+          {origAspect && (
+            <button onClick={() => setAspect(origAspect)}
+              className={`text-xs px-3 py-1.5 rounded-full border ${aspect === origAspect ? 'bg-white text-black border-transparent' : 'text-white/80 border-white/25 hover:bg-white/10'}`}>
+              Originale
+            </button>
+          )}
           {ASPECTS.map((a) => (
             <button key={a.label} onClick={() => setAspect(a.value)}
               className={`text-xs px-3 py-1.5 rounded-full border ${aspect === a.value ? 'bg-white text-black border-transparent' : 'text-white/80 border-white/25 hover:bg-white/10'}`}>
