@@ -67,26 +67,23 @@ export function AllContractsMonitor({ entryId }: { entryId: string }) {
   async function load() {
     setLoading(true)
     try {
-      const [{ data: list }, { data: sup }] = await Promise.all([
-        (supabase as any).rpc('list_contracts_for_entry', { p_entry_id: entryId }),
-        (supabase as any).rpc('suppliers_in_quote', { p_entry_id: entryId }).then((r: any) => r, () => ({ data: null })),
-      ])
+      const { data: list } = await (supabase as any).rpc('list_contracts_for_entry', { p_entry_id: entryId })
       setRows(((list ?? []) as Row[]))
-      // Fallback per i suppliers: query diretta dal quote
-      if (!sup) {
-        const wid = (wedding as any)?.quote_id
-        if (wid) {
-          const { data: items } = await (supabase as any).from('quote_items')
-            .select('supplier_id, supplier:profiles!quote_items_supplier_id_fkey(id, business_name, full_name)')
-            .eq('quote_id', wid)
-          const map = new Map<string, Supplier>()
-          for (const i of (items ?? []) as any[]) {
-            if (i.supplier?.id) map.set(i.supplier.id, i.supplier)
-          }
-          setSuppliers(Array.from(map.values()))
+      // Fornitori del wedding: ricavati direttamente dalle voci del preventivo.
+      // (Prima si chiamava un RPC `suppliers_in_quote` inesistente → 404 a ogni load;
+      //  la query diretta era già il fallback, ora è l'unica via.)
+      const wid = (wedding as any)?.quote_id
+      if (wid) {
+        const { data: items } = await (supabase as any).from('quote_items')
+          .select('supplier_id, supplier:profiles!quote_items_supplier_id_fkey(id, business_name, full_name)')
+          .eq('quote_id', wid)
+        const map = new Map<string, Supplier>()
+        for (const i of (items ?? []) as any[]) {
+          if (i.supplier?.id) map.set(i.supplier.id, i.supplier)
         }
+        setSuppliers(Array.from(map.values()))
       } else {
-        setSuppliers(sup as Supplier[])
+        setSuppliers([])
       }
     } finally { setLoading(false) }
   }

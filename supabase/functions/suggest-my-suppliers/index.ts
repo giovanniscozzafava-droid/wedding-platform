@@ -48,11 +48,14 @@ Deno.serve(async (req) => {
   if (!caller) return json({ error: 'unauthorized' }, 401)
 
   const { data: q } = await admin.from('quotes')
-    .select('id, owner_id, client_name, client_email, event_kind, event_date, event_location, guest_count')
+    .select('id, owner_id, client_name, client_email, event_kind, event_date, event_location, guest_count, allow_supplier_suggestions')
     .eq('id', body.quote_id).maybeSingle()
   if (!q) return json({ error: 'quote_not_found' }, 404)
   const { data: me } = await admin.from('profiles').select('role, full_name, business_name').eq('id', caller.id).maybeSingle()
   if (q.owner_id !== caller.id && me?.role !== 'ADMIN') return json({ error: 'forbidden' }, 403)
+  // Consenso del CLIENTE: il gate `allow_supplier_suggestions` va verificato anche
+  // server-side (la UI lo rispetta, ma una POST diretta lo aggirava — SEC referral).
+  if (!q.allow_supplier_suggestions && me?.role !== 'ADMIN') return json({ error: 'suggestions_not_allowed' }, 403)
   const referrerName = me?.business_name ?? me?.full_name ?? 'Un professionista'
 
   // Suggeribile QUALSIASI professionista (regola: ogni profilo professionale nasce suggeribile).
