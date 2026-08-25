@@ -547,7 +547,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 overflow-x-clip">
       {/* input file nascosto per l'upload su Drive */}
       <input ref={uploadRef} type="file" multiple accept="image/*,video/*" className="hidden"
         onChange={(e) => { const snap = e.target.files ? Array.from(e.target.files) : []; e.target.value = ''; if (snap.length && uploadFolder) void uploadPhotos(uploadFolder, snap) }} />
@@ -800,7 +800,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         return (
           <Card key={f.id} id={`folder-${f.id}`} className="p-4 scroll-mt-4">
             <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-              <button type="button" onClick={() => toggleExpand(f.id)} className="flex items-center gap-2 text-left min-w-0">
+              <button type="button" onClick={() => toggleExpand(f.id)} className="flex flex-wrap items-center gap-2 text-left min-w-0 max-w-full">
                 {isOpen ? <ChevronDown size={16} className="shrink-0 text-[rgb(var(--fg-muted))]" /> : <ChevronRight size={16} className="shrink-0 text-[rgb(var(--fg-muted))]" />}
                 {lvl && <lvl.icon size={16} className="shrink-0 text-[rgb(var(--gold-700))]" />}
                 <h3 className="font-medium truncate">{f.name} <span className="text-xs font-normal text-[rgb(var(--fg-subtle))]">({f.gallery_media.length} foto)</span></h3>
