@@ -157,10 +157,27 @@ export default function QuoteEditorPage() {
   // Totale che il PRO vede = somma delle sole voci OPZIONATE dal cliente (non il menu intero).
   const selectedIds = useMemo(() => new Set(engagement.filter((e) => e.selected_by_client || e.client_decision === 'ACCETTATO').map((e) => e.item_id)), [engagement])
   const sel = useMemo(() => {
-    const its = ((quote as any)?.quote_items ?? []).filter((it: any) => selectedIds.has(it.id))
-    const client = its.reduce((s: number, it: any) => s + (Number(it.line_client) || 0), 0)
-    const cost = its.reduce((s: number, it: any) => s + (Number(it.line_cost) || 0), 0)
-    return { count: its.length, client, cost, margin: client - cost }
+    // Il totale CLIENTE deve applicare lo sconto/maggiorazione a LIVELLO PREVENTIVO,
+    // non solo sommare le voci: replica fedele di quotes_recalc_totals (server), così
+    // l'editor combacia sempre con l'atto firmato (bug: lo sconto fisso € non veniva conteggiato).
+    const all = ((quote as any)?.quote_items ?? []) as any[]
+    const its = all.filter((it: any) => selectedIds.has(it.id))
+    const num = (v: any) => Number(v) || 0
+    const subtotalAll = all.reduce((s: number, it: any) => s + num(it.line_client), 0) // v_subtotal (tutte le voci)
+    const subSel = its.reduce((s: number, it: any) => s + num(it.line_client), 0)       // v_sub_sel (selezionate)
+    const pct = num((quote as any)?.total_discount_percent)
+    const amt = num((quote as any)?.total_discount_amount)          // sconto fisso €
+    const surPct = num((quote as any)?.surcharge_percent)
+    const dist = num((quote as any)?.distance_surcharge)
+    // CLIENTE scontato del selezionato: % sul subset + fisso € RIPROPORZIONATO sul subset.
+    let discSel = subSel * (1 - pct / 100) - (subtotalAll > 0 ? amt * subSel / subtotalAll : 0)
+    if (discSel < 0) discSel = 0
+    const client = subSel <= 0 ? 0 : Math.round((Math.round(discSel * (1 + surPct / 100) * 100) / 100 + dist) * 100) / 100
+    // COSTO: le voci erogatore (mio servizio) seguono il fattore-sconto come il server
+    // (margine ~0 su ciò che il pro sconta di tasca propria); le voci di terzi a costo pieno.
+    const factor = subtotalAll > 0 ? Math.max(0, (subtotalAll * (1 - pct / 100) - amt) / subtotalAll) : 1
+    const cost = its.reduce((s: number, it: any) => s + (it.erogatore_e_capostipite ? num(it.line_cost) * factor : num(it.line_cost)), 0)
+    return { count: its.length, client, cost: Math.round(cost * 100) / 100, margin: Math.round((client - cost) * 100) / 100 }
   }, [quote, selectedIds])
   const [blockDays, setBlockDays] = useState(15)
   const [notifyClient] = useState(true)
