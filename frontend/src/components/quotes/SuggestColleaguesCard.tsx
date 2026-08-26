@@ -25,6 +25,9 @@ export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
   const [inviteEmail, setInviteEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  // Allineamento preventivo↔evento: chi è GIA' nel cerchio dell'evento e chi è GIA' suggerito.
+  const [circle, setCircle] = useState<Set<string>>(new Set())
+  const [already, setAlready] = useState<Set<string>>(new Set())
 
   const filtered = query.trim().length === 0 ? list
     : list.filter((s) => (s.name ?? '').toLowerCase().includes(query.trim().toLowerCase()) || (s.subrole ?? '').toLowerCase().includes(query.trim().toLowerCase()))
@@ -43,13 +46,20 @@ export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await rpc('followed_suppliers')
+      const [{ data }, { data: conf }] = await Promise.all([
+        rpc('followed_suppliers'),
+        rpc('quote_suggestion_conflicts', { p_quote: quoteId }),
+      ])
       setList(((data as { suppliers?: Sup[] })?.suppliers) ?? [])
+      const c = conf as { in_circle?: string[]; already_suggested?: string[] } | null
+      setCircle(new Set(c?.in_circle ?? []))
+      setAlready(new Set(c?.already_suggested ?? []))
       setLoading(false)
     })()
-  }, [])
+  }, [quoteId])
 
   function toggle(id: string) {
+    if (circle.has(id)) { toast.message('Questo professionista è già nel cerchio dell’evento: non serve suggerirlo.'); return }
     setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
 
@@ -90,15 +100,20 @@ export function SuggestColleaguesCard({ quoteId }: { quoteId: string }) {
           <div className="space-y-1.5 mb-3 max-h-60 overflow-auto">
             {filtered.map((s) => {
               const on = sel.has(s.id)
+              const inCircle = circle.has(s.id)
+              const isSuggested = !inCircle && already.has(s.id)
               return (
-                <button key={s.id} type="button" onClick={() => toggle(s.id)}
-                  className="w-full flex items-center gap-2 text-left text-sm px-3 py-2 rounded-lg border transition-colors"
+                <button key={s.id} type="button" onClick={() => toggle(s.id)} disabled={inCircle}
+                  title={inCircle ? 'Già nel cerchio dell’evento' : isSuggested ? 'Già suggerito per questo evento' : undefined}
+                  className="w-full flex items-center gap-2 text-left text-sm px-3 py-2 rounded-lg border transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   style={on ? { borderColor: 'rgb(var(--gold-500))', background: 'rgb(var(--gold-500) / 0.08)' } : { borderColor: 'rgb(var(--border))' }}>
                   <span className="w-4 h-4 rounded border flex items-center justify-center shrink-0" style={{ borderColor: on ? 'rgb(var(--gold-500))' : 'rgb(var(--border))' }}>
                     {on && <Check size={12} className="text-[rgb(var(--gold-600))]" />}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                  {s.subrole && <span className="text-xs text-[rgb(var(--fg-subtle))]">{s.subrole}</span>}
+                  {inCircle && <span className="text-[10px] font-medium rounded-full px-1.5 py-0.5 bg-[rgb(var(--emerald-500))/0.12] text-[rgb(var(--emerald-600))] inline-flex items-center gap-0.5 shrink-0"><Check size={10} /> nel cerchio</span>}
+                  {isSuggested && <span className="text-[10px] font-medium rounded-full px-1.5 py-0.5 bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))] shrink-0">già suggerito</span>}
+                  {!inCircle && !isSuggested && s.subrole && <span className="text-xs text-[rgb(var(--fg-subtle))]">{s.subrole}</span>}
                 </button>
               )
             })}

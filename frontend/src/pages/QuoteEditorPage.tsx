@@ -1089,9 +1089,10 @@ export default function QuoteEditorPage() {
         {/* METRICHE: quando e quante volte il cliente ha visto il preventivo (timeline di ogni vista) */}
         {id && <QuoteActivityCard quoteId={id} />}
 
-        {/* Suggerisci colleghi al cliente — SOLO fornitori (non capostipiti/WP),
-            e solo dopo la firma del preventivo */}
-        {id && isFornitoreFlow && (quote?.status === 'ACCETTATO' || quote?.status === 'CONVERTITO_IN_CONTRATTO') && (
+        {/* Suggerisci colleghi al cliente — SOLO fornitori (non capostipiti/WP).
+            Libero di suggerire in QUALSIASI stato del preventivo (anche prima di
+            accettato/firmato): l'unico gate è il CONSENSO del cliente (dal form). */}
+        {id && isFornitoreFlow && allowSuggest && (
           <SuggestColleaguesCard quoteId={id} />
         )}
 

@@ -46,13 +46,18 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
     }
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
   }, [collabs, followed])
-  // Professionisti GIA' suggeriti per QUESTO cliente: restano in lista ma NON piu' spuntabili.
+  // Allineamento preventivo↔evento: chi è GIA' suggerito (entrambi i canali) e chi è
+  // GIA' nel cerchio dell'evento. Restano in lista ma NON più spuntabili.
   const [already, setAlready] = useState<Set<string>>(() => new Set())
+  const [circle, setCircle] = useState<Set<string>>(() => new Set())
   useEffect(() => {
     let alive = true
     void (async () => {
-      const { data } = await (supabase.from as any)('supplier_suggestions').select('supplier_id').eq('source_quote_id', quoteId)
-      if (alive && Array.isArray(data)) setAlready(new Set((data as { supplier_id: string }[]).map((r) => r.supplier_id)))
+      const { data } = await (supabase.rpc as any)('quote_suggestion_conflicts', { p_quote: quoteId })
+      if (!alive) return
+      const c = data as { in_circle?: string[]; already_suggested?: string[] } | null
+      setCircle(new Set(c?.in_circle ?? []))
+      setAlready(new Set(c?.already_suggested ?? []))
     })()
     return () => { alive = false }
   }, [quoteId])
@@ -83,10 +88,13 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
     return () => { alive = false; clearTimeout(h) }
   }, [q, suppliers])
 
-  // Preselezione: tutti i NON ancora suggeriti (i gia' suggeriti restano in lista ma non spuntabili).
-  const selectable = useMemo(() => suppliers.filter((s) => !already.has(s.id)), [suppliers, already])
+  // Bloccati = già suggeriti (un canale qualsiasi) OPPURE già nel cerchio dell'evento.
+  const blocked = (id: string) => already.has(id) || circle.has(id)
+  // Preselezione: tutti i NON bloccati (i bloccati restano in lista ma non spuntabili).
+  const selectable = useMemo(() => suppliers.filter((s) => !blocked(s.id)), [suppliers, already, circle])
   const sel = selected ?? new Set(selectable.map((s) => s.id))
   const toggle = (id: string) => {
+    if (circle.has(id)) { toast.message('Già nel cerchio dell’evento: non serve suggerirlo.'); return }
     if (already.has(id)) return // gia' suggerito → non spuntabile
     const next = new Set(sel)
     next.has(id) ? next.delete(id) : next.add(id)
@@ -153,7 +161,8 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
               </div>
               <div className="space-y-1.5">
                 {suppliers.map((s) => {
-                  const done = already.has(s.id)
+                  const inCircle = circle.has(s.id)
+                  const done = already.has(s.id) || inCircle
                   const on = !done && sel.has(s.id)
                   const name = s.name
                   return (
@@ -164,7 +173,9 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
                         <span className="block text-sm font-medium truncate">{name}</span>
                         {s.subrole && <span className="block text-[11px] text-[rgb(var(--fg-subtle))] capitalize">{s.subrole}</span>}
                       </span>
-                      {done && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--emerald-700))', background: 'rgb(var(--emerald-500) / 0.14)' }}>Già suggerito</span>}
+                      {inCircle
+                        ? <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--emerald-700))', background: 'rgb(var(--emerald-500) / 0.14)' }}>Nel cerchio</span>
+                        : done && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--gold-700))', background: 'rgb(var(--gold-500) / 0.14)' }}>Già suggerito</span>}
                     </button>
                   )
                 })}
@@ -189,7 +200,8 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
             {searchRes.length > 0 && (
               <div className="space-y-1.5">
                 {searchRes.map((s) => {
-                  const done = already.has(s.id)
+                  const inCircle = circle.has(s.id)
+                  const done = already.has(s.id) || inCircle
                   const on = !done && sel.has(s.id)
                   return (
                     <button key={s.id} onClick={() => toggle(s.id)} disabled={done}
@@ -199,7 +211,9 @@ export function SuggestSuppliersModal({ quoteId, clientName, onClose }: { quoteI
                         <span className="block text-sm font-medium truncate">{s.name}</span>
                         {s.subrole && <span className="block text-[11px] text-[rgb(var(--fg-subtle))] capitalize">{s.subrole}</span>}
                       </span>
-                      {done && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--emerald-700))', background: 'rgb(var(--emerald-500) / 0.14)' }}>Già suggerito</span>}
+                      {inCircle
+                        ? <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--emerald-700))', background: 'rgb(var(--emerald-500) / 0.14)' }}>Nel cerchio</span>
+                        : done && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'rgb(var(--gold-700))', background: 'rgb(var(--gold-500) / 0.14)' }}>Già suggerito</span>}
                     </button>
                   )
                 })}
