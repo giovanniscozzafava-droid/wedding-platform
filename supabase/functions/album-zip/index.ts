@@ -20,10 +20,13 @@ Deno.serve(async (req) => {
   const { data: { user } } = await userClient.auth.getUser()
   if (!user) return json({ error: 'auth_required' }, 401)
 
-  const body = (await req.json().catch(() => ({}))) as { entry_id?: string; size?: string }
+  const body = (await req.json().catch(() => ({}))) as { entry_id?: string; size?: string; scope?: string; folder_id?: string }
   const entry_id = body.entry_id
   // "dimensione" dell'export: 'web' (leggera, ~1600px) o 'original' (piena risoluzione).
   const size: 'web' | 'original' = body.size === 'web' ? 'web' : 'original'
+  // scope: 'selection' (solo album_choice=KEPT, default, retrocompatibile) o 'all' (tutta la galleria).
+  const scope: 'selection' | 'all' = body.scope === 'all' ? 'all' : 'selection'
+  const folderId = body.folder_id
   if (!entry_id) return json({ error: 'no_entry' }, 400)
 
   const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } })
@@ -45,10 +48,13 @@ Deno.serve(async (req) => {
     if (!ord) return json({ error: 'no_order' }, 403)
   }
 
-  const { data: media } = await admin.from('gallery_media')
-    .select('drive_file_id, thumbnail_link, media_type, guest_tag_name')
-    .eq('entry_id', entry_id).eq('album_choice', 'KEPT').limit(300)
-  if (!media || media.length === 0) return json({ error: 'no_selection' }, 400)
+  let mq = admin.from('gallery_media')
+    .select('drive_file_id, thumbnail_link, media_type, guest_tag_name, edited_url')
+    .eq('entry_id', entry_id)
+  if (scope === 'selection') mq = mq.eq('album_choice', 'KEPT')
+  if (folderId) mq = mq.eq('folder_id', folderId)
+  const { data: media } = await mq.limit(500)
+  if (!media || media.length === 0) return json({ error: scope === 'all' ? 'empty' : 'no_selection', detail: 'nessuna foto da scaricare' }, 400)
 
   // token Drive dell'owner (per i file su Drive)
   let token: string | null = null
@@ -73,7 +79,13 @@ Deno.serve(async (req) => {
       let bytes: ArrayBuffer
       // I video si esportano sempre a piena risoluzione (il "web" vale per le foto).
       const wantWeb = size === 'web' && m.media_type !== 'VIDEO'
-      if (isDrive(m.drive_file_id)) {
+      const edited = (m as { edited_url?: string | null }).edited_url
+      if (edited) {
+        // Versione MODIFICATA (crop/ruota): è quella canonica → prevale su Drive/originale.
+        const r = await fetch(edited)
+        if (!r.ok) continue
+        bytes = await r.arrayBuffer()
+      } else if (isDrive(m.drive_file_id)) {
         if (wantWeb) {
           // versione leggera ~1600px: l'endpoint thumbnail di Drive (no auth per file condivisi)
           const r = await fetch(`https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600`)
@@ -100,6 +112,7 @@ Deno.serve(async (req) => {
   if (ok === 0) return json({ error: 'empty', detail: 'nessun file scaricabile (Drive non collegato?)' }, 502)
 
   const out = await zip.generateAsync({ type: 'uint8array' })
-  const fname = size === 'web' ? 'album-selezione-web.zip' : 'album-selezione-originale.zip'
+  const stem = scope === 'all' ? 'galleria' : 'album-selezione'
+  const fname = size === 'web' ? `${stem}-web.zip` : `${stem}-originali.zip`
   return new Response(out, { headers: { ...cors, 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${fname}"` } })
 })

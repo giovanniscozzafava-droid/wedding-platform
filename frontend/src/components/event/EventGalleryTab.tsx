@@ -95,6 +95,31 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [printPhoto, setPrintPhoto] = useState<Media | null>(null)
   const [editPhoto, setEditPhoto] = useState<Media | null>(null)
   const [printOn, setPrintOn] = useState(false)
+  const [zipOpen, setZipOpen] = useState(false)
+  const [zipBusy, setZipBusy] = useState<'web' | 'original' | null>(null)
+
+  // Scarica TUTTA la galleria in un unico .zip (formato web leggero o originali piena
+  // risoluzione). Lo zip lo compone l'edge album-zip lato server (scope 'all').
+  async function downloadGalleryZip(size: 'web' | 'original') {
+    setZipBusy(size)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { toast.error('Sessione scaduta, riaccedi'); return }
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/album-zip`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, 'content-type': 'application/json' },
+        body: JSON.stringify({ entry_id: entryId, size, scope: 'all' }),
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({} as { error?: string; detail?: string }))
+        toast.error(e?.detail || (e?.error === 'empty' ? 'Nessuna foto da scaricare' : 'Download .zip non riuscito'))
+        return
+      }
+      const url = URL.createObjectURL(await res.blob())
+      const a = document.createElement('a'); a.href = url; a.download = size === 'web' ? 'galleria-web.zip' : 'galleria-originali.zip'; a.click(); URL.revokeObjectURL(url)
+      setZipOpen(false)
+    } catch { toast.error('Download .zip non riuscito') } finally { setZipBusy(null) }
+  }
   // Sito personale del professionista: l'interruttore compare solo a chi ne ha uno
   // collegato, e vale per QUESTO evento — non per tutto l'archivio.
   const [siteSyncOn, setSiteSyncOn] = useState(false)
@@ -373,27 +398,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     await load()
   }
 
-  // Carica foto demo (Pexels) per dimostrare la galleria viva (l'upload vero va su Drive).
-  async function addDemoPhotos(f: Folder) {
-    if (!gallery) return
-    setBusy(true)
-    try {
-      const q = f.level === 'INVITATI' ? 'wedding guests portrait' : 'wedding celebration photography'
-      const { data } = await supabase.functions.invoke('pexels-search', { body: { query: q, per_page: 8, orientation: 'landscape' } })
-      const photos = (data as any)?.photos ?? []
-      const rows = photos.map((p: any, i: number) => ({
-        folder_id: f.id, gallery_id: gallery.id, entry_id: entryId,
-        drive_file_id: `demo-${p.id}`, thumbnail_link: p.src?.medium ?? null, media_type: 'PHOTO',
-        guest_tag_name: f.level === 'INVITATI' ? ['Giuseppe Esposito', 'Anna Russo', 'Marco Bianchi'][i % 3] : null,
-      }))
-      if (rows.length) {
-        const { error } = await (supabase.from as any)('gallery_media').insert(rows)
-        if (error) throw error
-      }
-      await load()
-    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
-  }
-
   // Upload reale browser→Drive: token effimero, cartella Drive condivisa, file
   // diretti a Drive (non passano da Planfully), poi salvo id + miniatura pubblica.
   async function uploadPhotos(f: Folder, files: File[]) {
@@ -617,7 +621,28 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       )}
 
       {folders.some((f) => f.gallery_media.length > 0) && (
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-2 flex-wrap">
+          {(isOwner || role === 'sposi') && (
+            <div className="relative">
+              <Button variant="outline" size="sm" disabled={!!zipBusy} onClick={() => setZipOpen((v) => !v)}>
+                <Download size={14} /> {zipBusy ? 'Preparo lo zip…' : 'Scarica .zip'} <ChevronDown size={13} />
+              </Button>
+              {zipOpen && (
+                <div className="absolute right-0 mt-1 z-30 w-64 rounded-xl border p-1 shadow-lg" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elevated))' }} onClick={(e) => e.stopPropagation()}>
+                  <button type="button" disabled={!!zipBusy} onClick={() => void downloadGalleryZip('web')}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60">
+                    <span className="text-sm font-medium">Formato web</span>
+                    <span className="block text-[11px] text-[rgb(var(--fg-subtle))]">Leggero (~1600px), ideale da condividere</span>
+                  </button>
+                  <button type="button" disabled={!!zipBusy} onClick={() => void downloadGalleryZip('original')}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60">
+                    <span className="text-sm font-medium">Originali</span>
+                    <span className="block text-[11px] text-[rgb(var(--fg-subtle))]">Piena risoluzione (file grandi, fino a 500)</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <Button variant="gold" size="sm" onClick={() => setShowcase(true)}><Images size={14} /> Presentazione galleria</Button>
         </div>
       )}
@@ -824,7 +849,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                     <Heart size={12} /> {(f.album_selectable ?? true) ? 'Escludi da album' : 'Includi in album'}
                   </Button>
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>
-                  <Button variant="outline" size="sm" disabled={busy} onClick={() => addDemoPhotos(f)}> Foto demo</Button>
                   {salesEnabled && <Button variant="outline" size="sm" onClick={() => setFolderPrice(f)}>{f.is_for_sale ? `€${((f.price_cents ?? 0) / 100).toFixed(0)}` : 'Prezzo'}</Button>}
                   <Button variant="ghost" size="icon" onClick={() => deleteFolder(f)}><Trash2 size={13} /></Button>
                 </div>
@@ -847,7 +871,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               </div>
             )}
             {fMedia.length === 0 ? (
-              <p className="text-xs text-[rgb(var(--fg-subtle))]">{isGuestFolder && tagFilter.length ? 'Nessuna foto con questi tag.' : <>Nessuna foto. {isOwner && 'Usa “Carica foto” (vanno sul tuo Drive) o “Foto demo”.'}</>}</p>
+              <p className="text-xs text-[rgb(var(--fg-subtle))]">{isGuestFolder && tagFilter.length ? 'Nessuna foto con questi tag.' : <>Nessuna foto. {isOwner && 'Usa “Carica foto”: vanno sul tuo Drive.'}</>}</p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {fMedia.map((m, idx) => (
@@ -879,7 +903,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             </>
             ) : (
               f.gallery_media.length === 0 ? (
-                <p className="text-xs text-[rgb(var(--fg-subtle))]">Nessuna foto. {isOwner && 'Usa “Carica foto” (vanno sul tuo Drive) o “Foto demo”.'}</p>
+                <p className="text-xs text-[rgb(var(--fg-subtle))]">Nessuna foto. {isOwner && 'Usa “Carica foto”: vanno sul tuo Drive.'}</p>
               ) : (
                 <div>
                   <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
