@@ -49,12 +49,24 @@ Deno.serve(async (req) => {
   }
 
   let mq = admin.from('gallery_media')
-    .select('drive_file_id, thumbnail_link, media_type, guest_tag_name, edited_url')
+    .select('drive_file_id, thumbnail_link, media_type, guest_tag_name, edited_url, folder_id')
     .eq('entry_id', entry_id)
   if (scope === 'selection') mq = mq.eq('album_choice', 'KEPT')
   if (folderId) mq = mq.eq('folder_id', folderId)
-  const { data: media } = await mq.limit(500)
+  let { data: media } = await mq.limit(500)
   if (!media || media.length === 0) return json({ error: scope === 'all' ? 'empty' : 'no_selection', detail: 'nessuna foto da scaricare' }, 400)
+
+  // Enforcement per-cartella: il fotografo (owner) scarica sempre tutto; sposi/ospiti
+  // solo dalle cartelle in cui il fotografo ha abilitato quel formato.
+  if (!isOwner) {
+    const { data: folders } = await admin.from('gallery_folders')
+      .select('id, allow_dl_web, allow_dl_full').eq('entry_id', entry_id)
+    const allowed = new Set((folders ?? [])
+      .filter((f: { allow_dl_web?: boolean; allow_dl_full?: boolean }) => (size === 'web' ? f.allow_dl_web !== false : f.allow_dl_full !== false))
+      .map((f: { id: string }) => f.id))
+    media = media.filter((m: { folder_id?: string | null }) => !!m.folder_id && allowed.has(m.folder_id))
+    if (media.length === 0) return json({ error: 'download_disabled', detail: 'Il fotografo non ha abilitato questo download per le cartelle selezionate.' }, 403)
+  }
 
   // token Drive dell'owner (per i file su Drive)
   let token: string | null = null

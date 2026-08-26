@@ -29,8 +29,8 @@ import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 // carica; gli sposi vedono tutto + danno il consenso; i fornitori vedono solo
 // ciò che li riguarda. I file veri stanno sul Drive del fotografo; qui le anteprime.
 
-type Media = { id: string; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null; pick_photographer?: boolean | null; pick_couple?: boolean | null; edited_url?: string | null }
-type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; album_selectable?: boolean; gallery_media: Media[] }
+type Media = { id: string; folder_id?: string | null; thumbnail_link: string | null; drive_file_id: string; media_type: string; guest_tag_name: string | null; price_cents: number | null; album_choice?: 'KEPT' | 'DISCARDED' | null; album_moment?: string | null; uploaded_by?: string | null; uploader_name?: string | null; guest_tags?: string[] | null; no_minors?: boolean | null; pick_photographer?: boolean | null; pick_couple?: boolean | null; edited_url?: string | null }
+type Folder = { id: string; name: string; level: string; shared: boolean; guest_visible: boolean; assigned_subrole: string | null; assigned_to: string | null; sort_order: number; drive_folder_id: string | null; is_for_sale: boolean; price_cents: number | null; album_selectable?: boolean; allow_dl_web?: boolean; allow_dl_full?: boolean; gallery_media: Media[] }
 type Gallery = { id: string; owner_id: string; title: string; share_token: string | null }
 
 // SelectionRangeControl è ora in ./SelectionRangeControl.tsx (riusato anche dal pannello
@@ -199,7 +199,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
       if (gs) setGsettings({ ...DEFAULT_GALLERY_SETTINGS, ...gs })
     }
     const { data: f } = await (supabase.from as any)('gallery_folders')
-      .select('id, name, level, shared, guest_visible, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, album_selectable')
+      .select('id, name, level, shared, guest_visible, assigned_subrole, assigned_to, sort_order, drive_folder_id, is_for_sale, price_cents, album_selectable, allow_dl_web, allow_dl_full')
       .eq('entry_id', entryId).order('sort_order')
     // Media a PAGINE: PostgREST limita a 1000 righe/richiesta → senza paginare la galleria
     // si fermava a 1000 foto. Qui le carichiamo TUTTE (capienza illimitata) e le raggruppiamo.
@@ -259,6 +259,13 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const editorSrc = (m: Media) => `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/img-proxy?url=${encodeURIComponent(m.edited_url ?? fullSrc(m))}`
   // Miniatura di griglia: se c'è la versione modificata prevale anche qui.
   const gridThumb = (m: Media) => m.edited_url ?? m.thumbnail_link ?? ''
+  // Download consentito per questa foto: il fotografo (owner) può sempre; gli sposi solo
+  // se la CARTELLA ha quel formato abilitato (allow_dl_web / allow_dl_full).
+  const canDl = (m: Media, kind: 'web' | 'full') => {
+    if (isOwner) return true
+    const fld = folders.find((f) => f.id === m.folder_id)
+    return (kind === 'web' ? fld?.allow_dl_web : fld?.allow_dl_full) !== false
+  }
 
   // scarica: prova blob (per forzare il download), fallback ad aprire l'URL (Drive
   // serve l'originale come allegato comunque). I byte NON passano da Planfully.
@@ -318,6 +325,17 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const { error } = await (supabase.from as any)('gallery_folders').update({ album_selectable: next }).eq('id', f.id)
     if (error) { toast.error(error.message); await load(); return }
     toast.success(next ? 'Cartella inclusa nella selezione album' : 'Cartella esclusa dalla selezione album')
+  }
+
+  // Abilita/disabilita il DOWNLOAD (web / alta risoluzione) di questa cartella per sposi/ospiti.
+  async function toggleDownload(f: Folder, kind: 'web' | 'full') {
+    const col = kind === 'web' ? 'allow_dl_web' : 'allow_dl_full'
+    const cur = kind === 'web' ? (f.allow_dl_web ?? true) : (f.allow_dl_full ?? true)
+    const next = !cur
+    setFolders((fs) => fs.map((x) => (x.id === f.id ? { ...x, [col]: next } : x)))   // ottimistico
+    const { error } = await (supabase.from as any)('gallery_folders').update({ [col]: next }).eq('id', f.id)
+    if (error) { toast.error(error.message); await load(); return }
+    toast.success(`${kind === 'web' ? 'Download web' : 'Download alta risoluzione'} ${next ? 'abilitato' : 'disabilitato'} per «${f.name}»`)
   }
 
   // CUORE DEL FOTOGRAFO su una foto: selezione indipendente da quella degli sposi (pick_couple)
@@ -848,6 +866,16 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                     title="Includi o escludi questa cartella dalla selezione album (le sue foto diventano selezionabili/impaginabili o no)">
                     <Heart size={12} /> {(f.album_selectable ?? true) ? 'Escludi da album' : 'Includi in album'}
                   </Button>
+                  <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleDownload(f, 'web')}
+                    title="Consenti o blocca il download in formato web (leggero) di questa cartella per gli sposi/ospiti"
+                    style={(f.allow_dl_web ?? true) ? undefined : { opacity: 0.55 }}>
+                    <Download size={12} /> Web {(f.allow_dl_web ?? true) ? 'ON' : 'OFF'}
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleDownload(f, 'full')}
+                    title="Consenti o blocca il download in alta risoluzione (originali) di questa cartella per gli sposi"
+                    style={(f.allow_dl_full ?? true) ? undefined : { opacity: 0.55 }}>
+                    <Download size={12} /> Orig. {(f.allow_dl_full ?? true) ? 'ON' : 'OFF'}
+                  </Button>
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>
                   {salesEnabled && <Button variant="outline" size="sm" onClick={() => setFolderPrice(f)}>{f.is_for_sale ? `€${((f.price_cents ?? 0) / 100).toFixed(0)}` : 'Prezzo'}</Button>}
                   <Button variant="ghost" size="icon" onClick={() => deleteFolder(f)}><Trash2 size={13} /></Button>
@@ -995,7 +1023,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <div className="flex items-center justify-between gap-2 p-3" onClick={(e) => e.stopPropagation()}>
               <span className="text-xs text-white/70">{box.i + 1} / {box.list.length}</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" title="Scarica JPEG web (~2048px), file reale" onClick={async () => {
+                {canDl(m, 'web') && <Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" title="Scarica JPEG web (~2048px), file reale" onClick={async () => {
                   // SEC/GP-1: download autenticato — la edge photo-web ora esige il JWT
                   // dell'utente e verifica la RLS. Niente più anon key in query.
                   try {
@@ -1006,10 +1034,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                     const url = URL.createObjectURL(await res.blob())
                     const a = document.createElement('a'); a.href = url; a.download = `${base}-web.jpg`; a.click(); URL.revokeObjectURL(url)
                   } catch { toast.error('Download non riuscito') }
-                }}><Download size={14} /> Web</Button>
+                }}><Download size={14} /> Web</Button>}
                 {isOwner && m.media_type !== 'VIDEO' && <Button variant="outline" size="sm" className="!bg-white/10 !text-white !border-white/40 hover:!bg-white/20 backdrop-blur" onClick={() => setEditPhoto(m)} title="Modifica: messa in quadro, ruota, specchia, ritaglia"><Crop size={14} /> Modifica</Button>}
                 {m.media_type !== 'VIDEO' && printOn && <Button variant="gold" size="sm" onClick={() => setPrintPhoto(m)} title="Ordina una stampa di questa foto"><Printer size={14} /> Stampa</Button>}
-                {role === 'sposi' && <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione — riservato agli sposi"><Download size={14} /> Originale</Button>}
+                {role === 'sposi' && canDl(m, 'full') && <Button variant="gold" size="sm" onClick={() => downloadUrl(origUrl(m), `${base}.${ext}`)} title="File originale a piena risoluzione — riservato agli sposi"><Download size={14} /> Originale</Button>}
                 {m.uploaded_by && (isOwner || role === 'sposi') && (
                   <Button variant="outline" size="sm" className="!bg-rose-500/20 !text-white !border-rose-300/50 hover:!bg-rose-500/40 backdrop-blur" onClick={() => deleteGuestMedia(m)} title="Elimina questo file caricato da un invitato"><Trash2 size={14} /> Elimina</Button>
                 )}
