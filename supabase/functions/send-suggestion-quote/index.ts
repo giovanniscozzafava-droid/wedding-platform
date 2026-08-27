@@ -56,12 +56,15 @@ Deno.serve(async (req) => {
   const clientEmail = privRows?.[0]?.client_email
   if (!clientEmail) return json({ error: 'client_email_missing' }, 400)
 
-  // token + stato inviato
+  // token + stato inviato. IMPORTANTE: se questo update FALLISCE (es. un trigger che
+  // solleva), NON dobbiamo marcare la suggestion come inviata né mandare l'email —
+  // altrimenti il cliente riceve un link a un preventivo rimasto BOZZA (che non vede).
   const token = (q.access_token as string | null) ?? crypto.randomUUID()
-  await admin.from('quotes').update({
+  const { error: upErr } = await admin.from('quotes').update({
     access_token: token, status: 'INVIATO', sent_at: new Date().toISOString(),
     sent_email_log: [...((q.sent_email_log ?? []) as unknown[]), { at: new Date().toISOString(), via: 'suggestion' }],
   }).eq('id', q.id)
+  if (upErr) return json({ error: 'send_failed', detail: upErr.message.slice(0, 200) }, 500)
   await admin.from('supplier_suggestions').update({ status: 'QUOTE_SENT', updated_at: new Date().toISOString() }).eq('id', sugg.id)
 
   // nome del fornitore (mittente logico)
