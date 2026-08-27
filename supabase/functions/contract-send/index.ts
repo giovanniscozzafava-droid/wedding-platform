@@ -51,7 +51,9 @@ Deno.serve(async (req) => {
   let token = c.access_token as string | null
   if (!token) {
     token = crypto.randomUUID()
-    await admin.from('contracts').update({ access_token: token }).eq('id', c.id)
+    // Se l'update fallisce non proseguire: il link di firma sarebbe rotto (token non persistito).
+    const { error: tErr } = await admin.from('contracts').update({ access_token: token }).eq('id', c.id)
+    if (tErr) return json({ error: 'send_failed', detail: tErr.message.slice(0, 200) }, 500)
   }
 
   const { data: owner } = await admin.from('profiles')

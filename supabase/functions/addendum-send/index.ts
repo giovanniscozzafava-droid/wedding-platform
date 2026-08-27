@@ -54,10 +54,15 @@ Deno.serve(async (req) => {
   let token = a.access_token as string | null
   if (!token) {
     token = crypto.randomUUID()
-    await admin.from('contract_addendums').update({ access_token: token }).eq('id', a.id)
+    // Se l'update fallisce non proseguire: il cliente riceverebbe un link non valido.
+    const { error: tErr } = await admin.from('contract_addendums').update({ access_token: token }).eq('id', a.id)
+    if (tErr) return json({ error: 'send_failed', detail: tErr.message.slice(0, 200) }, 500)
   }
-  // Marca come INVIATO se ancora in bozza.
-  if (a.status === 'BOZZA') await admin.from('contract_addendums').update({ status: 'INVIATO', sent_at: new Date().toISOString() }).eq('id', a.id)
+  // Marca come INVIATO se ancora in bozza. Se fallisce, fermati (niente mezzo-invio).
+  if (a.status === 'BOZZA') {
+    const { error: sErr } = await admin.from('contract_addendums').update({ status: 'INVIATO', sent_at: new Date().toISOString() }).eq('id', a.id)
+    if (sErr) return json({ error: 'send_failed', detail: sErr.message.slice(0, 200) }, 500)
+  }
 
   const { data: owner } = await admin.from('profiles')
     .select('full_name, business_name, brand_primary_color, phone').eq('id', c.owner_id).maybeSingle()
