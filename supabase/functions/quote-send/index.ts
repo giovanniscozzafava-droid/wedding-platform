@@ -117,7 +117,10 @@ Deno.serve(async (req) => {
     ],
   }
   if (!body.force_resend) updatePayload.status = 'INVIATO'
-  await admin.from('quotes').update(updatePayload).eq('id', body.quote_id)
+  // Se l'update fallisce (es. un trigger che solleva), NON proseguire in silenzio:
+  // altrimenti il cliente riceve l'email ma il preventivo resta BOZZA (invisibile al pro).
+  const { error: sendUpErr } = await admin.from('quotes').update(updatePayload).eq('id', body.quote_id)
+  if (sendUpErr) return json({ error: 'send_failed', detail: sendUpErr.message.slice(0, 200) }, 500)
 
   // 4. crea calendar_entry IN_TRATTATIVA se non esiste + agganci participants
   if (q.event_date) {
