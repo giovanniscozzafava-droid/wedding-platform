@@ -1,30 +1,29 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { Sun, Moon, Menu, X } from 'lucide-react'
+// PILOTA icone Koboyo (hand-drawn) sulla NAVIGAZIONE. Alias con i nomi lucide storici
+// così le voci di menu restano invariate: cambia solo il tratto.
 import {
-  LayoutDashboard,
-  PackageSearch,
-  CalendarDays,
-  FileText,
-  UserRound,
-  Gem,
-  Sun,
-  Moon,
-  LogOut,
-  Menu,
-  X,
-  Wallet,
-  BarChart3,
-  FileSignature,
-  HelpCircle,
-  LifeBuoy,
-  Handshake,
-  Newspaper,
-  Inbox,
-  LayoutGrid,
-  Settings,
-  ClipboardCheck,
-} from 'lucide-react'
+  KbLayoutDashboard as LayoutDashboard,
+  KbPackageSearch as PackageSearch,
+  KbCalendarDays as CalendarDays,
+  KbFileText as FileText,
+  KbUserRound as UserRound,
+  KbRing as Gem,
+  KbLogOut as LogOut,
+  KbWallet as Wallet,
+  KbBarChart as BarChart3,
+  KbFilePen as FileSignature,
+  KbQuestion as HelpCircle,
+  KbLifeBuoy as LifeBuoy,
+  KbHandshake as Handshake,
+  KbNewspaper as Newspaper,
+  KbInbox as Inbox,
+  KbToolbox as LayoutGrid,
+  KbSettings as Settings,
+  KbClipboardCheck as ClipboardCheck,
+} from '@/components/icons/koboyo'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { CandidacyInbox } from '@/components/social/CandidacyInbox'
 import { NotificationBell } from '@/components/layout/NotificationBell'
