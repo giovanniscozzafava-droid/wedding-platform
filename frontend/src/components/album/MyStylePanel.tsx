@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Upload, Loader2, Trash2, X, Plus } from 'lucide-react'
+import { Upload, Loader2, Trash2, X, Plus } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Card } from '@/components/ui/card'

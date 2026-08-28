@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronUp, Send } from 'lucide-react'
+import { ChevronUp, Send } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { euro, type PriceBreakdown } from '../albumCatalog'
 

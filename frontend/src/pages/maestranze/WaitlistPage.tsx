@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, ChevronRight } from 'lucide-react'
+import { Search, ChevronRight } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { type Skill, type Provincia, loadSkills, loadProvince, groupByFamiglia, TOS_VERSION } from '@/lib/maestranze'
 

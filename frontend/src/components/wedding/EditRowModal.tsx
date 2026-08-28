@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Save, Trash2 } from 'lucide-react'
+import { X, Save, Trash2 } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Mail, Send } from 'lucide-react'
+import { Mail, Send } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'

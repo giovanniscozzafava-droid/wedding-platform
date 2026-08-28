@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
-import { Search, MapPin, ArrowLeft, Briefcase, Users } from 'lucide-react'
+import { Search, MapPin, ArrowLeft, Briefcase, Users } from '@/components/icons/lucide'
 import { Input, Select } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 

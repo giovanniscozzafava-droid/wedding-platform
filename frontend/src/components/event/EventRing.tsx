@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, UserPlus, X, Loader2, Mail, Plus, CircleDashed } from 'lucide-react'
+import { Check, UserPlus, X, Loader2, Mail, Plus, CircleDashed } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'

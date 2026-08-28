@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, UserRound } from 'lucide-react'
+import { LogOut, UserRound } from '@/components/icons/lucide'
 import { useAuth } from '@/lib/auth'
 import { useMyWeddings } from '@/hooks/useCouple'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'

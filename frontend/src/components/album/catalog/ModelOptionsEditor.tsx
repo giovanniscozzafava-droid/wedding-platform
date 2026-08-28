@@ -1,4 +1,4 @@
-import { X, Plus, Trash2 } from 'lucide-react'
+import { X, Plus, Trash2 } from '@/components/icons/lucide'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import type { ModelOptions, ModelOption } from '@/hooks/useAlbumCatalog'

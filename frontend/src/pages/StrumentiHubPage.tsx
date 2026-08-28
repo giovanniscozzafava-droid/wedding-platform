@@ -4,7 +4,7 @@ import {
   Brush, Images, BookImage, Carrot, CalendarDays, Boxes, Calculator, PiggyBank, NotebookPen,
   Receipt, Newspaper, PenSquare, PhoneCall, Gift, Coins, Users as UsersIcon, Contact, Printer,
   CheckSquare, TicketPercent, Search, Wallet,
-} from 'lucide-react'
+} from '@/components/icons/lucide'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { isFrozen } from '@/lib/frozenModules'

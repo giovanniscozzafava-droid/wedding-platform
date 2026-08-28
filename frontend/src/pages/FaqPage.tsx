@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, ChevronDown, HelpCircle, Search } from 'lucide-react'
+import { ArrowLeft, ChevronDown, HelpCircle, Search } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'

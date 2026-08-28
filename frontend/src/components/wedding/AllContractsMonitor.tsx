@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileSignature, CheckCircle2, Clock, AlertCircle, Plus, Copy, ExternalLink, PenTool, MessageCircle } from 'lucide-react'
+import { FileSignature, CheckCircle2, Clock, AlertCircle, Plus, Copy, ExternalLink, PenTool, MessageCircle } from '@/components/icons/lucide'
 import { Link } from 'react-router-dom'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'

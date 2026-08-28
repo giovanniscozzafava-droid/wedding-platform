@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bug, X, Send } from 'lucide-react'
+import { Bug, X, Send } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'

@@ -1,7 +1,7 @@
 import { type FormEvent, Fragment, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search, Archive, ArchiveRestore, Send } from 'lucide-react'
+import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search, Archive, ArchiveRestore, Send } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { pipelineValue } from '@/lib/quoteSelection'
 import { Button } from '@/components/ui/button'

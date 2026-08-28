@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Loader2, Check } from 'lucide-react'
+import { Loader2, Check } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 

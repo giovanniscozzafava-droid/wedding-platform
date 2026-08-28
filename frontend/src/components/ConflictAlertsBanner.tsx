@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, X } from '@/components/icons/lucide'
 import { useConflictAlerts, type ConflictAlert } from '@/hooks/useConflictAlerts'
 
 const SEVERITY_BG: Record<string, string> = {

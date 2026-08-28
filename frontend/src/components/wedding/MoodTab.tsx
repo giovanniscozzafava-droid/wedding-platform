@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2, Search, Link as LinkIcon, ImageIcon } from 'lucide-react'
+import { Trash2, Search, Link as LinkIcon, ImageIcon } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

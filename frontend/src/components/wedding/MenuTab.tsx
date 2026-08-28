@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, CalendarClock, Star, Check, Wallet, Lock, ImagePlus } from 'lucide-react'
+import { Plus, Trash2, Pencil, Utensils, Leaf, AlertCircle, Save, X as XIcon, BookOpen, CalendarClock, Star, Check, Wallet, Lock, ImagePlus } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

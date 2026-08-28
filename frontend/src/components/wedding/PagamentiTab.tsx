@@ -3,7 +3,7 @@
 // scadenze, debitore/creditore. Mobile-first: una colonna su mobile, touch >=44px.
 
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Wallet, CheckCircle2, CircleDashed, Calendar, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, Wallet, CheckCircle2, CircleDashed, Calendar, AlertTriangle } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

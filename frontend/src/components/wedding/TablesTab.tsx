@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Users, Download, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid, Music, Wrench, Printer, Shapes } from 'lucide-react'
+import { Plus, Trash2, Users, Download, Palette, UserPlus, X, AlertTriangle, CheckCircle2, Map as MapIcon, List, Crown, LayoutGrid, Music, Wrench, Printer, Shapes } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { PenLine, Eraser, Loader2, Send, BookHeart } from 'lucide-react'
+import { PenLine, Eraser, Loader2, Send, BookHeart } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'

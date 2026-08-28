@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Check, X, ExternalLink, Home, LogIn, Lock } from 'lucide-react'
+import { Check, X, ExternalLink, Home, LogIn, Lock } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

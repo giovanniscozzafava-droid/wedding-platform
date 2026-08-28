@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from '@/lib/toast'
-import { FileCheck2 } from 'lucide-react'
+import { FileCheck2 } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'

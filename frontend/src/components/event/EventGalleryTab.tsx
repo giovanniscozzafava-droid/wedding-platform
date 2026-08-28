@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from '@/lib/toast'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer, Crop } from 'lucide-react'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer, Crop } from '@/components/icons/lucide'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
 import { MOMENTS, getMoment } from '@/lib/albumMoments'

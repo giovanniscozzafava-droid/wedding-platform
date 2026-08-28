@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ImagePlus, X, AtSign, Globe, Users as UsersIcon, Lock, Send, FileText } from 'lucide-react'
+import { ImagePlus, X, AtSign, Globe, Users as UsersIcon, Lock, Send, FileText } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'

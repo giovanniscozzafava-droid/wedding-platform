@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { UserPlus, Pencil, X as XIcon, Mail, Clock, CheckCircle2, Save } from 'lucide-react'
+import { UserPlus, Pencil, X as XIcon, Mail, Clock, CheckCircle2, Save } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

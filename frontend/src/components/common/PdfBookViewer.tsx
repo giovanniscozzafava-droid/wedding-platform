@@ -1,6 +1,6 @@
 import { type ReactNode, type ComponentProps, useEffect, useMemo, useRef, useState } from 'react'
 import HTMLFlipBook from 'react-pageflip'
-import { X, ChevronLeft, ChevronRight, Loader2, Download } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Loader2, Download } from '@/components/icons/lucide'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect } from '@/lib/pdf'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
 import { Button } from '@/components/ui/button'

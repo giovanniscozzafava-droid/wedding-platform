@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CreditCard, Loader2, ExternalLink, Check, ShieldCheck } from 'lucide-react'
+import { CreditCard, Loader2, ExternalLink, Check, ShieldCheck } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'

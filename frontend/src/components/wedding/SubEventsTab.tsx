@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, PartyPopper, Heart, Camera, Coffee, Plane } from 'lucide-react'
+import { Plus, Trash2, PartyPopper, Heart, Camera, Coffee, Plane } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

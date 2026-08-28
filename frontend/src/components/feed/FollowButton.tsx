@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, Check, Clock4 } from 'lucide-react'
+import { UserPlus, Check, Clock4 } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'

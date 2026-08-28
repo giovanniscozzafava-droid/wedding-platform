@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Mic, Square, Loader2, Upload, MessageSquareHeart } from 'lucide-react'
+import { Mic, Square, Loader2, Upload, MessageSquareHeart } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'

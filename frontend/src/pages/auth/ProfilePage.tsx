@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from '@/lib/toast'
-import { ShieldAlert, Trash2, Languages, FileText } from 'lucide-react'
+import { ShieldAlert, Trash2, Languages, FileText } from '@/components/icons/lucide'
 import { useT, LANGS, LANG_NAMES } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'

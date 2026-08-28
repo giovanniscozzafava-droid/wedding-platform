@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Heart, MapPin, Calendar, Plane, Gift, BedDouble, Bus, Car, Train, Ship, ExternalLink, CheckCircle2 } from 'lucide-react'
+import { Heart, MapPin, Calendar, Plane, Gift, BedDouble, Bus, Car, Train, Ship, ExternalLink, CheckCircle2 } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'

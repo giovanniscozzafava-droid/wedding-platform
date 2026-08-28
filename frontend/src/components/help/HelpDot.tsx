@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { HelpCircle, X } from 'lucide-react'
+import { HelpCircle, X } from '@/components/icons/lucide'
 import { useHelpMode } from '@/lib/helpMode'
 import { HELP_CONTENT } from '@/lib/helpContent'
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Mail, CalendarClock, Loader2 } from 'lucide-react'
+import { Mail, CalendarClock, Loader2 } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SettingsTabs } from '@/components/settings/SettingsTabs'

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Loader2, ArrowDownLeft, ArrowUpRight, Wallet } from 'lucide-react'
+import { Loader2, ArrowDownLeft, ArrowUpRight, Wallet } from '@/components/icons/lucide'
 
 // PILASTRO 2 — Cruscotto Finanze rete. Gated: il backend risponde 'disabled' finché
 // il flag network_finance è spento (beta). Mostra debiti (BUNDLE: paghi i fornitori) e

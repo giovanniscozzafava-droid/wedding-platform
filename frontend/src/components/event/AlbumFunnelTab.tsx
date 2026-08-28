@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { Images, BookOpen, Frame, Printer, Check, ArrowRight, Loader2, RotateCcw } from 'lucide-react'
+import { Images, BookOpen, Frame, Printer, Check, ArrowRight, Loader2, RotateCcw } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'

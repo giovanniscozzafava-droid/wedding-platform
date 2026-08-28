@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { PauseCircle } from 'lucide-react'
+import { PauseCircle } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { FROZEN_MODULES, isFrozen } from '@/lib/frozenModules'

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, Check, Globe, ExternalLink, Code2 } from 'lucide-react'
+import { Copy, Check, Globe, ExternalLink, Code2 } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

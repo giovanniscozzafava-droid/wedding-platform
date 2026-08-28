@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileSignature, FileDown, X, Copy, Mail, MessageCircle } from 'lucide-react'
+import { FileSignature, FileDown, X, Copy, Mail, MessageCircle } from '@/components/icons/lucide'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'
 import { toast } from '@/lib/toast'

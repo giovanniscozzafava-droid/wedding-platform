@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { X, Trash2 } from '@/components/icons/lucide'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useDesigns, type DesignMeta } from '@/hooks/useDesignStudio'

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Upload, X, FileText, Check, Download, Wand2 } from 'lucide-react'
+import { Upload, X, FileText, Check, Download, Wand2 } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

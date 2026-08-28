@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Wallet, TrendingUp, TrendingDown, Plus, Trash2, Target, Rocket, Compass, BarChart3, BookOpen, CheckCircle2, Circle, Flag, Users, Repeat, Megaphone, Zap } from 'lucide-react'
+import { Wallet, TrendingUp, TrendingDown, Plus, Trash2, Target, Rocket, Compass, BarChart3, BookOpen, CheckCircle2, Circle, Flag, Users, Repeat, Megaphone, Zap } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

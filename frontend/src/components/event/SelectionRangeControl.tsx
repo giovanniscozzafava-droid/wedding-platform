@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Check, Lock } from 'lucide-react'
+import { Check, Lock } from '@/components/icons/lucide'
 import { eventTerm } from '@/lib/eventKind'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

@@ -9,7 +9,7 @@
 // linguaggio umano italiano (no jargon).
 
 import { useEffect, useMemo, useState } from 'react'
-import { MoreVertical, CalendarClock, UserX, Ban, AlertTriangle } from 'lucide-react'
+import { MoreVertical, CalendarClock, UserX, Ban, AlertTriangle } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

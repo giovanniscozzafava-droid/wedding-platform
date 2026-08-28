@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users, Plus, Trash2, CalendarPlus, FileDown, Check, X, HelpCircle, ChevronLeft, MessageCircle, Clock, Package, Download } from 'lucide-react'
+import { Users, Plus, Trash2, CalendarPlus, FileDown, Check, X, HelpCircle, ChevronLeft, MessageCircle, Clock, Package, Download } from '@/components/icons/lucide'
 import { shareFileOrWhatsApp } from '@/lib/share'
 import { waTeamSheet } from '@/lib/waMessages'
 import { Card } from '@/components/ui/card'

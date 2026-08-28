@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, MessageCircle, Globe, Users as UsersIcon, Lock, Send, MoreHorizontal, Trash2, Share2, Link2 } from 'lucide-react'
+import { Heart, MessageCircle, Globe, Users as UsersIcon, Lock, Send, MoreHorizontal, Trash2, Share2, Link2 } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'

@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check } from '@/components/icons/lucide'
 import { COLORS, type ColorDef, type Cover, type Material } from '../albumCatalog'
 import { Chip, SectionLabel } from './ui'
 

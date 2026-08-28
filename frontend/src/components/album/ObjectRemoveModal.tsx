@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Loader2, X, Eraser, Trash2, Wand2, Check, RefreshCw, ChevronLeft } from 'lucide-react'
+import { Loader2, X, Eraser, Trash2, Wand2, Check, RefreshCw, ChevronLeft } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Palette, Plus } from 'lucide-react'
+import { Palette, Plus } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { useDesigns } from '@/hooks/useDesignStudio'
 

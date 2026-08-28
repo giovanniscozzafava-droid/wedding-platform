@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useSpring } from 'framer-motion'
-import { UserPlus, Pencil, Trash2, ZoomIn, ZoomOut, Maximize, RotateCw } from 'lucide-react'
+import { UserPlus, Pencil, Trash2, ZoomIn, ZoomOut, Maximize, RotateCw } from '@/components/icons/lucide'
 import { tableFootprint } from '@/lib/seatingStandards'
 
 // Piantina grafica del tableau mariage: tavoli disegnati nella loro forma, trascinabili,

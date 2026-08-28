@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Package, ListTree } from 'lucide-react'
+import { Package, ListTree } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'

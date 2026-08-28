@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Loader2, Upload, Check, X, Send, Copy, Wand2, Image as ImageIcon } from 'lucide-react'
+import { Loader2, Upload, Check, X, Send, Copy, Wand2, Image as ImageIcon } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'

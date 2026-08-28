@@ -3,7 +3,7 @@
 // touch target >= 44px, una azione primaria (Invia).
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Send, MessageCircle, Quote } from 'lucide-react'
+import { Send, MessageCircle, Quote } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Loader2, Check, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Check, MapPin } from '@/components/icons/lucide'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect, type PdfDoc } from '@/lib/pdf'
 import type { Hotspot } from '@/hooks/useAlbumCatalog'
 import type { AlbumPin } from './PinThreadPanel'

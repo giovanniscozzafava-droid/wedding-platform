@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Loader2, Check, Plus, Download, Share2, ChevronLeft, ChevronRight, X, Images } from 'lucide-react'
+import { Loader2, Check, Plus, Download, Share2, ChevronLeft, ChevronRight, X, Images } from '@/components/icons/lucide'
 import {
   loadGallery, decideMedia, undoMedia, thumbUrl, hiUrl, chaptersOf, fmtEventDate,
   type GData, type GMedia,

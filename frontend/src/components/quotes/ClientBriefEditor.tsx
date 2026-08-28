@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Eye, Save, CalendarClock } from 'lucide-react'
+import { Plus, Trash2, Eye, Save, CalendarClock } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

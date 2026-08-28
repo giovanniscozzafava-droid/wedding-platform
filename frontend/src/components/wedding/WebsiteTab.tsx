@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Globe, ExternalLink, Eye, EyeOff, Plane, ImagePlus, Trash2 } from 'lucide-react'
+import { Globe, ExternalLink, Eye, EyeOff, Plane, ImagePlus, Trash2 } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

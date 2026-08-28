@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { CalendarClock, Copy, Link2, Code, CalendarDays, ExternalLink, Settings, Check, RefreshCw } from 'lucide-react'
+import { CalendarClock, Copy, Link2, Code, CalendarDays, ExternalLink, Settings, Check, RefreshCw } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'

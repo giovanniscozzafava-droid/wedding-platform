@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Share2, Check, Mail } from 'lucide-react'
+import { Share2, Check, Mail } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 

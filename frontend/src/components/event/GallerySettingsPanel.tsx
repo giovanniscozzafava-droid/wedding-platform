@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, MessageSquare, Share2, FileText, Shield, Loader2, AlertTriangle, Trash2 } from 'lucide-react'
+import { X, MessageSquare, Share2, FileText, Shield, Loader2, AlertTriangle, Trash2 } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'

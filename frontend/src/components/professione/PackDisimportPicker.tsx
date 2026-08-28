@@ -3,7 +3,7 @@
 // Mobile-first: colonna singola, target >=44px, una sola azione primaria (Disimporta selezionati).
 
 import { useMemo, useState } from 'react'
-import { Check, PackageX, X } from 'lucide-react'
+import { Check, PackageX, X } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

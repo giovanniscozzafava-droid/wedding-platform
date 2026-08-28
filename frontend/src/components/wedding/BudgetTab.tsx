@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Download } from 'lucide-react'
+import { Plus, Trash2, Download } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

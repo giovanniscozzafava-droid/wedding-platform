@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CheckCircle2, AlertCircle, Loader2, Shield, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Loader2, Shield, FileText, ChevronLeft, ChevronRight } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2 } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { acceptCoupleInvite } from '@/hooks/useCouple'

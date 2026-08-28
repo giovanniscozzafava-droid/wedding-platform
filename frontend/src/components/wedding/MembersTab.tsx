@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Mail, Copy, CheckCircle2, Clock, Trash2, Users } from 'lucide-react'
+import { Plus, Mail, Copy, CheckCircle2, Clock, Trash2, Users } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Check, Crown } from 'lucide-react'
+import { Check, Crown } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'

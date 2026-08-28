@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Inbox, Check, X } from 'lucide-react'
+import { Inbox, Check, X } from '@/components/icons/lucide'
 import { StarsBadge } from '@/components/social/StarsBadge'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'

@@ -1,4 +1,4 @@
-import { Heart } from 'lucide-react'
+import { Heart } from '@/components/icons/lucide'
 
 export type LikedCard = { id: string; url: string; tags?: string[] }
 

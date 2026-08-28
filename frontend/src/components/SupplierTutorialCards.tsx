@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronRight, ChevronLeft, Lightbulb, Camera, Calendar, FileText, CheckCircle2 } from 'lucide-react'
+import { X, ChevronRight, ChevronLeft, Lightbulb, Camera, Calendar, FileText, CheckCircle2 } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'

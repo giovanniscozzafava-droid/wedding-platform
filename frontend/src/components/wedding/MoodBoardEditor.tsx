@@ -6,7 +6,7 @@ import {
   Heart, Star, Leaf, Flower2, Sparkles, Sun, Moon, Music, Camera, Gem, Wine,
   Cake, Bird, Cloud, MapPin, Crown, Type, Image as ImageIcon, Shapes, Smile,
   Trash2, Copy, ArrowUp, ArrowDown, Plus, Wand2, X, Loader2, Save, RotateCw, Link2, Download, FileDown, Scissors, Undo2, Redo2,
-} from 'lucide-react'
+} from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'

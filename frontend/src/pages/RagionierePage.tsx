@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Calculator, Loader2, Users, ChefHat, Wallet, TrendingUp, AlertTriangle, CheckCircle2, Lightbulb } from 'lucide-react'
+import { Calculator, Loader2, Users, ChefHat, Wallet, TrendingUp, AlertTriangle, CheckCircle2, Lightbulb } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Card } from '@/components/ui/card'

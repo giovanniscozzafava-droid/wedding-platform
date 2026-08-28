@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Printer, Mail, Phone, MessageCircle } from 'lucide-react'
+import { Printer, Mail, Phone, MessageCircle } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'

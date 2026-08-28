@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { ArrowDownCircle, ArrowUpCircle, Plus, RefreshCw, Trash2, Pencil, X, Wallet, TrendingUp, TrendingDown, Scale } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, Plus, RefreshCw, Trash2, Pencil, X, Wallet, TrendingUp, TrendingDown, Scale } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/layout/PageHeader'

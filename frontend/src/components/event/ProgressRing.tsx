@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Check } from 'lucide-react'
+import { Check } from '@/components/icons/lucide'
 
 // Anello di progressione stile Apple: arco continuo che si chiude. value 0..1.
 export function ProgressRing({ value, label, detail, size = 76, stroke = 9, onClick }: {

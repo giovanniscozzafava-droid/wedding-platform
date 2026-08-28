@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Plus, Trash2, Euro, User, Check, Circle, CheckCircle2, X, Gift, Camera, Candy, Cookie, Aperture, DoorOpen, BookHeart, Cake, Cigarette, Martini, SprayCan, type LucideIcon, Shapes } from 'lucide-react'
+import { Plus, Trash2, Euro, User, Check, Circle, CheckCircle2, X, Gift, Camera, Candy, Cookie, Aperture, DoorOpen, BookHeart, Cake, Cigarette, Martini, SprayCan, type LucideIcon, Shapes } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

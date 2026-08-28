@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarClock, Plus, Trash2, Mail, MessageCircle, Copy, Send, Users, ChevronDown, ChevronRight, Check } from 'lucide-react'
+import { CalendarClock, Plus, Trash2, Mail, MessageCircle, Copy, Send, Users, ChevronDown, ChevronRight, Check } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Wallet, TrendingUp, CalendarDays, Hourglass, CheckCircle2, FileText, ExternalLink, AlertCircle } from 'lucide-react'
+import { Wallet, TrendingUp, CalendarDays, Hourglass, CheckCircle2, FileText, ExternalLink, AlertCircle } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { eventTerm } from '@/lib/eventKind'

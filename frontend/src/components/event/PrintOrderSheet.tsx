@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { X, Check, Loader2 } from 'lucide-react'
+import { X, Check, Loader2 } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { PRINT_PRODUCTS, PRODUCT_BY_KEY, type PrintProduct } from '@/lib/printCatalog'

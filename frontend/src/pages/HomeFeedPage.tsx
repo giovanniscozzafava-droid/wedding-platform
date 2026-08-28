@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RefreshCw, Newspaper } from 'lucide-react'
+import { RefreshCw, Newspaper } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Star } from 'lucide-react'
+import { Star } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 

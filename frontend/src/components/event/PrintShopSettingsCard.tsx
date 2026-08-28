@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { Printer, Check } from 'lucide-react'
+import { Printer, Check } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'

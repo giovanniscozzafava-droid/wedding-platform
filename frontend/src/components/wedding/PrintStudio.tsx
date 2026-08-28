@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Loader2, Check, Printer } from 'lucide-react'
+import { X, Loader2, Check, Printer } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { POSTER_TEMPLATES, templateForTheme } from '@/lib/tableauPosters'

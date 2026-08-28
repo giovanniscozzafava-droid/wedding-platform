@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Gift, Package, Download } from 'lucide-react'
+import { Plus, Trash2, Gift, Package, Download } from '@/components/icons/lucide'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'

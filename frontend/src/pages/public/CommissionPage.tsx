@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, Loader2, FileText, Package } from 'lucide-react'
+import { Download, Loader2, FileText, Package } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { getFormat } from '@/lib/albumFormats'
 import { modelLabel, materialLabel, colorLabel, boxLabel, sizeByKey, FINISHES, type Cover } from '@/components/album/albumCatalog'

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Bell } from 'lucide-react'
+import { Bell } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 
 // ============================================================================

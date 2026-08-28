@@ -6,8 +6,8 @@
 // vestito il prodotto.
 
 import { useMemo } from 'react'
-import * as Icons from 'lucide-react'
-import { Check } from 'lucide-react'
+import * as Icons from '@/components/icons/lucide'
+import { Check } from '@/components/icons/lucide'
 import { useProfessioniList, type Professione } from '@/hooks/useProfessione'
 
 type Props = {

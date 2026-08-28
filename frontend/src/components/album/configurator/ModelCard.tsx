@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Layers } from 'lucide-react'
+import { Check, Layers } from '@/components/icons/lucide'
 import { baseDesignKey, type Model } from '../albumCatalog'
 import { requestModelThumb, releaseModelThumb } from './modelThumb'
 

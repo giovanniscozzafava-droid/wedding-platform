@@ -3,7 +3,7 @@
 // Le clausole selezionate diventano `sections` jsonb per il contract.
 
 import { useEffect, useState } from 'react'
-import { Check, FileSignature, X } from 'lucide-react'
+import { Check, FileSignature, X } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

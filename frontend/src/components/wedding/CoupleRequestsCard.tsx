@@ -3,7 +3,7 @@
 // applicata" + l'eventuale nota del planner.
 import { useChangeRequests, entityLabel, type ReqStatus } from '@/hooks/useChangeRequests'
 import { Card } from '@/components/ui/card'
-import { MessageSquareReply } from 'lucide-react'
+import { MessageSquareReply } from '@/components/icons/lucide'
 
 const STATUS: Record<ReqStatus, { label: string; cls: string }> = {
   PENDING: { label: 'In attesa', cls: 'bg-amber-100 text-amber-700' },

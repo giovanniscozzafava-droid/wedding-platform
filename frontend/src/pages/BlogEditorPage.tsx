@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Save, Send, Image as ImageIcon, Trash2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Save, Send, Image as ImageIcon, Trash2, ExternalLink } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'

@@ -8,7 +8,7 @@ import {
   Eye, EyeOff, ChevronUp, ChevronDown, FilePlus2, X, Expand, FileText, ArrowLeft, PanelRightClose, PanelRightOpen, Search,
   Fingerprint, Lock, Unlock, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcw, SlidersHorizontal,
   Stamp, Home, Maximize2, Minimize2, AlignLeft, AlignCenter, AlignRight, Upload, Ruler, Grid3x3,
-} from 'lucide-react'
+} from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { fetchDesign, useDesignMutations, useAttachableEvents } from '@/hooks/useDesignStudio'

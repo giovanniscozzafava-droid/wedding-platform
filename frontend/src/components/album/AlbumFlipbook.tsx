@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight } from '@/components/icons/lucide'
 import { materialByKey, coverDims, type Cover } from './albumCatalog'
 
 // Sfoglio album in 3D: la copertina (tessuto reale) si apre e si girano le

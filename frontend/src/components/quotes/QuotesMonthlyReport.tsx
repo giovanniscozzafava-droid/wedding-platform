@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarRange } from 'lucide-react'
+import { CalendarRange } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 

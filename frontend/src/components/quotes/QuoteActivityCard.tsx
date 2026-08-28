@@ -1,4 +1,4 @@
-import { Eye, Send, CheckCircle2, XCircle, UserCheck, Smartphone, Monitor, Clock } from 'lucide-react'
+import { Eye, Send, CheckCircle2, XCircle, UserCheck, Smartphone, Monitor, Clock } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { useQuoteActivity } from '@/hooks/useWedding'
 import { relTime, deviceFromUa } from '@/lib/quoteActivityFmt'

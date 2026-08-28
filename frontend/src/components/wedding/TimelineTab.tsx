@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, Clock, AlertTriangle, Download, GripVertical, ArrowDownAZ } from 'lucide-react'
+import { Plus, Trash2, Clock, AlertTriangle, Download, GripVertical, ArrowDownAZ } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

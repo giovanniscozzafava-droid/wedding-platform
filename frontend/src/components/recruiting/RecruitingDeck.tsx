@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { X, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Maximize2 } from '@/components/icons/lucide'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'
 import { supabase } from '@/lib/supabase'
 

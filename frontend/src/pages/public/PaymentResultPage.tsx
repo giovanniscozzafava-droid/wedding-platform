@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, XCircle } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 
 // Atterraggio pubblico dopo la Stripe Checkout (success_url / cancel_url di payment-create).

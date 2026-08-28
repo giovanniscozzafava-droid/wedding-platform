@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import HTMLFlipBook from 'react-pageflip'
-import { X, ChevronLeft, ChevronRight, Loader2, Check, ZoomIn, ZoomOut } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Loader2, Check, ZoomIn, ZoomOut } from '@/components/icons/lucide'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect } from '@/lib/pdf'
 import type { Hotspot } from '@/hooks/useAlbumCatalog'
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ChevronLeft, Upload, Save, FileText, Loader2, Plus, Trash2, ImagePlus, Sliders, MapPin, MessageSquare, CheckCircle2, X } from 'lucide-react'
+import { ChevronLeft, Upload, Save, FileText, Loader2, Plus, Trash2, ImagePlus, Sliders, MapPin, MessageSquare, CheckCircle2, X } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { LifeBuoy, Send, CheckCircle2, Clock, Loader2, ArrowLeft } from 'lucide-react'
+import { LifeBuoy, Send, CheckCircle2, Clock, Loader2, ArrowLeft } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Image, Frame, Palette, LayoutPanelTop, ShoppingBag, Crop, Truck, Award, Clock3, ArrowLeft } from 'lucide-react'
+import { Image, Frame, Palette, LayoutPanelTop, ShoppingBag, Crop, Truck, Award, Clock3, ArrowLeft } from '@/components/icons/lucide'
 
 // Vetrina "Prossimamente" del Negozio Stampe (PRP-4). NON è il modulo commerciale (niente Stripe,
 // ordini, prezzi): è una presentazione da mostrare ai clienti finché il modulo vero è dietro il gate.

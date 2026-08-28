@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Smartphone } from 'lucide-react'
+import { Smartphone } from '@/components/icons/lucide'
 
 // Invito esperienziale a girare/allargare lo schermo: overlay a tutto schermo con sfondo scurito
 // e un telefono animato che ruota. Compare su device stretto/in verticale; sparisce da solo quando

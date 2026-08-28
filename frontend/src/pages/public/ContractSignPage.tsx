@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FileSignature, CheckCircle2, PenLine, ShieldCheck } from 'lucide-react'
+import { FileSignature, CheckCircle2, PenLine, ShieldCheck } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

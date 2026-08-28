@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check } from '@/components/icons/lucide'
 
 // Stepper numerato "a funnel": dà un ORDINE di senso agli strumenti (① → ② → ③ …).
 // Lo step corrente = il primo non ancora fatto. Ogni step può essere cliccabile (avvia l'azione).

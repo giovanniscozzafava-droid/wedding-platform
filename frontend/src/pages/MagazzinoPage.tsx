@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Boxes, Plus, Trash2, Minus, AlertTriangle } from 'lucide-react'
+import { Boxes, Plus, Trash2, Minus, AlertTriangle } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

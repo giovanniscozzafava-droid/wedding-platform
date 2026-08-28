@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Pencil, ExternalLink, ShieldCheck } from 'lucide-react'
+import { Eye, EyeOff, Pencil, ExternalLink, ShieldCheck } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

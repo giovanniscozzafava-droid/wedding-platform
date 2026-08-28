@@ -1,7 +1,7 @@
 import { useQuoteViews } from '@/hooks/useWedding'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Eye } from 'lucide-react'
+import { Eye } from '@/components/icons/lucide'
 
 const TONE: Record<string, 'gold' | 'sage' | 'rose' | 'sky' | 'amber'> = {
   OPEN: 'sky',

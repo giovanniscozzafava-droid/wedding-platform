@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '@/lib/toast'
-import { X, Users, Send, Loader2, Check, UserPlus, Mail, Search } from 'lucide-react'
+import { X, Users, Send, Loader2, Check, UserPlus, Mail, Search } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useSuppliers, useFollowedSuppliers } from '@/hooks/useSuppliers'
 import { Button } from '@/components/ui/button'

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, UserPlus, Mail, PackageSearch, ImageIcon, ArrowUpRight, Clock, X, Link2, Copy, HardHat, Send } from 'lucide-react'
+import { Plus, UserPlus, Mail, PackageSearch, ImageIcon, ArrowUpRight, Clock, X, Link2, Copy, HardHat, Send } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'

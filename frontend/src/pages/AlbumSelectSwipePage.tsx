@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Heart, X, Undo2, ArrowLeft, Loader2, Check, Images } from 'lucide-react'
+import { Heart, X, Undo2, ArrowLeft, Loader2, Check, Images } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, MapPin, Shuffle, X, ChevronDown, UserPlus, Info } from 'lucide-react'
+import { Search, MapPin, Shuffle, X, ChevronDown, UserPlus, Info } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'

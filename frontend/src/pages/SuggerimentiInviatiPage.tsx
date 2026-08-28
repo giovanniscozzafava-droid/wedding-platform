@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Send, Calendar, Loader2, UserCheck, CheckCircle2 } from 'lucide-react'
+import { Send, Calendar, Loader2, UserCheck, CheckCircle2 } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { SUPPLIER_SUBROLES } from '@/lib/supplierSubroles'

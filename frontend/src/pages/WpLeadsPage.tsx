@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Inbox, Mail, Phone, Calendar, MapPin, Users, Euro, MessageSquare, Check, X, Eye, FileText, AlertCircle } from 'lucide-react'
+import { Inbox, Mail, Phone, Calendar, MapPin, Users, Euro, MessageSquare, Check, X, Eye, FileText, AlertCircle } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

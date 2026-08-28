@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Image as ImageIcon, X, Plus, Trash2, Link as LinkIcon, Loader2, AlertCircle, ListPlus } from 'lucide-react'
+import { Image as ImageIcon, X, Plus, Trash2, Link as LinkIcon, Loader2, AlertCircle, ListPlus } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'

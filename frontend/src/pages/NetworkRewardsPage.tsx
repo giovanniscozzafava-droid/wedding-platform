@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Gift, Copy, TrendingUp, Users, Wallet, Award, Check, Share2, Trophy } from 'lucide-react'
+import { Gift, Copy, TrendingUp, Users, Wallet, Award, Check, Share2, Trophy } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'

@@ -1,4 +1,4 @@
-import { MessageSquareText } from 'lucide-react'
+import { MessageSquareText } from '@/components/icons/lucide'
 import { answerLabel, formatAnswerValue } from '@/lib/answerLabels'
 
 // Pannello SOLA LETTURA delle risposte del cliente (dal questionario di categoria/evento).

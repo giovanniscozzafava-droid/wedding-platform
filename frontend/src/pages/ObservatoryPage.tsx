@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Users, UserPlus, Activity, Zap, TrendingUp, TrendingDown, ShieldCheck } from 'lucide-react'
+import { Users, UserPlus, Activity, Zap, TrendingUp, TrendingDown, ShieldCheck } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'

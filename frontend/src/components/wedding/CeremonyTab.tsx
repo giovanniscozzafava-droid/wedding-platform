@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Church, Heart, Building2, Users as UsersIcon, MoreHorizontal, Save, Upload, Trash2, MapPin, CheckCircle2, Clock4, AlertCircle, XCircle, Flame } from 'lucide-react'
+import { Church, Heart, Building2, Users as UsersIcon, MoreHorizontal, Save, Upload, Trash2, MapPin, CheckCircle2, Clock4, AlertCircle, XCircle, Flame } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { useWedding, useUpdateWedding, useMood, useMoodMutations } from '@/hooks/useWedding'
 import { ChangeRequestModal } from '@/components/wedding/ChangeRequestModal'
-import { Lock } from 'lucide-react'
+import { Lock } from '@/components/icons/lucide'
 import { SectionRings } from '@/components/event/SectionRings'
 
 // Valore per <input type="datetime-local"> in ora LOCALE. Con toISOString() si

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Info, X } from 'lucide-react'
+import { Info, X } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Helmet } from 'react-helmet-async'
-import { Search, Clock, Eye, Calendar } from 'lucide-react'
+import { Search, Clock, Eye, Calendar } from '@/components/icons/lucide'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 

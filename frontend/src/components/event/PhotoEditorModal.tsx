@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Cropper from 'react-easy-crop'
-import { RotateCcw, RotateCw, FlipHorizontal2, FlipVertical2, X, Check, RefreshCw } from 'lucide-react'
+import { RotateCcw, RotateCw, FlipHorizontal2, FlipVertical2, X, Check, RefreshCw } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { bakeFlips, getCroppedBlob, loadImage } from '@/lib/cropImage'
 

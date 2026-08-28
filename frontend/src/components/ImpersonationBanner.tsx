@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, LogOut } from 'lucide-react'
+import { Eye, LogOut } from '@/components/icons/lucide'
 import { impersonatedLabel, stopImpersonation } from '@/lib/impersonation'
 
 // Barra sempre visibile quando lo staff sta usando l'app come un altro utente.

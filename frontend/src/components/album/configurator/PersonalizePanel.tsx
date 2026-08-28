@@ -1,4 +1,4 @@
-import { ImagePlus, Square, Type, Palette } from 'lucide-react'
+import { ImagePlus, Square, Type, Palette } from '@/components/icons/lucide'
 import { Input } from '@/components/ui/input'
 import type { Cover } from '../albumCatalog'
 import {

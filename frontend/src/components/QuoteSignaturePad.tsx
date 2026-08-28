@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Trash2 } from 'lucide-react'
+import { Trash2 } from '@/components/icons/lucide'
 
 type Props = {
   onChange: (dataUrl: string | null) => void

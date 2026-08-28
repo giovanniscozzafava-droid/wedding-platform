@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { HardDrive, Check, ExternalLink, RefreshCw } from 'lucide-react'
+import { HardDrive, Check, ExternalLink, RefreshCw } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

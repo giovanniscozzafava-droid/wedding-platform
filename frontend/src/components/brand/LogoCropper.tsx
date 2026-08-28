@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
-import { ZoomIn, ZoomOut, Crosshair, X } from 'lucide-react'
+import { ZoomIn, ZoomOut, Crosshair, X } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 
 // ============================================================================

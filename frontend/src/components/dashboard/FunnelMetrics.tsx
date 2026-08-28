@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, Send, CheckCircle2, FileSignature, Trophy, Flame } from 'lucide-react'
+import { TrendingUp, Send, CheckCircle2, FileSignature, Trophy, Flame } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 

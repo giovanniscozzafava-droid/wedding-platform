@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Loader2, X, Check, RotateCcw, Maximize2, ArrowLeft, Images, RefreshCw } from 'lucide-react'
+import { Loader2, X, Check, RotateCcw, Maximize2, ArrowLeft, Images, RefreshCw } from '@/components/icons/lucide'
 import {
   loadGallery, decideMedia, undoMedia, advanceRound, submitSelection, requestReopen,
   thumbUrl, hiUrl, type GData, type GMedia, type GSelection,

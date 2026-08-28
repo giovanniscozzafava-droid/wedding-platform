@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Coins, ArrowUpRight, ArrowDownRight, Plus, Check, X, Handshake } from 'lucide-react'
+import { Coins, ArrowUpRight, ArrowDownRight, Plus, Check, X, Handshake } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'

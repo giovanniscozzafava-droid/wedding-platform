@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eraser } from 'lucide-react'
+import { Eraser } from '@/components/icons/lucide'
 
 // Firma a dito/penna su canvas (pointer events). Emette la dataURL PNG al sollevamento,
 // null quando vuota. Mobile-friendly (touch-action: none).

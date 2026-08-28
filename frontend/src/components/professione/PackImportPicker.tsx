@@ -7,7 +7,7 @@
 // una sola azione primaria (Importa).
 
 import { useEffect, useMemo, useState } from 'react'
-import { Check, PackageCheck, X } from 'lucide-react'
+import { Check, PackageCheck, X } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

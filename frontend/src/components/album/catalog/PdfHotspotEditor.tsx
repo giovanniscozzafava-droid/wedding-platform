@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Trash2, Loader2, MousePointerClick } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trash2, Loader2, MousePointerClick } from '@/components/icons/lucide'
 import { loadPdf, renderPdfPageDataUrl, type PdfDoc } from '@/lib/pdf'
 import { Input } from '@/components/ui/input'
 import type { Hotspot } from '@/hooks/useAlbumCatalog'

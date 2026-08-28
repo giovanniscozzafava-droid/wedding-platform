@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { X, Search, Check } from 'lucide-react'
+import { X, Search, Check } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 

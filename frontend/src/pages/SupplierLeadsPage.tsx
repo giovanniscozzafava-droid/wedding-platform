@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Inbox, Calendar, MapPin, Users, ArrowRight, Filter, Trash2 } from 'lucide-react'
+import { Inbox, Calendar, MapPin, Users, ArrowRight, Filter, Trash2 } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'

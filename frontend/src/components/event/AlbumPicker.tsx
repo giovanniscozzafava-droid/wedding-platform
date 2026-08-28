@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Heart, X, Undo2, RotateCcw, Check, Play, Images, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Heart, X, Undo2, RotateCcw, Check, Play, Images, ChevronLeft, ChevronRight } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'

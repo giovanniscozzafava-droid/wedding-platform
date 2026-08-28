@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Lock } from 'lucide-react'
+import { Lock } from '@/components/icons/lucide'
 import { useAuth } from '@/lib/auth'
 
 /**

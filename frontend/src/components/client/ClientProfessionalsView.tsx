@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileText, FileSignature, Calendar, MapPin, Package, CheckCircle2, Clock, CalendarClock, ListMusic, ExternalLink, CreditCard } from 'lucide-react'
+import { FileText, FileSignature, Calendar, MapPin, Package, CheckCircle2, Clock, CalendarClock, ListMusic, ExternalLink, CreditCard } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'

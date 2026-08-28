@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Package, Plus, Trash2, Pencil, Calculator, Save, X as XIcon, Check } from 'lucide-react'
+import { Package, Plus, Trash2, Pencil, Calculator, Save, X as XIcon, Check } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

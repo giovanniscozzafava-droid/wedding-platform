@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BookOpen, LayoutGrid, RotateCcw } from 'lucide-react'
+import { BookOpen, LayoutGrid, RotateCcw } from '@/components/icons/lucide'
 import { AlbumMockup3D, type AlbumMockup3DHandle, type AlbumView } from '../AlbumMockup3D'
 import { AlbumCover2DPreview } from '../AlbumCover2DPreview'
 import { modelByKey, sizeByKey, type Cover } from '../albumCatalog'

@@ -6,7 +6,7 @@
 // con l'azione primaria implicita (apertura tooltip), >= 44px touch target.
 
 import { useEffect, useRef, useState } from 'react'
-import { Activity, AlertTriangle, CheckCircle2, AlertOctagon } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle2, AlertOctagon } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 
 type SaluteLabel = 'OTTIMA' | 'OK' | 'ATTENZIONE' | 'CRITICA'

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
 import { Link } from 'react-router-dom'
-import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle, Download, LogOut, ArrowLeft, Images, X, UserRound } from 'lucide-react'
+import { Package, Clock, CheckCircle2, Truck, XCircle, PauseCircle, Download, LogOut, ArrowLeft, Images, X, UserRound } from '@/components/icons/lucide'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

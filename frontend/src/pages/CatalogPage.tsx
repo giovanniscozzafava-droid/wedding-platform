@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion, Reorder } from 'framer-motion'
-import { Plus, Search, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check, PackageCheck, Star, BookOpen } from 'lucide-react'
+import { Plus, Search, Image as ImageIcon, SlidersHorizontal, X as XIcon, GripVertical, ArrowDownUp, Check, PackageCheck, Star, BookOpen } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

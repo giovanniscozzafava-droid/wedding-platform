@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutGrid, Square, RectangleVertical, Smartphone, Shuffle, Download, FileDown, Trash2, Type } from 'lucide-react'
+import { LayoutGrid, Square, RectangleVertical, Smartphone, Shuffle, Download, FileDown, Trash2, Type } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 

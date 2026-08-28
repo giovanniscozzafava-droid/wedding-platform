@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CreditCard, CheckCircle2, ExternalLink, Loader2, ShieldCheck } from 'lucide-react'
+import { CreditCard, CheckCircle2, ExternalLink, Loader2, ShieldCheck } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

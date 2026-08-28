@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users, Send, Check, Mail } from 'lucide-react'
+import { Users, Send, Check, Mail } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

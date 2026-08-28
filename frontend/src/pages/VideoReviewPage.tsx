@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ArrowLeft, Film, MessageSquarePlus, Check, Play, Save, Loader2, Music, Scissors, Palette, LayoutList } from 'lucide-react'
+import { ArrowLeft, Film, MessageSquarePlus, Check, Play, Save, Loader2, Music, Scissors, Palette, LayoutList } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'

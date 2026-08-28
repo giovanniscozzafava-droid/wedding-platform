@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine, Ruler, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, ImagePlus, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight, ChevronDown, LayoutGrid, Palette, Image as ImageIcon } from 'lucide-react'
+import { ArrowLeft, Loader2, Download, Plus, Minus, Trash2, Copy, ArrowUpToLine, Ruler, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, ImagePlus, X, Check, Heart, Crop, RotateCw, FlipHorizontal2, FlipVertical2, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Upload, FolderUp, Undo2, Redo2, ArrowLeftRight, ChevronDown, LayoutGrid, Palette, Image as ImageIcon } from '@/components/icons/lucide'
 import type { Cell } from '@/lib/albumGeometry'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'

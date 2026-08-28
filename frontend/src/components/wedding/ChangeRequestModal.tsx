@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MessageSquarePlus, X } from 'lucide-react'
+import { MessageSquarePlus, X } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'

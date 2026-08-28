@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, Users, Mail, Phone, Calendar, Trash2, Pencil, FileText, X, CalendarHeart, FlaskConical } from 'lucide-react'
+import { Plus, Users, Mail, Phone, Calendar, Trash2, Pencil, FileText, X, CalendarHeart, FlaskConical } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

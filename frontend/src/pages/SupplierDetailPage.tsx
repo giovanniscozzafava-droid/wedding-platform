@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Phone, FileText, ImageIcon, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Phone, FileText, ImageIcon, X, ChevronLeft, ChevronRight } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { ServiceSlideshow } from '@/components/catalog/ServiceSlideshow'
 import { Card } from '@/components/ui/card'

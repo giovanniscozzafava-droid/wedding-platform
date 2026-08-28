@@ -1,4 +1,4 @@
-import { Gift } from 'lucide-react'
+import { Gift } from '@/components/icons/lucide'
 import { SuggerimentiRicevutiList } from '@/components/rete/SuggerimentiRicevutiList'
 
 // Pagina standalone (deep-link dalla notifica). Il grosso vive nel componente riusabile,

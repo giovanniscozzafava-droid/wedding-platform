@@ -1,5 +1,5 @@
-import type { LucideIcon } from 'lucide-react'
-import { Check } from 'lucide-react'
+import type { LucideIcon } from '@/components/icons/lucide'
+import { Check } from '@/components/icons/lucide'
 
 export type StepDef = { key: string; label: string; icon: LucideIcon; summary?: string }
 

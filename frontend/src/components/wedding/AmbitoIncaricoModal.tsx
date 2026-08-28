@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Briefcase, ClipboardCheck, Store } from 'lucide-react'
+import { Briefcase, ClipboardCheck, Store } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'

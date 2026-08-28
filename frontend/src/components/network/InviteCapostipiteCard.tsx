@@ -3,7 +3,7 @@
 // alla registrazione del referee creera' un referral per il rewards system.
 
 import { useState } from 'react'
-import { UserPlus, Copy, Check, AlertCircle, Award } from 'lucide-react'
+import { UserPlus, Copy, Check, AlertCircle, Award } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'

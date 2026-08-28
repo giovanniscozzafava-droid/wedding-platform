@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Send, Phone, MessageCircle, Loader2, Check, CheckCheck } from 'lucide-react'
+import { Send, Phone, MessageCircle, Loader2, Check, CheckCheck } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'

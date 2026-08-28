@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react'
+import { Search } from '@/components/icons/lucide'
 import { Input } from '@/components/ui/input'
 
 // Barra di ricerca + filtri riutilizzabile per tutte le liste (preventivi, contratti, eventi,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Phone, MessageCircle, Mail, CalendarClock, UserPlus, Plus, Trash2, Copy, Check, PhoneCall, Clock, Presentation } from 'lucide-react'
+import { Phone, MessageCircle, Mail, CalendarClock, UserPlus, Plus, Trash2, Copy, Check, PhoneCall, Clock, Presentation } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'

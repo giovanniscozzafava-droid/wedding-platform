@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Heart, Send, Loader2, Share2 } from 'lucide-react'
+import { Heart, Send, Loader2, Share2 } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
 

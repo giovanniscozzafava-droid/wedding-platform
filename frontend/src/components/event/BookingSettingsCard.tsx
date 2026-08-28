@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
-import { CalendarClock, Check, Copy, Plus, X, Link2, Code, CalendarDays, RefreshCw, CalendarCheck } from 'lucide-react'
+import { CalendarClock, Check, Copy, Plus, X, Link2, Code, CalendarDays, RefreshCw, CalendarCheck } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

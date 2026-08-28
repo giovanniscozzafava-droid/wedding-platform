@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Trash2, Save, Calculator, TrendingUp, Flower2 } from 'lucide-react'
+import { Plus, Trash2, Save, Calculator, TrendingUp, Flower2 } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

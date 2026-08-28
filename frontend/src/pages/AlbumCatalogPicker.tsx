@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maximize2 } from 'lucide-react'
+import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maximize2 } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

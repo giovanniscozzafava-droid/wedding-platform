@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Loader2, Check, Images } from 'lucide-react'
+import { Loader2, Check, Images } from '@/components/icons/lucide'
 import { loadByToken, setFavorite, type LookClientData } from '@/lib/provaLook'
 
 export default function ProvaLookClientPage() {

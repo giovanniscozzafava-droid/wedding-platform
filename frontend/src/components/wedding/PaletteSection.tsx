@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Palette as PaletteIcon, Save, RefreshCw } from 'lucide-react'
+import { Palette as PaletteIcon, Save, RefreshCw } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

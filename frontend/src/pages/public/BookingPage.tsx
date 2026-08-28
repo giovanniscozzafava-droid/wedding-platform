@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { Calendar, Clock, Loader2, Check, Video, Phone, MapPin, Download, MessageCircle } from 'lucide-react'
+import { Calendar, Clock, Loader2, Check, Video, Phone, MapPin, Download, MessageCircle } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

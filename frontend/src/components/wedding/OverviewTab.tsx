@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { CalendarClock, Table2, Users, Wallet, ListChecks, Palette, Music, FileSignature, FolderOpen, Check, X as XIcon } from 'lucide-react'
+import { CalendarClock, Table2, Users, Wallet, ListChecks, Palette, Music, FileSignature, FolderOpen, Check, X as XIcon } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/lib/toast'

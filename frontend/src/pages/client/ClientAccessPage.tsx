@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Mail, ArrowRight, UserRound } from 'lucide-react'
+import { Mail, ArrowRight, UserRound } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'

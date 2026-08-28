@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Users, Network, Calendar, FileText, ShieldCheck, ArrowRight, Handshake, Compass, Lock as LockIcon, Globe } from 'lucide-react'
+import { Mail, Lock, Users, Network, Calendar, FileText, ShieldCheck, ArrowRight, Handshake, Compass, Lock as LockIcon, Globe } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

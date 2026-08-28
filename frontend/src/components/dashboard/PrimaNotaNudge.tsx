@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { NotebookPen, ArrowRight } from 'lucide-react'
+import { NotebookPen, ArrowRight } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { isFrozen } from '@/lib/frozenModules'

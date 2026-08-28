@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { X } from '@/components/icons/lucide'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 

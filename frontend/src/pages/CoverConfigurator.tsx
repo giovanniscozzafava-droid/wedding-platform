@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from '@/lib/toast'
-import { ChevronLeft, ChevronRight, Shapes, Ruler, Layers, Type, Package, Link2 as LinkIcon, Copy, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Shapes, Ruler, Layers, Type, Package, Link2 as LinkIcon, Copy, X } from '@/components/icons/lucide'
 import { AlbumFlipbook } from '@/components/album/AlbumFlipbook'
 import {
   CATEGORIES, baseModelsByCategory, baseDesignOf, baseDesignKey, materialsForModel, paletteFor, modelByKey, modelLabel,

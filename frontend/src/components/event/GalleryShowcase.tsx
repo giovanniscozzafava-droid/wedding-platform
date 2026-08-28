@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { X, Shuffle, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Shuffle, LayoutGrid, ChevronLeft, ChevronRight } from '@/components/icons/lucide'
 
 export type ShowItem = { id: string; thumb: string; full: string }
 

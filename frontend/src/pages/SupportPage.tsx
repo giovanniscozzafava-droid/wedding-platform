@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LifeBuoy, Mail, HelpCircle, Send, MessageCircle, Clock } from 'lucide-react'
+import { LifeBuoy, Mail, HelpCircle, Send, MessageCircle, Clock } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

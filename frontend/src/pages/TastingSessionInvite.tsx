@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Check, X, CalendarClock } from 'lucide-react'
+import { Check, X, CalendarClock } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 
 // Pagina pubblica (no login): il cliente invitato alla prova menu sceglie una data e conferma (RSVP).

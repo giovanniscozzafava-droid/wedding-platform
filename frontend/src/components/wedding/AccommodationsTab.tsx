@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2, BedDouble, MapPin, ExternalLink, Download, Users } from 'lucide-react'
+import { Plus, Trash2, BedDouble, MapPin, ExternalLink, Download, Users } from '@/components/icons/lucide'
 import { exportTableToPdf } from '@/lib/pdf-export'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
