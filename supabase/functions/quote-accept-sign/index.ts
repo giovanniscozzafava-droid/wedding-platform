@@ -182,6 +182,27 @@ Deno.serve(async (req) => {
     return json({ error: 'Preventivo già firmato da un\'altra sessione. Ricarica la pagina.' }, 409)
   }
 
+  // 1c. REGOLA: il totale del preventivo e' la SOMMA DELLE VOCI ACCETTATE.
+  // Chi firma l'intero preventivo senza aver spuntato voce per voce lascerebbe tutte
+  // le quote_items a client_decision='IN_ATTESA' -> l'editor del professionista mostrava
+  // "In attesa cliente" su ogni riga di un preventivo GIA' firmato, e
+  // total_client_selected restava 0. Firma intera = ha accettato tutte le voci: lo scrivo.
+  // Se invece ha gia' scelto voce per voce, la sua scelta comanda e non tocco nulla.
+  {
+    const { data: decided } = await admin.from('quote_items')
+      .select('id').eq('quote_id', quote.id).in('client_decision', ['ACCETTATO', 'RIFIUTATO']).limit(1)
+    if (!decided || decided.length === 0) {
+      const nowIso = new Date().toISOString()
+      const { error: markErr } = await admin.from('quote_items')
+        .update({ client_decision: 'ACCETTATO', client_decided_at: nowIso, selected_by_client: true, client_selected_at: nowIso })
+        .eq('quote_id', quote.id)
+      // supabase-js NON lancia sugli errori Postgres: senza questo check il totale
+      // resterebbe silenziosamente sbagliato. Non blocco la firma, ma lo segnalo.
+      if (markErr) console.error('mark_items_accepted_failed', quote.id, markErr.message)
+      else await admin.rpc('quotes_recalc_totals', { p_quote_id: quote.id })
+    }
+  }
+
   // 2. Hash del PDF preventivo corrente (per integrità)
   let pdfHash: string | null = null
   if (quote.pdf_url) {
