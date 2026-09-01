@@ -72,13 +72,6 @@ const QUOTE_EVENT_KINDS: { v: string; l: string }[] = [
   { v: 'altro',       l: 'Altro' },
 ]
 
-type PayStatus = 'NON_PAGATO' | 'ACCONTO' | 'SALDATO' | 'STORNATO'
-const PAY_STATUSES: { key: PayStatus; label: string; tone: string; dot: string }[] = [
-  { key: 'NON_PAGATO', label: 'Non pagato', tone: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200', dot: 'bg-rose-500' },
-  { key: 'ACCONTO',    label: 'Acconto',    tone: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200', dot: 'bg-amber-500' },
-  { key: 'SALDATO',    label: 'Saldato',    tone: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200', dot: 'bg-emerald-500' },
-  { key: 'STORNATO',   label: 'Stornato',   tone: 'bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200', dot: 'bg-neutral-500' },
-]
 
 export default function QuoteEditorPage() {
   const { id } = useParams<{ id: string }>()
@@ -622,44 +615,6 @@ export default function QuoteEditorPage() {
       await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { quantity_basis: newBasis, quantity: qty } })
     } catch (e) { toast.error((e as Error).message) }
   }
-  async function handleChangePayStatus(itemId: string, status: PayStatus, lineClient: number, currentPaid: number) {
-    try {
-      const patch: any = { payment_status: status }
-      if (status === 'SALDATO') {
-        patch.paid_amount = lineClient
-        patch.paid_at = new Date().toISOString()
-      } else if (status === 'NON_PAGATO' || status === 'STORNATO') {
-        patch.paid_amount = 0
-        patch.paid_at = null
-      } else if (status === 'ACCONTO') {
-        // Chiedi l'importo dell'acconto (default: 30% della voce, oppure l'importo già registrato).
-        const fmt = (n: number) => n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        const suggested = currentPaid > 0 ? currentPaid : Math.round(lineClient * 30) / 100
-        const ans = window.prompt(
-          `Importo dell'acconto (€)\n\nVoce: € ${fmt(lineClient)}\nSuggerito (30%): € ${fmt(Math.round(lineClient * 30) / 100)}`,
-          fmt(suggested).replace(/\./g, '').replace(',', '.'),
-        )
-        if (ans === null) return // utente ha annullato
-        const cleaned = ans.replace(/[€\s]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.')
-        const amount = parseFloat(cleaned)
-        if (isNaN(amount) || amount <= 0) {
-          toast.error('Importo non valido')
-          return
-        }
-        if (amount > lineClient) {
-          toast.error(`L'acconto (€ ${fmt(amount)}) non può superare l'importo della voce (€ ${fmt(lineClient)})`)
-          return
-        }
-        patch.paid_amount = amount
-        patch.paid_at = new Date().toISOString()
-      }
-      await updItem.mutateAsync({ id: itemId, quoteId: id!, patch })
-      toast.success(status === 'ACCONTO'
-        ? `Acconto registrato (€ ${Number(patch.paid_amount).toLocaleString('it-IT')})`
-        : `Pagamento → ${status}`)
-    } catch (e) { toast.error((e as Error).message) }
-  }
-
   // Capostipite: mostra/nascondi il nome del fornitore al cliente su questa voce (blind per-voce).
   // supplier_blind: true = nascosto, false = visibile. (Default a monte dalla modalità di vendita.)
   async function handleToggleSupplierBlind(itemId: string, blind: boolean) {
@@ -1295,27 +1250,8 @@ export default function QuoteEditorPage() {
                           </div>
                         </div>
                       )}
-                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                        <Wallet size={12} className="text-[rgb(var(--fg-subtle))]" />
-                        <span className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Pagamento</span>
-                        {PAY_STATUSES.map((p) => {
-                          const active = ((it as any).payment_status ?? 'NON_PAGATO') === p.key
-                          return (
-                            <button key={p.key} type="button"
-                              onClick={() => handleChangePayStatus(it.id, p.key, Number(it.line_client), Number((it as any).paid_amount ?? 0))}
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border transition-colors ${active ? p.tone : 'bg-transparent text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]'}`}
-                              style={{ borderColor: active ? 'transparent' : 'rgb(var(--border))' }}>
-                              <span className={`inline-block h-1.5 w-1.5 rounded-full ${p.dot}`} />
-                              {p.label}
-                            </button>
-                          )
-                        })}
-                        {(it as any).paid_amount > 0 && (
-                          <span className="text-[10px] text-[rgb(var(--fg-subtle))]">
-                            (€ {Number((it as any).paid_amount).toLocaleString('it-IT')})
-                          </span>
-                        )}
-                      </div>
+                      {/* I pagamenti NON stanno più sulle voci: nascono dal CONTRATTO
+                          (rate dell'Art. 2.2) e si registrano lì. Vedi ContractPayments. */}
                     </motion.li>
                   )
                 })}

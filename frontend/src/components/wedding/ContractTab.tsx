@@ -11,6 +11,7 @@ import { waContractToClient } from '@/lib/waMessages'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { HelpDot } from '@/components/help/HelpDot'
+import { ContractPayments } from '@/components/wedding/ContractPayments'
 
 // Placeholder che il sistema riempie da solo (dati fiscali, date, offerte, prezzi).
 const PLACEHOLDERS: Array<{ k: string; d: string }> = [
@@ -323,6 +324,9 @@ export function ContractTab({ wedding }: { wedding: any }) {
                 </span>
               )}
             </div>
+            {/* I pagamenti seguono il contratto: le rate dell'Art. 2.2 con la cifra
+                esatta, su cui il professionista registra gli incassi. */}
+            <ContractPayments contractId={c.id} total={Number(c.total_amount ?? 0)} />
           </Card>
         ))}
       </div>
