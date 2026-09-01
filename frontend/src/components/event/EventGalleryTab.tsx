@@ -144,6 +144,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
+  const [eventKind, setEventKind] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [dedupBusy, setDedupBusy] = useState(false)
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
@@ -194,6 +195,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     if (uid) { const { data: prof } = await (supabase.from as any)('profiles').select('role').eq('id', uid).maybeSingle(); setIsAdmin(prof?.role === 'ADMIN') }
     const { data: gal } = await (supabase.from as any)('event_galleries').select('id, owner_id, title, share_token').eq('entry_id', entryId).maybeSingle()
     setGallery((gal as Gallery) ?? null)
+    // Serve alla presentazione: la musica di sottofondo cambia col tipo di evento.
+    const { data: ek } = await (supabase.from as any)('calendar_entries').select('event_kind').eq('id', entryId).maybeSingle()
+    setEventKind((ek?.event_kind as string) ?? null)
     if (gal) {
       const { data: gs } = await (supabase.from as any)('gallery_settings').select('*').eq('gallery_id', (gal as Gallery).id).maybeSingle()
       if (gs) setGsettings({ ...DEFAULT_GALLERY_SETTINGS, ...gs })
@@ -677,7 +681,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         </div>
       )}
       {showcase && (
-        <GalleryShowcase title="Galleria" onClose={() => setShowcase(false)}
+        <GalleryShowcase title="Galleria" eventKind={eventKind} onClose={() => setShowcase(false)}
           items={folders.flatMap((f) => f.gallery_media).filter((m) => m.media_type === 'PHOTO').map((m) => ({
             id: m.id,
             thumb: isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w600` : (m.thumbnail_link ?? ''),

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { X, Shuffle, LayoutGrid, ChevronLeft, ChevronRight } from '@/components/icons/lucide'
+import { ShowcaseMusicControl } from '@/components/event/ShowcaseMusicControl'
 
 export type ShowItem = { id: string; thumb: string; full: string }
 
 // Vista "mostra galleria": mosaico a colonne (Pinterest-style). Modalità CASUAL = foto mischiate e
 // rimescolabili; ORDINATA = come caricate. Click su una foto → lightbox a tutto schermo con frecce.
-export function GalleryShowcase({ items, title, onClose }: { items: ShowItem[]; title?: string; onClose: () => void }) {
+export function GalleryShowcase({ items, title, eventKind, onClose }: { items: ShowItem[]; title?: string; eventKind?: string | null; onClose: () => void }) {
   const [casual, setCasual] = useState(true)
   const [seed, setSeed] = useState(1)
   const [box, setBox] = useState<number | null>(null)
@@ -25,6 +26,8 @@ export function GalleryShowcase({ items, title, onClose }: { items: ShowItem[]; 
       <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 border-b border-white/10 text-white" style={{ background: 'rgba(12,10,9,.85)', backdropFilter: 'blur(8px)' }}>
         <span className="font-display text-lg">{title || 'Galleria'} <span className="text-white/45 text-sm">· {items.length} foto</span></span>
         <div className="flex items-center gap-2">
+          {/* Musica di sottofondo: il carattere segue il tipo di evento. */}
+          <ShowcaseMusicControl eventKind={eventKind} />
           <button onClick={() => setCasual((c) => !c)} className="text-sm inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition">
             {casual ? <><Shuffle size={15} /> Casual</> : <><LayoutGrid size={15} /> Ordinata</>}
           </button>
