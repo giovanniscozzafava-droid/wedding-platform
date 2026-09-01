@@ -514,13 +514,19 @@ export default function CaroselloPage() {
     const k = curSlide
     snapshot()
     const lo = k / n, hi = (k + 1) / n
-    // fuori: tutto ciò che NON ha il centro dentro la tavola k
-    const resta = elements.filter((e) => { const c = e.x + e.w / 2; return c < lo || c >= hi })
     const f = n / (n - 1)   // le coordinate si riespandono sulla striscia più corta
-    const shift = (x: number) => (x > hi ? x - 1 / n : x)
-    setElements(resta.map((e) => ({ ...e, x: shift(e.x) * f, w: e.w * f })))
+    // Chi tenere e chi spostare si decidono con lo STESSO criterio: il CENTRO.
+    // (Prima lo spostamento guardava e.x > hi: un elemento che inizia esattamente sul
+    //  confine — il caso normale, i layout piazzano a k/n netto — non scalava di una
+    //  tavola e finiva sfalsato di una posizione.)
+    const rimappa = <T extends { x?: number; w?: number }>(e: T) => {
+      const x = e.x ?? 0, w = e.w ?? 0
+      const c = x + w / 2
+      return { ...e, x: (c >= hi ? x - 1 / n : x) * f, ...(e.w != null ? { w: w * f } : {}) }
+    }
+    setElements(elements.filter((e) => { const c = e.x + e.w / 2; return c < lo || c >= hi }).map(rimappa))
     setTexts(texts.filter((t) => { const c = ((t as any).x ?? 0) + ((t as any).w ?? 0) / 2; return c < lo || c >= hi })
-      .map((t) => ({ ...t, x: shift((t as any).x ?? 0) * f, ...((t as any).w != null ? { w: (t as any).w * f } : {}) })) as TextEl[])
+      .map(rimappa) as TextEl[])
     setN(n - 1)
     const nuovo = Math.max(0, Math.min(n - 2, k))
     setCurSlide(nuovo)

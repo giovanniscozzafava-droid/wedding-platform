@@ -28,6 +28,10 @@ export default function IncassiSettingsPage() {
   // Piano pagamenti del professionista (3 rate, somma 100). Default 30/50/20.
   const [plan, setPlan] = useState({ deposit: 30, second: 50, balance: 20 })
   const [planBusy, setPlanBusy] = useState(false)
+  // Sconto che parte da solo quando un cliente risponde all'ultimatum "costa troppo".
+  // Si decide QUI, a monte: nel momento della risposta non c'è tempo di pensarci.
+  const [ultPct, setUltPct] = useState(0)
+  const [ultBusy, setUltBusy] = useState(false)
 
   async function loadStatus() {
     if (!user) return
@@ -36,8 +40,11 @@ export default function IncassiSettingsPage() {
       .eq('profile_id', user.id).maybeSingle()
     setStatus((data as ConnectStatus) ?? null)
     const { data: prof } = await (supabase.from as any)('profiles')
-      .select('pay_deposit_pct, pay_second_pct, pay_balance_pct').eq('id', user.id).maybeSingle()
-    if (prof) setPlan({ deposit: Number(prof.pay_deposit_pct ?? 30), second: Number(prof.pay_second_pct ?? 50), balance: Number(prof.pay_balance_pct ?? 20) })
+      .select('pay_deposit_pct, pay_second_pct, pay_balance_pct, ultimatum_discount_percent').eq('id', user.id).maybeSingle()
+    if (prof) {
+      setPlan({ deposit: Number(prof.pay_deposit_pct ?? 30), second: Number(prof.pay_second_pct ?? 50), balance: Number(prof.pay_balance_pct ?? 20) })
+      setUltPct(Number(prof.ultimatum_discount_percent ?? 0))
+    }
     setLoading(false)
   }
 
@@ -53,6 +60,17 @@ export default function IncassiSettingsPage() {
       if (error) throw error
       toast.success('Piano pagamenti salvato')
     } catch (e) { toast.error((e as Error).message) } finally { setPlanBusy(false) }
+  }
+
+  async function saveUlt() {
+    if (!user) return
+    if (ultPct < 0 || ultPct > 90) { toast.error('Lo sconto deve stare fra 0 e 90%.'); return }
+    setUltBusy(true)
+    const { error } = await (supabase.from as any)('profiles')
+      .update({ ultimatum_discount_percent: ultPct }).eq('id', user.id)
+    setUltBusy(false)
+    if (error) { toast.error('Non sono riuscito a salvare.'); return }
+    toast.success(ultPct > 0 ? `Sconto d’emergenza impostato al ${ultPct}%` : 'Automazione spenta')
   }
 
   // Allinea lo stato REALE da Stripe (retrieve live via edge, non dipende dal webhook), poi rilegge.
@@ -125,6 +143,25 @@ export default function IncassiSettingsPage() {
             )}
           </div>
         </div>
+      </Card>
+
+      {/* ULTIMATUM: la controproposta si decide da fermi, non nel momento del no. */}
+      <Card className="mt-4 p-6">
+        <div className="font-medium">Se un cliente dice «costa troppo»</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Quando mandi un <strong>ultimatum</strong> su un preventivo fermo e il cliente risponde che a fermarlo è il prezzo,
+          questo sconto si applica da solo, subito, e lui lo vede nella stessa schermata in cui te lo ha detto.
+          Lascia 0 per spegnere l’automazione: riceverai solo la risposta, senza toccare il prezzo.
+        </p>
+        <div className="mt-4 flex items-end gap-3">
+          <label className="text-xs text-muted-foreground">Sconto automatico (%)
+            <Input type="number" min={0} max={90} value={ultPct}
+              onChange={(e) => setUltPct(Number(e.target.value))} className="mt-1 w-28" /></label>
+          <Button variant="gold" size="sm" disabled={ultBusy} onClick={saveUlt}>{ultBusy ? 'Salvo…' : 'Salva'}</Button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Se sul preventivo avevi già fatto uno sconto più alto, resta quello: l’ultimatum non peggiora mai un’offerta già data.
+        </p>
       </Card>
 
       {/* Piano pagamenti: come il professionista si fa pagare (3 rate, somma 100). */}

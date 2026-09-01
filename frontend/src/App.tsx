@@ -60,6 +60,7 @@ const FunnelSettingsPage = lazyWithRetry(() => import('@/pages/FunnelSettingsPag
 const PaymentResultPage = lazyWithRetry(() => import('@/pages/public/PaymentResultPage'))
 const QuotePreviewPage = lazyWithRetry(() => import('@/pages/public/QuotePreviewPage'))
 const QuoteAcceptPage = lazyWithRetry(() => import('@/pages/public/QuoteAcceptPage'))
+const UltimatumPage = lazyWithRetry(() => import('@/pages/public/UltimatumPage'))
 const CommissionPage = lazyWithRetry(() => import('@/pages/public/CommissionPage'))
 const PublicGalleryPage = lazyWithRetry(() => import('@/pages/public/PublicGalleryPage'))
 const GallerySwipePage = lazyWithRetry(() => import('@/pages/public/GallerySwipePage'))
@@ -336,6 +337,7 @@ export default function App() {
           <Route path="/pagamento/annullato" element={<PaymentResultPage />} />
           <Route path="/p/preview/:token" element={<QuotePreviewPage />} />
           <Route path="/p/accept/:token" element={<QuoteAcceptPage />} />
+          <Route path="/p/ultimatum/:token" element={<UltimatumPage />} />
           <Route path="/p/commissione/:token" element={<CommissionPage />} />
           <Route path="/p/reject/:token" element={<QuoteRejectPage />} />
           <Route path="/p/contract/:token" element={<ContractSignPage />} />

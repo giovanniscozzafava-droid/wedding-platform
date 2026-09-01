@@ -250,6 +250,37 @@ export default function QuoteEditorPage() {
   // Preventivo VIVO: dopo l'accettazione il preventivo resta editabile (il WP
   // aggiunge voci che il cliente vede e decide live). Si blocca SOLO quando il
   // WP lo chiude (closed_at). "Modifica forzata" resta per i preventivi chiusi.
+  // ULTIMATUM: il preventivo inviato e fermo. Chiede al cliente se è ancora
+  // interessato; se risponde "troppo caro" parte da sola la controproposta scontata
+  // che il professionista ha deciso a monte (Impostazioni → Incassi).
+  const [ultOpen, setUltOpen] = useState(false)
+  const [ultPct, setUltPct] = useState<string>('')
+  const [ultBusy, setUltBusy] = useState(false)
+
+  async function inviaUltimatum() {
+    if (!id || ultBusy) return
+    setUltBusy(true)
+    const pct = ultPct.trim() === '' ? undefined : Math.max(0, Math.min(90, Number(ultPct.replace(',', '.'))))
+    const { data, error } = await supabase.functions.invoke('quote-ultimatum', {
+      body: { quote_id: id, ...(pct != null && Number.isFinite(pct) ? { discount_percent: pct } : {}) },
+    })
+    setUltBusy(false)
+    const err = (data as any)?.error ?? (error ? 'net' : null)
+    if (err) {
+      toast.error(
+        err === 'no_email' ? 'Questo preventivo non ha un indirizzo email valido.'
+        : err === 'bad_status' ? "L'ultimatum si manda solo su un preventivo già inviato."
+        : err === 'email_failed' ? 'La mail non è partita. Riprova.'
+        : 'Non sono riuscito a mandare l’ultimatum.')
+      return
+    }
+    setUltOpen(false)
+    const p = Number((data as any)?.discount_percent ?? 0)
+    toast.success(p > 0
+      ? `Ultimatum inviato. Se risponde «troppo caro», parte da solo uno sconto del ${p}%.`
+      : 'Ultimatum inviato.')
+  }
+
   const isClosed = !!(quote as { closed_at?: string | null } | null)?.closed_at
   const isLive = (quote?.status === 'ACCETTATO' || quote?.status === 'CONVERTITO_IN_CONTRATTO') && !isClosed
   const isLocked = isClosed && !forceUnlocked
@@ -820,6 +851,14 @@ export default function QuoteEditorPage() {
                   style={{ background: '#25D366', borderColor: '#25D366' }} title="Consigliato: l'email può finire in spam">
                   <MessageCircle /> Invia su WhatsApp
                 </Button>
+                {/* Ultimatum: solo su un preventivo GIÀ inviato e con email — prima non
+                    avrebbe senso, e senza indirizzo non arriverebbe da nessuna parte. */}
+                {quote.status === 'INVIATO' && !!quote.client_email && (
+                  <Button variant="outline" onClick={() => { setUltPct(String((profile as any)?.ultimatum_discount_percent ?? '')); setUltOpen(true) }}
+                    title="Chiedi al cliente se è ancora interessato. Se risponde «troppo caro», parte da sola la controproposta scontata.">
+                    <AlertTriangle size={15} /> Ultimatum
+                  </Button>
+                )}
                 {/* Gate consenso: la voce "Suggerisci" è attiva solo se il contatto è
                     aperto a ricevere preventivi da altri pro; altrimenti bloccata (sbloccabile). */}
                 {quote.client_email && canSuggest && allowSuggest && (
@@ -841,6 +880,43 @@ export default function QuoteEditorPage() {
           </div>
         </div>
         {suggestOpen && <SuggestSuppliersModal quoteId={id!} clientName={quote.client_name} onClose={() => setSuggestOpen(false)} />}
+
+        {/* ULTIMATUM — si conferma prima di mandarlo: è una mail che chiude una porta
+            o la riapre scontata, non un promemoria qualsiasi. */}
+        {ultOpen && (
+          <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setUltOpen(false)}>
+            <div className="w-full max-w-md rounded-2xl bg-[rgb(var(--bg))] p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div>
+                <h3 className="font-display text-xl">Mandiamo l’ultimatum?</h3>
+                <p className="mt-1.5 text-sm text-[rgb(var(--fg-muted))]">
+                  A <strong>{quote.client_email}</strong> arriva una mail che chiede se è ancora interessato,
+                  con i due pulsanti dentro. Se risponde di no, gli chiediamo il motivo in un clic.
+                </p>
+              </div>
+              <div>
+                <label className="text-xs uppercase tracking-wide text-[rgb(var(--fg-muted))]">Se risponde «costa troppo», sconta in automatico del</label>
+                <div className="mt-1 flex items-center gap-2">
+                  <input type="number" min={0} max={90} step={1} value={ultPct} placeholder="0"
+                    onChange={(e) => setUltPct(e.target.value)}
+                    className="w-24 rounded-lg border px-3 py-2 text-sm bg-[rgb(var(--bg))] tabular-nums"
+                    style={{ borderColor: 'rgb(var(--border))' }} />
+                  <span className="text-sm text-[rgb(var(--fg-muted))]">%</span>
+                </div>
+                <p className="mt-1.5 text-xs text-[rgb(var(--fg-subtle))]">
+                  {Number(ultPct) > 0
+                    ? 'Lo sconto si applica da solo al preventivo, nel momento in cui il cliente dice che è il prezzo a fermarlo. Se avevi già scontato di più, resta lo sconto più alto.'
+                    : 'A zero l’automazione è spenta: ti arriva solo la risposta, senza toccare il prezzo.'}
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end pt-1">
+                <Button variant="ghost" onClick={() => setUltOpen(false)}>Annulla</Button>
+                <Button variant="gold" disabled={ultBusy} onClick={() => void inviaUltimatum()}>
+                  {ultBusy ? 'Invio…' : 'Manda l’ultimatum'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Risposte del cliente (dal form di categoria/questionario): guidano il preventivo */}
         {clientAnswers && Object.keys(clientAnswers).length > 0 && (
