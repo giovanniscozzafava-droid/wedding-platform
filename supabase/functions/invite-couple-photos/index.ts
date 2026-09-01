@@ -24,12 +24,15 @@ Deno.serve(async (req) => {
   const { data: caller } = await admin.auth.getUser((req.headers.get('Authorization') ?? '').slice(7))
   if (!caller?.user) return json({ error: 'auth' }, 401)
 
-  let body: { entry_id?: string; email?: string; full_name?: string; show?: boolean }
+  let body: { entry_id?: string; email?: string; full_name?: string; show?: boolean; preview?: boolean }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const entry_id = body.entry_id
   if (!entry_id) return json({ error: 'bad_input' }, 400)
   // show = porta gli sposi dritti alla PRESENTAZIONE (non alla griglia).
   const show = body.show !== false
+  // preview = componi tutto e RESTITUISCI senza spedire: prima di mandare una mail
+  // agli sposi si guarda cosa esce.
+  const preview = body.preview === true
   const one = (body.email ?? '').trim().toLowerCase()
   if (one && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(one)) return json({ error: 'bad_input' }, 400)
 
@@ -44,8 +47,8 @@ Deno.serve(async (req) => {
   // Destinatari: se il chiamante non ne passa uno, sono gli sposi GIÀ registrati
   // sull'evento — le loro email le abbiamo, non c'è motivo di farle ribattere.
   const { data: membri } = await admin.from('wedding_couple_members')
-    .select('email, invite_token').eq('entry_id', entry_id)
-  let destinatari: Array<{ email: string; token: string }> = []
+    .select('email, invite_token, user_id, full_name').eq('entry_id', entry_id)
+  let destinatari: Array<{ email: string; token: string; registrato?: boolean; nome?: string | null }> = []
   if (one) {
     const ex = (membri ?? []).find((m: { email?: string | null }) => (m.email ?? '').toLowerCase() === one)
     if (ex?.invite_token) destinatari = [{ email: one, token: ex.invite_token as string }]
@@ -57,9 +60,26 @@ Deno.serve(async (req) => {
       destinatari = [{ email: one, token: ins.invite_token as string }]
     }
   } else {
-    destinatari = (membri ?? [])
-      .filter((m: { email?: string | null; invite_token?: string | null }) => !!m.email && !!m.invite_token)
-      .map((m: { email: string; invite_token: string }) => ({ email: m.email, token: m.invite_token }))
+    // L'indirizzo giusto è quello con cui il cliente si è REGISTRATO: se ha creato
+    // l'account con un'email diversa da quella dell'invito, è lì che legge la posta.
+    // L'email dell'invito resta come ripiego per chi non si è ancora registrato.
+    const righe = (membri ?? []).filter((m: { invite_token?: string | null }) => !!m.invite_token)
+    destinatari = []
+    for (const m of righe as Array<{ email?: string | null; invite_token: string; user_id?: string | null; full_name?: string | null }>) {
+      let addr = (m.email ?? '').trim().toLowerCase()
+      let registrato = false
+      if (m.user_id) {
+        try {
+          const { data: u } = await admin.auth.admin.getUserById(m.user_id)
+          const ue = (u?.user?.email ?? '').trim().toLowerCase()
+          if (ue) { addr = ue; registrato = true }
+        } catch { /* account non leggibile: resta l'email dell'invito */ }
+      }
+      if (addr) destinatari.push({ email: addr, token: m.invite_token, registrato, nome: m.full_name ?? null })
+    }
+    // Niente doppioni se invito e account hanno lo stesso indirizzo su due righe.
+    const visti = new Set<string>()
+    destinatari = destinatari.filter((d) => (visti.has(d.email) ? false : (visti.add(d.email), true)))
     if (destinatari.length === 0) return json({ error: 'no_recipients', detail: 'Nessuno sposo registrato su questo evento: indica un indirizzo.' }, 400)
   }
 
@@ -89,6 +109,29 @@ Deno.serve(async (req) => {
        </div>`
     : ''
 
+  // Un solo posto per il testo: se anteprima e invio lo componessero due volte,
+  // prima o poi divergerebbero e mostreremmo una mail diversa da quella spedita.
+  const corpo = (link: string) => `<p style="margin:0">Le vostre foto sono online. Il pulsante qui sotto apre la <strong>presentazione</strong>: scorretele con calma e mettete un cuore a quelle che vi piacciono — <strong>i vostri cuori diventano la selezione per l'album</strong>, non dovete rifare il lavoro due volte.</p>${bloccoOspiti}<p style="font-size:13px;color:#787164;margin:16px 0 0">Oppure copia questo link nel browser:<br><span style="word-break:break-all">${esc(link)}</span></p>`
+
+  // Anteprima: compongo la mail del PRIMO destinatario e la restituisco, senza spedire.
+  if (preview) {
+    const d0 = destinatari[0]!
+    const link0 = `${APP_BASE}/invito-coppia/${d0.token}?to=foto${show ? '&show=1' : ''}`
+    return json({
+      ok: true, preview: true,
+      destinatari: destinatari.map((d) => ({ email: d.email, registrato: !!d.registrato, nome: d.nome ?? null })),
+      subject: soggetto,
+      guest_link: guestLink,
+      html: emailShell({
+        eyebrow: 'Foto pronte', title: soggetto,
+        bodyHtml: corpo(link0),
+        cta: { href: link0, label: 'Guarda la presentazione' },
+        contactHtml: `Hai ricevuto questa email perché ${esc(rawStudio)} ha condiviso con te le foto del tuo evento su Planfully.`,
+      }),
+    })
+  }
+
+
   let inviate = 0
   const falliti: string[] = []
   for (const d of destinatari) {
@@ -97,7 +140,7 @@ Deno.serve(async (req) => {
     const html = emailShell({
       eyebrow: 'Foto pronte',
       title: soggetto,
-      bodyHtml: `<p style="margin:0">Le vostre foto sono online. Il pulsante qui sotto apre la <strong>presentazione</strong>: scorretele con calma e mettete un cuore a quelle che vi piacciono — <strong>i vostri cuori diventano la selezione per l'album</strong>, non dovete rifare il lavoro due volte.</p>${bloccoOspiti}<p style="font-size:13px;color:#787164;margin:16px 0 0">Oppure copia questo link nel browser:<br><span style="word-break:break-all">${esc(link)}</span></p>`,
+      bodyHtml: corpo(link),
       cta: { href: link, label: 'Guarda la presentazione' },
       contactHtml: `Hai ricevuto questa email perché ${esc(rawStudio)} ha condiviso con te le foto del tuo evento su Planfully.`,
     })

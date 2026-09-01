@@ -146,9 +146,27 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [showcase, setShowcase] = useState(false)
   const [eventKind, setEventKind] = useState<string | null>(null)
   const [invioFoto, setInvioFoto] = useState(false)
+  const [ant, setAnt] = useState<{ destinatari: { email: string; registrato: boolean; nome: string | null }[]; subject: string; html: string; guest_link: string | null } | null>(null)
 
-  // Manda agli sposi il link diretto alla presentazione. Gli indirizzi li abbiamo
-  // già (sono quelli con cui si sono registrati): la edge li ricava da sola.
+  // Prima si GUARDA, poi si manda: una mail agli sposi non si spedisce alla cieca.
+  // Gli indirizzi non si digitano: sono quelli con cui il cliente si è REGISTRATO
+  // (la edge li prende dall'account, con l'email dell'invito come ripiego).
+  async function apriAnteprima() {
+    setInvioFoto(true)
+    const { data, error } = await supabase.functions.invoke('invite-couple-photos', {
+      body: { entry_id: entryId, show: true, preview: true },
+    })
+    setInvioFoto(false)
+    const code = (data as any)?.error ?? (error ? 'net' : null)
+    if (code) {
+      toast.error(code === 'no_recipients'
+        ? 'Nessuno sposo registrato su questo evento: invitali prima dalla scheda evento.'
+        : 'Non sono riuscito a preparare l’anteprima. Riprova.')
+      return
+    }
+    setAnt(data as any)
+  }
+
   async function inviaPresentazione() {
     setInvioFoto(true)
     const { data, error } = await supabase.functions.invoke('invite-couple-photos', {
@@ -156,13 +174,13 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     })
     setInvioFoto(false)
     if (error || (data as any)?.error) {
-      const code = (data as any)?.error
-      toast.error(code === 'no_recipients'
-        ? 'Nessuno sposo registrato su questo evento: invitali prima dalla scheda evento.'
-        : 'Non sono riuscito a mandare la mail. Riprova.')
+      toast.error('Non sono riuscito a mandare la mail. Riprova.')
       return
     }
+    setAnt(null)
     const n = (data as any)?.inviate ?? 0
+    const ko = ((data as any)?.falliti ?? []) as string[]
+    if (ko.length > 0) toast.error(`Non consegnata a: ${ko.join(', ')}`)
     toast.success(n === 1 ? 'Presentazione inviata agli sposi' : `Presentazione inviata a ${n} destinatari`)
   }
   // Il link della mail agli sposi porta dritto alla presentazione: /...?show=1
@@ -703,9 +721,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           )}
           <Button variant="gold" size="sm" onClick={() => setShowcase(true)}><Images size={14} /> Presentazione galleria</Button>
           {isOwner && (
-            <Button variant="outline" size="sm" disabled={invioFoto} onClick={() => void inviaPresentazione()}
-              title="Manda agli sposi la mail col link diretto alla presentazione, dove possono mettere i loro cuori">
-              <Send size={14} /> {invioFoto ? 'Invio…' : 'Invia agli sposi'}
+            <Button variant="outline" size="sm" disabled={invioFoto} onClick={() => void apriAnteprima()}
+              title="Prepara la mail per gli sposi: prima la vedi, poi decidi se mandarla">
+              <Send size={14} /> {invioFoto ? 'Preparo…' : 'Invia agli sposi'}
             </Button>
           )}
         </div>
@@ -1018,6 +1036,43 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             <div className="flex gap-2 justify-center pt-1">
               <Button variant="gold" onClick={() => { window.location.href = '/profile' }}>Vai al profilo e collega</Button>
               <Button variant="ghost" onClick={() => setDriveModal(false)}>Più tardi</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ANTEPRIMA della mail agli sposi: destinatari veri + la mail esatta che parte. */}
+      {ant && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setAnt(null)}>
+          <div className="bg-[rgb(var(--bg))] rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
+              <h4 className="font-display text-xl">Anteprima della mail</h4>
+              <p className="mt-2 text-sm text-[rgb(var(--fg-muted))]">Oggetto: <strong className="text-[rgb(var(--fg))]">{ant.subject}</strong></p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {ant.destinatari.map((d) => (
+                  <span key={d.email} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
+                    style={{ background: 'rgb(var(--bg-sunken))' }}>
+                    {d.nome ? <strong>{d.nome}</strong> : null}
+                    {d.email}
+                    <span className="text-[10px] uppercase tracking-wide" style={{ color: d.registrato ? 'rgb(var(--gold-700))' : 'rgb(var(--fg-subtle))' }}>
+                      {d.registrato ? 'account' : 'invito'}
+                    </span>
+                  </span>
+                ))}
+              </div>
+              {!ant.guest_link && (
+                <p className="mt-2 text-xs text-[rgb(var(--fg-subtle))]">
+                  Nessun link ospiti attivo: la mail non conterrà la parte da girare agli invitati.
+                </p>
+              )}
+            </div>
+            {/* sandbox vuoto: la mail è HTML di nostra produzione, ma non deve poter eseguire nulla */}
+            <iframe title="Anteprima" srcDoc={ant.html} sandbox="" className="flex-1 w-full bg-white min-h-[320px]" />
+            <div className="p-4 flex justify-end gap-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+              <Button variant="ghost" onClick={() => setAnt(null)}>Annulla</Button>
+              <Button variant="gold" disabled={invioFoto} onClick={() => void inviaPresentazione()}>
+                <Send size={14} /> {invioFoto ? 'Invio…' : `Invia a ${ant.destinatari.length} ${ant.destinatari.length === 1 ? 'destinatario' : 'destinatari'}`}
+              </Button>
             </div>
           </div>
         </div>
