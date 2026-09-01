@@ -106,9 +106,8 @@ export default function UltimatumPage() {
                 <>
                   <h1 className="font-display text-2xl mb-2">Aspettate un attimo</h1>
                   <p className="text-sm text-[rgb(var(--fg-muted))]">
-                    Prima di lasciarvi andare: {studio} ha previsto per voi
-                    {' '}<strong style={{ color: primary }}>uno sconto del {esito.pct}%</strong>, già applicato al preventivo.
-                    Ricontrollatelo con calma — se la cifra ora funziona, ne riparliamo.
+                    Abbiamo previsto per voi <strong style={{ color: primary }}>un ulteriore sconto del {esito.pct}% sul totale</strong>,
+                    già applicato al preventivo. Ricontrollatelo con calma — se la cifra ora funziona, ne riparliamo.
                   </p>
                 </>
               ) : (

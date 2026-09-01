@@ -42,7 +42,7 @@ export function coverWindow(imgAspect: number, slotAspect: number, cell?: Cell |
 // dipendere dall'aspetto dell'immagine: il browser fa il "cover" nativo, quindi le
 // proporzioni sono SEMPRE preservate (niente foto stirate). Va su un'<img> dentro un
 // contenitore relative+overflow-hidden. Parità con l'export: stesso fuoco e zoom.
-export function coverImgStyle(cell?: Cell | null, frameAspect = 1): CSSProperties {
+export function coverImgStyle(cell?: Cell | null, frameAspect = 1, imgAspect?: number): CSSProperties {
   const c = cell ?? DEFAULT_CELL // robusto: dato persistito può avere cell null/assente
   const z = Math.max(1, c.z || 1)
   const fx = Math.min(1, Math.max(0, c.fx ?? 0.5))
@@ -50,6 +50,25 @@ export function coverImgStyle(cell?: Cell | null, frameAspect = 1): CSSPropertie
   const r = c.r ?? 0
   const sh = c.fh ? -1 : 1, sv = c.fv ? -1 : 1 // specchia orizzontale/verticale
   const flipped = sh < 0 || sv < 0
+  // ANTEPRIMA = EXPORT. `object-position` del CSS misura il fuoco sulla CORSA
+  // DISPONIBILE (0% = bordo sinistro, 100% = destro), mentre coverWindow — che è ciò
+  // che disegna l'export via sourceRect — centra la finestra sul fuoco e poi la taglia
+  // ai bordi. A fuoco centrato coincidono; appena si sposta il ritaglio divergono
+  // (fino all'11% della larghezza della foto), ed è la ragione per cui la foto
+  // esportata non era ritagliata come nell'app. Quando conosciamo l'aspetto reale
+  // della foto posizioniamo l'immagine con gli STESSI numeri dell'export.
+  if (!r && !flipped && imgAspect && imgAspect > 0) {
+    const w = coverWindow(imgAspect, frameAspect, c)
+    return {
+      position: 'absolute',
+      left: `${((-w.wx / w.ww) * 100).toFixed(4)}%`,
+      top: `${((-w.wy / w.wh) * 100).toFixed(4)}%`,
+      width: `${((w.sw / w.ww) * 100).toFixed(4)}%`,
+      height: `${((w.sh / w.wh) * 100).toFixed(4)}%`,
+      // width/height rispettano già l'aspetto della foto → 'fill' non deforma nulla.
+      objectFit: 'fill', maxWidth: 'none',
+    }
+  }
   if (!r && !flipped) {
     // NESSUNA rotazione né specchio → identico a prima (zero regressioni per gli album esistenti).
     return {

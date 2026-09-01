@@ -816,7 +816,10 @@ export default function CaroselloPage() {
                   onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const id = e.dataTransfer.getData('text/plain'); setDragOverId(null); if (id) { updateEl(el.id, (x) => ({ ...x, mediaId: id })); setSelId(el.id); setModelKey(null) } }}
                   className={`absolute overflow-hidden ${cropOpen && el.mediaId ? 'cursor-grab active:cursor-grabbing ring-2 ring-inset ring-[rgb(var(--gold-400))]' : 'cursor-move'} ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-20' : 'z-10'} ${dragOverId === el.id ? 'ring-4 ring-[rgb(var(--gold-500))]' : ''}`}
                   style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>
-                  {src ? <img src={src} alt="" draggable={false} style={coverImgStyle(el.cell)}
+                  {src ? <img src={src} alt="" draggable={false}
+                          // aspetto reale + aspetto cornice: l'anteprima usa la stessa
+                          // finestra che disegnera' l'export (coverWindow/sourceRect).
+                          style={coverImgStyle(el.cell, frameAspOf(el), imgAsp.current.get(src))}
                           onLoad={(ev) => noteAsp(src, ev.currentTarget.naturalWidth, ev.currentTarget.naturalHeight)} />
                     : <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]"><ImagePlus size={20} /></div>}
                   {cropOpen && active && el.mediaId && (
