@@ -28,7 +28,7 @@ export default function UltimatumPage() {
   const { token } = useParams<{ token: string }>()
   const [sp] = useSearchParams()
   const [d, setD] = useState<Dati | null>(null)
-  const [fase, setFase] = useState<'carico' | 'scelta' | 'motivo' | 'fatto'>('carico')
+  const [fase, setFase] = useState<'carico' | 'scelta' | 'motivo' | 'concorrente' | 'fatto'>('carico')
   const [esito, setEsito] = useState<{ interessato: boolean; scontoApplicato: boolean; pct: number; quoteToken?: string | null } | null>(null)
   const [nota, setNota] = useState('')
   const [busy, setBusy] = useState(false)
@@ -52,11 +52,12 @@ export default function UltimatumPage() {
 
   useEffect(() => { void carica() }, [carica])
 
-  async function rispondi(interessato: boolean, motivo?: string) {
+  async function rispondi(interessato: boolean, motivo?: string, perPrezzo = false) {
     if (!token || busy) return
     setBusy(true)
     const { data, error } = await (supabase.rpc as any)('ultimatum_respond_by_token', {
-      p_token: token, p_interested: interessato, p_reason: motivo ?? null, p_note: nota.trim() || null,
+      p_token: token, p_interested: interessato, p_reason: motivo ?? null,
+      p_note: nota.trim() || null, p_price: perPrezzo,
     })
     setBusy(false)
     // supabase-js non lancia sugli errori Postgres: senza controllare, il cliente
@@ -66,6 +67,11 @@ export default function UltimatumPage() {
     if (r.error && r.error !== 'already') { setD({ error: r.error }); setFase('fatto'); return }
     setEsito({ interessato, scontoApplicato: !!r.discount_applied, pct: Number(r.discount_percent ?? 0), quoteToken: r.quote_token ?? null })
     setFase('fatto')
+    // La controproposta finisce anche nella loro posta: se chiudono questa pagina
+    // devono avere in mano la cifra nuova e il link, non un ricordo.
+    if (r.discount_applied) {
+      void supabase.functions.invoke('ultimatum-discount-email', { body: { token } }).catch(() => {})
+    }
   }
 
   const primary = d?.owner?.brand_primary_color ?? '#1A2E4F'
@@ -134,6 +140,32 @@ export default function UltimatumPage() {
                 </>
               )}
             </div>
+          ) : fase === 'concorrente' ? (
+            <>
+              {/* Il punto che mancava: chi se ne va per un preventivo più basso è
+                  una perdita di PREZZO, e merita la controproposta come gli altri. */}
+              <h1 className="font-display text-2xl mb-1">Vi hanno fatto un prezzo migliore?</h1>
+              <p className="text-sm text-[rgb(var(--fg-muted))] mb-5">
+                Se è una questione di cifra, forse possiamo ancora fare qualcosa.
+              </p>
+              <div className="space-y-2">
+                <button type="button" disabled={busy}
+                  onClick={() => void rispondi(false, 'ALTRO_FORNITORE', true)}
+                  data-testid="concorrente-prezzo"
+                  className="w-full text-left px-4 py-3 rounded-xl border transition-colors hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"
+                  style={{ borderColor: primary }}>
+                  <span className="font-medium">Sì, costava meno</span>
+                  <span className="block text-xs text-[rgb(var(--fg-subtle))] mt-0.5">Vediamo se possiamo avvicinarci.</span>
+                </button>
+                <button type="button" disabled={busy}
+                  onClick={() => void rispondi(false, 'ALTRO_FORNITORE', false)}
+                  className="w-full text-left px-4 py-3 rounded-xl border transition-colors hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"
+                  style={{ borderColor: 'rgb(var(--border))' }}>
+                  <span className="font-medium">No, per altri motivi</span>
+                  <span className="block text-xs text-[rgb(var(--fg-subtle))] mt-0.5">Stile, disponibilità, feeling…</span>
+                </button>
+              </div>
+            </>
           ) : fase === 'motivo' ? (
             <>
               <h1 className="font-display text-2xl mb-1">Ci dite solo perché?</h1>
@@ -141,7 +173,7 @@ export default function UltimatumPage() {
               <div className="space-y-2">
                 {MOTIVI.map((m) => (
                   <button key={m.key} type="button" disabled={busy}
-                    onClick={() => void rispondi(false, m.key)}
+                    onClick={() => (m.key === 'ALTRO_FORNITORE' ? setFase('concorrente') : void rispondi(false, m.key))}
                     className="w-full text-left px-4 py-3 rounded-xl border transition-colors hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-50"
                     style={{ borderColor: 'rgb(var(--border))' }}>
                     <span className="font-medium">{m.label}</span>
