@@ -23,6 +23,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { ProssimaMossa } from '@/components/workflow/ProssimaMossa'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { FunnelMetrics } from '@/components/dashboard/FunnelMetrics'
+import { UltimatumStats } from '@/components/dashboard/UltimatumStats'
 import { PrimaNotaNudge } from '@/components/dashboard/PrimaNotaNudge'
 
 type Stats = {
@@ -214,6 +215,9 @@ export default function HomePage() {
 
         {/* Funnel lead-generation: percentuali motivazionali */}
         <FunnelMetrics />
+
+        {/* Cosa rispondono agli ultimatum: compare solo se ne hai mandato almeno uno. */}
+        <div className="mt-6"><UltimatumStats /></div>
 
         {/* Prossima mossa (workflow guidato) — solo capostipiti (WP/LOCATION/ADMIN) e con feature flag attiva */}
         {isCapostipite && nuovoModello && (

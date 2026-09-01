@@ -11,7 +11,7 @@ type Dati = {
   ok?: boolean; error?: string
   client_name?: string | null; title?: string | null; event_date?: string | null
   responded_at?: string | null; still_interested?: boolean | null
-  discount_percent?: number; discount_applied?: boolean
+  discount_percent?: number; discount_applied?: boolean; quote_token?: string | null
   owner?: { business_name?: string | null; full_name?: string | null; brand_primary_color?: string | null; brand_logo_url?: string | null }
 }
 
@@ -29,7 +29,7 @@ export default function UltimatumPage() {
   const [sp] = useSearchParams()
   const [d, setD] = useState<Dati | null>(null)
   const [fase, setFase] = useState<'carico' | 'scelta' | 'motivo' | 'fatto'>('carico')
-  const [esito, setEsito] = useState<{ interessato: boolean; scontoApplicato: boolean; pct: number } | null>(null)
+  const [esito, setEsito] = useState<{ interessato: boolean; scontoApplicato: boolean; pct: number; quoteToken?: string | null } | null>(null)
   const [nota, setNota] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -40,7 +40,8 @@ export default function UltimatumPage() {
     setD(r)
     if (r.error) { setFase('fatto'); return }
     if (r.responded_at) {
-      setEsito({ interessato: !!r.still_interested, scontoApplicato: !!r.discount_applied, pct: Number(r.discount_percent ?? 0) })
+      setEsito({ interessato: !!r.still_interested, scontoApplicato: !!r.discount_applied,
+                 pct: Number(r.discount_percent ?? 0), quoteToken: (r as any).quote_token ?? null })
       setFase('fatto'); return
     }
     // La scelta arriva già dalla mail: "sì" si chiude subito, "no" passa al motivo.
@@ -61,9 +62,9 @@ export default function UltimatumPage() {
     // supabase-js non lancia sugli errori Postgres: senza controllare, il cliente
     // vedrebbe "grazie" mentre la risposta non è arrivata a nessuno.
     if (error) { setD({ error: 'net' }); setFase('fatto'); return }
-    const r = (data ?? {}) as { ok?: boolean; error?: string; discount_applied?: boolean; discount_percent?: number }
+    const r = (data ?? {}) as { ok?: boolean; error?: string; discount_applied?: boolean; discount_percent?: number; quote_token?: string | null }
     if (r.error && r.error !== 'already') { setD({ error: r.error }); setFase('fatto'); return }
-    setEsito({ interessato, scontoApplicato: !!r.discount_applied, pct: Number(r.discount_percent ?? 0) })
+    setEsito({ interessato, scontoApplicato: !!r.discount_applied, pct: Number(r.discount_percent ?? 0), quoteToken: r.quote_token ?? null })
     setFase('fatto')
   }
 
@@ -101,13 +102,26 @@ export default function UltimatumPage() {
                   <p className="text-sm text-[rgb(var(--fg-muted))]">
                     Abbiamo avvisato {studio}: vi ricontatta a breve.
                   </p>
+                  {esito.quoteToken && (
+                    <a href={`/p/preview/${esito.quoteToken}`}
+                      className="mt-5 inline-block px-5 py-3 rounded-xl font-semibold text-white"
+                      style={{ background: primary }}>Rivedi il preventivo</a>
+                  )}
                 </>
               ) : esito.scontoApplicato ? (
                 <>
                   <h1 className="font-display text-2xl mb-2">Aspettate un attimo</h1>
                   <p className="text-sm text-[rgb(var(--fg-muted))]">
                     Abbiamo previsto per voi <strong style={{ color: primary }}>un ulteriore sconto del {esito.pct}% sul totale</strong>,
-                    già applicato al preventivo. Ricontrollatelo con calma — se la cifra ora funziona, ne riparliamo.
+                    già applicato al preventivo.
+                  </p>
+                  {esito.quoteToken && (
+                    <a href={`/p/preview/${esito.quoteToken}`} data-testid="vedi-preventivo-scontato"
+                      className="mt-5 inline-block px-5 py-3 rounded-xl font-semibold text-white"
+                      style={{ background: primary }}>Vedi il preventivo con lo sconto</a>
+                  )}
+                  <p className="mt-3 text-xs text-[rgb(var(--fg-subtle))]">
+                    Il nuovo totale è già quello che vedrete aprendo il preventivo.
                   </p>
                 </>
               ) : (
