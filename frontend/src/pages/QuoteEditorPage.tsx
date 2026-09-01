@@ -179,6 +179,15 @@ export default function QuoteEditorPage() {
     const cost = its.reduce((s: number, it: any) => s + (it.erogatore_e_capostipite ? num(it.line_cost) * factor : num(it.line_cost)), 0)
     return { count: its.length, client, cost: Math.round(cost * 100) / 100, margin: Math.round((client - cost) * 100) / 100 }
   }, [quote, selectedIds])
+  // Il cliente può accettare in due modi: (a) firmando l'INTERO preventivo, (b) scegliendo
+  // voce per voce. Nel caso (a) le singole voci restano IN_ATTESA nel dato (nessuno le ha
+  // spuntate) → mostrarle come "in attesa" è FALSO: ha firmato tutto. Quindi se non esiste
+  // NESSUNA decisione per-voce, su un preventivo accettato le voci sono tutte accettate.
+  const hasPerItemDecisions = useMemo(
+    () => (((quote as any)?.quote_items ?? []) as any[]).some(
+      (it) => it.client_decision === 'ACCETTATO' || it.client_decision === 'RIFIUTATO'),
+    [quote],
+  )
   const [blockDays, setBlockDays] = useState(15)
   const [notifyClient] = useState(true)
   const [blocking, setBlocking] = useState(false)
@@ -1196,14 +1205,18 @@ export default function QuoteEditorPage() {
                             )}
                             {(isLive || isClosed) && (() => {
                               const dec = (it as any).client_decision as string | undefined
+                              // Firma intera (nessuna scelta per-voce) → tutte accettate.
+                              const wholeSign = !hasPerItemDecisions
+                              const eff = wholeSign ? 'ACCETTATO' : (dec ?? 'IN_ATTESA')
                               const map: Record<string, { l: string; c: string }> = {
                                 ACCETTATO: { l: '✓ Accettata dal cliente', c: '#16a34a' },
                                 RIFIUTATO: { l: '✕ Rifiutata dal cliente', c: '#dc2626' },
                                 IN_ATTESA: { l: '⏳ In attesa cliente', c: '#d97706' },
                               }
-                              const m = map[dec ?? 'IN_ATTESA'] ?? { l: '⏳ In attesa cliente', c: '#d97706' }
+                              const m = map[eff] ?? { l: '⏳ In attesa cliente', c: '#d97706' }
                               return (
                                 <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                  title={wholeSign ? 'Il cliente ha firmato l\'intero preventivo (non ha scelto voce per voce)' : undefined}
                                   style={{ color: m.c, background: `${m.c}1a` }}>{m.l}</span>
                               )
                             })()}
