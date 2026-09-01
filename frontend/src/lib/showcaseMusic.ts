@@ -32,8 +32,15 @@ export const STYLE_LABEL: Record<StyleKey, string> = {
   sobria: 'Sobria',
 }
 
-/** Brani veri disponibili (file in /public/music). Vuoto = si usa il generatore. */
-export const TRACK_FILE: Partial<Record<StyleKey, string>> = {}
+/** Brani veri disponibili (file in /public/music). Vedi music/SOURCES.md per le licenze:
+ *  tutte registrazioni di pubblico dominio o CC0 da Wikimedia Commons. */
+export const TRACK_FILE: Partial<Record<StyleKey, string>> = {
+  romantica: '/music/romantica.mp3',   // Chopin, Notturno op. 9 n. 2
+  culla:     '/music/culla.mp3',       // Brahms, Ninna nanna op. 49 n. 4
+  solenne:   '/music/solenne.mp3',     // Bach, BWV 147 «Jesus bleibet meine Freude»
+  festa:     '/music/festa.mp3',       // Mozart, Eine kleine Nachtmusik, Allegro
+  sobria:    '/music/sobria.mp3',      // Satie, Gnossienne n. 1
+}
 
 export function styleForKind(kind: string | null | undefined): StyleKey {
   return STYLE_BY_KIND[(kind ?? 'matrimonio').toLowerCase()] ?? 'romantica'
