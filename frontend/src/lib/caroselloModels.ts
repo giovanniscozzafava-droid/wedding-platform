@@ -194,6 +194,17 @@ export const SLIDE_LAYOUTS: Record<number, SlideLayout[]> = {
     { key: '1-passe', label: 'Passepartout', rects: [{ x: 0.18, y: 0.22, w: 0.64, h: 0.5 }] },
     { key: '1-polaroid', label: 'Polaroid', rects: [{ x: 0.11, y: 0.09, w: 0.78, h: 0.68, border: white, shadow: true, rot: -2.5 }] },
     { key: '1-hairline', label: 'Filo', rects: [{ x: 0.05, y: 0.04, w: 0.9, h: 0.92, border: dark }] },
+    // Aria in basso per un titolo: il taglio cade sulla terza parte, non a metà.
+    { key: '1-titolo-sotto', label: 'Spazio per il titolo', rects: [{ x: 0, y: 0, w: 1, h: 0.68 }] },
+    { key: '1-titolo-sopra', label: 'Titolo in alto', rects: [{ x: 0, y: 0.32, w: 1, h: 0.68 }] },
+    // Quadrata centrata sui terzi: il classico che non sbaglia mai.
+    { key: '1-quadrata', label: 'Quadrata al centro', rects: [{ x: 0.1, y: 0.22, w: 0.8, h: 0.56 }] },
+    { key: '1-alta', label: 'Colonna alta', rects: [{ x: 0.26, y: 0.04, w: 0.48, h: 0.92 }] },
+    // Fascia panoramica a metà altezza: respira sopra e sotto in parti uguali.
+    { key: '1-fascia', label: 'Fascia panoramica', rects: [{ x: 0, y: 0.28, w: 1, h: 0.44 }] },
+    { key: '1-sx', label: 'A sinistra', rects: [{ x: 0, y: 0.08, w: 0.66, h: 0.84 }] },
+    { key: '1-dx', label: 'A destra', rects: [{ x: 0.34, y: 0.08, w: 0.66, h: 0.84 }] },
+    { key: '1-cartolina', label: 'Cartolina', rects: [{ x: 0.09, y: 0.13, w: 0.82, h: 0.62, border: white, shadow: true }] },
   ],
   2: [
     { key: '2-cols', label: 'Affiancate', rects: rowL(2) },
@@ -202,6 +213,12 @@ export const SLIDE_LAYOUTS: Record<number, SlideLayout[]> = {
     { key: '2-offset', label: 'Sfalsate', rects: [{ x: 0.04, y: 0.05, w: 0.6, h: 0.5, shadow: true }, { x: 0.36, y: 0.45, w: 0.6, h: 0.5, shadow: true }] },
     { key: '2-dip', label: 'Dittico a filo', rects: [{ x: 0, y: 0, w: 0.498, h: 1 }, { x: 0.502, y: 0, w: 0.498, h: 1 }] },
     { key: '2-polas', label: 'Due polaroid', rects: [{ x: 0.03, y: 0.08, w: 0.5, h: 0.62, border: white, shadow: true, rot: -3 }, { x: 0.47, y: 0.3, w: 0.5, h: 0.62, border: white, shadow: true, rot: 3 }] },
+    { key: '2-bigR', label: 'Piccola + grande', rects: [{ x: 0, y: 0.24, w: 0.34, h: 0.52 }, { x: 0.36, y: 0, w: 0.64, h: 1 }] },
+    // Verticale sopra orizzontale: pesi diversi ma baricentro al centro.
+    { key: '2-2-3', label: 'Sopra bassa · sotto alta', rects: [{ x: 0.06, y: 0.04, w: 0.88, h: 0.34 }, { x: 0.06, y: 0.4, w: 0.88, h: 0.56 }] },
+    { key: '2-3-2', label: 'Sopra alta · sotto bassa', rects: [{ x: 0.06, y: 0.04, w: 0.88, h: 0.56 }, { x: 0.06, y: 0.62, w: 0.88, h: 0.34 }] },
+    { key: '2-cornice', label: 'Due incorniciate', rects: [{ x: 0.05, y: 0.06, w: 0.42, h: 0.88, border: dark }, { x: 0.53, y: 0.06, w: 0.42, h: 0.88, border: dark }] },
+    { key: '2-diag', label: 'In diagonale', rects: [{ x: 0.05, y: 0.06, w: 0.52, h: 0.42 }, { x: 0.43, y: 0.52, w: 0.52, h: 0.42 }] },
   ],
   3: [
     { key: '3-bands', label: 'Tre bande', rects: rowL(3) },
@@ -210,12 +227,22 @@ export const SLIDE_LAYOUTS: Record<number, SlideLayout[]> = {
     { key: '3-strip', label: 'Provini', rects: [{ x: 0.02, y: 0.37, w: 0.3, h: 0.26 }, { x: 0.35, y: 0.37, w: 0.3, h: 0.26 }, { x: 0.68, y: 0.37, w: 0.3, h: 0.26 }] },
     { key: '3-topbig', label: 'Grande sopra', rects: [{ x: 0, y: 0, w: 1, h: 0.6 }, { x: 0, y: 0.62, w: 0.49, h: 0.38 }, { x: 0.51, y: 0.62, w: 0.49, h: 0.38 }] },
     { key: '3-scrap', label: 'Scrapbook', rects: [{ x: 0.03, y: 0.06, w: 0.5, h: 0.5, border: white, shadow: true, rot: -4 }, { x: 0.5, y: 0.02, w: 0.46, h: 0.46, border: white, shadow: true, rot: 3 }, { x: 0.25, y: 0.5, w: 0.5, h: 0.46, border: white, shadow: true, rot: -2 }] },
+    { key: '3-Rbig', label: 'Due + grande', rects: [...colL(2, 0, 0.38) as Rect[], { x: 0.4, y: 0, w: 0.6, h: 1 }] },
+    { key: '3-bottombig', label: 'Grande sotto', rects: [{ x: 0, y: 0, w: 0.49, h: 0.38 }, { x: 0.51, y: 0, w: 0.49, h: 0.38 }, { x: 0, y: 0.4, w: 1, h: 0.6 }] },
+    // Centrale più alta: simmetria con un accento al centro.
+    { key: '3-centro', label: 'Centrale in evidenza', rects: [{ x: 0.02, y: 0.2, w: 0.3, h: 0.6 }, { x: 0.34, y: 0.06, w: 0.32, h: 0.88 }, { x: 0.68, y: 0.2, w: 0.3, h: 0.6 }] },
+    { key: '3-scala', label: 'A scaletta', rects: [{ x: 0.03, y: 0.03, w: 0.44, h: 0.44 }, { x: 0.28, y: 0.28, w: 0.44, h: 0.44 }, { x: 0.53, y: 0.53, w: 0.44, h: 0.44 }] },
   ],
   4: [
     { key: '4-grid', label: 'Griglia 2×2', rects: grid(2, 2) },
     { key: '4-row', label: 'In fila', rects: rowL(4) },
     { key: '4-bigL', label: 'Grande + tre', rects: [{ x: 0, y: 0, w: 0.6, h: 1 }, ...colL(3, 0.62, 0.38) as Rect[]] },
     { key: '4-topstrip', label: '1 + fila di 3', rects: [{ x: 0, y: 0, w: 1, h: 0.62 }, ...rowL(3, 0.64, 0.36) as Rect[]] },
+    { key: '4-bottomstrip', label: 'Fila di 3 + 1', rects: [...rowL(3, 0, 0.36) as Rect[], { x: 0, y: 0.38, w: 1, h: 0.62 }] },
+    { key: '4-cornice', label: 'Quattro incorniciate', rects: grid(2, 2, 0.05, 0.05, 0.9, 0.9).map((r) => ({ ...r, border: white })) },
+    // Colonna alta a destra: pesi diversi che si bilanciano sull'asse verticale.
+    { key: '4-Rbig', label: 'Tre + grande', rects: [...colL(3, 0, 0.38) as Rect[], { x: 0.4, y: 0, w: 0.6, h: 1 }] },
+    { key: '4-mosaico', label: 'Mosaico', rects: [{ x: 0, y: 0, w: 0.58, h: 0.58 }, { x: 0.6, y: 0, w: 0.4, h: 0.28 }, { x: 0.6, y: 0.3, w: 0.4, h: 0.28 }, { x: 0, y: 0.6, w: 1, h: 0.4 }] },
     { key: '4-scrap', label: 'Scrapbook', rects: [{ x: 0.04, y: 0.05, w: 0.44, h: 0.44, border: white, shadow: true, rot: -4 }, { x: 0.5, y: 0.08, w: 0.44, h: 0.44, border: white, shadow: true, rot: 3 }, { x: 0.06, y: 0.5, w: 0.44, h: 0.44, border: white, shadow: true, rot: 2.5 }, { x: 0.5, y: 0.52, w: 0.44, h: 0.44, border: white, shadow: true, rot: -3 }] },
   ],
   5: [
@@ -223,12 +250,16 @@ export const SLIDE_LAYOUTS: Record<number, SlideLayout[]> = {
     { key: '5-bigL', label: 'Grande + quattro', rects: [{ x: 0, y: 0, w: 0.6, h: 1 }, ...grid(2, 2, 0.62, 0, 0.38, 1) as Rect[]] },
     { key: '5-3-2', label: '3 sopra · 2 sotto', rects: [...rowL(3, 0, 0.49) as Rect[], ...rowL(2, 0.51, 0.49) as Rect[]] },
     { key: '5-row', label: 'In fila', rects: rowL(5) },
+    { key: '5-topbig', label: 'Grande sopra · 4 sotto', rects: [{ x: 0, y: 0, w: 1, h: 0.58 }, ...rowL(4, 0.6, 0.4) as Rect[]] },
+    { key: '5-croce', label: 'A croce', rects: [{ x: 0.28, y: 0, w: 0.44, h: 0.3 }, { x: 0, y: 0.32, w: 0.32, h: 0.36 }, { x: 0.34, y: 0.32, w: 0.32, h: 0.36 }, { x: 0.68, y: 0.32, w: 0.32, h: 0.36 }, { x: 0.28, y: 0.7, w: 0.44, h: 0.3 }] },
   ],
   6: [
     { key: '6-2x3', label: 'Griglia 2×3', rects: grid(2, 3) },
     { key: '6-3x2', label: 'Griglia 3×2', rects: grid(3, 2) },
     { key: '6-bigL', label: 'Grande + cinque', rects: [{ x: 0, y: 0, w: 0.62, h: 1 }, ...grid(1, 5, 0.64, 0, 0.36, 1) as Rect[]] },
     { key: '6-contact', label: 'Provinato', rects: grid(3, 2, 0.04, 0.1, 0.92, 0.8) },
+    { key: '6-2-2-2', label: 'Tre righe da due', rects: grid(2, 3, 0.05, 0.05, 0.9, 0.9) },
+    { key: '6-topbig', label: 'Grande sopra · 5 sotto', rects: [{ x: 0, y: 0, w: 1, h: 0.56 }, ...rowL(5, 0.58, 0.42) as Rect[]] },
   ],
 }
 

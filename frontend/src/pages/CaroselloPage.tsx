@@ -185,10 +185,10 @@ export default function CaroselloPage() {
   const [texts, setTexts] = useState<TextEl[]>([])
   const [selId, setSelId] = useState<string | null>(null)
   const [selText, setSelText] = useState<string | null>(null)
-  const [modelKey, setModelKey] = useState<string | null>('one')
+  const [, setModelKey] = useState<string | null>('one')
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)
-  const [exportProg, setExportProg] = useState<{ done: number; total: number; zip?: number } | null>(null)
+  const [exportProg, setExportProg] = useState<{ done: number; total: number; zip?: number; fase?: 'foto' | 'tavole' } | null>(null)
   const loadedRef = useRef(false)
   const stripRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -354,13 +354,6 @@ export default function CaroselloPage() {
     setCurSlide(Math.max(0, Math.min(n - 1, Math.floor(centerInStrip / Math.max(1, slideW)))))
   }
 
-  function changeN(next: number) {
-    snapshot()
-    const nn = Math.min(20, Math.max(1, next))
-    setN(nn)
-    if (modelKey) setElements(getModel(modelKey).build(nn, keptIds)) // rebuild premodello sul nuovo N
-    setSelId(null); setSelText(null)
-  }
   // Selezione carosello (cuoricini): SOLO il fotografo. Indipendente dalla selezione album degli sposi.
   async function togglePick(m: M) {
     const next = !m.carousel_pick
@@ -408,6 +401,41 @@ export default function CaroselloPage() {
     setElements([...elements, el]); setSelId(el.id); setModelKey(null)
   }
 
+  // ── RITAGLIO IN TAVOLA (preciso) ───────────────────────────────────────────
+  // Aspetto NATURALE di ogni foto, misurato all'onLoad: serve a sapere quanto della
+  // foto entra davvero nella cornice. Senza, il pan è una stima e il ritaglio "corre".
+  const imgAsp = useRef<Map<string, number>>(new Map())
+  const [, bumpAsp] = useState(0)
+  function noteAsp(src: string, w: number, h: number) {
+    if (!src || !w || !h) return
+    const a = w / h
+    if (Math.abs((imgAsp.current.get(src) ?? 0) - a) < 1e-4) return
+    imgAsp.current.set(src, a); bumpAsp((x) => x + 1)
+  }
+  // Aspetto della CORNICE in pixel reali: dalle proporzioni del formato, non dal DOM,
+  // così combacia al pixel con l'export (che disegna sulla stessa geometria).
+  const frameAspOf = (e: { w: number; h: number }) => (e.w * fmt.w * n) / Math.max(1e-6, e.h * fmt.h)
+  const imgAspOf = (e: FreeEl) => {
+    const src = e.mediaId ? (isDirectSrc(e.mediaId) ? e.mediaId : (mediaById.get(e.mediaId) ? thumbUrl(mediaById.get(e.mediaId)!) : '')) : ''
+    return imgAsp.current.get(src) ?? frameAspOf(e)
+  }
+  // Sposta il ritaglio di (dx,dy) espressi in FRAZIONI DELLA CORNICE, 1:1 col puntatore.
+  // Il delta va scalato per la FINESTRA VISIBILE (ww/wh), non per il solo zoom: quando la
+  // foto è più larga della cornice la finestra è più stretta dell'immagine e il vecchio
+  // calcolo (÷ z) faceva scorrere il ritaglio molto più del dito.
+  function panCell(e: FreeEl, c0: Cell, dxEl: number, dyEl: number): Cell {
+    const w = coverWindow(imgAspOf(e), frameAspOf(e), c0)
+    let ux = dxEl * w.ww, uy = dyEl * w.wh
+    const r = c0.r ?? 0
+    if (r) {   // foto ruotata: gli assi di trascinamento ruotano con lei
+      const t = (-r * Math.PI) / 180, cs = Math.cos(t), sn = Math.sin(t)
+      const px = ux * cs - uy * sn, py = ux * sn + uy * cs
+      ux = px; uy = py
+    }
+    const cl = (v: number) => Math.min(1, Math.max(0, v))
+    return { ...c0, fx: cl((c0.fx ?? 0.5) - ux / w.sw), fy: cl((c0.fy ?? 0.5) - uy / w.sh) }
+  }
+
   // ── drag / resize (pointer) — generico per foto (el) e testo (text) ─────────
   const drag = useRef<{ mode: 'move' | 'crop' | Corner; id: string; sx: number; sy: number; e0: Geo; arr: 'el' | 'text'; moved: boolean; cell0?: Cell } | null>(null)
   const ptTo01 = (clientX: number, clientY: number) => {
@@ -429,10 +457,9 @@ export default function CaroselloPage() {
     if (d.arr === 'el') {
       const b = d.e0 as FreeEl
       if (d.mode === 'crop') {                                   // pan del RITAGLIO dentro la cornice (fx/fy)
-        const c0 = d.cell0 ?? DEFAULT_CELL, z = Math.max(1, c0.z || 1)
-        const exx = (p.x - d.sx) / Math.max(1e-4, b.w), eyy = (p.y - d.sy) / Math.max(1e-4, b.h)
-        const nfx = Math.min(1, Math.max(0, (c0.fx ?? 0.5) - exx / z)), nfy = Math.min(1, Math.max(0, (c0.fy ?? 0.5) - eyy / z))
-        updateEl(d.id, (el) => ({ ...el, cell: { ...el.cell, fx: nfx, fy: nfy } }))
+        const c0 = d.cell0 ?? DEFAULT_CELL
+        const next = panCell(b, c0, (p.x - d.sx) / Math.max(1e-4, b.w), (p.y - d.sy) / Math.max(1e-4, b.h))
+        updateEl(d.id, (el) => ({ ...el, cell: { ...el.cell, fx: next.fx, fy: next.fy } }))
       } else {
         updateEl(d.id, () => (d.mode === 'move' ? snapGeo(gMove(b, b.x + (p.x - d.sx), b.y + (p.y - d.sy)), n) : gResize(b, d.mode as Corner, p.x, p.y)))
       }
@@ -479,6 +506,29 @@ export default function CaroselloPage() {
     setModelKey(null); setSelId(null); setSelText(null)
   }
 
+  // Elimina la tavola corrente: butta ciò che le sta dentro e RIDISTRIBUISCE il resto
+  // sulle tavole rimaste (inverso esatto di addTavola), così il lavoro fatto sulle altre
+  // resta identico invece di scivolare.
+  function removeTavola() {
+    if (n <= 1) { toast.error('Serve almeno una tavola'); return }
+    const k = curSlide
+    snapshot()
+    const lo = k / n, hi = (k + 1) / n
+    // fuori: tutto ciò che NON ha il centro dentro la tavola k
+    const resta = elements.filter((e) => { const c = e.x + e.w / 2; return c < lo || c >= hi })
+    const f = n / (n - 1)   // le coordinate si riespandono sulla striscia più corta
+    const shift = (x: number) => (x > hi ? x - 1 / n : x)
+    setElements(resta.map((e) => ({ ...e, x: shift(e.x) * f, w: e.w * f })))
+    setTexts(texts.filter((t) => { const c = ((t as any).x ?? 0) + ((t as any).w ?? 0) / 2; return c < lo || c >= hi })
+      .map((t) => ({ ...t, x: shift((t as any).x ?? 0) * f, ...((t as any).w != null ? { w: (t as any).w * f } : {}) })) as TextEl[])
+    setN(n - 1)
+    const nuovo = Math.max(0, Math.min(n - 2, k))
+    setCurSlide(nuovo)
+    setTimeout(() => goToSlide(nuovo), 30)
+    setModelKey(null); setSelId(null); setSelText(null)
+    toast.success(`Tavola ${k + 1} eliminata`)
+  }
+
   // Sposta la tavola corrente a sinistra/destra (riordina). Riusa swapSlides.
   function moveTavola(dir: -1 | 1) {
     const to = curSlide + dir
@@ -502,7 +552,7 @@ export default function CaroselloPage() {
   // Pre-scarica le foto della strip come BLOB (same-origin) così il canvas non si "sporca" di
   // cross-origin: le foto Drive passano dal proxy CORS (con grant + header auth), le altre via fetch.
   // Prima il resolver ritornava un URL Drive senza CORS → canvas tainted/immagini vuote in export.
-  async function buildBlobResolver(): Promise<{ resolve: (id: string) => string; revoke: () => void; failed: string[] }> {
+  async function buildBlobResolver(onPhoto?: (done: number, total: number) => void): Promise<{ resolve: (id: string) => string; revoke: () => void; failed: string[] }> {
     const SB = import.meta.env.VITE_SUPABASE_URL, AK = import.meta.env.VITE_SUPABASE_ANON_KEY
     const { data: { session } } = await supabase.auth.getSession()
     let grant: string | null = null
@@ -532,8 +582,9 @@ export default function CaroselloPage() {
       failed.push(id)   // esaurito i tentativi: la segnaliamo, niente skip silenzioso
     }
     // Concorrenza LIMITATA (5 alla volta) per non farsi rate-limitare da Drive con decine di foto.
-    let idx = 0
-    const worker = async () => { while (idx < ids.length) { await fetchOne(ids[idx++]!) } }
+    let idx = 0, done = 0
+    onPhoto?.(0, ids.length)
+    const worker = async () => { while (idx < ids.length) { await fetchOne(ids[idx++]!); onPhoto?.(++done, ids.length) } }
     await Promise.all(Array.from({ length: Math.min(5, ids.length) }, worker))
     return {
       resolve: (id: string) => (isDirectSrc(id) ? id : (map.get(id) ?? '')),
@@ -545,13 +596,13 @@ export default function CaroselloPage() {
   async function exportZip() {
     if (exporting || driveBusy) return
     if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
-    setExporting(true); setExportProg({ done: 0, total: n })
-    const { resolve, revoke, failed } = await buildBlobResolver()
+    setExporting(true); setExportProg({ done: 0, total: n, fase: 'foto' })
+    const { resolve, revoke, failed } = await buildBlobResolver((d, t) => setExportProg({ done: d, total: t, fase: 'foto' }))
     if (failed.length > 0) { revoke(); setExporting(false); setExportProg(null); toast.error(`${failed.length} foto non si sono caricate (limite temporaneo di Google Drive). Riprova l'export tra qualche secondo: così escono tutte.`); return }
     try {
       await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, {
         texts, filename: `carosello-${n}slide.zip`,
-        onProgress: (done, total) => setExportProg({ done, total }), onZip: onZipProg,
+        onProgress: (done, total) => setExportProg({ done, total, fase: 'tavole' }), onZip: onZipProg,
       })
       toast.success(`${n} slide esportate: caricale su Instagram nell'ordine slide-01 → slide-${String(n).padStart(2, '0')} per lo swipe continuo.`, { duration: 9000 })
     } catch (e) { toast.error(`Export non riuscito: ${(e as Error).message}`) }
@@ -562,24 +613,25 @@ export default function CaroselloPage() {
   async function exportOneSlide() {
     if (exporting || driveBusy) return
     if (!elements.some((e) => e.mediaId && slideOf(e) === curSlide)) { toast.error('Questa tavola è vuota'); return }
-    setExporting(true)
-    const { resolve, revoke, failed } = await buildBlobResolver()
+    setExporting(true); setExportProg({ done: 0, total: 1, fase: 'foto' })
+    const { resolve, revoke, failed } = await buildBlobResolver((d, t) => setExportProg({ done: d, total: t, fase: 'foto' }))
     const failedHere = failed.length > 0 && elements.some((e) => e.mediaId && slideOf(e) === curSlide && failed.includes(e.mediaId))
-    if (failedHere) { revoke(); setExporting(false); toast.error('Una foto di questa tavola non si è caricata (limite temporaneo di Google Drive). Riprova tra qualche secondo.'); return }
+    if (failedHere) { revoke(); setExporting(false); setExportProg(null); toast.error('Una foto di questa tavola non si è caricata (limite temporaneo di Google Drive). Riprova tra qualche secondo.'); return }
+    setExportProg({ done: 0, total: 1, fase: 'tavole' })
     try {
       await exportCaroselloSlide(strip, fmt.w, fmt.h, n, curSlide, resolve, { texts, filename: `slide-${String(curSlide + 1).padStart(2, '0')}.jpg` })
       toast.success(`Tavola ${curSlide + 1} esportata`)
     } catch (e) { toast.error(`Export non riuscito: ${(e as Error).message}`) }
-    finally { revoke(); setExporting(false) }
+    finally { revoke(); setExporting(false); setExportProg(null) }
   }
   async function saveToDrive() {
     if (exporting || driveBusy) return
     if (elements.every((e) => !e.mediaId)) { toast.error('Aggiungi almeno una foto'); return }
-    setDriveBusy(true); setExportProg({ done: 0, total: n })
-    const { resolve, revoke, failed } = await buildBlobResolver()
+    setDriveBusy(true); setExportProg({ done: 0, total: n, fase: 'foto' })
+    const { resolve, revoke, failed } = await buildBlobResolver((d, t) => setExportProg({ done: d, total: t, fase: 'foto' }))
     if (failed.length > 0) { revoke(); setDriveBusy(false); setExportProg(null); toast.error(`${failed.length} foto non si sono caricate (limite temporaneo di Google Drive). Riprova tra qualche secondo: così escono tutte.`); return }
     try {
-      const blob = await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, { texts, returnBlob: true, onProgress: (done, total) => setExportProg({ done, total }), onZip: onZipProg }) as Blob
+      const blob = await exportCaroselloZip(strip, fmt.w, fmt.h, n, resolve, { texts, returnBlob: true, onProgress: (done, total) => setExportProg({ done, total, fase: 'tavole' }), onZip: onZipProg }) as Blob
       setExportProg(null)
       const token = await getDriveToken()
       const folder = await ensureDriveFolder(token, 'Planfully - Caroselli', null)
@@ -619,12 +671,8 @@ export default function CaroselloPage() {
         <select value={format} onChange={(e) => setFormat(e.target.value)} title="Formato slide" className="h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 text-sm">
           {CAROUSEL_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
         </select>
-        {/* numero slide */}
-        <div className="flex items-center gap-1 h-9 rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-1">
-          <button onClick={() => changeN(n - 1)} disabled={n <= 1} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Minus size={14} /></button>
-          <span className="text-sm tabular-nums w-16 text-center">{n} slide</span>
-          <button onClick={() => changeN(n + 1)} disabled={n >= 20} className="p-1.5 disabled:opacity-30 hover:bg-[rgb(var(--bg-sunken))] rounded"><Plus size={14} /></button>
-        </div>
+        {/* Il contatore "n slide" non c'è più: si ragiona per TAVOLE, che si aggiungono
+            e si eliminano una alla volta (sotto), senza rimescolare il lavoro fatto. */}
         <span className="mx-0.5 h-5 w-px bg-[rgb(var(--border))]" />
 
         {/* IMPAGINA QUESTA TAVOLA: scegli quante foto ci sono e ricevi diverse impaginazioni per quel
@@ -660,6 +708,10 @@ export default function CaroselloPage() {
 
         <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addLogoFile(f); e.currentTarget.value = '' }} />
         <Button variant="outline" size="sm" onClick={addTavola} title="Aggiungi una tavola in fondo (il lavoro già fatto resta identico)"><Plus size={14} /> Tavola</Button>
+        <Button variant="outline" size="sm" disabled={n <= 1} onClick={removeTavola}
+          title={`Elimina la tavola ${curSlide + 1} e ciò che contiene`}>
+          <Trash2 size={14} /> Elimina tavola
+        </Button>
         <button onClick={() => setRulerOn((v) => !v)} title="Righelli" className={`h-9 inline-flex items-center gap-1.5 px-2.5 rounded-md border text-sm transition-colors ${rulerOn ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] bg-[rgb(var(--bg))] hover:bg-[rgb(var(--bg-sunken))]'}`}><Ruler size={14} /> Righelli</button>
         <span className="ml-auto text-[11px] text-[rgb(var(--fg-subtle))]">{savedAt ? '✓ salvato' : 'bozza'}</span>
       </div>
@@ -705,6 +757,30 @@ export default function CaroselloPage() {
                 ))}
               </div>
             )}
+            {/* FANTASMA DEL RITAGLIO (come Canva): mentre ritagli vedi tutta la foto,
+                sbiadita fuori dalla cornice, così sai cosa stai tagliando via. Sta fuori
+                dal riquadro (che è overflow-hidden), quindi è un livello a parte. */}
+            {cropOpen && (() => {
+              const el = elements.find((x) => x.id === selId)
+              if (!el?.mediaId || el.cell.r || el.cell.fh || el.cell.fv) return null
+              const direct = isDirectSrc(el.mediaId)
+              const m = direct ? null : mediaById.get(el.mediaId)
+              const src = direct ? el.mediaId : (m ? thumbUrl(m) : null)
+              if (!src) return null
+              const w = coverWindow(imgAspOf(el), frameAspOf(el), el.cell)
+              return (
+                <div className="pointer-events-none absolute z-[15]"
+                  style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%` }}>
+                  <img src={src} alt="" draggable={false} style={{
+                    position: 'absolute',
+                    left: `${(-w.wx / w.ww) * 100}%`, top: `${(-w.wy / w.wh) * 100}%`,
+                    width: `${(w.sw / w.ww) * 100}%`, height: `${(w.sh / w.wh) * 100}%`,
+                    opacity: 0.3, filter: 'grayscale(0.2)',
+                  }} />
+                </div>
+              )
+            })()}
+
             {/* elementi foto */}
             {elements.map((el) => {
               const direct = !!el.mediaId && isDirectSrc(el.mediaId)
@@ -721,12 +797,12 @@ export default function CaroselloPage() {
                       const dz = e.deltaY < 0 ? 0.06 : -0.06
                       updateCell(el.id, { z: Math.min(4, Math.max(1, +((el.cell.z || 1) + dz).toFixed(2))) })
                     } else {                                           // touchpad: DUE DITA → sposta il ritaglio
-                      const st = stripRef.current?.getBoundingClientRect(), z = Math.max(1, el.cell.z || 1)
+                      const st = stripRef.current?.getBoundingClientRect()
                       const ew = (st?.width ?? 1) * el.w, eh = (st?.height ?? 1) * el.h
-                      updateCell(el.id, {
-                        fx: Math.min(1, Math.max(0, (el.cell.fx ?? 0.5) + e.deltaX / Math.max(1, ew) / z)),
-                        fy: Math.min(1, Math.max(0, (el.cell.fy ?? 0.5) + e.deltaY / Math.max(1, eh) / z)),
-                      })
+                      // stessa matematica del trascinamento: il segno è invertito perché
+                      // qui si muove la FOTO, non la finestra.
+                      const nx = panCell(el, el.cell, -e.deltaX / Math.max(1, ew), -e.deltaY / Math.max(1, eh))
+                      updateCell(el.id, { fx: nx.fx, fy: nx.fy })
                     }
                   }}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOverId(el.id) }}
@@ -734,10 +810,16 @@ export default function CaroselloPage() {
                   onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const id = e.dataTransfer.getData('text/plain'); setDragOverId(null); if (id) { updateEl(el.id, (x) => ({ ...x, mediaId: id })); setSelId(el.id); setModelKey(null) } }}
                   className={`absolute overflow-hidden ${cropOpen && el.mediaId ? 'cursor-grab active:cursor-grabbing ring-2 ring-inset ring-[rgb(var(--gold-400))]' : 'cursor-move'} ${active ? 'outline outline-2 outline-[rgb(var(--gold-500))] z-20' : 'z-10'} ${dragOverId === el.id ? 'ring-4 ring-[rgb(var(--gold-500))]' : ''}`}
                   style={{ left: `${el.x * 100}%`, top: `${el.y * 100}%`, width: `${el.w * 100}%`, height: `${el.h * 100}%`, transform: `rotate(${el.rot}deg)`, boxShadow: el.shadow ? '0 6px 18px rgba(0,0,0,.28)' : undefined, border: el.border ? `${el.border.w}px solid ${el.border.color}` : undefined }}>
-                  {src ? <img src={src} alt="" draggable={false} style={coverImgStyle(el.cell)} />
+                  {src ? <img src={src} alt="" draggable={false} style={coverImgStyle(el.cell)}
+                          onLoad={(ev) => noteAsp(src, ev.currentTarget.naturalWidth, ev.currentTarget.naturalHeight)} />
                     : <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--bg-sunken))] text-[rgb(var(--fg-subtle))]"><ImagePlus size={20} /></div>}
                   {cropOpen && active && el.mediaId && (
                     <>
+                      {/* griglia dei terzi: serve a mettere l'orizzonte o gli occhi al punto giusto */}
+                      <div className="absolute inset-0 z-20 pointer-events-none">
+                        {[1, 2].map((i) => <span key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-white/45" style={{ left: `${(i / 3) * 100}%` }} />)}
+                        {[1, 2].map((i) => <span key={`h${i}`} className="absolute left-0 right-0 h-px bg-white/45" style={{ top: `${(i / 3) * 100}%` }} />)}
+                      </div>
                       <div className="absolute top-1 right-1 z-30 flex items-center gap-1 rounded-full bg-black/60 px-1 py-0.5" onPointerDown={(e) => e.stopPropagation()}>
                         <button title="Rimpicciolisci nel riquadro" onClick={() => updateCell(el.id, { z: Math.max(1, +((el.cell.z || 1) - 0.1).toFixed(2)) })} className="text-white p-0.5"><ZoomOut size={14} /></button>
                         <span className="text-[10px] tabular-nums text-white w-8 text-center">{Math.round((el.cell.z || 1) * 100)}%</span>
@@ -937,7 +1019,11 @@ export default function CaroselloPage() {
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4">
           <div className="w-[min(92vw,380px)] rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-5 shadow-2xl">
             <div className="flex items-center gap-2"><Loader2 size={16} className="animate-spin text-[rgb(var(--gold-600))]" /> <p className="font-display text-base">Esporto le slide…</p></div>
-            <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">{exportProg.zip != null ? <>Comprimo lo ZIP… <span className="tabular-nums">{exportProg.zip}%</span></> : <>Ritaglio le slide. <span className="tabular-nums">{exportProg.done}/{exportProg.total}</span></>}</p>
+            <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">{exportProg.zip != null
+              ? <>Comprimo lo ZIP… <span className="tabular-nums">{exportProg.zip}%</span></>
+              : exportProg.fase === 'foto'
+                ? <>Scarico le foto a piena risoluzione. <span className="tabular-nums">{exportProg.done}/{exportProg.total}</span></>
+                : <>Compongo le tavole. <span className="tabular-nums">{exportProg.done}/{exportProg.total}</span></>}</p>
             <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[rgb(var(--bg-sunken))]">
               <div className="h-full rounded-full bg-[rgb(var(--gold-500))] transition-[width] duration-200" style={{ width: `${exportProg.zip != null ? exportProg.zip : Math.round((exportProg.done / Math.max(1, exportProg.total)) * 100)}%` }} />
             </div>
