@@ -266,6 +266,12 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     const fld = folders.find((f) => f.id === m.folder_id)
     return (kind === 'web' ? fld?.allow_dl_web : fld?.allow_dl_full) !== false
   }
+  // Il CLIENTE non deve nemmeno VEDERE un formato che il fotografo non ha abilitato:
+  // se è attivo solo il web, dell'originale non esiste traccia nell'interfaccia.
+  const canDlAny = (kind: 'web' | 'full') => {
+    if (isOwner) return true
+    return folders.some((f) => (kind === 'web' ? f.allow_dl_web : f.allow_dl_full) !== false)
+  }
 
   // scarica: prova blob (per forzare il download), fallback ad aprire l'URL (Drive
   // serve l'originale come allegato comunque). I byte NON passano da Planfully.
@@ -386,10 +392,16 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   async function downloadSelectedZip(size: 'web' | 'original' = 'original') {
     setBusy(true)
     try {
-      const { data, error } = await supabase.functions.invoke('album-zip', { body: { entry_id: entryId, size } })
+      // Se la coppia non ha ancora selezionato foto per l'album, lo ZIP deve dare
+      // comunque la galleria (prima restituiva 'no_selection' = errore fuorviante).
+      const scope = chosenCount > 0 ? 'selection' : 'all'
+      const { data, error } = await supabase.functions.invoke('album-zip', { body: { entry_id: entryId, size, scope } })
       if (error) {
         let msg = (error as Error).message
-        try { const b = await (error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (b?.error) msg = b.error === 'empty' || b.error === 'no_selection' ? 'Nessun file scaricabile (Drive collegato?)' : b.error } catch { /* ignore */ }
+        try { const b = await (error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (b?.error) msg = b.error === 'empty' || b.error === 'no_selection' ? 'Non ci sono foto da scaricare in questa galleria.'
+          : b.error === 'download_disabled' ? 'Il fotografo non ha abilitato questo download.'
+          : b.error === 'too_many_originals' ? (b as { detail?: string }).detail ?? 'Troppi file a piena risoluzione per un unico zip.'
+          : b.error } catch { /* ignore */ }
         throw new Error(msg)
       }
       if (!(data instanceof Blob)) throw new Error('ZIP non riuscito')
@@ -640,23 +652,23 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
       {folders.some((f) => f.gallery_media.length > 0) && (
         <div className="flex justify-end items-center gap-2 flex-wrap">
-          {(isOwner || role === 'sposi') && (
+          {(isOwner || role === 'sposi') && (canDlAny('web') || canDlAny('full')) && (
             <div className="relative">
               <Button variant="outline" size="sm" disabled={!!zipBusy} onClick={() => setZipOpen((v) => !v)}>
                 <Download size={14} /> {zipBusy ? 'Preparo lo zip…' : 'Scarica .zip'} <ChevronDown size={13} />
               </Button>
               {zipOpen && (
                 <div className="absolute right-0 mt-1 z-30 w-64 rounded-xl border p-1 shadow-lg" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elevated))' }} onClick={(e) => e.stopPropagation()}>
-                  <button type="button" disabled={!!zipBusy} onClick={() => void downloadGalleryZip('web')}
+                  {canDlAny('web') && <button type="button" disabled={!!zipBusy} onClick={() => void downloadGalleryZip('web')}
                     className="w-full text-left px-3 py-2 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60">
                     <span className="text-sm font-medium">Formato web</span>
                     <span className="block text-[11px] text-[rgb(var(--fg-subtle))]">Leggero (~1600px), ideale da condividere</span>
-                  </button>
-                  <button type="button" disabled={!!zipBusy} onClick={() => void downloadGalleryZip('original')}
+                  </button>}
+                  {canDlAny('full') && <button type="button" disabled={!!zipBusy} onClick={() => void downloadGalleryZip('original')}
                     className="w-full text-left px-3 py-2 rounded-lg hover:bg-[rgb(var(--bg-sunken))] disabled:opacity-60">
                     <span className="text-sm font-medium">Originali</span>
                     <span className="block text-[11px] text-[rgb(var(--fg-subtle))]">Piena risoluzione (file grandi, fino a 500)</span>
-                  </button>
+                  </button>}
                 </div>
               )}
             </div>
@@ -764,8 +776,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                 toast.success('Perfetto! Selezione confermata: il fotografo può impaginare la bozza.')
               }}><Check size={14} /> Ok, puoi impaginare la bozza</Button>
             )}
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('web')} title="ZIP leggero ~1600px"><FileArchive size={14} /> ZIP Web</Button>
-            {role === 'sposi' && <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione — riservato agli sposi"><FileArchive size={14} /> ZIP Originale</Button>}
+            {canDlAny('web') && <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('web')} title="ZIP leggero ~1600px"><FileArchive size={14} /> ZIP Web</Button>}
+            {role === 'sposi' && canDlAny('full') && <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadSelectedZip('original')} title="ZIP a piena risoluzione — riservato agli sposi"><FileArchive size={14} /> ZIP Originale</Button>}
             {isOwner && <Button variant="outline" size="sm" disabled title="Configuratore copertina 3D — in arrivo (in attesa del partner di stampa)"><Printer size={14} /> Copertina · presto</Button>}
           </div>
         </Card>

@@ -83,44 +83,57 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Gli ORIGINALI di una galleria enorme non stanno in memoria: meglio un errore
+  // chiaro che un crash opaco. (Il formato web resta disponibile.)
+  if (size === 'original' && media.length > 150) {
+    return json({ error: 'too_many_originals', detail: `Sono ${media.length} file a piena risoluzione: troppi per un unico zip. Usa il formato web, oppure scarica per cartella.` }, 413)
+  }
+
+  // Memoria: una galleria molto grande a w1600 non ci sta nella edge. Sopra i 250 file
+  // scendo a w1200 (peso ~ -40%) così anche le gallerie da centinaia di foto passano.
+  const webPx = media.length > 250 ? 1200 : 1600
   const zip = new JSZip()
-  let i = 0, ok = 0
-  for (const m of media) {
-    i++
+  // Scarico in PARALLELO a concorrenza limitata: in sequenza 400+ file da Drive
+  // superavano il tempo massimo della edge (galleria da 449 foto non scaricabile).
+  const CONC = 12
+  let ok = 0
+  const grab = async (m: any, i: number) => {
     try {
       let bytes: ArrayBuffer
       // I video si esportano sempre a piena risoluzione (il "web" vale per le foto).
       const wantWeb = size === 'web' && m.media_type !== 'VIDEO'
-      const edited = (m as { edited_url?: string | null }).edited_url
+      const edited = m.edited_url as string | null | undefined
       if (edited) {
         // Versione MODIFICATA (crop/ruota): è quella canonica → prevale su Drive/originale.
-        const r = await fetch(edited)
-        if (!r.ok) continue
-        bytes = await r.arrayBuffer()
+        const r = await fetch(edited); if (!r.ok) return; bytes = await r.arrayBuffer()
       } else if (isDrive(m.drive_file_id)) {
         if (wantWeb) {
-          // versione leggera ~1600px: l'endpoint thumbnail di Drive (no auth per file condivisi)
-          const r = await fetch(`https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600`)
-          if (!r.ok) continue
-          bytes = await r.arrayBuffer()
+          const r = await fetch(`https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w${webPx}`)
+          if (!r.ok) return; bytes = await r.arrayBuffer()
         } else {
-          if (!token) continue
+          if (!token) return
           const r = await fetch(`https://www.googleapis.com/drive/v3/files/${m.drive_file_id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } })
-          if (!r.ok) continue
-          bytes = await r.arrayBuffer()
+          if (!r.ok) return; bytes = await r.arrayBuffer()
         }
       } else {
-        if (!m.thumbnail_link) continue
-        const r = await fetch(m.thumbnail_link)
-        if (!r.ok) continue
-        bytes = await r.arrayBuffer()
+        if (!m.thumbnail_link) return
+        const r = await fetch(m.thumbnail_link); if (!r.ok) return; bytes = await r.arrayBuffer()
       }
       const ext = m.media_type === 'VIDEO' ? 'mp4' : 'jpg'
       const base = (m.guest_tag_name || 'foto').replace(/[^\w\- ]+/g, '') || 'foto'
-      zip.file(`${String(i).padStart(3, '0')}-${base}.${ext}`, bytes)
+      zip.file(`${String(i + 1).padStart(3, '0')}-${base}.${ext}`, bytes)
       ok++
     } catch { /* salto il file */ }
   }
+  let cursor = 0
+  await Promise.all(Array.from({ length: Math.min(CONC, media.length) }, async () => {
+    for (;;) {
+      const idx = cursor++
+      if (idx >= media.length) break
+      await grab(media[idx], idx)
+    }
+  }))
+
   if (ok === 0) return json({ error: 'empty', detail: 'nessun file scaricabile (Drive non collegato?)' }, 502)
 
   const out = await zip.generateAsync({ type: 'uint8array' })
