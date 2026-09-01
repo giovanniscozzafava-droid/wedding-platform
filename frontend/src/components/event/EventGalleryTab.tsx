@@ -719,11 +719,13 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               )}
             </div>
           )}
-          <Button variant="gold" size="sm" onClick={() => setShowcase(true)}><Images size={14} /> Presentazione galleria</Button>
+          <Button variant="outline" size="sm" onClick={() => setShowcase(true)}><Images size={14} /> Presentazione galleria</Button>
+          {/* La CONSEGNA è l'azione che chiude il lavoro: è lei a prendersi l'oro,
+              non la presentazione (che si guarda cento volte, e si consegna una). */}
           {isOwner && (
-            <Button variant="outline" size="sm" disabled={invioFoto} onClick={() => void apriAnteprima()}
-              title="Prepara la mail per gli sposi: prima la vedi, poi decidi se mandarla">
-              <Send size={14} /> {invioFoto ? 'Preparo…' : 'Invia agli sposi'}
+            <Button variant="gold" size="sm" disabled={invioFoto} onClick={() => void apriAnteprima()}
+              title="Manda agli sposi la mail con la presentazione: prima vedi l'anteprima, poi decidi">
+              <Send size={14} /> {invioFoto ? 'Preparo…' : 'Consegna agli sposi'}
             </Button>
           )}
         </div>
