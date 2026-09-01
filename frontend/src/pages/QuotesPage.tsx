@@ -1,7 +1,7 @@
 import { type FormEvent, Fragment, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search, Archive, ArchiveRestore, Send } from '@/components/icons/lucide'
+import { Plus, FileText, ArrowUpRight, X, Trash2, AlertTriangle, Search, Archive, ArchiveRestore, Send, Snowflake} from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { pipelineValue } from '@/lib/quoteSelection'
 import { Button } from '@/components/ui/button'
@@ -300,6 +300,15 @@ export default function QuotesPage() {
                         {idx === 0 && <HelpDot id="quotes.stato" />}
                         <Badge status={q.status} />
                       </span>
+                      {/* Congelato: nessuna risposta all'ultimatum, abbiamo smesso di
+                          scrivere. Si vede a colpo d'occhio, non solo negli effetti. */}
+                      {(q as any).funnel_paused && q.status === 'INVIATO' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+                          style={{ color: '#0369a1', background: '#0369a11a' }}
+                          title="Nessuna risposta all'ultimatum: le automazioni verso questo cliente sono ferme. Il preventivo resta valido.">
+                          <Snowflake size={10} /> Congelato
+                        </span>
+                      )}
                       {activity[q.id] && (() => {
                         const a = activity[q.id]!; const s = STAGE[a.stage] ?? STAGE.INVIATO!
                         return (

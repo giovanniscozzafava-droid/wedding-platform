@@ -58,6 +58,7 @@ import { ChatEvento } from '@/components/wedding/ChatEvento'
 import { CoupleRequestsCard } from '@/components/wedding/CoupleRequestsCard'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
+import { useCoupleVisit } from '@/lib/useCoupleVisit'
 
 type Tab = 'overview' | 'chat' | 'preventivo' | 'fornitori' | 'planning' | 'cerimonia' | 'documenti' | 'programma' | 'scaletta' | 'checklist' | 'alloggi' | 'trasporti' | 'invitati' | 'regali' | 'tavoli' | 'menu' | 'mood' | 'playlist' | 'gadgets' | 'website' | 'foto' | 'audio' | 'guestbook' | 'video'
 
@@ -239,6 +240,9 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
   // C1 (blind): la coppia usa la versione couple-safe (niente identità fornitore
   // sulle voci del preventivo).
   const { data: fullWedding } = useWedding(entryId, { coupleSafe: true })
+  // Presenza del cliente nel suo evento: dove sta e quanto ci resta. Il professionista
+  // lo legge dentro l'evento (scheda «Il cliente è entrato»).
+  useCoupleVisit(entryId, tab)
   const quoteItems: Array<any> = (fullWedding as any)?.quote?.quote_items ?? []
   // Mostra la tab Menu SOLO se il preventivo include almeno un servizio di
   // ristorazione. Senza il fornitore (blind), lo deduciamo dal NOME della voce

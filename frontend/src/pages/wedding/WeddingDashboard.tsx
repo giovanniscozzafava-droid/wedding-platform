@@ -53,6 +53,7 @@ import { useAuth } from '@/lib/auth'
 import { EventRing } from '@/components/event/EventRing'
 import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
+import { CoupleVisitsCard } from '@/components/event/CoupleVisitsCard'
 import { AlbumFunnelTab } from '@/components/event/AlbumFunnelTab'
 import { Images, Mic, BookHeart, Film } from '@/components/icons/lucide'
 import { AudioWishes } from '@/components/event/AudioWishes'
@@ -457,6 +458,8 @@ export default function WeddingDashboard() {
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewTab wedding={wedding} onTab={setTab as any} />}
+            {/* Presenze del cliente dentro QUESTO evento: dove entra e quanto ci resta. */}
+            {tab === 'overview' && <div className="mt-6"><CoupleVisitsCard entryId={wedding.id} /></div>}
             {tab === 'album_funnel' && <AlbumFunnelTab entryId={wedding.id} onTab={(k) => setTab(k as TabKey)} />}
             {tab === 'foto' && <EventGalleryTab entryId={wedding.id} role={ringView} />}
             {tab === 'audio' && <AudioWishes entryId={wedding.id} readOnly />}

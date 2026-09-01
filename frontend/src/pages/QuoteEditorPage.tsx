@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye, Navigation, AlertTriangle, Lock } from '@/components/icons/lucide'
+import { ArrowLeft, FileDown, FileSignature, Send, Plus, Trash2, Users, Table, Clock, Package, Wallet, Calendar, MessageCircle, MapPin, Eye, Navigation, AlertTriangle, Lock, Snowflake} from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { PdfViewButton } from '@/components/common/PdfBookViewer'
@@ -256,6 +256,19 @@ export default function QuoteEditorPage() {
   const [ultOpen, setUltOpen] = useState(false)
   const [ultPct, setUltPct] = useState<string>('')
   const [ultBusy, setUltBusy] = useState(false)
+
+  // Il congelamento è una pausa, non una condanna: se il cliente si rifà vivo
+  // (o il pro ci ripensa) si riprende da dove si era.
+  const [scongelo, setScongelo] = useState(false)
+  async function riprendi() {
+    if (!id || scongelo) return
+    setScongelo(true)
+    const { error } = await (supabase.from as any)('quotes').update({ funnel_paused: false }).eq('id', id)
+    setScongelo(false)
+    if (error) { toast.error('Non sono riuscito a riattivarlo.'); return }
+    toast.success('Preventivo riattivato: i solleciti automatici ripartono.')
+    void qc.invalidateQueries({ queryKey: ['quote', id] })
+  }
 
   async function inviaUltimatum() {
     if (!id || ultBusy) return
@@ -853,6 +866,17 @@ export default function QuoteEditorPage() {
                 </Button>
                 {/* Ultimatum: solo su un preventivo GIÀ inviato e con email — prima non
                     avrebbe senso, e senza indirizzo non arriverebbe da nessuna parte. */}
+                {(quote as any).funnel_paused && quote.status === 'INVIATO' && (
+                  <span className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm"
+                    style={{ color: '#0369a1', background: '#0369a114' }}>
+                    <Snowflake size={15} />
+                    <span>Congelato — non gli scriviamo più</span>
+                    <button type="button" onClick={() => void riprendi()} disabled={scongelo}
+                      className="underline font-medium disabled:opacity-50">
+                      {scongelo ? 'Riattivo…' : 'Riprendi'}
+                    </button>
+                  </span>
+                )}
                 {quote.status === 'INVIATO' && !!quote.client_email && (
                   <Button variant="outline" onClick={() => { setUltPct(String((profile as any)?.ultimatum_discount_percent ?? '')); setUltOpen(true) }}
                     title="Chiedi al cliente se è ancora interessato. Se risponde «troppo caro», parte da sola la controproposta scontata.">
