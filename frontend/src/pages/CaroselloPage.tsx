@@ -109,7 +109,8 @@ type M = {
   media_type: 'PHOTO' | 'VIDEO'; carousel_pick?: boolean | null
   source_name?: string | null   // nome file originale = sequenza fotocamera → ordine cronologico
 }
-const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:')
+// 'up:' = foto caricata direttamente dal carosello (sta su Supabase Storage, non su Drive).
+const isDrive = (m: M) => !!m.drive_file_id && !m.drive_file_id.startsWith('demo-') && !m.drive_file_id.startsWith('guest:') && !m.drive_file_id.startsWith('album:') && !m.drive_file_id.startsWith('up:')
 const thumbUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w800` : (m.thumbnail_link ?? ''))
 const hiUrl = (m: M) => (isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w1600` : (m.thumbnail_link ?? ''))
 
@@ -550,6 +551,71 @@ export default function CaroselloPage() {
     const r = new FileReader()
     r.onload = () => { snapshot(); const url = String(r.result); const el: FreeEl = { id: uid(), mediaId: url, x: 0.02, y: 0.04, w: Math.min(0.14, 1 / n * 0.5), h: 0.14, rot: 0, cell: { ...DEFAULT_CELL } }; setElements([...elements, el]); setSelId(el.id); setSelText(null); setModelKey(null) }
     r.readAsDataURL(file)
+  }
+
+  // ── AGGIUNGI FOTO AL CAROSELLO ─────────────────────────────────────────────
+  // Finora si potevano usare solo le foto già in galleria: se ne mancava una toccava
+  // uscire, caricarla nella sezione Foto e tornare. Ora si caricano da qui e prendono
+  // SUBITO il cuore del fotografo (carousel_pick), che è l'unico motivo per cui le
+  // stai caricando. Vanno in una cartella EXTRA "Carosello": così non entrano nel
+  // mazzo che gli sposi devono scegliere per l'album.
+  const addPhotoRef = useRef<HTMLInputElement>(null)
+  const [upBusy, setUpBusy] = useState<{ done: number; total: number } | null>(null)
+
+  // Ridimensiona prima di caricare: una slide esce a ~1350px, mandare 20 MB di scatto
+  // pieno servirebbe solo a far aspettare.
+  async function shrink(file: File): Promise<Blob> {
+    const bmp = await createImageBitmap(file).catch(() => null)
+    if (!bmp) return file
+    const MAX = 2400
+    const k = Math.min(1, MAX / Math.max(bmp.width, bmp.height))
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k)
+    c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height)
+    bmp.close?.()
+    return await new Promise<Blob>((res) => c.toBlob((b) => res(b ?? file), 'image/jpeg', 0.92))
+  }
+
+  async function aggiungiFoto(files: File[]) {
+    if (!entryId || files.length === 0 || upBusy) return
+    setUpBusy({ done: 0, total: files.length })
+    try {
+      const { data: gal } = await (supabase.from as any)('event_galleries').select('id').eq('entry_id', entryId).maybeSingle()
+      if (!gal?.id) { toast.error('Questo evento non ha ancora una galleria: creala dalla sezione Foto.'); return }
+      let { data: fold } = await (supabase.from as any)('gallery_folders')
+        .select('id').eq('entry_id', entryId).eq('name', 'Carosello').maybeSingle()
+      if (!fold?.id) {
+        const { data: nf, error: fe } = await (supabase.from as any)('gallery_folders')
+          .insert({ entry_id: entryId, gallery_id: gal.id, name: 'Carosello', level: 'EXTRA',
+                    shared: false, guest_visible: false, sort_order: 99, album_selectable: false })
+          .select('id').single()
+        if (fe || !nf?.id) { toast.error('Non sono riuscito a creare la cartella Carosello.'); return }
+        fold = nf
+      }
+      let ok = 0
+      for (const f of files) {
+        const blob = await shrink(f)
+        const key = `${entryId}/carosello/${uid()}.jpg`
+        const { error: ue } = await supabase.storage.from('wedding-photos').upload(key, blob, { contentType: 'image/jpeg', upsert: false })
+        if (ue) { setUpBusy((p) => (p ? { ...p, done: p.done + 1 } : p)); continue }
+        const url = supabase.storage.from('wedding-photos').getPublicUrl(key).data.publicUrl
+        // supabase-js non lancia sugli errori Postgres: senza check il file resterebbe
+        // caricato ma invisibile, e non capiresti perché la foto non compare.
+        const { error: ie } = await (supabase.from as any)('gallery_media').insert({
+          folder_id: fold.id, gallery_id: gal.id, entry_id: entryId,
+          drive_file_id: `up:${key}`, thumbnail_link: url, media_type: 'PHOTO',
+          source_name: f.name, carousel_pick: true,   // il cuore del fotografo, subito
+        })
+        if (!ie) ok++
+        setUpBusy((p) => (p ? { ...p, done: p.done + 1 } : p))
+      }
+      if (ok === 0) { toast.error('Nessuna foto caricata. Riprova.'); return }
+      const { data: gm } = await (supabase.from as any)('gallery_media')
+        .select('id, drive_file_id, thumbnail_link, media_type, carousel_pick, source_name')
+        .eq('entry_id', entryId).eq('media_type', 'PHOTO').order('id')
+      if (gm) setAllPhotos(gm as M[])
+      toast.success(ok === 1 ? 'Foto aggiunta al carosello' : `${ok} foto aggiunte al carosello`)
+    } finally { setUpBusy(null) }
   }
 
   // ── EXPORT / SALVA ──────────────────────────────────────────────────────────
@@ -1003,6 +1069,10 @@ export default function CaroselloPage() {
               <Button variant="outline" size="sm" disabled={importing} onClick={() => void importFromSelection('COUPLE')} title="Riempi il carosello con la selezione degli sposi (sostituisce)"><Heart size={12} className="fill-rose-500 text-rose-500" /> Sposi</Button>
               <Button variant="outline" size="sm" disabled={importing} onClick={() => void importFromSelection('PHOTOGRAPHER')} title="Riempi il carosello con la tua selezione (cuori fotografo) — sostituisce"><Heart size={12} className="fill-[rgb(var(--gold-500))] text-[rgb(var(--gold-500))]" /> La mia</Button>
               <Button variant="gold" size="sm" onClick={() => setPickerOpen(true)}><Heart size={13} /> Seleziona foto</Button>
+              <Button variant="outline" size="sm" disabled={!!upBusy} onClick={() => addPhotoRef.current?.click()}
+                title="Carica altre foto dal computer: entrano nel carosello già selezionate">
+                <Upload size={13} /> {upBusy ? `${upBusy.done}/${upBusy.total}` : 'Aggiungi foto'}
+              </Button>
             </>)}
           </div>
         </div>
@@ -1053,12 +1123,18 @@ export default function CaroselloPage() {
                 className={`h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md border text-xs transition-colors ${libChrono ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-sunken))]'}`}>
                 <ArrowUpToLine size={13} /> {libChrono ? 'Cronologico' : 'Ordine originale'}
               </button>
+              <Button variant="outline" size="sm" disabled={!!upBusy} onClick={() => addPhotoRef.current?.click()}
+                title="Carica foto dal computer: entrano nel carosello già col tuo cuore">
+                <Upload size={13} /> {upBusy ? `Carico… ${upBusy.done}/${upBusy.total}` : 'Aggiungi foto'}
+              </Button>
+              <input ref={addPhotoRef} type="file" accept="image/*" multiple className="hidden"
+                onChange={(e) => { const fs = Array.from(e.target.files ?? []); if (fs.length) void aggiungiFoto(fs); e.currentTarget.value = '' }} />
               <Button variant="gold" size="sm" onClick={() => setPickerOpen(false)}><Check size={14} /> Fatto</Button>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             {allPhotos.length === 0 ? (
-              <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Nessuna foto nel servizio: carica le foto dalla sezione «Foto» dell’evento e torna qui.</p>
+              <p className="text-sm text-[rgb(var(--fg-subtle))] py-8 text-center">Nessuna foto nel servizio. Puoi caricarle da qui con «Aggiungi foto», oppure dalla sezione «Foto» dell’evento.</p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
                 {libPhotos.map((m) => {
