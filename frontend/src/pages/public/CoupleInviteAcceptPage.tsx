@@ -26,6 +26,9 @@ export default function CoupleInviteAcceptPage() {
   const [sp] = useSearchParams()
   // Dove far atterrare il cliente: link foto → tab "foto"; ogni altro invito → "preventivo".
   const dest = sp.get('to') === 'foto' ? 'foto' : 'preventivo'
+  // show=1 arriva dalla mail "guarda la presentazione": va portato fino in fondo,
+  // altrimenti dopo il login gli sposi atterrano sulla griglia invece che sulla presentazione.
+  const show = sp.get('show') === '1' ? '&show=1' : ''
   const [info, setInfo] = useState<InviteInfo | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [mode, setMode] = useState<'signup' | 'login'>('signup')
@@ -61,7 +64,7 @@ export default function CoupleInviteAcceptPage() {
           data: { role: 'COUPLE', full_name: fullName },
           // IMPORTANT: il redirect di conferma deve tornare al flusso COPPIA, non a
           // /couple/accept (che, senza sessione, dirottava su /register PRO → role WP).
-          emailRedirectTo: `${window.location.origin}/invito-coppia/${token}?to=${dest}`,
+          emailRedirectTo: `${window.location.origin}/invito-coppia/${token}?to=${dest}${show.replace('&', '&')}`,
         },
       })
       if (signErr) throw signErr
@@ -80,7 +83,7 @@ export default function CoupleInviteAcceptPage() {
       // Il cliente arriva da un lead: ha già dato i suoi dati. NON rifargli
       // compilare il questionario di onboarding → dritto al suo matrimonio,
       // dove trova subito il preventivo.
-      nav(`/couple?tab=${dest}`, { replace: true })
+      nav(`/couple?tab=${dest}${show}`, { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore registrazione')
     } finally { setBusy(false) }
@@ -95,7 +98,7 @@ export default function CoupleInviteAcceptPage() {
       if (loginErr) throw loginErr
       await supabase.rpc('couple_accept_invite', { p_token: token }) // best-effort: collega se non già collegato
       toast.success('Bentornata/o nel vostro evento')
-      nav(`/couple?tab=${dest}`, { replace: true })
+      nav(`/couple?tab=${dest}${show}`, { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore login')
     } finally { setBusy(false) }

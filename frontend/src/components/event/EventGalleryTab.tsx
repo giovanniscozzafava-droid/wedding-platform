@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from '@/lib/toast'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer, Crop } from '@/components/icons/lucide'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer, Crop, Send } from '@/components/icons/lucide'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
 import { MOMENTS, getMoment } from '@/lib/albumMoments'
@@ -145,6 +145,30 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
   const [eventKind, setEventKind] = useState<string | null>(null)
+  const [invioFoto, setInvioFoto] = useState(false)
+
+  // Manda agli sposi il link diretto alla presentazione. Gli indirizzi li abbiamo
+  // già (sono quelli con cui si sono registrati): la edge li ricava da sola.
+  async function inviaPresentazione() {
+    setInvioFoto(true)
+    const { data, error } = await supabase.functions.invoke('invite-couple-photos', {
+      body: { entry_id: entryId, show: true },
+    })
+    setInvioFoto(false)
+    if (error || (data as any)?.error) {
+      const code = (data as any)?.error
+      toast.error(code === 'no_recipients'
+        ? 'Nessuno sposo registrato su questo evento: invitali prima dalla scheda evento.'
+        : 'Non sono riuscito a mandare la mail. Riprova.')
+      return
+    }
+    const n = (data as any)?.inviate ?? 0
+    toast.success(n === 1 ? 'Presentazione inviata agli sposi' : `Presentazione inviata a ${n} destinatari`)
+  }
+  // Il link della mail agli sposi porta dritto alla presentazione: /...?show=1
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('show') === '1') setShowcase(true)
+  }, [])
   const [uploading, setUploading] = useState(false)
   const [dedupBusy, setDedupBusy] = useState(false)
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
@@ -678,11 +702,18 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             </div>
           )}
           <Button variant="gold" size="sm" onClick={() => setShowcase(true)}><Images size={14} /> Presentazione galleria</Button>
+          {isOwner && (
+            <Button variant="outline" size="sm" disabled={invioFoto} onClick={() => void inviaPresentazione()}
+              title="Manda agli sposi la mail col link diretto alla presentazione, dove possono mettere i loro cuori">
+              <Send size={14} /> {invioFoto ? 'Invio…' : 'Invia agli sposi'}
+            </Button>
+          )}
         </div>
       )}
       {showcase && (
-        <GalleryShowcase title="Galleria" eventKind={eventKind} onClose={() => setShowcase(false)}
-          items={folders.flatMap((f) => f.gallery_media).filter((m) => m.media_type === 'PHOTO').map((m) => ({
+        <GalleryShowcase title="Galleria" eventKind={eventKind} canLike={role === 'sposi'} onClose={() => setShowcase(false)}
+          items={folders.filter((f) => f.album_selectable ?? true)   // escluso dall'album = fuori anche da qui
+            .flatMap((f) => f.gallery_media).filter((m) => m.media_type === 'PHOTO').map((m) => ({
             id: m.id,
             thumb: isDrive(m) ? `https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w600` : (m.thumbnail_link ?? ''),
             full: fullSrc(m),
