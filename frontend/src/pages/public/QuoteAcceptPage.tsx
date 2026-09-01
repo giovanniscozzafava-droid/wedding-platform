@@ -247,6 +247,28 @@ function QuoteAcceptPageInner() {
   const visibleItems = hasSel ? items.filter((it) => itemIncluded(it.client_decision, true)) : items
   const totFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(shown)
 
+  // REGOLA: il preventivo si compone dalle voci scelte dal cliente; senza selezione
+  // non va avanti. Chi arriva qui con un link diretto (saltando la preview) viene
+  // rimandato a scegliere, invece di firmare un totale che non ha mai composto.
+  const nPicked = items.filter((it) => it.client_decision === 'ACCETTATO').length
+  if (nPicked === 0 && items.length > 0 && quote.status === 'INVIATO') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#FDFBF6', color: '#1A1714', colorScheme: 'light' }}>
+        <div className="max-w-md text-center">
+          <AlertCircle className="mx-auto mb-4 text-[#B7791F]" size={40} />
+          <h1 className="font-display text-2xl mb-2">Scegli prima cosa vuoi</h1>
+          <p className="text-sm text-[#6E6E6E] mb-6">
+            Il preventivo si compone con le voci che selezioni: il totale che firmi è la loro somma.
+            Torna al preventivo, spunta le voci che ti interessano (o tocca «Opziona tutte le voci») e poi accetta.
+          </p>
+          <Button asChild variant="gold">
+            <Link to={`/p/preview/${token}`} data-testid="back-to-pick">Vai a scegliere le voci</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen px-4 py-6 sm:py-12" style={{ background: '#FDFBF6', color: '#1A1714', colorScheme: 'light' }}>
       <style>{`

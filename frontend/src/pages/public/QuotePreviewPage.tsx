@@ -37,11 +37,33 @@ function QuotePreviewPageInner() {
   const [opt, setOpt] = useState<{ allowed: boolean; days: number; optioned: boolean } | null>(null)
   const [optBusy, setOptBusy] = useState(false)
   const [openItems, setOpenItems] = useState<Set<string>>(new Set())
+  // REGOLA: il preventivo si compone dalle singole voci accettate. Senza selezione
+  // non si va avanti. Qui il cliente sceglie DAL LINK PUBBLICO, senza account.
+  const [picking, setPicking] = useState(false)
   // Tap su una voce = la apre (mostra il dettaglio) e segna al pro che il cliente l'ha guardata.
   function toggleItem(itemId: string) {
     if (!itemId) return
     setOpenItems((s) => { const n = new Set(s); n.has(itemId) ? n.delete(itemId) : n.add(itemId); return n })
     void (supabase.rpc as any)('track_quote_item_click', { p_token: token, p_item_id: itemId })
+  }
+
+  // Spunta (o toglie) una o TUTTE le voci. Una sola RPC per entrambi i casi.
+  async function decideItems(ids: string[], decision: 'ACCETTATO' | 'IN_ATTESA') {
+    if (!token || ids.length === 0 || picking) return
+    setPicking(true)
+    try {
+      const { data: r, error } = await (supabase.rpc as any)('quote_items_decide_by_token',
+        { p_token: token, p_item_ids: ids, p_decision: decision })
+      // supabase-js NON lancia sugli errori Postgres: senza questo check la spunta
+      // sembrerebbe riuscita mentre il totale resta quello di prima.
+      if (error) throw error
+      if (r?.error) throw new Error(r.error)
+      await load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Non sono riuscito a salvare la scelta. Riprova.')
+    } finally {
+      setPicking(false)
+    }
   }
 
   // Il pro ha abilitato l'opzione? Il cliente può tenere la data senza firmare.
@@ -110,6 +132,14 @@ function QuotePreviewPageInner() {
   // di quelle. Le voci non incluse restano visibili ma marcate "Non incluso".
   const hasSel = hasPartialSelection(data.total_client_selected)
   const shown = shownTotal(data.total_client, data.total_client_selected)
+  // Si sceglie solo su un preventivo ancora INVIATO e col prezzo sbloccato.
+  const canChoose = showPrice && data.status === 'INVIATO'
+  const allIds = data.items.map((it) => (it as { id?: string }).id ?? '').filter(Boolean)
+  const pickedIds = data.items
+    .filter((it) => (it as { client_decision?: string | null }).client_decision === 'ACCETTATO')
+    .map((it) => (it as { id?: string }).id ?? '').filter(Boolean)
+  const nPicked = pickedIds.length
+  const allPicked = allIds.length > 0 && nPicked === allIds.length
 
   return (
     <div className="min-h-screen py-8 sm:py-14 px-4 relative" style={{ background: 'rgb(var(--bg))' }}>
@@ -163,6 +193,19 @@ function QuotePreviewPageInner() {
             )}
           </div>
 
+          {canChoose && (
+            <div className="px-6 sm:px-10 pt-2 pb-1 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-[rgb(var(--fg-muted))]">
+                Scegli le voci che vuoi: <strong className="text-[rgb(var(--fg))]">{nPicked} di {allIds.length}</strong> selezionate.
+              </p>
+              <Button type="button" variant="outline" size="sm" disabled={picking}
+                data-testid="pick-all-btn"
+                onClick={() => void decideItems(allPicked ? allIds : allIds.filter((id) => !pickedIds.includes(id)), allPicked ? 'IN_ATTESA' : 'ACCETTATO')}>
+                {allPicked ? 'Togli tutte' : 'Opziona tutte le voci'}
+              </Button>
+            </div>
+          )}
+
           <div className="px-6 sm:px-10" data-testid="public-items">
             {(() => {
               // Raggruppa le voci per CATEGORIA (Fotografia, Catering, Fiori…), nell'ordine di prima
@@ -188,20 +231,33 @@ function QuotePreviewPageInner() {
                       // Con selezione parziale, le voci non accettate restano visibili ma
                       // marcate "Non incluso" e non concorrono al totale mostrato.
                       const included = itemIncluded((it as { client_decision?: string | null }).client_decision as never, hasSel)
+                      const picked = (it as { client_decision?: string | null }).client_decision === 'ACCETTATO'
+                      // Mentre sceglie: non spuntata = solo sbiadita (niente barratura,
+                      // che significherebbe "esclusa" invece di "non ancora scelta").
+                      const dim = canChoose ? !picked : !included
+                      const strike = !canChoose && !included
                       return (
-                        <li key={itemId || `${gi}-${i}`} className="py-4" style={included ? undefined : { opacity: 0.55 }}>
-                    <button type="button" onClick={() => toggleItem(itemId)} className="w-full flex items-start justify-between gap-4 text-left">
+                        <li key={itemId || `${gi}-${i}`} className="py-4" style={dim ? { opacity: 0.55 } : undefined}>
+                    <div className="flex items-start gap-3">
+                    {canChoose && (
+                      <input type="checkbox" aria-label={`Includi ${it.name_snapshot}`} data-testid="pick-item"
+                        checked={picked} disabled={picking || !itemId}
+                        onChange={(e) => void decideItems([itemId], e.target.checked ? 'ACCETTATO' : 'IN_ATTESA')}
+                        className="mt-1.5 size-4 shrink-0 accent-[rgb(var(--gold-500))] cursor-pointer" />
+                    )}
+                    <button type="button" onClick={() => toggleItem(itemId)} className="flex-1 min-w-0 flex items-start justify-between gap-4 text-left">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium" style={included ? undefined : { textDecoration: 'line-through' }}>{it.name_snapshot}</p>
+                        <p className="font-medium" style={strike ? { textDecoration: 'line-through' } : undefined}>{it.name_snapshot}</p>
                         <p className="text-xs text-[rgb(var(--fg-subtle))]">
                           Quantità: {Number(it.quantity)}{desc ? ' · tocca per i dettagli' : ''}
-                          {!included && <span className="ml-1.5 font-semibold uppercase tracking-wide" style={{ color: 'rgb(var(--fg-muted))' }}>· Non incluso</span>}
+                          {strike && <span className="ml-1.5 font-semibold uppercase tracking-wide" style={{ color: 'rgb(var(--fg-muted))' }}>· Non incluso</span>}
                         </p>
                       </div>
-                      <p className="font-display text-lg tabular-nums shrink-0" style={included ? undefined : { textDecoration: 'line-through', color: 'rgb(var(--fg-subtle))' }}>
+                      <p className="font-display text-lg tabular-nums shrink-0" style={strike ? { textDecoration: 'line-through', color: 'rgb(var(--fg-subtle))' } : undefined}>
                         {showPrice ? `€ ${Number(it.line_client).toLocaleString('it-IT')}` : <Lock size={15} className="text-[rgb(var(--fg-subtle))]" />}
                       </p>
                     </button>
+                    </div>
                     {(() => {
                       const sup = (it as { supplier?: { name?: string; slug?: string | null; subrole?: string | null } | null }).supplier
                       if (!sup?.name) return null   // voce blind → nessun fornitore mostrato
@@ -256,11 +312,24 @@ function QuotePreviewPageInner() {
 
           {data.status === 'INVIATO' && (
             <div className="px-6 sm:px-10 pb-8 flex flex-col sm:flex-row gap-3">
+              {/* Senza almeno una voce scelta il preventivo NON va avanti: il totale
+                  firmato dev'essere la somma di ciò che il cliente ha davvero preso. */}
+              {canChoose && allIds.length > 0 && nPicked === 0 ? (
+                <div className="flex-1">
+                  <Button variant="gold" className="w-full" disabled data-testid="accept-btn-disabled">
+                    <Check /> Accetto il preventivo
+                  </Button>
+                  <p className="mt-2 text-xs text-center text-[rgb(var(--fg-muted))]">
+                    Scegli almeno una voce per proseguire — oppure tocca «Opziona tutte le voci».
+                  </p>
+                </div>
+              ) : (
               <Button asChild variant="gold" className="flex-1">
                 <Link to={`/p/accept/${token}`} data-testid="accept-btn">
                   <Check /> Accetto il preventivo
                 </Link>
               </Button>
+              )}
               <Button asChild variant="outline" className="flex-1">
                 <Link to={`/p/reject/${token}`} data-testid="reject-btn">
                   <X /> Rifiuto

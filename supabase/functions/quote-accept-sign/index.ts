@@ -148,6 +148,25 @@ Deno.serve(async (req) => {
     return json({ error: 'Questo link è scaduto e non è più valido.' }, 409)
   }
 
+  // A2. REGOLA (Giovanni, 01/09/2026): il preventivo si compone dalle SINGOLE VOCI
+  // accettate dal cliente; senza selezione NON va avanti. Il gate vero e' nella UI
+  // (/p/preview: spunte + "Opziona tutte le voci"), questa e' l'ultima difesa: senza
+  // di essa chi salta la preview firma un totale che non ha mai composto, e le voci
+  // restano IN_ATTESA (contratto e statistiche perdono il dettaglio di cosa ha preso).
+  {
+    const { data: allItems, error: itErr } = await admin.from('quote_items')
+      .select('id, client_decision').eq('quote_id', quote.id)
+    if (itErr) return json({ error: 'db error', detail: itErr.message }, 500)
+    const hasItems = (allItems ?? []).length > 0
+    const nPicked = (allItems ?? []).filter((i: { client_decision?: string | null }) => i.client_decision === 'ACCETTATO').length
+    if (hasItems && nPicked === 0) {
+      return json({
+        error: 'no_selection',
+        detail: 'Scegli le voci che vuoi prima di firmare: il totale del preventivo è la somma delle voci selezionate.',
+      }, 409)
+    }
+  }
+
   // 1a-bis. Auto-invio: il trigger quotes_validate_status_transition vieta il
   // salto diretto BOZZA -> ACCETTATO. Se la coppia firma su un quote ancora
   // BOZZA (atterrata direttamente sull'accept page senza passare per quote-send),
@@ -180,27 +199,6 @@ Deno.serve(async (req) => {
   if (!claimed) {
     // Qualcun altro ha gia' completato la firma (race) — rifiutiamo come 409.
     return json({ error: 'Preventivo già firmato da un\'altra sessione. Ricarica la pagina.' }, 409)
-  }
-
-  // 1c. REGOLA: il totale del preventivo e' la SOMMA DELLE VOCI ACCETTATE.
-  // Chi firma l'intero preventivo senza aver spuntato voce per voce lascerebbe tutte
-  // le quote_items a client_decision='IN_ATTESA' -> l'editor del professionista mostrava
-  // "In attesa cliente" su ogni riga di un preventivo GIA' firmato, e
-  // total_client_selected restava 0. Firma intera = ha accettato tutte le voci: lo scrivo.
-  // Se invece ha gia' scelto voce per voce, la sua scelta comanda e non tocco nulla.
-  {
-    const { data: decided } = await admin.from('quote_items')
-      .select('id').eq('quote_id', quote.id).in('client_decision', ['ACCETTATO', 'RIFIUTATO']).limit(1)
-    if (!decided || decided.length === 0) {
-      const nowIso = new Date().toISOString()
-      const { error: markErr } = await admin.from('quote_items')
-        .update({ client_decision: 'ACCETTATO', client_decided_at: nowIso, selected_by_client: true, client_selected_at: nowIso })
-        .eq('quote_id', quote.id)
-      // supabase-js NON lancia sugli errori Postgres: senza questo check il totale
-      // resterebbe silenziosamente sbagliato. Non blocco la firma, ma lo segnalo.
-      if (markErr) console.error('mark_items_accepted_failed', quote.id, markErr.message)
-      else await admin.rpc('quotes_recalc_totals', { p_quote_id: quote.id })
-    }
   }
 
   // 2. Hash del PDF preventivo corrente (per integrità)
