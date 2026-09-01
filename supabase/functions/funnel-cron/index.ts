@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
     return new Response('unauthorized', { status: 401 })
   }
   const now = Date.now()
-  const result = { followups: 0, archived: 0, contested: 0, suggestion_reminders: 0, option_reminders: 0 }
+  const result = { followups: 0, archived: 0, contested: 0, suggestion_reminders: 0, option_reminders: 0, congelati: 0 }
 
   // ── Follow-up + archiviazione ────────────────────────────────────────────
   const { data: actives } = await admin.from('quotes')
@@ -240,6 +240,14 @@ Deno.serve(async (req) => {
       }
     } catch (_e) { /* continua col prossimo */ }
   }
+
+  // ── Congelamento dopo ultimatum senza risposta ───────────────────────────
+  // Chi non risponde all'ultimatum non ci ha detto di no, ma non ci ha nemmeno
+  // rinnovato il permesso di insistere: dopo 7 giorni si smette di scrivere.
+  try {
+    const { data: frz } = await admin.rpc('ultimatum_freeze_silent', { p_days: 7 })
+    result.congelati = Number((frz as { congelati?: number } | null)?.congelati ?? 0)
+  } catch (_e) { /* il resto del giro non deve saltare per questo */ }
 
   return new Response(JSON.stringify({ ok: true, ...result }), { headers: { 'content-type': 'application/json' } })
 })

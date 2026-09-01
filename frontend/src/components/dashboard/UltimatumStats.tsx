@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase'
 type Stats = {
   inviati: number; risposte: number; interessati: number; persi: number
   sconti_partiti: number; recuperati: number; valore_recuperato: number
-  in_attesa: number; motivi: Record<string, number>
+  congelati: number; in_attesa: number; motivi: Record<string, number>
 }
 
 const MOTIVO_LABEL: Record<string, string> = {
@@ -61,12 +61,13 @@ export function UltimatumStats() {
           <span className="text-xs text-[rgb(var(--fg-subtle))] tabular-nums">ultimi 12 mesi</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
           {[
             { k: 'Mandati', v: s.inviati, sub: `${tassoRisposta}% ha risposto` },
             { k: 'Ancora in gioco', v: s.interessati, sub: 'hanno detto sì' },
             { k: 'Sconti partiti', v: s.sconti_partiti, sub: 'per il prezzo' },
             { k: 'Recuperati', v: s.recuperati, sub: s.valore_recuperato > 0 ? euro(s.valore_recuperato) : 'firmati dopo' },
+            { k: 'Congelati', v: s.congelati ?? 0, sub: 'muti, smesso di scrivere' },
           ].map((c) => (
             <div key={c.k} className="rounded-lg p-3" style={{ background: 'rgb(var(--bg-sunken))' }}>
               <div className="font-display text-2xl tabular-nums">{c.v}</div>
