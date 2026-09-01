@@ -70,6 +70,7 @@ function cropDataUrl(img: HTMLImageElement, wpx: number, hpx: number, cell: Cell
   const c = document.createElement('canvas')
   c.width = Math.max(1, Math.round(wpx)); c.height = Math.max(1, Math.round(hpx))
   const ctx = c.getContext('2d')!
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'   // riduzione dolce, non frastagliata
   ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
   drawCellImage(ctx, img, 0, 0, c.width, c.height, cell)
   return c.toDataURL('image/jpeg', q)
@@ -107,6 +108,7 @@ async function drawFreeElement(pdf: any, el: import('./albumFree').FreeEl, pageX
   const bh = Math.abs(elWpx * Math.sin(th)) + Math.abs(elHpx * Math.cos(th))
   const c = document.createElement('canvas'); c.width = Math.ceil(bw); c.height = Math.ceil(bh)
   const ctx = c.getContext('2d')!
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'   // riduzione dolce, non frastagliata
   ctx.translate(c.width / 2, c.height / 2); ctx.rotate(th)
   if (el.shadow) { ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 0.03 * Math.min(elWpx, elHpx); ctx.shadowOffsetY = 0.012 * elHpx }
   try {
@@ -274,6 +276,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
       const c = document.createElement('canvas')
       c.width = wpx * (rp || lp.tavolaFree ? 2 : 1); c.height = hpx
       const ctx = c.getContext('2d')!
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
       ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height)
       if (lp.tavolaFree) {
         // TAVOLA UNICA: una sola superficie libera larga 2×W
@@ -293,6 +296,7 @@ export async function exportAlbumJpgZip(pages: AlbumPage[], formatKey: string, r
       const c = document.createElement('canvas')
       c.width = wpx; c.height = hpx
       const ctx = c.getContext('2d')!
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
       await drawPageInto(ctx, pages[p]!, 0, wpx, hpx, pxPerMm, resolve, pageNumbers ? p + 1 : null)
       const spLeft = pages[p - (p % 2)]?.spreadImage
       if (spLeft) { try { const img = await loadImage(resolve(spLeft.mediaId)); drawFramedSpread(ctx, img, wpx, hpx, spLeft.cell, spLeft.frame ?? FULL_FRAME, p % 2 === 0 ? 'L' : 'R') } catch { /* ignora */ } }

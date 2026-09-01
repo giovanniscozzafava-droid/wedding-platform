@@ -62,6 +62,12 @@ export async function renderCaroselloStrip(strip: AlbumPage, slideW: number, sli
   c.width = Math.max(1, Math.round(slideW * n))
   c.height = Math.max(1, Math.round(slideH))
   const ctx = c.getContext('2d')!
+  // Criteri Meta: si esce a 1080 px di larghezza, quindi ogni foto viene RIDOTTA molto
+  // (uno scatto da 6000 px sta in una tavola da 1080). Senza questa riga Chrome usa il
+  // filtro 'low': bordi frastagliati e dettaglio impastato. È il guadagno di qualità
+  // più grande che possiamo prendere, e costa nulla.
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
   ctx.fillStyle = strip.bg ?? '#ffffff'
   ctx.fillRect(0, 0, c.width, c.height)
   // pxPerMm serve solo allo spessore dei bordi degli elementi liberi: valore coerente col pixel.
@@ -79,8 +85,10 @@ export async function exportCaroselloSlide(
   const { texts = [], filename = `slide-${String(k + 1).padStart(2, '0')}.jpg`, returnBlob = false } = opts
   const big = await renderCaroselloStrip(strip, slideW, slideH, n, resolve, texts)
   const c = document.createElement('canvas'); c.width = slideW; c.height = slideH
-  c.getContext('2d')!.drawImage(big, k * slideW, 0, slideW, slideH, 0, 0, slideW, slideH)
-  const blob: Blob = await new Promise((res) => c.toBlob((b) => res(b!), 'image/jpeg', 0.92))
+  const sctx = c.getContext('2d')!
+  sctx.imageSmoothingEnabled = true; sctx.imageSmoothingQuality = 'high'
+  sctx.drawImage(big, k * slideW, 0, slideW, slideH, 0, 0, slideW, slideH)
+  const blob: Blob = await new Promise((res) => c.toBlob((b) => res(b!), 'image/jpeg', 0.95))
   if (returnBlob) return blob
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob); a.download = filename
@@ -101,8 +109,10 @@ export async function exportCaroselloZip(
     const c = document.createElement('canvas')
     c.width = slideW; c.height = slideH
     // affetta la k-esima slide dalla strip (drawImage src-rect → dest 0,0)
-    c.getContext('2d')!.drawImage(big, k * slideW, 0, slideW, slideH, 0, 0, slideW, slideH)
-    const blob: Blob = await new Promise((res) => c.toBlob((b) => res(b!), 'image/jpeg', 0.92))
+    const sctx = c.getContext('2d')!
+  sctx.imageSmoothingEnabled = true; sctx.imageSmoothingQuality = 'high'
+  sctx.drawImage(big, k * slideW, 0, slideW, slideH, 0, 0, slideW, slideH)
+    const blob: Blob = await new Promise((res) => c.toBlob((b) => res(b!), 'image/jpeg', 0.95))
     zip.file(`slide-${String(k + 1).padStart(2, '0')}.jpg`, blob)
     onProgress?.(k + 1, n)
   }
