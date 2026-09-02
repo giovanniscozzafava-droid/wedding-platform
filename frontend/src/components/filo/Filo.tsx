@@ -107,6 +107,21 @@ function Riga({ s, onVai, onCapito }: { s: FiloSignal; onVai: () => void; onCapi
   )
 }
 
+// Da telefono il bottone copriva i tasti in basso a destra (Giovanni, 02/09/2026):
+// ora si trascina. Al rilascio si aggancia al bordo più vicino (sinistra/destra) e
+// tiene l'altezza scelta; la posizione resta salvata sul dispositivo.
+type FiloPos = { side: 'left' | 'right'; bottom: number }
+const BTN = 48
+const POS_KEY = 'filo-pos-v1'
+const clampBottom = (b: number) => Math.max(8, Math.min(window.innerHeight - BTN - 8, Math.round(b)))
+function loadPos(): FiloPos {
+  try {
+    const j = JSON.parse(localStorage.getItem(POS_KEY) || 'null')
+    if (j && (j.side === 'left' || j.side === 'right') && Number.isFinite(j.bottom)) return { side: j.side, bottom: clampBottom(j.bottom) }
+  } catch { /* private mode */ }
+  return { side: 'right', bottom: 16 }
+}
+
 export function Filo() {
   const { profile } = useAuth()
   const location = useLocation()
@@ -117,6 +132,57 @@ export function Filo() {
   const btnRef = useRef<HTMLButtonElement>(null)
   const lastPeekKey = useRef<string | null>(null)
   const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [pos, setPos] = useState<FiloPos>(loadPos)
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null) // posizione live mentre trascini
+  const dragRef = useRef<{ sx: number; sy: number; bx: number; by: number; moved: boolean } | null>(null)
+  const skipClick = useRef(false)
+
+  useEffect(() => {
+    const onResize = () => setPos((p) => ({ ...p, bottom: clampBottom(p.bottom) }))
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const onDragStart = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    const r = e.currentTarget.getBoundingClientRect()
+    dragRef.current = { sx: e.clientX, sy: e.clientY, bx: r.left, by: r.top, moved: false }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onDragMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current
+    if (!d) return
+    const dx = e.clientX - d.sx, dy = e.clientY - d.sy
+    if (!d.moved && Math.hypot(dx, dy) < 6) return // un tocco fermo resta un click
+    d.moved = true
+    setDrag({
+      x: Math.max(4, Math.min(window.innerWidth - BTN - 4, d.bx + dx)),
+      y: Math.max(4, Math.min(window.innerHeight - BTN - 4, d.by + dy)),
+    })
+  }
+  const onDragEnd = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current
+    dragRef.current = null
+    if (!d || !d.moved) { setDrag(null); return }
+    const x = d.bx + (e.clientX - d.sx), y = d.by + (e.clientY - d.sy)
+    const next: FiloPos = {
+      side: x + BTN / 2 < window.innerWidth / 2 ? 'left' : 'right',
+      bottom: clampBottom(window.innerHeight - y - BTN),
+    }
+    setPos(next); setDrag(null)
+    // Col mouse al rilascio segue un click (da ignorare); col dito no: il flag si spegne da solo.
+    skipClick.current = true
+    setTimeout(() => { skipClick.current = false }, 400)
+    try { localStorage.setItem(POS_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+  }
+  // Pannello e "capolino" stanno dal lato del bottone: sopra se è in basso, sotto se
+  // l'hai portato nella metà alta dello schermo (altrimenti resterebbe schiacciato).
+  const sideCls = pos.side === 'left' ? 'sm:right-auto sm:left-5' : 'sm:left-auto sm:right-5'
+  const vh = typeof window === 'undefined' ? 800 : window.innerHeight
+  const high = pos.bottom + BTN / 2 > vh / 2
+  const anchorStyle = high
+    ? { top: vh - pos.bottom + 12, maxHeight: `min(80vh, ${Math.max(120, pos.bottom - 24)}px)` }
+    : { bottom: pos.bottom + BTN + 12, maxHeight: `min(80vh, calc(100vh - ${pos.bottom + BTN + 24}px))` }
 
   const role = profile?.role
   const isPro = role === 'WEDDING_PLANNER' || role === 'LOCATION' || role === 'FORNITORE' || role === 'ADMIN'
@@ -226,8 +292,8 @@ export function Filo() {
       {/* Mobile: sfoca e oscura il dietro così il testo di Filo non si confonde con la pagina. */}
       {open && <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-sm sm:hidden print:hidden" onClick={close} aria-hidden="true" />}
       {open && (
-        <div ref={panelRef} className="fixed z-[61] bottom-[5.25rem] right-4 left-4 sm:left-auto sm:right-5 sm:w-[330px] max-h-[80vh] overflow-y-auto rounded-2xl border shadow-[var(--shadow-lift)] animate-[filoIn_.18s_ease-out] print:hidden"
-          style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))' }}>
+        <div ref={panelRef} className={`fixed z-[61] right-4 left-4 ${sideCls} sm:w-[330px] overflow-y-auto rounded-2xl border shadow-[var(--shadow-lift)] animate-[filoIn_.18s_ease-out] print:hidden`}
+          style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--border))', ...anchorStyle }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: 'rgb(var(--border))' }}>
             <span className="text-[rgb(var(--gold-600))]">{RING(20)}</span>
             <div className="flex-1 min-w-0">
@@ -307,8 +373,8 @@ export function Filo() {
 
       {/* Filo proattivo: fa capolino da solo con il consiglio più importante, poi si richiude. */}
       {peek && !open && (
-        <div className="fixed z-[61] bottom-[5.25rem] right-4 left-4 sm:left-auto sm:right-5 sm:w-[300px] rounded-2xl border shadow-[var(--shadow-lift)] overflow-hidden animate-[filoIn_.2s_ease-out] print:hidden"
-          style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))' }}>
+        <div className={`fixed z-[61] right-4 left-4 ${sideCls} sm:w-[300px] rounded-2xl border shadow-[var(--shadow-lift)] overflow-hidden animate-[filoIn_.2s_ease-out] print:hidden`}
+          style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))', ...anchorStyle }}>
           <div className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[rgb(var(--gold-600))]">{RING(16)}</span>
@@ -326,9 +392,14 @@ export function Filo() {
         </div>
       )}
 
-      <button ref={btnRef} onClick={() => (open ? close() : setOpen(true))} aria-label="Filo — la tua guida" title="Filo"
-        className="fixed z-[62] bottom-4 right-4 sm:bottom-5 sm:right-5 h-12 w-12 rounded-full border flex items-center justify-center shadow-[var(--shadow-lift)] transition-transform hover:scale-105 text-[rgb(var(--gold-600))] print:hidden"
-        style={{ background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))' }}>
+      <button ref={btnRef}
+        onClick={() => { if (skipClick.current) { skipClick.current = false; return } open ? close() : setOpen(true) }}
+        onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd} onPointerCancel={onDragEnd}
+        aria-label="Filo — la tua guida" title="Filo · trascinami dove vuoi"
+        className={`fixed z-[62] h-12 w-12 rounded-full border flex items-center justify-center shadow-[var(--shadow-lift)] text-[rgb(var(--gold-600))] print:hidden touch-none select-none ${drag ? 'cursor-grabbing scale-110' : 'transition-transform hover:scale-105 cursor-grab'}`}
+        style={drag
+          ? { background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))', left: drag.x, top: drag.y, right: 'auto', bottom: 'auto' }
+          : { background: 'rgb(var(--bg-elev))', borderColor: 'rgb(var(--gold-400))', bottom: pos.bottom, [pos.side]: 16 }}>
         {!open && hasUrgent && <span className="absolute inset-0 rounded-full animate-[filoPing_2.6s_ease-out_infinite]" style={{ background: 'rgb(var(--gold-400))' }} aria-hidden="true" />}
         {RING(24)}
         {!open && signals.length > 0 && (
