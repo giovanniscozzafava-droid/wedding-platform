@@ -73,3 +73,21 @@ export function waTeamSheet(opts: { eventTitle: string; eventDate?: string | nul
     SIGN,
   ].join('\n')
 }
+
+/** Richiesta di recensione a evento passato: i link vanno DENTRO il testo (sono due). */
+export function waReviewRequest(opts: {
+  clientName?: string | null; studio?: string | null; term?: string | null
+  google?: string | null; matrimonio?: string | null
+}) {
+  const s = (opts.studio ?? '').trim()
+  const term = (opts.term ?? '').trim() || 'il vostro evento'
+  const lines = [
+    hello(opts.clientName),
+    `${term} è passato e speriamo sia stato tutto come lo avevate immaginato. Grazie di averci scelto${s ? ` (${s})` : ''}.`,
+    'Se vi va, una recensione ci aiuta più di qualsiasi pubblicità: bastano due righe sincere su com’è andata.',
+  ]
+  if (opts.google) lines.push(`Su Google: ${opts.google}`)
+  if (opts.matrimonio) lines.push(`Su Matrimonio.com: ${opts.matrimonio}`)
+  lines.push('Grazie di cuore.', SIGN)
+  return lines.join('\n')
+}

@@ -54,6 +54,7 @@ import { EventRing } from '@/components/event/EventRing'
 import { CompletionRings } from '@/components/event/CompletionRings'
 import { EventGalleryTab } from '@/components/event/EventGalleryTab'
 import { CoupleVisitsCard } from '@/components/event/CoupleVisitsCard'
+import { ReviewRequestCard } from '@/components/event/ReviewRequestCard'
 import { AlbumFunnelTab } from '@/components/event/AlbumFunnelTab'
 import { Images, Mic, BookHeart, Film } from '@/components/icons/lucide'
 import { AudioWishes } from '@/components/event/AudioWishes'
@@ -467,6 +468,8 @@ export default function WeddingDashboard() {
             {tab === 'overview' && <OverviewTab wedding={wedding} onTab={setTab as any} />}
             {/* Presenze del cliente dentro QUESTO evento: dove entra e quanto ci resta. */}
             {tab === 'overview' && <div className="mt-6"><CoupleVisitsCard entryId={wedding.id} /></div>}
+            {/* A evento passato: «Chiedi una recensione» (la card decide da sola se la data è passata). I fornitori atterrano su foto. */}
+            {ringView !== 'sposi' && (tab === 'overview' || tab === 'foto') && <div className={tab === 'foto' ? 'mb-6' : 'mt-6'}><ReviewRequestCard entryId={wedding.id} /></div>}
             {tab === 'album_funnel' && <AlbumFunnelTab entryId={wedding.id} onTab={(k) => setTab(k as TabKey)} />}
             {tab === 'foto' && <EventGalleryTab entryId={wedding.id} role={ringView} />}
             {tab === 'audio' && <AudioWishes entryId={wedding.id} readOnly />}

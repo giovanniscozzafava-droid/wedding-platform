@@ -56,6 +56,7 @@ import { Guestbook } from '@/components/event/Guestbook'
 import { Images, Mic, BookHeart, Film, MessageCircle } from '@/components/icons/lucide'
 import { ChatEvento } from '@/components/wedding/ChatEvento'
 import { CoupleRequestsCard } from '@/components/wedding/CoupleRequestsCard'
+import { CoupleReviewCard } from '@/components/wedding/CoupleReviewCard'
 import { useNuovoModello } from '@/hooks/useNuovoModello'
 import { ClientProfessionalsView } from '@/components/client/ClientProfessionalsView'
 import { useCoupleVisit } from '@/lib/useCoupleVisit'
@@ -364,6 +365,7 @@ function WeddingView({ wedding, memberRole, entryId, tab, setTab }: { wedding: a
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             {tab === 'overview' && <OverviewCouple wedding={wedding} entryId={entryId} memberRole={memberRole} />}
             {tab === 'overview' && <div className="mt-6"><CoupleRequestsCard entryId={entryId} /></div>}
+            {(tab === 'overview' || (photoOnly && tab === 'foto')) && <div className="mt-6"><CoupleReviewCard entryId={entryId} /></div>}
             {tab === 'chat' && <ChatEvento entryId={entryId} />}
             {tab === 'foto' && <EventGalleryTab entryId={entryId} role="sposi" />}
             {tab === 'audio' && <AudioWishes entryId={entryId} readOnly />}
