@@ -9,6 +9,10 @@ import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const OGNI_MS = 30_000
+// Il primo battito aspetta un attimo: all'atterraggio la pagina passa per la scheda
+// di default per una frazione di secondo prima di posarsi su quella vera (foto, dal
+// link), e senza attesa registrava una visita fantasma di 0 secondi "sul preventivo".
+const PRIMO_MS = 2_500
 
 export function useCoupleVisit(entryId: string | null | undefined, section: string | null | undefined) {
   const attivo = useRef(true)
@@ -26,14 +30,14 @@ export function useCoupleVisit(entryId: string | null | undefined, section: stri
         .catch(() => { /* il tracciamento non deve mai disturbare l'uso */ })
     }
 
-    battito()
-    timer = window.setInterval(battito, OGNI_MS)
+    const primo = window.setTimeout(() => { battito(); timer = window.setInterval(battito, OGNI_MS) }, PRIMO_MS)
     // Tornando sulla scheda si batte subito, così il tempo riprende senza aspettare.
     const onVis = () => { if (document.visibilityState === 'visible') battito() }
     document.addEventListener('visibilitychange', onVis)
 
     return () => {
       attivo.current = false
+      window.clearTimeout(primo)
       if (timer) window.clearInterval(timer)
       document.removeEventListener('visibilitychange', onVis)
     }

@@ -1,11 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { X } from '@/components/icons/lucide'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { X, Check, ChevronDown } from '@/components/icons/lucide'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 
-type FiloSignal = { key: string; priority: number; area: string; title: string; body: string; link: string }
+type FiloSignal = {
+  key: string; priority: number; area: string; title: string; body: string; link: string
+  kind: 'news' | 'consiglio'; state: string | null; snooze: number
+  days_seen: number; nuovo: boolean; ritorna: boolean
+}
+type FiloOggi = { visite: number; aperture: number; risposte: number; cuori: number; lead: number; incassi: number }
+
+// «Filo deve essere più attivo e cosciente e leggere la realtà. Dice ogni giorno le
+//  stesse cose. Bisogna interagire, tipo "ho letto, ho capito".» (Giovanni, 02/09/2026)
+// Da qui: ogni consiglio ha un "Ho capito" che lo spegne finché la realtà non cambia
+// (la memoria sta nel DB, filo_signal_state), e accanto ai consigli c'è un blocco
+// "Filo ha letto" con i fatti delle ultime 24-48 ore, cliente per cliente.
+
+// La riga delle ultime 24 ore: numeri veri, anche quando sono zeri.
+function oggiText(o: FiloOggi | undefined): string {
+  if (!o) return ''
+  const parti: string[] = []
+  if (o.visite) parti.push(o.visite === 1 ? '1 cliente è entrato nel suo evento' : `${o.visite} clienti sono entrati nel loro evento`)
+  if (o.aperture) parti.push(o.aperture === 1 ? '1 preventivo aperto' : `${o.aperture} preventivi aperti`)
+  if (o.risposte) parti.push(o.risposte === 1 ? '1 risposta all’ultimatum' : `${o.risposte} risposte all’ultimatum`)
+  if (o.cuori) parti.push(`${o.cuori} ${o.cuori === 1 ? 'cuore' : 'cuori'} sulle foto`)
+  if (o.lead) parti.push(o.lead === 1 ? '1 richiesta nuova' : `${o.lead} richieste nuove`)
+  if (o.incassi) parti.push(o.incassi === 1 ? '1 incasso registrato' : `${o.incassi} incassi registrati`)
+  if (parti.length === 0) return 'Ultime 24 ore: tutto fermo. Nessun cliente è entrato, nessun preventivo aperto.'
+  return 'Ultime 24 ore: ' + parti.join(' · ') + '.'
+}
 
 // FILO v1 — la guida dentro Planfully. Presenza fluttuante (glifo ring-and-dot) che, toccata,
 // dice "a cosa serve + la prossima mossa" dell'area in cui sei, con la voce del fondatore.
@@ -51,6 +76,37 @@ function tipFor(pathname: string): Tip {
     ?? DEFAULT_TIP
 }
 
+// Una riga di Filo: titolo, corpo, e due gesti — "Vai" e "Ho capito". Il secondo è
+// quello che mancava: senza, Filo ripeteva la stessa cosa ogni giorno.
+function Riga({ s, onVai, onCapito }: { s: FiloSignal; onVai: () => void; onCapito: () => void }) {
+  const daGiorni = s.kind !== 'news' && s.days_seen >= 2
+  return (
+    <div className={`rounded-lg border px-3 py-2 transition-colors ${s.kind === 'news' ? 'border-[rgb(var(--gold-400))]/60' : 'border-[rgb(var(--border))]'}`}>
+      <button type="button" onClick={onVai} className="w-full text-left">
+        <div className="flex items-center gap-2">
+          {s.priority === 1 && <span className="h-1.5 w-1.5 rounded-full bg-[rgb(var(--gold-500))] shrink-0" />}
+          <span className="text-[13px] font-medium leading-none">{s.title}</span>
+          <span className="ml-auto text-[9px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] shrink-0">
+            {s.ritorna ? 'di nuovo' : s.nuovo ? 'nuovo' : s.area}
+          </span>
+        </div>
+        <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 leading-snug">{s.body}</p>
+      </button>
+      <div className="flex items-center justify-between gap-2 mt-1.5">
+        <span className="text-[10px] text-[rgb(var(--fg-subtle))]">{daGiorni ? `Te lo dico da ${s.days_seen} giorni` : ''}</span>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={onCapito} title="Non me lo ripetere, a meno che non cambi qualcosa"
+            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]">
+            <Check size={12} /> Ho capito
+          </button>
+          <button type="button" onClick={onVai}
+            className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]">Vai</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Filo() {
   const { profile } = useAuth()
   const location = useLocation()
@@ -89,6 +145,13 @@ export function Filo() {
 
   const tip = useMemo(() => tipFor(location.pathname), [location.pathname])
   const nav = useNavigate()
+  const qc = useQueryClient()
+
+  // "Dove sei": la prima volta in un'area lo spiego per esteso; dopo che hai detto Ok
+  // resta ripiegato, riapribile. Altrimenti ripeterei la stessa cosa a ogni apertura.
+  const [areaOpen, setAreaOpen] = useState(false)
+  const areaSeen = (() => { try { return localStorage.getItem('filo-area:' + tip.area) === '1' } catch { return false } })()
+  useEffect(() => { setAreaOpen(false) }, [tip.area])
 
   // Filo legge lo stato reale del business (RPC filo_brief) e ne ricava i consigli prioritizzati.
   const { data: brief } = useQuery({
@@ -99,19 +162,44 @@ export function Filo() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc('filo_brief')
       if (error) throw error
-      return data as { signals?: FiloSignal[] }
+      return data as { signals?: FiloSignal[]; oggi?: FiloOggi }
     },
   })
-  const signals = useMemo(() => [...(brief?.signals ?? [])].sort((a, b) => a.priority - b.priority).slice(0, 4), [brief])
+  // Segnali già capiti in questa sessione spariscono subito, senza aspettare il server.
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set())
+  const all = useMemo(() => [...(brief?.signals ?? [])].filter((s) => !hidden.has(s.key)).sort((a, b) => a.priority - b.priority), [brief, hidden])
+  const news = useMemo(() => all.filter((s) => s.kind === 'news').slice(0, 5), [all])
+  const consigli = useMemo(() => all.filter((s) => s.kind !== 'news').slice(0, 4), [all])
+  const signals = useMemo(() => [...news, ...consigli], [news, consigli])
   const hasUrgent = signals.some((s) => s.priority === 1)
+
+  // "Ho capito": spegne il segnale finché la realtà non cambia (stato) o scade la pausa.
+  const capito = async (s: FiloSignal) => {
+    setHidden((h) => new Set(h).add(s.key))
+    const { error } = await (supabase as any).rpc('filo_ack', { p_key: s.key, p_state: s.state, p_days: s.snooze ?? 7 })
+    if (error) setHidden((h) => { const n = new Set(h); n.delete(s.key); return n })
+    else void qc.invalidateQueries({ queryKey: ['filo-brief'] })
+  }
+  const capitoTutto = async () => {
+    const items = signals.map((s) => ({ key: s.key, state: s.state, days: s.snooze ?? 7 }))
+    setHidden((h) => { const n = new Set(h); items.forEach((i) => n.add(i.key)); return n })
+    const { error } = await (supabase as any).rpc('filo_ack_many', { p_items: items })
+    if (!error) void qc.invalidateQueries({ queryKey: ['filo-brief'] })
+  }
 
   // Filo PROATTIVO: quando arriva un consiglio urgente NUOVO (chiave diversa), fa capolino da solo
   // con un'anteprima per qualche secondo, poi si richiude nel badge. Non si ripete sulla stessa cosa.
   useEffect(() => {
     if (open || firstRun) { setPeek(null); return }
     const top = signals.find((s) => s.priority === 1)
-    if (!top || lastPeekKey.current === top.key) return
-    lastPeekKey.current = top.key
+    if (!top) return
+    // Già fatto capolino su questa stessa notizia (stesso stato)? Non lo rifaccio a ogni ricarica.
+    const sig = top.key + '@' + (top.state ?? '')
+    let seen: string | null = null
+    try { seen = sessionStorage.getItem('filo-peek') } catch { /* private mode */ }
+    if (lastPeekKey.current === sig || seen === sig) return
+    lastPeekKey.current = sig
+    try { sessionStorage.setItem('filo-peek', sig) } catch { /* ignore */ }
     setPeek(top)
     if (peekTimer.current) clearTimeout(peekTimer.current)
     peekTimer.current = setTimeout(() => setPeek(null), 8000)
@@ -123,7 +211,11 @@ export function Filo() {
     setFirstRun(false)
     try { localStorage.setItem('filo-seen-v1', '1') } catch { /* ignore */ }
   }
-  const close = () => { if (firstRun) dismissFirstRun(); setOpen(false) }
+  const close = () => {
+    if (firstRun) dismissFirstRun()
+    try { localStorage.setItem('filo-area:' + tip.area, '1') } catch { /* ignore */ }
+    setOpen(false)
+  }
 
   const welcome = isFornitore
     ? 'Qui gestisci il tuo lavoro sugli eventi a cui ti invitano. Partiamo da due cose che ti fanno fare bella figura: il Catalogo (servizi e prezzi) e la disponibilità in Calendario.'
@@ -152,36 +244,60 @@ export function Filo() {
               </>
             ) : (
               <>
-                {signals.length > 0 && (
+                {/* Le ultime 24 ore in una riga: Filo dice cosa ha letto, anche se è "niente". */}
+                {brief?.oggi && (
+                  <p className="text-xs leading-snug text-[rgb(var(--fg-muted))]">{oggiText(brief.oggi)}</p>
+                )}
+
+                {news.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Filo ti consiglia</p>
-                    {signals.map((s, i) => (
-                      <button key={i} onClick={() => { close(); nav(s.link) }}
-                        className="w-full text-left rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-400))] hover:bg-[rgb(var(--bg-sunken))] px-3 py-2 transition-colors">
-                        <div className="flex items-center gap-2">
-                          {s.priority === 1 && <span className="h-1.5 w-1.5 rounded-full bg-[rgb(var(--gold-500))] shrink-0" />}
-                          <span className="text-[13px] font-medium leading-none">{s.title}</span>
-                          <span className="ml-auto text-[9px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] shrink-0">{s.area}</span>
-                        </div>
-                        <p className="text-xs text-[rgb(var(--fg-muted))] mt-1 leading-snug">{s.body}</p>
-                      </button>
-                    ))}
+                    <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))]">Filo ha letto</p>
+                    {news.map((s) => <Riga key={s.key} s={s} onVai={() => { close(); nav(s.link) }} onCapito={() => void capito(s)} />)}
                   </div>
                 )}
-                <div className={signals.length > 0 ? 'pt-2 mt-1 border-t border-[rgb(var(--border))]' : ''}>
-                  <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Dove sei · {tip.area}</p>
-                  <p className="text-sm text-[rgb(var(--fg-muted))] leading-relaxed">{tip.what}</p>
-                  <div className="rounded-lg bg-[rgb(var(--gold-100))]/60 px-3 py-2 mt-2">
-                    <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))] mb-0.5">La prossima mossa</p>
-                    <p className="text-sm leading-snug">{tip.next}</p>
+
+                {consigli.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Filo ti consiglia</p>
+                    {consigli.map((s) => <Riga key={s.key} s={s} onVai={() => { close(); nav(s.link) }} onCapito={() => void capito(s)} />)}
                   </div>
+                )}
+
+                {signals.length === 0 && (
+                  <p className="text-sm text-[rgb(var(--fg-muted))] leading-relaxed">
+                    Niente di nuovo da dirti. Ho letto tutto quello che c’era; se succede qualcosa te lo dico io.
+                  </p>
+                )}
+
+                {/* Dove sei: per esteso la prima volta, poi ripiegato. */}
+                <div className={signals.length > 0 ? 'pt-2 mt-1 border-t border-[rgb(var(--border))]' : ''}>
+                  {areaSeen && !areaOpen ? (
+                    <button type="button" onClick={() => setAreaOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--fg))]">
+                      <ChevronDown size={12} /> Cosa si fa qui · {tip.area}
+                    </button>
+                  ) : (
+                    <>
+                      <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Dove sei · {tip.area}</p>
+                      <p className="text-sm text-[rgb(var(--fg-muted))] leading-relaxed">{tip.what}</p>
+                      <div className="rounded-lg bg-[rgb(var(--gold-100))]/60 px-3 py-2 mt-2">
+                        <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--gold-700))] mb-0.5">La prossima mossa</p>
+                        <p className="text-sm leading-snug">{tip.next}</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
           </div>
 
           <div className="px-4 pb-3 flex items-center justify-between gap-2">
-            <span className="text-[10px] text-[rgb(var(--fg-subtle))]">Per ora ti suggerisco. La chat arriva presto.</span>
+            {!firstRun && signals.length > 0 ? (
+              <button type="button" onClick={() => void capitoTutto()}
+                className="inline-flex items-center gap-1 text-xs text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]">
+                <Check size={13} /> Ho letto tutto
+              </button>
+            ) : <span />}
             <button onClick={close} className="text-xs font-medium px-3 py-1.5 rounded-full bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))]">
               {firstRun ? 'Iniziamo' : 'Ok'}
             </button>

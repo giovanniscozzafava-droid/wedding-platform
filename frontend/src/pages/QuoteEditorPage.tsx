@@ -270,6 +270,41 @@ export default function QuoteEditorPage() {
     void qc.invalidateQueries({ queryKey: ['quote', id] })
   }
 
+  // L'ultima risposta all'ultimatum. Serve per un caso preciso: il cliente ha detto
+  // "era il prezzo", lo sconto è partito, ma la mail col nuovo totale NON è arrivata
+  // (chiuso il browser prima del timbro). Da qui la si manda a mano, una volta sola.
+  const ultQ = useQuery({
+    queryKey: ['quote-ultimatum', id],
+    enabled: !!id && !!profile,
+    queryFn: async () => {
+      const { data } = await (supabase.from as any)('quote_ultimatums')
+        .select('id, token, sent_at, responded_at, still_interested, reason, note, price_related, discount_percent, discount_applied, discount_email_at')
+        .eq('quote_id', id).order('sent_at', { ascending: false }).limit(1).maybeSingle()
+      return (data ?? null) as null | {
+        id: string; token: string; sent_at: string; responded_at: string | null; still_interested: boolean | null
+        reason: string | null; note: string | null; price_related: boolean
+        discount_percent: number | null; discount_applied: boolean; discount_email_at: string | null
+      }
+    },
+  })
+  const ult = ultQ.data
+  const [mandoTotale, setMandoTotale] = useState(false)
+  async function mandaNuovoTotale() {
+    if (!ult?.token || mandoTotale) return
+    setMandoTotale(true)
+    const { data, error } = await supabase.functions.invoke('ultimatum-discount-email', { body: { token: ult.token } })
+    setMandoTotale(false)
+    const err = (data as any)?.error ?? (error ? 'net' : null)
+    if (err) {
+      toast.error(err === 'no_email' ? 'Questo preventivo non ha un indirizzo email valido.'
+        : err === 'no_discount' ? 'Su questo preventivo non c’è nessuno sconto da comunicare.'
+        : 'La mail non è partita. Riprova.')
+      return
+    }
+    toast.success((data as any)?.gia_inviata ? 'La mail era già partita.' : `Nuovo totale inviato a ${(data as any)?.to ?? 'al cliente'}.`)
+    void qc.invalidateQueries({ queryKey: ['quote-ultimatum', id] })
+  }
+
   async function inviaUltimatum() {
     if (!id || ultBusy) return
     setUltBusy(true)
@@ -875,6 +910,24 @@ export default function QuoteEditorPage() {
                       className="underline font-medium disabled:opacity-50">
                       {scongelo ? 'Riattivo…' : 'Riprendi'}
                     </button>
+                  </span>
+                )}
+                {/* Sconto partito ma mail mai arrivata al cliente: si manda da qui. */}
+                {ult?.discount_applied && !ult.discount_email_at && (
+                  <span className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm"
+                    style={{ color: '#9a3412', background: '#ea580c14' }}>
+                    <AlertTriangle size={15} />
+                    <span>Sconto del {Number(ult.discount_percent ?? 0)}% applicato, ma la mail col nuovo totale non è partita</span>
+                    <button type="button" onClick={() => void mandaNuovoTotale()} disabled={mandoTotale}
+                      className="underline font-medium disabled:opacity-50">
+                      {mandoTotale ? 'Invio…' : 'Manda il nuovo totale'}
+                    </button>
+                  </span>
+                )}
+                {ult?.discount_applied && !!ult.discount_email_at && quote.status === 'INVIATO' && (
+                  <span className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-sunken))]"
+                    title={`Mail col nuovo totale inviata il ${new Date(ult.discount_email_at).toLocaleDateString('it-IT')}`}>
+                    Sconto del {Number(ult.discount_percent ?? 0)}% applicato · mail inviata
                   </span>
                 )}
                 {quote.status === 'INVIATO' && !!quote.client_email && (

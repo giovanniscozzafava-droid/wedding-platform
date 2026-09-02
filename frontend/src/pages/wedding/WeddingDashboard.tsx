@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, CalendarClock, Table2, Users as UsersIcon, Wallet, ListChecks,
@@ -137,6 +137,13 @@ export default function WeddingDashboard() {
   const { id } = useParams<{ id: string }>()
   const { data: wedding, isLoading } = useWedding(id ?? null)
   const [tab, setTab] = useState<TabKey>('overview')
+  // Link diretti a una scheda (Filo, notifiche): /weddings/<id>?tab=foto. Letto una volta.
+  const [search] = useSearchParams()
+  useEffect(() => {
+    const t = search.get('tab')
+    if (t && TABS.some((d) => d.key === t)) setTab(t as TabKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const tabsRef = useRef<HTMLDivElement>(null)
   const scrollTabs = (dir: number) => tabsRef.current?.scrollBy({ left: dir * 260, behavior: 'smooth' })
   const [rateOpen, setRateOpen] = useState(false)
