@@ -453,3 +453,9 @@ verify_jwt = false
 # possibile) e ristretto a host consentiti nel codice → verify_jwt = false.
 [functions.img-proxy]
 verify_jwt = false
+
+# api-v1: la porta per agenti e altri progetti. Il Bearer è una chiave pf_live_…,
+# non un JWT Supabase: la verifica la fa l'edge (sha256 → api_key_resolve), poi conia
+# un JWT vero di 5 minuti per PostgREST. verify_jwt = false.
+[functions.api-v1]
+verify_jwt = false

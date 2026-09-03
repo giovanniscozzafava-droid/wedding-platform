@@ -5,17 +5,43 @@
   "installCommand": "echo 'install in buildCommand'",
   "framework": null,
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/sitemap-xml" },
-    { "source": "/galleria/:id", "destination": "/api/galleria?id=:id" },
-    { "source": "/g/:token", "destination": "/api/g?token=:token" },
-    { "source": "/embed/lead/:slug", "destination": "/api/lead-preview?slug=:slug" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/sitemap-xml"
+    },
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/api-v1/:path*"
+    },
+    {
+      "source": "/api/v1",
+      "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/api-v1/"
+    },
+    {
+      "source": "/galleria/:id",
+      "destination": "/api/galleria?id=:id"
+    },
+    {
+      "source": "/g/:token",
+      "destination": "/api/g?token=:token"
+    },
+    {
+      "source": "/embed/lead/:slug",
+      "destination": "/api/lead-preview?slug=:slug"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     }
   ]

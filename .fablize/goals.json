@@ -1,11 +1,32 @@
 {
- "brief": "Storie: (1) IA sidebar snella max 8 voci + hub Strumenti per ruolo + Impostazioni a tab, rotte invariate; (2) Dashboard Partitura KPI a filetto + timeline stagione; (3) superfici cliente editoriali (portfolio, wedding site, preventivo, contratto pubblici) carta+inchiostro; (4) email transazionali layout condiviso; (5) PDF allineati; (6) sweep toFixed->money.ts. Guardrail in CLAUDE.md; fondamenta (3 font + bottone AA) gia' live.",
- "created": "2026-07-15T09:40:10.460519+00:00",
+ "brief": "API v1 Planfully per agenti e altri progetti",
+ "created": "2026-09-03T16:57:39.149401+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "Restyling Partitura",
-   "objective": "Restyling di sola presentazione (design/UX) di Planfully, senza toccare logica/RPC/RLS",
+   "title": "Chiavi API + migration",
+   "objective": "Tabelle api_keys/api_calls, RPC api_key_create/list/revoke (utente) e api_key_resolve (service_role) — applicata in prod",
+   "status": "in_progress",
+   "evidence": null
+  },
+  {
+   "id": "G002",
+   "title": "Edge api-v1",
+   "objective": "Bearer pf_live_ → hash → owner → JWT HS256 5 min → proxy PostgREST /rest e /rpc, scope read/write, rate limit, log api_calls, /me e /openapi.json — deploy con verify_jwt off",
+   "status": "pending",
+   "evidence": null
+  },
+  {
+   "id": "G003",
+   "title": "Card Impostazioni",
+   "objective": "'API e agenti' in ProfilePage: crea chiave (mostrata una volta), lista, revoca",
+   "status": "pending",
+   "evidence": null
+  },
+  {
+   "id": "G004",
+   "title": "Rewrite + collaudo",
+   "objective": "planfully.it/api/v1/* → edge; deploy Vercel; chiamata reale con chiave e verifica RLS",
    "status": "pending",
    "evidence": null
   }
