@@ -18,12 +18,16 @@
 // La sessione coniata resta in cache (per proprietario, in memoria dell'istanza
 // edge) fino a poco prima di scadere: non se ne apre una nuova a ogni chiamata.
 //
-// Superficie (dietro planfully.it/api/v1 via rewrite Vercel):
+// Superficie REST (dietro planfully.it/api/v1 via rewrite Vercel):
 //   GET  /me                      chi sono, scope, limiti
 //   GET  /openapi.json            contratto generato da PostgREST (tabelle + RPC visibili)
 //   *    /rest/<tabella>?…        PostgREST così com'è (select, filtri, Prefer, Range)
 //   GET  /rpc/<fn>?arg=val        RPC in sola lettura (transazione READ ONLY)
 //   POST /rpc/<fn>  {args}        RPC con scrittura → serve scope write
+// Superficie MCP (per agenti come Claude Code):
+//   POST /mcp                     server MCP "Streamable HTTP", stateless, solo JSON
+//                                  (nessuna SSE): initialize, tools/list, tools/call.
+//                                  Stessa chiave, stessi scope, stesso registro chiamate.
 //
 // Scope: `read` → solo GET/HEAD (PostgREST esegue i GET in transazione read-only,
 // quindi anche una RPC "volatile" non può scrivere). `write` → tutto.
@@ -43,12 +47,13 @@ const RENEW_MARGIN_S = 60
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-api-key, content-type, prefer, range, accept',
+  'Access-Control-Allow-Headers': 'authorization, x-api-key, content-type, prefer, range, accept, mcp-session-id, mcp-protocol-version',
   'Access-Control-Allow-Methods': 'GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS',
   'Access-Control-Expose-Headers': 'content-range, x-ratelimit-limit, x-ratelimit-remaining',
 }
 const json = (b: unknown, s = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, ...extra, 'content-type': 'application/json' } })
+const empty = (s: number) => new Response(null, { status: s, headers: CORS })
 
 const enc = new TextEncoder()
 async function sha256Hex(s: string): Promise<string> {
@@ -111,6 +116,171 @@ function apiPath(url: URL): string {
   return p === '' ? '/' : p
 }
 
+// ---- MCP: tools disponibili agli agenti --------------------------------------
+const MCP_TOOLS = [
+  {
+    name: 'whoami',
+    description: 'Chi sei su Planfully con questa chiave: profilo, scope, chiamate residue nel minuto.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'search_endpoints',
+    description: 'Cerca tra le tabelle e le funzioni (RPC) disponibili, dal contratto OpenAPI dell\'app. Usalo prima di rest_query o rpc_call se non conosci già il nome esatto.',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string', description: 'Testo da cercare, es. "quote", "evento", "recensione". Vuoto = prime voci.' } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rest_query',
+    description: 'Legge o scrive su una tabella Planfully via PostgREST, con gli stessi permessi (RLS) del proprietario della chiave.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        table: { type: 'string', description: 'Nome tabella, es. quotes, calendar_entries, profiles' },
+        query: { type: 'string', description: 'Query string PostgREST, es. "select=id,title&limit=5&order=created_at.desc&status=eq.INVIATO"' },
+        method: { type: 'string', enum: ['GET', 'POST', 'PATCH', 'DELETE'], description: 'Default GET. POST/PATCH/DELETE richiedono una chiave con scope write.' },
+        body: { type: 'object', description: 'Corpo per POST/PATCH: i campi da inserire o aggiornare' },
+      },
+      required: ['table'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rpc_call',
+    description: 'Chiama per nome una funzione (RPC) di Planfully, con gli stessi permessi del proprietario della chiave.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Nome della funzione, es. filo_brief, ultimatum_stats' },
+        args: { type: 'object', description: 'Argomenti nominati della funzione' },
+        write: { type: 'boolean', description: 'true se la funzione scrive (richiede scope write); false = sola lettura' },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+] as const
+
+type PgFn = (rest: string, init?: RequestInit, accept?: string) => Promise<Response>
+
+let openapiCache: { at: number; spec: Record<string, unknown> } | null = null
+async function getOpenapiCached(pg: PgFn): Promise<Record<string, unknown>> {
+  if (openapiCache && Date.now() - openapiCache.at < 10 * 60 * 1000) return openapiCache.spec
+  const r = await pg('/', {}, 'application/openapi+json')
+  if (!r.ok) throw new Error(`openapi HTTP ${r.status}`)
+  const spec = await r.json()
+  openapiCache = { at: Date.now(), spec }
+  return spec
+}
+
+async function callTool(name: string, args: Record<string, unknown>, ctx: { owner: string; keyId: string; scopes: string[]; pg: PgFn }): Promise<string> {
+  const { owner, keyId, scopes, pg } = ctx
+
+  if (name === 'whoami') {
+    const r = await pg(`/profiles?id=eq.${owner}&select=id,role,business_name,full_name`, {}, 'application/json')
+    const rows = r.ok ? await r.json() : []
+    const me = Array.isArray(rows) ? rows[0] ?? null : null
+    return JSON.stringify({ owner: me, key: { id: keyId, scopes } })
+  }
+
+  if (name === 'search_endpoints') {
+    const q = String(args?.query ?? '').toLowerCase()
+    const spec = await getOpenapiCached(pg)
+    const rows: { path: string; methods: string[]; summary: string }[] = []
+    for (const [p, v] of Object.entries<Record<string, { summary?: string; description?: string }>>((spec.paths as Record<string, never>) ?? {})) {
+      if (p === '/' || rows.length >= 40) continue
+      const methods = Object.keys(v).filter((m) => ['get', 'post', 'patch', 'delete', 'put'].includes(m)).map((m) => m.toUpperCase())
+      const summary = String(v.get?.summary || v.post?.summary || v.get?.description || v.post?.description || '').slice(0, 140)
+      const full = p.startsWith('/rpc/') ? p : `/rest${p}`
+      if (!q || full.toLowerCase().includes(q) || summary.toLowerCase().includes(q)) rows.push({ path: full, methods, summary })
+    }
+    return JSON.stringify(rows)
+  }
+
+  if (name === 'rest_query') {
+    const table = String(args?.table ?? '')
+    if (!NAME_RE.test(table)) throw new Error('nome tabella non valido')
+    if (table === 'api_keys' || table === 'api_calls') throw new Error('tabella non accessibile da qui')
+    const method = String(args?.method ?? 'GET').toUpperCase()
+    if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(method)) throw new Error('method deve essere GET, POST, PATCH o DELETE')
+    if (method !== 'GET' && !scopes.includes('write')) throw new Error('questa chiave è di sola lettura: serve scope write')
+    const qs = String(args?.query ?? '')
+    const headers: Record<string, string> = { accept: 'application/json' }
+    let body: string | undefined
+    if (method !== 'GET') { headers['content-type'] = 'application/json'; headers['prefer'] = 'return=representation'; body = JSON.stringify(args?.body ?? {}) }
+    const r = await pg(`/${table}${qs ? `?${qs}` : ''}`, { method, headers, body })
+    const text = await r.text()
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 500)}`)
+    return text
+  }
+
+  if (name === 'rpc_call') {
+    const fn = String(args?.name ?? '')
+    if (!NAME_RE.test(fn)) throw new Error('nome funzione non valido')
+    const write = Boolean(args?.write)
+    if (write && !scopes.includes('write')) throw new Error('questa chiave è di sola lettura: serve scope write')
+    const fnArgs = (args?.args && typeof args.args === 'object') ? (args.args as Record<string, unknown>) : {}
+    let r: Response
+    if (write) {
+      r = await pg(`/rpc/${fn}`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(fnArgs) })
+    } else {
+      const qs = new URLSearchParams()
+      for (const [k, v] of Object.entries(fnArgs)) qs.set(k, typeof v === 'string' ? v : JSON.stringify(v))
+      r = await pg(`/rpc/${fn}${qs.toString() ? `?${qs}` : ''}`, { method: 'GET', headers: { accept: 'application/json' } })
+    }
+    const text = await r.text()
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 500)}`)
+    return text
+  }
+
+  throw new Error(`tool sconosciuto: ${name}`)
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleMcp(req: Request, ctx: { owner: string; keyId: string; scopes: string[]; pg: PgFn; log: (status: number, label: string) => Promise<void> }): Promise<Response> {
+  if (req.method === 'GET') return empty(405) // nessuna SSE: solo risposte JSON dirette
+  if (req.method === 'DELETE') return empty(200) // stateless: nessuna sessione MCP da chiudere
+  if (req.method !== 'POST') return empty(405)
+
+  // deno-lint-ignore no-explicit-any
+  let msg: any
+  try { msg = await req.json() } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }) }
+  if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Request' } })
+
+  const { id, method, params } = msg
+  const isNotification = id === undefined
+  const respond = (result: unknown) => isNotification ? empty(202) : json({ jsonrpc: '2.0', id, result })
+  const respondErr = (code: number, message: string) => isNotification ? empty(202) : json({ jsonrpc: '2.0', id, error: { code, message } })
+
+  if (method === 'notifications/initialized' || method === 'notifications/cancelled' || method === 'notifications/roots/list_changed') return empty(202)
+
+  if (method === 'initialize') {
+    await ctx.log(200, '/mcp#initialize')
+    return respond({ protocolVersion: params?.protocolVersion || '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'planfully-api', version: '1.0.0' } })
+  }
+  if (method === 'ping') { await ctx.log(200, '/mcp#ping'); return respond({}) }
+  if (method === 'tools/list') { await ctx.log(200, '/mcp#tools/list'); return respond({ tools: MCP_TOOLS }) }
+
+  if (method === 'tools/call') {
+    const name = String(params?.name ?? '')
+    const args = (params?.arguments && typeof params.arguments === 'object') ? params.arguments : {}
+    if (!MCP_TOOLS.some((t) => t.name === name)) { await ctx.log(404, `/mcp#tools/call:${name}`); return respondErr(-32602, `Tool sconosciuto: ${name}`) }
+    try {
+      const text = await callTool(name, args, ctx)
+      await ctx.log(200, `/mcp#tools/call:${name}`)
+      return respond({ content: [{ type: 'text', text }], isError: false })
+    } catch (e) {
+      await ctx.log(200, `/mcp#tools/call:${name}`)
+      return respond({ content: [{ type: 'text', text: `Errore: ${(e as Error).message}` }], isError: true })
+    }
+  }
+
+  await ctx.log(404, `/mcp#${method}`)
+  return respondErr(-32601, `Metodo sconosciuto: ${method}`)
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   const t0 = Date.now()
@@ -122,7 +292,7 @@ Deno.serve(async (req) => {
     return json({
       name: 'Planfully API', version: 'v1', base: API_BASE,
       auth: 'Authorization: Bearer pf_live_… (chiave dalle Impostazioni → API e agenti)',
-      endpoints: ['GET /me', 'GET /openapi.json', '* /rest/<tabella>', 'GET /rpc/<fn>', 'POST /rpc/<fn>'],
+      endpoints: ['GET /me', 'GET /openapi.json', '* /rest/<tabella>', 'GET /rpc/<fn>', 'POST /rpc/<fn>', 'POST /mcp'],
       docs: 'https://postgrest.org/en/stable/references/api.html',
     })
   }
@@ -138,13 +308,33 @@ Deno.serve(async (req) => {
   const remaining = Math.max(0, LIMIT_PER_MIN - Number(k.last_minute ?? 0) - 1)
   const rl = { 'x-ratelimit-limit': String(LIMIT_PER_MIN), 'x-ratelimit-remaining': String(remaining) }
 
-  const log = (status: number) =>
-    admin.rpc('api_call_log', { p_key: keyId, p_owner: owner, p_method: req.method, p_path: path + url.search, p_status: status, p_ms: Date.now() - t0 })
+  const log = (status: number, label?: string) =>
+    admin.rpc('api_call_log', { p_key: keyId, p_owner: owner, p_method: req.method, p_path: label ?? path + url.search, p_status: status, p_ms: Date.now() - t0 })
       .then(({ error }) => { if (error) console.error('api_call_log', error.message) })
 
   if (Number(k.last_minute ?? 0) >= LIMIT_PER_MIN) {
     await log(429)
     return json({ error: 'rate_limited', limit: LIMIT_PER_MIN, window: '1m' }, 429, { ...rl, 'retry-after': '60' })
+  }
+
+  const sess = await tokenFor(owner)
+  if (!sess.ok) {
+    await log(500)
+    return json({ error: 'session_failed', reason: sess.error }, 500, rl)
+  }
+  const jwt = sess.token
+  const pg: PgFn = (rest, init = {}, accept) =>
+    fetch(`${SUPABASE_URL}/rest/v1${rest}`, {
+      ...init,
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${jwt}`, ...(accept ? { Accept: accept } : {}), ...(init.headers ?? {}) },
+    })
+
+  // ---- /mcp: server MCP per agenti ---------------------------------------------
+  // Bypassa il gate read/write generico qui sotto (pensato per REST): ogni tool
+  // decide da sé se serve scope write, tools/list e initialize non ne hanno bisogno.
+  if (path === '/mcp') {
+    const res = await handleMcp(req, { owner, keyId, scopes, pg, log })
+    return new Response(res.body, { status: res.status, headers: { ...Object.fromEntries(res.headers), ...rl } })
   }
 
   const isRead = req.method === 'GET' || req.method === 'HEAD'
@@ -153,22 +343,6 @@ Deno.serve(async (req) => {
     return json({ error: 'scope', hint: 'questa chiave è di sola lettura: serve lo scope write' }, 403, rl)
   }
   if (isRead && !scopes.includes('read')) { await log(403); return json({ error: 'scope' }, 403, rl) }
-
-  const sess = await tokenFor(owner)
-  if (!sess.ok) {
-    await log(500)
-    return json({ error: 'session_failed', reason: sess.error }, 500, rl)
-  }
-  const jwt = sess.token
-  const pg = (rest: string, init: RequestInit = {}, accept?: string) =>
-    fetch(`${SUPABASE_URL}/rest/v1${rest}`, {
-      ...init,
-      headers: {
-        apikey: ANON_KEY, Authorization: `Bearer ${jwt}`,
-        ...(accept ? { Accept: accept } : {}),
-        ...(init.headers ?? {}),
-      },
-    })
 
   // ---- /me --------------------------------------------------------------------
   if (path === '/me') {
