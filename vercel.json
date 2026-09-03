@@ -18,6 +18,10 @@
       "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/api-v1/"
     },
     {
+      "source": "/api/v1/",
+      "destination": "https://zfwlkvqxfzvubmfyxofs.supabase.co/functions/v1/api-v1/"
+    },
+    {
       "source": "/galleria/:id",
       "destination": "/api/galleria?id=:id"
     },

@@ -7,11 +7,16 @@
 // Come funziona:
 //   1. il chiamante manda `Authorization: Bearer pf_live_…` (o `x-api-key`);
 //   2. sha256 della chiave → api_key_resolve → proprietario, scope, chiamate/minuto;
-//   3. si CONIA un JWT Supabase di 5 minuti con sub = proprietario e role =
-//      authenticated, firmato col segreto del progetto (PF_JWT_SECRET);
+//   3. si CONIA una sessione Supabase vera per il proprietario, con lo stesso
+//      meccanismo già usato da admin-impersonate per "entra come utente":
+//      admin.generateLink('magiclink') → verifyOtp(token_hash) → access_token.
+//      Nessun segreto da conoscere o incollare: firma e algoritmo li decide
+//      Supabase stesso, e restano corretti anche se in futuro cambiano;
 //   4. la richiesta passa a PostgREST con quel token: RLS e RPC lavorano ESATTAMENTE
 //      come se fosse il professionista loggato. Niente da riscrivere, niente
 //      seconda versione delle regole.
+// La sessione coniata resta in cache (per proprietario, in memoria dell'istanza
+// edge) fino a poco prima di scadere: non se ne apre una nuova a ogni chiamata.
 //
 // Superficie (dietro planfully.it/api/v1 via rewrite Vercel):
 //   GET  /me                      chi sono, scope, limiti
@@ -29,11 +34,12 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
-const JWT_SECRET = Deno.env.get('PF_JWT_SECRET') ?? ''
 const API_BASE = Deno.env.get('PF_API_BASE') ?? 'https://planfully.it/api/v1'
 const LIMIT_PER_MIN = 120
-const TOKEN_TTL_S = 300
 const MAX_BODY = 1_000_000
+// Margine prima della scadenza reale della sessione: rinnova un po' prima, non
+// esattamente all'ultimo secondo (jwt_expiry del progetto = 3600s).
+const RENEW_MARGIN_S = 60
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -44,50 +50,51 @@ const CORS = {
 const json = (b: unknown, s = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, ...extra, 'content-type': 'application/json' } })
 
-// ---- crittografia minima, senza dipendenze ---------------------------------
 const enc = new TextEncoder()
-const b64url = (buf: ArrayBuffer | Uint8Array) =>
-  btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-
 async function sha256Hex(s: string): Promise<string> {
   const d = await crypto.subtle.digest('SHA-256', enc.encode(s))
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-async function hmacKey(secret: string) {
-  return crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'])
+const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } })
+
+// ---- sessione per proprietario, con cache -----------------------------------
+type CachedSession = { token: string; exp: number }
+const sessionCache = new Map<string, CachedSession>()
+const sessionInflight = new Map<string, Promise<{ ok: true; token: string } | { ok: false; error: string }>>()
+
+async function mintSession(owner: string): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  const { data: tu, error: ue } = await admin.auth.admin.getUserById(owner)
+  const email = tu?.user?.email
+  if (ue || !email) return { ok: false, error: 'no_email' }
+
+  const { data: link, error: le } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
+  if (le || !link?.properties?.hashed_token) return { ok: false, error: le?.message ?? 'link_failed' }
+
+  const { data: sess, error: ve } = await anon.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: 'magiclink' })
+  if (ve || !sess?.session?.access_token) return { ok: false, error: ve?.message ?? 'verify_failed' }
+
+  const exp = sess.session.expires_at ?? Math.floor(Date.now() / 1000) + 3600
+  sessionCache.set(owner, { token: sess.session.access_token, exp })
+  return { ok: true, token: sess.session.access_token }
 }
 
-async function mintJwt(sub: string, keyId: string): Promise<string> {
+async function tokenFor(owner: string): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
   const now = Math.floor(Date.now() / 1000)
-  const header = b64url(enc.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })))
-  const payload = b64url(enc.encode(JSON.stringify({
-    aud: 'authenticated', role: 'authenticated', sub,
-    iss: `${SUPABASE_URL}/auth/v1`, iat: now, exp: now + TOKEN_TTL_S,
-    app_metadata: { provider: 'api_key', providers: ['api_key'] },
-    pf_api_key: keyId,
-  })))
-  const sig = await crypto.subtle.sign('HMAC', await hmacKey(JWT_SECRET), enc.encode(`${header}.${payload}`))
-  return `${header}.${payload}.${b64url(sig)}`
-}
+  const cached = sessionCache.get(owner)
+  if (cached && cached.exp - now > RENEW_MARGIN_S) return { ok: true, token: cached.token }
 
-// Il segreto è giusto se firma la anon key del progetto: la si verifica una volta e
-// basta. Così un PF_JWT_SECRET sbagliato dà un errore chiaro, non un 401 muto.
-let secretOk: boolean | null = null
-async function checkSecret(): Promise<boolean> {
-  if (secretOk !== null) return secretOk
-  if (!JWT_SECRET) return (secretOk = false)
-  try {
-    const [h, p, s] = ANON_KEY.split('.')
-    const mine = b64url(await crypto.subtle.sign('HMAC', await hmacKey(JWT_SECRET), enc.encode(`${h}.${p}`)))
-    secretOk = mine === s
-  } catch { secretOk = false }
-  return secretOk
+  let p = sessionInflight.get(owner)
+  if (!p) {
+    p = mintSession(owner).finally(() => sessionInflight.delete(owner))
+    sessionInflight.set(owner, p)
+  }
+  return p
 }
 
 // ---- helpers ----------------------------------------------------------------
 const NAME_RE = /^[a-z_][a-z0-9_]*$/
-const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
 function bearerKey(req: Request): string | null {
   const a = req.headers.get('authorization') ?? ''
@@ -122,9 +129,6 @@ Deno.serve(async (req) => {
 
   const key = bearerKey(req)
   if (!key) return json({ error: 'auth', hint: 'Authorization: Bearer pf_live_…' }, 401)
-  if (!(await checkSecret())) {
-    return json({ error: 'jwt_secret_missing', hint: 'PF_JWT_SECRET non impostato o non corrisponde al progetto' }, 500)
-  }
 
   const { data: k, error: ke } = await admin.rpc('api_key_resolve', { p_hash: await sha256Hex(key) })
   if (ke) return json({ error: 'resolve_failed', reason: ke.message }, 500)
@@ -150,7 +154,12 @@ Deno.serve(async (req) => {
   }
   if (isRead && !scopes.includes('read')) { await log(403); return json({ error: 'scope' }, 403, rl) }
 
-  const jwt = await mintJwt(owner, keyId)
+  const sess = await tokenFor(owner)
+  if (!sess.ok) {
+    await log(500)
+    return json({ error: 'session_failed', reason: sess.error }, 500, rl)
+  }
+  const jwt = sess.token
   const pg = (rest: string, init: RequestInit = {}, accept?: string) =>
     fetch(`${SUPABASE_URL}/rest/v1${rest}`, {
       ...init,
@@ -173,7 +182,7 @@ Deno.serve(async (req) => {
     await log(200)
     return json({
       ok: true, owner: me, key: { id: keyId, scopes }, limits: { per_minute: LIMIT_PER_MIN, remaining },
-      base: API_BASE, token_ttl_seconds: TOKEN_TTL_S,
+      base: API_BASE,
     }, 200, rl)
   }
 
