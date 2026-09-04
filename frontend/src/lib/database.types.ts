@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       access_audit_log: {
@@ -88,6 +63,7 @@ export type Database = {
           email: string
           id: string
           messaggio: string | null
+          mondo: string | null
           nome: string
           provincia: string | null
           ruolo: string
@@ -102,6 +78,7 @@ export type Database = {
           email: string
           id?: string
           messaggio?: string | null
+          mondo?: string | null
           nome: string
           provincia?: string | null
           ruolo: string
@@ -116,6 +93,7 @@ export type Database = {
           email?: string
           id?: string
           messaggio?: string | null
+          mondo?: string | null
           nome?: string
           provincia?: string | null
           ruolo?: string
@@ -297,6 +275,63 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      album_checklist_state: {
+        Row: {
+          done: boolean
+          entry_id: string
+          item_id: string
+          updated_at: string
+        }
+        Insert: {
+          done?: boolean
+          entry_id: string
+          item_id: string
+          updated_at?: string
+        }
+        Update: {
+          done?: boolean
+          entry_id?: string
+          item_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_checklist_state_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_checklist_state_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_checklist_state_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_checklist_state_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "album_checklist_state_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
           },
         ]
       }
@@ -875,6 +910,75 @@ export type Database = {
           },
         ]
       }
+      album_selection_prefs: {
+        Row: {
+          event_kind: string
+          owner_id: string
+          target_max: number
+          target_min: number
+          updated_at: string
+        }
+        Insert: {
+          event_kind: string
+          owner_id: string
+          target_max: number
+          target_min: number
+          updated_at?: string
+        }
+        Update: {
+          event_kind?: string
+          owner_id?: string
+          target_max?: number
+          target_min?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_selection_prefs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_selection_prefs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      album_shared_presets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          els: Json | null
+          frames: Json
+          id: string
+          n: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          els?: Json | null
+          frames: Json
+          id?: string
+          n: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          els?: Json | null
+          frames?: Json
+          id?: string
+          n?: number
+          name?: string
+        }
+        Relationships: []
+      }
       album_style_pdfs: {
         Row: {
           created_at: string
@@ -943,6 +1047,83 @@ export type Database = {
             referencedColumns: ["supplier_id"]
           },
         ]
+      }
+      api_calls: {
+        Row: {
+          at: string
+          id: number
+          key_id: string | null
+          method: string
+          ms: number | null
+          owner_id: string
+          path: string
+          status: number
+        }
+        Insert: {
+          at?: string
+          id?: number
+          key_id?: string | null
+          method: string
+          ms?: number | null
+          owner_id: string
+          path: string
+          status: number
+        }
+        Update: {
+          at?: string
+          id?: number
+          key_id?: string | null
+          method?: string
+          ms?: number | null
+          owner_id?: string
+          path?: string
+          status?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_calls_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          key_hash: string
+          last_used_at: string | null
+          name: string
+          owner_id: string
+          prefix: string
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_hash: string
+          last_used_at?: string | null
+          name: string
+          owner_id: string
+          prefix: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_hash?: string
+          last_used_at?: string | null
+          name?: string
+          owner_id?: string
+          prefix?: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: []
       }
       app_settings: {
         Row: {
@@ -1481,6 +1662,7 @@ export type Database = {
           ambito_capostipite:
             | Database["public"]["Enums"]["ambito_capostipite"]
             | null
+          archived_at: string | null
           business_model: string
           ceremony_city: string | null
           ceremony_contact_email: string | null
@@ -1500,20 +1682,27 @@ export type Database = {
           destination_location: string | null
           event_kind: string
           evento_stato: Database["public"]["Enums"]["evento_stato"]
+          external_uid: string | null
           guest_count: number | null
           honeymoon_destination: string | null
           honeymoon_end: string | null
           honeymoon_notes: string | null
           honeymoon_start: string | null
+          ical_feed_id: string | null
           id: string
           is_destination: boolean
+          is_test: boolean
           modalita_incasso:
             | Database["public"]["Enums"]["modalita_incasso"]
             | null
           option_expires_at: string | null
+          option_reminder1_at: string | null
+          option_reminder2_at: string | null
           option_requested_by: string | null
           owner_id: string
           quote_id: string | null
+          site_export: boolean
+          source: string
           status: Database["public"]["Enums"]["entry_status"]
           tables_naming_style: string | null
           theme: string | null
@@ -1527,6 +1716,7 @@ export type Database = {
           ambito_capostipite?:
             | Database["public"]["Enums"]["ambito_capostipite"]
             | null
+          archived_at?: string | null
           business_model?: string
           ceremony_city?: string | null
           ceremony_contact_email?: string | null
@@ -1546,20 +1736,27 @@ export type Database = {
           destination_location?: string | null
           event_kind?: string
           evento_stato?: Database["public"]["Enums"]["evento_stato"]
+          external_uid?: string | null
           guest_count?: number | null
           honeymoon_destination?: string | null
           honeymoon_end?: string | null
           honeymoon_notes?: string | null
           honeymoon_start?: string | null
+          ical_feed_id?: string | null
           id?: string
           is_destination?: boolean
+          is_test?: boolean
           modalita_incasso?:
             | Database["public"]["Enums"]["modalita_incasso"]
             | null
           option_expires_at?: string | null
+          option_reminder1_at?: string | null
+          option_reminder2_at?: string | null
           option_requested_by?: string | null
           owner_id: string
           quote_id?: string | null
+          site_export?: boolean
+          source?: string
           status?: Database["public"]["Enums"]["entry_status"]
           tables_naming_style?: string | null
           theme?: string | null
@@ -1573,6 +1770,7 @@ export type Database = {
           ambito_capostipite?:
             | Database["public"]["Enums"]["ambito_capostipite"]
             | null
+          archived_at?: string | null
           business_model?: string
           ceremony_city?: string | null
           ceremony_contact_email?: string | null
@@ -1592,20 +1790,27 @@ export type Database = {
           destination_location?: string | null
           event_kind?: string
           evento_stato?: Database["public"]["Enums"]["evento_stato"]
+          external_uid?: string | null
           guest_count?: number | null
           honeymoon_destination?: string | null
           honeymoon_end?: string | null
           honeymoon_notes?: string | null
           honeymoon_start?: string | null
+          ical_feed_id?: string | null
           id?: string
           is_destination?: boolean
+          is_test?: boolean
           modalita_incasso?:
             | Database["public"]["Enums"]["modalita_incasso"]
             | null
           option_expires_at?: string | null
+          option_reminder1_at?: string | null
+          option_reminder2_at?: string | null
           option_requested_by?: string | null
           owner_id?: string
           quote_id?: string | null
+          site_export?: boolean
+          source?: string
           status?: Database["public"]["Enums"]["entry_status"]
           tables_naming_style?: string | null
           theme?: string | null
@@ -1616,6 +1821,13 @@ export type Database = {
           wedding_website_slug?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "calendar_entries_ical_feed_id_fkey"
+            columns: ["ical_feed_id"]
+            isOneToOne: false
+            referencedRelation: "user_ical_feeds"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "calendar_entries_owner_id_fkey"
             columns: ["owner_id"]
@@ -2558,6 +2770,88 @@ export type Database = {
           },
         ]
       }
+      contract_payments: {
+        Row: {
+          amount: number
+          contract_id: string
+          created_at: string
+          due_date: string | null
+          due_hint: string | null
+          id: string
+          label: string
+          method: string | null
+          notes: string | null
+          owner_id: string
+          paid: boolean
+          paid_amount: number | null
+          paid_at: string | null
+          percent: number | null
+          reference: string | null
+          seq: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          contract_id: string
+          created_at?: string
+          due_date?: string | null
+          due_hint?: string | null
+          id?: string
+          label: string
+          method?: string | null
+          notes?: string | null
+          owner_id: string
+          paid?: boolean
+          paid_amount?: number | null
+          paid_at?: string | null
+          percent?: number | null
+          reference?: string | null
+          seq: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          due_date?: string | null
+          due_hint?: string | null
+          id?: string
+          label?: string
+          method?: string | null
+          notes?: string | null
+          owner_id?: string
+          paid?: boolean
+          paid_amount?: number | null
+          paid_at?: string | null
+          percent?: number | null
+          reference?: string | null
+          seq?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_payments_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_payments_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           access_token: string | null
@@ -2584,6 +2878,7 @@ export type Database = {
           event_date: string | null
           event_kind: string
           id: string
+          is_test: boolean
           owner_id: string
           party_kind: Database["public"]["Enums"]["contract_party_kind"]
           pdf_url: string | null
@@ -2631,6 +2926,7 @@ export type Database = {
           event_date?: string | null
           event_kind?: string
           id?: string
+          is_test?: boolean
           owner_id: string
           party_kind?: Database["public"]["Enums"]["contract_party_kind"]
           pdf_url?: string | null
@@ -2678,6 +2974,7 @@ export type Database = {
           event_date?: string | null
           event_kind?: string
           id?: string
+          is_test?: boolean
           owner_id?: string
           party_kind?: Database["public"]["Enums"]["contract_party_kind"]
           pdf_url?: string | null
@@ -3052,6 +3349,86 @@ export type Database = {
           },
         ]
       }
+      couple_visits: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          last_seen_at: string
+          section: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          last_seen_at?: string
+          section: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          last_seen_at?: string
+          section?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "couple_visits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_visits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_visits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_visits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "couple_visits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "couple_visits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_visits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       deletion_log: {
         Row: {
           consent_lose_all: boolean | null
@@ -3173,6 +3550,24 @@ export type Database = {
             referencedColumns: ["supplier_id"]
           },
         ]
+      }
+      digest_sends: {
+        Row: {
+          data_digest: string
+          destinatario_id: string
+          sent_at: string
+        }
+        Insert: {
+          data_digest: string
+          destinatario_id: string
+          sent_at?: string
+        }
+        Update: {
+          data_digest?: string
+          destinatario_id?: string
+          sent_at?: string
+        }
+        Relationships: []
       }
       drive_connections: {
         Row: {
@@ -7531,6 +7926,177 @@ export type Database = {
         }
         Relationships: []
       }
+      fic_connections: {
+        Row: {
+          access_token_enc: string | null
+          company_id: string
+          company_name: string | null
+          connected_at: string
+          professional_id: string
+          refresh_token_enc: string | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token_enc?: string | null
+          company_id: string
+          company_name?: string | null
+          connected_at?: string
+          professional_id: string
+          refresh_token_enc?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token_enc?: string | null
+          company_id?: string
+          company_name?: string | null
+          connected_at?: string
+          professional_id?: string
+          refresh_token_enc?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fic_connections_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fic_connections_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: true
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fic_numerations: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          label: string
+          numeration: string | null
+          professional_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label: string
+          numeration?: string | null
+          professional_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          numeration?: string | null
+          professional_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fic_numerations_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fic_numerations_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      fic_oauth_states: {
+        Row: {
+          created_at: string
+          professional_id: string
+          state: string
+        }
+        Insert: {
+          created_at?: string
+          professional_id: string
+          state: string
+        }
+        Update: {
+          created_at?: string
+          professional_id?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fic_oauth_states_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fic_oauth_states_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      filo_signal_state: {
+        Row: {
+          ack_state: string | null
+          acked_at: string | null
+          first_seen_at: string
+          key: string
+          last_seen_at: string
+          snooze_until: string | null
+          state: string | null
+          user_id: string
+        }
+        Insert: {
+          ack_state?: string | null
+          acked_at?: string | null
+          first_seen_at?: string
+          key: string
+          last_seen_at?: string
+          snooze_until?: string | null
+          state?: string | null
+          user_id: string
+        }
+        Update: {
+          ack_state?: string | null
+          acked_at?: string | null
+          first_seen_at?: string
+          key?: string
+          last_seen_at?: string
+          snooze_until?: string | null
+          state?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "filo_signal_state_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "filo_signal_state_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       finance_applications: {
         Row: {
           amount: number
@@ -7850,6 +8416,9 @@ export type Database = {
       }
       gallery_folders: {
         Row: {
+          album_selectable: boolean
+          allow_dl_full: boolean
+          allow_dl_web: boolean
           assigned_subrole: string | null
           assigned_to: string | null
           created_at: string
@@ -7866,6 +8435,9 @@ export type Database = {
           sort_order: number
         }
         Insert: {
+          album_selectable?: boolean
+          allow_dl_full?: boolean
+          allow_dl_web?: boolean
           assigned_subrole?: string | null
           assigned_to?: string | null
           created_at?: string
@@ -7882,6 +8454,9 @@ export type Database = {
           sort_order?: number
         }
         Update: {
+          album_selectable?: boolean
+          allow_dl_full?: boolean
+          allow_dl_web?: boolean
           assigned_subrole?: string | null
           assigned_to?: string | null
           created_at?: string
@@ -8047,6 +8622,8 @@ export type Database = {
           is_for_sale: boolean
           media_type: Database["public"]["Enums"]["gallery_media_type"]
           no_minors: boolean
+          pick_couple: boolean
+          pick_photographer: boolean
           price_cents: number | null
           promo_consent: boolean
           source_name: string | null
@@ -8070,6 +8647,8 @@ export type Database = {
           is_for_sale?: boolean
           media_type?: Database["public"]["Enums"]["gallery_media_type"]
           no_minors?: boolean
+          pick_couple?: boolean
+          pick_photographer?: boolean
           price_cents?: number | null
           promo_consent?: boolean
           source_name?: string | null
@@ -8093,6 +8672,8 @@ export type Database = {
           is_for_sale?: boolean
           media_type?: Database["public"]["Enums"]["gallery_media_type"]
           no_minors?: boolean
+          pick_couple?: boolean
+          pick_photographer?: boolean
           price_cents?: number | null
           promo_consent?: boolean
           source_name?: string | null
@@ -8215,8 +8796,11 @@ export type Database = {
       }
       gallery_selection: {
         Row: {
+          deadline: string | null
           entry_id: string
           gallery_id: string
+          last_reminder_on: string | null
+          reopen_requested_at: string | null
           round: number
           status: string
           submitted_at: string | null
@@ -8225,8 +8809,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          deadline?: string | null
           entry_id: string
           gallery_id: string
+          last_reminder_on?: string | null
+          reopen_requested_at?: string | null
           round?: number
           status?: string
           submitted_at?: string | null
@@ -8235,8 +8822,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          deadline?: string | null
           entry_id?: string
           gallery_id?: string
+          last_reminder_on?: string | null
+          reopen_requested_at?: string | null
           round?: number
           status?: string
           submitted_at?: string | null
@@ -8389,6 +8979,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gisko_wix_picks: {
+        Row: {
+          photo_id: string
+          scelta: string
+          updated_at: string
+        }
+        Insert: {
+          photo_id: string
+          scelta: string
+          updated_at?: string
+        }
+        Update: {
+          photo_id?: string
+          scelta?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       google_calendar_busy: {
         Row: {
@@ -9856,6 +10464,119 @@ export type Database = {
           },
         ]
       }
+      network_settlements: {
+        Row: {
+          amount_due: number
+          amount_paid: number
+          capostipite_id: string
+          created_at: string
+          direction: string
+          entry_id: string | null
+          id: string
+          quote_id: string
+          status: string
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_due?: number
+          amount_paid?: number
+          capostipite_id: string
+          created_at?: string
+          direction: string
+          entry_id?: string | null
+          id?: string
+          quote_id: string
+          status?: string
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number
+          amount_paid?: number
+          capostipite_id?: string
+          created_at?: string
+          direction?: string
+          entry_id?: string | null
+          id?: string
+          quote_id?: string
+          status?: string
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_settlements_capostipite_id_fkey"
+            columns: ["capostipite_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_settlements_capostipite_id_fkey"
+            columns: ["capostipite_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "network_settlements_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_settlements_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_settlements_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_settlements_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "network_settlements_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "network_settlements_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_settlements_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_settlements_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       notification_dispatch_failures: {
         Row: {
           created_at: string
@@ -10437,36 +11158,45 @@ export type Database = {
       price_surcharges: {
         Row: {
           active: boolean
+          base_place: string | null
           created_at: string
           date_from: string | null
           date_to: string | null
           fornitore_id: string
+          free_km: number
           id: string
           kind: string
           label: string
-          percent: number
+          per_km: number | null
+          percent: number | null
         }
         Insert: {
           active?: boolean
+          base_place?: string | null
           created_at?: string
           date_from?: string | null
           date_to?: string | null
           fornitore_id: string
+          free_km?: number
           id?: string
           kind: string
           label: string
-          percent: number
+          per_km?: number | null
+          percent?: number | null
         }
         Update: {
           active?: boolean
+          base_place?: string | null
           created_at?: string
           date_from?: string | null
           date_to?: string | null
           fornitore_id?: string
+          free_km?: number
           id?: string
           kind?: string
           label?: string
-          percent?: number
+          per_km?: number | null
+          percent?: number | null
         }
         Relationships: [
           {
@@ -10823,6 +11553,7 @@ export type Database = {
           business_legal_name: string | null
           business_name: string | null
           capacita_secondarie: string[]
+          capostipite_sale_mode: string
           city: string | null
           country: string | null
           cover_image_url: string | null
@@ -10840,6 +11571,8 @@ export type Database = {
           fiscal_code: string | null
           founding_member_at: string | null
           full_name: string | null
+          funnel_contested_enabled: boolean
+          funnel_followup_enabled: boolean
           id: string
           instagram: string | null
           is_album_lab: boolean
@@ -10858,7 +11591,11 @@ export type Database = {
           onboarding_completato_il: string | null
           onboarding_complete: boolean
           parcella_default: number | null
+          pay_balance_pct: number
+          pay_deposit_pct: number
+          pay_second_pct: number
           pec_email: string | null
+          personal_site_sync: boolean
           phone: string | null
           platform_terms_accepted_at: string | null
           platform_terms_version: number | null
@@ -10870,6 +11607,8 @@ export type Database = {
           referral_code: string | null
           referral_credit: number
           referred_by: string | null
+          review_url_google: string | null
+          review_url_matrimonio: string | null
           role: Database["public"]["Enums"]["user_role"]
           sdi_code: string | null
           service_radius_km: number | null
@@ -10884,6 +11623,7 @@ export type Database = {
           tiktok: string | null
           trial_started_at: string | null
           tutorial_state: Json
+          ultimatum_discount_percent: number
           updated_at: string
           vat_number: string | null
           website: string | null
@@ -10904,6 +11644,7 @@ export type Database = {
           business_legal_name?: string | null
           business_name?: string | null
           capacita_secondarie?: string[]
+          capostipite_sale_mode?: string
           city?: string | null
           country?: string | null
           cover_image_url?: string | null
@@ -10921,6 +11662,8 @@ export type Database = {
           fiscal_code?: string | null
           founding_member_at?: string | null
           full_name?: string | null
+          funnel_contested_enabled?: boolean
+          funnel_followup_enabled?: boolean
           id: string
           instagram?: string | null
           is_album_lab?: boolean
@@ -10939,7 +11682,11 @@ export type Database = {
           onboarding_completato_il?: string | null
           onboarding_complete?: boolean
           parcella_default?: number | null
+          pay_balance_pct?: number
+          pay_deposit_pct?: number
+          pay_second_pct?: number
           pec_email?: string | null
+          personal_site_sync?: boolean
           phone?: string | null
           platform_terms_accepted_at?: string | null
           platform_terms_version?: number | null
@@ -10951,6 +11698,8 @@ export type Database = {
           referral_code?: string | null
           referral_credit?: number
           referred_by?: string | null
+          review_url_google?: string | null
+          review_url_matrimonio?: string | null
           role: Database["public"]["Enums"]["user_role"]
           sdi_code?: string | null
           service_radius_km?: number | null
@@ -10965,6 +11714,7 @@ export type Database = {
           tiktok?: string | null
           trial_started_at?: string | null
           tutorial_state?: Json
+          ultimatum_discount_percent?: number
           updated_at?: string
           vat_number?: string | null
           website?: string | null
@@ -10985,6 +11735,7 @@ export type Database = {
           business_legal_name?: string | null
           business_name?: string | null
           capacita_secondarie?: string[]
+          capostipite_sale_mode?: string
           city?: string | null
           country?: string | null
           cover_image_url?: string | null
@@ -11002,6 +11753,8 @@ export type Database = {
           fiscal_code?: string | null
           founding_member_at?: string | null
           full_name?: string | null
+          funnel_contested_enabled?: boolean
+          funnel_followup_enabled?: boolean
           id?: string
           instagram?: string | null
           is_album_lab?: boolean
@@ -11020,7 +11773,11 @@ export type Database = {
           onboarding_completato_il?: string | null
           onboarding_complete?: boolean
           parcella_default?: number | null
+          pay_balance_pct?: number
+          pay_deposit_pct?: number
+          pay_second_pct?: number
           pec_email?: string | null
+          personal_site_sync?: boolean
           phone?: string | null
           platform_terms_accepted_at?: string | null
           platform_terms_version?: number | null
@@ -11032,6 +11789,8 @@ export type Database = {
           referral_code?: string | null
           referral_credit?: number
           referred_by?: string | null
+          review_url_google?: string | null
+          review_url_matrimonio?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           sdi_code?: string | null
           service_radius_km?: number | null
@@ -11046,6 +11805,7 @@ export type Database = {
           tiktok?: string | null
           trial_started_at?: string | null
           tutorial_state?: Json
+          ultimatum_discount_percent?: number
           updated_at?: string
           vat_number?: string | null
           website?: string | null
@@ -11078,6 +11838,27 @@ export type Database = {
           nome?: string
           provincia?: string
           regione?: string
+        }
+        Relationships: []
+      }
+      public_form_attempts: {
+        Row: {
+          created_at: string
+          id: number
+          ip: string
+          kind: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          ip: string
+          kind: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          ip?: string
+          kind?: string
         }
         Relationships: []
       }
@@ -11260,6 +12041,45 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_item_clicks: {
+        Row: {
+          clicks: number
+          first_clicked_at: string
+          item_id: string
+          last_clicked_at: string
+          quote_id: string
+        }
+        Insert: {
+          clicks?: number
+          first_clicked_at?: string
+          item_id: string
+          last_clicked_at?: string
+          quote_id: string
+        }
+        Update: {
+          clicks?: number
+          first_clicked_at?: string
+          item_id?: string
+          last_clicked_at?: string
+          quote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_item_clicks_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "quote_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_item_clicks_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_items: {
         Row: {
           alternative_group: string | null
@@ -11272,6 +12092,7 @@ export type Database = {
           description_snapshot: string | null
           erogatore_e_capostipite: boolean
           id: string
+          is_gift: boolean
           is_optional: boolean
           item_discount_percent: number
           item_markup_percent: number | null
@@ -11290,12 +12111,14 @@ export type Database = {
           service_id: string | null
           snapshot_price: number
           sort_order: number
+          supplier_blind: boolean | null
           supplier_confirmed_at: string | null
           supplier_confirmed_by: string | null
           supplier_counter_at: string | null
           supplier_counter_note: string | null
           supplier_id: string | null
           supplier_presence: string | null
+          supplier_proposed_discount_percent: number | null
           unit_snapshot: Database["public"]["Enums"]["service_unit"]
           updated_at: string
         }
@@ -11310,6 +12133,7 @@ export type Database = {
           description_snapshot?: string | null
           erogatore_e_capostipite?: boolean
           id?: string
+          is_gift?: boolean
           is_optional?: boolean
           item_discount_percent?: number
           item_markup_percent?: number | null
@@ -11328,12 +12152,14 @@ export type Database = {
           service_id?: string | null
           snapshot_price: number
           sort_order?: number
+          supplier_blind?: boolean | null
           supplier_confirmed_at?: string | null
           supplier_confirmed_by?: string | null
           supplier_counter_at?: string | null
           supplier_counter_note?: string | null
           supplier_id?: string | null
           supplier_presence?: string | null
+          supplier_proposed_discount_percent?: number | null
           unit_snapshot?: Database["public"]["Enums"]["service_unit"]
           updated_at?: string
         }
@@ -11348,6 +12174,7 @@ export type Database = {
           description_snapshot?: string | null
           erogatore_e_capostipite?: boolean
           id?: string
+          is_gift?: boolean
           is_optional?: boolean
           item_discount_percent?: number
           item_markup_percent?: number | null
@@ -11366,12 +12193,14 @@ export type Database = {
           service_id?: string | null
           snapshot_price?: number
           sort_order?: number
+          supplier_blind?: boolean | null
           supplier_confirmed_at?: string | null
           supplier_confirmed_by?: string | null
           supplier_counter_at?: string | null
           supplier_counter_note?: string | null
           supplier_id?: string | null
           supplier_presence?: string | null
+          supplier_proposed_discount_percent?: number | null
           unit_snapshot?: Database["public"]["Enums"]["service_unit"]
           updated_at?: string
         }
@@ -11417,6 +12246,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      quote_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          quote_id: string
+          read_at: string | null
+          sender_id: string
+          sender_role: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          kind?: string
+          quote_id: string
+          read_at?: string | null
+          sender_id: string
+          sender_role: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          quote_id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_messages_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -11671,6 +12541,82 @@ export type Database = {
           },
         ]
       }
+      quote_ultimatums: {
+        Row: {
+          created_at: string
+          discount_applied: boolean
+          discount_email_at: string | null
+          discount_percent: number
+          expires_at: string
+          id: string
+          note: string | null
+          owner_id: string
+          price_related: boolean
+          quote_id: string
+          reason: Database["public"]["Enums"]["ultimatum_reason"] | null
+          responded_at: string | null
+          sent_at: string
+          still_interested: boolean | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          discount_applied?: boolean
+          discount_email_at?: string | null
+          discount_percent?: number
+          expires_at?: string
+          id?: string
+          note?: string | null
+          owner_id: string
+          price_related?: boolean
+          quote_id: string
+          reason?: Database["public"]["Enums"]["ultimatum_reason"] | null
+          responded_at?: string | null
+          sent_at?: string
+          still_interested?: boolean | null
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          discount_applied?: boolean
+          discount_email_at?: string | null
+          discount_percent?: number
+          expires_at?: string
+          id?: string
+          note?: string | null
+          owner_id?: string
+          price_related?: boolean
+          quote_id?: string
+          reason?: Database["public"]["Enums"]["ultimatum_reason"] | null
+          responded_at?: string | null
+          sent_at?: string
+          still_interested?: boolean | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_ultimatums_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_ultimatums_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "quote_ultimatums_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_view_consents: {
         Row: {
           client_email: string
@@ -11755,6 +12701,7 @@ export type Database = {
           accepted_at: string | null
           access_token: string | null
           access_token_expires_at: string | null
+          allow_supplier_suggestions: boolean
           archived_at: string | null
           client_country: string | null
           client_email: string | null
@@ -11765,6 +12712,10 @@ export type Database = {
           date_contested_notified_at: string | null
           default_markup_percent: number
           direct_client_id: string | null
+          distance_detail: Json
+          distance_km: number | null
+          distance_surcharge: number
+          engagement_notified_at: string | null
           event_date: string | null
           event_kind: string
           event_location: string | null
@@ -11774,8 +12725,11 @@ export type Database = {
           funnel_paused: boolean
           guest_count: number | null
           id: string
+          is_test: boolean
           last_followup_at: string | null
           last_opened_at: string | null
+          lead_source: string | null
+          location_id: string | null
           margin_amount: number
           margin_mode: Database["public"]["Enums"]["margin_mode"]
           margin_percent: number
@@ -11813,6 +12767,7 @@ export type Database = {
           accepted_at?: string | null
           access_token?: string | null
           access_token_expires_at?: string | null
+          allow_supplier_suggestions?: boolean
           archived_at?: string | null
           client_country?: string | null
           client_email?: string | null
@@ -11823,6 +12778,10 @@ export type Database = {
           date_contested_notified_at?: string | null
           default_markup_percent?: number
           direct_client_id?: string | null
+          distance_detail?: Json
+          distance_km?: number | null
+          distance_surcharge?: number
+          engagement_notified_at?: string | null
           event_date?: string | null
           event_kind?: string
           event_location?: string | null
@@ -11832,8 +12791,11 @@ export type Database = {
           funnel_paused?: boolean
           guest_count?: number | null
           id?: string
+          is_test?: boolean
           last_followup_at?: string | null
           last_opened_at?: string | null
+          lead_source?: string | null
+          location_id?: string | null
           margin_amount?: number
           margin_mode?: Database["public"]["Enums"]["margin_mode"]
           margin_percent?: number
@@ -11871,6 +12833,7 @@ export type Database = {
           accepted_at?: string | null
           access_token?: string | null
           access_token_expires_at?: string | null
+          allow_supplier_suggestions?: boolean
           archived_at?: string | null
           client_country?: string | null
           client_email?: string | null
@@ -11881,6 +12844,10 @@ export type Database = {
           date_contested_notified_at?: string | null
           default_markup_percent?: number
           direct_client_id?: string | null
+          distance_detail?: Json
+          distance_km?: number | null
+          distance_surcharge?: number
+          engagement_notified_at?: string | null
           event_date?: string | null
           event_kind?: string
           event_location?: string | null
@@ -11890,8 +12857,11 @@ export type Database = {
           funnel_paused?: boolean
           guest_count?: number | null
           id?: string
+          is_test?: boolean
           last_followup_at?: string | null
           last_opened_at?: string | null
+          lead_source?: string | null
+          location_id?: string | null
           margin_amount?: number
           margin_mode?: Database["public"]["Enums"]["margin_mode"]
           margin_percent?: number
@@ -11939,6 +12909,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_clients_dashboard"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
           },
           {
             foreignKeyName: "quotes_owner_id_fkey"
@@ -12186,6 +13170,160 @@ export type Database = {
           {
             foreignKeyName: "referrals_referrer_id_fkey"
             columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      review_clicks: {
+        Row: {
+          clicked_at: string
+          entry_id: string
+          id: string
+          platform: string
+          professional_id: string
+          user_id: string
+        }
+        Insert: {
+          clicked_at?: string
+          entry_id: string
+          id?: string
+          platform: string
+          professional_id: string
+          user_id: string
+        }
+        Update: {
+          clicked_at?: string
+          entry_id?: string
+          id?: string
+          platform?: string
+          professional_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_clicks_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_clicks_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_clicks_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_clicks_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "review_clicks_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "review_clicks_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_clicks_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      review_requests: {
+        Row: {
+          channel: string
+          entry_id: string
+          id: string
+          professional_id: string
+          recipients: string[]
+          sent_at: string
+        }
+        Insert: {
+          channel: string
+          entry_id: string
+          id?: string
+          professional_id: string
+          recipients?: string[]
+          sent_at?: string
+        }
+        Update: {
+          channel?: string
+          entry_id?: string
+          id?: string
+          professional_id?: string
+          recipients?: string[]
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_collab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_entries_for_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_riconciliazione_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "review_requests_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "v_salute_evento"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "review_requests_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_professional_id_fkey"
+            columns: ["professional_id"]
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
@@ -12484,6 +13622,41 @@ export type Database = {
           },
         ]
       }
+      service_plus: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          price: number
+          service_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          price?: number
+          service_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          service_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_plus_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_presets: {
         Row: {
           category_id: string | null
@@ -12552,12 +13725,14 @@ export type Database = {
         Row: {
           album_ref: string | null
           base_price: number
+          capostipite_can_edit: boolean
           category_id: string
           created_at: string
           description: string | null
           display_order: number
           fornitore_id: string
           id: string
+          imported_template_id: string | null
           is_active: boolean
           name: string
           tags: string[]
@@ -12567,12 +13742,14 @@ export type Database = {
         Insert: {
           album_ref?: string | null
           base_price: number
+          capostipite_can_edit?: boolean
           category_id: string
           created_at?: string
           description?: string | null
           display_order?: number
           fornitore_id: string
           id?: string
+          imported_template_id?: string | null
           is_active?: boolean
           name: string
           tags?: string[]
@@ -12582,12 +13759,14 @@ export type Database = {
         Update: {
           album_ref?: string | null
           base_price?: number
+          capostipite_can_edit?: boolean
           category_id?: string
           created_at?: string
           description?: string | null
           display_order?: number
           fornitore_id?: string
           id?: string
+          imported_template_id?: string | null
           is_active?: boolean
           name?: string
           tags?: string[]
@@ -12615,6 +13794,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "supplier_trial_status"
             referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "services_imported_template_id_fkey"
+            columns: ["imported_template_id"]
+            isOneToOne: false
+            referencedRelation: "servizio_template"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -13385,6 +14571,7 @@ export type Database = {
       supplier_clients: {
         Row: {
           address: string | null
+          automations_blocked_at: string | null
           budget_max: number | null
           budget_min: number | null
           business_name: string | null
@@ -13398,6 +14585,7 @@ export type Database = {
           full_name: string
           guest_estimate: number | null
           id: string
+          is_test: boolean
           location_text: string | null
           notes: string | null
           partner_name: string | null
@@ -13416,6 +14604,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          automations_blocked_at?: string | null
           budget_max?: number | null
           budget_min?: number | null
           business_name?: string | null
@@ -13429,6 +14618,7 @@ export type Database = {
           full_name: string
           guest_estimate?: number | null
           id?: string
+          is_test?: boolean
           location_text?: string | null
           notes?: string | null
           partner_name?: string | null
@@ -13447,6 +14637,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          automations_blocked_at?: string | null
           budget_max?: number | null
           budget_min?: number | null
           business_name?: string | null
@@ -13460,6 +14651,7 @@ export type Database = {
           full_name?: string
           guest_estimate?: number | null
           id?: string
+          is_test?: boolean
           location_text?: string | null
           notes?: string | null
           partner_name?: string | null
@@ -13956,6 +15148,7 @@ export type Database = {
           invited_at: string
           message: string | null
           role_key: string | null
+          source_quote_id: string | null
           status: string
           subrole_hint: string | null
           target_role: string
@@ -13973,6 +15166,7 @@ export type Database = {
           invited_at?: string
           message?: string | null
           role_key?: string | null
+          source_quote_id?: string | null
           status?: string
           subrole_hint?: string | null
           target_role?: string
@@ -13990,6 +15184,7 @@ export type Database = {
           invited_at?: string
           message?: string | null
           role_key?: string | null
+          source_quote_id?: string | null
           status?: string
           subrole_hint?: string | null
           target_role?: string
@@ -14045,6 +15240,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_salute_evento"
             referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "supplier_invites_source_quote_id_fkey"
+            columns: ["source_quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -14176,6 +15378,7 @@ export type Database = {
           id: string
           quote_id: string | null
           referrer_id: string
+          referrer_notified_quote_at: string | null
           status: string
           suggested_id: string
         }
@@ -14195,6 +15398,7 @@ export type Database = {
           id?: string
           quote_id?: string | null
           referrer_id: string
+          referrer_notified_quote_at?: string | null
           status?: string
           suggested_id: string
         }
@@ -14214,6 +15418,7 @@ export type Database = {
           id?: string
           quote_id?: string | null
           referrer_id?: string
+          referrer_notified_quote_at?: string | null
           status?: string
           suggested_id?: string
         }
@@ -14339,6 +15544,7 @@ export type Database = {
           id: string
           quote_id: string | null
           referrer_id: string
+          reminder_sent_at: string | null
           source_quote_id: string | null
           status: string
           supplier_id: string
@@ -14353,6 +15559,7 @@ export type Database = {
           id?: string
           quote_id?: string | null
           referrer_id: string
+          reminder_sent_at?: string | null
           source_quote_id?: string | null
           status?: string
           supplier_id: string
@@ -14367,6 +15574,7 @@ export type Database = {
           id?: string
           quote_id?: string | null
           referrer_id?: string
+          reminder_sent_at?: string | null
           source_quote_id?: string | null
           status?: string
           supplier_id?: string
@@ -14873,6 +16081,78 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      ui_translations: {
+        Row: {
+          lang: string
+          source: string
+          src_hash: string | null
+          translated: string
+          updated_at: string
+        }
+        Insert: {
+          lang: string
+          source: string
+          src_hash?: string | null
+          translated: string
+          updated_at?: string
+        }
+        Update: {
+          lang?: string
+          source?: string
+          src_hash?: string | null
+          translated?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_ical_feeds: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          last_count: number | null
+          last_status: string | null
+          last_synced_at: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_count?: number | null
+          last_status?: string | null
+          last_synced_at?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_count?: number | null
+          last_status?: string | null
+          last_synced_at?: string | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_ical_feeds_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_ical_feeds_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_trial_status"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
       }
       user_notifications: {
         Row: {
@@ -15496,6 +16776,7 @@ export type Database = {
           event_kind: string | null
           full_name: string | null
           id: string | null
+          is_test: boolean | null
           partner_name: string | null
           phone: string | null
           quote_count: number | null
@@ -15512,6 +16793,7 @@ export type Database = {
           event_kind?: string | null
           full_name?: string | null
           id?: string | null
+          is_test?: boolean | null
           partner_name?: string | null
           phone?: string | null
           quote_count?: never
@@ -15528,6 +16810,7 @@ export type Database = {
           event_kind?: string | null
           full_name?: string | null
           id?: string | null
+          is_test?: boolean | null
           partner_name?: string | null
           phone?: string | null
           quote_count?: never
@@ -15657,6 +16940,7 @@ export type Database = {
     }
     Functions: {
       _addendum_build: { Args: { p_quote_id: string }; Returns: Json }
+      _album_checklist_allowed: { Args: { p_entry: string }; Returns: boolean }
       _circle_email: {
         Args: {
           p_by: string
@@ -15677,8 +16961,11 @@ export type Database = {
       _gallery_ensure_selection: {
         Args: { p_entry: string; p_gallery: string }
         Returns: {
+          deadline: string | null
           entry_id: string
           gallery_id: string
+          last_reminder_on: string | null
+          reopen_requested_at: string | null
           round: number
           status: string
           submitted_at: string | null
@@ -15705,18 +16992,35 @@ export type Database = {
         Returns: undefined
       }
       _notify_load_config: { Args: never; Returns: boolean }
+      _notify_quote_client_overlap: {
+        Args: { p_quote_id: string }
+        Returns: undefined
+      }
       _photo_circle_member: { Args: { p_entry: string }; Returns: boolean }
       _photo_gallery_owner: { Args: { p_gallery: string }; Returns: boolean }
       _photo_is_guest: { Args: { p_entry: string }; Returns: boolean }
       _photo_lavoro_consented: { Args: { p_entry: string }; Returns: boolean }
       _photo_my_subrole: { Args: never; Returns: string }
+      _populate_network_settlements: {
+        Args: { p_quote_id: string }
+        Returns: undefined
+      }
       _quote_has_signed_act: { Args: { p_quote_id: string }; Returns: boolean }
+      _quote_party: { Args: { p_quote: string }; Returns: string }
       _quote_storage_paths: {
         Args: { p_quote_id: string }
         Returns: {
           bucket: string
           path: string
         }[]
+      }
+      _teardown_dead_supplier_participants: {
+        Args: { p_entry: string }
+        Returns: undefined
+      }
+      _teardown_network_settlements: {
+        Args: { p_quote_id: string }
+        Returns: undefined
       }
       _wedding_storage_paths: {
         Args: { p_entry_id: string }
@@ -15741,6 +17045,7 @@ export type Database = {
           email: string
           id: string
           messaggio: string
+          mondo: string
           nome: string
           provincia_nome: string
           ruolo: string
@@ -15997,6 +17302,10 @@ export type Database = {
         Args: { p_id: string; p_status: string }
         Returns: undefined
       }
+      admin_set_role: {
+        Args: { p_role: string; p_subrole: string; p_user: string }
+        Returns: Json
+      }
       admin_set_setting: {
         Args: { p_key: string; p_value: Json }
         Returns: undefined
@@ -16014,6 +17323,23 @@ export type Database = {
         Returns: Json
       }
       admin_subscriptions: { Args: never; Returns: Json }
+      admin_supplier_activity: {
+        Args: { p_filter?: string; p_search?: string }
+        Returns: {
+          created_at: string
+          email: string
+          first_service_at: string
+          id: string
+          last_sign_in_at: string
+          n_events: number
+          n_photos: number
+          n_quotes: number
+          n_services: number
+          n_services_active: number
+          name: string
+          subrole: string
+        }[]
+      }
       album_add_media: {
         Args: {
           p_entry: string
@@ -16028,6 +17354,11 @@ export type Database = {
       album_approve_layout: { Args: { p_entry: string }; Returns: Json }
       album_can_edit: { Args: { p_entry: string }; Returns: boolean }
       album_catalog_for_entry: { Args: { p_entry: string }; Returns: Json }
+      album_checklist_get: { Args: { p_entry: string }; Returns: Json }
+      album_checklist_toggle: {
+        Args: { p_done: boolean; p_entry: string; p_item: string }
+        Returns: Json
+      }
       album_commission_by_token: { Args: { p_token: string }; Returns: Json }
       album_commission_create: {
         Args: { p_entry: string; p_payload: Json }
@@ -16079,7 +17410,36 @@ export type Database = {
         }
         Returns: Json
       }
+      album_listino_for_entry: { Args: { p_entry: string }; Returns: Json }
       album_nudge_kick: { Args: never; Returns: undefined }
+      album_photos_chosen: { Args: { p_entry: string }; Returns: boolean }
+      album_pin_author_names: {
+        Args: { p_entry_id: string }
+        Returns: {
+          name: string
+          role: string
+          user_id: string
+        }[]
+      }
+      album_pins_inbox: {
+        Args: never
+        Returns: {
+          catalog_id: string
+          client_name: string
+          comment: string
+          created_at: string
+          entry_id: string
+          id: string
+          last_msg_at: string
+          last_msg_role: string
+          msg_count: number
+          page: number
+          pdf_path: string
+          status: string
+          x: number
+          y: number
+        }[]
+      }
       album_price_config_save: {
         Args: { p_config: Json; p_entry: string }
         Returns: Json
@@ -16110,10 +17470,30 @@ export type Database = {
         Returns: Json
       }
       album_set_moments: { Args: { p_items: Json }; Returns: Json }
+      am_i_preset_curator: { Args: never; Returns: boolean }
       annulla_evento: {
         Args: { p_entry_id: string; p_motivo: string }
         Returns: Json
       }
+      api_call_log: {
+        Args: {
+          p_key: string
+          p_method: string
+          p_ms: number
+          p_owner: string
+          p_path: string
+          p_status: number
+        }
+        Returns: undefined
+      }
+      api_calls_recent: { Args: { p_limit?: number }; Returns: Json }
+      api_key_create: {
+        Args: { p_name: string; p_scopes?: string[] }
+        Returns: Json
+      }
+      api_key_resolve: { Args: { p_hash: string }; Returns: Json }
+      api_key_revoke: { Args: { p_id: string }; Returns: Json }
+      api_keys_list: { Args: never; Returns: Json }
       approve_candidacy: { Args: { p_follower: string }; Returns: boolean }
       approve_follow: { Args: { p_follower: string }; Returns: boolean }
       blocca_data_preventivo: {
@@ -16183,6 +17563,10 @@ export type Database = {
       }
       capostipite_event_supplier_contracts: {
         Args: { p_entry_id: string }
+        Returns: Json
+      }
+      capostipite_resolve_supplier_discount: {
+        Args: { p_approve: boolean; p_item_id: string }
         Returns: Json
       }
       carousel_project_get: { Args: { p_entry: string }; Returns: Json }
@@ -16255,6 +17639,7 @@ export type Database = {
       }
       contract_get_by_token: { Args: { p_token: string }; Returns: Json }
       contract_mark_signed_paper: { Args: { p_id: string }; Returns: boolean }
+      contract_payments_sync: { Args: { p_contract_id: string }; Returns: Json }
       contract_sign_by_token: {
         Args: {
           p_signer_fiscal: string
@@ -16289,6 +17674,7 @@ export type Database = {
         Returns: {
           access_token: string | null
           access_token_expires_at: string | null
+          archived_at: string | null
           client_address: string | null
           client_business_name: string | null
           client_city: string | null
@@ -16310,6 +17696,7 @@ export type Database = {
           event_date: string | null
           event_kind: string
           id: string
+          is_test: boolean
           owner_id: string
           party_kind: Database["public"]["Enums"]["contract_party_kind"]
           pdf_url: string | null
@@ -16341,10 +17728,31 @@ export type Database = {
       }
       couple_accept_invite: { Args: { p_token: string }; Returns: boolean }
       couple_access_link: { Args: { p_entry: string }; Returns: Json }
+      couple_get_quote_detail: { Args: { p_quote_id: string }; Returns: Json }
       couple_get_quote_for_entry: {
         Args: { p_entry_id: string }
         Returns: Json
       }
+      couple_has_signed: { Args: never; Returns: boolean }
+      couple_received_quotes: {
+        Args: { p_entry: string }
+        Returns: {
+          is_main: boolean
+          professionista: string
+          quote_id: string
+          quote_origin: string
+          role: string
+          status: string
+          subrole: string
+          total_client: number
+          total_client_selected: number
+        }[]
+      }
+      couple_review_click: {
+        Args: { p_entry: string; p_platform: string; p_pro: string }
+        Returns: Json
+      }
+      couple_review_targets: { Args: { p_entry: string }; Returns: Json }
       couple_save_planning: {
         Args: {
           p_additional_notes: string
@@ -16387,6 +17795,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      couple_set_item_quantity: {
+        Args: { p_item_id: string; p_qty: number }
+        Returns: Json
+      }
+      couple_visit_ping: {
+        Args: { p_entry: string; p_section: string }
+        Returns: Json
+      }
+      couple_visits_summary: { Args: { p_entry: string }; Returns: Json }
       create_contract_from_clauses: {
         Args: {
           p_entry_id: string
@@ -16398,6 +17815,7 @@ export type Database = {
         Returns: {
           access_token: string | null
           access_token_expires_at: string | null
+          archived_at: string | null
           client_address: string | null
           client_business_name: string | null
           client_city: string | null
@@ -16419,6 +17837,7 @@ export type Database = {
           event_date: string | null
           event_kind: string
           id: string
+          is_test: boolean
           owner_id: string
           party_kind: Database["public"]["Enums"]["contract_party_kind"]
           pdf_url: string | null
@@ -16459,6 +17878,10 @@ export type Database = {
         Returns: Json
       }
       create_event_from_lead: { Args: { p_lead_id: string }; Returns: Json }
+      create_quote_from_referral: {
+        Args: { p_referral_id: string }
+        Returns: Json
+      }
       create_quote_from_suggestion: {
         Args: { p_suggestion_id: string }
         Returns: Json
@@ -16478,6 +17901,7 @@ export type Database = {
         Returns: {
           access_token: string | null
           access_token_expires_at: string | null
+          archived_at: string | null
           client_address: string | null
           client_business_name: string | null
           client_city: string | null
@@ -16499,6 +17923,7 @@ export type Database = {
           event_date: string | null
           event_kind: string
           id: string
+          is_test: boolean
           owner_id: string
           party_kind: Database["public"]["Enums"]["contract_party_kind"]
           pdf_url: string | null
@@ -16633,6 +18058,12 @@ export type Database = {
       }
       event_gifts_summary: { Args: { p_entry: string }; Returns: Json }
       event_imported_team: { Args: { p_event_id: string }; Returns: Json }
+      event_pending_invites: {
+        Args: { p_entry: string }
+        Returns: {
+          role_key: string
+        }[]
+      }
       event_supplier_data_passage: {
         Args: { p_entry: string; p_supplier: string }
         Returns: boolean
@@ -16885,16 +18316,29 @@ export type Database = {
           visibility: string
         }[]
       }
+      filo_ack: {
+        Args: { p_days?: number; p_key: string; p_state?: string }
+        Returns: Json
+      }
+      filo_ack_many: { Args: { p_items: Json }; Returns: Json }
+      filo_ago: { Args: { p_ts: string }; Returns: string }
       filo_brief: { Args: never; Returns: Json }
+      filo_durata: { Args: { p_sec: number }; Returns: string }
+      filo_eur: { Args: { p: number }; Returns: string }
+      filo_pct: { Args: { p: number }; Returns: string }
+      filo_sezione: { Args: { p_s: string }; Returns: string }
       fmt_eur_it: { Args: { v: number }; Returns: string }
       follow_stats: { Args: { p_user_id: string }; Returns: Json }
       followed_colleagues: { Args: never; Returns: Json }
       followed_suppliers: { Args: never; Returns: Json }
+      gallery_deadline_kick: { Args: never; Returns: undefined }
       gallery_enable_guest_link: {
         Args: { p_gallery_id: string }
         Returns: Json
       }
+      gallery_force_close: { Args: { p_gallery: string }; Returns: Json }
       gallery_get_by_token: { Args: { p_token: string }; Returns: Json }
+      gallery_get_range: { Args: { p_gallery: string }; Returns: Json }
       gallery_like_counts: {
         Args: { p_entry: string }
         Returns: {
@@ -16907,9 +18351,25 @@ export type Database = {
         Args: { p_keep: boolean; p_media: string; p_token: string }
         Returns: Json
       }
-      gallery_selection_submit: { Args: { p_token: string }; Returns: Json }
+      gallery_selection_reopen: { Args: { p_gallery: string }; Returns: Json }
+      gallery_selection_request_reopen: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+      gallery_selection_submit: {
+        Args: { p_force?: boolean; p_token: string }
+        Returns: Json
+      }
       gallery_selection_undo: {
         Args: { p_media: string; p_token: string }
+        Returns: Json
+      }
+      gallery_set_deadline: {
+        Args: { p_deadline: string; p_gallery: string }
+        Returns: Json
+      }
+      gallery_set_range: {
+        Args: { p_gallery: string; p_max: number; p_min: number }
         Returns: Json
       }
       gen_referral_code: { Args: never; Returns: string }
@@ -16940,6 +18400,10 @@ export type Database = {
         Returns: Json
       }
       get_supplier_public_profile: { Args: { p_slug: string }; Returns: Json }
+      get_ui_translations: {
+        Args: { p_lang: string; p_sources: string[] }
+        Returns: Json
+      }
       get_wp_public_profile: { Args: { p_slug: string }; Returns: Json }
       gift_can_manage: { Args: { p_entry: string }; Returns: boolean }
       guest_add_media:
@@ -16969,6 +18433,10 @@ export type Database = {
         Args: { p_supplier: string }
         Returns: boolean
       }
+      import_selection: {
+        Args: { p_entry: string; p_source: string; p_target: string }
+        Returns: Json
+      }
       invia_digest_giornaliero: { Args: never; Returns: number }
       invite_code_valid: { Args: { p_code: string }; Returns: Json }
       invite_event_collaborator: {
@@ -16989,6 +18457,10 @@ export type Database = {
       is_evento_member: { Args: { p_entry: string }; Returns: boolean }
       is_quote_owner: { Args: { p_quote: string }; Returns: boolean }
       is_service_owner: { Args: { p_service_id: string }; Returns: boolean }
+      is_suggested_recipient_for_quote: {
+        Args: { p_quote_id: string; p_user?: string }
+        Returns: boolean
+      }
       is_support_staff: { Args: never; Returns: boolean }
       is_token_valid: { Args: { p_expires_at: string }; Returns: boolean }
       is_wedding_couple: { Args: { p_entry: string }; Returns: boolean }
@@ -16996,6 +18468,13 @@ export type Database = {
       join_event_as_guest: {
         Args: { p_gallery_id: string; p_token: string }
         Returns: Json
+      }
+      lead_source_stats: {
+        Args: never
+        Returns: {
+          lead_source: string
+          n: number
+        }[]
       }
       lead_transition: {
         Args: {
@@ -17224,6 +18703,10 @@ export type Database = {
         Args: { p_ids?: string[] }
         Returns: undefined
       }
+      mark_settlement_paid: {
+        Args: { p_amount: number; p_id: string }
+        Returns: Json
+      }
       mask_doc_number: { Args: { p: string }; Returns: string }
       moderate_post: {
         Args: { p_action: string; p_note?: string; p_post_id: string }
@@ -17249,6 +18732,7 @@ export type Database = {
       }
       my_recruiting_earnings: { Args: never; Returns: Json }
       my_referral_stats: { Args: never; Returns: Json }
+      network_finance_overview: { Args: never; Returns: Json }
       network_prospect_delete: { Args: { p_id: string }; Returns: Json }
       network_prospect_log: {
         Args: {
@@ -17316,6 +18800,20 @@ export type Database = {
           subrole: string
         }[]
       }
+      pending_suggestions_count: { Args: never; Returns: number }
+      photographer_adopt_couple: { Args: { p_entry: string }; Returns: number }
+      photographer_set_all: {
+        Args: { p_entry: string; p_pick: boolean }
+        Returns: number
+      }
+      photographer_set_picks: {
+        Args: { p_ids: string[]; p_pick: boolean }
+        Returns: number
+      }
+      photographer_toggle_pick: {
+        Args: { p_media: string; p_pick: boolean }
+        Returns: boolean
+      }
       platform_agreement: { Args: { p_role?: string }; Returns: Json }
       post_comments_list: {
         Args: { p_post_id: string }
@@ -17374,13 +18872,30 @@ export type Database = {
       quote_activity: { Args: { p_quote_id: string }; Returns: Json }
       quote_budget_readiness: { Args: { p_quote_id: string }; Returns: Json }
       quote_close: { Args: { p_quote_id: string }; Returns: boolean }
+      quote_compute_distance_surcharge: {
+        Args: { p_km: number; p_owner: string }
+        Returns: Json
+      }
       quote_compute_surcharge: {
         Args: { p_date: string; p_owner: string }
         Returns: Json
       }
       quote_conclude_by_client: { Args: { p_quote_id: string }; Returns: Json }
       quote_consent_clauses: { Args: never; Returns: Json }
+      quote_event_key: { Args: { p_quote_id: string }; Returns: string }
       quote_get_by_token: { Args: { p_token: string }; Returns: Json }
+      quote_item_engagement: { Args: { p_quote_id: string }; Returns: Json }
+      quote_item_is_blind: {
+        Args: {
+          p_item: Database["public"]["Tables"]["quote_items"]["Row"]
+          p_mode: string
+        }
+        Returns: boolean
+      }
+      quote_items_decide_by_token: {
+        Args: { p_decision: string; p_item_ids: string[]; p_token: string }
+        Returns: Json
+      }
       quote_option_status: { Args: { p_token: string }; Returns: Json }
       quote_pick_alternative: {
         Args: { p_item_id: string; p_token: string }
@@ -17404,6 +18919,12 @@ export type Database = {
         Args: { p_expected_version: number; p_id: string; p_patch: Json }
         Returns: Json
       }
+      quote_send_message: {
+        Args: { p_body: string; p_kind?: string; p_quote: string }
+        Returns: Json
+      }
+      quote_suggestion_conflicts: { Args: { p_quote: string }; Returns: Json }
+      quote_thread: { Args: { p_quote: string }; Returns: Json }
       quote_toggle_option: {
         Args: { p_item_id: string; p_selected: boolean; p_token: string }
         Returns: boolean
@@ -17558,6 +19079,16 @@ export type Database = {
         Returns: Json
       }
       restore_hint: { Args: { p_key: string }; Returns: Json }
+      review_entry_emails: { Args: { p_entry: string }; Returns: string[] }
+      review_is_pro_of_entry: {
+        Args: { p_entry: string; p_uid: string }
+        Returns: boolean
+      }
+      review_request_context: { Args: { p_entry: string }; Returns: Json }
+      review_request_log: {
+        Args: { p_channel: string; p_entry: string }
+        Returns: Json
+      }
       revoke_access_token: {
         Args: { p_id: string; p_kind: string }
         Returns: Json
@@ -17578,12 +19109,23 @@ export type Database = {
         Args: { p_id: string; p_kind: string }
         Returns: Json
       }
+      sanitize_suggestion_answers: { Args: { p: Json }; Returns: Json }
       save_quote_inspirations: {
         Args: { p_inspirations: Json; p_token: string }
         Returns: Json
       }
       sblocca_data_preventivo: { Args: { p_quote_id: string }; Returns: Json }
       scadi_opzioni: { Args: never; Returns: number }
+      search_locations: {
+        Args: { p_q: string }
+        Returns: {
+          business_name: string
+          city: string
+          full_name: string
+          id: string
+          slug: string
+        }[]
+      }
       search_maestranze: {
         Args: {
           p_limit?: number
@@ -17607,6 +19149,15 @@ export type Database = {
           regione: string
           skills: string[]
           total_count: number
+        }[]
+      }
+      search_professionals: {
+        Args: { p_q: string }
+        Returns: {
+          id: string
+          name: string
+          role: string
+          subrole: string
         }[]
       }
       search_suppliers_for_tag: {
@@ -17730,10 +19281,15 @@ export type Database = {
         }
         Returns: Json
       }
+      suggest_alternatives_contacts: {
+        Args: { p_ids: string[] }
+        Returns: Json
+      }
       suggest_alternatives_full: {
         Args: { p_date: string; p_slug: string }
         Returns: Json
       }
+      suggest_guard_for_quote: { Args: { p_quote_id: string }; Returns: Json }
       suggest_supplier_to_event: {
         Args: { p_entry: string; p_kind?: string; p_supplier: string }
         Returns: Json
@@ -17741,6 +19297,18 @@ export type Database = {
       suggest_suppliers_to_client: {
         Args: { p_quote_id: string; p_suggested_ids: string[] }
         Returns: Json
+      }
+      suggested_supplier_names: {
+        Args: never
+        Returns: {
+          name: string
+          subrole: string
+          supplier_id: string
+        }[]
+      }
+      suggestion_event_key: {
+        Args: { p_suggestion_id: string }
+        Returns: string
       }
       supplier_confirm_quote_item: {
         Args: { p_item_id: string }
@@ -17755,6 +19323,7 @@ export type Database = {
           description_snapshot: string | null
           erogatore_e_capostipite: boolean
           id: string
+          is_gift: boolean
           is_optional: boolean
           item_discount_percent: number
           item_markup_percent: number | null
@@ -17773,12 +19342,14 @@ export type Database = {
           service_id: string | null
           snapshot_price: number
           sort_order: number
+          supplier_blind: boolean | null
           supplier_confirmed_at: string | null
           supplier_confirmed_by: string | null
           supplier_counter_at: string | null
           supplier_counter_note: string | null
           supplier_id: string | null
           supplier_presence: string | null
+          supplier_proposed_discount_percent: number | null
           unit_snapshot: Database["public"]["Enums"]["service_unit"]
           updated_at: string
         }
@@ -17800,9 +19371,17 @@ export type Database = {
           status: string
         }[]
       }
+      supplier_decline_referral: {
+        Args: { p_referral_id: string }
+        Returns: Json
+      }
       supplier_event_program: { Args: { p_event_id: string }; Returns: Json }
       supplier_invite_capostipite: { Args: { p_email: string }; Returns: Json }
       supplier_items_to_review: { Args: never; Returns: Json }
+      supplier_leave_collaboration: {
+        Args: { p_capostipite_id: string }
+        Returns: Json
+      }
       supplier_propose_discount: {
         Args: { p_discount_percent: number; p_item_id: string; p_note?: string }
         Returns: Json
@@ -17830,6 +19409,10 @@ export type Database = {
         Args: { p_entry_id: string; p_ua?: string }
         Returns: undefined
       }
+      track_quote_item_click: {
+        Args: { p_item_id: string; p_token: string }
+        Returns: undefined
+      }
       track_quote_open: {
         Args: { p_token: string; p_ua?: string }
         Returns: undefined
@@ -17838,6 +19421,19 @@ export type Database = {
         Args: { p_invite_token: string }
         Returns: undefined
       }
+      ultimatum_freeze_silent: { Args: { p_days?: number }; Returns: Json }
+      ultimatum_get_by_token: { Args: { p_token: string }; Returns: Json }
+      ultimatum_respond_by_token: {
+        Args: {
+          p_interested: boolean
+          p_note?: string
+          p_price?: boolean
+          p_reason?: string
+          p_token: string
+        }
+        Returns: Json
+      }
+      ultimatum_stats: { Args: { p_days?: number }; Returns: Json }
       unread_by_entry: {
         Args: never
         Returns: {
@@ -17916,6 +19512,7 @@ export type Database = {
           invited_at: string
           message: string | null
           role_key: string | null
+          source_quote_id: string | null
           status: string
           subrole_hint: string | null
           target_role: string
@@ -18121,6 +19718,13 @@ export type Database = {
         | "TAXI_NCC"
         | "BARCA"
         | "ALTRO"
+      ultimatum_reason:
+        | "PREZZO"
+        | "ALTRO_FORNITORE"
+        | "DATA"
+        | "RINVIATO"
+        | "NON_PIU"
+        | "ALTRO"
       user_role:
         | "WEDDING_PLANNER"
         | "LOCATION"
@@ -18159,12 +19763,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18188,11 +19792,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18213,11 +19817,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18238,11 +19842,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18255,11 +19859,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -18269,9 +19873,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       accommodation_kind: [
@@ -18480,6 +20081,14 @@ export const Constants = {
         "AUTO_NOLEGGIO",
         "TAXI_NCC",
         "BARCA",
+        "ALTRO",
+      ],
+      ultimatum_reason: [
+        "PREZZO",
+        "ALTRO_FORNITORE",
+        "DATA",
+        "RINVIATO",
+        "NON_PIU",
         "ALTRO",
       ],
       user_role: [
