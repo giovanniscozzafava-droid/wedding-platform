@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ContractPayments } from '@/components/wedding/ContractPayments'
 import { supabase } from '@/lib/supabase'
 
 type Section = { heading: string; body: string }
@@ -336,53 +337,60 @@ export default function SupplierContractsPage() {
                 : c.party_kind === 'SUPPLIER_CLIENT' ? '↔ Cliente'
                 : c.party_kind
               return (
-                <Card key={c.id} className="p-4 flex items-start justify-between gap-3 flex-wrap">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium">{c.title}</h3>
-                    <p className="text-xs text-[rgb(var(--fg-muted))]">
-                      {kindLabel} · {c.entry_title ?? 'evento'}{c.event_date && ` · ${new Date(c.event_date).toLocaleDateString('it-IT')}`}
-                    </p>
-                    <p className="text-xs mt-1">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                        style={{
-                          background:
-                            c.status === 'FIRMATO' ? 'rgb(34 197 94 / 0.18)'
-                            : c.status === 'INVIATO' ? 'rgb(var(--gold-100))'
-                            : 'rgb(var(--bg-sunken))',
-                          color:
-                            c.status === 'FIRMATO' ? 'rgb(34 197 94)'
-                            : c.status === 'INVIATO' ? 'rgb(var(--gold-700))'
-                            : 'rgb(var(--fg-muted))',
-                        }}>
-                        {c.status}
-                      </span>
-                      {c.signed_at && <span className="text-[10px] ml-2 text-[rgb(var(--fg-subtle))]">firmato il {new Date(c.signed_at).toLocaleDateString('it-IT')}</span>}
-                      {c.countersign_at && <span className="text-[10px] ml-2 text-[rgb(var(--fg-subtle))]">controfirmato il {new Date(c.countersign_at).toLocaleDateString('it-IT')}</span>}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 shrink-0 flex-wrap">
-                    <Button variant="outline" size="sm" onClick={() => copyLink(c.access_token)}>
-                      <Copy size={12} /> Link firma
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => emailClient(c.id)}>
-                      <Mail size={12} /> Email cliente
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
-                      waContractToClient({ clientName: c.client_name }),
-                      `${location.origin}/p/contract/${c.access_token}`)}>
-                      <MessageCircle size={12} /> WhatsApp
-                    </Button>
-                    <Button asChild variant="ghost" size="sm">
-                      <Link to={`/p/contract/${c.access_token}`} target="_blank">
-                        <ExternalLink size={12} /> Apri
-                      </Link>
-                    </Button>
-                    {c.status === 'FIRMATO' && !c.countersign_at && (
-                      <Button variant="gold" size="sm" onClick={() => openCountersign(c)}>
-                        <PenLine size={12} /> Controfirma
+                <Card key={c.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-medium">{c.title}</h3>
+                      <p className="text-xs text-[rgb(var(--fg-muted))]">
+                        {kindLabel} · {c.entry_title ?? 'evento'}{c.event_date && ` · ${new Date(c.event_date).toLocaleDateString('it-IT')}`}
+                      </p>
+                      <p className="text-xs mt-1">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                          style={{
+                            background:
+                              c.status === 'FIRMATO' ? 'rgb(34 197 94 / 0.18)'
+                              : c.status === 'INVIATO' ? 'rgb(var(--gold-100))'
+                              : 'rgb(var(--bg-sunken))',
+                            color:
+                              c.status === 'FIRMATO' ? 'rgb(34 197 94)'
+                              : c.status === 'INVIATO' ? 'rgb(var(--gold-700))'
+                              : 'rgb(var(--fg-muted))',
+                          }}>
+                          {c.status}
+                        </span>
+                        {c.signed_at && <span className="text-[10px] ml-2 text-[rgb(var(--fg-subtle))]">firmato il {new Date(c.signed_at).toLocaleDateString('it-IT')}</span>}
+                        {c.countersign_at && <span className="text-[10px] ml-2 text-[rgb(var(--fg-subtle))]">controfirmato il {new Date(c.countersign_at).toLocaleDateString('it-IT')}</span>}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0 flex-wrap">
+                      <Button variant="outline" size="sm" onClick={() => copyLink(c.access_token)}>
+                        <Copy size={12} /> Link firma
                       </Button>
-                    )}
+                      <Button variant="outline" size="sm" onClick={() => emailClient(c.id)}>
+                        <Mail size={12} /> Email cliente
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => shareWhatsAppLink(
+                        waContractToClient({ clientName: c.client_name }),
+                        `${location.origin}/p/contract/${c.access_token}`)}>
+                        <MessageCircle size={12} /> WhatsApp
+                      </Button>
+                      {/* <a> normale, non <Link>: è una pagina pubblica fuori dalla shell, deve
+                          aprire una scheda nuova in modo affidabile anche da mobile Safari. */}
+                      <Button asChild variant="ghost" size="sm">
+                        <a href={`/p/contract/${c.access_token}`} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink size={12} /> Apri
+                        </a>
+                      </Button>
+                      {c.status === 'FIRMATO' && !c.countersign_at && (
+                        <Button variant="gold" size="sm" onClick={() => openCountersign(c)}>
+                          <PenLine size={12} /> Controfirma
+                        </Button>
+                      )}
+                    </div>
                   </div>
+                  {c.status === 'FIRMATO' && (
+                    <ContractPayments contractId={c.id} total={Number(c.total_amount ?? 0)} />
+                  )}
                 </Card>
               )
             })}
