@@ -43,6 +43,8 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ paid_at: '', paid_amount: '', method: 'Bonifico', reference: '', notes: '' })
   const [invoicingId, setInvoicingId] = useState<string | null>(null)
+  const [invoiceFormId, setInvoiceFormId] = useState<string | null>(null)
+  const [invoiceDueDate, setInvoiceDueDate] = useState('')
   const [reconcileId, setReconcileId] = useState<string | null>(null)
   const [reconcileNum, setReconcileNum] = useState('')
   const [reconcileBusy, setReconcileBusy] = useState(false)
@@ -107,14 +109,24 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
     void load()
   }
 
+  // La scadenza è precompilata con quella già sul contratto (r.due_date), ma la
+  // decide il professionista fattura per fattura: la può cambiare qui.
+  function apriCreaFattura(r: Rata) {
+    setInvoiceFormId(r.id)
+    setInvoiceDueDate(r.due_date ?? new Date().toISOString().slice(0, 10))
+  }
+
   async function creaFattura(r: Rata) {
     setInvoicingId(r.id)
     try {
-      const { data, error } = await supabase.functions.invoke('fic-invoice-create', { body: { payment_id: r.id } })
+      const { data, error } = await supabase.functions.invoke('fic-invoice-create', {
+        body: { payment_id: r.id, due_date: invoiceDueDate || undefined },
+      })
       if (error) throw error
       const res = data as { ok?: boolean; error?: string; hint?: string; already?: boolean; fic_invoice_number?: string | number }
       if (res?.error) { toast.error(res.hint ?? res.error); return }
       toast.success(res.already ? 'Fattura già emessa per questa rata' : `Fattura emessa${res.fic_invoice_number ? ` — n. ${res.fic_invoice_number}` : ''}`)
+      setInvoiceFormId(null)
       void load()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Errore creazione fattura')
@@ -177,6 +189,11 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
           <li key={r.id} className="rounded-lg border p-3" style={{ borderColor: 'rgb(var(--border))' }}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
+                {r.due_date && !r.paid && (
+                  <p className="text-xs font-semibold flex items-center gap-1 mb-0.5" style={{ color: 'rgb(var(--gold-700))' }}>
+                    <Calendar size={12} /> da pagare entro il {dmy(r.due_date)}
+                  </p>
+                )}
                 <p className="font-medium text-sm flex items-center gap-1.5">
                   {r.paid
                     ? <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
@@ -184,10 +201,9 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
                   {r.label}
                   {r.percent != null && <span className="text-[rgb(var(--fg-subtle))] font-normal">· {Number(r.percent)}%</span>}
                 </p>
-                <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
-                  {r.due_hint}
-                  {r.due_date && <span className="inline-flex items-center gap-1 ml-1"><Calendar size={11} /> {dmy(r.due_date)}</span>}
-                </p>
+                {r.due_hint && (
+                  <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">{r.due_hint}</p>
+                )}
                 {r.paid && (
                   <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
                     Incassato {r.paid_at ? `il ${dmy(r.paid_at)}` : ''}
@@ -213,10 +229,24 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
 
             {!r.fic_invoice_id && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => void creaFattura(r)} disabled={invoicingId === r.id}>
-                  <Receipt size={13} /> {invoicingId === r.id ? 'Emetto…' : 'Crea fattura'}
+                <Button variant="outline" size="sm" onClick={() => apriCreaFattura(r)}>
+                  <Receipt size={13} /> Crea fattura
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => apriRiconcilia(r)}>Fattura già emessa altrove?</Button>
+              </div>
+            )}
+
+            {invoiceFormId === r.id && (
+              <div className="mt-3 pt-3 border-t flex flex-wrap items-end gap-2" style={{ borderColor: 'rgb(var(--border))' }}>
+                <div>
+                  <Label>Scadenza pagamento fattura</Label>
+                  <Input type="date" value={invoiceDueDate} onChange={(e) => setInvoiceDueDate(e.target.value)} />
+                  <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Puoi dare più o meno giorni di quanto scritto nel contratto.</p>
+                </div>
+                <Button variant="gold" size="sm" disabled={invoicingId === r.id} onClick={() => void creaFattura(r)}>
+                  <Receipt size={13} /> {invoicingId === r.id ? 'Emetto…' : 'Emetti fattura'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setInvoiceFormId(null)}>Annulla</Button>
               </div>
             )}
 

@@ -21,10 +21,14 @@ Deno.serve(async (req) => {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return json({ error: 'auth_required' }, 401)
 
-  let body: { payment_id?: string }
+  let body: { payment_id?: string; due_date?: string }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
   const paymentId = (body.payment_id ?? '').trim()
   if (!paymentId) return json({ error: 'bad_input' }, 400)
+  // Scadenza della fattura: la sceglie il professionista fattura per fattura
+  // (non è detto coincida con la scadenza contrattuale della rata). Formato
+  // YYYY-MM-DD atteso; qualunque altra cosa si ignora invece di rompere la fattura.
+  const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(body.due_date ?? '') ? body.due_date! : null
 
   // RLS su entrambe: la rata e il contratto si leggono solo se sono del chiamante.
   const { data: p, error: pe } = await (sb.from('contract_payments' as any) as any)
@@ -76,6 +80,9 @@ Deno.serve(async (req) => {
       ...(numeration ? { numeration } : {}),
       items_list: [{ name: itemName, qty: 1, net_price: Number(p.amount), vat: { id: conn.default_vat_id } }],
       ...(conn.default_payment_method_id ? { payment_method: { id: conn.default_payment_method_id } } : {}),
+      // Con una scadenza esplicita, un'unica rata di pagamento sulla fattura con
+      // quella data (altrimenti Fatture in Cloud usa il suo default: a vista).
+      ...(dueDate ? { payments_list: [{ amount: Number(p.amount), due_date: dueDate }] } : {}),
     },
   }
 

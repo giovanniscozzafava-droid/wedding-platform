@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'
-import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CircleDashed, MessageCircle, Mail, PenLine, ShieldCheck } from '@/components/icons/lucide'
+import { FileSignature, Plus, Save, Trash2, Edit3, ExternalLink, Copy, X, CircleDashed, MessageCircle, Mail, PenLine, ShieldCheck, ChevronRight } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -76,6 +76,20 @@ export default function SupplierContractsPage() {
   const [csFiscal, setCsFiscal] = useState('')
   const [csConsent, setCsConsent] = useState(false)
   const [csBusy, setCsBusy] = useState(false)
+  // "Apri" mostra il contratto DENTRO Planfully (iframe), non in una scheda a
+  // parte: su mobile una scheda nuova/target=_blank a volte sembra un vicolo
+  // cieco senza modo di tornare indietro. Qui basta una ✕ sempre visibile.
+  const [previewToken, setPreviewToken] = useState<string | null>(null)
+  // Pagamenti/fatture: chiusi di default, si aprono su richiesta — con tutti i
+  // contratti firmati visibili insieme, tenerli sempre aperti è un casino.
+  const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set())
+  function togglePayments(id: string) {
+    setExpandedPayments((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   async function load() {
     setLoading(true)
@@ -374,12 +388,10 @@ export default function SupplierContractsPage() {
                         `${location.origin}/p/contract/${c.access_token}`)}>
                         <MessageCircle size={12} /> WhatsApp
                       </Button>
-                      {/* <a> normale, non <Link>: è una pagina pubblica fuori dalla shell, deve
-                          aprire una scheda nuova in modo affidabile anche da mobile Safari. */}
-                      <Button asChild variant="ghost" size="sm">
-                        <a href={`/p/contract/${c.access_token}`} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink size={12} /> Apri
-                        </a>
+                      {/* Anteprima DENTRO Planfully (iframe): niente scheda nuova ambigua da cui
+                          "non si torna indietro" su mobile. Si chiude con una ✕ sempre lì. */}
+                      <Button variant="ghost" size="sm" onClick={() => setPreviewToken(c.access_token)}>
+                        <ExternalLink size={12} /> Apri
                       </Button>
                       {c.status === 'FIRMATO' && !c.countersign_at && (
                         <Button variant="gold" size="sm" onClick={() => openCountersign(c)}>
@@ -389,7 +401,16 @@ export default function SupplierContractsPage() {
                     </div>
                   </div>
                   {c.status === 'FIRMATO' && (
-                    <ContractPayments contractId={c.id} total={Number(c.total_amount ?? 0)} />
+                    <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+                      <button type="button" onClick={() => togglePayments(c.id)}
+                        className="flex items-center gap-1.5 text-sm font-medium text-[rgb(var(--fg))] hover:text-[rgb(var(--gold-700))]">
+                        <ChevronRight size={14} className={expandedPayments.has(c.id) ? 'rotate-90 transition-transform' : 'transition-transform'} />
+                        Fatture e pagamenti
+                      </button>
+                      {expandedPayments.has(c.id) && (
+                        <ContractPayments contractId={c.id} total={Number(c.total_amount ?? 0)} />
+                      )}
+                    </div>
                   )}
                 </Card>
               )
@@ -397,6 +418,20 @@ export default function SupplierContractsPage() {
           </div>
         </section>
       </div>
+
+      {/* Anteprima contratto DENTRO Planfully: iframe con una ✕ fissa, mai una
+          scheda ambigua da cui "non si torna indietro". */}
+      {previewToken && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/60" onClick={() => setPreviewToken(null)}>
+          <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: 'rgb(var(--bg-elev))' }} onClick={(e) => e.stopPropagation()}>
+            <span className="text-sm font-medium">Anteprima contratto</span>
+            <Button variant="ghost" size="icon" onClick={() => setPreviewToken(null)} aria-label="Chiudi"><X size={18} /></Button>
+          </div>
+          <div className="flex-1 min-h-0" onClick={(e) => e.stopPropagation()}>
+            <iframe src={`/p/contract/${previewToken}`} title="Anteprima contratto" className="w-full h-full border-0" style={{ background: '#FDFBF6' }} />
+          </div>
+        </div>
+      )}
 
       {/* Modale controfirma del fornitore */}
       {csTarget && (
