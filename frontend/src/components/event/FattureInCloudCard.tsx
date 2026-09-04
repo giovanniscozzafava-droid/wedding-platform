@@ -191,6 +191,8 @@ export function FattureInCloudCard() {
           {settings && !settings.ok && (
             <div className="text-xs text-[rgb(var(--danger))] mt-2 space-y-1">
               <p>Non sono riuscito a leggerli automaticamente da Fatture in Cloud (endpoint da verificare insieme).</p>
+              {settings.errors?.vat_types != null && <p className="opacity-70">IVA: {JSON.stringify(settings.errors.vat_types).slice(0, 200)}</p>}
+              {settings.errors?.payment_methods != null && <p className="opacity-70">Pagamenti: {JSON.stringify(settings.errors.payment_methods).slice(0, 200)}</p>}
               <p>Puoi comunque inserire gli ID a mano se li conosci (li vedi nel tuo account Fatture in Cloud).</p>
             </div>
           )}

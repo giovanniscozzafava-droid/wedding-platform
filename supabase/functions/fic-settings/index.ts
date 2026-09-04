@@ -15,23 +15,39 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-  const sb = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } })
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) return json({ error: 'auth_required' }, 401)
+  // Qualunque eccezione qui dentro DEVE comunque tornare come JSON con gli header
+  // CORS: senza, il browser la legge come "impossibile contattare la funzione"
+  // (fetch fallita) invece del vero errore, e in UI compare un messaggio criptico.
+  try {
+    const sb = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } })
+    const { data: { user } } = await sb.auth.getUser()
+    if (!user) return json({ error: 'auth_required' }, 401)
 
-  const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } })
-  const tok = await getFicAccessToken(admin, user.id)
-  if (!tok.ok) return json({ error: tok.error }, 400)
+    const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } })
+    const tok = await getFicAccessToken(admin, user.id)
+    if (!tok.ok) return json({ error: tok.error }, 400)
 
-  const fic = (path: string) => fetch(`https://api-v2.fattureincloud.it/c/${tok.companyId}${path}`, { headers: { Authorization: `Bearer ${tok.accessToken}` } })
+    const fic = (path: string) => fetch(`https://api-v2.fattureincloud.it/c/${tok.companyId}${path}`, { headers: { Authorization: `Bearer ${tok.accessToken}` } })
 
-  const [vr, pr] = await Promise.all([fic('/info/vat_types'), fic('/info/payment_methods')])
-  const [vd, pd] = await Promise.all([vr.json().catch(() => null), pr.json().catch(() => null)])
+    const [vr, pr] = await Promise.all([fic('/info/vat_types'), fic('/info/payment_methods')])
+    const [vraw, praw] = await Promise.all([vr.text(), pr.text()])
+    const vd = (() => { try { return JSON.parse(vraw) } catch { return null } })()
+    const pd = (() => { try { return JSON.parse(praw) } catch { return null } })()
 
-  return json({
-    ok: vr.ok && pr.ok,
-    vat_types: vr.ok ? (vd?.data ?? vd) : null,
-    payment_methods: pr.ok ? (pd?.data ?? pd) : null,
-    errors: { vat_types: vr.ok ? null : { status: vr.status, body: vd }, payment_methods: pr.ok ? null : { status: pr.status, body: pd } },
-  })
+    if (!vr.ok) console.error('fic_settings_vat_types', vr.status, vraw)
+    if (!pr.ok) console.error('fic_settings_payment_methods', pr.status, praw)
+
+    return json({
+      ok: vr.ok && pr.ok,
+      vat_types: vr.ok ? (vd?.data ?? vd) : null,
+      payment_methods: pr.ok ? (pd?.data ?? pd) : null,
+      errors: {
+        vat_types: vr.ok ? null : { status: vr.status, body: (vd ?? vraw)?.toString?.().slice?.(0, 300) ?? vd },
+        payment_methods: pr.ok ? null : { status: pr.status, body: (pd ?? praw)?.toString?.().slice?.(0, 300) ?? pd },
+      },
+    })
+  } catch (e) {
+    console.error('fic_settings_crash', (e as Error).message)
+    return json({ error: 'crash', detail: (e as Error).message }, 500)
+  }
 })
