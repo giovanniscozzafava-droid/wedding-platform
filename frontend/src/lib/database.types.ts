@@ -2877,6 +2877,10 @@ export type Database = {
           entry_id: string | null
           event_date: string | null
           event_kind: string
+          fic_invoice_created_at: string | null
+          fic_invoice_id: string | null
+          fic_invoice_number: string | null
+          fic_invoice_url: string | null
           id: string
           is_test: boolean
           owner_id: string
@@ -2925,6 +2929,10 @@ export type Database = {
           entry_id?: string | null
           event_date?: string | null
           event_kind?: string
+          fic_invoice_created_at?: string | null
+          fic_invoice_id?: string | null
+          fic_invoice_number?: string | null
+          fic_invoice_url?: string | null
           id?: string
           is_test?: boolean
           owner_id: string
@@ -2973,6 +2981,10 @@ export type Database = {
           entry_id?: string | null
           event_date?: string | null
           event_kind?: string
+          fic_invoice_created_at?: string | null
+          fic_invoice_id?: string | null
+          fic_invoice_number?: string | null
+          fic_invoice_url?: string | null
           id?: string
           is_test?: boolean
           owner_id?: string
@@ -7932,6 +7944,8 @@ export type Database = {
           company_id: string
           company_name: string | null
           connected_at: string
+          default_payment_method_id: number | null
+          default_vat_id: number | null
           professional_id: string
           refresh_token_enc: string | null
           token_expires_at: string | null
@@ -7942,6 +7956,8 @@ export type Database = {
           company_id: string
           company_name?: string | null
           connected_at?: string
+          default_payment_method_id?: number | null
+          default_vat_id?: number | null
           professional_id: string
           refresh_token_enc?: string | null
           token_expires_at?: string | null
@@ -7952,6 +7968,8 @@ export type Database = {
           company_id?: string
           company_name?: string | null
           connected_at?: string
+          default_payment_method_id?: number | null
+          default_vat_id?: number | null
           professional_id?: string
           refresh_token_enc?: string | null
           token_expires_at?: string | null
@@ -17695,6 +17713,10 @@ export type Database = {
           entry_id: string | null
           event_date: string | null
           event_kind: string
+          fic_invoice_created_at: string | null
+          fic_invoice_id: string | null
+          fic_invoice_number: string | null
+          fic_invoice_url: string | null
           id: string
           is_test: boolean
           owner_id: string
@@ -17836,6 +17858,10 @@ export type Database = {
           entry_id: string | null
           event_date: string | null
           event_kind: string
+          fic_invoice_created_at: string | null
+          fic_invoice_id: string | null
+          fic_invoice_number: string | null
+          fic_invoice_url: string | null
           id: string
           is_test: boolean
           owner_id: string
@@ -17922,6 +17948,10 @@ export type Database = {
           entry_id: string | null
           event_date: string | null
           event_kind: string
+          fic_invoice_created_at: string | null
+          fic_invoice_id: string | null
+          fic_invoice_number: string | null
+          fic_invoice_url: string | null
           id: string
           is_test: boolean
           owner_id: string
@@ -18315,6 +18345,10 @@ export type Database = {
           title: string
           visibility: string
         }[]
+      }
+      fic_set_defaults: {
+        Args: { p_payment_method_id: number; p_vat_id: number }
+        Returns: Json
       }
       filo_ack: {
         Args: { p_days?: number; p_key: string; p_state?: string }
