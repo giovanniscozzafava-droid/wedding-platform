@@ -1,9 +1,8 @@
-// «Sì, creare la fattura importando i dati dal contratto» — un contratto FIRMATO
-// diventa una fattura su Fatture in Cloud: cliente e importo vengono da lì, non
-// si ridigitano. Un'unica riga (titolo del contratto + totale firmato): il
-// totale è quello che il cliente ha davvero firmato, niente ricalcoli da voci
-// facoltative/alternative del preventivo che potrebbero sbagliare il conto.
-// Idempotente: un contratto già fatturato torna la fattura esistente.
+// «Se il contratto dice 1000 diviso tre, fatturo quella parte» (Giovanni, 04/09/2026).
+// La fattura non è per contratto, è per RATA (contract_payments): un contratto a
+// saldo unico ha comunque una rata sola (contract_payments_sync ne crea sempre
+// almeno una), quindi copre anche quel caso senza un percorso a parte.
+// Idempotente per rata: una rata già fatturata torna la fattura esistente.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { getFicAccessToken } from '../_shared/fic.ts'
 
@@ -22,20 +21,26 @@ Deno.serve(async (req) => {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return json({ error: 'auth_required' }, 401)
 
-  let body: { contract_id?: string; numeration_id?: string }
+  let body: { payment_id?: string }
   try { body = await req.json() } catch { return json({ error: 'bad_json' }, 400) }
-  const contractId = (body.contract_id ?? '').trim()
-  if (!contractId) return json({ error: 'bad_input' }, 400)
+  const paymentId = (body.payment_id ?? '').trim()
+  if (!paymentId) return json({ error: 'bad_input' }, 400)
 
-  // RLS: la riga si legge solo se è del professionista che ha chiamato.
+  // RLS su entrambe: la rata e il contratto si leggono solo se sono del chiamante.
+  const { data: p, error: pe } = await (sb.from('contract_payments' as any) as any)
+    .select('id, contract_id, label, amount, fic_invoice_id, fic_invoice_number')
+    .eq('id', paymentId).maybeSingle()
+  if (pe) return json({ error: 'db_error', detail: pe.message }, 500)
+  if (!p) return json({ error: 'not_found' }, 404)
+  if (p.fic_invoice_id) return json({ ok: true, already: true, fic_invoice_id: p.fic_invoice_id, fic_invoice_number: p.fic_invoice_number })
+  if (!p.amount || Number(p.amount) <= 0) return json({ error: 'no_amount' }, 409)
+
   const { data: c, error: ce } = await sb.from('contracts')
-    .select('id, title, client_name, client_email, client_fiscal_code, client_vat_number, client_business_name, client_address, client_city, client_zip, client_province, client_country, client_sdi_code, client_pec_email, total_amount, signed_at, fic_invoice_id, fic_invoice_number')
-    .eq('id', contractId).maybeSingle()
+    .select('id, title, client_name, client_email, client_fiscal_code, client_vat_number, client_business_name, client_address, client_city, client_zip, client_province, client_country, client_sdi_code, client_pec_email, signed_at')
+    .eq('id', p.contract_id).maybeSingle()
   if (ce) return json({ error: 'db_error', detail: ce.message }, 500)
   if (!c) return json({ error: 'not_found' }, 404)
   if (!c.signed_at) return json({ error: 'not_signed', hint: 'Il contratto non risulta ancora firmato.' }, 409)
-  if (c.fic_invoice_id) return json({ ok: true, already: true, fic_invoice_id: c.fic_invoice_id, fic_invoice_number: c.fic_invoice_number })
-  if (!c.total_amount || Number(c.total_amount) <= 0) return json({ error: 'no_amount', hint: 'Il contratto non ha un importo valido.' }, 409)
 
   const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } })
   const tok = await getFicAccessToken(admin, user.id)
@@ -44,14 +49,8 @@ Deno.serve(async (req) => {
   const { data: conn } = await admin.from('fic_connections').select('default_vat_id, default_payment_method_id').eq('professional_id', user.id).maybeSingle()
   if (!conn?.default_vat_id) return json({ error: 'no_vat_configured', hint: 'Configura prima il tipo di IVA da usare (Impostazioni → Fatture in Cloud).' }, 409)
 
-  let numeration: string | null = null
-  if (body.numeration_id) {
-    const { data: n } = await admin.from('fic_numerations').select('numeration').eq('id', body.numeration_id).eq('professional_id', user.id).maybeSingle()
-    numeration = n?.numeration ?? null
-  } else {
-    const { data: n } = await admin.from('fic_numerations').select('numeration').eq('professional_id', user.id).eq('is_default', true).maybeSingle()
-    numeration = n?.numeration ?? null
-  }
+  const { data: n } = await admin.from('fic_numerations').select('numeration').eq('professional_id', user.id).eq('is_default', true).maybeSingle()
+  const numeration: string | null = n?.numeration ?? null
 
   const entityName = (c.client_business_name || c.client_name || '').trim() || 'Cliente'
   // deno-lint-ignore no-explicit-any
@@ -66,13 +65,14 @@ Deno.serve(async (req) => {
   if (c.client_pec_email) entity.certified_email = c.client_pec_email
   if (c.client_email) entity.email = c.client_email
 
+  const itemName = `${c.title || 'Servizio fotografico'}${p.label ? ` — ${p.label}` : ''}`
   const payload = {
     data: {
       type: 'invoice',
       entity,
       date: today(),
       ...(numeration ? { numeration } : {}),
-      items_list: [{ name: c.title || 'Servizio fotografico', qty: 1, net_price: Number(c.total_amount), vat: { id: conn.default_vat_id } }],
+      items_list: [{ name: itemName, qty: 1, net_price: Number(p.amount), vat: { id: conn.default_vat_id } }],
       ...(conn.default_payment_method_id ? { payment_method: { id: conn.default_payment_method_id } } : {}),
     },
   }
@@ -87,10 +87,10 @@ Deno.serve(async (req) => {
     return json({ error: 'fic_error', status: r.status, detail: d }, 502)
   }
   const doc = d?.data ?? d
-  const { error: ue } = await admin.from('contracts').update({
+  const { error: ue } = await admin.from('contract_payments').update({
     fic_invoice_id: String(doc?.id ?? ''), fic_invoice_number: doc?.number != null ? String(doc.number) : null,
     fic_invoice_created_at: new Date().toISOString(),
-  }).eq('id', contractId)
+  }).eq('id', paymentId)
   if (ue) console.error('fic_invoice_save', ue.message)
 
   return json({ ok: true, fic_invoice_id: doc?.id, fic_invoice_number: doc?.number, numeration })

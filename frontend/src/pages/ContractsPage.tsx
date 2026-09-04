@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileSignature, FileDown, X, Copy, Mail, MessageCircle, Receipt } from '@/components/icons/lucide'
+import { FileSignature, FileDown, X, Copy, Mail, MessageCircle } from '@/components/icons/lucide'
 import { shareWhatsAppLink } from '@/lib/share'
 import { waContractToClient } from '@/lib/waMessages'
 import { toast } from '@/lib/toast'
@@ -28,8 +28,6 @@ type ContractRow = {
   sections?: Array<{ heading?: string; body?: string }> | null
   signature_data?: Record<string, unknown> | null
   created_at: string
-  fic_invoice_id?: string | null
-  fic_invoice_number?: string | null
 }
 
 // Raggruppamento per STATO (secondario; la classificazione PRIMARIA è cronologica).
@@ -65,7 +63,7 @@ export default function ContractsPage() {
   useEffect(() => {
     void (async () => {
       const { data } = await (supabase.from('contracts' as any) as any)
-        .select('id, quote_id, title, client_name, client_email, client_fiscal_code, event_date, total_amount, status, signed_at, pdf_url, access_token, sections, signature_data, created_at, fic_invoice_id, fic_invoice_number')
+        .select('id, quote_id, title, client_name, client_email, client_fiscal_code, event_date, total_amount, status, signed_at, pdf_url, access_token, sections, signature_data, created_at')
         .order('created_at', { ascending: false })
       setRows((data ?? []) as ContractRow[])
       setLoading(false)
@@ -78,7 +76,6 @@ export default function ContractsPage() {
   useEffect(() => { openIdRef.current = selected?.id ?? null; setEditMode(false) }, [selected?.id])
 
   const [generatingPdf, setGeneratingPdf] = useState(false)
-  const [creatingInvoice, setCreatingInvoice] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
   const [draftSections, setDraftSections] = useState<Array<{ heading?: string; body?: string }>>([])
@@ -204,25 +201,6 @@ export default function ContractsPage() {
       toast.error(e instanceof Error ? e.message : 'Errore generazione PDF')
     } finally {
       setGeneratingPdf(false)
-    }
-  }
-
-  async function createInvoice(contractId: string) {
-    setCreatingInvoice(true)
-    try {
-      const { data, error } = await supabase.functions.invoke('fic-invoice-create', { body: { contract_id: contractId } })
-      if (error) throw error
-      const r = data as { ok?: boolean; error?: string; hint?: string; fic_invoice_id?: string | number; fic_invoice_number?: string | number; already?: boolean }
-      if (r?.error) { toast.error(r.hint ?? r.error); return }
-      toast.success(r.already ? 'Fattura già emessa' : `Fattura emessa${r.fic_invoice_number ? ` — n. ${r.fic_invoice_number}` : ''}`)
-      const id = r.fic_invoice_id != null ? String(r.fic_invoice_id) : 'ok'
-      const num = r.fic_invoice_number != null ? String(r.fic_invoice_number) : null
-      setRows((rs) => rs.map((row) => row.id === contractId ? { ...row, fic_invoice_id: id, fic_invoice_number: num } : row))
-      setSelected((s) => s && s.id === contractId ? { ...s, fic_invoice_id: id, fic_invoice_number: num } : s)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Errore creazione fattura')
-    } finally {
-      setCreatingInvoice(false)
     }
   }
 
@@ -430,17 +408,6 @@ export default function ContractsPage() {
               <Button variant="outline" size="sm" onClick={() => generatePdf(selected.id)} disabled={generatingPdf}>
                 <FileDown size={14} /> {generatingPdf ? 'Generazione…' : selected.pdf_url ? 'Rigenera PDF' : 'Genera PDF contratto'}
               </Button>
-              {selected.status === 'FIRMATO' && (
-                selected.fic_invoice_id ? (
-                  <Badge tone="gold" className="flex items-center gap-1">
-                    <Receipt size={12} /> Fattura{selected.fic_invoice_number ? ` n. ${selected.fic_invoice_number}` : ' emessa'}
-                  </Badge>
-                ) : (
-                  <Button variant="gold" size="sm" onClick={() => createInvoice(selected.id)} disabled={creatingInvoice}>
-                    <Receipt size={14} /> {creatingInvoice ? 'Emetto…' : 'Crea fattura'}
-                  </Button>
-                )
-              )}
               {selected.access_token && selected.status !== 'FIRMATO' && (
                 <Button variant="outline" size="sm" onClick={() => copyClientLink(selected.access_token)}>
                   <Copy size={14} /> Copia link firma cliente

@@ -2777,6 +2777,9 @@ export type Database = {
           created_at: string
           due_date: string | null
           due_hint: string | null
+          fic_invoice_created_at: string | null
+          fic_invoice_id: string | null
+          fic_invoice_number: string | null
           id: string
           label: string
           method: string | null
@@ -2796,6 +2799,9 @@ export type Database = {
           created_at?: string
           due_date?: string | null
           due_hint?: string | null
+          fic_invoice_created_at?: string | null
+          fic_invoice_id?: string | null
+          fic_invoice_number?: string | null
           id?: string
           label: string
           method?: string | null
@@ -2815,6 +2821,9 @@ export type Database = {
           created_at?: string
           due_date?: string | null
           due_hint?: string | null
+          fic_invoice_created_at?: string | null
+          fic_invoice_id?: string | null
+          fic_invoice_number?: string | null
           id?: string
           label?: string
           method?: string | null

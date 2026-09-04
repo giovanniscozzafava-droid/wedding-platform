@@ -3,7 +3,7 @@
 // riportano le rate con la cifra ESATTA che il cliente legge sul contratto. Qui il
 // professionista registra l'incasso avvenuto (data, metodo, numero fattura/riferimento).
 import { useCallback, useEffect, useState } from 'react'
-import { Wallet, CheckCircle2, CircleDashed, Calendar } from '@/components/icons/lucide'
+import { Wallet, CheckCircle2, CircleDashed, Calendar, Receipt } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -24,6 +24,8 @@ type Rata = {
   method: string | null
   reference: string | null
   notes: string | null
+  fic_invoice_id: string | null
+  fic_invoice_number: string | null
 }
 
 // database.types.ts è generato e non conosce ancora contract_payments: stesso
@@ -40,10 +42,14 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
   const [openId, setOpenId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ paid_at: '', paid_amount: '', method: 'Bonifico', reference: '', notes: '' })
+  const [invoicingId, setInvoicingId] = useState<string | null>(null)
+  const [reconcileId, setReconcileId] = useState<string | null>(null)
+  const [reconcileNum, setReconcileNum] = useState('')
+  const [reconcileBusy, setReconcileBusy] = useState(false)
 
   const load = useCallback(async () => {
     const { data, error } = await cp()
-      .select('id, seq, label, percent, amount, due_hint, due_date, paid, paid_at, paid_amount, method, reference, notes')
+      .select('id, seq, label, percent, amount, due_hint, due_date, paid, paid_at, paid_amount, method, reference, notes, fic_invoice_id, fic_invoice_number')
       .eq('contract_id', contractId).order('seq')
     if (error) { setLoading(false); return }
     let rows = (data ?? []) as Rata[]
@@ -53,7 +59,7 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
       const { data: r } = await (supabase.rpc as any)('contract_payments_sync', { p_contract_id: contractId })
       if (r?.ok) {
         const { data: again } = await cp()
-          .select('id, seq, label, percent, amount, due_hint, due_date, paid, paid_at, paid_amount, method, reference, notes')
+          .select('id, seq, label, percent, amount, due_hint, due_date, paid, paid_at, paid_amount, method, reference, notes, fic_invoice_id, fic_invoice_number')
           .eq('contract_id', contractId).order('seq')
         rows = (again ?? []) as Rata[]
       }
@@ -99,6 +105,47 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
     if (error) return toast.error('Non sono riuscito ad annullare la registrazione.')
     toast.success('Registrazione annullata')
     void load()
+  }
+
+  async function creaFattura(r: Rata) {
+    setInvoicingId(r.id)
+    try {
+      const { data, error } = await supabase.functions.invoke('fic-invoice-create', { body: { payment_id: r.id } })
+      if (error) throw error
+      const res = data as { ok?: boolean; error?: string; hint?: string; already?: boolean; fic_invoice_number?: string | number }
+      if (res?.error) { toast.error(res.hint ?? res.error); return }
+      toast.success(res.already ? 'Fattura già emessa per questa rata' : `Fattura emessa${res.fic_invoice_number ? ` — n. ${res.fic_invoice_number}` : ''}`)
+      void load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore creazione fattura')
+    } finally {
+      setInvoicingId(null)
+    }
+  }
+
+  function apriRiconcilia(r: Rata) {
+    setReconcileId(r.id)
+    setReconcileNum(r.fic_invoice_number ?? '')
+  }
+
+  async function riconcilia(r: Rata) {
+    if (!reconcileNum.trim()) return toast.error('Indica il numero della fattura già emessa')
+    setReconcileBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('fic-invoice-reconcile', {
+        body: { payment_id: r.id, invoice_number: reconcileNum.trim() },
+      })
+      if (error) throw error
+      const res = data as { ok?: boolean; error?: string; hint?: string }
+      if (res?.error) { toast.error(res.hint ?? res.error); return }
+      toast.success('Fattura collegata')
+      setReconcileId(null)
+      void load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore collegamento fattura')
+    } finally {
+      setReconcileBusy(false)
+    }
   }
 
   if (loading || rate.length === 0) return null
@@ -148,6 +195,11 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
                     {r.reference ? ` · rif. ${r.reference}` : ''}
                   </p>
                 )}
+                {r.fic_invoice_number && (
+                  <p className="text-xs text-[rgb(var(--gold-600))] mt-1 flex items-center gap-1">
+                    <Receipt size={11} /> Fattura n. {r.fic_invoice_number}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="font-display text-lg tabular-nums">{eur(r.amount)}</span>
@@ -158,6 +210,28 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
                 )}
               </div>
             </div>
+
+            {!r.fic_invoice_id && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => void creaFattura(r)} disabled={invoicingId === r.id}>
+                  <Receipt size={13} /> {invoicingId === r.id ? 'Emetto…' : 'Crea fattura'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => apriRiconcilia(r)}>Fattura già emessa altrove?</Button>
+              </div>
+            )}
+
+            {reconcileId === r.id && (
+              <div className="mt-3 pt-3 border-t flex flex-wrap items-end gap-2" style={{ borderColor: 'rgb(var(--border))' }}>
+                <div>
+                  <Label>N° fattura già emessa</Label>
+                  <Input value={reconcileNum} placeholder="es. 12/A" onChange={(e) => setReconcileNum(e.target.value)} />
+                </div>
+                <Button variant="gold" size="sm" disabled={reconcileBusy} onClick={() => void riconcilia(r)}>
+                  {reconcileBusy ? 'Collego…' : 'Collega'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setReconcileId(null)}>Annulla</Button>
+              </div>
+            )}
 
             {openId === r.id && !r.paid && (
               <div className="mt-3 pt-3 border-t grid gap-2 sm:grid-cols-2" style={{ borderColor: 'rgb(var(--border))' }}>
