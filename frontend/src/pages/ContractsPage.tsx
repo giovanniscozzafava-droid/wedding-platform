@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { PdfViewButton } from '@/components/common/PdfBookViewer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SearchFilterBar } from '@/components/common/SearchFilterBar'
+import { ContractPayments } from '@/components/wedding/ContractPayments'
 import { supabase } from '@/lib/supabase'
 
 type ContractRow = {
@@ -431,6 +432,9 @@ export default function ContractsPage() {
                 </PdfViewButton>
               )}
             </div>
+            {selected.status === 'FIRMATO' && (
+              <ContractPayments contractId={selected.id} total={Number(selected.total_amount ?? 0)} />
+            )}
           </div>
         </div>
       )}

@@ -32,7 +32,7 @@ type Rata = {
 // escamotage già usato per supplier_contract_templates in ContractTab.
 const cp = (): any => (supabase as any).from('contract_payments')
 
-const METODI = ['Bonifico', 'Contanti', 'POS / Carta', 'Assegno', 'Altro']
+const METODI = ['Bonifico', 'Contanti', 'POS / Carta', 'Stripe', 'Assegno', 'Altro']
 const eur = (n: number) => `€ ${Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const dmy = (d: string) => new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
