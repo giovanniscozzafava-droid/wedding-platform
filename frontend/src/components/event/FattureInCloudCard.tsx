@@ -16,7 +16,7 @@ import { useAuth } from '@/lib/auth'
 type Connection = { company_id: string; company_name: string | null; default_vat_id: number | null; default_payment_method_id: number | null }
 type Numerazione = { id: string; label: string; numeration: string | null; is_default: boolean }
 type FicOption = { id: number; value?: string; description?: string; name?: string }
-type FicSettings = { ok: boolean; vat_types: FicOption[] | null; payment_methods: FicOption[] | null; errors: { vat_types: unknown; payment_methods: unknown } }
+type FicSettings = { ok: boolean; vat_types: FicOption[] | null; payment_methods: FicOption[] | null; errors?: { vat_types: unknown; payment_methods: unknown }; error?: string; detail?: string }
 
 function isInAppBrowser() {
   const ua = navigator.userAgent || ''
@@ -191,6 +191,7 @@ export function FattureInCloudCard() {
           {settings && !settings.ok && (
             <div className="text-xs text-[rgb(var(--danger))] mt-2 space-y-1">
               <p>Non sono riuscito a leggerli automaticamente da Fatture in Cloud (endpoint da verificare insieme).</p>
+              {settings.detail && <p className="opacity-70">{settings.error ?? 'errore'}: {settings.detail}</p>}
               {settings.errors?.vat_types != null && <p className="opacity-70">IVA: {JSON.stringify(settings.errors.vat_types).slice(0, 200)}</p>}
               {settings.errors?.payment_methods != null && <p className="opacity-70">Pagamenti: {JSON.stringify(settings.errors.payment_methods).slice(0, 200)}</p>}
               <p>Puoi comunque inserire gli ID a mano se li conosci (li vedi nel tuo account Fatture in Cloud).</p>

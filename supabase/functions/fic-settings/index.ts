@@ -48,6 +48,9 @@ Deno.serve(async (req) => {
     })
   } catch (e) {
     console.error('fic_settings_crash', (e as Error).message)
-    return json({ error: 'crash', detail: (e as Error).message }, 500)
+    // 200, non 500: supabase-js su un non-2xx scarta il corpo e mostra un messaggio
+    // generico — qui invece serve il dettaglio vero in UI, quindi lo si mette nel
+    // corpo di una risposta comunque "ok" a livello HTTP.
+    return json({ ok: false, error: 'crash', detail: String((e as Error)?.message ?? e).slice(0, 300) })
   }
 })
