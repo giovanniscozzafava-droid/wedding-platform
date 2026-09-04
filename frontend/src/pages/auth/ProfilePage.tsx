@@ -333,7 +333,11 @@ export default function ProfilePage() {
                       id="fiscal_code"
                       value={form.fiscal_code}
                       onChange={(v) => setForm((f) => ({ ...f, fiscal_code: v }))}
+                      variant={form.legal_form && form.legal_form !== 'INDIVIDUAL' ? 'company' : 'person'}
                     />
+                    {form.legal_form && form.legal_form !== 'INDIVIDUAL' && (
+                      <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Per {form.legal_form === 'ASSOCIATION' ? 'associazioni' : 'società'}: 11 cifre, uguale alla partita IVA.</p>
+                    )}
                   </div>
                   <div className="space-y-1 md:col-span-2">
                     <Label htmlFor="address">Sede / Indirizzo</Label>
