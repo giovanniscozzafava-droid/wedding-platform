@@ -13,13 +13,8 @@ const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
 const REDIRECT_URI = `${SUPABASE_URL}/functions/v1/fic-oauth-callback`
 const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u))
 
-function back(q: string, debug?: string) {
-  const loc = new URL(`${APP_BASE}/profile`)
-  loc.searchParams.set('fic', q)
-  // TEMPORANEO: dettaglio dell'errore in query, per capire dal primo collegamento
-  // vero cosa risponde davvero Fatture in Cloud. Va tolto una volta stabile.
-  if (debug) loc.searchParams.set('fic_debug', debug.slice(0, 300))
-  return new Response(null, { status: 302, headers: { Location: loc.toString() } })
+function back(q: string) {
+  return new Response(null, { status: 302, headers: { Location: `${APP_BASE}/profile?fic=${q}` } })
 }
 
 Deno.serve(async (req) => {
@@ -40,16 +35,15 @@ Deno.serve(async (req) => {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ grant_type: 'authorization_code', client_id: CLIENT_ID, client_secret: CLIENT_SECRET, redirect_uri: REDIRECT_URI, code }),
     })
-    const dRaw = await r.text()
-    const d = (() => { try { return JSON.parse(dRaw) } catch { return {} } })()
-    if (!r.ok || !d.access_token || !d.refresh_token) { console.error('fic_token_exchange', r.status, dRaw); return back('token', `${r.status}: ${dRaw}`) }
+    const d = await r.json()
+    if (!r.ok || !d.access_token || !d.refresh_token) { console.error('fic_token_exchange', r.status, d); return back('token') }
 
     const cr = await fetch('https://api-v2.fattureincloud.it/user/companies', { headers: { Authorization: `Bearer ${d.access_token}` } })
-    const cdRaw = await cr.text()
-    const cd = (() => { try { return JSON.parse(cdRaw) } catch { return {} } })()
-    const companies = Array.isArray(cd?.data) ? cd.data : Array.isArray(cd) ? cd : []
+    const cd = await cr.json().catch(() => ({}))
+    // Forma reale (verificata su un account vero): { data: { companies: [...] } }.
+    const companies = Array.isArray(cd?.data?.companies) ? cd.data.companies : []
     const company = companies[0]
-    if (!cr.ok || !company?.id) { console.error('fic_companies', cr.status, cdRaw); return back('nocompany', `${cr.status}: ${cdRaw}`) }
+    if (!cr.ok || !company?.id) { console.error('fic_companies', cr.status, cd); return back('nocompany') }
 
     const accessEnc = b64(await encryptToken(String(d.access_token)))
     const refreshEnc = b64(await encryptToken(String(d.refresh_token)))
