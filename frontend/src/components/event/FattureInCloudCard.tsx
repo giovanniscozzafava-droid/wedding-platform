@@ -54,12 +54,18 @@ export function FattureInCloudCard() {
   })
 
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get('fic')
+    const qs = new URLSearchParams(window.location.search)
+    const p = qs.get('fic')
     if (!p) return
+    const ivaTrovate = qs.get('fic_iva')
+    const ivaProfilo = qs.get('fic_iva_profilo')
+    const ivaSuffix = ivaTrovate ? ` Trovate: ${ivaTrovate}${ivaProfilo ? ` · tua: ${ivaProfilo}` : ''}.` : ''
     if (p === 'connected') toast.success('Fatture in Cloud collegato')
     else if (p === 'nokey') toast.error('Fatture in Cloud non configurato lato server (manca la chiave di cifratura).')
     else if (p === 'no_fic_app') toast.error('App Fatture in Cloud non configurata (manca FIC_CLIENT_ID).')
     else if (p === 'nocompany') toast.error('Nessuna azienda trovata sul tuo account Fatture in Cloud.')
+    else if (p === 'setvatfirst') toast.error(`Più aziende sul tuo account: imposta prima la P.IVA sul profilo.${ivaSuffix}`, { duration: 15000 })
+    else if (p === 'novatmatch') toast.error(`Nessuna azienda combacia per Partita IVA.${ivaSuffix}`, { duration: 15000 })
     else toast.error('Collegamento Fatture in Cloud non riuscito.')
     window.history.replaceState(null, '', window.location.pathname)
   }, [])

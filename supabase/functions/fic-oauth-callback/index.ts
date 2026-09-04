@@ -12,9 +12,13 @@ const CLIENT_SECRET = Deno.env.get('FIC_CLIENT_SECRET') ?? ''
 const APP_BASE = Deno.env.get('APP_BASE_URL') ?? 'https://planfully.it'
 const REDIRECT_URI = `${SUPABASE_URL}/functions/v1/fic-oauth-callback`
 const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u))
+const digits = (s: unknown) => String(s ?? '').replace(/\D/g, '')
 
-function back(q: string) {
-  return new Response(null, { status: 302, headers: { Location: `${APP_BASE}/profile?fic=${q}` } })
+function back(q: string, extra?: Record<string, string>) {
+  const loc = new URL(`${APP_BASE}/profile`)
+  loc.searchParams.set('fic', q)
+  if (extra) for (const [k, v] of Object.entries(extra)) loc.searchParams.set(k, v)
+  return new Response(null, { status: 302, headers: { Location: loc.toString() } })
 }
 
 Deno.serve(async (req) => {
@@ -41,9 +45,24 @@ Deno.serve(async (req) => {
     const cr = await fetch('https://api-v2.fattureincloud.it/user/companies', { headers: { Authorization: `Bearer ${d.access_token}` } })
     const cd = await cr.json().catch(() => ({}))
     // Forma reale (verificata su un account vero): { data: { companies: [...] } }.
-    const companies = Array.isArray(cd?.data?.companies) ? cd.data.companies : []
-    const company = companies[0]
-    if (!cr.ok || !company?.id) { console.error('fic_companies', cr.status, cd); return back('nocompany') }
+    const companies: Array<{ id?: number; name?: string; vat_number?: string }> = Array.isArray(cd?.data?.companies) ? cd.data.companies : []
+    if (!cr.ok || companies.length === 0) { console.error('fic_companies', cr.status, cd); return back('nocompany') }
+
+    // Un account Fatture in Cloud può controllare più aziende (es. commercialista,
+    // o più partite IVA sulla stessa persona): non si prende "la prima della lista",
+    // si fa combaciare la P.IVA con quella già sul profilo Planfully del
+    // professionista. Ambiguo (nessun match, più aziende) → si ferma, non indovina.
+    const { data: prof } = await admin.from('profiles').select('vat_number').eq('id', st.professional_id).maybeSingle()
+    const profVat = digits(prof?.vat_number)
+    let company = companies.length === 1 ? companies[0] : undefined
+    if (!company && profVat) company = companies.find((c) => digits(c.vat_number) === profVat)
+    if (!company) {
+      console.error('fic_companies_no_vat_match', profVat, companies.map((c) => ({ id: c.id, name: c.name, vat: c.vat_number })))
+      // Dettaglio breve (solo cifre, niente graffe/gergo) per non finire umanizzato via.
+      const ivaTrovate = companies.map((c) => digits(c.vat_number) || '?').join(', ').slice(0, 120)
+      return back(profVat ? 'novatmatch' : 'setvatfirst', { fic_iva: ivaTrovate, fic_iva_profilo: profVat })
+    }
+    if (!company.id) { console.error('fic_company_no_id', company); return back('nocompany') }
 
     const accessEnc = b64(await encryptToken(String(d.access_token)))
     const refreshEnc = b64(await encryptToken(String(d.refresh_token)))
