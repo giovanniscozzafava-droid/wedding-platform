@@ -42,8 +42,8 @@ Deno.serve(async (req) => {
       vat_types: vr.ok ? (vd?.data ?? vd) : null,
       payment_methods: pr.ok ? (pd?.data ?? pd) : null,
       errors: {
-        vat_types: vr.ok ? null : { status: vr.status, body: (vd ?? vraw)?.toString?.().slice?.(0, 300) ?? vd },
-        payment_methods: pr.ok ? null : { status: pr.status, body: (pd ?? praw)?.toString?.().slice?.(0, 300) ?? pd },
+        vat_types: vr.ok ? null : { status: vr.status, body: (vd ? JSON.stringify(vd) : vraw).slice(0, 300) },
+        payment_methods: pr.ok ? null : { status: pr.status, body: (pd ? JSON.stringify(pd) : praw).slice(0, 300) },
       },
     })
   } catch (e) {

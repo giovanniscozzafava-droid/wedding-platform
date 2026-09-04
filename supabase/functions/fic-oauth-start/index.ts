@@ -9,7 +9,9 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const CLIENT_ID = Deno.env.get('FIC_CLIENT_ID') ?? ''
-const SCOPE = 'entity.clients:r entity.clients:a issued_documents.invoices:r issued_documents.invoices:a'
+// settings:r → IVA e metodi di pagamento (senza, /info/vat_types e
+// /info/payment_methods rispondono 403: verificato su un collegamento reale).
+const SCOPE = 'entity.clients:r entity.clients:a issued_documents.invoices:r issued_documents.invoices:a settings:r'
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
 
