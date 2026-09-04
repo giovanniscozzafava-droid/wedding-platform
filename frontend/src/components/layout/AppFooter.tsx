@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 // Footer globale Planfully — usato in AppShell (WP/Forn/Location) e CoupleDashboard.
 export function AppFooter() {
   return (
-    <footer className="mt-auto border-t" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
+    <footer className="border-t" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-elev))' }}>
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-10 mb-6">
           <Link to="/" className="inline-flex items-center gap-2 shrink-0">

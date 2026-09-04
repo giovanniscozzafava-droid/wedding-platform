@@ -218,7 +218,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* La lingua ora si sceglie in Impostazioni › Profilo (preferenza personale). */}
         <div className="px-4 pb-2 flex items-center gap-2"><HelpModeToggle /></div>
 
-        <nav className="flex-1 px-3 py-2 overflow-y-auto">
+        <nav className="flex-1 min-h-0 px-3 py-2 overflow-y-auto">
           <NavGroups groups={NAV_GROUPS} dots={unreadDots} counts={navCounts} />
         </nav>
 
@@ -289,7 +289,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <X size={20} />
             </button>
           </div>
-          <nav className="flex-1 px-3 py-2 overflow-y-auto">
+          <nav className="flex-1 min-h-0 px-3 py-2 overflow-y-auto">
             <NavGroups groups={NAV_GROUPS} dots={unreadDots} counts={navCounts} onNavigate={() => setMobileOpen(false)} />
           </nav>
           {/* Mobile drawer footer: user + logout */}

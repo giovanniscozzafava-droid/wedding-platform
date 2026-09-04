@@ -54,13 +54,15 @@ export function FattureInCloudCard() {
   })
 
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get('fic')
+    const qs = new URLSearchParams(window.location.search)
+    const p = qs.get('fic')
     if (!p) return
+    const debug = qs.get('fic_debug')
     if (p === 'connected') toast.success('Fatture in Cloud collegato')
     else if (p === 'nokey') toast.error('Fatture in Cloud non configurato lato server (manca la chiave di cifratura).')
     else if (p === 'no_fic_app') toast.error('App Fatture in Cloud non configurata (manca FIC_CLIENT_ID).')
-    else if (p === 'nocompany') toast.error('Nessuna azienda trovata sul tuo account Fatture in Cloud.')
-    else toast.error('Collegamento Fatture in Cloud non riuscito.')
+    else if (p === 'nocompany') toast.error(`Nessuna azienda trovata sul tuo account Fatture in Cloud.${debug ? ` [${debug}]` : ''}`, { duration: 15000 })
+    else toast.error(`Collegamento Fatture in Cloud non riuscito.${debug ? ` [${debug}]` : ''}`, { duration: 15000 })
     window.history.replaceState(null, '', window.location.pathname)
   }, [])
 
