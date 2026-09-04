@@ -47,7 +47,9 @@ Deno.serve(async (req) => {
   if (!tok.ok) return json({ error: tok.error, hint: tok.error === 'not_connected' ? 'Collega prima Fatture in Cloud dalle Impostazioni.' : undefined }, 400)
 
   const { data: conn } = await admin.from('fic_connections').select('default_vat_id, default_payment_method_id').eq('professional_id', user.id).maybeSingle()
-  if (!conn?.default_vat_id) return json({ error: 'no_vat_configured', hint: 'Configura prima il tipo di IVA da usare (Impostazioni → Fatture in Cloud).' }, 409)
+  // 0 è un id IVA legittimo (es. aliquota 22%): !conn.default_vat_id lo tratterebbe
+  // come "non configurato" per via del falsy JS. Va confrontato con null/undefined.
+  if (conn?.default_vat_id == null) return json({ error: 'no_vat_configured', hint: 'Configura prima il tipo di IVA da usare (Impostazioni → Fatture in Cloud).' }, 409)
 
   const { data: n } = await admin.from('fic_numerations').select('numeration').eq('professional_id', user.id).eq('is_default', true).maybeSingle()
   const numeration: string | null = n?.numeration ?? null

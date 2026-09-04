@@ -173,9 +173,9 @@ export function FattureInCloudCard() {
       {conn && (
         <div className="mb-5 rounded-md border border-[rgb(var(--border))] p-3">
           <h4 className="text-sm font-medium mb-1">IVA e metodo di pagamento</h4>
-          {conn.default_vat_id ? (
+          {conn.default_vat_id != null ? (
             <p className="text-sm text-[rgb(var(--fg-muted))]">
-              Configurati (IVA #{conn.default_vat_id}{conn.default_payment_method_id ? `, pagamento #${conn.default_payment_method_id}` : ''}).
+              Configurati (IVA #{conn.default_vat_id}{conn.default_payment_method_id != null ? `, pagamento #${conn.default_payment_method_id}` : ''}).
               Servono per emettere le fatture: senza IVA configurata «Crea fattura» non parte.
             </p>
           ) : (
