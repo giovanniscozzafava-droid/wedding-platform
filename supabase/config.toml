@@ -459,3 +459,8 @@ verify_jwt = false
 # un JWT vero di 5 minuti per PostgREST. verify_jwt = false.
 [functions.api-v1]
 verify_jwt = false
+
+# fic-oauth-callback: richiamata direttamente dal redirect di Fatture in Cloud
+# (solo ?code&state in query, nessun header Supabase) → verify_jwt = false.
+[functions.fic-oauth-callback]
+verify_jwt = false

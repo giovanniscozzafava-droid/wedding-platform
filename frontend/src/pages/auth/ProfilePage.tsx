@@ -21,6 +21,7 @@ import { AmbitoDefaultCard } from '@/components/event/AmbitoDefaultCard'
 import { StopAtQuoteCard } from '@/components/event/StopAtQuoteCard'
 import { ReviewLinksCard } from '@/components/event/ReviewLinksCard'
 import { ApiKeysCard } from '@/components/event/ApiKeysCard'
+import { FattureInCloudCard } from '@/components/event/FattureInCloudCard'
 import { SaleModeCard } from '@/components/event/SaleModeCard'
 
 export default function ProfilePage() {
@@ -464,6 +465,7 @@ export default function ProfilePage() {
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE'].includes(profile?.role ?? '') && <StopAtQuoteCard />}
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE'].includes(profile?.role ?? '') && <ReviewLinksCard />}
           {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE', 'ADMIN'].includes(profile?.role ?? '') && <ApiKeysCard />}
+          {['WEDDING_PLANNER', 'LOCATION', 'FORNITORE'].includes(profile?.role ?? '') && <FattureInCloudCard />}
           {['WEDDING_PLANNER', 'LOCATION'].includes(profile?.role ?? '') && <SaleModeCard />}
 
           {/* Aiuto contestuale — sostituisce il vecchio tutorial a card */}
