@@ -47,7 +47,7 @@ export default function FinanzeRetePage() {
     if (!Number.isFinite(amount) || amount <= 0) { toast.error('Importo non valido'); return }
     const { data: r, error } = await (supabase.rpc as any)('mark_settlement_paid', { p_id: s.id, p_amount: amount })
     if (error) { toast.error(error.message); return }
-    if ((r as any)?.error) { toast.error('Non riuscito'); return }
+    if ((r as any)?.error) { toast.error((r as any)?.hint || 'Non riuscito'); return }
     toast.success('Pagamento registrato')
     await load()
   }
@@ -111,7 +111,7 @@ export default function FinanzeRetePage() {
                   <div className="tabular-nums font-medium">{eur(s.residuo)}<span className="text-[rgb(var(--fg-subtle))] text-xs"> / {eur(s.amount_due)}</span></div>
                   <span className="inline-block text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full mt-1" style={{ background: STATUS_TONE[s.status] ?? STATUS_TONE.MATURATO }}>{s.status}</span>
                 </div>
-                <Button size="sm" variant="outline" disabled={s.status === 'SALDATO'} onClick={() => void segnaPagato(s)}>
+                <Button size="sm" variant="outline" disabled={s.status === 'SALDATO' || !!s.contract_id} onClick={() => void segnaPagato(s)}>
                   {isDebt ? 'Segna pagato' : 'Segna incassato'}
                 </Button>
               </Card>

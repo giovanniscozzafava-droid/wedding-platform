@@ -432,10 +432,20 @@ export default function QuoteEditorPage() {
       // Genera articolato legale completo (15 articoli + premesse) via RPC
       const { data: sections, error: rpcErr } = await supabase.rpc('build_contract_sections', { p_quote_id: id })
       if (rpcErr) throw rpcErr
+      // riprogramma_evento/il resto del ciclo vita evento agganciano il contratto
+      // tramite entry_id: senza, un cambio data dopo la firma non trova il
+      // contratto (niente addendum, niente sync disponibilità fornitori).
+      const { data: entryRow } = await (supabase
+        .from('calendar_entries')
+        .select('id' as any) as any)
+        .eq('quote_id', id)
+        .limit(1)
+        .maybeSingle()
       const { data, error } = await (supabase.from('contracts' as any) as any)
         .insert({
           owner_id: me.user.id,
           quote_id: id,
+          entry_id: (entryRow as any)?.id ?? null,
           title: `Contratto ${eventTerm(eventKind || 'matrimonio').label} · ${quote.client_name ?? quote.title ?? ''}`.trim(),
           client_name: quote.client_name,
           client_email: quote.client_email,
