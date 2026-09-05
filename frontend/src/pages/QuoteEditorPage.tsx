@@ -464,12 +464,25 @@ export default function QuoteEditorPage() {
         .select('id, status')
         .single()
       if (error) throw error
-      await (supabase.from('quotes' as any) as any).update({ status: 'CONVERTITO_IN_CONTRATTO' }).eq('id', id)
+      const { error: convErr } = await (supabase.from('quotes' as any) as any)
+        .update({ status: 'CONVERTITO_IN_CONTRATTO' }).eq('id', id)
+      if (convErr) {
+        // Il contratto è stato creato ma il preventivo non può convertirsi (gate
+        // R1: serve almeno una voce accettata online). Non lasciare un contratto
+        // orfano scollegato dallo stato del preventivo.
+        await (supabase.from('contracts' as any) as any).delete().eq('id', (data as any).id)
+        throw convErr
+      }
       toast.success('Contratto generato con articolato legale completo')
       setContractInfo(data as { id: string; status: string })
       navigate('/contracts')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Errore generazione contratto')
+      const msg = (e as any)?.message ?? ''
+      if (/Transizione status preventivo non valida/.test(msg)) {
+        toast.error('Il cliente non ha ancora accettato online nessuna voce del preventivo: fallo scegliere prima di generare il contratto.')
+      } else {
+        toast.error(e instanceof Error ? e.message : (msg || 'Errore generazione contratto'))
+      }
     } finally {
       setCreatingContract(false)
     }
