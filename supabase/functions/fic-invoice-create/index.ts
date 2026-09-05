@@ -71,6 +71,23 @@ Deno.serve(async (req) => {
   if (c.client_pec_email) entity.certified_email = c.client_pec_email
   if (c.client_email) entity.email = c.client_email
 
+  // Fatture in Cloud pretende che la somma di `payments_list` combaci col LORDO
+  // (netto+IVA) della fattura, non col netto che conosciamo noi (p.amount).
+  // Provato dal vivo: senza payments_list, o con payments_list.amount = netto,
+  // risposta 422 "Il totale dei pagamenti non corrisponde al totale da pagare"
+  // (Fatture in Cloud non lo deduce da sé). Serve quindi l'aliquota IVA vera
+  // per calcolare il lordo prima di costruire la rata.
+  let vatPct = 0
+  try {
+    const vr = await fetch(`https://api-v2.fattureincloud.it/c/${tok.companyId}/info/vat_types`, {
+      headers: { Authorization: `Bearer ${tok.accessToken}` },
+    })
+    const vd = await vr.json().catch(() => ({}))
+    const list = (vd?.data ?? vd ?? []) as Array<{ id: number; value: number }>
+    vatPct = Number(list.find((v) => v.id === conn.default_vat_id)?.value ?? 0)
+  } catch { /* fallback vatPct=0: nel peggiore dei casi la rata è sul netto */ }
+  const grossAmount = Math.round(Number(p.amount) * (1 + vatPct / 100) * 100) / 100
+
   const itemName = `${c.title || 'Servizio fotografico'}${p.label ? ` — ${p.label}` : ''}`
   const payload = {
     data: {
@@ -80,9 +97,12 @@ Deno.serve(async (req) => {
       ...(numeration ? { numeration } : {}),
       items_list: [{ name: itemName, qty: 1, net_price: Number(p.amount), vat: { id: conn.default_vat_id } }],
       ...(conn.default_payment_method_id ? { payment_method: { id: conn.default_payment_method_id } } : {}),
-      // Con una scadenza esplicita, un'unica rata di pagamento sulla fattura con
-      // quella data (altrimenti Fatture in Cloud usa il suo default: a vista).
-      ...(dueDate ? { payments_list: [{ amount: Number(p.amount), due_date: dueDate }] } : {}),
+      // Sempre un'unica rata di pagamento sul lordo: Fatture in Cloud NON accetta
+      // la fattura se il totale di payments_list non combacia col lordo, nemmeno
+      // omettendo del tutto payments_list (provato dal vivo, 422 in entrambi i
+      // casi) — quindi niente ramo "senza scadenza esplicita = a vista di FIC".
+      // Se il professionista non ha scelto una data, usiamo oggi (a vista vera).
+      payments_list: [{ amount: grossAmount, due_date: dueDate ?? today() }],
     },
   }
 
