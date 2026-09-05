@@ -227,6 +227,18 @@ Deno.serve(async (req) => {
     .select('id')
     .maybeSingle()
   if (claimErr) {
+    // CICLO-03-bis: due preventivi paralleli sullo stesso fornitore/stessa data
+    // superavano entrambi il controllo di riga 182-200 (letto-poi-scritto, non
+    // atomico) e finivano ENTRAMBI accettati — dimostrato dal vivo dal collaudo
+    // del 06/09. Il vincolo unique su supplier_appointments(owner_id,date) fa
+    // fallire qui il secondo trigger di blocco disponibilità: lo traduciamo in
+    // un errore chiaro invece di un 500 grezzo.
+    if (claimErr.code === '23505' || /idx_supplier_appointments_evento_no_double/i.test(claimErr.message ?? '')) {
+      return json({
+        error: 'supplier_double_booked',
+        detail: 'Uno dei fornitori scelti risulta già impegnato su questa data per un altro evento. Contatta il professionista.',
+      }, 409)
+    }
     return json({ error: 'db error', detail: claimErr.message }, 500)
   }
   if (!claimed) {
