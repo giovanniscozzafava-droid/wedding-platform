@@ -28,6 +28,10 @@ export default function CapostipiteInviteAcceptPage() {
   const nav = useNavigate()
   const [info, setInfo] = useState<InviteInfo | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
+  // Un WP/LOCATION già iscritto che riceve un invito da un collega vedeva
+  // solo il form di registrazione (falliva: email già in uso), senza modo di
+  // accedere e collegare l'invito al proprio account esistente.
+  const [mode, setMode] = useState<'signup' | 'login'>('signup')
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -68,6 +72,25 @@ export default function CapostipiteInviteAcceptPage() {
       setTimeout(() => nav('/login'), 2500)
     } catch (e) {
       toast.error((e as Error).message)
+    } finally { setBusy(false) }
+  }
+
+  async function handleLogin(e: FormEvent) {
+    e.preventDefault()
+    if (!info || !token) return
+    setBusy(true)
+    try {
+      const { error: loginErr } = await supabase.auth.signInWithPassword({ email: info.email, password })
+      if (loginErr) throw loginErr
+      const { data: accepted } = await (supabase.rpc as any)('accept_supplier_invite', { p_token: token })
+      if (accepted !== true) {
+        toast.error('Accesso riuscito ma invito non collegato. Contatta chi ti ha invitato.')
+      } else {
+        toast.success(`Bentornata! Sei collegata a ${info.capo_name}.`)
+      }
+      nav('/', { replace: true })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore accesso')
     } finally { setBusy(false) }
   }
 
@@ -123,33 +146,51 @@ export default function CapostipiteInviteAcceptPage() {
           </div>
         )}
 
-        <form onSubmit={handleSignup} className="space-y-3">
+        <div className="flex gap-2 text-sm mb-5">
+          <button type="button" onClick={() => setMode('signup')}
+            className={`flex-1 py-2 rounded-md ${mode === 'signup' ? 'bg-[rgb(var(--bg-sunken))] font-medium' : 'text-[rgb(var(--fg-muted))]'}`}>
+            Nuovo account
+          </button>
+          <button type="button" onClick={() => setMode('login')}
+            className={`flex-1 py-2 rounded-md ${mode === 'login' ? 'bg-[rgb(var(--bg-sunken))] font-medium' : 'text-[rgb(var(--fg-muted))]'}`}>
+            Ho già un account
+          </button>
+        </div>
+
+        <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-3">
           <div>
             <Label>Email</Label>
             <Input value={info.email} disabled readOnly />
           </div>
-          <div>
-            <Label htmlFor="cap-name">Nome e cognome</Label>
-            <Input id="cap-name" required value={fullName}
-              onChange={(e) => setFullName(e.target.value)} placeholder="Rosella Elia" />
-          </div>
+          {mode === 'signup' && (
+            <div>
+              <Label htmlFor="cap-name">Nome e cognome</Label>
+              <Input id="cap-name" required value={fullName}
+                onChange={(e) => setFullName(e.target.value)} placeholder="Rosella Elia" />
+            </div>
+          )}
           <div>
             <Label htmlFor="cap-pass">Password</Label>
-            <Input id="cap-pass" type="password" required minLength={8}
-              value={password} onChange={(e) => setPassword(e.target.value)} placeholder="almeno 8 caratteri" />
+            <Input id="cap-pass" type="password" required minLength={mode === 'signup' ? 8 : 1}
+              value={password} onChange={(e) => setPassword(e.target.value)}
+              placeholder={mode === 'signup' ? 'almeno 8 caratteri' : 'la tua password'} />
           </div>
 
-          <div className="flex items-start gap-2 text-xs p-3 rounded-md"
-            style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
-            <Award size={14} className="shrink-0 mt-0.5 text-[rgb(var(--gold-600))]" />
-            <div>
-              Entrando ora con questo link verrai automaticamente collegata a {info.capo_name} nel sistema
-              Network Rewards.
+          {mode === 'signup' && (
+            <div className="flex items-start gap-2 text-xs p-3 rounded-md"
+              style={{ background: 'rgb(var(--bg-sunken))', color: 'rgb(var(--fg-muted))' }}>
+              <Award size={14} className="shrink-0 mt-0.5 text-[rgb(var(--gold-600))]" />
+              <div>
+                Entrando ora con questo link verrai automaticamente collegata a {info.capo_name} nel sistema
+                Network Rewards.
+              </div>
             </div>
-          </div>
+          )}
 
-          <Button type="submit" variant="gold" disabled={busy || !fullName || password.length < 8}>
-            {busy ? 'Creazione account…' : `Registrati come ${roleLabel}`}
+          <Button type="submit" variant="gold" disabled={busy || (mode === 'signup' ? (!fullName || password.length < 8) : !password)}>
+            {mode === 'signup'
+              ? (busy ? 'Creazione account…' : `Registrati come ${roleLabel}`)
+              : (busy ? 'Accesso…' : 'Accedi e collega l\'invito')}
           </Button>
         </form>
 

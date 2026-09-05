@@ -236,8 +236,10 @@ Deno.serve(async (req) => {
     let link = `${APP_BASE}/area-cliente/accedi?next=${encodeURIComponent('/area-cliente')}`
     let isNewCouple = false
     try {
-      const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
-      const userExists = allUsers?.some((u: any) => u.email?.toLowerCase() === q.client_email!.toLowerCase())
+      // NEW-05: listUsers({perPage:200}) senza paginare diventava inaffidabile
+      // oltre i primi 200 utenti Auth della piattaforma. Una query indicizzata
+      // diretta su auth.users non ha questo limite.
+      const { data: userExists } = await admin.rpc('email_has_account', { p_email: q.client_email })
       if (!userExists && q.event_date) {
         // Trova/crea calendar_entry per il quote
         const { data: entry } = await admin.from('calendar_entries').select('id').eq('quote_id', q.id).maybeSingle()

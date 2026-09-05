@@ -432,9 +432,13 @@ Deno.serve(async (req) => {
 
     // Email: variante referral ("un cliente aspetta il tuo preventivo") oppure
     // "ti hanno aggiunto al network".
+    // /suppliers è la pagina del CAPOSTIPITE (WP/LOCATION): un fornitore che
+    // ci clicca sopra veniva rimbalzato a "/" perdendo ?invite_from, mai letto
+    // da nessuna parte. /capostipiti è la pagina vera del fornitore (ruolo
+    // FORNITORE/ADMIN), dove la collaborazione appena creata è già visibile.
     const acceptUrl = referral
       ? `${APP_BASE}/suggerimenti-ricevuti`
-      : `${APP_BASE}/suppliers?invite_from=${callerId}`
+      : `${APP_BASE}/capostipiti`
     const send = await sendInviteEmail({
       to: email,
       acceptUrl,

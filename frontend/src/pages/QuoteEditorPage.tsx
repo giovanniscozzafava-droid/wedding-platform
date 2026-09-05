@@ -670,6 +670,15 @@ export default function QuoteEditorPage() {
         allow_supplier_suggestions: allowSuggest,
         revision: (quote.revision ?? 1) + 1,
       } as any })
+      // CICLO-02: la modifica forzata cambiava event_date senza mai toccare
+      // calendar_entries — il calendario del WP restava sulla vecchia data
+      // mentre preventivo/contratto avevano già la nuova. Sincronizza qui
+      // (il rilascio/blocco disponibilità fornitore è già gestito dal trigger
+      // auto_block_availability_from_quote sull'update di quotes.event_date).
+      if (eventDate && eventDate !== quote.event_date) {
+        await supabase.from('calendar_entries').update({ date_from: eventDate }).eq('quote_id', id)
+          .then(() => {}, () => { /* best-effort: non deve bloccare il salvataggio già fatto */ })
+      }
       // 2. Notify cliente via Resend (edge function quote-send già esiste con FROM verificato)
       if (quote.client_email) {
         await supabase.functions.invoke('quote-send', {
@@ -713,11 +722,13 @@ export default function QuoteEditorPage() {
       await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { quantity: safe } })
     } catch (e) { toast.error((e as Error).message) }
   }
-  // Sconto sulla singola voce (% sul prezzo cliente; negativo = maggiorazione).
-  // Clamp [-1000, 100]: oltre 100 azzererebbe sotto costo (vincolo anche lato DB).
+  // Sconto sulla singola voce (% sul prezzo cliente).
+  // Clamp [0, 100]: allineato al vincolo DB (D-01, quote_items_item_discount_pct_chk) —
+  // un valore negativo qui non è mai stato davvero una "maggiorazione" utilizzabile,
+  // il DB lo rifiuta da quando ammetterlo aveva già causato un prezzo 11× sbagliato.
   async function handleChangeItemDiscount(itemId: string, pct: number) {
     if (!id) return
-    const safe = Math.max(-1000, Math.min(100, Number.isFinite(pct) ? pct : 0))
+    const safe = Math.max(0, Math.min(100, Number.isFinite(pct) ? pct : 0))
     try {
       await updItem.mutateAsync({ id: itemId, quoteId: id, patch: { item_discount_percent: safe } as any })
     } catch (e) {
@@ -726,6 +737,8 @@ export default function QuoteEditorPage() {
       const msg = (e as Error).message || ''
       toast.error(/item_below_cost|sotto-costo/i.test(msg)
         ? 'Sconto troppo alto: questa voce andrebbe sotto il costo del fornitore. Riduci lo sconto o alza il markup.'
+        : /item_discount_pct_chk/i.test(msg)
+        ? 'Lo sconto deve essere tra 0 e 100%.'
         : msg)
     }
   }
@@ -745,7 +758,8 @@ export default function QuoteEditorPage() {
   async function handleTotalDiscount(patch: { total_discount_percent?: number; total_discount_amount?: number }) {
     if (!id) return
     const safe: any = { ...patch }
-    if (safe.total_discount_percent != null) safe.total_discount_percent = Math.max(-1000, Math.min(100, Number.isFinite(safe.total_discount_percent) ? safe.total_discount_percent : 0))
+    // Clamp [0, 100]: allineato al vincolo DB (D-04, quotes_total_discount_pct_chk).
+    if (safe.total_discount_percent != null) safe.total_discount_percent = Math.max(0, Math.min(100, Number.isFinite(safe.total_discount_percent) ? safe.total_discount_percent : 0))
     if (safe.total_discount_amount != null) safe.total_discount_amount = Math.max(0, Number.isFinite(safe.total_discount_amount) ? safe.total_discount_amount : 0)
     try {
       await update.mutateAsync({ id, patch: safe })
@@ -755,7 +769,10 @@ export default function QuoteEditorPage() {
       if (q && Number((q as any).margin_amount) < 0) {
         toast('Attenzione: con questo sconto il preventivo va sotto costo (margine negativo). Puoi comunque procedere.')
       }
-    } catch (e) { toast.error((e as Error).message) }
+    } catch (e) {
+      const msg = (e as Error).message || ''
+      toast.error(/total_discount_pct_chk/i.test(msg) ? 'Lo sconto deve essere tra 0 e 100%.' : msg)
+    }
   }
   // Km trasferta: il trigger DB ricalcola il totale (maggiorazione €/km oltre soglia).
   async function handleDistanceKm(km: number) {

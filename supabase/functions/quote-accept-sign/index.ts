@@ -112,7 +112,9 @@ Deno.serve(async (req) => {
   // 1. Recupera quote dal token (read-only, prima del gate atomico)
   const { data: quote } = await admin.from('quotes').select('*').eq('access_token', body.token).maybeSingle()
   if (!quote) return json({ error: 'token non valido' }, 404)
-  if (quote.status === 'RIFIUTATO' || quote.status === 'SCADUTO') {
+  // CONTR-03: 'SCADUTO' non è mai stato un valore dell'enum quote_status
+  // (mai aggiunto con ALTER TYPE) — quel ramo era irraggiungibile, rimosso.
+  if (quote.status === 'RIFIUTATO') {
     return json({ error: `Preventivo in stato ${quote.status}, non più accettabile` }, 409)
   }
   if (quote.status === 'ACCETTATO' || quote.status === 'CONVERTITO_IN_CONTRATTO') {
@@ -147,6 +149,11 @@ Deno.serve(async (req) => {
   if (quote.access_token_expires_at && new Date(quote.access_token_expires_at) <= new Date()) {
     return json({ error: 'Questo link è scaduto e non è più valido.' }, 409)
   }
+  // CONTR-02: un preventivo accantonato dal professionista non deve restare
+  // firmabile solo perché il link non è (ancora) scaduto/revocato esplicitamente.
+  if (quote.archived_at) {
+    return json({ error: 'Questo preventivo è stato accantonato dal professionista. Chiedi un link aggiornato.' }, 409)
+  }
 
   // A2. REGOLA (Giovanni, 01/09/2026): il preventivo si compone dalle SINGOLE VOCI
   // accettate dal cliente; senza selezione NON va avanti. Il gate vero e' nella UI
@@ -155,15 +162,41 @@ Deno.serve(async (req) => {
   // restano IN_ATTESA (contratto e statistiche perdono il dettaglio di cosa ha preso).
   {
     const { data: allItems, error: itErr } = await admin.from('quote_items')
-      .select('id, client_decision').eq('quote_id', quote.id)
+      .select('id, client_decision, supplier_id').eq('quote_id', quote.id)
     if (itErr) return json({ error: 'db error', detail: itErr.message }, 500)
     const hasItems = (allItems ?? []).length > 0
-    const nPicked = (allItems ?? []).filter((i: { client_decision?: string | null }) => i.client_decision === 'ACCETTATO').length
+    const accepted = (allItems ?? []).filter((i: { client_decision?: string | null }) => i.client_decision === 'ACCETTATO')
+    const nPicked = accepted.length
     if (hasItems && nPicked === 0) {
       return json({
         error: 'no_selection',
         detail: 'Scegli le voci che vuoi prima di firmare: il totale del preventivo è la somma delle voci selezionate.',
       }, 409)
+    }
+
+    // CICLO-03: nessun controllo di disponibilità esisteva al momento
+    // dell'accettazione finale — due preventivi paralleli con lo stesso
+    // fornitore/stessa data potevano essere entrambi accettati. Ultima difesa
+    // prima del claim atomico: se un fornitore delle voci scelte risulta già
+    // BUSY per QUEST'evento su un preventivo DIVERSO, blocca la firma.
+    if (quote.event_date) {
+      const relevant = (hasItems ? accepted : (allItems ?? [])) as Array<{ supplier_id?: string | null }>
+      const supplierIds = Array.from(new Set(relevant.map((i) => i.supplier_id).filter((s): s is string => !!s)))
+      if (supplierIds.length > 0) {
+        const { data: conflicts } = await admin.from('supplier_availability')
+          .select('fornitore_id')
+          .in('fornitore_id', supplierIds)
+          .eq('date', quote.event_date)
+          .eq('status', 'BUSY')
+          .not('source_quote_id', 'is', null)
+          .neq('source_quote_id', quote.id)
+        if (conflicts && conflicts.length > 0) {
+          return json({
+            error: 'supplier_double_booked',
+            detail: 'Uno dei fornitori scelti risulta già impegnato su questa data per un altro evento. Contatta il professionista.',
+          }, 409)
+        }
+      }
     }
   }
 

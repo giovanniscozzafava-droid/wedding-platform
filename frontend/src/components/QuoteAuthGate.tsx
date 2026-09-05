@@ -31,7 +31,7 @@ export function QuoteAuthGate({ children }: { children: ReactNode }) {
             Accedi / Registrati
           </span>
         </Link>
-        <p className="text-[11px] mt-4" style={{ color: '#9a9182' }}>Nessuna password: ti inviamo un link sicuro via email.</p>
+        <p className="text-[11px] mt-4" style={{ color: '#9a9182' }}>Prima volta? Ti mandiamo un link via email per creare la password.</p>
       </div>
     </div>
   )

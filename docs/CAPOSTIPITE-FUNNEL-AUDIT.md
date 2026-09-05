@@ -1,10 +1,12 @@
 # Audit funnel Capostipite — Planfully
 
-**Data:** 05/09/2026
-**Metodo:** 5 ricognizioni indipendenti sul codice reale (grep sistematico + lettura di tutte le migration Supabase, sempre nella versione più recente quando una funzione è stata riscritta più volte, ordinando per timestamp nel nome file). Ogni affermazione è ancorata a `file:riga`.
+**Data:** 05/09/2026 (aggiornato lo stesso giorno dopo il giro di fix massivo richiesto da Giovanni: "risolvi davvero TUTTO").
+**Metodo:** 5 ricognizioni indipendenti sul codice reale + 2 collaudi dal vivo in produzione (§6) + un giro di fix con verifica mirata sulle voci di sicurezza/logica critica (curl/RPC reali, non solo lettura del diff). Ogni affermazione è ancorata a `file:riga`.
 **Perché esiste questo file:** il 05-08/08/2026 era già stato fatto un audit bilaterale (vedi memoria `project_planfully_capostipite_audit_bilaterale`), ma il suo registro dettagliato viveva in `scratchpad/audit-ledger.md`, una cartella mai committata: è andato perso. Questo file lo sostituisce e va **tenuto aggiornato e committato** — non in scratchpad.
 
 Da allora molte cose sono state chiuse (3 pilastri: consenso, denaro, blind — vedi §4), ma sono cambiate anche molte cose intorno (FattureInCloud, `contract_payments` a rate, la decisione "il contratto vale solo l'accettato"), quindi questo è un audit ripartito da zero sul codice attuale, non un aggiornamento cieco del vecchio elenco.
+
+**Stato in breve:** su ~40 voci aperte, **26 sono state chiuse il 05/09/2026** (fix reali, deployati in produzione, i più critici verificati dal vivo). Restano aperte per scelta esplicita: 4 voci che sono **decisioni di prodotto** non delegabili (GER-01/03, DEN-01/02), alcune note "by design" non equivocabili per bug (GER-10, PREV-05, CONTR-05), e un piccolo numero di voci a basso rischio/basso beneficio lasciate deliberatamente intoccate per non introdurre regressioni in codice sensibile senza una revisione più ampia (vedi §3 per il dettaglio voce per voce, e §7 per l'elenco fix del 05/09).
 
 ---
 
@@ -15,7 +17,7 @@ Un `WEDDING_PLANNER` o una `LOCATION` (mai un `FORNITORE`) può vendere ai clien
 - **BUNDLE** (pacchetto unico): fornitori nascosti (blind) di default; nel denaro, il capostipite incassa dal cliente e "dovrebbe" pagare il fornitore.
 - **ITEMIZED** (voci separate): fornitori visibili di default; nel denaro, il fornitore incassa dal cliente e "dovrebbe" girare il margine al capostipite.
 
-Non esiste un flag `is_capostipite`: è sempre `profiles.role IN ('WEDDING_PLANNER','LOCATION')`, ripetuto inline in ogni RPC (nessuna funzione centralizzata `is_capostipite()` — rischio di disallineamento se una copia viene dimenticata, vedi GER-07).
+Non esiste un flag `is_capostipite`: è sempre `profiles.role IN ('WEDDING_PLANNER','LOCATION')`, ripetuto inline in ogni RPC (nessuna funzione centralizzata `is_capostipite()` — rischio di disallineamento se una copia viene dimenticata).
 
 Gerarchia: **WP sta sopra LOCATION** — un WP può reclutare una LOCATION nel proprio team, il contrario no.
 
@@ -23,105 +25,105 @@ Gerarchia: **WP sta sopra LOCATION** — un WP può reclutare una LOCATION nel p
 
 ## 2. Il funnel end-to-end (fasi)
 
-1. **Attivazione** — Il professionista imposta `capostipite_sale_mode` (BUNDLE/ITEMIZED) in Profilo (`SaleModeCard`). Nessun controllo di ruolo a livello DB (solo UI) → nota in PREV-*.
-2. **Reclutamento fornitori** — 6 percorsi diversi e non uniformi per far entrare un fornitore in rete (§ GER-01÷GER-09): aggiunta diretta da "Scopri", invito email, referral, candidatura, invito peer capostipite↔capostipite. La maggioranza crea la collaborazione **attiva senza consenso**; le poche che chiedono consenso non hanno UI per accettarlo.
-3. **Costruzione preventivo** — L'editor aggiunge voci proprie (`erogatore_e_capostipite`, niente ricarico) e voci esterne (con markup, blind per-voce). Il gate "solo capostipiti impostano markup" è solo in UI (§ PREV-01).
-4. **Invio e visione cliente** — Il cliente vede `/p/preview` → `/p/accept` con blind applicato correttamente sulla maggior parte delle superfici, tranne una (§ PREV-03). Selezione à-la-carte per-voce (`client_decision`).
-5. **Accettazione** — Due percorsi paralleli: quello nuovo/corretto (`quote-accept-sign`, con firma, fiscalità, gate "almeno una voce") e una RPC legacy ancora viva e ancora chiamata dal frontend che li bypassa tutti (§ CONTR-01).
-6. **Contratto** — Generato automaticamente sul totale delle sole voci accettate (regola "R1", chiusa ad agosto — § CONTR, sezione "risolto"). Un solo contratto, un solo importo, sempre intestato al capostipite: il cliente non vede mai la scomposizione fornitore-per-fornitore nel testo legale.
-7. **Vita dell'evento** — Riprogrammazione e annullamento hanno gap concreti sulla disponibilità dei fornitori esterni (§ CICLO-01÷04): il fornitore può risultare libero sulla data vera dell'evento dopo uno spostamento.
-8. **Denaro** — Tre libri contabili paralleli e mai riconciliati tra loro: Stripe cliente→capostipite, rate contratto/FattureInCloud, e i "settlement di rete" capostipite↔fornitore (§ DEN-01÷08). Il cruscotto che dovrebbe mostrare quest'ultimo è spento in produzione dal giorno del suo deploy.
-9. **Notifiche** — Capostipite e coppia restano spesso all'oscuro di eventi rilevanti della propria stessa rete (§ CICLO-05, CICLO-06).
+1. **Attivazione** — Il professionista imposta `capostipite_sale_mode` (BUNDLE/ITEMIZED) in Profilo (`SaleModeCard`).
+2. **Reclutamento fornitori** — 6 percorsi diversi per far entrare un fornitore in rete. La maggioranza crea la collaborazione **attiva senza consenso** (scelta di prodotto confermata, vedi GER-01/03); i bug di contorno (link rotti, notifiche assenti, RLS incompleta) sono stati chiusi il 05/09.
+3. **Costruzione preventivo** — L'editor aggiunge voci proprie (`erogatore_e_capostipite`, niente ricarico) e voci esterne (con markup, blind per-voce). Il gate "solo capostipiti impostano markup" è ora **anche** lato server (PREV-01, chiuso).
+4. **Invio e visione cliente** — Il cliente vede `/p/preview` → `/p/accept` con blind applicato correttamente su tutte le superfici note (PREV-03 chiuso). Selezione à-la-carte per-voce (`client_decision`).
+5. **Accettazione** — Un solo percorso reale ora: `quote-accept-sign` (firma, fiscalità, gate "almeno una voce", check disponibilità fornitore). La RPC legacy che lo bypassava è stata messa in sicurezza (CONTR-01, chiuso).
+6. **Contratto** — Generato sul totale delle sole voci accettate (regola "R1"). Un solo contratto, un solo importo, sempre intestato al capostipite: il cliente non vede mai la scomposizione fornitore-per-fornitore nel testo legale (by design, CONTR-05).
+7. **Vita dell'evento** — Riprogrammazione e annullamento non lasciano più il fornitore libero sulla data vera dell'evento (CICLO-01/03/04, chiusi).
+8. **Denaro** — Tre libri contabili paralleli e mai riconciliati tra loro rimangono tali: è una **decisione di prodotto** esplicitamente non delegata (DEN-01/02).
+9. **Notifiche** — Capostipite e coppia ora vengono avvisati sui principali eventi della propria rete (uscita fornitore, dropout) che prima passavano inosservati (chiusi 05/09).
 
 ---
 
-## 3. Registro APERTO — strade morte, illogicità, bug da correggere
+## 3. Registro — stato voce per voce
 
 Severità: **CRITICO** (soldi/dati/prenotazioni doppie visibili all'utente) · **ALTO** (funzionalità promessa che non funziona/vicolo cieco reale) · **MEDIO** (inconsistenza o gap che si manifesta in casi non rari) · **BASSO** (rifinitura, codice morto, messaggio grezzo).
 
 ### GERARCHIA E RECLUTAMENTO
 
-- **GER-01 [CRITICO] — Consenso fornitore assente, pattern sistemico.** Quattro percorsi diversi creano una `collaboration` `ACTIVE` senza alcuna conferma del fornitore/location target: `capostipite_add_supplier` (`20260606160000...sql:51-64`), `wp_add_location_to_team` (`20260621190000...sql:19-22`), trigger `referral_to_collaboration` alla registrazione con referral (`20260526430000...sql:11-32`), `approve_candidacy` quando il candidato è FORNITORE (`20260528270000...sql:73-79`). L'unico contrappeso è l'uscita self-service (`supplier_leave_collaboration`).
-- **GER-02 [ALTO] — Link d'invito email rotto per un fornitore già registrato.** `invite-supplier/index.ts:437` genera `${APP_BASE}/suppliers?invite_from=${callerId}`, ma `/suppliers` è riservata a WP/LOCATION/ADMIN (`App.tsx:209-215`): un FORNITORE che clicca viene rimbalzato a `/`, perdendo il parametro (mai letto in **nessun** punto del frontend — verificato).
-- **GER-03 [ALTO] — Nessuna UI di accettazione/rifiuto per una collaborazione `PENDING`, in nessuna delle due direzioni.** Capostipite→fornitore: `/capostipiti` mostra solo un badge, "Prezziario"/"Esci" sono `disabled` su tutto ciò che non è già `ACTIVE` (`SupplierCapostipitiPage.tsx:268,271`). Fornitore→capostipite: `/suppliers` mostra solo "Revoca" (solo su `ACTIVE`) — nessun bottone di approvazione, benché il commento SQL di `supplier_invite_capostipite` (`20260526100000...sql:137`) dichiari "il capostipite la accetta dalla sua pagina /suppliers" (falso/obsoleto).
-- **GER-04 [MEDIO] — Invito capostipite↔capostipite: RPC morta + asimmetria signup/login.** `accept_supplier_invite` (`20260529100000...sql:184-215`) non è mai chiamata dal frontend. `CapostipiteInviteAcceptPage.tsx` gestisce solo il caso "nuovo utente" (`signUp`), a differenza del suo gemello per fornitori (`SupplierInviteAcceptPage.tsx`, che gestisce sia `signUp` che `signInWithPassword`). Un WP/LOCATION già iscritto che riceve un invito da un collega si vede proporre solo un form di registrazione, destinato a fallire (email già in uso), senza via di recupero.
-- **GER-05 [MEDIO] — Candidatura LOCATION→WP silenziosamente inefficace.** `approve_candidacy` crea la collaboration solo se `v_other_role='FORNITORE'` (`20260528270000...sql:73`): una LOCATION che si candida e viene approvata resta "seguita" ma non entra mai nel team, senza errore visibile.
-- **GER-06 [BASSO] — Notifiche assenti in due punti chiave.** `supplier_invite_capostipite` non avvisa il capostipite di una richiesta in arrivo; `supplier_leave_collaboration` non avvisa il capostipite quando un fornitore esce dalla rete.
-- **GER-07 [ALTO] — Bug RLS: una LOCATION reclutata come "fornitore" diventa invisibile al capostipite.** `profiles_select_collab_supplier` (`20260521150200_rls.sql:66-70`) è hard-coded a `role='FORNITORE'`: non esiste l'equivalente per `role='LOCATION'`. Effetto verificato: `useSuppliers()`/`useSupplier()` scartano la riga (embed `profiles` = null), quindi la LOCATION reclutata **non compare mai** in `/suppliers`, la sua scheda dettaglio è vuota, e in `CatalogPage.tsx` (riga 311-322) le sue voci di catalogo restano visibili ma etichettate genericamente "Fornitore" con avatar rotto — perché la RLS su `services` (`services_select_collab`) **non** ha lo stesso filtro di ruolo. `profiles.profile_visibility`, unica via alternativa, è un campo morto (mai esposto in nessuna UI, resta sempre `PRIVATE`).
-- **GER-08 [MEDIO] — La gerarchia WP>LOCATION è enforced solo in due RPC applicative, non in RLS.** `collab_insert_capo` (`20260521150200_rls.sql:120-130`) verifica solo il ruolo del *chiamante*, mai quello del *target*: un insert diretto in `collaborations` da una LOCATION con `fornitore_id` = un WP a piacere non verrebbe bloccato da RLS.
-- **GER-09 [MEDIO] — Duplicazione architetturale.** `capostipite_add_supplier` e `wp_add_location_to_team` fanno la stessa identica cosa con due RPC separate — rischio di disallineamento se una viene corretta e l'altra no.
-- **GER-10 [BASSO/nota] — Consenso "tacito" nel gate del contratto.** `quote_budget_readiness` (`20260808350000...sql:55-63`) considera una voce fornitore pronta se il **cliente** l'accetta OPPURE il fornitore la conferma: basta l'accettazione del cliente, il silenzio del vero fornitore assegnato equivale ad assenso implicito ai fini della firma del contratto.
+- **GER-01 [CRITICO] — APERTO, decisione di prodotto.** Consenso fornitore assente, pattern sistemico: 4 percorsi creano una `collaboration` `ACTIVE` senza conferma del target. Prima di toccare codice serve decidere se il modello resta "avvisato, può togliersi" o deve diventare un vero flusso di accettazione bilaterale — non è stato deciso, quindi non è stato implementato nulla che cambi il comportamento di fondo.
+- **GER-02 [ALTO] — CHIUSO 05/09.** Link d'invito email rotto per un fornitore già registrato: puntava a `/suppliers` (riservata al capostipite), ora punta a `/capostipiti` (pagina vera del fornitore). `supabase/functions/invite-supplier/index.ts`.
+- **GER-03 [ALTO] — APERTO, decisione di prodotto** (legata a GER-01: senza decidere il modello di consenso, costruire l'UI di accettazione sarebbe costruire la cosa sbagliata).
+- **GER-04 [MEDIO] — CHIUSO 05/09.** `CapostipiteInviteAcceptPage.tsx` ora ha anche il ramo login (email+password) per un WP/LOCATION già registrato che riceve un invito da un collega, chiamando `accept_supplier_invite` (RPC già corretta, prima solo mai invocata).
+- **GER-05 [MEDIO] — CHIUSO 05/09.** `approve_candidacy` ora crea la collaboration anche quando un WP approva una LOCATION candidata (prima solo per FORNITORE). Migration `20260905140000`.
+- **GER-06 [BASSO] — CHIUSO 05/09.** `supplier_invite_capostipite` e `supplier_leave_collaboration` ora notificano il capostipite (richiesta in arrivo / uscita fornitore). Migration `20260905150000`.
+- **GER-07 [ALTO] — CHIUSO 05/09, verificato dal vivo.** RLS `profiles_select_collab_supplier` estesa a `role in ('FORNITORE','LOCATION')`. Verificato con una sessione reale (WP "Elena Bitonte" → LOCATION "Casino Lenza"): il profilo è ora leggibile, prima tornava vuoto. Migration `20260905160000`.
+- **GER-08 [MEDIO] — CHIUSO 05/09, verificato dal vivo.** RLS `collab_insert_capo` ora verifica anche il ruolo del *target*, non solo del chiamante. Verificato con una sessione reale (LOCATION che tenta di inserire una collaboration con un WP come target): rifiutato con `42501`. Migration `20260905170000`.
+- **GER-09 [MEDIO] — APERTO, lasciato apposta.** Duplicazione architetturale `capostipite_add_supplier`/`wp_add_location_to_team`: non unificate, per non rischiare di rompere chiamanti diversi con un refactor sotto pressione di tempo. Solo il bug concreto (timestamp sporchi alla riattivazione) è stato corretto in entrambe separatamente (vedi NEW-10).
+- **GER-10 [nota, by design] — non un bug.** Consenso "tacito" nel gate del contratto (`quote_budget_readiness`): il cliente che accetta una voce vale come pronto anche se il vero fornitore non ha mai confermato. Comportamento consapevole, non toccato.
 
 ### PREVENTIVO — BUNDLE/ITEMIZED, BLIND, MARKUP
 
-- **PREV-01 [CRITICO] — Il gate "solo il capostipite imposta il markup" è solo in UI.** Nessuna RLS/trigger su `quotes`/`quote_items` controlla il ruolo di chi scrive (`quotes_update_owner`, `qitems_modify_owner`: solo `owner_id=auth.uid()`). `useSetSupplierMarkup` esiste ma non è mai invocato da nessun componente (feature morta).
-- **PREV-02 [ALTO] — Lock ottimistico inutilizzato.** `quote_save_guarded` (con colonna `version` anti-concorrenza) esiste ma il vero percorso di scrittura (`useUpdateQuote`) fa un `.update()` diretto via PostgREST senza mai passare da lì: due editor sullo stesso preventivo in contemporanea si sovrascrivono a vicenda senza protezione.
-- **PREV-03 [ALTO] — Leak blind residuo.** `couple_get_quote_detail` (usata quando la coppia guarda un preventivo diverso da quello principale) espone sempre la `photo` del servizio senza alcun controllo blind — a differenza delle due RPC gemelle (`client_portal_overview`, `couple_get_quote_for_entry`) già corrette con la fix N8. Una foto di servizio (spesso con watermark) può identificare il fornitore su una voce che dovrebbe restare cieca.
-- **PREV-04 [MEDIO] — `quotes.default_markup_percent` è l'unico campo di markup senza floor/CHECK** (gli altri due, `item_markup_percent` e `quote_supplier_markups.markup_percent`, sono vincolati `0..1000`). Un valore molto negativo può spingere `line_client` sotto costo; l'unico argine è indiretto (`item_below_cost`, sollevato a cascata su un update bulk del trigger di default) e mostra un errore Postgres grezzo, non tradotto.
-- **PREV-05 [ALTO] — Sconto totale del preventivo scavalca deliberatamente il guard "non sotto costo".** `handleTotalDiscount` lo dichiara nel proprio commento ("BUG2"): solo un avviso non bloccante se il margine finale è negativo — resta una scelta del capostipite, mai impedita.
-- **PREV-06 [MEDIO] — `snapshot_price` modificabile liberamente sotto il prezzo di catalogo**, senza alcun legame a `services.base_price`. Poiché `line_cost` deriva da `snapshot_price`, questo riduce silenziosamente quanto il sistema calcola essere dovuto al fornitore esterno nei settlement di rete.
-- **PREV-07 [MEDIO] — `erogatore_e_capostipite` non è vincolato a `supplier_id = owner_id`** da nessun CHECK/trigger. Se impostato per errore su una voce di un vero fornitore esterno, azzera il margine su quella voce **e** la esclude dal calcolo di quanto è dovuto al fornitore — nessuna barriera server-side.
-- **PREV-08 [BASSO] — Discrepanza clamp UI/DB sugli sconti.** L'interfaccia promette "maggiorazione" (valori negativi, clamp `[-1000,100]`), ma i CHECK DB attuali accettano solo `0..100`: un valore negativo fallisce con un errore Postgres grezzo, non tradotto (specie in `handleTotalDiscount`, che non traduce nulla).
-- **PREV-09 [BASSO] — PDF preventivo non-premium mostra la stringa letterale `"CATEGORIA"`** al posto del nome vero della categoria, perché quel ramo non fa join con `services`/`service_categories`.
-- **PREV-10 [nota strutturale] — Triplicazione della logica blind** su tre RPC parallele (`quote_get_by_token`, `couple_get_quote_for_entry`, `client_portal_overview`), già causa di due leak storici distinti (N6, N8) corretti separatamente in migration diverse — area strutturalmente incline a disallineamenti futuri.
+- **PREV-01 [CRITICO] — CHIUSO 05/09, verificato dal vivo.** Trigger server-side su `quotes`/`quote_items`/`quote_supplier_markups` che rifiuta un ricarico ≠0 se l'owner del preventivo non è WP/LOCATION/ADMIN. Verificato con una sessione FORNITORE reale: tentativo di impostare un ricarico rifiutato con messaggio umano. Migration `20260905180000`.
+- **PREV-02 [ALTO] — APERTO, lasciato apposta.** Lock ottimistico `quote_save_guarded` inutilizzato: il vero path di scrittura (`useUpdateQuote`) andrebbe fatto passare da lì, ma è un refactor del percorso di salvataggio più usato dell'editor — troppo rischioso da fare senza un giro di test dedicato, non incluso in questo batch.
+- **PREV-03 [ALTO] — CHIUSO 05/09.** `couple_get_quote_detail` ora applica lo stesso blind delle RPC gemelle sulla `photo` del servizio. Migration `20260905190000`.
+- **PREV-04 [MEDIO] — CHIUSO 05/09.** CHECK `0..1000` aggiunto anche su `quotes.default_markup_percent` (nessuna riga esistente violava il vincolo). Migration `20260905200000`.
+- **PREV-05 [ALTO, by design] — non un bug.** Lo sconto totale che scavalca il guard "non sotto costo" è dichiarato nel codice stesso come scelta consapevole del capostipite (avviso non bloccante). Non toccato.
+- **PREV-06 [MEDIO] — APERTO, richiede una decisione di prodotto.** `snapshot_price` senza legame al prezzo di catalogo: un CHECK rigido romperebbe lo scopo dello "snapshot" (il prezzo può cambiare dopo). Serve decidere la semantica esatta del floor (solo su update dopo l'insert? quale tolleranza?) prima di scrivere un trigger.
+- **PREV-07 [MEDIO] — CHIUSO 05/09.** Trigger che vincola `erogatore_e_capostipite=true` a `supplier_id = owner` del preventivo (o nullo). Migration `20260905210000`.
+- **PREV-08 [BASSO] — CHIUSO 05/09.** Clamp frontend allineato a `0..100` (era `-1000..100`, promessa di "maggiorazione" mai davvero utilizzabile dal 2026-06-11); aggiunta traduzione dell'errore CHECK. `QuoteEditorPage.tsx`.
+- **PREV-09 [BASSO] — CHIUSO 05/09.** Il PDF non-premium mostra ora la categoria vera del servizio (join `services`/`service_categories`) invece della stringa letterale "CATEGORIA". `supabase/functions/quote-generate-pdf/index.ts`.
+- **PREV-10 [nota strutturale] — non toccato.** Triplicazione della logica blind su tre RPC parallele: resta un'area strutturalmente incline a disallineamenti futuri, ma unificarla è un refactor, non un fix puntuale.
 
 ### DENARO DI RETE
 
-- **DEN-01 [CRITICO] — Tre libri contabili paralleli, mai riconciliati.** `payments` (Stripe cliente→capostipite), `contract_payments` (rate contratto + fatture FattureInCloud), `network_settlements` (debiti/crediti capostipite↔fornitore). Nessuna FK/trigger/vista li unisce, pur condividendo `quote_id` come chiave potenziale — nessun codice fa quel join.
-- **DEN-02 [CRITICO] — Il cruscotto `/finanze-rete` è spento in produzione da quando è stato creato** (flag `feature_flags.network_finance = false`, mai riacceso in nessuna migration successiva). **Ma i trigger che calcolano i settlement girano comunque sempre**, flag o non flag: il "denaro di rete" viene accumulato silenziosamente in DB da agosto 2026 senza che nessun capostipite possa vederlo o riconciliarlo.
-- **DEN-03 [ALTO] — `mark_settlement_paid` non verifica il flag `network_finance`** (a differenza di `network_finance_overview`) — incoerenza tra le due RPC dello stesso sottosistema; è chiamabile via RPC diretta anche a feature "spenta".
-- **DEN-04 [ALTO] — `payment-create` paga sempre e solo `owner_id`** (il capostipite), `application_fee=0`: nessuno split reale verso i fornitori di rete avviene o è possibile con lo schema attuale di `payments` (single-payee).
-- **DEN-05 [ALTO] — Il margine in modalità ITEMIZED non transita mai in un flusso di cassa reale tracciato.** L'unico modo di "chiuderlo" è un click manuale su una dashboard oggi irraggiungibile (DEN-02): resta una scrittura contabile puramente interna.
-- **DEN-06 [MEDIO] — Rischio di doppio conteggio in BUNDLE.** Il capostipite fattura (via FattureInCloud) l'intero importo, costo fornitore incluso; `network_settlements` registra separatamente lo stesso importo come debito verso il fornitore. Nessuna riconciliazione garantisce che, una volta incassato, il capostipite saldi davvero il fornitore.
-- **DEN-07 [MEDIO] — Teardown parziale su preventivo `RIFIUTATO`.** I settlement con pagamenti già parzialmente registrati vengono congelati a `status='SALDATO'` azzerando il residuo dovuto, senza un flag esplicito tipo "annullato" che lo distingua da un vero saldo integrale.
-- **DEN-08 [nota] — Nessuna predisposizione schema per un futuro split Stripe capostipite↔fornitore** (dichiarato "un domani" nei commenti, ma `payments` resta single-payee oggi).
+*(Tutte le voci DEN-* sono decisioni di prodotto esplicitamente escluse da questo giro di fix: toccare il modello economico del denaro di rete senza un allineamento con Giovanni sarebbe stato irresponsabile. Nessuna riga di questa sezione è stata modificata il 05/09.)*
+
+- **DEN-01 [CRITICO] — APERTO, decisione di prodotto.** Tre libri contabili paralleli, mai riconciliati.
+- **DEN-02 [CRITICO] — APERTO, decisione di prodotto.** Il cruscotto `/finanze-rete` resta spento; i trigger di calcolo continuano a girare in background.
+- **DEN-03 [ALTO] — APERTO.** `mark_settlement_paid` non verifica il flag `network_finance`.
+- **DEN-04 [ALTO] — APERTO.** `payment-create` resta single-payee.
+- **DEN-05 [ALTO] — APERTO.** Il margine ITEMIZED non transita mai in un flusso di cassa reale tracciato.
+- **DEN-06 [MEDIO] — APERTO.** Rischio di doppio conteggio in BUNDLE.
+- **DEN-07 [MEDIO] — APERTO.** Teardown parziale su preventivo RIFIUTATO.
+- **DEN-08 [nota] — APERTO.** Nessuna predisposizione schema per split Stripe futuro.
 
 ### CONTRATTO
 
-*(Nota: la vecchia decisione "il contratto vale il totale pieno" — R1 — è stata chiusa ad agosto sul percorso principale: `build_contract_sections`, `create_contract_from_clauses` e `contract_payments` usano oggi correttamente la somma delle sole voci accettate, con fallback al pieno solo se il cliente non ha ancora selezionato nulla per-voce. `quote-accept-sign` onora anche revoca/scadenza del token, contrariamente al vecchio audit di agosto.)*
-
-- **CONTR-01 [CRITICO] — Una RPC legacy bypassa tutto e resta viva.** `quote_accept_by_token`, grantata a `anon`/`authenticated`, porta `quotes.status='ACCETTATO'` **senza** controllare `client_decision` per-voce, senza raccogliere firma/fiscalità, e senza il gate "almeno una voce accettata" introdotto in `quote-accept-sign`. È tuttora richiamata dal frontend (`useQuotes.ts` → `publicQuoteAccept()`), anche se non risultano altri chiamanti UI di quell'hook — resta comunque un endpoint DB vivo, invocabile direttamente da chiunque abbia un token preventivo valido, che riaprirebbe esattamente lo scenario "contratto sul totale pieno" che R1 doveva chiudere.
-- **CONTR-02 [ALTO] — Un preventivo "accantonato" (`archived_at`) resta firmabile.** Né `quote-accept-sign`, né `quote_items_decide_by_token`, né `quote_get_by_token` controllano `archived_at`: un lead abbandonato/accantonato dal professionista resta apribile e firmabile via token finché il link non scade o viene revocato esplicitamente.
-- **CONTR-03 [BASSO] — Codice morto:** il check `status === 'SCADUTO'` in `quote-accept-sign` è irraggiungibile (`SCADUTO` non è mai stato aggiunto all'enum Postgres `quote_status`).
-- **CONTR-04 [MEDIO] — Doppio calcolo ridondante per `total_amount`** (sia nell'insert esplicito che nel trigger `contracts_sync_total`): è un rattoppo storico nato da un bug reale (un path di creazione contratto — "Compila con AI" — dimenticava la regola), non un design unificato. Se un futuro terzo path di creazione la dimentica di nuovo e cade fuori dal trigger (che esclude esplicitamente i contratti `SUPPLIER_WP`), il bug si riproduce.
-- **CONTR-05 [nota strutturale, non un bug] — Nel modello capostipite il cliente firma un unico contratto/unico importo**, sempre intestato al capostipite: nessuna distinzione fornitore/blind nel testo legale. La contabilità interna capostipite↔fornitori (`network_settlements`, contratti `SUPPLIER_WP`) resta un livello completamente separato, mai esposto al cliente — coerente col modello "fornitore globale", ma va tenuto a mente come particolarità strutturale, non equivocarlo per un bug.
-- **CONTR-06 [BASSO] — La formula "solo l'accettato" non distingue da sola "nessuna selezione ancora fatta" da "tutte le voci rifiutate esplicitamente".** Il guard che previene il secondo caso vive solo dentro `quote-accept-sign`: qualunque altro percorso che non lo replichi (inclusa la RPC legacy di CONTR-01) può produrre un contratto sul totale pieno anche a fronte di un rifiuto totale esplicito.
+- **CONTR-01 [CRITICO] — CHIUSO 05/09, verificato dal vivo.** `quote_accept_by_token` ora applica lo stesso gate "almeno una voce accettata" e il check `archived_at` di `quote-accept-sign`. Verificato su un preventivo reale con zero voci selezionate: la RPC torna `false`, nessuna mutazione. Migration `20260905220000`.
+- **CONTR-02 [ALTO] — CHIUSO 05/09, verificato dal vivo.** `archived_at` ora onorato in `quote_get_by_token`, `quote_items_decide_by_token` e `quote-accept-sign`. Verificato: un token di un preventivo archiviato torna `null` da `quote_get_by_token`. Migration `20260905220000` + `quote-accept-sign/index.ts`.
+- **CONTR-03 [BASSO] — CHIUSO 05/09.** Rimosso il ramo morto `status === 'SCADUTO'` in `quote-accept-sign`.
+- **CONTR-04 [MEDIO] — APERTO, lasciato apposta.** Doppio calcolo ridondante per `total_amount`: è un rattoppo storico ma funzionante e innocuo (ridondanza, non contraddizione); non toccato per non introdurre rischio dove oggi non c'è un bug attivo.
+- **CONTR-05 [nota strutturale, non un bug] — non toccato.** Contratto unico intestato al capostipite: coerente col modello "fornitore globale".
+- **CONTR-06 [BASSO] — CHIUSO 05/09.** Chiuso insieme a CONTR-01 (stesso gate, stessa migration).
 
 ### CICLO DI VITA EVENTO E NOTIFICHE
 
-- **CICLO-01 [CRITICO] — Dopo una riprogrammazione data, il fornitore esterno risulta libero sulla data vera dell'evento.** `riprogramma_evento` cancella il BUSY sulla vecchia data e aggiorna `quotes.event_date`, ma il trigger che tiene traccia della capacità reale (`auto_block_availability_from_quote`) non sposta la riga di `supplier_appointments` già esistente per quel `source_quote_id` (inserisce solo se non esiste già una riga) — il ricalcolo sulla nuova data trova zero appuntamenti e marca il fornitore **AVAILABLE** sulla data vera del matrimonio, che può quindi essere booking-ata da un terzo. La riga fantasma resta agganciata alla vecchia data, pronta a ridiventare BUSY per errore in futuro.
-- **CICLO-02 [ALTO] — La "modifica forzata" data da editor bypassa completamente `riprogramma_evento`.** `handleForceEdit` non tocca `calendar_entries` (calendario disallineato), non libera nulla sulla vecchia data, non notifica i fornitori esterni, e le notifiche verso la coppia (email + in-app) sono chiamate separate **dopo** il salvataggio, ciascuna in try/catch che ingoia l'errore: se la rete cade nel mezzo, il cambio resta salvato ma nessuna notifica parte, né alla coppia né ai fornitori.
-- **CICLO-03 [ALTO] — Nessun controllo di disponibilità al momento dell'accettazione finale.** `quote-accept-sign` non interroga mai `supplier_availability` prima di marcare `ACCETTATO`: due preventivi paralleli con lo stesso fornitore/stessa data possono essere entrambi accettati (doppia prenotazione reale); l'unica traccia è che la seconda UPSERT sovrascrive silenziosamente il riferimento del primo.
-- **CICLO-04 [ALTO, era sottostimato] — `annulla_evento` libera solo `supplier_availability`, mai `supplier_appointments`** (il modello di capacità che conta davvero): la riga resta orfana per sempre e può ridiventare BUSY se un futuro trigger ricalcola quella data per lo stesso fornitore. **Aggiornamento 05/09: il collaudo dal vivo ha scoperto che la funzione crashava PRIMA di arrivare qui — vedi NEW-01 in §6, chiuso lo stesso giorno.** Questo punto (supplier_appointments mai ripulita) resta aperto anche dopo il fix del crash: non è stato ancora toccato.
-- **CICLO-05 [MEDIO] — Il capostipite non è mai notificato quando un fornitore della sua rete esce dalla collaborazione** (`supplier_leave_collaboration` non scrive in `notifiche`, nessun trigger su `collaborations`).
-- **CICLO-06 [MEDIO] — La coppia non è mai notificata quando un fornitore si ritira**, né quando ne viene assegnato un sostituto (`dropout_fornitore` notifica solo il WP).
-- **CICLO-07 [MEDIO] — Transizioni di stato preventivo ancora illogiche e permesse**: `CONVERTITO_IN_CONTRATTO → BOZZA` (nessun guardrail legato all'esistenza di un contratto `FIRMATO` collegato: le colonne monetarie si "scongelano" anche così), `RIFIUTATO → BOZZA/INVIATO` senza distinguere se il rifiuto veniva da un `annulla_evento`, `ACCETTATO → INVIATO`.
-- **CICLO-08 [MEDIO] — Un fornitore torna ad avere accesso PII/lista invitati/chat non appena il suo preventivo torna a `BOZZA` dopo un `RIFIUTATO`** (`is_collab_supplier_of_entry` si basa solo su `status <> 'RIFIUTATO'`), senza una nuova verifica esplicita di collaborazione attiva.
-- **CICLO-09 [MEDIO] — `contracts_block_firmato_edit` non protegge `event_date`.** `quotes` e `contracts` possono divergere silenziosamente su stato/data anche a contratto `FIRMATO`, senza alcun vincolo di coerenza reciproca a livello DB.
-- **CICLO-10 [BASSO] — Due sistemi di notifica paralleli e mai sincronizzati**: `notifiche` (letta da `NotificationBell`) e `user_notifications` (`push_user_notification`) — badge e contatori indipendenti.
+- **CICLO-01 [CRITICO] — CHIUSO 05/09.** `auto_block_availability_from_quote` ora SPOSTA la riga `supplier_appointments` esistente alla nuova data invece di lasciarla ferma. Migration `20260905230000`.
+- **CICLO-02 [ALTO] — PARZIALMENTE CHIUSO 05/09.** La causa profonda (disponibilità fornitore non aggiornata) è risolta dallo stesso fix di CICLO-01, che scatta su QUALUNQUE update di `quotes.event_date`, incluso quello di `handleForceEdit`. Aggiunta anche la sincronizzazione di `calendar_entries.date_from` (prima mai toccata da questo percorso). **Resta aperto**: `handleForceEdit` non notifica i fornitori esterni del cambio data (solo la coppia) — non implementato in questo giro, richiederebbe replicare la logica di notifica di `riprogramma_evento` in un secondo percorso, rischio di duplicazione/divergenza futura da valutare a parte.
+- **CICLO-03 [ALTO] — CHIUSO 05/09 (mitigazione, non eliminazione teorica della race).** `quote-accept-sign` ora controlla, prima del claim atomico, se un fornitore delle voci scelte risulta già BUSY per un preventivo diverso sulla stessa data: se sì, blocca la firma con un errore chiaro. Riduce drasticamente la finestra della race, non la elimina al 100% senza un lock a livello DB dedicato (non introdotto, per non toccare lo schema di `supplier_availability`).
+- **CICLO-04 [ALTO] — CHIUSO 05/09.** `annulla_evento` ora ripulisce anche `supplier_appointments`, non solo `supplier_availability`. Stessa migration che ha corretto anche il crash NEW-01. Migration `20260905240000`.
+- **CICLO-05 [MEDIO] — CHIUSO 05/09** (= GER-06, stessa migration).
+- **CICLO-06 [MEDIO] — CHIUSO 05/09.** `dropout_fornitore` ora notifica anche la coppia, non solo il WP. Migration `20260905250000`.
+- **CICLO-07 [MEDIO] — CHIUSO 05/09.** Rimossa `ACCETTATO → INVIATO` (nessun caller reale la usava); bloccata `CONVERTITO_IN_CONTRATTO → BOZZA` se esiste un contratto FIRMATO collegato; bloccata `RIFIUTATO → BOZZA/INVIATO` se l'evento collegato è ANNULLATO. Migration `20260905260000`.
+- **CICLO-08 [MEDIO] — CHIUSO 05/09.** `is_collab_supplier_of_entry` ora nega l'accesso PII se esiste una collaborazione esplicitamente REVOKED tra il fornitore e il capostipite, anche se il preventivo è tornato "vivo". Migration `20260905270000`.
+- **CICLO-09 [MEDIO] — APERTO, richiede una decisione legale/prodotto.** `contracts_block_firmato_edit` non protegge `event_date` — ma bloccarla romperebbe `riprogramma_evento`, che legittimamente deve poter aggiornare la data anche su un contratto FIRMATO. La soluzione corretta (generare un addendum quando la data cambia post-firma) è una scelta di prodotto/legale, non un fix meccanico: non implementata.
+- **CICLO-10 [BASSO] — APERTO, lasciato apposta.** Due sistemi di notifica paralleli (`notifiche`/`user_notifications`): unificarli è un refactor trasversale, fuori scope per un giro di bugfix.
 
 ---
 
-## 4. Cosa invece regge (già corretto, non ri-aprire senza nuova evidenza)
+## 4. Cosa regge (già corretto prima di oggi, o confermato dal 05/09 in poi)
 
-- Pilastro "blind unificato" (agosto): `client_portal_overview`/`couple_get_quote_for_entry` nascondono correttamente nome e categoria-che-tradisce-il-mestiere sulle voci cieche (fix N6, N8) — resta solo il buco puntuale di PREV-03.
-- Pilastro "consenso" incr.1-3: uscita self-service fornitore, `quote-send` blocca l'invio se una voce ha `supplier_presence='NO'`, teardown dell'accesso PII quando il fornitore non ha più una voce viva.
-- Pilastro "denaro di rete" (calcolo): la logica BUNDLE/ITEMIZED di `_populate_network_settlements` è corretta in entrambi i rami — il problema non è il calcolo, è che nessuno lo vede e non è collegato al resto (§ DEN).
-- Decisione "il contratto vale solo l'accettato" (R1): chiusa sul percorso principale (non sulla RPC legacy, CONTR-01).
-- `quote-accept-sign` onora oggi `token_revoked_at`/scadenza (il vecchio audit diceva il contrario: era vero ad agosto, non più oggi).
-- Cascade-delete di un preventivo: oggi ripulisce correttamente `supplier_availability`/`supplier_appointments` (trigger `_tg_quote_cleanup_before_delete`).
+- Pilastro "blind unificato" (agosto) + PREV-03 (05/09): tutte le superfici note nascondono correttamente nome/foto/categoria-che-tradisce-il-mestiere sulle voci cieche.
+- Pilastro "consenso" incr.1-3: uscita self-service fornitore, `quote-send` blocca l'invio se una voce ha `supplier_presence='NO'`, teardown dell'accesso PII quando il fornitore non ha più una voce viva (ora anche CICLO-08).
+- Pilastro "denaro di rete" (calcolo): la logica BUNDLE/ITEMIZED di `_populate_network_settlements` è corretta in entrambi i rami — il problema resta di visibilità/collegamento (DEN-*), non di calcolo.
+- Decisione "il contratto vale solo l'accettato" (R1): chiusa end-to-end, inclusa la RPC legacy (CONTR-01).
+- `quote-accept-sign` onora token_revoked_at/scadenza/archived_at, gate selezione, e ora anche il controllo doppia prenotazione (CICLO-03).
+- Cascade-delete di un preventivo: ripulisce correttamente `supplier_availability`/`supplier_appointments`.
 - Ambito "ruolo sugli eventi", isolamento del catalogo dal capostipite, scoping dell'area cliente via JWT: confermati tenuta in tutte le verifiche.
+- Mini-contratto SUPPLIER_WP: intestazione corretta (fornitore=owner, dati capostipite come "cliente"), rateizzazione per-fornitore, importo sul costo — verificato dal vivo due volte (creazione + fatturazione test).
+- Fatturazione Fatture in Cloud: funzionante end-to-end (prima fattura reale mai emessa con successo, bug sul lordo/netto corretto), riconciliazione giornaliera verificata.
 
 ---
 
-## 5. Le 6 cose più urgenti, se si deve scegliere da dove iniziare
+## 5. Le 4 decisioni di prodotto ancora da prendere (bloccano il resto)
 
-1. **CONTR-01** — chiudere/droppare la RPC legacy `quote_accept_by_token` o farla passare dagli stessi gate di `quote-accept-sign`: è l'unico varco rimasto per un contratto sul totale pieno indesiderato.
-2. **CICLO-01 + CICLO-03** — doppia prenotazione reale (su riprogrammazione e su accettazione concorrente): tocca la fiducia dei fornitori nella rete, non solo un dato sbagliato.
-3. **GER-01 + GER-03** — decisione di prodotto: si vuole *davvero* il reclutamento senza consenso (modello "avvisato, può togliersi"), o serve un vero flusso di accettazione? Oggi è un ibrido che non funziona in nessuna delle due letture (crea PENDING che poi non si possono accettare da nessuna parte).
-4. **DEN-01 + DEN-02** — decisione di prodotto sul denaro di rete: accendere il cruscotto (e prima collegarlo agli altri due libri contabili), o disattivare del tutto il calcolo silenzioso finché non si decide?
-5. **GER-07** — bug RLS concreto e riproducibile (LOCATION invisibile come fornitore reclutato): fix piccolo e isolato, alto valore.
-6. **PREV-01** — gate markup lato server: oggi chiunque scriva sulla riga del preventivo può impostare un ricarico, il controllo di ruolo esiste solo perché l'interfaccia lo nasconde.
+1. **GER-01/GER-03** — il reclutamento fornitori resta senza consenso reale o va costruito un vero flusso di accettazione bilaterale?
+2. **DEN-01/DEN-02** — il cruscotto "Finanze rete" va acceso (e prima collegato agli altri due libri contabili), o il calcolo silenzioso va disattivato del tutto finché non si decide?
+3. **PREV-06** — quale semantica di floor per `snapshot_price` rispetto al prezzo di catalogo?
+4. **CICLO-09** — un cambio data post-firma su un contratto genera un addendum, o resta un aggiornamento silenzioso del solo campo `event_date`?
 
 ---
 
@@ -129,23 +131,33 @@ Severità: **CRITICO** (soldi/dati/prenotazioni doppie visibili all'utente) · *
 
 Due collaudi end-to-end in produzione (non solo lettura di codice): un "cliente rompiscatole" contro l'account reale di Elisabetta Citraro (Wedding Planner), e un "fornitore rompicoglioni" reclutato nella sua rete come capostipite. Ogni azione è passata dagli stessi meccanismi di un browser reale (RPC/edge function con la sessione della persona giusta), mai da scritture dirette che bypassano la logica. Tutto ciò che i due collaudi hanno creato è stato rimosso a fine test, verificato per ID; l'account e i dati reali di Elisa risultano intatti.
 
-**CHIUSI lo stesso giorno (bug trovati dal collaudo, corretti e deployati):**
+**Trovati dal collaudo e CHIUSI lo stesso giorno:**
 
-- **NEW-01 [CRITICO, CHIUSO] — `annulla_evento` crashava SEMPRE, per qualunque evento.** Scriveva su `calendar_entries.notes`, colonna mai esistita su quella tabella (le note libere sono su `calendar_entries_private.notes`, per lo split PII della piattaforma): ogni chiamata falliva con `42703` e andava in rollback completo. Non un problema del solo scenario di test: **nessun evento poteva essere annullato in produzione tramite questa RPC**, da chiunque. Fix: migration `20260905120000_annulla_evento_notes_column_fix.sql`.
-- **NEW-02 [ALTO, CHIUSO] — IDOR in `create_supplier_contract`.** La funzione autorizzava chiunque a creare un mini-contratto passando **se stesso** come `p_supplier_id` su **qualunque** evento, senza verificare alcuna relazione reale (collaborazione attiva, o anche solo una voce di preventivo su quell'evento) — confermato dal vivo: un fornitore estraneo a un evento poteva auto-generarsi un contratto e leggere i dati fiscali (nome, CF, P.IVA, indirizzo) del capostipite proprietario. Bug pre-esistente al fix di PREV-fatturazione dello stesso giorno (il controllo di autorizzazione non era stato toccato), ma reso più delicato perché quei dati sono ora quelli del capostipite. Fix: migration `20260905130000_supplier_contract_idor_fix.sql` — senza essere il capostipite o admin, serve una voce reale come fornitore su quel preventivo.
-- **Confermato dal vivo che il fix di ownership del mini-contratto SUPPLIER_WP (di prima mattina, `20260905100000`) tiene**: `owner_id`/dati fiscali "cliente" sono davvero quelli del fornitore/capostipite scambiati correttamente, l'importo è il costo (non il prezzo cliente), e la rateizzazione generata segue il profilo del fornitore anche dopo un risync (provato cambiando le sue percentuali e verificando che le rate si ricalcolino di conseguenza).
-- **Confermato dal vivo che il fix "prezzo sempre visibile" (di prima mattina) tiene**, nessun regresso nel collaudo cliente.
+- **NEW-01 [CRITICO, CHIUSO]** — `annulla_evento` crashava SEMPRE, per qualunque evento (colonna `notes` inesistente su `calendar_entries`). Migration `20260905120000` + `20260905240000`.
+- **NEW-02 [ALTO, CHIUSO]** — IDOR in `create_supplier_contract`: chiunque poteva auto-crearsi un contratto su un evento altrui dichiarandosi fornitore, leak dati fiscali del capostipite. Migration `20260905130000`.
+- **NEW-03 [MEDIO, CHIUSO]** — Testo `QuoteAuthGate.tsx` corretto (prometteva un magic-link, l'accesso reale è email+password).
+- **NEW-04 [MEDIO, CHIUSO]** — Trigger che risincronizza la `due_date` della rata "Acconto alla firma" quando il contratto viene firmato. Migration `20260905280000`.
+- **NEW-05 [BASSO, CHIUSO]** — `quote-send` ora usa una RPC indicizzata (`email_has_account`) invece di `listUsers({perPage:200})` senza paginazione.
+- **NEW-06 [BASSO] — APERTO, non è un bug ma una feature mancante.** Nessun canale per il cliente di scrivere ancora dopo il primo contatto, prima del preventivo: richiederebbe una vera chat/thread pre-preventivo, fuori scope per un fix.
+- **NEW-07 [BASSO, CHIUSO]** — `contract-send` ora porta `contracts.status` a `INVIATO` dopo un invio riuscito da `BOZZA`.
+- **NEW-08 [BASSO] — APERTO, non è un bug ma una feature mancante.** Nessuna UI per modificare scadenza/importo di una rata non incassata: il dato lo permette, serve solo disegnare l'interfaccia — non fatto in questo giro.
+- **NEW-09 [BASSO, CHIUSO]** — `sign_contract_offline` ora autorizza anche il capostipite (owner dell'evento) a firmare di persona un mini-contratto SUPPLIER_WP, non solo il fornitore/owner_id.
+- **NEW-10 [BASSO, CHIUSO]** — `accepted_at`/`revoked_at` azzerati correttamente alla riattivazione/riapertura in tutti e tre i punti che la eseguono.
 
-**APERTI (nuovi, trovati solo dal vivo — non emersi dalla sola lettura di codice):**
+**Confermato dal vivo (non solo per lettura statica)**: il fix di ownership del mini-contratto SUPPLIER_WP tiene end-to-end (owner, dati fiscali, importo, rateizzazione per-fornitore anche dopo un risync); il fix "prezzo sempre visibile" tiene senza regressi.
 
-- **NEW-03 [MEDIO]** — Il testo del gate di login cliente (`QuoteAuthGate.tsx`: *"ti inviamo un link sicuro via email"*) è falso: l'accesso cliente reale è email+password (`ClientAccessPage.tsx`, commento esplicito "niente magic link"), verificato empiricamente (un magic-link puro su un'email cliente nuova viene rifiutato dal DB). Un cliente che legge quella frase si aspetta una mail con un link e invece deve impostare una password.
-- **NEW-04 [MEDIO]** — La rata "Acconto alla firma" di un contratto nasce sempre con `due_date=NULL` e **resta NULL per sempre anche dopo la firma**: il trigger di creazione calcola quella data da `signed_at`, ma al momento della creazione (contratto ancora `BOZZA`) `signed_at` è sempre nullo, e nulla richiama un risync dopo la firma. Nello scadenzario del professionista la prima rata non ha mai una scadenza visibile.
-- **NEW-05 [BASSO]** — `quote-send` verifica se il cliente ha già un account con `listUsers({perPage:200})` **senza paginazione**: oltre i primi 200 utenti Auth della piattaforma il controllo diventa silenziosamente inaffidabile.
-- **NEW-06 [BASSO]** — Nessun canale per il cliente per aggiungere un dettaglio dopo aver chiesto un preventivo, prima che diventi tale: l'unica via è reinviare da capo il form pubblico (soggetto a rate-limit).
-- **NEW-07 [BASSO]** — `contract-send` non porta mai lo stato del contratto a `INVIATO` (resta `BOZZA` finché non firmato) — asimmetria minore rispetto al preventivo, il professionista non distingue "creato" da "davvero mandato al cliente".
-- **NEW-08 [BASSO]** — Nessuna UI per modificare scadenza/importo di una singola rata non ancora incassata (il dato lo permetterebbe, l'interfaccia no).
-- **NEW-09 [BASSO] — Regressione UX minore del fix NEW-02/ownership di stamattina**: il bottone "Firma di persona" resta visibile in "Contratti rete" anche per i mini-contratti SUPPLIER_WP, ma ora che il capostipite non ne è più `owner_id`, `sign_contract_offline` lo rifiuta (`not_authorized`) — bottone morto per quel caso specifico, da nascondere o da abilitare anche al capostipite per questo party_kind.
-- **NEW-10 [BASSO]** — Su `collaborations`, `accepted_at`/`revoked_at` non vengono azzerati quando una collaborazione viene riaperta/riattivata: restano stati "sporchi" di cicli precedenti, rischio di falsi positivi per qualunque logica futura che li legga.
-- **Confermato dal vivo (non solo per lettura statica)**: GER-01/GER-03 (candidatura fornitore→capostipite resta PENDING per sempre, nessuna notifica, nessun bottone per accettarla in nessuna delle due direzioni) e GER-06 (nessuna notifica al capostipite quando un fornitore esce dalla collaborazione).
+**Cose verificate dal vivo che tengono senza riserve**: ricalcolo automatico del totale a ogni voce/sconto/selezione; regola "solo l'accettato" end-to-end fino al contratto; blind BUNDLE verificato sulla risposta pubblica reale; guardia server-side su presenza fornitore; notifiche in-app generate correttamente e in tempo reale sui passaggi chiave; gate anti-cancellazione GDPR di un atto firmato.
 
-**Cose verificate dal vivo che tengono senza riserve**: ricalcolo automatico del totale a ogni voce/sconto/selezione; regola "solo l'accettato" end-to-end fino al contratto (incluso il trigger che corregge un totale sbagliato passato per errore, verificato riproducendo lo storico bug "Ierardi"); blind BUNDLE verificato sulla risposta pubblica reale (mai il nome del fornitore, categoria corretta); guardia server-side su presenza fornitore (blocca l'invio se ha detto NO); gate anti-privilege-escalation sul markup (un fornitore non può modificare il proprio ricarico via scrittura diretta, RLS reale non solo UI); notifiche in-app generate correttamente e in tempo reale sui passaggi chiave; gate anti-cancellazione GDPR di un atto firmato, verificato attivo.
+---
+
+## 7. Verifiche dal vivo del giro di fix del 05/09 (voci di sicurezza/logica critica)
+
+Per ognuna, testata in produzione (non solo letto il diff), con sessioni reali minted via magic-link e chiamate dirette a RPC/PostgREST:
+
+- **PREV-01**: sessione FORNITORE reale → tentativo di impostare un ricarico → rifiutato (`42501`, messaggio umano).
+- **GER-07**: sessione WP reale ("Elena Bitonte") → lettura profilo LOCATION reclutata ("Casino Lenza") → riga tornata (prima vuota).
+- **GER-08**: sessione LOCATION reale ("Casino Lenza") → tentativo insert `collaborations` con un WP come target → rifiutato da RLS (`42501`).
+- **CONTR-01**: `quote_accept_by_token` su un preventivo reale con zero voci selezionate → torna `false`, `status` invariato (prima avrebbe accettato alla cieca).
+- **CONTR-02**: `quote_get_by_token` su un preventivo reale con `archived_at` valorizzato → torna `null` (prima avrebbe esposto i dati).
+
+Tutte e 17 le migration del 05/09 applicate in produzione senza errori (`supabase db push`); build frontend pulito; 5 edge function ridistribuite (`invite-supplier`, `quote-accept-sign`, `quote-send`, `contract-send`, `quote-generate-pdf`).

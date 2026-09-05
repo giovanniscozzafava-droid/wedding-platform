@@ -96,5 +96,12 @@ Deno.serve(async (req) => {
   })
   if (!r.ok && (r as any).reason === 'no_credentials') return json({ ok: true, skipped: true, link })
   if (!r.ok) return json({ error: (r as any).error ?? 'send_failed', link }, 500)
+
+  // NEW-07: il contratto restava per sempre BOZZA in DB anche dopo l'invio
+  // reale al cliente — il professionista non distingueva "creato" da "mandato".
+  if (c.status === 'BOZZA') {
+    await admin.from('contracts').update({ status: 'INVIATO' }).eq('id', c.id).eq('status', 'BOZZA')
+  }
+
   return json({ ok: true, link })
 })
