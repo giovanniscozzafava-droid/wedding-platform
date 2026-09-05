@@ -124,16 +124,21 @@ function QuotePreviewPageInner() {
   }
 
   const primary = data.owner?.brand_primary_color ?? '#1A2E4F'
-  // Se il preventivo è già stato accettato/firmato, il prezzo NON è più segreto:
-  // il cliente si è già registrato e ha firmato. Niente gate di registrazione.
-  const alreadyDecided = data.status === 'ACCETTATO' || data.status === 'CONVERTITO_IN_CONTRATTO'
-  const showPrice = unlocked || alreadyDecided
+  // Il prezzo si vede SEMPRE una volta passato il login (QuoteAuthGate, email
+  // dell'invito): quello è il vero controllo di accesso. Prima si chiedeva un
+  // consenso extra solo per vedere il prezzo, ma quel consenso non sbloccava
+  // più nulla (quote_get_by_token non torna più `price_locked`) — il cliente
+  // restava bloccato per sempre. Il consenso resta, ma solo per SCEGLIERE le
+  // voci e accettare, non per guardare il preventivo.
+  const showPrice = true
   // Regola R1: se il cliente ha accettato solo alcune voci, mostra SOLO il totale
   // di quelle. Le voci non incluse restano visibili ma marcate "Non incluso".
   const hasSel = hasPartialSelection(data.total_client_selected)
   const shown = shownTotal(data.total_client, data.total_client_selected)
-  // Si sceglie solo su un preventivo ancora INVIATO e col prezzo sbloccato.
-  const canChoose = showPrice && data.status === 'INVIATO'
+  // Si sceglie solo su un preventivo ancora INVIATO; `unlocked` qui significa
+  // "ha confermato i dati per procedere" (ex "vede il prezzo").
+  const canChoose = data.status === 'INVIATO'
+  const consented = unlocked
   const allIds = data.items.map((it) => (it as { id?: string }).id ?? '').filter(Boolean)
   const pickedIds = data.items
     .filter((it) => (it as { client_decision?: string | null }).client_decision === 'ACCETTATO')
@@ -193,7 +198,7 @@ function QuotePreviewPageInner() {
             )}
           </div>
 
-          {canChoose && (
+          {canChoose && consented && (
             <div className="px-6 sm:px-10 pt-2 pb-1 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-[rgb(var(--fg-muted))]">
                 Scegli le voci che vuoi: <strong className="text-[rgb(var(--fg))]">{nPicked} di {allIds.length}</strong> selezionate.
@@ -203,6 +208,13 @@ function QuotePreviewPageInner() {
                 onClick={() => void decideItems(allPicked ? allIds : allIds.filter((id) => !pickedIds.includes(id)), allPicked ? 'IN_ATTESA' : 'ACCETTATO')}>
                 {allPicked ? 'Togli tutte' : 'Opziona tutte le voci'}
               </Button>
+            </div>
+          )}
+          {canChoose && !consented && (
+            <div className="px-6 sm:px-10 pt-2">
+              <ProceedConsentGate token={token!} clientName={data.client_name ?? null}
+                clientEmail={(data as { client_email?: string | null }).client_email ?? null}
+                primary={primary} onUnlocked={() => setUnlocked(true)} />
             </div>
           )}
 
@@ -234,12 +246,12 @@ function QuotePreviewPageInner() {
                       const picked = (it as { client_decision?: string | null }).client_decision === 'ACCETTATO'
                       // Mentre sceglie: non spuntata = solo sbiadita (niente barratura,
                       // che significherebbe "esclusa" invece di "non ancora scelta").
-                      const dim = canChoose ? !picked : !included
+                      const dim = (canChoose && consented) ? !picked : !included
                       const strike = !canChoose && !included
                       return (
                         <li key={itemId || `${gi}-${i}`} className="py-4" style={dim ? { opacity: 0.55 } : undefined}>
                     <div className="flex items-start gap-3">
-                    {canChoose && (
+                    {canChoose && consented && (
                       <input type="checkbox" aria-label={`Includi ${it.name_snapshot}`} data-testid="pick-item"
                         checked={picked} disabled={picking || !itemId}
                         onChange={(e) => void decideItems([itemId], e.target.checked ? 'ACCETTATO' : 'IN_ATTESA')}
@@ -280,41 +292,43 @@ function QuotePreviewPageInner() {
             })()}
           </div>
 
-          {showPrice ? (
-            <>
-              <div className="px-6 sm:px-10 py-6 mt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">{hasSel ? 'Totale selezionato' : 'Totale'}</span>
-                  <span className="font-display text-3xl sm:text-4xl tabular-nums" style={{ color: primary }}>
-                    € {Number(shown).toLocaleString('it-IT')}
-                  </span>
-                </div>
-                {hasSel && (
-                  <p className="mt-1 text-xs text-[rgb(var(--fg-muted))] text-right">
-                    Solo le voci che hai scelto. Le altre restano disponibili se le vuoi aggiungere.
-                  </p>
-                )}
-              </div>
-              {data.pdf_url && (
-                <div className="px-6 sm:px-10 pb-4">
-                  <a href={data.pdf_url} target="_blank" rel="noreferrer" data-testid="public-pdf-link"
-                    className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline">
-                    Scarica versione PDF <ExternalLink size={12} />
-                  </a>
-                </div>
-              )}
-            </>
-          ) : (
-            <PriceConsentGate token={token!} clientName={data.client_name ?? null}
-              clientEmail={(data as { client_email?: string | null }).client_email ?? null}
-              primary={primary} onUnlocked={() => { void load() }} />
+          <div className="px-6 sm:px-10 py-6 mt-2 border-t" style={{ borderColor: 'rgb(var(--border))' }}>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--fg-muted))]">{hasSel ? 'Totale selezionato' : 'Totale'}</span>
+              <span className="font-display text-3xl sm:text-4xl tabular-nums" style={{ color: primary }}>
+                € {Number(shown).toLocaleString('it-IT')}
+              </span>
+            </div>
+            {hasSel && (
+              <p className="mt-1 text-xs text-[rgb(var(--fg-muted))] text-right">
+                Solo le voci che hai scelto. Le altre restano disponibili se le vuoi aggiungere.
+              </p>
+            )}
+          </div>
+          {data.pdf_url && (
+            <div className="px-6 sm:px-10 pb-4">
+              <a href={data.pdf_url} target="_blank" rel="noreferrer" data-testid="public-pdf-link"
+                className="inline-flex items-center gap-1 text-sm text-[rgb(var(--fg-muted))] hover:underline">
+                Scarica versione PDF <ExternalLink size={12} />
+              </a>
+            </div>
           )}
 
           {data.status === 'INVIATO' && (
             <div className="px-6 sm:px-10 pb-8 flex flex-col sm:flex-row gap-3">
               {/* Senza almeno una voce scelta il preventivo NON va avanti: il totale
-                  firmato dev'essere la somma di ciò che il cliente ha davvero preso. */}
-              {canChoose && allIds.length > 0 && nPicked === 0 ? (
+                  firmato dev'essere la somma di ciò che il cliente ha davvero preso.
+                  E senza consenso confermato (form qui sopra) non si accetta alla cieca. */}
+              {!consented ? (
+                <div className="flex-1">
+                  <Button variant="gold" className="w-full" disabled data-testid="accept-btn-disabled">
+                    <Check /> Accetto il preventivo
+                  </Button>
+                  <p className="mt-2 text-xs text-center text-[rgb(var(--fg-muted))]">
+                    Conferma i tuoi dati qui sopra per scegliere le voci e proseguire.
+                  </p>
+                </div>
+              ) : canChoose && allIds.length > 0 && nPicked === 0 ? (
                 <div className="flex-1">
                   <Button variant="gold" className="w-full" disabled data-testid="accept-btn-disabled">
                     <Check /> Accetto il preventivo
@@ -378,7 +392,7 @@ function QuotePreviewPageInner() {
   )
 }
 
-function PriceConsentGate({ token, clientName, clientEmail, primary, onUnlocked }: {
+function ProceedConsentGate({ token, clientName, clientEmail, primary, onUnlocked }: {
   token: string; clientName: string | null; clientEmail: string | null; primary: string; onUnlocked: () => void
 }) {
   const [email, setEmail] = useState(clientEmail ?? '')
@@ -408,10 +422,10 @@ function PriceConsentGate({ token, clientName, clientEmail, primary, onUnlocked 
       <div className="rounded-xl border p-4" style={{ borderColor: 'rgb(var(--border))', background: 'rgb(var(--bg-sunken))' }}>
         <div className="flex items-center gap-2 mb-1">
           <Lock size={16} style={{ color: primary }} />
-          <p className="font-medium text-sm">Crea un accesso per vedere il prezzo</p>
+          <p className="font-medium text-sm">Conferma i tuoi dati per procedere</p>
         </div>
         <p className="text-xs text-[rgb(var(--fg-muted))] mb-3">
-          Per visualizzare il totale del preventivo, crea un accesso e accetta le condizioni qui sotto.
+          Per scegliere le voci e accettare il preventivo, conferma questi dati e le condizioni qui sotto.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome e cognome" />
@@ -428,7 +442,7 @@ function PriceConsentGate({ token, clientName, clientEmail, primary, onUnlocked 
         </div>
         <Button onClick={() => void submit()} disabled={sending || !allChecked}
           style={{ background: primary, color: '#fff' }} className="w-full">
-          {sending ? 'Attendere…' : 'Registrati e vedi il prezzo'}
+          {sending ? 'Attendere…' : 'Conferma e continua'}
         </Button>
       </div>
     </div>
