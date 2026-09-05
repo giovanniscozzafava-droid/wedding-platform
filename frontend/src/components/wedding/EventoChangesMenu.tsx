@@ -158,8 +158,18 @@ function RiprogrammaModal({
       })
       if (error) throw error
       const n = Number((data as any)?.fornitori_da_riconfermare ?? 0)
+      // CICLO-09: se c'erano contratti già firmati collegati, riprogramma_evento
+      // ha generato un addendum "cambio data" per ciascuno — lo mandiamo subito
+      // (stesso schema dell'addendum di importo generato dall'editor preventivo).
+      const addendumIds = ((data as any)?.addendum_ids ?? []) as string[]
+      for (const addendumId of addendumIds) {
+        await supabase.functions.invoke('addendum-send', { body: { addendum_id: addendumId } })
+          .catch(() => { /* non bloccante: l'evento è già stato spostato */ })
+      }
       toast.success(
-        n > 0
+        addendumIds.length > 0
+          ? `Evento spostato. Addendum di cambio data inviato per la firma (${addendumIds.length}).`
+          : n > 0
           ? `Evento spostato. Notifica inviata a ${n} fornitori per riconferma.`
           : 'Evento spostato.',
       )

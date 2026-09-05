@@ -160,15 +160,21 @@ export default function PublicSupplierPage() {
       const { data: res, error } = await (supabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }> })
         .rpc('capostipite_add_supplier', { p_supplier_id: data.id })
       if (error) throw error
-      const r = res as { error?: string; ok?: boolean; already_active?: boolean; reactivated?: boolean }
+      const r = res as { error?: string; ok?: boolean; already_active?: boolean; already_pending?: boolean; pending?: boolean }
       if (r.error) throw new Error(r.error)
       if (r.already_active) {
         toast.info('Fornitore già nel tuo team')
         setExistingCollab('ACTIVE')
         return
       }
-      toast.success(r.reactivated ? 'Fornitore riattivato nel tuo team!' : 'Fornitore aggiunto al tuo team!')
-      setExistingCollab('ACTIVE')
+      if (r.already_pending) {
+        toast.info('Invito già inviato: è in attesa che lo accetti')
+        setExistingCollab('PENDING')
+        return
+      }
+      // GER-01/03: non entra più subito attivo — deve accettare lui.
+      toast.success('Richiesta inviata: entrerà nel team appena accetta')
+      setExistingCollab('PENDING')
     } catch (e) {
       toast.error((e as Error).message)
     } finally {

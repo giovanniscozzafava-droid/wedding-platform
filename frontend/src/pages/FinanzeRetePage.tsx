@@ -14,6 +14,7 @@ const eur = (n: number) => new Intl.NumberFormat('it-IT', { style: 'currency', c
 type Settlement = {
   id: string; supplier: string; direction: 'CAPOSTIPITE_OWES_SUPPLIER' | 'SUPPLIER_OWES_CAPOSTIPITE'
   amount_due: number; amount_paid: number; residuo: number; status: 'MATURATO' | 'PARZIALE' | 'SALDATO'
+  contract_id: string | null
   quote_title: string | null; event_date: string | null
 }
 type Overview = {
@@ -103,6 +104,7 @@ export default function FinanzeRetePage() {
                   <div className="text-xs text-[rgb(var(--fg-subtle))] truncate">
                     {isDebt ? 'Gli devi (pacchetto)' : 'Ti deve il margine (voci separate)'}
                     {s.quote_title ? ` · ${s.quote_title}` : ''}
+                    {s.contract_id && ' · collegato al mini-contratto: si aggiorna da solo quando incassi/paghi le rate'}
                   </div>
                 </div>
                 <div className="text-right">

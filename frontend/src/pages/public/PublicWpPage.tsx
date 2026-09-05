@@ -583,12 +583,13 @@ function AddLocationToTeamButton({ locationId }: { locationId: string }) {
           : data.error === 'not_a_location' ? 'Questo profilo non è una location.' : data.error)
         return
       }
-      setDone(true); toast.success('Location aggiunta al tuo team')
+      // GER-01/03: non entra più subito attiva — deve accettare lei.
+      setDone(true); toast.success('Richiesta inviata: entrerà nel team appena accetta')
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Errore') } finally { setBusy(false) }
   }
   return (
     <Button variant="outline" disabled={busy || done} onClick={add}>
-      {done ? <><Check size={14} /> Nel tuo team</> : <><UserPlus size={14} /> Aggiungi al team</>}
+      {done ? <><Check size={14} /> Invito inviato</> : <><UserPlus size={14} /> Aggiungi al team</>}
     </Button>
   )
 }

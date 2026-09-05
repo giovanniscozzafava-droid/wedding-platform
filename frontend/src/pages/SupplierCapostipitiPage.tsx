@@ -100,6 +100,37 @@ export default function SupplierCapostipitiPage() {
     }
   }
 
+  // GER-01/03: un invito iniziato dal capostipite resta PENDING finché il
+  // fornitore non lo accetta esplicitamente — prima non c'era alcun bottone.
+  async function acceptInvite(c: Collab) {
+    const who = c.capostipite?.business_name || c.capostipite?.full_name || 'questo referente'
+    try {
+      const { data, error } = await (supabase.rpc as any)('fornitore_accept_collaboration', { p_capostipite_id: c.capostipite_id })
+      if (error) throw error
+      const r = data as { ok?: boolean; error?: string }
+      if (r?.error) { toast.error('Non è stato possibile accettare. Riprova.'); return }
+      toast.success(`Sei entrato nella rete di ${who}.`)
+      await load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore accettazione')
+    }
+  }
+
+  async function rejectInvite(c: Collab) {
+    const who = c.capostipite?.business_name || c.capostipite?.full_name || 'questo referente'
+    if (!confirm(`Rifiutare l'invito di ${who}? Potrà invitarti di nuovo in futuro.`)) return
+    try {
+      const { data, error } = await (supabase.rpc as any)('fornitore_reject_collaboration', { p_capostipite_id: c.capostipite_id })
+      if (error) throw error
+      const r = data as { ok?: boolean; error?: string }
+      if (r?.error) { toast.error('Non è stato possibile rifiutare. Riprova.'); return }
+      toast.success(`Invito di ${who} rifiutato.`)
+      await load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore rifiuto')
+    }
+  }
+
   async function leave(c: Collab) {
     const who = c.capostipite?.business_name || c.capostipite?.full_name || 'questo referente'
     if (!confirm(`Uscire dalla collaborazione con ${who}? Non riceverai più sue proposte finché non vi ricollegate.`)) return
@@ -264,14 +295,25 @@ export default function SupplierCapostipitiPage() {
                     {c.supplier_note && (
                       <p className="text-xs text-[rgb(var(--fg-muted))] italic mb-3 line-clamp-2">{c.supplier_note}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-auto pt-2">
-                      <Button size="sm" variant="outline" onClick={() => void openPricing(c)} disabled={c.status !== 'ACTIVE'}>
-                        <Pencil size={13} /> Prezziario
-                      </Button>
-                      <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void leave(c)} disabled={c.status !== 'ACTIVE'} title="Esci dalla collaborazione">
-                        Esci
-                      </Button>
-                    </div>
+                    {c.status === 'PENDING' && c.initiated_by === 'CAPOSTIPITE' ? (
+                      <div className="flex items-center gap-2 mt-auto pt-2">
+                        <Button size="sm" variant="gold" onClick={() => void acceptInvite(c)}>
+                          <CheckCircle2 size={13} /> Accetta
+                        </Button>
+                        <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void rejectInvite(c)}>
+                          Rifiuta
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-auto pt-2">
+                        <Button size="sm" variant="outline" onClick={() => void openPricing(c)} disabled={c.status !== 'ACTIVE'}>
+                          <Pencil size={13} /> Prezziario
+                        </Button>
+                        <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void leave(c)} disabled={c.status !== 'ACTIVE'} title="Esci dalla collaborazione">
+                          Esci
+                        </Button>
+                      </div>
+                    )}
                   </Card>
                 </motion.div>
               )
