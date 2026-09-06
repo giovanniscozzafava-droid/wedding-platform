@@ -18,6 +18,7 @@ type Item = {
   id: string; name_snapshot: string; description_snapshot: string | null
   quantity: number; line_cost: number; quote_id: string
   supplier_presence: 'SI' | 'NO' | 'FORSE' | null
+  entry_title?: string | null; event_date?: string | null; client_name?: string | null
 }
 type Group = {
   quote_id: string
@@ -39,46 +40,29 @@ export default function SupplierPendingPage() {
     try {
       const me = (await supabase.auth.getUser()).data.user?.id
       if (!me) { setGroups([]); return }
-      // Mostra TUTTI i preventivi vivi in cui il fornitore è coinvolto — decisi e non —
-      // così può anche CAMBIARE idea su una decisione già presa (reversibile). I preventivi
-      // rifiutati/archiviati vengono esclusi più sotto.
-      // Il fornitore vede il PROPRIO importo (line_cost = quanto gli paga il
-      // capostipite), MAI line_client, che include il markup blind del capostipite.
-      const { data } = await (supabase.from as any)('quote_items')
-        .select('id, name_snapshot, description_snapshot, quantity, line_cost, quote_id, supplier_presence, supplier_confirmed_at')
-        .eq('supplier_id', me).order('created_at', { ascending: false })
+      // Il filtro (preventivi vivi, non del fornitore stesso, INVIATO, non
+      // archiviato) e la scelta delle colonne restituite (mai line_client/
+      // markup/snapshot_price, quello è il margine del capostipite) vivono
+      // ora server-side nella RPC: una policy RLS diretta su quote_items non
+      // può restringere le colonne riga per riga, solo le righe.
+      const { data, error } = await (supabase.rpc as any)('supplier_pending_items')
+      if (error) { setGroups([]); return }
       const items = (data ?? []) as Item[]
 
       // Raggruppa per preventivo.
       const byQuote = new Map<string, Group>()
       for (const it of items) {
         let g = byQuote.get(it.quote_id)
-        if (!g) { g = { quote_id: it.quote_id, items: [], presence: it.supplier_presence, total: 0 }; byQuote.set(it.quote_id, g) }
+        if (!g) {
+          g = {
+            quote_id: it.quote_id, items: [], presence: it.supplier_presence, total: 0,
+            entry_title: it.entry_title ?? undefined, event_date: it.event_date ?? null, client_name: it.client_name ?? null,
+          }
+          byQuote.set(it.quote_id, g)
+        }
         g.items.push(it)
         g.total += Number(it.line_cost) // line_cost = incasso fornitore, GIÀ totale di riga (qtà inclusa)
         if (it.supplier_presence === 'FORSE') g.presence = 'FORSE'
-      }
-      const quoteIds = Array.from(byQuote.keys())
-      if (quoteIds.length > 0) {
-        // Qui devono arrivare SOLO i preventivi dei capostipiti: escludo quelli
-        // di cui il fornitore stesso è il proprietario (i suoi preventivi diretti).
-        const { data: quotes } = await (supabase.from as any)('quotes')
-          .select('id, title, owner_id, event_date, status, archived_at').in('id', quoteIds)
-        for (const q of (quotes ?? []) as any[]) {
-          // Solo preventivi VIVI e già inviati: escludo i diretti del fornitore, le bozze
-          // ancora in lavorazione del capostipite (non inviate), gli accettati/convertiti
-          // (presenza ormai bloccata) e i morti (rifiutati/archiviati).
-          if (q.owner_id === me || q.status !== 'INVIATO' || q.archived_at) { byQuote.delete(q.id); continue }
-          const g = byQuote.get(q.id)
-          if (g) { g.entry_title = q.title; g.event_date = q.event_date } // fallback dal preventivo
-        }
-        // Titolo/dettagli più precisi dall'evento in calendario, se presente.
-        const { data: events } = await (supabase.from as any)('calendar_entries')
-          .select('id, title, date_from, client_name, quote_id').in('quote_id', Array.from(byQuote.keys()))
-        for (const e of (events ?? []) as any[]) {
-          const g = byQuote.get(e.quote_id)
-          if (g) { g.entry_title = e.title ?? g.entry_title; g.event_date = e.date_from ?? g.event_date; g.client_name = e.client_name }
-        }
       }
       setGroups(Array.from(byQuote.values()))
     } finally { setLoading(false) }
