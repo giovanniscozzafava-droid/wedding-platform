@@ -9,6 +9,24 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
+import { FunctionsHttpError } from '@supabase/supabase-js'
+
+// Le edge function fic-* rispondono 400 con {error, hint} per i casi previsti
+// (es. "Fatture in Cloud non collegato"): `functions.invoke` le trasforma in
+// FunctionsHttpError e NON espone quel corpo in `error.message`, quindi va letto
+// da `error.context` (la Response grezza) o il toast mostra solo un errore generico.
+async function messaggioErroreFunzione(e: unknown, fallback: string): Promise<string> {
+  if (e instanceof FunctionsHttpError) {
+    try {
+      const body = (await e.context.json()) as { error?: string; hint?: string }
+      if (body?.hint) return body.hint
+      if (body?.error) return body.error
+    } catch {
+      // corpo non JSON: usa il fallback sotto
+    }
+  }
+  return e instanceof Error ? e.message : fallback
+}
 
 type Rata = {
   id: string
@@ -129,7 +147,7 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
       setInvoiceFormId(null)
       void load()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Errore creazione fattura')
+      toast.error(await messaggioErroreFunzione(e, 'Errore creazione fattura'))
     } finally {
       setInvoicingId(null)
     }
@@ -154,7 +172,7 @@ export function ContractPayments({ contractId, total }: { contractId: string; to
       setReconcileId(null)
       void load()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Errore collegamento fattura')
+      toast.error(await messaggioErroreFunzione(e, 'Errore collegamento fattura'))
     } finally {
       setReconcileBusy(false)
     }
