@@ -1368,6 +1368,25 @@ export default function QuoteEditorPage() {
                                   style={{ color: m.c, background: `${m.c}1a` }}>{m.l}</span>
                               )
                             })()}
+                            {/* Risposta del fornitore, qui dentro. Prima la presenza si
+                                vedeva solo nel gate del contratto: chi costruiva il
+                                preventivo non sapeva chi avesse già detto di sì. */}
+                            {(profile?.role === 'WEDDING_PLANNER' || profile?.role === 'LOCATION')
+                              && (it as any).supplier_id && (it as any).supplier_id !== profile?.id
+                              && !(it as any).erogatore_e_capostipite && (() => {
+                              const map: Record<string, { l: string; c: string }> = {
+                                SI: { l: '✓ Fornitore: ci sarà', c: '#16a34a' },
+                                NO: { l: '✕ Fornitore: non ci sarà', c: '#dc2626' },
+                                FORSE: { l: '◐ Fornitore: sta valutando', c: '#d97706' },
+                              }
+                              const p = map[String((it as any).supplier_presence ?? '')]
+                                ?? { l: '⏳ Fornitore: nessuna risposta', c: '#6b7280' }
+                              return (
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                  title="Risposta data dal fornitore in «Lavori da confermare». Serve un sì da tutti per chiudere il contratto."
+                                  style={{ color: p.c, background: `${p.c}1a` }}>{p.l}</span>
+                              )
+                            })()}
                           </div>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
                             € {Number(it.snapshot_price).toFixed(2)} {it.unit_snapshot.toLowerCase()}

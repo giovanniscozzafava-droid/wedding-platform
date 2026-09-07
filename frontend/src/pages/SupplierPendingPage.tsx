@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Check, X, HelpCircle, CircleDashed } from '@/components/icons/lucide'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowRight, Check, X, HelpCircle, CircleDashed } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -19,10 +19,12 @@ type Item = {
   quantity: number; line_cost: number; quote_id: string
   supplier_presence: 'SI' | 'NO' | 'FORSE' | null
   entry_title?: string | null; event_date?: string | null; client_name?: string | null
+  entry_id?: string | null; capostipite_name?: string | null
 }
 type Group = {
   quote_id: string
   entry_title?: string; event_date?: string | null; client_name?: string | null
+  entry_id?: string | null; capostipite_name?: string | null
   items: Item[]
   presence: 'SI' | 'NO' | 'FORSE' | null
   total: number
@@ -33,6 +35,7 @@ export default function SupplierPendingPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [mostraDeclinati, setMostraDeclinati] = useState(false)
+  const nav = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const confirmId = searchParams.get('confirm')
 
@@ -58,6 +61,7 @@ export default function SupplierPendingPage() {
           g = {
             quote_id: it.quote_id, items: [], presence: it.supplier_presence, total: 0,
             entry_title: it.entry_title ?? undefined, event_date: it.event_date ?? null, client_name: it.client_name ?? null,
+            entry_id: it.entry_id ?? null, capostipite_name: it.capostipite_name ?? null,
           }
           byQuote.set(it.quote_id, g)
         }
@@ -73,10 +77,16 @@ export default function SupplierPendingPage() {
   async function setPresence(quoteId: string, status: 'SI' | 'NO' | 'FORSE') {
     setBusy(quoteId)
     try {
-      const { error } = await (supabase as any).rpc('supplier_set_quote_presence', { p_quote_id: quoteId, p_status: status })
+      const { data, error } = await (supabase as any).rpc('supplier_set_quote_presence', { p_quote_id: quoteId, p_status: status })
       if (error) { toast.error(error.message); return }
       toast.success(status === 'SI' ? 'Confermata la tua presenza' : status === 'NO' ? 'Hai declinato' : 'Segnato come "forse"')
       if (confirmId) { searchParams.delete('confirm'); setSearchParams(searchParams, { replace: true }) }
+      // Dire "ci sono" ti fa entrare nel lavoro: da qui in poi vedi l'evento
+      // condiviso dal capostipite (date, timeline, cosa devi consegnare).
+      // Prima la risposta restava su questa pagina e non portava da nessuna parte.
+      const entryId = (data as { entry_id?: string | null } | null)?.entry_id
+        ?? groups.find((g) => g.quote_id === quoteId)?.entry_id
+      if (status === 'SI' && entryId) { nav(`/weddings/${entryId}`); return }
       await load()
     } finally { setBusy(null) }
   }
@@ -125,7 +135,17 @@ export default function SupplierPendingPage() {
                     </ul>
                     <div className="mt-2 text-[11px] text-[rgb(var(--fg-subtle))]">
                       {g.items.length} voci · tuo compenso € {g.total.toLocaleString('it-IT', { maximumFractionDigits: 2 })}
+                      {g.capostipite_name && <> · te lo chiede {g.capostipite_name}</>}
                     </div>
+                    {/* Detto "ci sono", il lavoro è tuo: da qui ci entri. Restava
+                        una risposta senza seguito, senza un posto dove andare. */}
+                    {g.presence === 'SI' && g.entry_id && (
+                      <button type="button" onClick={() => nav(`/weddings/${g.entry_id}`)}
+                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium underline underline-offset-2"
+                        style={{ color: 'rgb(var(--gold-700))' }}>
+                        Apri il lavoro <ArrowRight size={13} />
+                      </button>
+                    )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button variant="gold" disabled={busy === g.quote_id} onClick={() => setPresence(g.quote_id, 'SI')} className="min-h-[40px]">
                         <Check size={14} /> Ci sono
