@@ -1,0 +1,12 @@
+-- SEC-08 — `supplier_clients_dashboard` girava in SECURITY DEFINER.
+--
+-- La vista si difendeva già da sola (`where supplier_id = auth.uid() or is_admin()`),
+-- quindi non c'era una falla aperta: il problema è che quella condizione era
+-- l'UNICA difesa, perché la vista non passava da RLS. Bastava aggiungere una
+-- colonna o cambiare la clausola per esporre i dati (nome, email e telefono dei
+-- clienti diretti) di tutti i fornitori.
+--
+-- `supplier_clients` ha già le policy giuste (`sclients_select_own`:
+-- supplier_id = auth.uid(), più admin), quindi la vista può passare da RLS come
+-- chiunque altro: stessa risposta, una difesa in più.
+alter view public.supplier_clients_dashboard set (security_invoker = true);
