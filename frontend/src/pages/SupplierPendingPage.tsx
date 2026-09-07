@@ -77,39 +77,43 @@ export default function SupplierPendingPage() {
   async function setPresence(quoteId: string, status: 'SI' | 'NO' | 'FORSE') {
     setBusy(quoteId)
     try {
-      const { data, error } = await (supabase as any).rpc('supplier_set_quote_presence', { p_quote_id: quoteId, p_status: status })
+      const { error } = await (supabase as any).rpc('supplier_set_quote_presence', { p_quote_id: quoteId, p_status: status })
       if (error) { toast.error(error.message); return }
       toast.success(status === 'SI' ? 'Confermata la tua presenza' : status === 'NO' ? 'Hai declinato' : 'Segnato come "forse"')
       if (confirmId) { searchParams.delete('confirm'); setSearchParams(searchParams, { replace: true }) }
-      // Dire "ci sono" ti fa entrare nel lavoro: da qui in poi vedi l'evento
-      // condiviso dal capostipite (date, timeline, cosa devi consegnare).
-      // Prima la risposta restava su questa pagina e non portava da nessuna parte.
-      const entryId = (data as { entry_id?: string | null } | null)?.entry_id
-        ?? groups.find((g) => g.quote_id === quoteId)?.entry_id
-      if (status === 'SI' && entryId) { nav(`/weddings/${entryId}`); return }
+      // Rispondere NON porta via da questa pagina: il lavoro resta qui, sotto la
+      // sezione della risposta che hai dato, e ci si entra dal link "Apri il
+      // lavoro". Prima un "ci sono" faceva saltare subito sull'evento e sembrava
+      // che il lavoro fosse sparito dalla lista.
       await load()
     } finally { setBusy(null) }
   }
 
-  // Un lavoro declinato esce dalla lista: è una risposta data, non una cosa
-  // ancora da fare. Resta raggiungibile qui sotto perché la risposta si può
-  // sempre cambiare (è quello che promette la descrizione della pagina).
-  const daRispondere = groups.filter((g) => g.presence !== 'NO')
+  // La pagina è divisa per stato della risposta, con i conti in chiaro: una
+  // risposta data non fa sparire il lavoro, lo sposta di sezione. Solo i
+  // declinati restano ripiegati (sono una porta chiusa), ma il titolo dice
+  // quanti sono e si riaprono con un clic: la risposta si può sempre cambiare.
+  const daRispondere = groups.filter((g) => g.presence == null || g.presence === 'FORSE')
+  const confermati = groups.filter((g) => g.presence === 'SI')
   const declinati = groups.filter((g) => g.presence === 'NO')
-  const visibili = mostraDeclinati ? [...daRispondere, ...declinati] : daRispondere
 
-  return (
-    <div className="min-h-full">
-      <div className="max-w-3xl mx-auto px-6 sm:px-10 py-8">
-        <PageHeader eyebrow="Pipeline" title="Lavori da confermare"
-          description="Un capostipite (wedding planner / location) ti ha inserito in un preventivo. Dichiara se ci sei: confermare la presenza serve a chiudere il budget totale del capostipite. Non sono contratti — e puoi cambiare la tua risposta quando vuoi." />
-        {loading ? (
-          <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">Carico…</Card>
-        ) : visibili.length === 0 ? (
-          <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">Nessun preventivo da confermare.</Card>
-        ) : (
-          <div className="space-y-3">
-            {visibili.map((g) => (
+  // funzione, non componente: definirlo dentro il render lo farebbe rimontare
+  // a ogni giro, con le schede che sfarfallano a ogni risposta.
+  function sezione(titolo: string, nota: string, gruppi: Group[]) {
+    if (gruppi.length === 0) return null
+    return (
+      <section className="mt-6 first:mt-0">
+        <h2 className="text-xs uppercase tracking-wide text-[rgb(var(--fg-subtle))]">
+          {titolo} ({gruppi.length})
+        </h2>
+        <p className="mt-1 text-xs text-[rgb(var(--fg-muted))]">{nota}</p>
+        <div className="mt-2 space-y-3">{gruppi.map(scheda)}</div>
+      </section>
+    )
+  }
+
+  function scheda(g: Group) {
+    return (
               <Card key={g.quote_id} className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="self-start min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full" style={{ background: 'rgb(var(--bg-sunken))' }}>
@@ -160,19 +164,35 @@ export default function SupplierPendingPage() {
                   </div>
                 </div>
               </Card>
-            ))}
-          </div>
-        )}
-        {!loading && declinati.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setMostraDeclinati((v) => !v)}
-            className="mt-4 text-xs text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] underline underline-offset-2"
-          >
-            {mostraDeclinati
-              ? 'Nascondi i lavori declinati'
-              : `Mostra i lavori declinati (${declinati.length})`}
-          </button>
+    )
+  }
+
+  return (
+    <div className="min-h-full">
+      <div className="max-w-3xl mx-auto px-6 sm:px-10 py-8">
+        <PageHeader eyebrow="Pipeline" title="Lavori da confermare"
+          description="Un capostipite (wedding planner / location) ti ha inserito in un preventivo. Dichiara se ci sei: confermare la presenza serve a chiudere il budget totale del capostipite. Non sono contratti — e puoi cambiare la tua risposta quando vuoi." />
+        {loading ? (
+          <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">Carico…</Card>
+        ) : groups.length === 0 ? (
+          <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">Nessun preventivo da confermare.</Card>
+        ) : (
+          <>
+            {sezione('Da rispondere', 'Il capostipite sta aspettando: finché non rispondi non può chiudere il budget.', daRispondere)}
+            {sezione('Ci sei', 'Restano qui: da ognuno entri nel lavoro, e la risposta si può sempre cambiare.', confermati)}
+            {declinati.length > 0 && (
+              <section className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => setMostraDeclinati((v) => !v)}
+                  className="text-xs uppercase tracking-wide text-[rgb(var(--fg-subtle))] underline underline-offset-2 hover:text-[rgb(var(--fg))]"
+                >
+                  Hai declinato ({declinati.length}) — {mostraDeclinati ? 'nascondi' : 'mostra'}
+                </button>
+                {mostraDeclinati && <div className="mt-2 space-y-3">{declinati.map(scheda)}</div>}
+              </section>
+            )}
+          </>
         )}
       </div>
     </div>
