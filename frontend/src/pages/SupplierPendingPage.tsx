@@ -32,6 +32,7 @@ export default function SupplierPendingPage() {
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
+  const [mostraDeclinati, setMostraDeclinati] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const confirmId = searchParams.get('confirm')
 
@@ -80,6 +81,13 @@ export default function SupplierPendingPage() {
     } finally { setBusy(null) }
   }
 
+  // Un lavoro declinato esce dalla lista: è una risposta data, non una cosa
+  // ancora da fare. Resta raggiungibile qui sotto perché la risposta si può
+  // sempre cambiare (è quello che promette la descrizione della pagina).
+  const daRispondere = groups.filter((g) => g.presence !== 'NO')
+  const declinati = groups.filter((g) => g.presence === 'NO')
+  const visibili = mostraDeclinati ? [...daRispondere, ...declinati] : daRispondere
+
   return (
     <div className="min-h-full">
       <div className="max-w-3xl mx-auto px-6 sm:px-10 py-8">
@@ -87,11 +95,11 @@ export default function SupplierPendingPage() {
           description="Un capostipite (wedding planner / location) ti ha inserito in un preventivo. Dichiara se ci sei: confermare la presenza serve a chiudere il budget totale del capostipite. Non sono contratti — e puoi cambiare la tua risposta quando vuoi." />
         {loading ? (
           <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">Carico…</Card>
-        ) : groups.length === 0 ? (
+        ) : visibili.length === 0 ? (
           <Card className="p-10 text-center text-sm text-[rgb(var(--fg-muted))]">Nessun preventivo da confermare.</Card>
         ) : (
           <div className="space-y-3">
-            {groups.map((g) => (
+            {visibili.map((g) => (
               <Card key={g.quote_id} className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="self-start min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full" style={{ background: 'rgb(var(--bg-sunken))' }}>
@@ -134,6 +142,17 @@ export default function SupplierPendingPage() {
               </Card>
             ))}
           </div>
+        )}
+        {!loading && declinati.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMostraDeclinati((v) => !v)}
+            className="mt-4 text-xs text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))] underline underline-offset-2"
+          >
+            {mostraDeclinati
+              ? 'Nascondi i lavori declinati'
+              : `Mostra i lavori declinati (${declinati.length})`}
+          </button>
         )}
       </div>
     </div>
