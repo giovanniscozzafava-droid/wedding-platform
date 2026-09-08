@@ -34,7 +34,6 @@ export default function SupplierPendingPage() {
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
-  const [mostraDeclinati, setMostraDeclinati] = useState(false)
   const nav = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const confirmId = searchParams.get('confirm')
@@ -179,19 +178,8 @@ export default function SupplierPendingPage() {
         ) : (
           <>
             {sezione('Da rispondere', 'Il capostipite sta aspettando: finché non rispondi non può chiudere il budget.', daRispondere)}
-            {sezione('Ci sei', 'Restano qui: da ognuno entri nel lavoro, e la risposta si può sempre cambiare.', confermati)}
-            {declinati.length > 0 && (
-              <section className="mt-6">
-                <button
-                  type="button"
-                  onClick={() => setMostraDeclinati((v) => !v)}
-                  className="text-xs uppercase tracking-wide text-[rgb(var(--fg-subtle))] underline underline-offset-2 hover:text-[rgb(var(--fg))]"
-                >
-                  Hai declinato ({declinati.length}) — {mostraDeclinati ? 'nascondi' : 'mostra'}
-                </button>
-                {mostraDeclinati && <div className="mt-2 space-y-3">{declinati.map(scheda)}</div>}
-              </section>
-            )}
+            {sezione('Ci sei', 'Da ognuno entri nel lavoro, e la risposta si può sempre cambiare.', confermati)}
+            {sezione('Hai declinato', 'Restano in elenco: se cambi idea la risposta si cambia da qui.', declinati)}
           </>
         )}
       </div>
