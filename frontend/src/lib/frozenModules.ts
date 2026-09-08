@@ -22,7 +22,14 @@ export const FROZEN_MODULES: Record<string, string> = {
   '/magazzino':   'Magazzino',
 }
 
+// Interruttore SOLO per sviluppo locale (riprese video, collaudi): con
+// `VITE_UNFREEZE=1 npm run dev` i moduli in pausa tornano raggiungibili senza
+// toccare la lista sopra. In produzione la variabile non esiste → tutto resta
+// congelato come deciso.
+const SBLOCCA_TUTTO = import.meta.env.VITE_UNFREEZE === '1'
+
 /** true se il path è quello di un modulo congelato. */
 export function isFrozen(path: string): boolean {
+  if (SBLOCCA_TUTTO) return false
   return Object.prototype.hasOwnProperty.call(FROZEN_MODULES, path)
 }
