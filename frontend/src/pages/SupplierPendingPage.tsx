@@ -149,16 +149,31 @@ export default function SupplierPendingPage() {
                         Apri il lavoro <ArrowRight size={13} />
                       </button>
                     )}
+                    {/* I tre bottoni dicono qual è la risposta data: quello scelto
+                        è pieno e sottolineato, gli altri restano neutri. Prima
+                        "Ci sono" era pieno sempre, anche su un lavoro declinato:
+                        guardando la scheda non si capiva cosa avessi risposto. */}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Button variant="gold" disabled={busy === g.quote_id} onClick={() => setPresence(g.quote_id, 'SI')} className="min-h-[40px]">
-                        <Check size={14} /> Ci sono
-                      </Button>
-                      <Button variant="outline" disabled={busy === g.quote_id} onClick={() => setPresence(g.quote_id, 'FORSE')} className="min-h-[40px]">
-                        <HelpCircle size={14} /> Forse
-                      </Button>
-                      <Button variant="ghost" disabled={busy === g.quote_id} onClick={() => setPresence(g.quote_id, 'NO')} className="min-h-[40px] text-[rgb(var(--danger,220_38_38))]">
-                        <X size={14} /> Non ci sono
-                      </Button>
+                      {([
+                        { stato: 'SI', testo: 'Ci sono', icona: <Check size={14} />, variante: 'gold' },
+                        { stato: 'FORSE', testo: 'Forse', icona: <HelpCircle size={14} />, variante: 'subtle' },
+                        { stato: 'NO', testo: 'Non ci sono', icona: <X size={14} />, variante: 'destructive' },
+                      ] as const).map((b) => {
+                        const scelto = g.presence === b.stato
+                        return (
+                          <Button
+                            key={b.stato}
+                            variant={scelto ? b.variante : 'outline'}
+                            aria-pressed={scelto}
+                            disabled={busy === g.quote_id}
+                            onClick={() => setPresence(g.quote_id, b.stato)}
+                            className={`min-h-[40px] ${scelto ? 'underline underline-offset-4 font-semibold' : 'opacity-70'}`}
+                            title={scelto ? 'È la risposta che hai dato' : `Cambia la risposta in «${b.testo}»`}
+                          >
+                            {b.icona} {b.testo}
+                          </Button>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
