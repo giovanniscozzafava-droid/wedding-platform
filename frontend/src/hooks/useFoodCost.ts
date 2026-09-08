@@ -325,6 +325,19 @@ export function useFoodCostMutations() {
     delBrigadeMember: m(async (id: string) => { const { error } = await sb('fb_brigade_members').update({ active: false }).eq('id', id); if (error) throw error }),
     confirmDish: m(async (p: { entry_id: string; menu_item_id: string; on: boolean }) => { const { data, error } = await (supabase as any).rpc('fb_dish_confirm', { p_entry: p.entry_id, p_menu_item_id: p.menu_item_id, p_on: p.on }); if (error) throw error; if (data?.error) throw new Error(data.error) }),
     setPOStatus: m(async (p: { id: string; status: string }) => { const { error } = await sb('fb_purchase_orders').update({ status: p.status }).eq('id', p.id); if (error) throw error }),
+    // Ricezione merce: l'ordine INVIATO diventa lotti in magazzino (CARICO col costo
+    // reale della confezione) e passa a RICEVUTO, così la prima nota lo vede come
+    // uscita. Prima questo passo mancava: l'ordine restava "inviato" per sempre e
+    // la dispensa si caricava solo leggendo la bolla con l'AI, slegata dall'ordine.
+    receiveOrder: m(async (p: { id: string; expiry_date?: string | null }) => {
+      const { data: items, error: e1 } = await sb('fb_purchase_order_items').select('id, qty_packs').eq('order_id', p.id)
+      if (e1) throw e1
+      const rows = ((items ?? []) as Array<{ id: string; qty_packs: number }>).map((it) => ({ item_id: it.id, qty_packs: it.qty_packs, expiry_date: p.expiry_date ?? null }))
+      if (!rows.length) throw new Error('Ordine senza righe: niente da ricevere')
+      const { data, error } = await (supabase as any).rpc('fb_receive_order', { p_order: p.id, p_rows: rows })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error === 'forbidden' ? 'Solo la location può ricevere questo ordine' : data.error)
+    }),
     delPO: m(async (id: string) => { const { error } = await sb('fb_purchase_orders').delete().eq('id', id); if (error) throw error }),
     addCantina: m(async (p: { name: string; category: string; bottle_ml: number; cost_per_bottle: number; covers_per_bottle: number; stock_bottles: number; is_default?: boolean }) => { const id = await uid(); const { error } = await sb('fb_cantina').insert({ location_id: id, ...p }); if (error) throw error }),
     updCantina: m(async (p: { id: string; patch: Record<string, unknown> }) => { const { error } = await sb('fb_cantina').update(p.patch).eq('id', p.id); if (error) throw error }),

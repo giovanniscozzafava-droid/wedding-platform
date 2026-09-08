@@ -690,6 +690,21 @@ function OrdiniList() {
               <div className="flex items-center gap-1.5">
                 <span className={`text-[10px] px-2 py-0.5 rounded-full ${o.status === 'BOZZA' ? 'bg-[rgb(var(--bg-sunken))]' : 'bg-[rgb(var(--gold-100))]'}`}>{PO_STATUS[o.status] ?? o.status}</span>
                 {o.status === 'BOZZA' && <Button size="sm" variant="outline" onClick={() => mut.setPOStatus.mutate({ id: o.id, status: 'INVIATO' })}>Invia allo chef</Button>}
+                {/* Merce arrivata: carica i lotti in magazzino e chiude l'ordine. Prima
+                    questo passo non esisteva e l'ordine restava "inviato" per sempre. */}
+                {o.status === 'INVIATO' && (
+                  <Button size="sm" variant="gold"
+                    disabled={mut.receiveOrder.isPending}
+                    onClick={() => {
+                      if (!confirm(`Segnare ricevuto l'ordine ${o.supplier?.name ?? ''}? Le ${o.items?.length ?? 0} righe entrano in magazzino come lotti.`)) return
+                      mut.receiveOrder.mutate({ id: o.id }, {
+                        onSuccess: () => toast.success('Merce ricevuta: lotti caricati in magazzino'),
+                        onError: (e) => toast.error((e as Error).message),
+                      })
+                    }}>
+                    <Truck size={13} /> {mut.receiveOrder.isPending ? 'Carico…' : 'Segna ricevuto'}
+                  </Button>
+                )}
                 {o.status !== 'RICEVUTO' && <button onClick={() => { if (confirm('Eliminare questo ordine?')) mut.delPO.mutate(o.id) }} className="text-[rgb(var(--rose-500))]"><Trash2 size={14} /></button>}
               </div>
             </div>
