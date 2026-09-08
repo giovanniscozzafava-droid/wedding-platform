@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/input'
+import { quantitaConUnita } from '@/lib/unitaVoce'
 import { supabase } from '@/lib/supabase'
 import { QuoteSignaturePad } from '@/components/QuoteSignaturePad'
 import { CodiceFiscaleInput } from '@/components/CodiceFiscaleInput'
@@ -303,7 +304,7 @@ function QuoteAcceptPageInner() {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm">{it.name_snapshot}</p>
                             <p className="text-xs text-[rgb(var(--fg-subtle))] mt-0.5">
-                              {it.quantity} {(it.unit_snapshot ?? '').toLowerCase()}
+                              {quantitaConUnita(it.quantity, it.unit_snapshot)}
                             </p>
                             {it.supplier?.name && (
                               <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">

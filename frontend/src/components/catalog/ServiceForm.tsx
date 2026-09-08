@@ -349,7 +349,7 @@ export function ServiceForm({ subrole, service, onClose }: Props) {
                   <Label htmlFor="unit">Unità</Label>
                   <Select id="unit" value={form.unit}
                     onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value as Unit }))}>
-                    <option value="PEZZO">Pezzo</option>
+                    <option value="PEZZO">Unità</option>
                     <option value="PERSONA">Persona</option>
                     <option value="ORA">Ora</option>
                     <option value="EVENTO">Evento</option>

@@ -29,6 +29,7 @@ import { SuggestColleaguesCard } from '@/components/quotes/SuggestColleaguesCard
 import { QuoteActivityCard } from '@/components/quotes/QuoteActivityCard'
 import { HelpDot } from '@/components/help/HelpDot'
 import { eventTerm } from '@/lib/eventKind'
+import { nomeUnita } from '@/lib/unitaVoce'
 
 type Unit = Database['public']['Enums']['service_unit']
 type Basis = Database['public']['Enums']['quantity_basis']
@@ -1389,7 +1390,7 @@ export default function QuoteEditorPage() {
                             })()}
                           </div>
                           <p className="text-xs text-[rgb(var(--fg-subtle))]">
-                            € {Number(it.snapshot_price).toFixed(2)} {it.unit_snapshot.toLowerCase()}
+                            € {Number(it.snapshot_price).toFixed(2)} / {nomeUnita(it.unit_snapshot, 1)}
                             {isFornitoreFlow || isMio ? (
                               <> · <strong>€ {Number(it.line_client).toLocaleString('it-IT')}</strong>
                                 {isMio && <span className="ml-1">· no ricarico</span>}
@@ -1423,7 +1424,7 @@ export default function QuoteEditorPage() {
                           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                           title={basis === 'PER_GUEST' || basis === 'PER_TABLE' ? 'Quantità modificabile: scrivi un numero diverso dal totale (es. solo 10 invitati). Premi Invio o esci dal campo per applicare.' : 'Premi Invio o esci dal campo per applicare.'}
                           className="h-8 w-24 text-xs" />
-                        <span className="text-xs text-[rgb(var(--fg-subtle))]">{it.unit_snapshot.toLowerCase()}</span>
+                        <span className="text-xs text-[rgb(var(--fg-subtle))]">{nomeUnita(it.unit_snapshot, Number(it.quantity))}</span>
                         <span className="text-xs text-[rgb(var(--fg-subtle))] ml-2">sconto</span>
                         <Input type="number" step="1" key={`disc-${it.id}-${(it as any).item_discount_percent ?? 0}`}
                           defaultValue={Number((it as any).item_discount_percent ?? 0)}

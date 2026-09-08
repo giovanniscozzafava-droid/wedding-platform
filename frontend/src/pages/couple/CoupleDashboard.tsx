@@ -11,6 +11,7 @@ import { PdfViewButton } from '@/components/common/PdfBookViewer'
 import { QuoteThread } from '@/components/quote/QuoteThread'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { NotificationBell } from '@/components/layout/NotificationBell'
+import { nomeUnita, quantitaConUnita } from '@/lib/unitaVoce'
 import { supabase } from '@/lib/supabase'
 import { useMyWeddings } from '@/hooks/useCouple'
 import { useAccommodations, useGadgets, useGuests, useMood, usePlaylist, useSubEvents, useTimeline, useTransport, useMoodMutations, usePlaylistMutations, useWedding } from '@/hooks/useWedding'
@@ -1317,10 +1318,10 @@ function PreventivoCouple({ entryId }: { entryId: string }) {
                               <span className="w-9 text-center text-sm tabular-nums font-medium">{it.quantity}</span>
                               <button aria-label="Aumenta" disabled={busyItem === it.id || Number(it.quantity) >= 99} onClick={() => void setQty(it.id, Number(it.quantity) + 1)} className="h-7 w-7 grid place-items-center text-base leading-none disabled:opacity-40 hover:bg-[rgb(var(--surface-2))]">+</button>
                             </div>
-                            {it.unit_snapshot && <span className="text-[11px] text-[rgb(var(--fg-subtle))]">{String(it.unit_snapshot).toLowerCase()}</span>}
+                            {it.unit_snapshot && <span className="text-[11px] text-[rgb(var(--fg-subtle))]">{nomeUnita(it.unit_snapshot, Number(it.quantity))}</span>}
                           </div>
                         ) : (
-                          <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">{it.quantity} {String(it.unit_snapshot ?? '').toLowerCase()}</p>
+                          <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-0.5">{quantitaConUnita(it.quantity, it.unit_snapshot)}</p>
                         )}
                         <p className="font-display text-xl mt-1">€ {Number(it.line_client ?? 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
                         {selected && clickable && <p className="text-[11px] font-medium mt-1" style={{ color: 'rgb(var(--gold-700))' }}>Scelta — si somma al totale</p>}

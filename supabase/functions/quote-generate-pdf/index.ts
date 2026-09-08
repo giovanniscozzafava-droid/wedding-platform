@@ -46,6 +46,25 @@ async function fetchImage(url: string): Promise<{ data: Uint8Array; format: 'PNG
 const fmtEUR = (n: any) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(Number(n ?? 0))
 const fmtEURcompact = (n: any) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(Number(n ?? 0))
 const fmtDate = (d: any) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) } catch { return String(d) } }
+// La riga sotto il nome della voce spiega COME si arriva al totale a destra.
+// Prima diceva "1 pezzo · 250,00 € cad.": "pezzo" è la parola sbagliata per un
+// pacchetto o un servizio (e "cad." è linguaggio da magazzino). Si dice
+// "unità", con il plurale giusto per le altre unità di misura.
+const NOMI_UNITA: Record<string, [string, string]> = {
+  PEZZO: ['unità', 'unità'],       // invariabile
+  PERSONA: ['persona', 'persone'],
+  ORA: ['ora', 'ore'],
+  EVENTO: ['evento', 'eventi'],
+}
+function rigaQuantita(qty: number, unit: any, prezzo: string): string {
+  const u = String(unit ?? '').toUpperCase()
+  const n = Number.isFinite(qty) && qty > 0 ? qty : 1
+  const q = Number.isInteger(n) ? String(n) : String(n).replace('.', ',')
+  const [sing, plur] = NOMI_UNITA[u] ?? NOMI_UNITA.PEZZO
+  // quantità 1: nessuna moltiplicazione da mostrare, solo il prezzo di quella voce
+  return n === 1 ? `1 ${sing} · ${prezzo}` : `${q} ${plur} × ${prezzo}`
+}
+
 const safeText = (s: any) => String(s ?? '')
   .replace(/\p{Extended_Pictographic}/gu, '')
   .replace(/[\u200D\uFE0F\u20E3]/g, '')
@@ -486,9 +505,7 @@ Deno.serve(async (req) => {
       doc.setFontSize(9)
       doc.setTextColor(...MUTED)
       doc.setFont('helvetica', 'normal')
-      const qtyUnit = `${Number(it.quantity)} ${String(it.unit_snapshot ?? '').toLowerCase()}`
-      const unitPrice = `${fmtEUR(it.snapshot_price)} cad.`
-      doc.text(`${qtyUnit}  ·  ${unitPrice}`, M, y)
+      doc.text(rigaQuantita(Number(it.quantity), it.unit_snapshot, fmtEUR(it.snapshot_price)), M, y)
       y += 12
 
       // Sconto applicato alla singola voce: il cliente vede "-X%" e il prezzo pieno barrato.
@@ -501,7 +518,7 @@ Deno.serve(async (req) => {
         doc.setFontSize(9)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(...PRIMARY)
-        doc.text(`Sconto -${pctLabel}% applicato`, M, y)
+        doc.text(`Prezzo riservato −${pctLabel}%`, M, y)
         // Destra: "invece di € pieno" col prezzo pieno barrato.
         doc.setFont('helvetica', 'normal')
         const amt = fmtEUR(grossTot)
@@ -614,7 +631,9 @@ Deno.serve(async (req) => {
   doc.setFontSize(10)
   doc.setTextColor(...ACCENT)
   doc.setFont('helvetica', 'normal')
-  doc.text('T O T A L E   C L I E N T E', M, y, { charSpace: 2 })
+  // "TOTALE CLIENTE" era il nome interno del campo: su un documento che legge
+  // il cliente stesso, parlargli in terza persona stona.
+  doc.text('T O T A L E', M, y, { charSpace: 2 })
 
   doc.setFontSize(32)
   doc.setTextColor(...INK)
