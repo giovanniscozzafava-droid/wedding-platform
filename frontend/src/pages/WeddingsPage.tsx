@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchUnreadByEntry, type UnreadEntry } from '@/lib/notifGuide'
 import { motion } from 'framer-motion'
-import { ArrowUpRight, CalendarHeart, Trash2, LogOut } from '@/components/icons/lucide'
+import { ArrowUpRight, CalendarHeart, Trash2, LogOut, Siren } from '@/components/icons/lucide'
 import { toast } from '@/lib/toast'
 import { useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SearchFilterBar } from '@/components/common/SearchFilterBar'
-import { useWeddings } from '@/hooks/useWedding'
+import { useWeddings, type WeddingRow } from '@/hooks/useWedding'
 import { shownTotal } from '@/lib/quoteSelection'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 import { DirectEventButton } from '@/components/event/DirectEventButton'
 
 export default function WeddingsPage() {
@@ -35,6 +36,24 @@ export default function WeddingsPage() {
     if (!q) return data ?? []
     return (data ?? []).filter((w) => `${w.title ?? ''} ${w.client_name ?? ''}`.toLowerCase().includes(q))
   }, [data, search])
+
+  // Urgenti SEMPRE in cima, sopra qualsiasi altro ordinamento (i collaboratori
+  // non li vedono: calendar_entries_collab non espone `urgent`, quindi qui è
+  // sempre falsy per loro). Tra loro: chi è urgente da più tempo prima.
+  const urgentList = useMemo(
+    () => filtered
+      .filter((w) => (w as WeddingRow & { urgent?: boolean }).urgent)
+      .sort((a, b) => {
+        const as = (a as WeddingRow & { urgent_since?: string | null }).urgent_since
+        const bs = (b as WeddingRow & { urgent_since?: string | null }).urgent_since
+        return (as ? new Date(as).getTime() : 0) - (bs ? new Date(bs).getTime() : 0)
+      }),
+    [filtered],
+  )
+  const restList = useMemo(
+    () => filtered.filter((w) => !(w as WeddingRow & { urgent?: boolean }).urgent),
+    [filtered],
+  )
 
   function deleteWedding(id: string, title: string) {
     setDelPhrase(''); setDelLoseAll(false); setDelNoBackup(false); setDelTarget({ id, title })
@@ -138,10 +157,26 @@ export default function WeddingsPage() {
           <p className="text-sm text-[rgb(var(--fg-muted))] text-center py-8">Nessun evento corrisponde alla ricerca.</p>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Urgenti: sempre in cima, sopra la suddivisione per anno. */}
+          {urgentList.length > 0 && (
+            <div className="md:col-span-2">
+              <h3 className="text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: 'rgb(var(--lacca))' }}>
+                <Siren size={14} /> Urgenti
+              </h3>
+            </div>
+          )}
+          {urgentList.map((w, idx) => (
+            <motion.div key={w.id}
+              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}>
+              <WeddingCard w={w} uid={uid} unread={unread[w.id]} onDelete={deleteWedding} onLeave={leaveCircle} />
+            </motion.div>
+          ))}
+
           {(() => {
-            // Eventi in ordine CRONOLOGICO, raggruppati per ANNO (i più vicini prima).
-            const gy = (w: typeof filtered[number]) => { const d = w.date_from; const y = d ? new Date(d).getFullYear() : 0; return Number.isFinite(y) ? y : 0 }
-            const byYear = [...filtered].sort((a, b) => (gy(a) || 9999) - (gy(b) || 9999))
+            // Il resto: ordine CRONOLOGICO, raggruppato per ANNO (i più vicini prima).
+            const gy = (w: typeof restList[number]) => { const d = w.date_from; const y = d ? new Date(d).getFullYear() : 0; return Number.isFinite(y) ? y : 0 }
+            const byYear = [...restList].sort((a, b) => (gy(a) || 9999) - (gy(b) || 9999))
             return byYear.map((w, idx) => {
             const yy = gy(w)
             const showHead = idx === 0 || gy(byYear[idx - 1]!) !== yy
@@ -151,62 +186,7 @@ export default function WeddingsPage() {
             <motion.div
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}>
-              <Card className="hover:shadow-[var(--shadow-lift)] transition-shadow overflow-hidden">
-                <div className="p-6 flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <Link to={`/weddings/${w.id}`} className="min-w-0 flex-1">
-                      <h3 className="font-display text-xl truncate flex items-center gap-2">
-                        {w.title}
-                        {unread[w.id] && <span className="inline-block h-2.5 w-2.5 rounded-full bg-[rgb(var(--rose-500))] shrink-0 animate-pulse" title={`${unread[w.id]?.n ?? ''} novità da leggere`} />}
-                      </h3>
-                      <p className="text-sm text-[rgb(var(--fg-muted))]">
-                        {w.client_name ?? '—'} ·{' '}
-                        {new Date(w.date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
-                      </p>
-                    </Link>
-                    <div className="flex items-center gap-1">
-                      <Badge status={w.status} />
-                      {w.status === 'OPZIONATA' && (w as { option_expires_at?: string | null }).option_expires_at && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700"
-                          title={`Opzione data — scade il ${new Date((w as { option_expires_at?: string }).option_expires_at!).toLocaleDateString('it-IT')}`}>
-                          scade tra {Math.max(0, Math.ceil((new Date((w as { option_expires_at?: string }).option_expires_at!).getTime() - Date.now()) / 86400000))}g
-                        </span>
-                      )}
-                      {uid && w.owner_id === uid ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Elimina evento + dati cliente (GDPR)"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); void deleteWedding(w.id, w.title) }}
-                          className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Esci dal cerchio (non sei il proprietario dell'evento)"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); void leaveCircle(w.id, w.title) }}
-                          className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
-                        >
-                          <LogOut size={14} />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <Link to={`/weddings/${w.id}`}>
-                    <div className="grid grid-cols-3 gap-3 pt-3 border-t text-xs" style={{ borderColor: 'rgb(var(--border))' }}>
-                      <Stat label="Valore" value={`€ ${Number(w.quote ? shownTotal(w.quote.total_client, w.quote.total_client_selected) : (w.value_amount ?? 0)).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`} />
-                      <Stat label="Preventivo" value={w.quote?.status ?? '—'} />
-                      <Stat label="Revision" value={`v${w.quote?.revision ?? 1}`} />
-                    </div>
-                    <div className="flex items-center justify-end gap-1 text-sm text-[rgb(var(--fg-muted))] mt-2">
-                      Apri dashboard <ArrowUpRight size={14} />
-                    </div>
-                  </Link>
-                </div>
-              </Card>
+              <WeddingCard w={w} uid={uid} unread={unread[w.id]} onDelete={deleteWedding} onLeave={leaveCircle} />
             </motion.div>
             </Fragment>
             )
@@ -224,5 +204,86 @@ function Stat({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{label}</p>
       <p className="font-medium mt-0.5">{value}</p>
     </div>
+  )
+}
+
+function WeddingCard({ w, uid, unread, onDelete, onLeave }: {
+  w: WeddingRow
+  uid: string | null
+  unread: UnreadEntry | undefined
+  onDelete: (id: string, title: string) => void
+  onLeave: (id: string, title: string) => void
+}) {
+  const urgent = !!(w as WeddingRow & { urgent?: boolean }).urgent
+  const urgentSince = (w as WeddingRow & { urgent_since?: string | null }).urgent_since
+  const giorni = urgentSince ? Math.max(0, Math.floor((Date.now() - new Date(urgentSince).getTime()) / 86400000)) : 0
+  const giorniLabel = giorni <= 0 ? 'da oggi' : giorni === 1 ? 'da 1 giorno' : `da ${giorni} giorni`
+
+  return (
+    <Card className={cn('hover:shadow-[var(--shadow-lift)] transition-shadow overflow-hidden', urgent && 'urgent-ring')}
+      style={urgent ? { borderColor: 'rgb(var(--lacca))' } : undefined}>
+      <div className="p-6 flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <Link to={`/weddings/${w.id}`} className="min-w-0 flex-1">
+            <h3 className="font-display text-xl truncate flex items-center gap-2">
+              {urgent && <Siren size={16} className="shrink-0" style={{ color: 'rgb(var(--lacca))' }} aria-label="Urgente" />}
+              {w.title}
+              {unread && <span className="inline-block h-2.5 w-2.5 rounded-full bg-[rgb(var(--rose-500))] shrink-0 animate-pulse" title={`${unread.n ?? ''} novità da leggere`} />}
+            </h3>
+            <p className="text-sm text-[rgb(var(--fg-muted))]">
+              {w.client_name ?? '—'} ·{' '}
+              {new Date(w.date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </Link>
+          <div className="flex items-center gap-1">
+            <Badge status={w.status} />
+            {urgent && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                style={{ background: 'rgb(var(--lacca) / 0.12)', color: 'rgb(var(--lacca))' }}
+                title="Evento urgente">
+                Urgente {giorniLabel}
+              </span>
+            )}
+            {!urgent && w.status === 'OPZIONATA' && (w as { option_expires_at?: string | null }).option_expires_at && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700"
+                title={`Opzione data — scade il ${new Date((w as { option_expires_at?: string }).option_expires_at!).toLocaleDateString('it-IT')}`}>
+                scade tra {Math.max(0, Math.ceil((new Date((w as { option_expires_at?: string }).option_expires_at!).getTime() - Date.now()) / 86400000))}g
+              </span>
+            )}
+            {uid && w.owner_id === uid ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Elimina evento + dati cliente (GDPR)"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void onDelete(w.id, w.title) }}
+                className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
+              >
+                <Trash2 size={14} />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Esci dal cerchio (non sei il proprietario dell'evento)"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void onLeave(w.id, w.title) }}
+                className="text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--rose-500))]"
+              >
+                <LogOut size={14} />
+              </Button>
+            )}
+          </div>
+        </div>
+        <Link to={`/weddings/${w.id}`}>
+          <div className="grid grid-cols-3 gap-3 pt-3 border-t text-xs" style={{ borderColor: 'rgb(var(--border))' }}>
+            <Stat label="Valore" value={`€ ${Number(w.quote ? shownTotal(w.quote.total_client, w.quote.total_client_selected) : (w.value_amount ?? 0)).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`} />
+            <Stat label="Preventivo" value={w.quote?.status ?? '—'} />
+            <Stat label="Revision" value={`v${w.quote?.revision ?? 1}`} />
+          </div>
+          <div className="flex items-center justify-end gap-1 text-sm text-[rgb(var(--fg-muted))] mt-2">
+            Apri dashboard <ArrowUpRight size={14} />
+          </div>
+        </Link>
+      </div>
+    </Card>
   )
 }

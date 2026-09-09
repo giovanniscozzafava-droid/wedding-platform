@@ -1708,6 +1708,11 @@ export type Database = {
           theme: string | null
           title: string
           updated_at: string
+          urgent: boolean
+          urgent_last_reminded_at: string | null
+          urgent_note: string | null
+          urgent_remind_every_hours: number
+          urgent_since: string | null
           wedding_website_data: Json
           wedding_website_published: boolean
           wedding_website_slug: string | null
@@ -1762,6 +1767,11 @@ export type Database = {
           theme?: string | null
           title: string
           updated_at?: string
+          urgent?: boolean
+          urgent_last_reminded_at?: string | null
+          urgent_note?: string | null
+          urgent_remind_every_hours?: number
+          urgent_since?: string | null
           wedding_website_data?: Json
           wedding_website_published?: boolean
           wedding_website_slug?: string | null
@@ -1816,6 +1826,11 @@ export type Database = {
           theme?: string | null
           title?: string
           updated_at?: string
+          urgent?: boolean
+          urgent_last_reminded_at?: string | null
+          urgent_note?: string | null
+          urgent_remind_every_hours?: number
+          urgent_since?: string | null
           wedding_website_data?: Json
           wedding_website_published?: boolean
           wedding_website_slug?: string | null

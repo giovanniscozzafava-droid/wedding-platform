@@ -8,6 +8,7 @@ import { useChangeRequests, useReviewChangeRequest, entityLabel } from '@/hooks/
 import { useAuth } from '@/lib/auth'
 import { eurInt } from '@/lib/money'
 import { pipelineValue } from '@/lib/quoteSelection'
+import { EventUrgentCard } from '@/components/event/EventUrgentCard'
 
 export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: string) => void }) {
   const eid = wedding.id
@@ -64,6 +65,9 @@ export function OverviewTab({ wedding, onTab }: { wedding: any; onTab: (k: strin
           </button>
         ))}
       </div>
+
+      {/* Solo owner (il componente si autogate): sale in cima alla lista eventi + promemoria periodici. */}
+      <EventUrgentCard wedding={wedding} />
 
       {(pendingReqs.length > 0 || (requests.data ?? []).length > 0) && (
         <section>

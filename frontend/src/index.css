@@ -248,3 +248,14 @@ html, body { max-width: 100%; overflow-x: hidden; }
   animation: shimmer 1.4s linear infinite;
   border-radius: 8px;
 }
+
+/* Evento urgente: anello che pulsa in "lacca" — discreto ma visibile, UNO per
+   vista (le card urgenti sono già in cima alla lista, non serve altro). */
+@keyframes urgentPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--lacca) / 0.28); }
+  50%      { box-shadow: 0 0 0 5px rgb(var(--lacca) / 0); }
+}
+.urgent-ring { animation: urgentPulse 2.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .urgent-ring { animation: none; box-shadow: 0 0 0 2px rgb(var(--lacca) / 0.35); }
+}
