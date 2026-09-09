@@ -509,15 +509,8 @@ export default function AlbumCatalogPicker() {
 
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-9 items-start">
           <div className="lg:sticky lg:top-5">
-            <div className="flex justify-end mb-2">
-              <button onClick={() => setBigOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-300))]">
-                <Maximize2 size={15} /> Ingrandisci e sfoglia in 3D
-              </button>
-            </div>
-            <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} pins={pins} onOpenPin={setOpenPin} initialPage={deepPage ?? undefined} />
-
-            {/* L'ALBUM IN 3D: si aggiorna a ogni scelta fatta a destra */}
-            <div className="mt-5 max-w-[520px] mx-auto">
+            {/* L'ALBUM IN 3D, per primo: si aggiorna a ogni scelta fatta nei capitoli */}
+            <div className="mb-5 max-w-[520px] mx-auto">
               <div className="flex items-baseline justify-between border-b border-[rgb(var(--border))] pb-1.5 mb-3">
                 <p className="font-display text-lg">Il tuo album in 3D</p>
                 <p className="text-[11px] text-[rgb(var(--fg-subtle))]">si aggiorna a ogni scelta</p>
@@ -538,6 +531,15 @@ export default function AlbumCatalogPicker() {
                 <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] bg-[rgb(var(--bg-elev))]/70 backdrop-blur rounded-full px-2.5 py-1">trascina per girare · {sizeByKey(specs.size)?.label ?? ''}</span>
               </div>
             </div>
+
+            {/* LE TAVOLE DEL CATALOGO: si sfogliano e si spuntano */}
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="font-display text-lg">Le tavole del catalogo</p>
+              <button onClick={() => setBigOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-[rgb(var(--border))] hover:border-[rgb(var(--gold-300))]">
+                <Maximize2 size={15} /> Ingrandisci e sfoglia in 3D
+              </button>
+            </div>
+            <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} pins={pins} onOpenPin={setOpenPin} initialPage={deepPage ?? undefined} />
           </div>
 
           <div className="space-y-5">
