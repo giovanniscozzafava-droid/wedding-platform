@@ -16,7 +16,7 @@ import { modelLayout } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import {
   MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
-  compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, optLabel, type CoverComposition,
+  compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, FAMILY_PAGES, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
 import { CoverPhotoPicker } from '@/components/album/catalog/CoverPhotoPicker'
@@ -630,7 +630,7 @@ export default function AlbumCatalogPicker() {
                 </div>
               )}
               <SwatchPicker shape="photo" cols={3} maxH="26rem" value={comp.model?.key ? familyKeyOf(comp.model.label) : undefined}
-                options={MODEL_TILES.map((t) => ({ key: t.family, label: t.label, img: t.img, hint: `${t.collection}${t.page ? ` · pag. ${t.page}` : ''}` }))}
+                options={MODEL_TILES.filter((t) => t.img).map((t) => ({ key: t.family, label: t.label, img: t.img, hint: `${t.collection}${t.page ? ` · pag. ${t.page}` : ''}` }))}
                 onChange={(k) => { const t = MODEL_TILES.find((x) => x.family === k); if (t) pickModelFromList(t.model.key) }} />
               <details className="group">
                 <summary className="cursor-pointer list-none text-[12px] text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]">Tutte le varianti del listino <span className="text-[rgb(var(--fg-subtle))]">(menu)</span></summary>
@@ -638,7 +638,7 @@ export default function AlbumCatalogPicker() {
                   <option value="">{selected ? `Scelto sulla pagina: ${selected.label}` : 'Scegli un modello…'}</option>
                   {MODEL_GROUPS.map((g) => (
                     <optgroup key={g.key} label={g.label}>
-                      {g.models.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                      {g.models.map((m) => <option key={m.key} value={m.key}>{m.label}{FAMILY_PAGES[familyOf(m.label)] ? '' : ' · fuori catalogo 2022'}</option>)}
                     </optgroup>
                   ))}
                 </select>
