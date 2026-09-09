@@ -19,6 +19,7 @@ import {
   compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
+import { CoverPhotoPicker } from '@/components/album/catalog/CoverPhotoPicker'
 import { Chapter, Voice, PillChoice, ChoiceSheet, type SheetRow } from '@/components/album/catalog/CatalogUi'
 import { getCoverPhotoCandidates, type CoverPhotoCandidate } from '@/hooks/useAlbumOrder'
 import { getFormat } from '@/lib/albumFormats'
@@ -272,6 +273,8 @@ export default function AlbumCatalogPicker() {
   const [backDiff, setBackDiff] = useState(false)          // retro e dorso di un altro materiale/colore
   const [flipOpen, setFlipOpen] = useState(false)          // sfoglio 3D con le foto della selezione
   const [flipPhotos, setFlipPhotos] = useState<string[]>([])
+  const [photoSheet, setPhotoSheet] = useState(false)      // foglio a schermo intero per scegliere la foto in copertina
+  const [photosLoading, setPhotosLoading] = useState(false)
   const stageRef = useRef<AlbumGlbStageHandle>(null)
   const cover3d = useMemo<GlbCover>(() => {
     const fin = new Set<string>()
@@ -321,6 +324,10 @@ export default function AlbumCatalogPicker() {
   const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor) && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
     && !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && (!wantPhoto || !!comp.coverPhoto)
   const goToPage = (page?: number) => { if (page) setDeepPage(catalogPageToSheet(page)) }
+  async function openPhotoSheet() {
+    setPhotoSheet(true)
+    if (!candidates.length) { setPhotosLoading(true); try { setCandidates(await getCoverPhotoCandidates(entryId)) } catch { /* nessuna foto */ } finally { setPhotosLoading(false) } }
+  }
   // SFOGLIA: la copertina si apre e si girano le facciate con le foto scelte per l'album (selezione KEPT)
   async function openFlip() {
     let list = candidates
@@ -669,26 +676,24 @@ export default function AlbumCatalogPicker() {
                   onChange={(k) => { const v = k === 'si'; setWantPhoto(v); if (!v) setComp((c) => ({ ...c, coverPhoto: null })) }} />
               </Voice>
               {wantPhoto && (
-                <div>
-                  <p className="text-[12px] text-[rgb(var(--fg-muted))] mb-1.5 flex items-center gap-1"><ImageIcon size={13} /> Tocca la foto da mettere in copertina (tra quelle scelte per l'album).</p>
-                  {candidates.length === 0
-                    ? <p className="text-sm text-[rgb(var(--fg-muted))]">Nessuna foto scelta per l'album ancora: prima seleziona le foto preferite nella galleria.</p>
-                    : (
-                      <div className="grid grid-cols-4 gap-1.5 max-h-72 overflow-auto">
-                        {candidates.map((c) => {
-                          const on = comp.coverPhoto?.mediaId === c.id
-                          return (
-                            <button key={c.id} type="button" onClick={() => setComp((x) => ({ ...x, coverPhoto: on ? null : { mediaId: c.id, url: c.thumb, label: c.label } }))}
-                              className={`relative rounded-lg overflow-hidden border-2 aspect-square ${on ? 'border-[rgb(var(--gold-500))]' : 'border-transparent'}`}>
-                              <img src={c.thumb} alt="" className="w-full h-full object-cover" />
-                              {on && <span className="absolute top-1 right-1 rounded-full bg-[rgb(var(--gold-500))] text-white p-0.5"><Check size={12} /></span>}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  {comp.coverPhoto && <p className="text-[12px] text-[rgb(var(--gold-700))] mt-1">Foto scelta: {comp.coverPhoto.label ?? 'selezionata'}</p>}
+                <div className="flex items-center gap-3">
+                  {/* la foto scelta, grande; il foglio a schermo intero per sceglierla o cambiarla */}
+                  <button type="button" onClick={() => void openPhotoSheet()}
+                    className={`relative h-24 w-32 shrink-0 overflow-hidden rounded-xl border-2 ${comp.coverPhoto ? 'border-[rgb(var(--gold-500))]' : 'border-dashed border-[rgb(var(--border))]'} bg-[rgb(var(--bg-sunken))] grid place-items-center`}>
+                    {comp.coverPhoto ? <img src={comp.coverPhoto.url} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <ImageIcon size={22} className="text-[rgb(var(--fg-subtle))]" />}
+                  </button>
+                  <div className="min-w-0">
+                    <p className="text-sm">{comp.coverPhoto ? (comp.coverPhoto.label ?? 'Foto scelta') : 'Nessuna foto ancora'}</p>
+                    <button type="button" onClick={() => void openPhotoSheet()} className="mt-1 rounded-full border border-[rgb(var(--gold-600))] text-[rgb(var(--gold-700))] px-3 py-1.5 text-[13px]">
+                      {comp.coverPhoto ? 'Cambia foto' : 'Scegli la foto'}
+                    </button>
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Tra quelle scelte per l'album.</p>
+                  </div>
                 </div>
+              )}
+              {photoSheet && (
+                <CoverPhotoPicker photos={candidates} value={comp.coverPhoto?.mediaId} loading={photosLoading} onClose={() => setPhotoSheet(false)}
+                  onPick={(c) => setComp((x) => ({ ...x, coverPhoto: { mediaId: c.id, url: c.thumb, label: c.label } }))} />
               )}
             </Chapter>
 

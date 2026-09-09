@@ -820,8 +820,6 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             {role === 'sposi' && (albumOrder?.layoutApproved
               ? <Button variant="ghost" size="sm" onClick={() => void revokeApproval()}><RotateCcw size={14} /> Riapri e modifica</Button>
               : <Button variant="outline" size="sm" disabled={approveBusy} onClick={() => void approveLayout()}>{approveBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Confermo questo album</Button>)}
-            {/* Copertina 3D: OSCURATA (soon) finché non c'è il partner di stampa di riferimento. */}
-            {isOwner && <Button variant="outline" size="sm" disabled title="Configuratore copertina 3D — in arrivo (in attesa del partner di stampa)"><Printer size={14} /> Copertina 3D · presto</Button>}
             {role === 'sposi' && <Link to={`/album-opzioni/${entryId}`}><Button variant="outline" size="sm" title="Colore copertina, logo, box e finiture — un passo alla volta"><Sliders size={14} /> {albumOrder?.confirmed ? 'Cambia le opzioni' : 'Configura le opzioni'}</Button></Link>}
             {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
             {/* Il catalogo (PDF, modelli, opzioni, prezzi) è dello studio, non dell'evento: si gestisce da
