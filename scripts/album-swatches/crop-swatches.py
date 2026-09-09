@@ -238,6 +238,12 @@ def save_crop(im, box, path, fmt):
         if crop.width > 420: crop = crop.resize((420, round(crop.height * 420 / crop.width)), Image.LANCZOS)
         crop.save(path, 'JPEG', quality=88, optimize=True)
     else:
+        # via il watermark «DESIGNALBUM» (grigio 235–245, neutro): tutto ciò che è chiaro e non
+        # saturo (≥ 222) diventa bianco; i loghi grigi stanno sotto 215, quelli colorati sono saturi
+        arr = np.asarray(crop.convert('RGB')).astype(int)
+        neutral_light = (arr.min(axis=2) >= 222) & ((arr.max(axis=2) - arr.min(axis=2)) < 20)
+        arr[neutral_light] = 255
+        crop = Image.fromarray(arr.astype('uint8'))
         if crop.width > 360: crop = crop.resize((360, round(crop.height * 360 / crop.width)), Image.LANCZOS)
         crop.convert('P', palette=Image.ADAPTIVE, colors=128).save(path, 'PNG', optimize=True)
 

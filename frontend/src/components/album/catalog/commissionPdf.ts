@@ -17,7 +17,11 @@ export type CommissionDoc = {
   composition?: string[]
   /** foto scelta per la copertina (data URL o URL immagine) */
   coverPhotoDataUrl?: string | null
+  /** conto: base nel preventivo, aggiunte col ricarico, differenza, rimanenza alla consegna */
+  pricing?: { inQuote: number | null; includedPages: number | null; additions: { label: string; amount: number; hint?: string }[]; difference: number; remaining: number }
 }
+
+const eur = (n: number) => `${Math.round(n).toLocaleString('it-IT')} €`
 
 const GOLD = [176, 141, 60] as const
 const INK = [38, 34, 28] as const
@@ -62,6 +66,21 @@ export function buildCommissionPdf(d: CommissionDoc): Blob {
     doc.text('COMPOSIZIONE COPERTINA', M, y); y += 5.5
     doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(...INK)
     for (const line of d.composition) { doc.text(line, M, y); y += 5.5 }
+    y += 5
+  }
+  // conto: nel preventivo / aggiunte / differenza
+  if (d.pricing && (d.pricing.inQuote != null || d.pricing.additions.length)) {
+    const p = d.pricing
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...MUTED)
+    doc.text('CONTO', M, y); y += 5.5
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(...INK)
+    const line = (label: string, amount: string) => { doc.text(label, M, y); doc.text(amount, W - M, y, { align: 'right' }); y += 5.5 }
+    if (p.inQuote != null) line(`Nel preventivo${p.includedPages ? ` · ${p.includedPages} pagine incluse` : ''}`, eur(p.inQuote))
+    for (const a of p.additions) line(`  + ${a.label}${a.hint ? ` (${a.hint})` : ''}`, a.amount > 0 ? eur(a.amount) : 'incluso')
+    doc.setFont('helvetica', 'bold')
+    line(p.inQuote != null ? 'Differenza' : 'Prezzo album', eur(p.difference))
+    line('Rimanenza alla consegna', eur(p.remaining))
+    doc.setFont('helvetica', 'normal')
     y += 5
   }
   if (sp.note) row('Nota del cliente', sp.note)

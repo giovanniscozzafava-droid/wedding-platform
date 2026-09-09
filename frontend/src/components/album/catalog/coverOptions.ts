@@ -66,7 +66,7 @@ export const FAMILY_PAGES: Record<string, number[]> = {
   // non in indice: panoramiche e pagine ottone (stima della sessione precedente)
   altea: [12], ardesia: [12], artemis: [12], brigit: [12], ashley: [88], azhar: [88],
 }
-const familyOf = (label?: string): string => (label ?? '').split(' · ')[0].trim().toLowerCase()
+const familyOf = (label?: string): string => ((label ?? '').split(' · ')[0] ?? '').trim().toLowerCase()
 /** Pagina del catalogo in cui si vede un modello (per «vedi a pag. N»). */
 export const modelPage = (label?: string): number | undefined => FAMILY_PAGES[familyOf(label)]?.[0]
 /** Le famiglie di modelli che compaiono su una tavola del PDF (dalla spunta del cliente). */

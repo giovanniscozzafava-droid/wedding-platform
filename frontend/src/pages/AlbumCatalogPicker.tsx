@@ -271,8 +271,14 @@ export default function AlbumCatalogPicker() {
   // Il modello si IMPORTA dalla spunta: dalla tavola della puntina/hotspot risalgo, con l'indice
   // del catalogo, alle famiglie di modelli stampate su quelle due pagine. Una sola famiglia →
   // il modello si compila da solo; più famiglie → le propongo come tessere sotto «Modello».
-  const sheetFamilies = useMemo(() => (selected ? familiesOnSheet(selected.page).map((f) => ({ family: f, model: modelsOfFamily(f)[0] })).filter((x) => !!x.model) : []), [selected?.page]) // eslint-disable-line react-hooks/exhaustive-deps
-  function applyFamily(fam: { family: string; model: { key: string; label: string; format: string } }) {
+  type FamilyPick = { family: string; model: { key: string; label: string; format: string } }
+  const sheetFamilies = useMemo<FamilyPick[]>(() => {
+    if (!selected) return []
+    const out: FamilyPick[] = []
+    for (const f of familiesOnSheet(selected.page)) { const m = modelsOfFamily(f)[0]; if (m) out.push({ family: f, model: m }) }
+    return out
+  }, [selected?.page]) // eslint-disable-line react-hooks/exhaustive-deps
+  function applyFamily(fam: FamilyPick) {
     const page = selected ? (familyPageOnSheet(fam.family, selected.page) ?? modelPage(fam.model.label)) : modelPage(fam.model.label)
     setComp((c) => ({ ...c, model: { key: fam.model.key, label: fam.model.label, page } }))
     setSpecs((p) => ({ ...p, format: fam.model.format as Format }))
