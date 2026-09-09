@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maximize2, Check, ImageIcon } from '@/components/icons/lucide'
+import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Maximize2, Check, ImageIcon } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FORMATS, BOXES, MODELS, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, type Format } from '@/components/album/albumCatalog'
+import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, type Format } from '@/components/album/albumCatalog'
 import {
-  MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, LOGO_COLOR_OPTIONS, logoNeedsColor, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
-  compositionLines, modelPage, catalogPageToSheet, type CoverComposition,
+  MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
+  compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
+import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
 import { getCoverPhotoCandidates, type CoverPhotoCandidate } from '@/hooks/useAlbumOrder'
 import { getFormat } from '@/lib/albumFormats'
-import { looksLikeAlbum, euroA } from '@/lib/albumPricing'
+import { looksLikeAlbum, parseQuoteItem, euroA } from '@/lib/albumPricing'
 import { PdfFlipbook } from '@/components/album/catalog/PdfFlipbook'
 import { PdfLightbox } from '@/components/album/catalog/PdfLightbox'
 import { PinThreadPanel, type AlbumPin } from '@/components/album/catalog/PinThreadPanel'
@@ -62,6 +63,7 @@ export default function AlbumCatalogPicker() {
   const [isPro, setIsPro] = useState(false)
   const [lockedFmt, setLockedFmt] = useState<string | null>(null)  // formato bloccato (se già impaginato)
   const [optioned, setOptioned] = useState(0)                       // importo album già opzionato nel preventivo
+  const [quotePages, setQuotePages] = useState<number | null>(null)  // pagine del blocco incluse nel preventivo
   const [familyFromQuote, setFamilyFromQuote] = useState(false)     // album famiglia già nel preventivo
   const [bigOpen, setBigOpen] = useState(false)                     // visore PDF 3D a schermo intero
   // FASE 2 — componenti del listino del fotografo + residuo preventivo (per la rimanenza alla consegna)
@@ -116,6 +118,10 @@ export default function AlbumCatalogPicker() {
         const items = (data?.items ?? data?.quote?.items ?? []) as { name?: string; line_client?: number; description_snapshot?: string; description?: string }[]
         const album = items.filter((it) => looksLikeAlbum({ name: it.name, description: it.description_snapshot ?? it.description }))
         setOptioned(album.reduce((s, it) => s + (Number(it.line_client) || 0), 0))
+        // dalla riga album del preventivo: le pagine del blocco incluse (es. "50 pagine")
+        const parsed = album.map((it) => parseQuoteItem({ name: it.name, description: it.description_snapshot ?? it.description, amount: Number(it.line_client) || 0 }))
+        const pages = parsed.find((p) => p.includedPages)?.includedPages
+        if (pages) { setQuotePages(pages); setSpecs((p) => ({ ...p, pages })) }
         // Box / album famiglia GIÀ nel preventivo → li pre-spunto.
         const allTxt = items.map((it) => `${it.name ?? ''} ${it.description_snapshot ?? it.description ?? ''}`).join(' ')
         if (/\bbox\b|custodia|scatola|cofanetto|astuccio/i.test(allTxt)) setSpecs((p) => (p.box && p.box !== 'nessuno' ? p : { ...p, box: BOXES.find((b) => b.key !== 'nessuno')?.key ?? p.box }))
@@ -162,8 +168,6 @@ export default function AlbumCatalogPicker() {
     if (dp == null) return 0
     return applyMarkup(dp, Number(catalog?.markup_percent ?? 0)) ?? dp
   }, [selected?.price, selected?.label, specs.size, catalog?.markup_percent])
-  const modelTotal = basePrice + surcharge
-
   // COMPOSIZIONE DA CATALOGO: menu a tendina letti dal PDF DesignAlbum (materiali e colori
   // pag. 115–127, personalizzazioni pag. 34–37, blocchi pag. 128, packaging pag. 97). UNA
   // scelta per caratteristica; la foto di copertina si pesca dalla galleria dell'evento.
@@ -183,6 +187,74 @@ export default function AlbumCatalogPicker() {
     }))
   }, [comp.box, comp.finish])
   const colorOpts = useMemo(() => colorOptionsFor(comp.material), [comp.material])
+  // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
+  const coverPick = listino.covers.find((c) => c.id === selCover)
+  const coverExtra = coverPick && !coverPick.included ? Number(coverPick.price) || 0 : 0
+  const accExtra = listino.accessories.filter((a) => selAcc.has(a.id) && !a.included).reduce((s, a) => s + (Number(a.price) || 0), 0)
+  const shipping = Number(listino.shipping) || 0
+  const residuo = Math.max(0, listino.quoteTotal - listino.quotePaid)
+
+  // PREZZO — regola: la BASE è il modello scelto nel preventivo (misura + blocco pagine);
+  // ogni aggiunta si prezza dal listino DesignAlbum (copertina per fascia/materiale/misura,
+  // blocco a facciata per misura e tipo, box, personalizzazioni) già col ricarico del
+  // fotografo, e la somma delle aggiunte è la DIFFERENZA che la coppia paga.
+  const markupPct = Number(catalog?.markup_percent ?? 0)
+  const mk = (n: number) => applyMarkup(n, markupPct) ?? n
+  const pricing = useMemo(() => {
+    type L = { label: string; amount: number; hint?: string }
+    const lines: L[] = []
+    const sizeKey = specs.size
+    const bt = comp.block === 'book-flat' ? 'bookflat' as const : 'photo' as const
+    const haveQuote = optioned > 0
+    const inclPages = quotePages ?? (haveQuote ? specs.pages : 0)
+    // copertina: listino DesignAlbum per fascia × gruppo materiale × misura
+    const baseCover = coverPrice({ sizeKey, pages: 0 }).lines[0]?.amount ?? 0               // BASIC, gruppo A = base
+    const chosenCover = selected ? (coverPrice({ model: comp.model?.key, fabric: comp.material, sizeKey, pages: 0 }).lines[0]?.amount ?? baseCover) : baseCover
+    if (selected && !haveQuote) {
+      lines.push({ label: `Copertina ${comp.model?.label ?? selected.label}${comp.material ? ` · ${materialLabel(comp.material)}` : ''}`, amount: mk(chosenCover), hint: 'listino DesignAlbum col ricarico' })
+    } else if (selected && chosenCover > baseCover) {
+      lines.push({ label: `Copertina ${comp.model?.label ?? selected.label}${comp.material ? ` · ${materialLabel(comp.material)}` : ''}`, amount: mk(chosenCover - baseCover), hint: `listino ${euroA(chosenCover)} − base ${euroA(baseCover)}` })
+    }
+    // blocco libro: prezzo a facciata del prezziario, per misura e tipo di blocco
+    const blockAmt = (pages: number) => coverPrice({ sizeKey, pages, blockType: bt }).lines[1]?.amount ?? 0
+    if (!haveQuote) {
+      if (specs.pages > 0) lines.push({ label: `Blocco ${bt === 'bookflat' ? 'book flat' : 'digitale'} · ${specs.pages} pagine`, amount: mk(blockAmt(specs.pages)), hint: 'a facciata, listino DesignAlbum' })
+    } else if (specs.pages > inclPages) {
+      lines.push({ label: `${specs.pages - inclPages} pagine oltre le ${inclPages} del preventivo`, amount: mk(Math.max(0, blockAmt(specs.pages) - blockAmt(inclPages))), hint: 'a facciata, listino DesignAlbum' })
+    }
+    // personalizzazione nomi/loghi
+    const logoAmt = logoAmount(comp.logo)
+    if (logoAmt > 0) lines.push({ label: optLabel(LOGO_OPTIONS, comp.logo) ?? 'Personalizzazione', amount: mk(logoAmt) })
+    // foto in copertina: dal listino accessori del fotografo (se c'è), altrimenti da confermare
+    if (wantPhoto && comp.coverPhoto) {
+      const acc = listino.accessories.find((a) => /foto/i.test(a.label))
+      if (acc) lines.push({ label: 'Foto in copertina', amount: acc.included ? 0 : mk(Number(acc.price) || 0), hint: acc.included ? 'inclusa' : undefined })
+      else lines.push({ label: 'Foto in copertina', amount: 0, hint: 'prezzo da confermare col fotografo' })
+    }
+    // box: incluso se già nel preventivo, altrimenti listino accessori o riferimento DesignAlbum
+    const boxKey = comp.box ?? specs.box
+    if (boxKey && boxKey !== 'nessuno') {
+      const inQuote = familyFromQuote || (specs.box && specs.box !== 'nessuno' && comp.box === undefined)
+      const acc = listino.accessories.find((a) => /box|cofanetto|custodia|scatola|valigetta/i.test(a.label))
+      const ref = coverPrice({ sizeKey, pages: 0, box: boxKey }).lines.find((l) => l.label.startsWith('Box'))?.amount ?? 0
+      if (inQuote) lines.push({ label: `Box ${optLabel(BOX_OPTIONS, boxKey)}`, amount: 0, hint: 'già nel preventivo' })
+      else if (acc) lines.push({ label: `Box ${optLabel(BOX_OPTIONS, boxKey)}`, amount: acc.included ? 0 : mk(Number(acc.price) || 0) })
+      else lines.push({ label: `Box ${optLabel(BOX_OPTIONS, boxKey)}`, amount: mk(ref), hint: 'listino DesignAlbum' })
+    }
+    // finitura
+    const fin = FINISHES.find((f) => f.key === comp.finish)
+    if (fin) lines.push({ label: fin.label, amount: mk(fin.amount) })
+    // opzioni del modello (hotspot AI) e voci del listino del fotografo scelte a parte
+    if (surcharge > 0) lines.push({ label: 'Opzioni del modello', amount: surcharge })
+    if (coverExtra > 0) lines.push({ label: `Copertina listino · ${coverPick?.label ?? ''}`.trim(), amount: coverExtra })
+    if (accExtra > 0) lines.push({ label: 'Accessori del listino', amount: accExtra })
+    if (shipping > 0) lines.push({ label: 'Spedizione', amount: shipping })
+    const total = lines.reduce((s, l) => s + l.amount, 0)
+    return { lines, total, inclPages, haveQuote }
+  }, [selected, comp, specs.size, specs.pages, specs.box, optioned, quotePages, wantPhoto, listino, familyFromQuote, surcharge, coverExtra, accExtra, shipping, markupPct, coverPick?.label]) // eslint-disable-line react-hooks/exhaustive-deps
+  const albumTotal = pricing.haveQuote ? optioned + pricing.total : pricing.total
+  // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + differenza album
+  const rimanenza = residuo + pricing.total
   const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
     && !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && (!wantPhoto || !!comp.coverPhoto)
   const goToPage = (page?: number) => { if (page) setDeepPage(catalogPageToSheet(page)) }
@@ -196,21 +268,23 @@ export default function AlbumCatalogPicker() {
     setSpecs((p) => ({ ...p, format: m.format }))
     goToPage(page)
   }
+  // Il modello si IMPORTA dalla spunta: dalla tavola della puntina/hotspot risalgo, con l'indice
+  // del catalogo, alle famiglie di modelli stampate su quelle due pagine. Una sola famiglia →
+  // il modello si compila da solo; più famiglie → le propongo come tessere sotto «Modello».
+  const sheetFamilies = useMemo(() => (selected ? familiesOnSheet(selected.page).map((f) => ({ family: f, model: modelsOfFamily(f)[0] })).filter((x) => !!x.model) : []), [selected?.page]) // eslint-disable-line react-hooks/exhaustive-deps
+  function applyFamily(fam: { family: string; model: { key: string; label: string; format: string } }) {
+    const page = selected ? (familyPageOnSheet(fam.family, selected.page) ?? modelPage(fam.model.label)) : modelPage(fam.model.label)
+    setComp((c) => ({ ...c, model: { key: fam.model.key, label: fam.model.label, page } }))
+    setSpecs((p) => ({ ...p, format: fam.model.format as Format }))
+  }
   useEffect(() => {
     // modello scelto cliccando (hotspot/puntina): entra nella composizione con la sua pagina
     if (!selected) return
-    setComp((c) => (c.model?.label === selected.label ? c : { ...c, model: { key: MODELS.find((m) => m.label === selected.label)?.key, label: selected.label, page: (selected.page - 1) * 2 } }))
+    const exact = MODELS.find((m) => m.label === selected.label)
+    if (exact) { setComp((c) => (c.model?.key === exact.key ? c : { ...c, model: { key: exact.key, label: exact.label, page: sheetToPages(selected.page)[0] } })); return }
+    if (sheetFamilies.length === 1) { applyFamily(sheetFamilies[0]!); return }
+    setComp((c) => (c.model?.label === selected.label ? c : { ...c, model: { key: undefined, label: selected.label, page: sheetToPages(selected.page)[0] } }))
   }, [selected?.id, selected?.label]) // eslint-disable-line react-hooks/exhaustive-deps
-  // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
-  const coverPick = listino.covers.find((c) => c.id === selCover)
-  const coverExtra = coverPick && !coverPick.included ? Number(coverPick.price) || 0 : 0
-  const accExtra = listino.accessories.filter((a) => selAcc.has(a.id) && !a.included).reduce((s, a) => s + (Number(a.price) || 0), 0)
-  const shipping = Number(listino.shipping) || 0
-  const albumTotal = modelTotal + coverExtra + accExtra + shipping
-  // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + upgrade album (oltre il contrattualizzato)
-  const residuo = Math.max(0, listino.quoteTotal - listino.quotePaid)
-  const albumUpgrade = Math.max(0, albumTotal - optioned)
-  const rimanenza = residuo + albumUpgrade
 
   function pick(h: Hotspot) {
     setSelected(h)
@@ -262,11 +336,9 @@ export default function AlbumCatalogPicker() {
         sel.logos.length ? `Logo: ${sel.logos.map((k) => lbl(opts.logos, k)).filter(Boolean).join(', ')}` : null,
         sel.cover && 'Foto in copertina',
       ].filter(Boolean).join(' · ')
-      const priceLine = selected.price != null
-        ? (optioned > 0
-            ? `Album ${euroA(albumTotal)} · già ${euroA(optioned)} nel preventivo · differenza album ${euroA(albumUpgrade)} · rimanenza alla consegna ${euroA(rimanenza)}`
-            : `Album ${euroA(albumTotal)}${shipping > 0 ? ` (incl. spedizione ${euroA(shipping)})` : ''}`)
-        : null
+      const priceLine = pricing.haveQuote
+        ? `Nel preventivo ${euroA(optioned)} (${pricing.inclPages} pagine) · aggiunte ${euroA(pricing.total)} · rimanenza alla consegna ${euroA(rimanenza)}`
+        : `Album ${euroA(albumTotal)}${shipping > 0 ? ` (incl. spedizione ${euroA(shipping)})` : ''}`
       // la composizione da catalogo, una riga per caratteristica: va nel PDF, nella nota
       // (leggibile ovunque) e come oggetto strutturato nella commessa
       const lines = compositionLines({ ...comp, coverPhoto: wantPhoto ? comp.coverPhoto : null })
@@ -286,6 +358,7 @@ export default function AlbumCatalogPicker() {
         dateLabel,
         composition: lines,
         coverPhotoDataUrl,
+        pricing: { inQuote: pricing.haveQuote ? optioned : null, includedPages: pricing.haveQuote ? pricing.inclPages : null, additions: pricing.lines, difference: pricing.total, remaining: rimanenza },
       })
 
       const path = await uploadCommissionPdf(entryId, blob)
@@ -293,7 +366,10 @@ export default function AlbumCatalogPicker() {
         catalog_id: catalog.id, page: selected.page, model_label: selected.label,
         specs: fullSpecs, signed_by: clientName.trim(),
         signed_at: new Date().toISOString(), commission_pdf_path: path,
-        composition: { ...comp, coverPhoto: wantPhoto ? comp.coverPhoto : null, lines },
+        composition: {
+          ...comp, coverPhoto: wantPhoto ? comp.coverPhoto : null, lines,
+          pricing: { inQuote: pricing.haveQuote ? optioned : null, includedPages: pricing.haveQuote ? pricing.inclPages : null, additions: pricing.lines, difference: pricing.total, remaining: rimanenza, markupPct },
+        },
       }
       const orderId = await createCommission(entryId, payload)
       downloadBlob(blob, `commessa-${clientName.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${selected.label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`)
@@ -363,6 +439,26 @@ export default function AlbumCatalogPicker() {
                 <p className="text-[12px] text-[rgb(var(--fg-muted))] mt-0.5">Tocca un modello sulla pagina oppure scegli qui sotto. Ogni voce ha una scelta sola: è quella che arriva all'azienda.</p>
               </div>
               <Field label="Modello" page={comp.model?.page} onSee={goToPage}>
+                {/* Dalla spunta: le famiglie stampate sulla tavola spuntata, una tessera ciascuna */}
+                {selected && sheetFamilies.length > 1 && (
+                  <div className="mt-1 mb-1.5">
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Sulla tavola {selected.page} (pag. {sheetToPages(selected.page).join('–')}) ci sono questi modelli: tocca il tuo.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {sheetFamilies.map((f) => {
+                        const on = comp.model?.key === f.model.key
+                        return (
+                          <button key={f.family} type="button" onClick={() => applyFamily(f)}
+                            className={`rounded-full border px-2.5 py-1 text-xs capitalize transition-colors ${on ? 'border-[rgb(var(--gold-600))] bg-[rgb(var(--gold-50))] text-[rgb(var(--fg))]' : 'border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:border-[rgb(var(--gold-300))]'}`}>
+                            {on && <Check size={12} className="inline mr-1 -mt-0.5" />}{f.family}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                {selected && sheetFamilies.length === 1 && comp.model?.key && (
+                  <p className="mt-1 text-[11px] text-[rgb(var(--emerald-700))]">Importato dalla tua spunta sulla tavola {selected.page}: <b className="capitalize">{sheetFamilies[0]!.family}</b>.</p>
+                )}
                 <select value={comp.model?.key ?? ''} onChange={(e) => pickModelFromList(e.target.value)} className={SEL}>
                   <option value="">{selected ? `Scelto sulla pagina: ${selected.label}` : 'Scegli un modello…'}</option>
                   {MODEL_GROUPS.map((g) => (
@@ -372,29 +468,23 @@ export default function AlbumCatalogPicker() {
                   ))}
                 </select>
               </Field>
+              {/* Campionature ritagliate dal catalogo: il cliente sceglie dal campione, non da un nome */}
               <Field label="Materiale" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page ?? 115} onSee={goToPage}>
-                <select value={comp.material ?? ''} onChange={(e) => setComp((c) => ({ ...c, material: e.target.value || undefined, color: undefined }))} className={SEL}>
-                  <option value="">Scegli il materiale…</option>
-                  {MATERIAL_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}{o.page ? ` · pag. ${o.page}` : ''}</option>)}
-                </select>
+                <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
+                  value={comp.material} onChange={(k) => setComp((c) => ({ ...c, material: k, color: undefined }))} />
               </Field>
               <Field label="Colore" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page} onSee={goToPage}>
-                <select value={comp.color ?? ''} disabled={!comp.material} onChange={(e) => setComp((c) => ({ ...c, color: e.target.value || undefined }))} className={SEL}>
-                  <option value="">{comp.material ? 'Scegli il colore…' : 'Prima il materiale'}</option>
-                  {colorOpts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-                </select>
+                <SwatchPicker shape="wide" cols={3} options={colorOpts} value={comp.color} disabled={!comp.material} emptyText="Prima scegli il materiale."
+                  onChange={(k) => setComp((c) => ({ ...c, color: k }))} maxH="22rem" />
               </Field>
               <Field label="Personalizzazione (nomi, loghi)" page={LOGO_OPTIONS.find((o) => o.key === comp.logo)?.page ?? 34} onSee={goToPage}>
-                <select value={comp.logo ?? 'nessuno'} onChange={(e) => setComp((c) => ({ ...c, logo: e.target.value, logoColor: logoNeedsColor(e.target.value) ? c.logoColor : undefined }))} className={SEL}>
-                  {LOGO_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-                </select>
+                <SwatchPicker shape="square" cols={4} fit="contain" options={logoTiles()} value={comp.logo ?? 'nessuno'} maxH="24rem"
+                  onChange={(k) => { const v = k ?? 'nessuno'; setComp((c) => ({ ...c, logo: v, logoColor: logoNeedsColor(v) ? c.logoColor : undefined })) }} />
               </Field>
               {logoNeedsColor(comp.logo) && (
                 <Field label="Tonalità del logo" page={37} onSee={goToPage}>
-                  <select value={comp.logoColor ?? ''} onChange={(e) => setComp((c) => ({ ...c, logoColor: e.target.value || undefined }))} className={SEL}>
-                    <option value="">Scegli la tonalità…</option>
-                    {LOGO_COLOR_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-                  </select>
+                  <SwatchPicker shape="chip" cols={6} options={logoColorTiles()} value={comp.logoColor}
+                    onChange={(k) => setComp((c) => ({ ...c, logoColor: k }))} />
                 </Field>
               )}
               <Field label="Blocco interno" page={128} onSee={goToPage}>
@@ -443,26 +533,36 @@ export default function AlbumCatalogPicker() {
               {selected && !compComplete && <p className="text-[12px] text-[rgb(var(--fg-subtle))]">Manca una scelta: completa ogni voce per poter firmare.</p>}
             </Card>
 
-            {selected && (basePrice > 0 || selected.price != null ? (
-              <div className="rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] px-3 py-2.5">
-                {optioned > 0 ? (() => {
-                  const diff = albumUpgrade
-                  return (<>
-                    <div className="flex items-center justify-between"><span className="text-sm font-medium">Differenza album</span><span className="font-display text-lg">{diff > 0 ? `+ ${euroA(diff)}` : 'Nessuna'}</span></div>
-                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Album {euroA(albumTotal)} · hai già {euroA(optioned)} nel preventivo. La differenza si aggiunge alla rimanenza.</p>
-                  </>)
-                })() : (<>
-                  <div className="flex items-center justify-between"><span className="text-sm font-medium">Prezzo album</span><span className="font-display text-lg">{euroA(albumTotal)}</span></div>
-                  <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">Non hai un album nel preventivo: è una scelta nuova, prezzo pieno.</p>
-                </>)}
-                {surcharge > 0 && <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-1">Incluso {euroA(surcharge)} di opzioni scelte.</p>}
+            {/* CONTO: nel preventivo / aggiunte (una riga per voce, col ricarico) / differenza */}
+            {selected && (
+              <div className="rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] px-3 py-2.5 space-y-1.5">
+                {pricing.haveQuote ? (
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm">Nel preventivo <span className="text-[11px] text-[rgb(var(--fg-muted))]">· {pricing.inclPages} pagine incluse</span></span>
+                    <span className="font-medium">{euroA(optioned)}</span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[rgb(var(--fg-muted))]">Nessun album nel preventivo: prezzo pieno dal listino, col ricarico dello studio.</p>
+                )}
+                {pricing.lines.length > 0 && (
+                  <div className="border-t border-[rgb(var(--gold-200))] pt-1.5 space-y-0.5">
+                    {pricing.lines.map((l, i) => (
+                      <div key={i} className="flex items-baseline justify-between gap-3 text-[12px]">
+                        <span className="min-w-0 truncate text-[rgb(var(--fg-muted))]">{l.label}{l.hint ? <span className="text-[10px] text-[rgb(var(--fg-subtle))]"> · {l.hint}</span> : null}</span>
+                        <span className="shrink-0">{l.amount > 0 ? `+ ${euroA(l.amount)}` : 'incluso'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center justify-between border-t border-[rgb(var(--gold-300))] pt-1.5">
+                  <span className="text-sm font-medium">{pricing.haveQuote ? 'Differenza' : 'Prezzo album'}</span>
+                  <span className="font-display text-lg">{pricing.total > 0 ? `${pricing.haveQuote ? '+ ' : ''}${euroA(pricing.total)}` : 'Nessuna'}</span>
+                </div>
+                {selected.price != null && basePrice > 0 && !pricing.haveQuote && (
+                  <p className="text-[10px] text-[rgb(var(--fg-subtle))]">Prezzo indicato dal fotografo per questo modello: {euroA(basePrice)}.</p>
+                )}
               </div>
-            ) : (
-              <div className="flex items-start gap-2 rounded-xl border px-3 py-2.5 text-[12px] text-[rgb(var(--fg-muted))]" style={{ borderColor: 'rgb(var(--amber-500) / 0.4)', background: 'rgb(var(--amber-500) / 0.10)' }}>
-                <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'rgb(var(--amber-600, 217 119 6))' }} />
-                <span>Prezzo su richiesta: <strong>chiedi al tuo fotografo la differenza di prezzo</strong> per questo modello.</span>
-              </div>
-            ))}
+            )}
 
             {selected && (!!opts.materials?.length || !!opts.colors?.length || !!opts.logos?.length || !!opts.coverPhoto) && (
               <div className="space-y-3">
@@ -517,13 +617,13 @@ export default function AlbumCatalogPicker() {
             )}
 
             {/* RIMANENZA ALLA CONSEGNA = residuo preventivo + upgrade album (oltre il contrattualizzato) */}
-            {selected && (residuo > 0 || albumUpgrade > 0 || shipping > 0) && (
+            {selected && (residuo > 0 || pricing.total > 0) && (
               <div className="rounded-xl border-2 border-[rgb(var(--gold-400))] bg-[rgb(var(--gold-50))] px-3 py-2.5">
                 <div className="flex items-center justify-between"><span className="text-sm font-medium">Rimanenza alla consegna</span><span className="font-display text-xl">{euroA(rimanenza)}</span></div>
                 <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">
-                  Residuo preventivo {euroA(residuo)}{albumUpgrade > 0 ? <> + upgrade album <b>{euroA(albumUpgrade)}</b></> : ''}{shipping > 0 ? ` · incl. spedizione ${euroA(shipping)}` : ''}.
+                  Residuo preventivo {euroA(residuo)}{pricing.total > 0 ? <> + {pricing.haveQuote ? 'differenza album' : 'album'} <b>{euroA(pricing.total)}</b></> : ''}.
                 </p>
-                <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-0.5">Album {euroA(albumTotal)}{optioned > 0 ? ` · già ${euroA(optioned)} nel preventivo` : ''}.</p>
+                {pricing.haveQuote && <p className="text-[10px] text-[rgb(var(--fg-subtle))] mt-0.5">Album completo {euroA(albumTotal)} · già {euroA(optioned)} nel preventivo.</p>}
               </div>
             )}
 

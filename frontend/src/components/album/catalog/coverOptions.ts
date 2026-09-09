@@ -11,12 +11,17 @@
 // «nomi e loghi» (pag. 34–37), le tonalità del logo (pag. 37) e i blocchi
 // interni (pag. 128).
 // ============================================================================
-import { MATERIALS, MODELS, CATEGORIES, BOXES, FINISHES, FORMATS, paletteFor, type Material, type Model } from '@/components/album/albumCatalog'
+import { MATERIALS, MODELS, CATEGORIES, BOXES, FINISHES, FORMATS, paletteFor, baseModelsByCategory, type Material, type Model } from '@/components/album/albumCatalog'
+import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 
-export type Opt = { key: string; label: string; page?: number; hint?: string }
+export type Opt = { key: string; label: string; page?: number; hint?: string; hex?: string; img?: string }
 
-/** Pagina del catalogo (numerazione stampata) → tavola del PDF (1..66): due pagine per tavola. */
-export const catalogPageToSheet = (page: number): number => Math.max(1, Math.min(66, Math.ceil((page + 1) / 2)))
+/** Pagina del catalogo (numerazione stampata) → tavola del PDF (1..66). Verificato sul PDF:
+ *  la tavola s contiene le pagine stampate 2s−4 (sinistra) e 2s−3 (destra); la tavola 2 è
+ *  copertina interna + indice (pag. 1), la 1 è la copertina. */
+export const catalogPageToSheet = (page: number): number => Math.max(1, Math.min(66, Math.floor((page + 4) / 2)))
+/** Tavola del PDF → le due pagine stampate che contiene (solo quelle ≥ 1). */
+export const sheetToPages = (sheet: number): number[] => [2 * sheet - 4, 2 * sheet - 3].filter((p) => p >= 1)
 
 // ---- Materiali e colori (pag. 115–127) --------------------------------------
 const MATERIAL_PAGE: Record<string, number> = {
@@ -24,9 +29,21 @@ const MATERIAL_PAGE: Record<string, number> = {
   safir: 122, acero: 123, crazy: 124, juta: 125, metal: 126, skill: 127,
   wood: 3, cristalwhite: 54, cristalplex: 70,
 }
-export const MATERIAL_OPTIONS: Opt[] = MATERIALS.map((m: Material) => ({ key: m.key, label: m.label, page: MATERIAL_PAGE[m.key] }))
+export const MATERIAL_OPTIONS: Opt[] = MATERIALS.map((m: Material) => ({ key: m.key, label: m.label, page: MATERIAL_PAGE[m.key], img: swatchUrl(`mat:${m.key}`) }))
+
+/** Tessere dei loghi (pag. 34–37): ritaglio del riquadro del catalogo, etichetta corta e nota (MAXI, inclusa). */
+export const logoTiles = (): Opt[] => LOGO_OPTIONS.map((o) => ({
+  key: o.key,
+  label: o.key.startsWith('cod.') ? o.key.replace('cod.', 'cod. ') : o.label,
+  img: swatchUrl(o.key),
+  hint: o.label.includes('MAXI') ? 'MAXI' : o.key === 'cod.P1' ? 'iniziali albumetti · inclusa' : o.key === 'cod.P2' ? 'nomi albumetti · inclusa'
+    : o.key === 'cod.00' ? 'grafica del cliente' : /^cod\.(3[7-9]|4\d)$/.test(o.key) ? 'decoro floreale' : o.hint ?? (o.page ? `pag. ${o.page}` : undefined),
+}))
+export const logoColorTiles = (): Opt[] => LOGO_COLOR_OPTIONS.map((o) => ({ ...o, img: swatchUrl(o.key) }))
+// Colore: campione ritagliato dal catalogo (swatches.generated), altrimenti la texture del legno,
+// altrimenti la tinta piatta (Cristalwhite/Cristalplex non hanno campioni nel PDF).
 export const colorOptionsFor = (materialKey?: string): Opt[] =>
-  paletteFor(materialKey).map((c) => ({ key: c.key, label: c.label }))
+  paletteFor(materialKey).map((c) => ({ key: c.key, label: c.label, hex: c.hex, img: swatchUrl(c.key) ?? c.tex }))
 
 // ---- Modelli per collezione (indice a pag. 1) --------------------------------
 export type ModelGroup = { key: string; label: string; models: Model[] }
@@ -35,19 +52,35 @@ export const MODEL_GROUPS: ModelGroup[] = CATEGORIES
   .map((c) => ({ key: c.key, label: c.label, models: MODELS.filter((m) => m.category === c.key) }))
   .filter((g) => g.models.length > 0)
 
-// Prima pagina di ogni famiglia di modelli, dall'indice del catalogo (pag. 1).
-const MODEL_FAMILY_PAGE: Record<string, number> = {
-  brand: 4, diez: 6, trilogy: 6, vega: 6, cassiopea: 7, elsie: 7, andromeda: 7, almond: 8, comete: 8, claire: 9,
-  thea: 10, adel: 11, personalizzato: 13, betulla: 20, dream: 22, amelie: 38, darling: 40, sirene: 42, frejus: 44,
-  dhyana: 46, chloe: 50, graphic: 52, charme: 54, ghost: 55, clouds: 55, ikon: 55, azulejo: 56, hera: 58, julies: 60,
-  canvas: 62, frame: 70, xante: 80, bouquet: 82, ninfea: 84, plaza: 94, altea: 12, ardesia: 12, artemis: 12, ashley: 88,
-  azhar: 88, brigit: 12,
+// Pagine in cui compare ogni famiglia di modelli, trascritte dall'indice del catalogo (pag. 1):
+// «Diez Swarovski 6-14» = pag. 6 e pag. 14 (le pag. 12–15 sono le panoramiche), «Betulla 20-21» = 20 e 21.
+// La chiave è il design base (etichetta del listino prima di « · », minuscola).
+export const FAMILY_PAGES: Record<string, number[]> = {
+  brand: [4, 5, 12, 18, 19], diez: [6, 12, 14, 78, 79, 90, 91], trilogy: [6, 14, 68, 69], vega: [6, 14, 92, 93],
+  cassiopea: [7, 13, 64, 65], elsie: [7, 66, 67], andromeda: [7, 13], almond: [8, 15], comete: [8, 14, 88, 89],
+  claire: [9, 15], thea: [10], adel: [11, 15], personalizzato: [13], betulla: [20, 21], dream: [22, 23],
+  amelie: [38, 39], darling: [40, 41], sirene: [42, 43], frejus: [44, 45], dhyana: [46, 47], chloe: [50, 51],
+  graphic: [52, 53], charme: [54], ghost: [55], clouds: [55], ikon: [55], azulejo: [56, 57], hera: [58, 59],
+  julies: [60, 61], canvas: [62, 63], frame: [70, 71, 72, 73, 74, 75], xante: [80, 81], bouquet: [82, 83],
+  ninfea: [84, 85], plaza: [94, 95],
+  // non in indice: panoramiche e pagine ottone (stima della sessione precedente)
+  altea: [12], ardesia: [12], artemis: [12], brigit: [12], ashley: [88], azhar: [88],
 }
+const familyOf = (label?: string): string => (label ?? '').split(' · ')[0].trim().toLowerCase()
 /** Pagina del catalogo in cui si vede un modello (per «vedi a pag. N»). */
-export const modelPage = (label?: string): number | undefined => {
-  const fam = (label ?? '').toLowerCase().split(/[\s·]+/)[0]
-  return fam ? MODEL_FAMILY_PAGE[fam] : undefined
+export const modelPage = (label?: string): number | undefined => FAMILY_PAGES[familyOf(label)]?.[0]
+/** Le famiglie di modelli che compaiono su una tavola del PDF (dalla spunta del cliente). */
+export const familiesOnSheet = (sheet: number): string[] => {
+  const pages = sheetToPages(sheet)
+  return Object.entries(FAMILY_PAGES).filter(([, ps]) => ps.some((p) => pages.includes(p))).map(([f]) => f)
 }
+/** La pagina stampata in cui una famiglia compare su quella tavola (per «vedi a pag. N»). */
+export const familyPageOnSheet = (family: string, sheet: number): number | undefined => {
+  const pages = sheetToPages(sheet)
+  return FAMILY_PAGES[family]?.find((p) => pages.includes(p))
+}
+/** I modelli del listino di una famiglia (una voce per design base, il rappresentante «più bello»). */
+export const modelsOfFamily = (family: string): Model[] => baseModelsByCategory('all').filter((m) => familyOf(m.label) === family)
 
 // ---- Personalizzazioni «nomi e loghi» (pag. 34–37) ---------------------------
 // Il catalogo dice: i loghi non sono modificabili salvo note d'ordine; senza
@@ -76,6 +109,15 @@ export const LOGO_OPTIONS: Opt[] = [
   { key: 'swarovski', label: 'Decoro Swarovski', page: 77 },
 ]
 export const logoNeedsColor = (key?: string): boolean => !!key && (/^cod\.(0\d|[1-3]\d)$/.test(key) || key === 'cod.00')
+
+/** Costo di listino (DesignAlbum, "rifiniture / personalizzazioni") della personalizzazione scelta. */
+export function logoAmount(key?: string): number {
+  if (!key || key === 'nessuno' || key === 'cod.P1' || key === 'cod.P2') return 0 // albumetti: inclusi
+  if (key === 'ottone-iniziali' || key === 'alluminio-lettere') return FINISHES.find((f) => f.key === 'iniziali')?.amount ?? 36
+  if (key === 'ottone-targhetta') return FINISHES.find((f) => f.key === 'targhetta')?.amount ?? 30
+  if (key === 'swarovski') return FINISHES.find((f) => f.key === 'swarovski')?.amount ?? 30
+  return FINISHES.find((f) => f.key === 'logo')?.amount ?? 20 // stampa nomi/loghi da catalogo (cod.00–48)
+}
 
 // Tonalità disponibili per la personalizzazione del logo (pag. 37), nell'ordine del catalogo.
 export const LOGO_COLOR_OPTIONS: Opt[] = [
