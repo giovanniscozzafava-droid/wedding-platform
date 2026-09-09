@@ -27,7 +27,7 @@ FORMATS = {           # larghezza × altezza del piatto (cm) — proporzioni del
     'portrait': (30.0, 40.0),
 }
 LAYOUTS = ['plain', 'plate', 'monogram', 'fascia', 'fascia-ornament', 'oblique', 'swarovski-line',
-           'swarovski-cluster', 'photo-vertical', 'photo-panoramic', 'photo-small', 'photo-full', 'trilogy', 'print', 'laser']
+           'swarovski-cluster', 'photo-vertical', 'photo-panoramic', 'photo-small', 'photo-full', 'photo-side', 'trilogy', 'print', 'laser']
 
 BOARD_T = 0.45        # spessore piatto (cm)
 PAD = 0.32            # imbottitura: raggio del bordo arrotondato (cm)
@@ -249,6 +249,8 @@ def build_album(layout, fmt):
         photo_window('Photo', w * 0.1, h * 0.08, w * 0.3, h * 0.24)
     elif layout == 'photo-full':
         photo_window('Photo', 0, 0, w * 0.94, h * 0.94)
+    elif layout == 'photo-side':                 # Azulejo: foto a tutta altezza sul 55% destro, pannello Cristalplex (decal) a sinistra
+        photo_window('Photo', w * 0.225, 0, w * 0.55, h * 0.96)
     elif layout == 'trilogy':
         pw = w * 0.2; gap = w * 0.04
         for i in (-1, 0, 1): photo_window(f'Photo{i + 2}', i * (pw + gap), h * 0.05, pw, pw)
