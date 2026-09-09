@@ -150,6 +150,8 @@ export default function AlbumCatalogPicker() {
     })()
   }, [entryId])
 
+  // Arrivo dal funnel «impaginazione approvata» (?da=impaginato): un saluto e via col primo passo
+  useEffect(() => { if (sp.get('da') === 'impaginato') toast.success('Impaginazione approvata: ora la copertina. Un passo alla volta.') }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // Deep-link dalla notifica: /scegli-album/:entryId?pin=<id> → apre la puntina e porta il PDF alla sua pagina.
   useEffect(() => {
     const pinId = sp.get('pin')
@@ -270,6 +272,10 @@ export default function AlbumCatalogPicker() {
   // L'ALBUM 3D si ridisegna a ogni scelta: le voci del catalogo diventano una Cover del mockup
   // (modello → layout della tavola, materiale/colore → superficie e tinta, formato, box, foto, rifiniture).
   const [view3d, setView3d] = useState<GlbView>('three-quarter')
+  // IL PERCORSO A PASSI: si avanza solo con la scelta fatta; si può tornare a un passo già visto
+  const [step, setStep] = useState(0)
+  const [maxStep, setMaxStep] = useState(0)
+  useEffect(() => { setMaxStep((m) => Math.max(m, step)); window.scrollTo({ top: 0, behavior: 'smooth' }) }, [step])
   const [backDiff, setBackDiff] = useState(false)          // retro e dorso di un altro materiale/colore
   const [flipOpen, setFlipOpen] = useState(false)          // sfoglio 3D con le foto della selezione
   const [flipPhotos, setFlipPhotos] = useState<string[]>([])
@@ -321,6 +327,13 @@ export default function AlbumCatalogPicker() {
   }, [comp, selected, colorOpts, backColorOpts, backDiff, specs.box, wantPhoto])
   // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + differenza album
   const rimanenza = residuo + pricing.total
+  const STEPS = ['Modello', 'Materiale e colore', 'Nomi e loghi', 'Interno e box', 'La scheda', 'Firma']
+  const stepOk = step === 0 ? !!(comp.model?.key || selected)
+    : step === 1 ? !!comp.material && !!comp.color && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
+    : step === 2 ? !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
+    : step === 3 ? !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && (!wantPhoto || !!comp.coverPhoto)
+    : true
+  const stepHint = step === 0 ? 'Tocca un modello (o spunta una tavola)' : step === 1 ? 'Materiale e colore, poi Avanti' : step === 2 ? 'Un logo o nessuna personalizzazione' : step === 3 ? (wantPhoto && !comp.coverPhoto ? 'Scegli la foto in copertina' : 'Interno, box, finitura, foto') : ''
   const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor) && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
     && !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && (!wantPhoto || !!comp.coverPhoto)
   const goToPage = (page?: number) => { if (page) setDeepPage(catalogPageToSheet(page)) }
@@ -578,7 +591,17 @@ export default function AlbumCatalogPicker() {
           </div>
 
           <div className="space-y-5">
+            {/* IL PERCORSO: un passo alla volta, col 3D sempre in vista */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+              {STEPS.map((s, i) => (
+                <button key={s} type="button" onClick={() => { if (i <= maxStep) setStep(i) }}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[12px] border transition-colors ${i === step ? 'border-[rgb(var(--gold-600))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : i <= maxStep ? 'border-[rgb(var(--border))] text-[rgb(var(--fg))]' : 'border-[rgb(var(--border))] text-[rgb(var(--fg-subtle))] opacity-60'}`}>
+                  {i + 1}. {s}
+                </button>
+              ))}
+            </div>
             {/* ============ CAPITOLI DEL CATALOGO (una scelta per voce: è quella che arriva all'azienda) ============ */}
+            {step === 0 && (
             <Chapter n="I" title="Il modello" hint="Tocca una foto, oppure spunta una tavola del catalogo: il modello si compila da sé."
               aside={comp.model?.page ? <button type="button" onClick={() => goToPage(comp.model?.page)} className="text-[rgb(var(--gold-700))] hover:underline">vedi a pag. {comp.model.page}</button> : null}>
               {selected && (
@@ -621,7 +644,9 @@ export default function AlbumCatalogPicker() {
                 </select>
               </details>
             </Chapter>
+            )}
 
+            {step === 1 && (
             <Chapter n="II" title="Materiale e colore" hint="Le campionature sono quelle stampate sul catalogo, pag. 115–127.">
               <Voice label="Materiale" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page ?? 115} onSee={goToPage}>
                 <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
@@ -648,7 +673,9 @@ export default function AlbumCatalogPicker() {
                 </>
               )}
             </Chapter>
+            )}
 
+            {step === 2 && (
             <Chapter n="III" title="Nomi e loghi" hint="I loghi del catalogo (pag. 34–37) e la tonalità con cui stamparli.">
               <Voice label="Personalizzazione" page={LOGO_OPTIONS.find((o) => o.key === comp.logo)?.page ?? 34} onSee={goToPage}>
                 <SwatchPicker shape="square" cols={4} fit="contain" options={LOGO_TILES} value={comp.logo ?? 'nessuno'} maxH="24rem"
@@ -660,7 +687,9 @@ export default function AlbumCatalogPicker() {
                 </Voice>
               )}
             </Chapter>
+            )}
 
+            {step === 3 && (
             <Chapter n="IV" title="Interno, box e finitura">
               <Voice label="Blocco interno" page={128} onSee={goToPage}>
                 <PillChoice options={BLOCK_OPTIONS.map((o) => ({ ...o, label: o.label.replace(/\s*\(.*\)$/, ''), hint: o.label }))} value={comp.block} onChange={(k) => setComp((c) => ({ ...c, block: k }))} />
@@ -696,7 +725,9 @@ export default function AlbumCatalogPicker() {
                   onPick={(c) => setComp((x) => ({ ...x, coverPhoto: { mediaId: c.id, url: c.thumb, label: c.label } }))} />
               )}
             </Chapter>
+            )}
 
+            {step === 4 && (
             <Chapter n="V" title="La tua scheda" hint={selected && !compComplete ? 'Manca una scelta: completa ogni voce per poter firmare.' : 'Controlla: è la copertina che arriva all\'azienda.'}>
               <ChoiceSheet rows={sheetRows} />
 
@@ -804,7 +835,9 @@ export default function AlbumCatalogPicker() {
             )}
 
             </Chapter>
+            )}
 
+            {step === 5 && (
             <Chapter n="VI" title="Formato e firma" hint="Formato e pagine vengono dall'impaginato del fotografo, se c'è già; poi nome e firma.">
             <div className={selected ? '' : 'opacity-50 pointer-events-none'}>
               <div className="space-y-4">
@@ -864,6 +897,14 @@ export default function AlbumCatalogPicker() {
             </Button>
             <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Firmando confermi il modello e le specifiche scelte. Ne esce un PDF commessa inviato all’azienda tramite il tuo fotografo.</p>
             </Chapter>
+            )}
+            {step < 5 && (
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <button type="button" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))} className="rounded-full border border-[rgb(var(--border))] px-4 py-2 text-sm disabled:opacity-40">Indietro</button>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] text-center">{stepHint}</p>
+                <button type="button" disabled={!stepOk} onClick={() => setStep((s) => Math.min(5, s + 1))} className="rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] px-5 py-2 text-sm font-medium disabled:opacity-40">Avanti</button>
+              </div>
+            )}
           </div>
         </div>
       </div>

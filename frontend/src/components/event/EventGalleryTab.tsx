@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from '@/lib/toast'
 import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer, Crop, Send, FileText, Loader2, RotateCcw, Sliders } from '@/components/icons/lucide'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
 import { MOMENTS, getMoment } from '@/lib/albumMoments'
 import { Card } from '@/components/ui/card'
@@ -47,6 +47,7 @@ const LEVELS = [
 ] as const
 
 export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'capostipite' | 'fornitore' | 'sposi' }) {
+  const navigate = useNavigate()
   const [me, setMe] = useState<string | null>(null)
   const [gallery, setGallery] = useState<Gallery | null>(null)
   const [folders, setFolders] = useState<Folder[]>([])
@@ -161,7 +162,12 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
 
   async function approveLayout() {
     setApproveBusy(true)
-    try { await approveAlbumLayout(entryId); loadAlbumOrder(); toast.success('Album approvato — grazie!') }
+    try {
+      await approveAlbumLayout(entryId); loadAlbumOrder()
+      // FUNNEL: impaginazione accettata → si passa subito alla scelta della copertina
+      toast.success('Album approvato — ora scegliete la copertina')
+      setTimeout(() => navigate(`/scegli-album/${entryId}?da=impaginato`), 700)
+    }
     catch (e) { toast.error((e as Error).message) } finally { setApproveBusy(false) }
   }
   async function revokeApproval() {
