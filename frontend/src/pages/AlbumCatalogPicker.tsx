@@ -641,15 +641,6 @@ export default function AlbumCatalogPicker() {
                         })}
                       </div>
                     )}
-                  <label className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-[rgb(var(--gold-700))] cursor-pointer hover:underline">
-                    <ImageIcon size={13} /> Oppure carica una foto tua dal telefono
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                      const f = e.target.files?.[0]; if (!f) return
-                      const r = new FileReader()
-                      r.onload = () => setComp((x) => ({ ...x, coverPhoto: { mediaId: 'upload', url: String(r.result), label: f.name.replace(/\.[a-z0-9]+$/i, '') } }))
-                      r.readAsDataURL(f)
-                    }} />
-                  </label>
                   {comp.coverPhoto && <p className="text-[12px] text-[rgb(var(--gold-700))] mt-1">Foto scelta: {comp.coverPhoto.label ?? 'selezionata'}</p>}
                 </div>
               )}
