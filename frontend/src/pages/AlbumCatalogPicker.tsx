@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input'
 import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format } from '@/components/album/albumCatalog'
 import type { GlbCover, GlbView, AlbumGlbStageHandle } from '@/components/album/glb/AlbumGlbStage'
 import { buildCoverPsd } from '@/components/album/glb/coverPsd'
-import { LAYOUT_SPEC } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, inkRgb } from '@/components/album/glb/layoutSpec'
+import { hasLogoTemplate } from '@/components/album/glb/logoTemplates'
+import { composeLogo, fontsOf, loadLogoFont } from '@/components/album/glb/logoCompose'
+import { dateIt } from '@/components/album/glb/decal'
 import { modelLayout } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import {
@@ -57,6 +60,7 @@ export default function AlbumCatalogPicker() {
   const [specs, setSpecs] = useState<CommissionSpecs>({ format: 'square', size: '', pages: 40, box: 'nessuno', finishes: [] })
   const [clientName, setClientName] = useState('')
   const [entryTitle, setEntryTitle] = useState('')   // nomi della coppia per la copertina 3D (titolo dell'evento)
+  const [entryDate, setEntryDate] = useState<string | null>(null)
   const [pinNote, setPinNote] = useState('')
   const [signature, setSignature] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -99,8 +103,9 @@ export default function AlbumCatalogPicker() {
       const me = (await supabase.auth.getUser()).data.user?.id
       const { data: gal } = await (supabase.from as any)('event_galleries').select('owner_id').eq('entry_id', entryId).maybeSingle()
       setIsPro(!!me && gal?.owner_id === me)
-      const { data: ent } = await (supabase.from as any)('calendar_entries').select('title').eq('id', entryId).maybeSingle()
+      const { data: ent } = await (supabase.from as any)('calendar_entries').select('title, date_from').eq('id', entryId).maybeSingle()
       if (ent?.title) setEntryTitle(String(ent.title).replace(/^matrimonio\s+/i, '').replace(/\s*[—–-]\s*preventivo$/i, '').trim())
+      if (ent?.date_from) setEntryDate(String(ent.date_from))
     })()
     // FORMATO BLOCCATO: se il fotografo ha già impaginato, la coppia non sceglie il formato.
     void (async () => {
@@ -279,9 +284,10 @@ export default function AlbumCatalogPicker() {
       photo_url: wantPhoto ? comp.coverPhoto?.url ?? null : null,
       title: entryTitle || clientName.trim() || '',
       logoKey: comp.logo && comp.logo !== 'nessuno' && /^cod\./.test(comp.logo) ? comp.logo : undefined,
+      eventDate: entryDate,
       ink: comp.logoColor === 'bianco' ? 'white' : comp.logoColor?.startsWith('grigio') ? 'silver' : (hex && hexLum(hex) < 0.5) ? 'white' : 'ink',
     }
-  }, [comp, selected?.label, specs.format, specs.size, specs.pages, specs.box, wantPhoto, clientName, entryTitle])
+  }, [comp, selected?.label, specs.format, specs.size, specs.pages, specs.box, wantPhoto, clientName, entryTitle, entryDate])
   // LA SCHEDA: una riga per caratteristica, con la miniatura del campione scelto
   const sheetRows = useMemo<SheetRow[]>(() => {
     const col = colorOpts.find((o) => o.key === comp.color)
@@ -407,11 +413,18 @@ export default function AlbumCatalogPicker() {
       const layout = modelLayout(cover3d.model)
       const loadImg = (url?: string | null) => new Promise<HTMLImageElement | null>((res) => { if (!url) return res(null); const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = url })
       const photoImg = await loadImg(coverPhotoDataUrl)
-      const logoImg = cover3d.logoKey ? await loadImg(swatchUrl(cover3d.logoKey)) : null
+      // il logo: ricostruito con i nomi veri (font caricati) se c'è il template, altrimenti il ritaglio del catalogo
+      let logoForPsd: { image: HTMLImageElement | HTMLCanvasElement; code: string; composed?: boolean } | null = null
+      if (cover3d.logoKey && hasLogoTemplate(cover3d.logoKey)) {
+        await Promise.all(fontsOf(cover3d.logoKey).map(loadLogoFont))
+        const cv = composeLogo({ code: cover3d.logoKey, names: cover3d.title, date: dateIt(entryDate), ink: inkRgb(cover3d.ink) }, 2400)
+        if (cv) logoForPsd = { image: cv, code: cover3d.logoKey, composed: true }
+      }
+      if (!logoForPsd && cover3d.logoKey) { const im = await loadImg(swatchUrl(cover3d.logoKey)); if (im) logoForPsd = { image: im, code: cover3d.logoKey } }
       const psd = sizeDef ? buildCoverPsd({
         layout, wCm: sizeDef.w, hCm: sizeDef.h, dpi: 300, modelLabel: comp.model?.label ?? selected.label,
         materialLabel: comp.material ? materialLabel(comp.material) : undefined, colorLabel: colorOpts.find((o) => o.key === comp.color)?.label, colorHex: cover3d.color,
-        photos: LAYOUT_SPEC[layout].photos.map(() => photoImg), logo: logoImg && cover3d.logoKey ? { image: logoImg, code: cover3d.logoKey } : null,
+        photos: LAYOUT_SPEC[layout].photos.map(() => photoImg), logo: logoForPsd,
         names: cover3d.title, ink: cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e',
         couple: clientName.trim(), studio: catalog.studio, orderRef,
       }) : null

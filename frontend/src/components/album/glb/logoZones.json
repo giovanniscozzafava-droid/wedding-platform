@@ -1,0 +1,154 @@
+{
+  "_": "Zone del testo dei loghi del catalogo DesignAlbum (pag. 34–37), lette a vista sui ritagli a 300 dpi con griglia al 10%. Frazioni del riquadro, origine in alto a sinistra. Usato dal compositore (TS) e dall'estrazione degli ornamenti (Python): le zone vengono CANCELLATE dal ritaglio, il resto è l'ornamento.",
+  "cod.P1": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "initial1", "x": 0.08, "y": 0.06, "w": 0.34, "h": 0.42, "font": "Great Vibes", "sizeFactor": 0.95 },
+    { "role": "initial2", "x": 0.3, "y": 0.3, "w": 0.34, "h": 0.42, "font": "Great Vibes", "sizeFactor": 0.95 } ] },
+  "cod.P2": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "names", "x": 0.05, "y": 0.28, "w": 0.9, "h": 0.24, "font": "Great Vibes" } ] },
+  "cod.01": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "cuore rosso tra i nomi", "zones": [
+    { "role": "name1", "x": 0.02, "y": 0.34, "w": 0.35, "h": 0.26, "font": "Great Vibes", "align": "right" },
+    { "role": "name2", "x": 0.53, "y": 0.34, "w": 0.46, "h": 0.26, "font": "Great Vibes", "align": "left" } ] },
+  "cod.02": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "cornice di svolazzi sopra e sotto", "zones": [
+    { "role": "names", "x": 0.1, "y": 0.39, "w": 0.8, "h": 0.17, "font": "Great Vibes", "color": [150, 150, 150] },
+    { "role": "date", "x": 0.2, "y": 0.57, "w": 0.6, "h": 0.13, "font": "Great Vibes", "color": [150, 150, 150] } ] },
+  "cod.03": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "filetto con fregio centrale", "zones": [
+    { "role": "names", "x": 0.12, "y": 0.29, "w": 0.76, "h": 0.17, "font": "Cormorant Italic", "letterSpacing": 0.08, "sizeFactor": 0.9 },
+    { "role": "date", "x": 0.22, "y": 0.6, "w": 0.56, "h": 0.12, "font": "Cormorant Italic", "letterSpacing": 0.12 } ] },
+  "cod.04": { "aspect": 0.83, "ornament": false, "fidelity": "vicino", "zones": [
+    { "role": "names", "x": 0.04, "y": 0.33, "w": 0.92, "h": 0.25, "font": "Oooh Baby" },
+    { "role": "date", "x": 0.22, "y": 0.6, "w": 0.5, "h": 0.14, "font": "Dawning of a New Day" } ] },
+  "cod.05": { "aspect": 0.83, "ornament": false, "fidelity": "vicino", "zones": [
+    { "role": "fixed", "text": "WEDDINGDAY", "x": 0.05, "y": 0.2, "w": 0.9, "h": 0.13, "font": "Josefin Sans", "weight": 200, "color": [175, 180, 200], "letterSpacing": 0.04 },
+    { "role": "date-words", "x": 0.05, "y": 0.34, "w": 0.9, "h": 0.1, "font": "Quicksand", "weight": 300, "color": [214, 32, 42] },
+    { "role": "year", "x": 0.02, "y": 0.45, "w": 0.96, "h": 0.4, "font": "Raleway", "weight": 100, "sizeFactor": 1.0, "color": [90, 90, 90] } ] },
+  "cod.06": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "names-caps", "x": 0.04, "y": 0.37, "w": 0.92, "h": 0.17, "font": "Playfair Display", "letterSpacing": 0.06 } ] },
+  "cod.07": { "aspect": 0.83, "ornament": false, "fidelity": "vicino", "zones": [
+    { "role": "names", "x": 0.04, "y": 0.35, "w": 0.92, "h": 0.24, "font": "Arizonia", "sizeFactor": 0.95 } ] },
+  "cod.08": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "cuore rosso a filo tra i nomi", "zones": [
+    { "role": "name1", "x": 0.02, "y": 0.38, "w": 0.33, "h": 0.22, "font": "Mrs Saint Delafield", "align": "right" },
+    { "role": "name2", "x": 0.52, "y": 0.38, "w": 0.46, "h": 0.22, "font": "Mrs Saint Delafield", "align": "left" } ] },
+  "cod.09": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "grande & grigia tra i nomi", "zones": [
+    { "role": "name1", "x": 0.03, "y": 0.4, "w": 0.45, "h": 0.22, "font": "Ms Madi", "align": "right" },
+    { "role": "name2", "x": 0.66, "y": 0.4, "w": 0.31, "h": 0.22, "font": "Ms Madi", "align": "left" } ] },
+  "cod.10": { "aspect": 0.83, "ornament": false, "fidelity": "vicino", "zones": [
+    { "role": "names", "x": 0.04, "y": 0.36, "w": 0.92, "h": 0.2, "font": "Charm" },
+    { "role": "date", "x": 0.18, "y": 0.6, "w": 0.6, "h": 0.13, "font": "Charm" } ] },
+  "cod.11": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "names", "x": 0.04, "y": 0.22, "w": 0.92, "h": 0.25, "font": "Great Vibes" },
+    { "role": "date", "x": 0.08, "y": 0.5, "w": 0.84, "h": 0.22, "font": "Great Vibes" } ] },
+  "cod.12": { "aspect": 0.83, "ornament": false, "fidelity": "vicino", "zones": [
+    { "role": "names", "x": 0.04, "y": 0.3, "w": 0.9, "h": 0.15, "font": "Dawning of a New Day", "rotate": -3 },
+    { "role": "date", "x": 0.22, "y": 0.46, "w": 0.52, "h": 0.13, "font": "Dawning of a New Day", "rotate": -3 } ] },
+  "cod.13": { "aspect": 0.83, "ornament": false, "fidelity": "vicino", "zones": [
+    { "role": "names", "x": 0.12, "y": 0.38, "w": 0.5, "h": 0.1, "font": "Herr Von Muellerhoff" },
+    { "role": "day", "x": 0.09, "y": 0.47, "w": 0.16, "h": 0.16, "font": "Playfair Display", "weight": 500, "color": [214, 32, 42], "sizeFactor": 1.05 },
+    { "role": "month-year", "x": 0.26, "y": 0.5, "w": 0.2, "h": 0.09, "font": "Playfair Display", "align": "left" },
+    { "role": "date-words", "x": 0.46, "y": 0.48, "w": 0.48, "h": 0.11, "font": "Herr Von Muellerhoff", "color": [214, 32, 42], "align": "left" } ] },
+  "cod.14": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "due cuori rossi intrecciati sopra", "zones": [
+    { "role": "names", "x": 0.02, "y": 0.42, "w": 0.96, "h": 0.28, "font": "Great Vibes", "sizeFactor": 0.85 } ] },
+  "cod.15": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "divisore con cuore rosso e freccette", "zones": [
+    { "role": "names", "x": 0.04, "y": 0.2, "w": 0.94, "h": 0.26, "font": "Oooh Baby" },
+    { "role": "date", "x": 0.12, "y": 0.65, "w": 0.76, "h": 0.15, "font": "Raleway", "weight": 300 } ] },
+  "cod.16": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "cuore grigio con svolazzi", "zones": [
+    { "role": "names", "x": 0.03, "y": 0.29, "w": 0.94, "h": 0.31, "font": "Oooh Baby" } ] },
+  "cod.17": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "rami di alloro grigi", "zones": [
+    { "role": "names", "x": 0.04, "y": 0.29, "w": 0.93, "h": 0.28, "font": "Oooh Baby" } ] },
+  "cod.18": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "fregio floreale nero", "zones": [
+    { "role": "names", "x": 0.04, "y": 0.29, "w": 0.93, "h": 0.2, "font": "Charm", "weight": 700, "color": [150, 150, 150] } ] },
+  "cod.19": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "fiore grigio tra due lineette", "zones": [
+    { "role": "names", "x": 0.02, "y": 0.25, "w": 0.96, "h": 0.27, "font": "Arizonia" } ] },
+  "cod.20": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "filetto con foglie alle estremità", "zones": [
+    { "role": "names", "x": 0.16, "y": 0.33, "w": 0.68, "h": 0.19, "font": "Great Vibes" } ] },
+  "cod.21": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "divisore a riccioli con due punti", "zones": [
+    { "role": "names", "x": 0.03, "y": 0.27, "w": 0.96, "h": 0.26, "font": "Oooh Baby" } ] },
+  "cod.22": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "divisore con rombo rosso", "zones": [
+    { "role": "names", "x": 0.1, "y": 0.33, "w": 0.8, "h": 0.22, "font": "Oooh Baby" } ] },
+  "cod.23": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "filetto con fiore, data in lettere", "zones": [
+    { "role": "names", "x": 0.08, "y": 0.23, "w": 0.84, "h": 0.2, "font": "Oooh Baby" },
+    { "role": "date-words", "x": 0.08, "y": 0.6, "w": 0.84, "h": 0.13, "font": "Oooh Baby" } ] },
+  "cod.24": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "initial1", "x": 0.18, "y": 0.28, "w": 0.36, "h": 0.32, "font": "Pinyon Script", "sizeFactor": 1.0 },
+    { "role": "initial2", "x": 0.44, "y": 0.44, "w": 0.38, "h": 0.32, "font": "Pinyon Script", "sizeFactor": 1.0 } ] },
+  "cod.25": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "initial1", "x": 0.16, "y": 0.16, "w": 0.4, "h": 0.36, "font": "Pinyon Script", "sizeFactor": 1.0 },
+    { "role": "date", "x": 0.02, "y": 0.5, "w": 0.96, "h": 0.13, "font": "Raleway", "weight": 300, "color": [150, 150, 150] },
+    { "role": "initial2", "x": 0.44, "y": 0.58, "w": 0.4, "h": 0.36, "font": "Pinyon Script", "sizeFactor": 1.0 } ] },
+  "cod.26": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "initials-tight", "x": 0.1, "y": 0.08, "w": 0.8, "h": 0.78, "font": "Pinyon Script", "sizeFactor": 0.65, "color": [200, 200, 200] },
+    { "role": "date", "x": 0.14, "y": 0.44, "w": 0.72, "h": 0.15, "font": "Raleway", "weight": 300 } ] },
+  "cod.27": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "initials-tight", "x": 0.12, "y": 0.12, "w": 0.8, "h": 0.5, "font": "Bodoni Moda", "sizeFactor": 1.0, "color": [200, 200, 200] },
+    { "role": "date-words", "x": 0.08, "y": 0.66, "w": 0.9, "h": 0.12, "font": "Mrs Saint Delafield", "align": "right" } ] },
+  "cod.28": { "aspect": 0.83, "ornament": false, "fidelity": "esatto", "zones": [
+    { "role": "initials-tight", "x": 0.2, "y": 0.1, "w": 0.7, "h": 0.64, "font": "Bodoni Moda", "sizeFactor": 0.9, "color": [225, 225, 225] },
+    { "role": "date-words", "x": 0.02, "y": 0.42, "w": 0.96, "h": 0.16, "font": "Mrs Saint Delafield" } ] },
+  "cod.29": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "due archi di cerchio", "zones": [
+    { "role": "initials", "x": 0.24, "y": 0.3, "w": 0.52, "h": 0.36, "font": "Playfair Display", "weight": 500, "sizeFactor": 1.0 } ] },
+  "cod.30": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "rombo con rami di ulivo", "zones": [
+    { "role": "initials-amp", "x": 0.2, "y": 0.36, "w": 0.6, "h": 0.28, "font": "Playfair Display", "weight": 700, "sizeFactor": 0.95 } ] },
+  "cod.31": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "rami di alloro neri", "zones": [
+    { "role": "names", "x": 0.16, "y": 0.43, "w": 0.68, "h": 0.17, "font": "Cormorant Italic", "color": [150, 150, 150], "sizeFactor": 0.9 } ] },
+  "cod.32": { "aspect": 0.83, "ornament": true, "fidelity": "vicino", "note": "ghirlanda di foglie nera", "zones": [
+    { "role": "initial1", "x": 0.31, "y": 0.29, "w": 0.18, "h": 0.28, "font": "Oooh Baby", "color": [214, 32, 42], "sizeFactor": 1.1 },
+    { "role": "initial2", "x": 0.47, "y": 0.41, "w": 0.2, "h": 0.3, "font": "Oooh Baby", "color": [214, 32, 42], "sizeFactor": 1.1 } ] },
+  "cod.33": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "cerchio con frecce incrociate e foglie", "zones": [
+    { "role": "initial1", "x": 0.21, "y": 0.38, "w": 0.2, "h": 0.22, "font": "Pinyon Script", "color": [150, 150, 150], "sizeFactor": 1.0 },
+    { "role": "initial2", "x": 0.59, "y": 0.38, "w": 0.2, "h": 0.22, "font": "Pinyon Script", "color": [150, 150, 150], "sizeFactor": 1.0 } ] },
+  "cod.34": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "cerchi sottili con foglie, barra tra le iniziali", "zones": [
+    { "role": "initial1", "x": 0.24, "y": 0.23, "w": 0.22, "h": 0.3, "font": "Pinyon Script", "sizeFactor": 1.0 },
+    { "role": "initial2", "x": 0.47, "y": 0.43, "w": 0.24, "h": 0.3, "font": "Pinyon Script", "sizeFactor": 1.0 } ] },
+  "cod.35": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "corona di alloro grigia", "zones": [
+    { "role": "initials", "x": 0.26, "y": 0.34, "w": 0.48, "h": 0.32, "font": "Pinyon Script", "sizeFactor": 1.0 } ] },
+  "cod.36": { "aspect": 0.83, "ornament": true, "fidelity": "esatto", "note": "cornice circolare a intrecci", "zones": [
+    { "role": "name1", "x": 0.26, "y": 0.31, "w": 0.48, "h": 0.12, "font": "Josefin Sans", "weight": 300, "color": [150, 150, 150] },
+    { "role": "e", "x": 0.4, "y": 0.45, "w": 0.2, "h": 0.09, "font": "Josefin Sans", "weight": 300, "color": [150, 150, 150] },
+    { "role": "name2", "x": 0.26, "y": 0.56, "w": 0.48, "h": 0.12, "font": "Josefin Sans", "weight": 300, "color": [150, 150, 150] } ] },
+  "cod.37": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "ghirlanda floreale lilla", "zones": [
+    { "role": "name1", "x": 0.24, "y": 0.27, "w": 0.52, "h": 0.14, "font": "Oooh Baby", "color": [176, 92, 190] },
+    { "role": "e", "x": 0.42, "y": 0.42, "w": 0.16, "h": 0.1, "font": "Oooh Baby", "color": [176, 92, 190] },
+    { "role": "name2", "x": 0.24, "y": 0.53, "w": 0.52, "h": 0.14, "font": "Oooh Baby", "color": [176, 92, 190] } ] },
+  "cod.38": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "ghirlanda floreale azzurra", "zones": [
+    { "role": "name1", "x": 0.24, "y": 0.27, "w": 0.52, "h": 0.14, "font": "Oooh Baby", "color": [92, 150, 200] },
+    { "role": "e", "x": 0.42, "y": 0.42, "w": 0.16, "h": 0.1, "font": "Oooh Baby", "color": [92, 150, 200] },
+    { "role": "name2", "x": 0.24, "y": 0.53, "w": 0.52, "h": 0.14, "font": "Oooh Baby", "color": [92, 150, 200] } ] },
+  "cod.39": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "cerchio ad acquerello rosa con fiori fucsia", "zones": [
+    { "role": "name1", "x": 0.3, "y": 0.2, "w": 0.46, "h": 0.14, "font": "Oooh Baby", "color": [200, 70, 120] },
+    { "role": "e", "x": 0.44, "y": 0.36, "w": 0.16, "h": 0.1, "font": "Oooh Baby", "color": [200, 70, 120] },
+    { "role": "name2", "x": 0.3, "y": 0.47, "w": 0.46, "h": 0.14, "font": "Oooh Baby", "color": [200, 70, 120] } ] },
+  "cod.40": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "cerchio ad acquerello azzurro con fiori blu", "zones": [
+    { "role": "name1", "x": 0.26, "y": 0.2, "w": 0.48, "h": 0.14, "font": "Oooh Baby", "color": [90, 110, 190] },
+    { "role": "e", "x": 0.42, "y": 0.36, "w": 0.16, "h": 0.1, "font": "Oooh Baby", "color": [90, 110, 190] },
+    { "role": "name2", "x": 0.26, "y": 0.47, "w": 0.48, "h": 0.14, "font": "Oooh Baby", "color": [90, 110, 190] } ] },
+  "cod.41": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "ghirlanda di fiori azzurri", "zones": [
+    { "role": "name1", "x": 0.24, "y": 0.27, "w": 0.52, "h": 0.14, "font": "Oooh Baby" },
+    { "role": "e", "x": 0.42, "y": 0.43, "w": 0.16, "h": 0.1, "font": "Oooh Baby" },
+    { "role": "name2", "x": 0.24, "y": 0.55, "w": 0.52, "h": 0.14, "font": "Oooh Baby" } ] },
+  "cod.42": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "ghirlanda di fiori pesca", "zones": [
+    { "role": "name1", "x": 0.24, "y": 0.27, "w": 0.52, "h": 0.14, "font": "Oooh Baby" },
+    { "role": "e", "x": 0.42, "y": 0.43, "w": 0.16, "h": 0.1, "font": "Oooh Baby" },
+    { "role": "name2", "x": 0.24, "y": 0.55, "w": 0.52, "h": 0.14, "font": "Oooh Baby" } ] },
+  "cod.43": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "ghirlanda di fiori lilla", "zones": [
+    { "role": "name1", "x": 0.24, "y": 0.27, "w": 0.52, "h": 0.14, "font": "Oooh Baby", "color": [90, 110, 190] },
+    { "role": "e", "x": 0.42, "y": 0.43, "w": 0.16, "h": 0.1, "font": "Oooh Baby", "color": [90, 110, 190] },
+    { "role": "name2", "x": 0.24, "y": 0.55, "w": 0.52, "h": 0.14, "font": "Oooh Baby", "color": [90, 110, 190] } ] },
+  "cod.44": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "ghirlanda di fiori rosa", "zones": [
+    { "role": "name1", "x": 0.24, "y": 0.27, "w": 0.52, "h": 0.14, "font": "Oooh Baby", "color": [200, 90, 130] },
+    { "role": "e", "x": 0.42, "y": 0.43, "w": 0.16, "h": 0.1, "font": "Oooh Baby", "color": [200, 90, 130] },
+    { "role": "name2", "x": 0.24, "y": 0.55, "w": 0.52, "h": 0.14, "font": "Oooh Baby", "color": [200, 90, 130] } ] },
+  "cod.45": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "cornice geometrica oro con peonie", "zones": [
+    { "role": "name1", "x": 0.3, "y": 0.3, "w": 0.44, "h": 0.13, "font": "Oooh Baby" },
+    { "role": "e", "x": 0.44, "y": 0.45, "w": 0.16, "h": 0.09, "font": "Oooh Baby" },
+    { "role": "name2", "x": 0.3, "y": 0.56, "w": 0.44, "h": 0.13, "font": "Oooh Baby" } ] },
+  "cod.46": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "esagono oro con foglie", "zones": [
+    { "role": "initial1", "x": 0.3, "y": 0.35, "w": 0.2, "h": 0.22, "font": "Oooh Baby", "sizeFactor": 1.1 },
+    { "role": "initial2", "x": 0.49, "y": 0.45, "w": 0.2, "h": 0.22, "font": "Oooh Baby", "sizeFactor": 1.1 } ] },
+  "cod.47": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "esatto", "note": "cerchi oro con foglie, & dorata", "zones": [
+    { "role": "initial1", "x": 0.3, "y": 0.26, "w": 0.2, "h": 0.22, "font": "Playfair Display", "weight": 500, "sizeFactor": 1.0 },
+    { "role": "fixed", "text": "&", "x": 0.42, "y": 0.42, "w": 0.16, "h": 0.16, "font": "Playfair Display Italic", "color": [200, 160, 30] },
+    { "role": "initial2", "x": 0.5, "y": 0.56, "w": 0.2, "h": 0.22, "font": "Playfair Display", "weight": 500, "sizeFactor": 1.0 } ] },
+  "cod.48": { "aspect": 1.0, "ornament": true, "ornamentKeepsColor": true, "fidelity": "vicino", "note": "cornice quadrata con narcisi e margherite", "zones": [
+    { "role": "name1", "x": 0.34, "y": 0.28, "w": 0.4, "h": 0.13, "font": "Oooh Baby" },
+    { "role": "e", "x": 0.46, "y": 0.43, "w": 0.16, "h": 0.09, "font": "Oooh Baby" },
+    { "role": "name2", "x": 0.34, "y": 0.55, "w": 0.4, "h": 0.13, "font": "Oooh Baby" } ] }
+}

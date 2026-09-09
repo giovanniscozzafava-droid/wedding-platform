@@ -11,7 +11,7 @@ import { modelLayout, paletteFor, sizeByKey, type Cover } from '@/components/alb
 import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
 
-export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk }
+export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null }
 
 export type GlbView = 'front' | 'three-quarter' | 'spine' | 'top'
 export type AlbumGlbStageHandle = { setView: (v: GlbView) => void; snapshot: () => string | null }
@@ -180,7 +180,7 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
-    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink]) // eslint-disable-line react-hooks/exhaustive-deps
+    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate]) // eslint-disable-line react-hooks/exhaustive-deps
   // le immagini del decal (logo del catalogo) arrivano dopo: ridisegno
   useEffect(() => { onDecalImagesReady(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, coverRef.current) }) }, [])
 

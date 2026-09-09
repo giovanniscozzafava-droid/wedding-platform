@@ -13,7 +13,7 @@ export type CoverPsdInput = {
   modelLabel: string
   materialLabel?: string; colorLabel?: string; colorHex?: string
   photos: (HTMLImageElement | null)[]          // una per finestra (in ordine)
-  logo?: { image: HTMLImageElement; code: string } | null
+  logo?: { image: HTMLImageElement | HTMLCanvasElement; code: string; composed?: boolean } | null
   names?: string
   ink?: string                                  // colore di nomi/logo
   couple?: string; studio?: string; orderRef?: string
@@ -69,8 +69,12 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
   })
   // 4) logo del catalogo: dal riquadro al solo tratto (luma → alpha), nel colore d'inchiostro
   if (inp.logo) {
-    const lw = Math.round(spec.logo.w * W), lh = Math.round(lw * inp.logo.image.naturalHeight / inp.logo.image.naturalWidth)
-    const t = logoToInk(inp.logo.image, lw, lh, hexToRgb(ink))
+    const iw = inp.logo.image instanceof HTMLCanvasElement ? inp.logo.image.width : inp.logo.image.naturalWidth
+    const ih = inp.logo.image instanceof HTMLCanvasElement ? inp.logo.image.height : inp.logo.image.naturalHeight
+    const lw = Math.round(spec.logo.w * W), lh = Math.round(lw * ih / iw)
+    let t: HTMLCanvasElement
+    if (inp.logo.composed) { t = document.createElement('canvas'); t.width = lw; t.height = lh; t.getContext('2d')!.drawImage(inp.logo.image, 0, 0, lw, lh) }
+    else t = logoToInk(inp.logo.image as HTMLImageElement, lw, lh, hexToRgb(ink))
     const x = Math.round(spec.logo.x * W - lw / 2), y = Math.round(spec.logo.y * H)
     layers.push({ name: `Logo ${inp.logo.code} · larghezza ${mm(spec.logo.w, inp.wCm)} mm`, canvas: t, left: x, top: y, right: x + lw, bottom: y + lh })
     positions.push({ label: `Logo ${inp.logo.code}`, x: mm(x / W, inp.wCm), y: mm(y / H, inp.hCm), w: mm(lw / W, inp.wCm), h: mm(lh / H, inp.hCm) })
