@@ -51,8 +51,7 @@ export function PdfFlipbook({
     <div className="select-none">
       <div
         className="relative w-full rounded-2xl overflow-hidden bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))] shadow-[0_18px_50px_rgba(20,18,14,.16)]"
-        onTouchStart={(e) =>
-        <RotateScreenGate inline when={wide} title="Gira il telefono" subtitle="Le tavole sono orizzontali: in orizzontale si sfogliano meglio." /> { touch.current = { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY } }}
+        onTouchStart={(e) => { touch.current = { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY } }}
         onTouchEnd={(e) => {
           if (!touch.current) return
           const dx = e.changedTouches[0]!.clientX - touch.current.x
@@ -61,6 +60,8 @@ export function PdfFlipbook({
           touch.current = null
         }}
       >
+        {/* sul telefono in verticale: invito a girare, dentro lo sfogliatore (non copre il resto della pagina) */}
+        <RotateScreenGate inline when={wide} title="Gira il telefono" subtitle="Le tavole sono orizzontali: in orizzontale si sfogliano meglio." />
         {imgs[page] ? (
           <div className="relative cursor-crosshair"
             onClick={(e) => {
