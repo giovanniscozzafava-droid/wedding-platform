@@ -10,6 +10,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { modelLayout, paletteFor, sizeByKey, type Cover } from '@/components/album/albumCatalog'
 import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
+import { corsImageUrl } from '@/components/album/glb/imageUrl'
 
 export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null }
 
@@ -200,8 +201,11 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   const crystalMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.02, transmission: 0.55, ior: 1.9, thickness: 0.002, envMapIntensity: 2.2, clearcoat: 1 })
   const pagesMat = new THREE.MeshStandardMaterial({ color: 0xf4efe6, roughness: 0.92 })
   const photoMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.2 })
-  if (cover.photo_url) {
-    const t = texLoader.load(cover.photo_url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false
+  const photoSrc = corsImageUrl(cover.photo_url, 1200)
+  if (photoSrc) {
+    // la foto passa dal proxy CORS quando serve (Drive): altrimenti WebGL la rifiuta e il piatto resta nero
+    const t = texLoader.load(photoSrc, undefined, undefined, () => { photoMat.map = null; photoMat.color.set(0xe9e4dc); photoMat.needsUpdate = true })
+    t.colorSpace = THREE.SRGBColorSpace; t.flipY = false
     photoMat.map = t
   } else { photoMat.color.set(0xe9e4dc) }
   const decalMat = new THREE.MeshPhysicalMaterial({ transparent: true, roughness: 0.6, metalness: 0.15, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })

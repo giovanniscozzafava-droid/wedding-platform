@@ -11,6 +11,7 @@ import { LAYOUT_SPEC, inkRgb } from '@/components/album/glb/layoutSpec'
 import { hasLogoTemplate } from '@/components/album/glb/logoTemplates'
 import { composeLogo, fontsOf, loadLogoFont } from '@/components/album/glb/logoCompose'
 import { dateIt } from '@/components/album/glb/decal'
+import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { modelLayout } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import {
@@ -406,7 +407,8 @@ export default function AlbumCatalogPicker() {
       const composed = [chosen, priceLine, pinNote.trim() || undefined].filter(Boolean).join('\n')
       const fullSpecs = { ...specs, size: sizeLabel, note: composed || undefined }
       const dateLabel = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
-      const coverPhotoDataUrl = wantPhoto && comp.coverPhoto?.url ? await toDataUrl(comp.coverPhoto.url) : null
+      // la foto scelta, in alta risoluzione e con CORS (Drive passa dal proxy): serve al PDF e al PSD a 300 dpi
+      const coverPhotoDataUrl = wantPhoto && comp.coverPhoto?.url ? await toDataUrl(corsImageUrl(comp.coverPhoto.url, 2400) ?? comp.coverPhoto.url) : null
       // TAVOLA DI LAVORAZIONE: PSD a livelli a misura reale (300 dpi), mockup 3D, tavola 2D, posizioni in mm
       const orderRef = `${clientName.trim()} · ${new Date().toISOString().slice(0, 10)}`
       const sizeDef = sizeByKey(specs.size)
