@@ -243,7 +243,9 @@ const VIEW_ANGLES: Record<AlbumView, { az: number; el: number; dist: number }> =
 
 export const AlbumMockup3D = forwardRef<AlbumMockup3DHandle, {
   cover: Cover; width?: number; interactive?: boolean; autoRotate?: boolean; view?: AlbumView
-}>(function AlbumMockup3D({ cover, width = 360, interactive = true, autoRotate = true, view = 'three-quarter' }, ref) {
+  /** Moltiplica la distanza della camera (stage compatti 4:3 → l'album resta intero). */
+  distance?: number
+}>(function AlbumMockup3D({ cover, width = 360, interactive = true, autoRotate = true, view = 'three-quarter', distance = 1 }, ref) {
   const mountRef = useRef<HTMLDivElement | null>(null)
   const sceneRef = useRef<AlbumScene | null>(null)
   const renderRef = useRef<() => void>(() => {})
@@ -314,7 +316,7 @@ export const AlbumMockup3D = forwardRef<AlbumMockup3DHandle, {
     const camPosFor = (v: AlbumView): THREE.Vector3 => {
       const { w, h } = album
       const a = VIEW_ANGLES[v]
-      const dist = Math.max(w, h) * 2.05 * a.dist
+      const dist = Math.max(w, h) * 2.05 * a.dist * distance
       const az = a.az * Math.PI
       const el = a.el * Math.PI
       return new THREE.Vector3(

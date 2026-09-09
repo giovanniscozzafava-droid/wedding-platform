@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from '@/lib/toast'
 import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Maximize2, Check, ImageIcon } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, type Format } from '@/components/album/albumCatalog'
+import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format, type Cover } from '@/components/album/albumCatalog'
 import {
   MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
   compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, optLabel, type CoverComposition,
@@ -31,6 +31,9 @@ import {
 // Lato coppia: sfoglia il PDF del proprio fotografo, tocca il modello (hotspot), compila
 // le specifiche, FIRMA → genera la commessa PDF (scaricata) e la mette in coda all'azienda.
 
+// L'album 3D (three.js) è pesante: si carica solo quando serve, in un chunk a parte.
+const AlbumStage = lazy(() => import('@/components/album/configurator/AlbumStage').then((m) => ({ default: m.AlbumStage })))
+
 const MODEL_TILES = modelTiles()
 const LOGO_TILES = logoTiles()
 const LOGO_COLOR_TILES = logoColorTiles()
@@ -47,6 +50,7 @@ export default function AlbumCatalogPicker() {
   const [selected, setSelected] = useState<Hotspot | null>(null)
   const [specs, setSpecs] = useState<CommissionSpecs>({ format: 'square', size: '', pages: 40, box: 'nessuno', finishes: [] })
   const [clientName, setClientName] = useState('')
+  const [entryTitle, setEntryTitle] = useState('')   // nomi della coppia per la copertina 3D (titolo dell'evento)
   const [pinNote, setPinNote] = useState('')
   const [signature, setSignature] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -89,6 +93,8 @@ export default function AlbumCatalogPicker() {
       const me = (await supabase.auth.getUser()).data.user?.id
       const { data: gal } = await (supabase.from as any)('event_galleries').select('owner_id').eq('entry_id', entryId).maybeSingle()
       setIsPro(!!me && gal?.owner_id === me)
+      const { data: ent } = await (supabase.from as any)('calendar_entries').select('title').eq('id', entryId).maybeSingle()
+      if (ent?.title) setEntryTitle(String(ent.title).replace(/^matrimonio\s+/i, '').replace(/\s*[—–-]\s*preventivo$/i, '').trim())
     })()
     // FORMATO BLOCCATO: se il fotografo ha già impaginato, la coppia non sceglie il formato.
     void (async () => {
@@ -246,6 +252,26 @@ export default function AlbumCatalogPicker() {
     return { lines, total, inclPages, haveQuote }
   }, [selected, comp, specs.size, specs.pages, specs.box, optioned, quotePages, wantPhoto, listino, familyFromQuote, surcharge, coverExtra, accExtra, shipping, markupPct, coverPick?.label]) // eslint-disable-line react-hooks/exhaustive-deps
   const albumTotal = pricing.haveQuote ? optioned + pricing.total : pricing.total
+  // L'ALBUM 3D si ridisegna a ogni scelta: le voci del catalogo diventano una Cover del mockup
+  // (modello → layout della tavola, materiale/colore → superficie e tinta, formato, box, foto, rifiniture).
+  const cover3d = useMemo<Cover>(() => {
+    const fin = new Set<string>()
+    if (comp.finish && comp.finish !== 'nessuna') fin.add(comp.finish)
+    if (comp.logo === 'swarovski') fin.add('swarovski')
+    else if (comp.logo === 'ottone-targhetta') fin.add('targhetta')
+    else if (comp.logo === 'ottone-iniziali' || comp.logo === 'alluminio-lettere') fin.add('iniziali')
+    else if (comp.logo && comp.logo !== 'nessuno') fin.add('logo')
+    const hex = comp.material ? paletteFor(comp.material).find((c) => c.key === comp.color)?.hex : undefined
+    return {
+      model: comp.model?.key ?? MODELS.find((m) => m.label === selected?.label)?.key,
+      fabric: comp.material, colorKey: comp.color, color: hex,
+      format: specs.format as Format, sizeKey: specs.size, pages: specs.pages,
+      blockType: comp.block === 'book-flat' ? 'bookflat' : 'photo',
+      box: comp.box ?? specs.box, finishes: Array.from(fin),
+      photo_url: wantPhoto ? comp.coverPhoto?.url ?? null : null,
+      title: entryTitle || clientName.trim() || '',
+    }
+  }, [comp, selected?.label, specs.format, specs.size, specs.pages, specs.box, wantPhoto, clientName, entryTitle])
   // LA SCHEDA: una riga per caratteristica, con la miniatura del campione scelto
   const sheetRows = useMemo<SheetRow[]>(() => {
     const col = colorOpts.find((o) => o.key === comp.color)
@@ -442,6 +468,17 @@ export default function AlbumCatalogPicker() {
               </button>
             </div>
             <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} pins={pins} onOpenPin={setOpenPin} initialPage={deepPage ?? undefined} />
+
+            {/* L'ALBUM IN 3D: si aggiorna a ogni scelta fatta a destra */}
+            <div className="mt-5 max-w-[520px] mx-auto">
+              <div className="flex items-baseline justify-between border-b border-[rgb(var(--border))] pb-1.5 mb-3">
+                <p className="font-display text-lg">Il tuo album in 3D</p>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))]">si aggiorna a ogni scelta</p>
+              </div>
+              <Suspense fallback={<div className="aspect-[4/3] w-full rounded-3xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] grid place-items-center text-[rgb(var(--fg-subtle))]"><Loader2 className="animate-spin" /></div>}>
+                <AlbumStage cover={cover3d} compact />
+              </Suspense>
+            </div>
           </div>
 
           <div className="space-y-5">
