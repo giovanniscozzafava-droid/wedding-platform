@@ -32,6 +32,8 @@ const AlbumLabPage = lazyWithRetry(() => import('@/pages/AlbumLabPage'))
 const CoverConfigurator = lazyWithRetry(() => import('@/pages/CoverConfigurator'))
 const AlbumCatalogManager = lazyWithRetry(() => import('@/pages/AlbumCatalogManager'))
 const AlbumCatalogPicker = lazyWithRetry(() => import('@/pages/AlbumCatalogPicker'))
+const AlbumOrderStepperPage = lazyWithRetry(() => import('@/pages/AlbumOrderStepperPage'))
+const AlbumOptionCatalogManager = lazyWithRetry(() => import('@/pages/AlbumOptionCatalogManager'))
 const SupplierAssetsPage = lazyWithRetry(() => import('@/pages/SupplierAssetsPage'))
 const CalendarPage = lazyWithRetry(() => import('@/pages/CalendarPage'))
 const SuppliersPage = lazyWithRetry(() => import('@/pages/SuppliersPage'))
@@ -203,6 +205,10 @@ export default function App() {
           {/* Catalogo PDF: il fotografo carica/marca; la coppia sfoglia, sceglie, firma → commessa */}
           <Route path="/album-catalogo" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><AlbumCatalogManager /></RequireAuth>} />
           <Route path="/scegli-album/:entryId" element={<RequireAuth><AlbumCatalogPicker /></RequireAuth>} />
+          {/* "Chiudi la decisione" album: stepper opzioni (colore/logo/box/finiture/nota, senza
+              catalogo PDF) + gestione opzioni del fotografo. */}
+          <Route path="/album-opzioni/:entryId" element={<RequireAuth><AlbumOrderStepperPage /></RequireAuth>} />
+          <Route path="/album-opzioni-catalogo" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><AlbumOptionCatalogManager /></RequireAuth>} />
           <Route path="/stili" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><SupplierAssetsPage /></RequireAuth>} />
           <Route path="/studio" element={<RequireAuth roles={['FORNITORE', 'WEDDING_PLANNER', 'LOCATION', 'ADMIN']}><DesignStudioPage /></RequireAuth>} />
           <Route

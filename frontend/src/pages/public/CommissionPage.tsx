@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, Loader2, FileText, Package } from '@/components/icons/lucide'
+import { Download, Loader2, FileText, Package, CheckCircle2 } from '@/components/icons/lucide'
 import { supabase } from '@/lib/supabase'
 import { getFormat } from '@/lib/albumFormats'
 import { modelLabel, materialLabel, colorLabel, boxLabel, sizeByKey, FINISHES, type Cover } from '@/components/album/albumCatalog'
@@ -18,6 +18,15 @@ type Commission = {
     model_label?: string
     specs?: { format?: string; size?: string; pages?: number; box?: string; finishes?: string[]; note?: string }
     signed_by?: string; signed_at?: string
+  } | null
+  // "Chiudi la decisione" — conferma dallo stepper opzioni (colore/logo/box/finiture, senza
+  // catalogo PDF): coesiste con client_choice, righe diverse dello stesso evento.
+  client_confirmation: {
+    confirmed_at?: string; confirmed_by_name?: string
+    option_choices?: { cover_color?: { label: string }; logo?: { label: string }; box?: { label: string }; finishes?: { label: string }[] }
+    notes?: string | null
+    cover_photo_url?: string | null; cover_photo_label?: string | null; cover_photo_note?: string | null
+    order_pdf_path?: string | null
   } | null
 }
 
@@ -48,6 +57,7 @@ export default function CommissionPage() {
   const [data, setData] = useState<Commission | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [orderPdfUrl, setOrderPdfUrl] = useState<string | null>(null)
 
   useEffect(() => {
     (async () => {
@@ -57,6 +67,13 @@ export default function CommissionPage() {
         const res = d as (Commission & { ok?: boolean; error?: string }) | null
         if (error || !res || res.error) { setErr(res?.error === 'not_found' ? 'Commissione non trovata (link revocato o errato)' : 'Impossibile aprire la commissione'); return }
         setData(res)
+        // scheda ordine (PDF, bucket privato): firmo l'URL lato client — la policy storage la
+        // apre solo per gli ordini di un evento già condiviso (stesso livello di segretezza del token).
+        const path = res.client_confirmation?.order_pdf_path
+        if (path) {
+          const { data: signed } = await supabase.storage.from('album-commissions').createSignedUrl(path, 3600)
+          if (signed?.signedUrl) setOrderPdfUrl(signed.signedUrl)
+        }
       } catch { setErr('Errore di rete') }
       finally { setLoading(false) }
     })()
@@ -69,8 +86,10 @@ export default function CommissionPage() {
     </div>
   )
 
-  const { order, photographer, selection_count, event_date, client_choice } = data
+  const { order, photographer, selection_count, event_date, client_choice, client_confirmation } = data
   const cc = client_choice
+  const conf = client_confirmation
+  const oc = conf?.option_choices
   const c = order.cover ?? {}
   const fmt = getFormat(order.format_key)
   const coverSize = sizeByKey(c.sizeKey)?.label
@@ -85,6 +104,12 @@ export default function CommissionPage() {
         <div className="flex items-center justify-between gap-3 mb-4 print:hidden">
           <span className="text-xs text-neutral-500">Copia commissione · sola lettura</span>
           <div className="flex items-center gap-2">
+            {orderPdfUrl && (
+              <a href={orderPdfUrl} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-black/15 text-neutral-700 bg-white">
+                <FileText size={15} /> Scheda ordine (PDF)
+              </a>
+            )}
             {order.file_link && (
               <a href={order.file_link} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg text-white" style={{ backgroundColor: accent }}>
@@ -135,6 +160,29 @@ export default function CommissionPage() {
                 </div>
               )}
               {(cc.signed_by || cc.signed_at) && <p className="text-[12px] text-neutral-400 pt-2">Firmato da {cc.signed_by ?? 'cliente'}{cc.signed_at ? ` · ${fmtDate(cc.signed_at)}` : ''}</p>}
+            </Section>
+          )}
+
+          {conf && (
+            <Section title="Album approvato dal cliente">
+              <div className="flex items-center gap-1.5 text-emerald-700 pb-1"><CheckCircle2 size={15} /> <span className="text-[13px]">Confermato da {conf.confirmed_by_name ?? order.couple_label ?? 'il cliente'}{conf.confirmed_at ? ` il ${fmtDate(conf.confirmed_at)}` : ''}</span></div>
+              <Row label="Colore copertina" value={oc?.cover_color?.label} />
+              <Row label="Logo / impressione" value={oc?.logo?.label} />
+              <Row label="Box / cofanetto" value={oc?.box?.label} />
+              <Row label="Finiture" value={oc?.finishes?.length ? oc.finishes.map((f) => f.label).join(', ') : null} />
+              {conf.notes && (
+                <div className="pt-2">
+                  <p className="text-[13px] uppercase tracking-wide text-neutral-500 mb-1">Nota del cliente</p>
+                  <p className="text-[15px] text-neutral-800 whitespace-pre-wrap">{conf.notes}</p>
+                </div>
+              )}
+              {conf.cover_photo_url && (
+                <div className="pt-3">
+                  <p className="text-[13px] uppercase tracking-wide text-neutral-500 mb-1.5">Foto in copertina{conf.cover_photo_label ? ` — ${conf.cover_photo_label}` : ''}</p>
+                  <img src={conf.cover_photo_url} alt="Foto scelta per la copertina" className="max-h-48 rounded-lg border border-black/10" />
+                  {conf.cover_photo_note && <p className="text-[13px] text-neutral-600 mt-1.5">{conf.cover_photo_note}</p>}
+                </div>
+              )}
             </Section>
           )}
 

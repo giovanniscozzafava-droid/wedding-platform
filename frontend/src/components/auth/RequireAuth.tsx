@@ -99,6 +99,10 @@ export function RequireAuth({ children, roles, bare = false }: Props) {
     //   && !location.pathname.startsWith('/album-copertina')
     // catalogo PDF sfogliabile: la coppia sceglie il modello dal catalogo del fotografo e firma
     && !location.pathname.startsWith('/scegli-album')
+    // "chiudi la decisione" album: stepper colore/logo/box/finiture (senza catalogo PDF).
+    // Solo /album-opzioni/:entryId (slash finale): /album-opzioni-catalogo è del fotografo,
+    // resta fuori (la COUPLE ci rimbalzerebbe comunque sul controllo ruoli, ma niente eccezioni larghe).
+    && !location.pathname.startsWith('/album-opzioni/')
     && !location.pathname.startsWith('/video/')
     && !location.pathname.startsWith('/faq')) {
     return <Navigate to="/couple" replace />

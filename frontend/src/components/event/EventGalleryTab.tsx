@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from '@/lib/toast'
-import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer, Crop, Send } from '@/components/icons/lucide'
+import { Images, FolderPlus, Plus, Check, Lock, Globe, Users, ShieldCheck, Trash2, Upload, Download, X, ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Play, Maximize2, Link2, Heart, FileArchive, HardDrive, Settings, BookOpen, Printer, Crop, Send, FileText, Loader2, RotateCcw, Sliders } from '@/components/icons/lucide'
 import { Link } from 'react-router-dom'
 import { guestTagLabel } from '@/lib/guestTags'
 import { MOMENTS, getMoment } from '@/lib/albumMoments'
@@ -23,6 +23,9 @@ import { GallerySettingsPanel, DEFAULT_GALLERY_SETTINGS, type GallerySettings } 
 import { PrintOrderSheet } from './PrintOrderSheet'
 import { FunnelSteps } from '@/components/album/FunnelSteps'
 import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
+import { getAlbumOrderStatus, approveAlbumLayout, reopenAlbumLayout, uploadOrderPdf, saveOrderPdfPath, type AlbumOrderStatus } from '@/hooks/useAlbumOrder'
+import { buildAlbumOrderPdf, downloadPdfBlob, imageUrlToDataUrl } from '@/components/album/catalog/albumOrderPdf'
+import { getFormat } from '@/lib/albumFormats'
 
 // Tab "Foto" dell'evento. Stessa superficie per tutti, ma cosa vedi/fai dipende
 // dal ruolo (la spina RLS gata il contenuto): il fotografo (owner) gestisce e
@@ -145,6 +148,59 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
   const [eventKind, setEventKind] = useState<string | null>(null)
+
+  // "Album: dal PDF a un dunque" — stato dell'approvazione layout + della conferma opzioni
+  // (album_layout_approval / album_orders). Serve sia agli sposi (per approvare/riaprire) sia
+  // al fotografo (per vedere l'esito e scaricare la scheda ordine).
+  const [albumOrder, setAlbumOrder] = useState<AlbumOrderStatus | null>(null)
+  const [approveBusy, setApproveBusy] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const loadAlbumOrder = useCallback(() => { void getAlbumOrderStatus(entryId).then(setAlbumOrder).catch(() => {}) }, [entryId])
+  useEffect(() => { loadAlbumOrder() }, [loadAlbumOrder])
+
+  async function approveLayout() {
+    setApproveBusy(true)
+    try { await approveAlbumLayout(entryId); loadAlbumOrder(); toast.success('Album approvato — grazie!') }
+    catch (e) { toast.error((e as Error).message) } finally { setApproveBusy(false) }
+  }
+  async function revokeApproval() {
+    try { await reopenAlbumLayout(entryId); loadAlbumOrder(); toast.message('Approvazione revocata: puoi modificare e ri-approvare quando vuoi.') }
+    catch (e) { toast.error((e as Error).message) }
+  }
+
+  // Il fotografo genera (o rigenera, sempre coi dati aggiornati) il PDF "scheda ordine" e lo
+  // scarica; lo carica anche nel bucket commesse così è allegabile al link commissione stampa.
+  async function downloadOrderSheet() {
+    if (!albumOrder?.confirmed || !albumOrder.orderId) return
+    setPdfBusy(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const [{ data: prof }, { data: entry }] = await Promise.all([
+        (supabase.from as any)('profiles').select('business_name, full_name, phone').eq('id', user?.id ?? '').maybeSingle(),
+        (supabase.from as any)('calendar_entries').select('title, ceremony_date, date_from').eq('id', entryId).maybeSingle(),
+      ])
+      const coverPhotoDataUrl = albumOrder.coverPhotoUrl ? await imageUrlToDataUrl(albumOrder.coverPhotoUrl) : null
+      const eventDate = entry?.ceremony_date ?? entry?.date_from
+      const blob = buildAlbumOrderPdf({
+        studio: prof?.business_name || prof?.full_name || 'Studio',
+        studioContact: prof?.phone || null,
+        coupleLabel: entry?.title || 'Sposi',
+        eventDateLabel: eventDate ? new Date(eventDate).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) : null,
+        albumFormatLabel: albumOrder.formatKey ? getFormat(albumOrder.formatKey).label.replace(/ · tavola.*/, '') : null,
+        pages: albumOrder.pages ?? null,
+        optionChoices: albumOrder.optionChoices ?? {},
+        note: albumOrder.notes ?? null,
+        coverPhotoDataUrl, coverPhotoLabel: albumOrder.coverPhotoLabel ?? null, coverPhotoNote: albumOrder.coverPhotoNote ?? null,
+        confirmedAt: albumOrder.confirmedAt ? new Date(albumOrder.confirmedAt).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) : '',
+        confirmedByName: albumOrder.confirmedByName ?? null,
+      })
+      downloadPdfBlob(blob, `scheda-ordine-album-${entryId}.pdf`)
+      const path = await uploadOrderPdf(entryId, blob)
+      await saveOrderPdfPath(albumOrder.orderId, path)
+      setAlbumOrder((s) => (s ? { ...s, orderPdfPath: path } : s))
+      toast.success('Scheda ordine scaricata — anche allegata al link commissione stampa')
+    } catch (e) { toast.error((e as Error).message || 'PDF non generato') } finally { setPdfBusy(false) }
+  }
   const [invioFoto, setInvioFoto] = useState(false)
   const [ant, setAnt] = useState<{ destinatari: { email: string; registrato: boolean; nome: string | null }[]; subject: string; html: string; guest_link: string | null } | null>(null)
 
@@ -745,14 +801,35 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
         <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
           <div>
             <p className="text-sm font-medium flex items-center gap-2"><BookOpen size={16} className="text-[rgb(var(--gold-600))]" /> {role === 'sposi' ? 'Visualizza album e richiedi modifiche' : 'Impaginatore album'}</p>
-            <p className="text-xs text-[rgb(var(--fg-muted))]">{role === 'sposi' ? 'Sfoglia l’album impaginato dal fotografo: dove vuoi cambiare qualcosa (foto, posizione, ritaglio) chiedi una modifica.' : 'Impagina e rifinisci in tutti i formati, poi esporta PDF / JPG.'}</p>
+            <p className="text-xs text-[rgb(var(--fg-muted))]">{role === 'sposi' ? 'Sfoglia l’album impaginato dal fotografo: dove vuoi cambiare qualcosa (foto, posizione, ritaglio) chiedi una modifica. Quando va bene, confermalo qui sotto.' : 'Impagina e rifinisci in tutti i formati, poi esporta PDF / JPG.'}</p>
+            {/* Stato: layout approvato + opzioni confermate. Visibile a entrambi (sposi e fotografo). */}
+            {albumOrder?.layoutApproved && (
+              <p className="text-[11px] text-[rgb(var(--emerald-700))] mt-1 flex items-center gap-1"><Check size={12} /> Impaginazione approvata{role !== 'sposi' && ' dal cliente'}</p>
+            )}
+            {albumOrder?.confirmed && (
+              <p className="text-[11px] text-[rgb(var(--emerald-700))] mt-0.5 flex items-center gap-1">
+                <Check size={12} /> Album approvato{role !== 'sposi' ? ` dal cliente il ${albumOrder.confirmedAt ? new Date(albumOrder.confirmedAt).toLocaleDateString('it-IT') : ''}` : ` il ${albumOrder.confirmedAt ? new Date(albumOrder.confirmedAt).toLocaleDateString('it-IT') : ''}`}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Link to={`/album/${entryId}`} target="_blank" rel="noreferrer"><Button variant="gold" size="sm"><BookOpen size={14} /> {role === 'sposi' ? 'Visualizza album' : 'Apri impaginatore'}</Button></Link>
+            {/* Approvazione impaginazione (album_layout_approval): mancava un punto raggiungibile
+                dagli sposi per farla — la mettiamo proprio dove aprono l'album. */}
+            {role === 'sposi' && (albumOrder?.layoutApproved
+              ? <Button variant="ghost" size="sm" onClick={() => void revokeApproval()}><RotateCcw size={14} /> Riapri e modifica</Button>
+              : <Button variant="outline" size="sm" disabled={approveBusy} onClick={() => void approveLayout()}>{approveBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Confermo questo album</Button>)}
             {/* Copertina 3D: OSCURATA (soon) finché non c'è il partner di stampa di riferimento. */}
             {isOwner && <Button variant="outline" size="sm" disabled title="Configuratore copertina 3D — in arrivo (in attesa del partner di stampa)"><Printer size={14} /> Copertina 3D · presto</Button>}
+            {role === 'sposi' && <Link to={`/album-opzioni/${entryId}`}><Button variant="outline" size="sm" title="Colore copertina, logo, box e finiture — un passo alla volta"><Sliders size={14} /> {albumOrder?.confirmed ? 'Cambia le opzioni' : 'Configura le opzioni'}</Button></Link>}
             {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
             {isOwner && <Link to="/album-catalogo"><Button variant="outline" size="sm" title="Carica il PDF del tuo catalogo e marca i modelli per i clienti"><BookOpen size={14} /> Gestisci catalogo PDF</Button></Link>}
+            {isOwner && <Link to="/album-opzioni-catalogo"><Button variant="outline" size="sm" title="Colore copertina, logo, box e finiture che il cliente può scegliere"><Sliders size={14} /> Gestisci opzioni album</Button></Link>}
+            {isOwner && albumOrder?.confirmed && (
+              <Button variant="gold" size="sm" disabled={pdfBusy} onClick={() => void downloadOrderSheet()} title="PDF con album, opzioni scelte, nota e foto di copertina — brandizzato con i tuoi dati">
+                {pdfBusy ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} Scarica scheda ordine (PDF)
+              </Button>
+            )}
             <Link to="/stampe"><Button variant="outline" size="sm" title="Scopri le stampe d'autore: apri una foto e tocca Stampa"><Images size={14} /> Stampe d’autore</Button></Link>
           </div>
         </Card>
