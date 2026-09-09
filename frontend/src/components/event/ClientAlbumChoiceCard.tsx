@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Check, Copy, FileText, Loader2, MapPin, ExternalLink, ChevronDown } from '@/components/icons/lucide'
+import { BookOpen, Check, Copy, FileText, ImageIcon, Loader2, MapPin, ExternalLink, ChevronDown } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/lib/toast'
@@ -21,6 +21,7 @@ type Commission = {
     source?: string; model_label?: string; page?: number | null
     specs?: { format?: string; size?: string; pages?: number; box?: string; finishes?: string[]; note?: string }
     signed_by?: string; signed_at?: string; commission_pdf_path?: string | null
+    psd_path?: string | null; mockup_path?: string | null
     composition?: {
       lines?: string[]
       coverPhoto?: { url?: string; label?: string | null } | null
@@ -162,6 +163,8 @@ export function ClientAlbumChoiceCard({ entryId }: { entryId: string }) {
                   )}
                   <div className="flex items-center gap-2 flex-wrap pt-1">
                     {last.cover.commission_pdf_path && <Button variant="gold" size="sm" onClick={() => void openPdf(last.cover.commission_pdf_path!)}><FileText size={14} /> Commessa PDF</Button>}
+                    {last.cover.psd_path && <Button variant="outline" size="sm" onClick={() => void openPdf(last.cover.psd_path!)} title="Copertina a livelli, 300 dpi, con le posizioni: da girare all'azienda insieme alle tavole"><FileText size={14} /> PSD copertina</Button>}
+                    {last.cover.mockup_path && <Button variant="outline" size="sm" onClick={() => void openPdf(last.cover.mockup_path!)}><ImageIcon size={14} /> Mockup 3D</Button>}
                     {orders.length > 1 && <span className="text-[11px] text-[rgb(var(--fg-subtle))]">{orders.length - 1} {orders.length === 2 ? 'versione precedente' : 'versioni precedenti'}</span>}
                   </div>
                 </>

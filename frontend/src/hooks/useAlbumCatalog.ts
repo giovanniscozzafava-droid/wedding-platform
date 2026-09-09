@@ -210,8 +210,12 @@ export async function getCatalogForEntry(entryId: string): Promise<{ catalog: Ca
 }
 
 export async function uploadCommissionPdf(entryId: string, blob: Blob): Promise<string> {
-  const path = `${entryId}/${crypto.randomUUID()}.pdf`
-  const up = await supabase.storage.from(COMM_BUCKET).upload(path, blob, { contentType: 'application/pdf', upsert: true })
+  return uploadCommissionFile(entryId, blob, 'pdf', 'application/pdf')
+}
+/** Un allegato della commessa (PSD della copertina, mockup, foto) nel bucket privato. */
+export async function uploadCommissionFile(entryId: string, blob: Blob, ext: string, contentType: string, name?: string): Promise<string> {
+  const path = `${entryId}/${name ?? crypto.randomUUID()}.${ext}`
+  const up = await supabase.storage.from(COMM_BUCKET).upload(path, blob, { contentType, upsert: true })
   if (up.error) throw up.error
   return path
 }

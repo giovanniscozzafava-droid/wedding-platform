@@ -19,6 +19,15 @@ export type CommissionDoc = {
   coverPhotoDataUrl?: string | null
   /** conto: base nel preventivo, aggiunte col ricarico, differenza, rimanenza alla consegna */
   pricing?: { inQuote: number | null; includedPages: number | null; additions: { label: string; amount: number; hint?: string }[]; difference: number; remaining: number }
+  /** TAVOLA DI LAVORAZIONE (pagina 2): mockup 3D, tavola 2D della copertina, posizioni in mm, nome del PSD allegato */
+  workSheet?: {
+    mockupDataUrl?: string | null
+    tavolaDataUrl?: string | null
+    coverCm?: { w: number; h: number }
+    positions?: { label: string; x: number; y: number; w: number; h: number }[]
+    psdName?: string | null
+    layoutLabel?: string
+  }
 }
 
 const eur = (n: number) => `${Math.round(n).toLocaleString('it-IT')} €`
@@ -126,6 +135,49 @@ export function buildCommissionPdf(d: CommissionDoc): Blob {
 
   doc.setFontSize(7.5); doc.setTextColor(...MUTED)
   doc.text('Documento generato dal configuratore Planfully · scelta e firma confermate dal cliente.', M, 290)
+
+  // ---- pagina 2: TAVOLA DI LAVORAZIONE per l'azienda (mockup, tavola, quote, PSD) ----
+  const ws = d.workSheet
+  if (ws && (ws.mockupDataUrl || ws.tavolaDataUrl || ws.positions?.length)) {
+    doc.addPage(); y = M
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...INK)
+    doc.text('Tavola di lavorazione', M, y); y += 6
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...MUTED)
+    doc.text(`${d.modelLabel}${ws.layoutLabel ? ` · ${ws.layoutLabel}` : ''}${ws.coverCm ? ` · copertina ${ws.coverCm.w}×${ws.coverCm.h} cm` : ''}`, M, y); y += 5
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.6); doc.line(M, y, W - M, y); y += 8
+    const img = (data: string, label: string, maxW: number, maxH: number, x: number, fmt: 'PNG' | 'JPEG') => {
+      try {
+        const pr = doc.getImageProperties(data); const r = Math.min(maxW / pr.width, maxH / pr.height)
+        const w = pr.width * r, h = pr.height * r
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...MUTED); doc.text(label, x, y)
+        doc.addImage(data, fmt, x, y + 3, w, h); doc.setDrawColor(220, 214, 204); doc.setLineWidth(0.3); doc.rect(x, y + 3, w, h)
+        return h + 3
+      } catch { return 0 }
+    }
+    let hL = 0, hR = 0
+    if (ws.mockupDataUrl) hL = img(ws.mockupDataUrl, 'MOCKUP 3D · COME LA VEDE IL CLIENTE', 84, 70, M, 'PNG')
+    if (ws.tavolaDataUrl) hR = img(ws.tavolaDataUrl, 'TAVOLA · COPERTINA A MISURA', 84, 70, M + 90, 'JPEG')
+    y += Math.max(hL, hR) + 10
+    if (ws.positions?.length) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...MUTED)
+      doc.text('POSIZIONI (mm, origine in alto a sinistra della copertina)', M, y); y += 6
+      const cols = [M, M + 70, M + 95, M + 120, M + 145]
+      doc.setFontSize(8.5); doc.text('Elemento', cols[0]!, y); doc.text('x', cols[1]!, y); doc.text('y', cols[2]!, y); doc.text('larghezza', cols[3]!, y); doc.text('altezza', cols[4]!, y); y += 2
+      doc.setDrawColor(220, 214, 204); doc.line(M, y, W - M, y); y += 4
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...INK)
+      for (const p of ws.positions) {
+        doc.text(p.label, cols[0]!, y); doc.text(String(p.x), cols[1]!, y); doc.text(String(p.y), cols[2]!, y); doc.text(String(p.w), cols[3]!, y); doc.text(String(p.h), cols[4]!, y); y += 5.5
+      }
+      y += 4
+    }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...INK)
+    const note = ws.psdName
+      ? `Allegato: ${ws.psdName} — PSD a livelli a 300 dpi con la copertina a misura reale: sfondo di riferimento, finestre foto già ritagliate, logo, nomi, guide con le quote. Le guide di Photoshop sono sui bordi di ogni finestra.`
+      : 'La copertina a misura reale con i livelli separati è allegata come PSD alla commessa.'
+    const nl = doc.splitTextToSize(note, W - 2 * M) as string[]; doc.text(nl, M, y); y += nl.length * 5
+    doc.setFontSize(7.5); doc.setTextColor(...MUTED)
+    doc.text('Il cliente ha composto la copertina da sé nel configuratore: foto, logo e nomi sono le sue scelte, firmate a pagina 1.', M, 290)
+  }
 
   return doc.output('blob')
 }

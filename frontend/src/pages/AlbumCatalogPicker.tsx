@@ -5,14 +5,17 @@ import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Maximize2, 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format } from '@/components/album/albumCatalog'
-import type { GlbCover, GlbView } from '@/components/album/glb/AlbumGlbStage'
+import type { GlbCover, GlbView, AlbumGlbStageHandle } from '@/components/album/glb/AlbumGlbStage'
+import { buildCoverPsd } from '@/components/album/glb/coverPsd'
+import { LAYOUT_SPEC } from '@/components/album/glb/layoutSpec'
+import { modelLayout } from '@/components/album/albumCatalog'
+import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import {
   MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
   compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
 import { Chapter, Voice, PillChoice, ChoiceSheet, type SheetRow } from '@/components/album/catalog/CatalogUi'
-import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import { getCoverPhotoCandidates, type CoverPhotoCandidate } from '@/hooks/useAlbumOrder'
 import { getFormat } from '@/lib/albumFormats'
 import { looksLikeAlbum, parseQuoteItem, euroA } from '@/lib/albumPricing'
@@ -25,7 +28,7 @@ import { buildCommissionPdf, downloadBlob } from '@/components/album/catalog/com
 import { loadPdf, renderPdfPageDataUrl } from '@/lib/pdf'
 import { supabase } from '@/lib/supabase'
 import {
-  getCatalogForEntry, createCommission, uploadCommissionPdf, catalogPublicUrl, applyMarkup,
+  getCatalogForEntry, createCommission, uploadCommissionPdf, uploadCommissionFile, catalogPublicUrl, applyMarkup,
   type Catalog, type Hotspot, type CommissionSpecs,
 } from '@/hooks/useAlbumCatalog'
 
@@ -258,6 +261,7 @@ export default function AlbumCatalogPicker() {
   // L'ALBUM 3D si ridisegna a ogni scelta: le voci del catalogo diventano una Cover del mockup
   // (modello → layout della tavola, materiale/colore → superficie e tinta, formato, box, foto, rifiniture).
   const [view3d, setView3d] = useState<GlbView>('three-quarter')
+  const stageRef = useRef<AlbumGlbStageHandle>(null)
   const cover3d = useMemo<GlbCover>(() => {
     const fin = new Set<string>()
     if (comp.finish && comp.finish !== 'nessuna') fin.add(comp.finish)
@@ -397,6 +401,27 @@ export default function AlbumCatalogPicker() {
       const fullSpecs = { ...specs, size: sizeLabel, note: composed || undefined }
       const dateLabel = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
       const coverPhotoDataUrl = wantPhoto && comp.coverPhoto?.url ? await toDataUrl(comp.coverPhoto.url) : null
+      // TAVOLA DI LAVORAZIONE: PSD a livelli a misura reale (300 dpi), mockup 3D, tavola 2D, posizioni in mm
+      const orderRef = `${clientName.trim()} · ${new Date().toISOString().slice(0, 10)}`
+      const sizeDef = sizeByKey(specs.size)
+      const layout = modelLayout(cover3d.model)
+      const loadImg = (url?: string | null) => new Promise<HTMLImageElement | null>((res) => { if (!url) return res(null); const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = url })
+      const photoImg = await loadImg(coverPhotoDataUrl)
+      const logoImg = cover3d.logoKey ? await loadImg(swatchUrl(cover3d.logoKey)) : null
+      const psd = sizeDef ? buildCoverPsd({
+        layout, wCm: sizeDef.w, hCm: sizeDef.h, dpi: 300, modelLabel: comp.model?.label ?? selected.label,
+        materialLabel: comp.material ? materialLabel(comp.material) : undefined, colorLabel: colorOpts.find((o) => o.key === comp.color)?.label, colorHex: cover3d.color,
+        photos: LAYOUT_SPEC[layout].photos.map(() => photoImg), logo: logoImg && cover3d.logoKey ? { image: logoImg, code: cover3d.logoKey } : null,
+        names: cover3d.title, ink: cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e',
+        couple: clientName.trim(), studio: catalog.studio, orderRef,
+      }) : null
+      const fileBase = `copertina-${clientName.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${(comp.model?.label ?? selected.label).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`
+      let psdPath: string | null = null, mockupPath: string | null = null, mockupDataUrl: string | null = null
+      try {
+        mockupDataUrl = stageRef.current?.snapshot() ?? null
+        if (psd) psdPath = await uploadCommissionFile(entryId, psd.blob, 'psd', 'image/vnd.adobe.photoshop', fileBase)
+        if (mockupDataUrl) { const b = await (await fetch(mockupDataUrl)).blob(); mockupPath = await uploadCommissionFile(entryId, b, 'png', 'image/png', `${fileBase}-mockup`) }
+      } catch (e) { console.warn('allegati commessa', e) }
       const blob = buildCommissionPdf({
         studio: catalog.studio || 'Studio',
         couple: clientName.trim(),
@@ -409,6 +434,7 @@ export default function AlbumCatalogPicker() {
         composition: lines,
         coverPhotoDataUrl,
         pricing: { inQuote: pricing.haveQuote ? optioned : null, includedPages: pricing.haveQuote ? pricing.inclPages : null, additions: pricing.lines, difference: pricing.total, remaining: rimanenza },
+        workSheet: { mockupDataUrl, tavolaDataUrl: psd?.tavolaDataUrl ?? null, coverCm: sizeDef ? { w: sizeDef.w, h: sizeDef.h } : undefined, positions: psd?.positions, psdName: psdPath ? `${fileBase}.psd` : null, layoutLabel: layout },
       })
 
       const path = await uploadCommissionPdf(entryId, blob)
@@ -416,6 +442,7 @@ export default function AlbumCatalogPicker() {
         catalog_id: catalog.id, page: selected.page, model_label: selected.label,
         specs: fullSpecs, signed_by: clientName.trim(),
         signed_at: new Date().toISOString(), commission_pdf_path: path,
+        psd_path: psdPath, mockup_path: mockupPath, positions_mm: psd?.positions ?? null,
         composition: {
           ...comp, coverPhoto: wantPhoto ? comp.coverPhoto : null, lines,
           pricing: { inQuote: pricing.haveQuote ? optioned : null, includedPages: pricing.haveQuote ? pricing.inclPages : null, additions: pricing.lines, difference: pricing.total, remaining: rimanenza, markupPct },
@@ -423,6 +450,7 @@ export default function AlbumCatalogPicker() {
       }
       const orderId = await createCommission(entryId, payload)
       downloadBlob(blob, `commessa-${clientName.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${selected.label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`)
+      if (psd) downloadBlob(psd.blob, `${fileBase}.psd`)
       setDoneId(orderId)
       toast.success('Commessa firmata e inviata all’azienda. PDF scaricato.')
     } catch (err) { toast.error((err as Error).message || 'Invio non riuscito') } finally { setBusy(false) }
@@ -485,7 +513,7 @@ export default function AlbumCatalogPicker() {
                 style={{ background: 'radial-gradient(120% 90% at 50% 18%, rgb(var(--bg-elev)) 0%, rgb(var(--bg-sunken)) 58%, rgb(var(--gold-100)/.5) 130%)' }}>
                 <div className="aspect-[4/3] w-full">
                   <Suspense fallback={<div className="h-full w-full grid place-items-center text-[rgb(var(--fg-subtle))]"><Loader2 className="animate-spin" /></div>}>
-                    <AlbumGlbStage cover={cover3d} view={view3d} width={620} />
+                    <AlbumGlbStage ref={stageRef} cover={cover3d} view={view3d} width={620} />
                   </Suspense>
                 </div>
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))]/90 backdrop-blur px-1.5 py-1 shadow">
@@ -600,6 +628,15 @@ export default function AlbumCatalogPicker() {
                         })}
                       </div>
                     )}
+                  <label className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-[rgb(var(--gold-700))] cursor-pointer hover:underline">
+                    <ImageIcon size={13} /> Oppure carica una foto tua dal telefono
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      const f = e.target.files?.[0]; if (!f) return
+                      const r = new FileReader()
+                      r.onload = () => setComp((x) => ({ ...x, coverPhoto: { mediaId: 'upload', url: String(r.result), label: f.name.replace(/\.[a-z0-9]+$/i, '') } }))
+                      r.readAsDataURL(f)
+                    }} />
+                  </label>
                   {comp.coverPhoto && <p className="text-[12px] text-[rgb(var(--gold-700))] mt-1">Foto scelta: {comp.coverPhoto.label ?? 'selezionata'}</p>}
                 </div>
               )}
