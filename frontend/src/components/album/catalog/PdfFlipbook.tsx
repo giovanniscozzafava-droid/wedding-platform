@@ -49,12 +49,10 @@ export function PdfFlipbook({
 
   return (
     <div className="select-none">
-      <RotateScreenGate when={wide} title="Gira il telefono"
-        subtitle="Il catalogo è in orizzontale: ruota lo schermo (o allarga la finestra) per sfogliarlo al meglio." />
-
       <div
         className="relative w-full rounded-2xl overflow-hidden bg-[rgb(var(--bg-sunken))] border border-[rgb(var(--border))] shadow-[0_18px_50px_rgba(20,18,14,.16)]"
-        onTouchStart={(e) => { touch.current = { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY } }}
+        onTouchStart={(e) =>
+        <RotateScreenGate inline when={wide} title="Gira il telefono" subtitle="Le tavole sono orizzontali: in orizzontale si sfogliano meglio." /> { touch.current = { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY } }}
         onTouchEnd={(e) => {
           if (!touch.current) return
           const dx = e.changedTouches[0]!.clientX - touch.current.x
