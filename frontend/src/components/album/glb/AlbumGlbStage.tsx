@@ -12,7 +12,7 @@ import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 
-export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null }
+export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string }
 
 export type GlbView = 'front' | 'three-quarter' | 'spine' | 'top'
 export type AlbumGlbStageHandle = { setView: (v: GlbView) => void; snapshot: () => string | null }
@@ -181,7 +181,7 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
-    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate]) // eslint-disable-line react-hooks/exhaustive-deps
+    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey]) // eslint-disable-line react-hooks/exhaustive-deps
   // le immagini del decal (logo del catalogo) arrivano dopo: ridisegno
   useEffect(() => { onDecalImagesReady(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, coverRef.current) }) }, [])
 
@@ -195,6 +195,10 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   const col = cover.fabric ? paletteFor(cover.fabric).find((c) => c.key === cover.colorKey) : undefined
   const hex = cover.color ?? col?.hex
   const coverMat = surfaceMaterial(cover.fabric, hex, isWood, isWood ? col?.tex : undefined)
+  // retro e dorso: se la coppia ha scelto un altro materiale/colore, le mesh CoverBack e Spine lo indossano
+  const bIsWood = cover.backFabric === 'wood'
+  const bcol = cover.backFabric ? paletteFor(cover.backFabric).find((c) => c.key === cover.backColorKey) : undefined
+  const backMat = cover.backFabric ? surfaceMaterial(cover.backFabric, cover.backColor ?? bcol?.hex, bIsWood, bIsWood ? bcol?.tex : undefined) : coverMat
   const bandMat = surfaceMaterial('alcantara', '#efe9dc', false)
   const brass = (cover.finishes ?? []).includes('targhetta') || true
   const plateMat = new THREE.MeshPhysicalMaterial({ color: brass ? 0xd9b46a : 0xd8d8d8, metalness: 1, roughness: 0.22, envMapIntensity: 1.4, clearcoat: 0.3 })
@@ -218,7 +222,7 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
     // sostituzione il materiale è nostro e il nome originale non c'è più
     if (!m.userData.role) m.userData.role = String((m.material as THREE.Material)?.name ?? '').replace(/\.\d+$/, '')
     const base = m.userData.role as string
-    if (base === 'Cover') m.material = coverMat
+    if (base === 'Cover') m.material = (m.name === 'CoverBack' || m.name === 'Spine') ? backMat : coverMat
     else if (base === 'Band') m.material = bandMat
     else if (base === 'Plate') m.material = plateMat
     else if (base === 'Crystal') m.material = crystalMat

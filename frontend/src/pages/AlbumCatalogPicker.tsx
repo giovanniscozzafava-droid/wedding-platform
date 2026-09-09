@@ -41,6 +41,7 @@ import {
 
 // L'album 3D (three.js) è pesante: si carica solo quando serve, in un chunk a parte.
 const AlbumGlbStage = lazy(() => import('@/components/album/glb/AlbumGlbStage').then((m) => ({ default: m.AlbumGlbStage })))
+const AlbumFlipbook = lazy(() => import('@/components/album/AlbumFlipbook').then((m) => ({ default: m.AlbumFlipbook })))
 
 const hexLum = (h: string) => { const n = parseInt(h.replace('#', ''), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255 }
 
@@ -198,6 +199,7 @@ export default function AlbumCatalogPicker() {
     }))
   }, [comp.box, comp.finish])
   const colorOpts = useMemo(() => colorOptionsFor(comp.material), [comp.material])
+  const backColorOpts = useMemo(() => colorOptionsFor(comp.backMaterial), [comp.backMaterial])
   // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
   const coverPick = listino.covers.find((c) => c.id === selCover)
   const coverExtra = coverPick && !coverPick.included ? Number(coverPick.price) || 0 : 0
@@ -267,6 +269,9 @@ export default function AlbumCatalogPicker() {
   // L'ALBUM 3D si ridisegna a ogni scelta: le voci del catalogo diventano una Cover del mockup
   // (modello → layout della tavola, materiale/colore → superficie e tinta, formato, box, foto, rifiniture).
   const [view3d, setView3d] = useState<GlbView>('three-quarter')
+  const [backDiff, setBackDiff] = useState(false)          // retro e dorso di un altro materiale/colore
+  const [flipOpen, setFlipOpen] = useState(false)          // sfoglio 3D con le foto della selezione
+  const [flipPhotos, setFlipPhotos] = useState<string[]>([])
   const stageRef = useRef<AlbumGlbStageHandle>(null)
   const cover3d = useMemo<GlbCover>(() => {
     const fin = new Set<string>()
@@ -283,6 +288,8 @@ export default function AlbumCatalogPicker() {
       blockType: comp.block === 'book-flat' ? 'bookflat' : 'photo',
       box: comp.box ?? specs.box, finishes: Array.from(fin),
       photo_url: wantPhoto ? comp.coverPhoto?.url ?? null : null,
+      backFabric: comp.backMaterial, backColorKey: comp.backColor,
+      backColor: comp.backMaterial ? paletteFor(comp.backMaterial).find((c) => c.key === comp.backColor)?.hex : undefined,
       title: entryTitle || clientName.trim() || '',
       logoKey: comp.logo && comp.logo !== 'nessuno' && /^cod\./.test(comp.logo) ? comp.logo : undefined,
       eventDate: entryDate,
@@ -297,6 +304,7 @@ export default function AlbumCatalogPicker() {
       { label: 'Modello', value: comp.model?.label ?? selected?.label, img: swatchUrl(`model:${familyOf(comp.model?.label ?? selected?.label)}`), missing: true },
       { label: 'Materiale', value: comp.material ? materialLabel(comp.material) : undefined, img: swatchUrl(`mat:${comp.material}`), missing: true },
       { label: 'Colore', value: col?.label, img: col?.img, hex: col?.hex, missing: true },
+      ...(backDiff ? [{ label: 'Retro e dorso', value: comp.backMaterial ? `${materialLabel(comp.backMaterial)}${backColorOpts.find((o) => o.key === comp.backColor)?.label ? ` · ${backColorOpts.find((o) => o.key === comp.backColor)!.label}` : ''}` : undefined, img: backColorOpts.find((o) => o.key === comp.backColor)?.img ?? swatchUrl(`mat:${comp.backMaterial}`), hex: backColorOpts.find((o) => o.key === comp.backColor)?.hex, missing: true } as SheetRow] : []),
       { label: 'Nomi e loghi', value: comp.logo && comp.logo !== 'nessuno' ? optLabel(LOGO_OPTIONS, comp.logo) : 'Nessuna', img: logo?.img, fit: 'contain' },
     ]
     if (logoNeedsColor(comp.logo)) rows.push({ label: 'Tonalità', value: optLabel(LOGO_COLOR_TILES, comp.logoColor), img: swatchUrl(comp.logoColor), missing: true })
@@ -307,12 +315,19 @@ export default function AlbumCatalogPicker() {
       { label: 'Foto in copertina', value: wantPhoto ? (comp.coverPhoto ? (comp.coverPhoto.label ?? 'scelta dalla galleria') : undefined) : 'No', img: wantPhoto ? comp.coverPhoto?.url : undefined, missing: wantPhoto },
     )
     return rows
-  }, [comp, selected, colorOpts, specs.box, wantPhoto])
+  }, [comp, selected, colorOpts, backColorOpts, backDiff, specs.box, wantPhoto])
   // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + differenza album
   const rimanenza = residuo + pricing.total
-  const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
+  const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor) && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
     && !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && (!wantPhoto || !!comp.coverPhoto)
   const goToPage = (page?: number) => { if (page) setDeepPage(catalogPageToSheet(page)) }
+  // SFOGLIA: la copertina si apre e si girano le facciate con le foto scelte per l'album (selezione KEPT)
+  async function openFlip() {
+    let list = candidates
+    if (!list.length) { try { list = await getCoverPhotoCandidates(entryId); setCandidates(list) } catch { list = [] } }
+    setFlipPhotos(list.map((c) => corsImageUrl(c.thumb, 1200) ?? c.thumb).filter(Boolean).slice(0, 40))
+    setFlipOpen(true)
+  }
   // il modello si sceglie cliccando sulla pagina (hotspot o puntina) OPPURE dal menu
   function pickModelFromList(key: string) {
     const m = MODELS.find((x) => x.key === key)
@@ -532,7 +547,18 @@ export default function AlbumCatalogPicker() {
                 </div>
                 <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] bg-[rgb(var(--bg-elev))]/70 backdrop-blur rounded-full px-2.5 py-1">trascina per girare · {sizeByKey(specs.size)?.label ?? ''}</span>
               </div>
+              <div className="mt-2 flex justify-center">
+                <button type="button" onClick={() => void openFlip()}
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))] hover:border-[rgb(var(--gold-300))] transition-colors">
+                  <BookOpenCheck size={14} /> Sfoglia l'album con le vostre foto
+                </button>
+              </div>
             </div>
+            {flipOpen && (
+              <Suspense fallback={null}>
+                <AlbumFlipbook cover={cover3d} photos={flipPhotos} onClose={() => setFlipOpen(false)} />
+              </Suspense>
+            )}
 
             {/* LE TAVOLE DEL CATALOGO: si sfogliano e si spuntano */}
             <div className="flex items-baseline justify-between mb-2">
@@ -598,6 +624,22 @@ export default function AlbumCatalogPicker() {
                 <SwatchPicker shape="wide" cols={3} options={colorOpts} value={comp.color} disabled={!comp.material} emptyText="Prima scegli il materiale."
                   onChange={(k) => setComp((c) => ({ ...c, color: k }))} maxH="22rem" />
               </Voice>
+              <Voice label="Retro e dorso">
+                <PillChoice options={[{ key: 'uguale', label: 'Come il fronte' }, { key: 'diverso', label: 'Un altro materiale o colore' }]} value={backDiff ? 'diverso' : 'uguale'}
+                  onChange={(k) => { const d = k === 'diverso'; setBackDiff(d); if (!d) setComp((c) => ({ ...c, backMaterial: undefined, backColor: undefined })) }} />
+              </Voice>
+              {backDiff && (
+                <>
+                  <Voice label="Materiale del retro e del dorso" page={MATERIAL_OPTIONS.find((o) => o.key === comp.backMaterial)?.page ?? 115} onSee={goToPage}>
+                    <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
+                      value={comp.backMaterial} onChange={(k) => setComp((c) => ({ ...c, backMaterial: k, backColor: undefined }))} />
+                  </Voice>
+                  <Voice label="Colore del retro e del dorso">
+                    <SwatchPicker shape="wide" cols={3} options={backColorOpts} value={comp.backColor} disabled={!comp.backMaterial} emptyText="Prima scegli il materiale del retro."
+                      onChange={(k) => setComp((c) => ({ ...c, backColor: k }))} maxH="22rem" />
+                  </Voice>
+                </>
+              )}
             </Chapter>
 
             <Chapter n="III" title="Nomi e loghi" hint="I loghi del catalogo (pag. 34–37) e la tonalità con cui stamparli.">

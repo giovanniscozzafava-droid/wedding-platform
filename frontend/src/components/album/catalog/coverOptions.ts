@@ -187,6 +187,9 @@ export type CoverComposition = {
   model?: { key?: string; label: string; page?: number }
   material?: string
   color?: string
+  /** retro e dorso di un altro materiale/colore (facoltativo: se assenti, come il fronte) */
+  backMaterial?: string
+  backColor?: string
   logo?: string
   logoColor?: string
   block?: string
@@ -198,10 +201,13 @@ export type CoverComposition = {
 export function compositionLines(c: CoverComposition): string[] {
   const mat = MATERIALS.find((m) => m.key === c.material)
   const col = c.material ? paletteFor(c.material).find((x) => x.key === c.color) : undefined
+  const bmat = MATERIALS.find((m) => m.key === c.backMaterial)
+  const bcol = c.backMaterial ? paletteFor(c.backMaterial).find((x) => x.key === c.backColor) : undefined
   return [
     c.model ? `Modello: ${c.model.label}${c.model.page ? ` (pag. ${c.model.page})` : ''}` : null,
     mat ? `Materiale: ${mat.label}` : null,
     col ? `Colore: ${col.label}` : null,
+    bmat ? `Retro e dorso: ${bmat.label}${bcol ? ` ${bcol.label}` : ''}` : null,
     c.logo ? `Personalizzazione: ${optLabel(LOGO_OPTIONS, c.logo) ?? c.logo}` : null,
     c.logo && logoNeedsColor(c.logo) && c.logoColor ? `Tonalità logo: ${optLabel(LOGO_COLOR_OPTIONS, c.logoColor) ?? c.logoColor}` : null,
     c.block ? `Blocco interno: ${optLabel(BLOCK_OPTIONS, c.block) ?? c.block}` : null,
