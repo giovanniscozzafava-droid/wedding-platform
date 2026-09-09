@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maximize2 } from '@/components/icons/lucide'
+import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Info, Maximize2, Check, ImageIcon } from '@/components/icons/lucide'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FORMATS, BOXES, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, type Format } from '@/components/album/albumCatalog'
+import { FORMATS, BOXES, MODELS, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, type Format } from '@/components/album/albumCatalog'
+import {
+  MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, LOGO_COLOR_OPTIONS, logoNeedsColor, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
+  compositionLines, modelPage, catalogPageToSheet, type CoverComposition,
+} from '@/components/album/catalog/coverOptions'
+import { getCoverPhotoCandidates, type CoverPhotoCandidate } from '@/hooks/useAlbumOrder'
 import { getFormat } from '@/lib/albumFormats'
 import { looksLikeAlbum, euroA } from '@/lib/albumPricing'
 import { PdfFlipbook } from '@/components/album/catalog/PdfFlipbook'
@@ -23,6 +28,22 @@ import {
 
 // Lato coppia: sfoglia il PDF del proprio fotografo, tocca il modello (hotspot), compila
 // le specifiche, FIRMA → genera la commessa PDF (scaricata) e la mette in coda all'azienda.
+
+const SEL = 'mt-1 w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm disabled:opacity-60'
+
+// Etichetta + «vedi a pag. N» (porta il catalogo alla tavola giusta) + il menu.
+function Field({ label, page, onSee, children }: { label: string; page?: number; onSee?: (p?: number) => void; children: ReactNode }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <label className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{label}</label>
+        {page && onSee && <button type="button" onClick={() => onSee(page)} className="text-[11px] text-[rgb(var(--gold-700))] hover:underline">vedi a pag. {page}</button>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
 export default function AlbumCatalogPicker() {
   const { entryId = '' } = useParams()
   const navigate = useNavigate()
@@ -142,6 +163,44 @@ export default function AlbumCatalogPicker() {
     return applyMarkup(dp, Number(catalog?.markup_percent ?? 0)) ?? dp
   }, [selected?.price, selected?.label, specs.size, catalog?.markup_percent])
   const modelTotal = basePrice + surcharge
+
+  // COMPOSIZIONE DA CATALOGO: menu a tendina letti dal PDF DesignAlbum (materiali e colori
+  // pag. 115–127, personalizzazioni pag. 34–37, blocchi pag. 128, packaging pag. 97). UNA
+  // scelta per caratteristica; la foto di copertina si pesca dalla galleria dell'evento.
+  const [comp, setComp] = useState<CoverComposition>({ logo: 'nessuno', block: 'digitale', finish: 'nessuna' })
+  const [wantPhoto, setWantPhoto] = useState(false)
+  const [candidates, setCandidates] = useState<CoverPhotoCandidate[]>([])
+  useEffect(() => {
+    if (!wantPhoto || candidates.length) return
+    void getCoverPhotoCandidates(entryId).then(setCandidates).catch(() => {})
+  }, [wantPhoto, entryId, candidates.length])
+  // box e finitura viaggiano anche nelle specifiche della commessa (una sola voce)
+  useEffect(() => {
+    setSpecs((p) => ({
+      ...p,
+      box: comp.box ?? p.box,
+      finishes: comp.finish && comp.finish !== 'nessuna' ? [comp.finish] : [],
+    }))
+  }, [comp.box, comp.finish])
+  const colorOpts = useMemo(() => colorOptionsFor(comp.material), [comp.material])
+  const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
+    && !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && (!wantPhoto || !!comp.coverPhoto)
+  const goToPage = (page?: number) => { if (page) setDeepPage(catalogPageToSheet(page)) }
+  // il modello si sceglie cliccando sulla pagina (hotspot o puntina) OPPURE dal menu
+  function pickModelFromList(key: string) {
+    const m = MODELS.find((x) => x.key === key)
+    if (!m) return
+    const page = modelPage(m.label)
+    setSelected({ page: page ? catalogPageToSheet(page) : 1, x: 0, y: 0, w: 0, h: 0, label: m.label })
+    setComp((c) => ({ ...c, model: { key: m.key, label: m.label, page } }))
+    setSpecs((p) => ({ ...p, format: m.format }))
+    goToPage(page)
+  }
+  useEffect(() => {
+    // modello scelto cliccando (hotspot/puntina): entra nella composizione con la sua pagina
+    if (!selected) return
+    setComp((c) => (c.model?.label === selected.label ? c : { ...c, model: { key: MODELS.find((m) => m.label === selected.label)?.key, label: selected.label, page: (selected.page - 1) * 2 } }))
+  }, [selected?.id, selected?.label]) // eslint-disable-line react-hooks/exhaustive-deps
   // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
   const coverPick = listino.covers.find((c) => c.id === selCover)
   const coverExtra = coverPick && !coverPick.included ? Number(coverPick.price) || 0 : 0
@@ -177,9 +236,14 @@ export default function AlbumCatalogPicker() {
     setOpenPin(null)
     void reloadPins()
   }
-  const toggleFinish = (k: string) => setSpecs((p) => ({ ...p, finishes: (p.finishes ?? []).includes(k) ? (p.finishes ?? []).filter((x) => x !== k) : [...(p.finishes ?? []), k] }))
+  const ready = !!selected && compComplete && !!signature && clientName.trim().length > 1 && !busy
 
-  const ready = !!selected && !!signature && clientName.trim().length > 1 && !busy
+  async function toDataUrl(url: string): Promise<string | null> {
+    try {
+      const r = await fetch(url); const b = await r.blob()
+      return await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => res(null); fr.readAsDataURL(b) })
+    } catch { return null }
+  }
 
   async function confirm() {
     if (!catalog || !selected) return
@@ -203,9 +267,14 @@ export default function AlbumCatalogPicker() {
             ? `Album ${euroA(albumTotal)} · già ${euroA(optioned)} nel preventivo · differenza album ${euroA(albumUpgrade)} · rimanenza alla consegna ${euroA(rimanenza)}`
             : `Album ${euroA(albumTotal)}${shipping > 0 ? ` (incl. spedizione ${euroA(shipping)})` : ''}`)
         : null
+      // la composizione da catalogo, una riga per caratteristica: va nel PDF, nella nota
+      // (leggibile ovunque) e come oggetto strutturato nella commessa
+      const lines = compositionLines({ ...comp, coverPhoto: wantPhoto ? comp.coverPhoto : null })
+      // (le righe della composizione NON vanno anche nella nota: viaggiano a parte, strutturate)
       const composed = [chosen, priceLine, pinNote.trim() || undefined].filter(Boolean).join('\n')
       const fullSpecs = { ...specs, size: sizeLabel, note: composed || undefined }
       const dateLabel = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+      const coverPhotoDataUrl = wantPhoto && comp.coverPhoto?.url ? await toDataUrl(comp.coverPhoto.url) : null
       const blob = buildCommissionPdf({
         studio: catalog.studio || 'Studio',
         couple: clientName.trim(),
@@ -215,14 +284,18 @@ export default function AlbumCatalogPicker() {
         pageImageDataUrl: pageImg,
         catalogName: catalog.name,
         dateLabel,
+        composition: lines,
+        coverPhotoDataUrl,
       })
 
       const path = await uploadCommissionPdf(entryId, blob)
-      const orderId = await createCommission(entryId, {
+      const payload = {
         catalog_id: catalog.id, page: selected.page, model_label: selected.label,
         specs: fullSpecs, signed_by: clientName.trim(),
         signed_at: new Date().toISOString(), commission_pdf_path: path,
-      })
+        composition: { ...comp, coverPhoto: wantPhoto ? comp.coverPhoto : null, lines },
+      }
+      const orderId = await createCommission(entryId, payload)
       downloadBlob(blob, `commessa-${clientName.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${selected.label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`)
       setDoneId(orderId)
       toast.success('Commessa firmata e inviata all’azienda. PDF scaricato.')
@@ -281,6 +354,93 @@ export default function AlbumCatalogPicker() {
                     {isBaseModelLabel(selected.label) && <span className="ml-2 align-middle text-[10px] font-sans uppercase tracking-wide rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] px-2 py-0.5">Base · inclusa</span>}</p>
                 : <p className="text-sm text-[rgb(var(--fg-muted))]">Tocca un riquadro sulla pagina per scegliere.</p>}
               {selected && isBaseModelLabel(selected.label) && <p className="text-[11px] text-[rgb(var(--emerald-700))] mt-1">Modello base compreso nel pacchetto: nessun sovrapprezzo.</p>}
+            </Card>
+
+            {/* COMPONI LA COPERTINA: menu a tendina dal catalogo, una scelta per voce */}
+            <Card className="p-4 space-y-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Componi la copertina</p>
+                <p className="text-[12px] text-[rgb(var(--fg-muted))] mt-0.5">Tocca un modello sulla pagina oppure scegli qui sotto. Ogni voce ha una scelta sola: è quella che arriva all'azienda.</p>
+              </div>
+              <Field label="Modello" page={comp.model?.page} onSee={goToPage}>
+                <select value={comp.model?.key ?? ''} onChange={(e) => pickModelFromList(e.target.value)} className={SEL}>
+                  <option value="">{selected ? `Scelto sulla pagina: ${selected.label}` : 'Scegli un modello…'}</option>
+                  {MODEL_GROUPS.map((g) => (
+                    <optgroup key={g.key} label={g.label}>
+                      {g.models.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Materiale" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page ?? 115} onSee={goToPage}>
+                <select value={comp.material ?? ''} onChange={(e) => setComp((c) => ({ ...c, material: e.target.value || undefined, color: undefined }))} className={SEL}>
+                  <option value="">Scegli il materiale…</option>
+                  {MATERIAL_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}{o.page ? ` · pag. ${o.page}` : ''}</option>)}
+                </select>
+              </Field>
+              <Field label="Colore" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page} onSee={goToPage}>
+                <select value={comp.color ?? ''} disabled={!comp.material} onChange={(e) => setComp((c) => ({ ...c, color: e.target.value || undefined }))} className={SEL}>
+                  <option value="">{comp.material ? 'Scegli il colore…' : 'Prima il materiale'}</option>
+                  {colorOpts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Personalizzazione (nomi, loghi)" page={LOGO_OPTIONS.find((o) => o.key === comp.logo)?.page ?? 34} onSee={goToPage}>
+                <select value={comp.logo ?? 'nessuno'} onChange={(e) => setComp((c) => ({ ...c, logo: e.target.value, logoColor: logoNeedsColor(e.target.value) ? c.logoColor : undefined }))} className={SEL}>
+                  {LOGO_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+              </Field>
+              {logoNeedsColor(comp.logo) && (
+                <Field label="Tonalità del logo" page={37} onSee={goToPage}>
+                  <select value={comp.logoColor ?? ''} onChange={(e) => setComp((c) => ({ ...c, logoColor: e.target.value || undefined }))} className={SEL}>
+                    <option value="">Scegli la tonalità…</option>
+                    {LOGO_COLOR_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                  </select>
+                </Field>
+              )}
+              <Field label="Blocco interno" page={128} onSee={goToPage}>
+                <select value={comp.block ?? ''} onChange={(e) => setComp((c) => ({ ...c, block: e.target.value || undefined }))} className={SEL}>
+                  {BLOCK_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Box / contenitore" page={97} onSee={goToPage}>
+                <select value={comp.box ?? specs.box ?? 'nessuno'} onChange={(e) => setComp((c) => ({ ...c, box: e.target.value }))} className={SEL}>
+                  {BOX_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}{o.hint ? ` · ${o.hint}` : ''}</option>)}
+                </select>
+              </Field>
+              <Field label="Finitura">
+                <select value={comp.finish ?? 'nessuna'} onChange={(e) => setComp((c) => ({ ...c, finish: e.target.value }))} className={SEL}>
+                  {FINISH_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Foto in copertina">
+                <select value={wantPhoto ? 'si' : 'no'} onChange={(e) => { const v = e.target.value === 'si'; setWantPhoto(v); if (!v) setComp((c) => ({ ...c, coverPhoto: null })) }} className={SEL}>
+                  <option value="no">No</option>
+                  <option value="si">Sì, la scelgo dalla galleria</option>
+                </select>
+              </Field>
+              {wantPhoto && (
+                <div>
+                  <p className="text-[12px] text-[rgb(var(--fg-muted))] mb-1.5 flex items-center gap-1"><ImageIcon size={13} /> Tocca la foto da mettere in copertina (tra quelle scelte per l'album).</p>
+                  {candidates.length === 0
+                    ? <p className="text-sm text-[rgb(var(--fg-muted))]">Nessuna foto scelta per l'album ancora: prima seleziona le foto preferite nella galleria.</p>
+                    : (
+                      <div className="grid grid-cols-4 gap-1.5 max-h-72 overflow-auto">
+                        {candidates.map((c) => {
+                          const on = comp.coverPhoto?.mediaId === c.id
+                          return (
+                            <button key={c.id} type="button" onClick={() => setComp((x) => ({ ...x, coverPhoto: on ? null : { mediaId: c.id, url: c.thumb, label: c.label } }))}
+                              className={`relative rounded-lg overflow-hidden border-2 aspect-square ${on ? 'border-[rgb(var(--gold-500))]' : 'border-transparent'}`}>
+                              <img src={c.thumb} alt="" className="w-full h-full object-cover" />
+                              {on && <span className="absolute top-1 right-1 rounded-full bg-[rgb(var(--gold-500))] text-white p-0.5"><Check size={12} /></span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  {comp.coverPhoto && <p className="text-[12px] text-[rgb(var(--gold-700))] mt-1">Foto scelta: {comp.coverPhoto.label ?? 'selezionata'}</p>}
+                </div>
+              )}
+              {selected && !compComplete && <p className="text-[12px] text-[rgb(var(--fg-subtle))]">Manca una scelta: completa ogni voce per poter firmare.</p>}
             </Card>
 
             {selected && (basePrice > 0 || selected.price != null ? (
@@ -413,28 +573,9 @@ export default function AlbumCatalogPicker() {
                       onChange={(e) => setSpecs((p) => ({ ...p, pages: Math.max(10, Math.min(120, Number(e.target.value) || 40)) }))} className="mt-1 w-24" /></label>
                 </div>
 
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Box / contenitore{specs.box && specs.box !== 'nessuno' && familyFromQuote === false ? '' : ''}</p>
-                  {(familyFromQuote || (specs.box && specs.box !== 'nessuno')) && (
-                    <p className="text-[11px] text-emerald-600 mb-2">Già nel tuo preventivo: {[specs.box && specs.box !== 'nessuno' ? 'box' : null, familyFromQuote ? 'album famiglia' : null].filter(Boolean).join(' e ')} — pre-selezionati.</p>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    {BOXES.map((b) => (
-                      <button key={b.key} onClick={() => setSpecs((p) => ({ ...p, box: b.key }))}
-                        className={`px-3 py-1.5 rounded-lg text-sm border transition ${specs.box === b.key ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{b.label}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-2">Finiture</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {FINISHES.map((f) => (
-                      <button key={f.key} onClick={() => toggleFinish(f.key)}
-                        className={`px-2.5 py-1 rounded-lg text-xs border transition ${(specs.finishes ?? []).includes(f.key) ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))]'}`}>{f.label}</button>
-                    ))}
-                  </div>
-                </div>
+                {(familyFromQuote || (specs.box && specs.box !== 'nessuno')) && (
+                  <p className="text-[11px] text-emerald-600">Già nel tuo preventivo: {[specs.box && specs.box !== 'nessuno' ? 'box' : null, familyFromQuote ? 'album famiglia' : null].filter(Boolean).join(' e ')} — pre-selezionati in «Componi la copertina».</p>
+                )}
 
                 <div>
                   <label className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Nome e cognome (chi firma)</label>

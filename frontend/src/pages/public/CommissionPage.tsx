@@ -17,6 +17,7 @@ type Commission = {
   client_choice: {
     model_label?: string
     specs?: { format?: string; size?: string; pages?: number; box?: string; finishes?: string[]; note?: string }
+    composition?: { lines?: string[]; coverPhoto?: { url?: string; label?: string | null } | null }
     signed_by?: string; signed_at?: string
   } | null
   // "Chiudi la decisione" — conferma dallo stepper opzioni (colore/logo/box/finiture, senza
@@ -152,7 +153,16 @@ export default function CommissionPage() {
               <Row label="Misura" value={cc.specs?.size} />
               <Row label="Pagine" value={cc.specs?.pages ? `${cc.specs.pages}` : null} />
               <Row label="Box / contenitore" value={cc.specs?.box && cc.specs.box !== 'nessuno' ? cc.specs.box : null} />
-              <Row label="Finiture" value={cc.specs?.finishes?.length ? cc.specs.finishes.join(', ') : null} />
+              <Row label="Finitura" value={cc.specs?.finishes?.length ? cc.specs.finishes.join(', ') : null} />
+              {!!cc.composition?.lines?.length && (
+                <div className="pt-2">
+                  <p className="text-[13px] uppercase tracking-wide text-neutral-500 mb-1">Composizione copertina (dal catalogo)</p>
+                  {cc.composition.lines.map((l) => <p key={l} className="text-[15px] text-neutral-800">{l}</p>)}
+                  {cc.composition.coverPhoto?.url && (
+                    <img src={cc.composition.coverPhoto.url} alt="Foto scelta per la copertina" className="mt-2 h-28 w-28 rounded-lg object-cover border border-black/10" />
+                  )}
+                </div>
+              )}
               {cc.specs?.note && (
                 <div className="pt-2">
                   <p className="text-[13px] uppercase tracking-wide text-neutral-500 mb-1">Composizione e note</p>

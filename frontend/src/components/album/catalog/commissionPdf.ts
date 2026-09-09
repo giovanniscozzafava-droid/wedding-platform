@@ -13,6 +13,10 @@ export type CommissionDoc = {
   pageImageDataUrl?: string | null
   catalogName?: string
   dateLabel: string
+  /** composizione della copertina, una riga per caratteristica (modello, materiale, colore, logo…) */
+  composition?: string[]
+  /** foto scelta per la copertina (data URL o URL immagine) */
+  coverPhotoDataUrl?: string | null
 }
 
 const GOLD = [176, 141, 60] as const
@@ -30,12 +34,14 @@ export function buildCommissionPdf(d: CommissionDoc): Blob {
   doc.text(`${d.studio || 'Studio'} · ${d.dateLabel}`, M, y); y += 6
   doc.setDrawColor(...GOLD); doc.setLineWidth(0.6); doc.line(M, y, W - M, y); y += 9
 
+  // una riga può essere lunga o su più righe (la nota): va a capo e il cursore scende di conseguenza
   const row = (label: string, value: string) => {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...MUTED)
     doc.text(label.toUpperCase(), M, y)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(...INK)
-    doc.text(value || '—', M, y + 5.5)
-    y += 13
+    const lines = doc.splitTextToSize(value || '—', W - 2 * M) as string[]
+    doc.text(lines, M, y + 5.5)
+    y += 7.5 + lines.length * 5.5
   }
 
   row('Sposi / Cliente', d.couple)
@@ -50,7 +56,28 @@ export function buildCommissionPdf(d: CommissionDoc): Blob {
     sp.finishes && sp.finishes.length ? `Finiture: ${sp.finishes.join(', ')}` : null,
   ].filter(Boolean).join('   ·   ')
   row('Specifiche', specLine || 'Standard')
+  // composizione: una riga per caratteristica, così la stamperia non deve interpretare
+  if (d.composition?.length) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...MUTED)
+    doc.text('COMPOSIZIONE COPERTINA', M, y); y += 5.5
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(...INK)
+    for (const line of d.composition) { doc.text(line, M, y); y += 5.5 }
+    y += 5
+  }
   if (sp.note) row('Nota del cliente', sp.note)
+  if (d.coverPhotoDataUrl) {
+    try {
+      const props = doc.getImageProperties(d.coverPhotoDataUrl)
+      const maxW = 60, maxH = 45
+      const r = Math.min(maxW / props.width, maxH / props.height)
+      const w = props.width * r, h = props.height * r
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...MUTED)
+      doc.text('FOTO IN COPERTINA', M, y); y += 3
+      doc.addImage(d.coverPhotoDataUrl, 'JPEG', M, y, w, h)
+      doc.setDrawColor(220, 214, 204); doc.setLineWidth(0.3); doc.rect(M, y, w, h)
+      y += h + 8
+    } catch { /* foto opzionale */ }
+  }
 
   // miniatura della pagina del catalogo scelta
   if (d.pageImageDataUrl) {
