@@ -22,11 +22,13 @@ export async function getOptionCatalogForEntry(entryId: string): Promise<OptionC
 }
 
 export type ChosenOption = { key: string; label: string } | null
+// UNA sola scelta per caratteristica (niente elenchi di tag): la stamperia deve
+// leggere una riga sola per colore, logo, box e finitura, senza ambiguità.
 export type OptionChoices = {
   cover_color?: ChosenOption
   logo?: ChosenOption
   box?: ChosenOption
-  finishes?: { key: string; label: string }[]
+  finish?: ChosenOption
 }
 
 export type CoverPhotoCandidate = { id: string; thumb: string; label: string | null }
@@ -60,7 +62,11 @@ export async function confirmAlbumOrder(entryId: string, payload: {
     p_cover_photo_note: payload.coverPhotoNote?.trim() || null,
   })
   if (error) throw error
-  if (!data?.ok) throw new Error(data?.error === 'forbidden' ? 'Non autorizzato per questo evento' : 'Conferma non riuscita')
+  if (!data?.ok) {
+    if (data?.error === 'forbidden') throw new Error('Non autorizzato per questo evento')
+    if (data?.error === 'incomplete') throw new Error('Manca una scelta: indica una sola opzione per ogni caratteristica')
+    throw new Error('Conferma non riuscita')
+  }
   return data.order_id as string
 }
 

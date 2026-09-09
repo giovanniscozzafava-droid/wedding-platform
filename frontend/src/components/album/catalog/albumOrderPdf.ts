@@ -50,13 +50,12 @@ export function buildAlbumOrderPdf(d: AlbumOrderDoc): Blob {
   if (albumLine) row('Album', albumLine)
 
   const oc = d.optionChoices
-  const optLine = [
-    oc.cover_color ? `Colore: ${oc.cover_color.label}` : null,
-    oc.logo ? `Logo: ${oc.logo.label}` : null,
-    oc.box ? `Box: ${oc.box.label}` : null,
-    oc.finishes?.length ? `Finiture: ${oc.finishes.map((f) => f.label).join(', ')}` : null,
-  ].filter(Boolean).join('   ·   ')
-  row('Opzioni scelte', optLine || 'Nessuna opzione specificata')
+  // Una riga per caratteristica, sempre tutte e quattro: la stamperia non deve
+  // indovinare cosa manca — se manca, si legge «—».
+  row('Colore copertina', oc.cover_color?.label ?? '—')
+  row('Logo / impressione', oc.logo?.label ?? '—')
+  row('Box / cofanetto', oc.box?.label ?? '—')
+  row('Finitura', oc.finish?.label ?? '—')
 
   if (d.note?.trim()) row('Nota per il fotografo', d.note.trim())
 

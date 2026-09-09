@@ -23,7 +23,7 @@ type Commission = {
   // catalogo PDF): coesiste con client_choice, righe diverse dello stesso evento.
   client_confirmation: {
     confirmed_at?: string; confirmed_by_name?: string
-    option_choices?: { cover_color?: { label: string }; logo?: { label: string }; box?: { label: string }; finishes?: { label: string }[] }
+    option_choices?: { cover_color?: { label: string }; logo?: { label: string }; box?: { label: string }; finish?: { label: string } }
     notes?: string | null
     cover_photo_url?: string | null; cover_photo_label?: string | null; cover_photo_note?: string | null
     order_pdf_path?: string | null
@@ -169,7 +169,7 @@ export default function CommissionPage() {
               <Row label="Colore copertina" value={oc?.cover_color?.label} />
               <Row label="Logo / impressione" value={oc?.logo?.label} />
               <Row label="Box / cofanetto" value={oc?.box?.label} />
-              <Row label="Finiture" value={oc?.finishes?.length ? oc.finishes.map((f) => f.label).join(', ') : null} />
+              <Row label="Finitura" value={oc?.finish?.label ?? null} />
               {conf.notes && (
                 <div className="pt-2">
                   <p className="text-[13px] uppercase tracking-wide text-neutral-500 mb-1">Nota del cliente</p>

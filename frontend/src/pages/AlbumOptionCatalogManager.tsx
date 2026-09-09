@@ -14,7 +14,7 @@ const CATEGORIES: { key: OptionCategory; label: string; icon: typeof Palette; hi
   { key: 'COVER_COLOR', label: 'Colore copertina', icon: Palette, hint: 'Attiva "consente foto in copertina" per il colore/modello con finestra fotografica.' },
   { key: 'LOGO', label: 'Logo / impressione', icon: Stamp, hint: 'Es. nessuno, a caldo, a secco, placca.' },
   { key: 'BOX', label: 'Box / cofanetto', icon: Package, hint: 'Contenitori disponibili per l’album.' },
-  { key: 'FINISH', label: 'Finiture', icon: Layers, hint: 'La coppia può sceglierne più di una.' },
+  { key: 'FINISH', label: 'Finitura', icon: Layers, hint: 'Una sola scelta, come per le altre caratteristiche: tieni «Nessuna» se vuoi lasciare la porta aperta.' },
 ]
 
 // Le opzioni della coppia arrivano per categoria: se hai righe TUE per una categoria, quelle

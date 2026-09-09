@@ -96,11 +96,12 @@ insert into public.album_option_catalog (category, key, label, description, allo
   ('BOX', 'cofanetto', 'Cofanetto rigido',           null, false, 2),
   ('BOX', 'custodia',  'Custodia in tessuto',        null, false, 3),
   ('BOX', 'scatola',   'Scatola con coperchio',      null, false, 4),
-  ('FINISH', 'angoli-arrotondati', 'Angoli arrotondati',       null, false, 1),
-  ('FINISH', 'bordi-dorati',       'Bordi dorati',             null, false, 2),
-  ('FINISH', 'carta-perlata',      'Carta perlata',            null, false, 3),
-  ('FINISH', 'carta-opaca',        'Carta opaca premium',      null, false, 4),
-  ('FINISH', 'pagine-numerate',    'Pagine numerate',          null, false, 5)
+  ('FINISH', 'nessuna',            'Nessuna',                  null, false, 1),
+  ('FINISH', 'angoli-arrotondati', 'Angoli arrotondati',       null, false, 2),
+  ('FINISH', 'bordi-dorati',       'Bordi dorati',             null, false, 3),
+  ('FINISH', 'carta-perlata',      'Carta perlata',            null, false, 4),
+  ('FINISH', 'carta-opaca',        'Carta opaca premium',      null, false, 5),
+  ('FINISH', 'pagine-numerate',    'Pagine numerate',          null, false, 6)
 on conflict (category, key) where owner_id is null do nothing;
 
 -- ────────────────────────────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ alter table public.album_orders
   add column if not exists order_pdf_path       text;
 
 comment on column public.album_orders.option_choices is
-  'Scelte dello stepper "chiudi la decisione": {cover_color:{key,label}, logo:{key,label}, box:{key,label}, finishes:[{key,label}]}. Popolato da album_order_confirm.';
+  'Scelte dello stepper "chiudi la decisione", UNA per caratteristica: {cover_color:{key,label}, logo:{key,label}, box:{key,label}, finish:{key,label}}. Popolato da album_order_confirm, che rifiuta scelte incomplete.';
 comment on column public.album_orders.confirmed_at is
   'Non nullo = la coppia (o il fotografo per suo conto) ha confermato ESPLICITAMENTE album + opzioni. Trigger su questa colonna avvisa il fotografo (notifiche, tipo ALBUM_CONFERMATO).';
 
@@ -180,6 +181,20 @@ declare
   v_photo_url text; v_photo_label text;
 begin
   if not public.album_can_edit(p_entry) then return jsonb_build_object('error', 'forbidden'); end if;
+
+  -- Ogni caratteristica va indicata, UNA sola per categoria (un oggetto {key,label},
+  -- mai un elenco): la stamperia deve leggere un dunque, non una lista di tag.
+  if p_option_choices is null
+     or coalesce(jsonb_typeof(p_option_choices->'cover_color'), 'missing') <> 'object'
+     or coalesce(jsonb_typeof(p_option_choices->'logo'), 'missing') <> 'object'
+     or coalesce(jsonb_typeof(p_option_choices->'box'), 'missing') <> 'object'
+     or coalesce(jsonb_typeof(p_option_choices->'finish'), 'missing') <> 'object'
+     or nullif(p_option_choices->'cover_color'->>'key', '') is null
+     or nullif(p_option_choices->'logo'->>'key', '') is null
+     or nullif(p_option_choices->'box'->>'key', '') is null
+     or nullif(p_option_choices->'finish'->>'key', '') is null then
+    return jsonb_build_object('error', 'incomplete');
+  end if;
 
   select owner_id into v_owner from public.event_galleries where entry_id = p_entry limit 1;
   v_owner := coalesce(v_owner, auth.uid());

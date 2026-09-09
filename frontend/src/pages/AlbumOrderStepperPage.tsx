@@ -10,17 +10,19 @@ import {
   type OptionCatalog, type OptionChoices, type CoverPhotoCandidate, type CatalogOption,
 } from '@/hooks/useAlbumOrder'
 
-// Stepper "chiudi la decisione": UNA scelta per passo, niente prezzi (beta senza money-talk).
-// Passi fissi: colore copertina → logo/impressione → box → finiture → [foto in copertina, SOLO
-// se il colore scelto lo prevede] → nota libera → riepilogo e conferma.
+// Stepper "chiudi la decisione": UNA sola scelta per caratteristica (mai elenchi di tag:
+// la stamperia deve leggere un dunque), ogni passo è obbligatorio, niente prezzi (beta
+// senza money-talk). Passi fissi: colore copertina → logo/impressione → box → finitura →
+// [foto in copertina, SOLO se il colore scelto lo prevede: obbligatoria] → nota libera →
+// riepilogo con TUTTE le caratteristiche e conferma.
 type StepKey = 'cover_color' | 'logo' | 'box' | 'finish' | 'cover_photo' | 'note' | 'review'
 
 const STEP_META: Record<Exclude<StepKey, 'review'>, { title: string; hint: string; icon: typeof Palette }> = {
   cover_color: { title: 'Colore copertina', hint: 'Il colore della copertina del tuo album.', icon: Palette },
   logo:        { title: 'Logo o impressione', hint: 'Come vuoi personalizzare la copertina.', icon: Stamp },
   box:         { title: 'Box o cofanetto', hint: "Un contenitore per l'album, se lo vuoi.", icon: Package },
-  finish:      { title: 'Finiture', hint: 'Puoi scegliere più di una finitura.', icon: Layers },
-  cover_photo: { title: 'Foto in copertina', hint: 'Scegli la foto da mettere sulla copertina.', icon: ImageIcon },
+  finish:      { title: 'Finitura', hint: 'Una sola finitura: se non ne vuoi, scegli «Nessuna».', icon: Layers },
+  cover_photo: { title: 'Foto in copertina', hint: 'Il modello scelto prevede una foto in copertina: indica quale.', icon: ImageIcon },
   note:        { title: 'Una nota per il fotografo', hint: 'Facoltativa: scrivi qui se vuoi dire altro.', icon: PenLine },
 }
 
@@ -36,7 +38,7 @@ export default function AlbumOrderStepperPage() {
   const [coverColor, setCoverColor] = useState<CatalogOption | null>(null)
   const [logo, setLogo] = useState<CatalogOption | null>(null)
   const [box, setBox] = useState<CatalogOption | null>(null)
-  const [finishes, setFinishes] = useState<Set<string>>(new Set())
+  const [finish, setFinish] = useState<CatalogOption | null>(null)
   const [coverPhotoId, setCoverPhotoId] = useState<string | null>(null)
   const [coverPhotoNote, setCoverPhotoNote] = useState('')
   const [note, setNote] = useState('')
@@ -56,7 +58,7 @@ export default function AlbumOrderStepperPage() {
           if (oc.cover_color) setCoverColor({ id: oc.cover_color.key, key: oc.cover_color.key, label: oc.cover_color.label, description: null, allows_cover_photo: false })
           if (oc.logo) setLogo({ id: oc.logo.key, key: oc.logo.key, label: oc.logo.label, description: null, allows_cover_photo: false })
           if (oc.box) setBox({ id: oc.box.key, key: oc.box.key, label: oc.box.label, description: null, allows_cover_photo: false })
-          if (oc.finishes?.length) setFinishes(new Set(oc.finishes.map((f) => f.key)))
+          if (oc.finish) setFinish({ id: oc.finish.key, key: oc.finish.key, label: oc.finish.label, description: null, allows_cover_photo: false })
           if (st.notes) setNote(st.notes)
           if (st.coverPhotoNote) setCoverPhotoNote(st.coverPhotoNote)
         }
@@ -88,20 +90,34 @@ export default function AlbumOrderStepperPage() {
   }, [coverColor?.allows_cover_photo])
 
   const cur = steps[step] ?? 'review'
-  const toggleFinish = (key: string) => setFinishes((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n })
-  const finishLabels = (keys: Set<string>) => catalog.FINISH.filter((f) => keys.has(f.key)).map((f) => ({ key: f.key, label: f.label }))
 
-  function next() { setStep((s) => Math.min(steps.length - 1, s + 1)) }
+  // Ogni passo pretende la sua scelta: senza, non si va avanti.
+  const chosenFor = (s: StepKey): boolean => {
+    switch (s) {
+      case 'cover_color': return !!coverColor
+      case 'logo': return !!logo
+      case 'box': return !!box
+      case 'finish': return !!finish
+      case 'cover_photo': return !!coverPhotoId
+      default: return true
+    }
+  }
+  const canProceed = chosenFor(cur)
+  const complete = steps.every(chosenFor)
+
+  function next() { if (canProceed) setStep((s) => Math.min(steps.length - 1, s + 1)) }
   function back() { setStep((s) => Math.max(0, s - 1)) }
 
   async function confirm() {
+    if (!coverColor || !logo || !box || !finish) { toast.error('Manca una scelta: indica una sola opzione per ogni caratteristica'); return }
+    if (coverColor.allows_cover_photo && !coverPhotoId) { toast.error('Il modello scelto prevede una foto in copertina: indica quale'); return }
     setBusy(true)
     try {
       const optionChoices: OptionChoices = {
-        cover_color: coverColor ? { key: coverColor.key, label: coverColor.label } : undefined,
-        logo: logo ? { key: logo.key, label: logo.label } : undefined,
-        box: box ? { key: box.key, label: box.label } : undefined,
-        finishes: finishLabels(finishes),
+        cover_color: { key: coverColor.key, label: coverColor.label },
+        logo: { key: logo.key, label: logo.label },
+        box: { key: box.key, label: box.label },
+        finish: { key: finish.key, label: finish.label },
       }
       await confirmAlbumOrder(entryId, {
         optionChoices, note, coverPhotoMediaId: coverColor?.allows_cover_photo ? coverPhotoId : null,
@@ -118,7 +134,7 @@ export default function AlbumOrderStepperPage() {
     <div className="max-w-lg mx-auto px-6 py-16 text-center">
       <CheckCircle2 size={48} className="mx-auto text-[rgb(var(--gold-600))] mb-3" />
       <h1 className="font-display text-2xl mb-2">Scelte confermate</h1>
-      <p className="text-[rgb(var(--fg-muted))] mb-6">Il tuo fotografo ha ricevuto colore, logo, box, finiture{coverColor?.allows_cover_photo ? ' e la foto di copertina' : ''} che hai scelto. Puoi tornare qui e cambiare idea finché l'album non va in stampa.</p>
+      <p className="text-[rgb(var(--fg-muted))] mb-6">Il tuo fotografo ha ricevuto colore, logo, box, finitura{coverColor?.allows_cover_photo ? ' e la foto di copertina' : ''} che hai scelto. Puoi tornare qui e cambiare idea finché l'album non va in stampa.</p>
       <div className="flex gap-2 justify-center">
         <Button variant="outline" onClick={() => setDone(false)}>Rivedi le scelte</Button>
         <Button onClick={() => navigate(-1)}>Fine</Button>
@@ -137,7 +153,7 @@ export default function AlbumOrderStepperPage() {
 
         <div className="mb-5">
           <h1 className="font-display text-3xl">Le opzioni del tuo album</h1>
-          <p className="text-[rgb(var(--fg-muted))] mt-1">Un passo alla volta: colore, logo, box, finiture{alreadyConfirmedAt ? ' — puoi cambiare idea finché non va in stampa' : ''}.</p>
+          <p className="text-[rgb(var(--fg-muted))] mt-1">Un passo alla volta, una sola scelta per ciascuno: colore, logo, box, finitura{alreadyConfirmedAt ? ' — puoi cambiare idea finché non va in stampa' : ''}.</p>
         </div>
 
         {!layoutApproved && (
@@ -173,18 +189,7 @@ export default function AlbumOrderStepperPage() {
               <OptionGrid options={catalog.BOX} selected={box} onSelect={setBox} />
             )}
             {cur === 'finish' && (
-              <div className="grid grid-cols-2 gap-2">
-                {catalog.FINISH.map((f) => {
-                  const on = finishes.has(f.key)
-                  return (
-                    <button key={f.key} onClick={() => toggleFinish(f.key)}
-                      className={`text-left rounded-xl border px-3 py-2.5 text-sm transition ${on ? 'border-[rgb(var(--gold-500))] bg-[rgb(var(--gold-100))]' : 'border-[rgb(var(--border))] hover:border-[rgb(var(--gold-300))]'}`}>
-                      <span className="flex items-center gap-1.5">{on && <Check size={14} className="text-[rgb(var(--gold-700))]" />} {f.label}</span>
-                    </button>
-                  )
-                })}
-                {catalog.FINISH.length === 0 && <p className="text-sm text-[rgb(var(--fg-muted))] col-span-2">Nessuna finitura disponibile.</p>}
-              </div>
+              <OptionGrid options={catalog.FINISH} selected={finish} onSelect={setFinish} />
             )}
             {cur === 'cover_photo' && (
               <div>
@@ -208,9 +213,12 @@ export default function AlbumOrderStepperPage() {
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} placeholder="Scrivi qui se vuoi dire altro al tuo fotografo…" />
             )}
 
-            <div className="flex justify-between mt-6">
+            <div className="flex items-center justify-between mt-6 gap-3">
               <Button variant="ghost" onClick={back} disabled={step === 0}><ChevronLeft size={16} /> Indietro</Button>
-              <Button onClick={next}>Avanti <ChevronRight size={16} /></Button>
+              <div className="flex items-center gap-3">
+                {!canProceed && <span className="text-[12px] text-[rgb(var(--fg-subtle))]">Scegli un'opzione per continuare</span>}
+                <Button onClick={next} disabled={!canProceed}>Avanti <ChevronRight size={16} /></Button>
+              </div>
             </div>
           </Card>
         )}
@@ -222,16 +230,17 @@ export default function AlbumOrderStepperPage() {
               <ReviewRow label="Colore copertina" value={coverColor?.label} />
               <ReviewRow label="Logo / impressione" value={logo?.label} />
               <ReviewRow label="Box / cofanetto" value={box?.label} />
-              <ReviewRow label="Finiture" value={finishLabels(finishes).map((f) => f.label).join(', ') || undefined} />
-              {coverColor?.allows_cover_photo && (
-                <ReviewRow label="Foto in copertina" value={coverPhotoId ? (candidates.find((c) => c.id === coverPhotoId)?.label ?? 'Selezionata') : 'Non scelta'} />
-              )}
-              {note.trim() && <ReviewRow label="Nota" value={note.trim()} />}
+              <ReviewRow label="Finitura" value={finish?.label} />
+              <ReviewRow label="Foto in copertina" value={coverColor?.allows_cover_photo ? (coverPhotoId ? (candidates.find((c) => c.id === coverPhotoId)?.label ?? 'Selezionata') : 'Da indicare') : 'Non prevista da questo modello'} />
+              {coverColor?.allows_cover_photo && coverPhotoNote.trim() && <ReviewRow label="Nota sulla foto" value={coverPhotoNote.trim()} />}
+              <ReviewRow label="Nota" value={note.trim() || 'Nessuna'} />
             </div>
-            <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-4">Confermando, il fotografo riceve subito la tua scelta.</p>
+            <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-4">
+              {complete ? 'Una scelta per ogni caratteristica: confermando, il fotografo riceve subito la scheda completa.' : 'Manca una scelta: torna indietro e indica un’opzione per ogni caratteristica.'}
+            </p>
             <div className="flex justify-between mt-6">
               <Button variant="ghost" onClick={back}><ChevronLeft size={16} /> Indietro</Button>
-              <Button variant="gold" disabled={busy} onClick={confirm}>
+              <Button variant="gold" disabled={busy || !complete} onClick={confirm}>
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Confermo queste scelte
               </Button>
             </div>
