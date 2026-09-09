@@ -15,8 +15,8 @@ type Props = {
   options: SwatchOpt[]
   value?: string | null
   onChange: (key: string | undefined) => void
-  /** Proporzione della tessera: 'wide' = campione 5:2 (colori), 'square' = riquadro (loghi), 'chip' = quadratino (tonalità). */
-  shape?: 'wide' | 'square' | 'chip'
+  /** Proporzione della tessera: 'wide' = campione 5:2 (colori), 'square' = riquadro (loghi), 'chip' = quadratino (tonalità), 'photo' = foto 4:3 (modelli). */
+  shape?: 'wide' | 'square' | 'chip' | 'photo'
   cols?: number
   disabled?: boolean
   emptyText?: string
@@ -28,8 +28,8 @@ type Props = {
 
 export function SwatchPicker({ options, value, onChange, shape = 'wide', cols, disabled, emptyText, maxH, fit = 'cover' }: Props) {
   if (disabled) return <p className="mt-1 text-sm text-[rgb(var(--fg-muted))]">{emptyText ?? '—'}</p>
-  const n = cols ?? (shape === 'chip' ? 6 : shape === 'square' ? 3 : 3)
-  const ratio = shape === 'wide' ? '5 / 2' : '1 / 1'
+  const n = cols ?? (shape === 'chip' ? 6 : 3)
+  const ratio = shape === 'wide' ? '5 / 2' : shape === 'photo' ? '4 / 3' : '1 / 1'
   return (
     <div role="radiogroup" className="mt-1.5 grid gap-1.5 overflow-auto pr-0.5" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`, maxHeight: maxH }}>
       {options.map((o) => {

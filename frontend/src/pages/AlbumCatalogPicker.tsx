@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from '@/lib/toast'
 import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Maximize2, Check, ImageIcon } from '@/components/icons/lucide'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, type Format } from '@/components/album/albumCatalog'
 import {
   MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
-  compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, optLabel, type CoverComposition,
+  compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
+import { Chapter, Voice, PillChoice, ChoiceSheet, type SheetRow } from '@/components/album/catalog/CatalogUi'
+import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import { getCoverPhotoCandidates, type CoverPhotoCandidate } from '@/hooks/useAlbumOrder'
 import { getFormat } from '@/lib/albumFormats'
 import { looksLikeAlbum, parseQuoteItem, euroA } from '@/lib/albumPricing'
@@ -30,20 +31,12 @@ import {
 // Lato coppia: sfoglia il PDF del proprio fotografo, tocca il modello (hotspot), compila
 // le specifiche, FIRMA → genera la commessa PDF (scaricata) e la mette in coda all'azienda.
 
-const SEL = 'mt-1 w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm disabled:opacity-60'
+const MODEL_TILES = modelTiles()
+const LOGO_TILES = logoTiles()
+const LOGO_COLOR_TILES = logoColorTiles()
+const familyKeyOf = (label?: string) => familyOf(label)
 
-// Etichetta + «vedi a pag. N» (porta il catalogo alla tavola giusta) + il menu.
-function Field({ label, page, onSee, children }: { label: string; page?: number; onSee?: (p?: number) => void; children: ReactNode }) {
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-2">
-        <label className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">{label}</label>
-        {page && onSee && <button type="button" onClick={() => onSee(page)} className="text-[11px] text-[rgb(var(--gold-700))] hover:underline">vedi a pag. {page}</button>}
-      </div>
-      {children}
-    </div>
-  )
-}
+const SEL = 'mt-1 w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-3 py-2 text-sm disabled:opacity-60'
 
 export default function AlbumCatalogPicker() {
   const { entryId = '' } = useParams()
@@ -253,6 +246,25 @@ export default function AlbumCatalogPicker() {
     return { lines, total, inclPages, haveQuote }
   }, [selected, comp, specs.size, specs.pages, specs.box, optioned, quotePages, wantPhoto, listino, familyFromQuote, surcharge, coverExtra, accExtra, shipping, markupPct, coverPick?.label]) // eslint-disable-line react-hooks/exhaustive-deps
   const albumTotal = pricing.haveQuote ? optioned + pricing.total : pricing.total
+  // LA SCHEDA: una riga per caratteristica, con la miniatura del campione scelto
+  const sheetRows = useMemo<SheetRow[]>(() => {
+    const col = colorOpts.find((o) => o.key === comp.color)
+    const logo = LOGO_TILES.find((o) => o.key === comp.logo)
+    const rows: SheetRow[] = [
+      { label: 'Modello', value: comp.model?.label ?? selected?.label, img: swatchUrl(`model:${familyOf(comp.model?.label ?? selected?.label)}`), missing: true },
+      { label: 'Materiale', value: comp.material ? materialLabel(comp.material) : undefined, img: swatchUrl(`mat:${comp.material}`), missing: true },
+      { label: 'Colore', value: col?.label, img: col?.img, hex: col?.hex, missing: true },
+      { label: 'Nomi e loghi', value: comp.logo && comp.logo !== 'nessuno' ? optLabel(LOGO_OPTIONS, comp.logo) : 'Nessuna', img: logo?.img, fit: 'contain' },
+    ]
+    if (logoNeedsColor(comp.logo)) rows.push({ label: 'Tonalità', value: optLabel(LOGO_COLOR_TILES, comp.logoColor), img: swatchUrl(comp.logoColor), missing: true })
+    rows.push(
+      { label: 'Blocco', value: optLabel(BLOCK_OPTIONS, comp.block)?.replace(/\s*\(.*\)$/, ''), missing: true },
+      { label: 'Box', value: optLabel(BOX_OPTIONS, comp.box ?? specs.box ?? 'nessuno') },
+      { label: 'Finitura', value: optLabel(FINISH_OPTIONS, comp.finish ?? 'nessuna') },
+      { label: 'Foto in copertina', value: wantPhoto ? (comp.coverPhoto ? (comp.coverPhoto.label ?? 'scelta dalla galleria') : undefined) : 'No', img: wantPhoto ? comp.coverPhoto?.url : undefined, missing: wantPhoto },
+    )
+    return rows
+  }, [comp, selected, colorOpts, specs.box, wantPhoto])
   // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + differenza album
   const rimanenza = residuo + pricing.total
   const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
@@ -413,9 +425,13 @@ export default function AlbumCatalogPicker() {
         <button onClick={() => navigate(-1)} className="text-sm text-[rgb(var(--fg-muted))] inline-flex items-center gap-1 mb-4 hover:text-[rgb(var(--fg))]">
           <ChevronLeft size={16} /> Indietro
         </button>
-        <div className="mb-5">
-          <h1 className="font-display text-3xl sm:text-4xl">Scegli il tuo album</h1>
-          <p className="text-[rgb(var(--fg-muted))] mt-1">Sfoglia il catalogo di <b>{catalog.studio}</b>, tocca il modello che preferisci, poi firma.</p>
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-[rgb(var(--border))] pb-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--gold-700))]">Catalogo album · {catalog.studio}</p>
+            <h1 className="font-display text-3xl sm:text-4xl mt-1">Il tuo album</h1>
+            <p className="text-[rgb(var(--fg-muted))] mt-1 max-w-xl">Sfoglia le tavole, spunta ciò che ti piace e componi la copertina con le campionature vere del catalogo. Alla fine firmi: la scheda va all'azienda tramite il tuo fotografo.</p>
+          </div>
+          <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Tavole DesignAlbum 2022 · una scelta per voce</p>
         </div>
 
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-9 items-start">
@@ -429,42 +445,39 @@ export default function AlbumCatalogPicker() {
           </div>
 
           <div className="space-y-5">
-            <Card className="p-4">
-              <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] mb-1">Modello scelto</p>
-              {selected
-                ? <p className="font-display text-xl text-[rgb(var(--fg))]">{selected.label} <span className="text-xs text-[rgb(var(--fg-subtle))] font-sans">· pag. {selected.page}</span>
-                    {isBaseModelLabel(selected.label) && <span className="ml-2 align-middle text-[10px] font-sans uppercase tracking-wide rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] px-2 py-0.5">Base · inclusa</span>}</p>
-                : <p className="text-sm text-[rgb(var(--fg-muted))]">Tocca un riquadro sulla pagina per scegliere.</p>}
-              {selected && isBaseModelLabel(selected.label) && <p className="text-[11px] text-[rgb(var(--emerald-700))] mt-1">Modello base compreso nel pacchetto: nessun sovrapprezzo.</p>}
-            </Card>
-
-            {/* COMPONI LA COPERTINA: menu a tendina dal catalogo, una scelta per voce */}
-            <Card className="p-4 space-y-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">Componi la copertina</p>
-                <p className="text-[12px] text-[rgb(var(--fg-muted))] mt-0.5">Tocca un modello sulla pagina oppure scegli qui sotto. Ogni voce ha una scelta sola: è quella che arriva all'azienda.</p>
-              </div>
-              <Field label="Modello" page={comp.model?.page} onSee={goToPage}>
-                {/* Dalla spunta: le famiglie stampate sulla tavola spuntata, una tessera ciascuna */}
-                {selected && sheetFamilies.length > 1 && (
-                  <div className="mt-1 mb-1.5">
-                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Sulla tavola {selected.page} (pag. {sheetToPages(selected.page).join('–')}) ci sono questi modelli: tocca il tuo.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {sheetFamilies.map((f) => {
-                        const on = comp.model?.key === f.model.key
-                        return (
-                          <button key={f.family} type="button" onClick={() => applyFamily(f)}
-                            className={`rounded-full border px-2.5 py-1 text-xs capitalize transition-colors ${on ? 'border-[rgb(var(--gold-600))] bg-[rgb(var(--gold-50))] text-[rgb(var(--fg))]' : 'border-[rgb(var(--border))] text-[rgb(var(--fg-muted))] hover:border-[rgb(var(--gold-300))]'}`}>
-                            {on && <Check size={12} className="inline mr-1 -mt-0.5" />}{f.family}
-                          </button>
-                        )
-                      })}
+            {/* ============ CAPITOLI DEL CATALOGO (una scelta per voce: è quella che arriva all'azienda) ============ */}
+            <Chapter n="I" title="Il modello" hint="Tocca una foto, oppure spunta una tavola del catalogo: il modello si compila da sé."
+              aside={comp.model?.page ? <button type="button" onClick={() => goToPage(comp.model?.page)} className="text-[rgb(var(--gold-700))] hover:underline">vedi a pag. {comp.model.page}</button> : null}>
+              {selected && (
+                <div className="rounded-xl border border-[rgb(var(--gold-300))] bg-[rgb(var(--gold-50))] px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-[rgb(var(--gold-700))]">Dalla tua spunta · tavola {selected.page}</p>
+                  <p className="font-display text-lg leading-tight mt-0.5">{comp.model?.label ?? selected.label}
+                    {isBaseModelLabel(selected.label) && <span className="ml-2 align-middle font-sans text-[10px] uppercase tracking-wide rounded-full bg-[rgb(var(--emerald-100))] text-[rgb(var(--emerald-700))] px-2 py-0.5">base · inclusa</span>}
+                  </p>
+                  {sheetFamilies.length > 1 && (
+                    <div className="mt-1.5">
+                      <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-1">Su questa tavola (pag. {sheetToPages(selected.page).join('–')}) ci sono più modelli: tocca il tuo.</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {sheetFamilies.map((f) => {
+                          const on = comp.model?.key === f.model.key
+                          return (
+                            <button key={f.family} type="button" onClick={() => applyFamily(f)}
+                              className={`rounded-full border px-2.5 py-1 text-xs capitalize transition-colors ${on ? 'border-[rgb(var(--gold-600))] bg-[rgb(var(--gold-100))] text-[rgb(var(--gold-700))]' : 'border-[rgb(var(--border))] bg-[rgb(var(--bg))] text-[rgb(var(--fg-muted))] hover:border-[rgb(var(--gold-300))]'}`}>
+                              {on && <Check size={12} className="inline mr-1 -mt-0.5" />}{f.family}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
-                {selected && sheetFamilies.length === 1 && comp.model?.key && (
-                  <p className="mt-1 text-[11px] text-[rgb(var(--emerald-700))]">Importato dalla tua spunta sulla tavola {selected.page}: <b className="capitalize">{sheetFamilies[0]!.family}</b>.</p>
-                )}
+                  )}
+                  {sheetFamilies.length === 1 && comp.model?.key && <p className="mt-1 text-[11px] text-[rgb(var(--emerald-700))]">Importato dalla tavola: <b className="capitalize">{sheetFamilies[0]!.family}</b>.</p>}
+                </div>
+              )}
+              <SwatchPicker shape="photo" cols={3} maxH="26rem" value={comp.model?.key ? familyKeyOf(comp.model.label) : undefined}
+                options={MODEL_TILES.map((t) => ({ key: t.family, label: t.label, img: t.img, hint: `${t.collection}${t.page ? ` · pag. ${t.page}` : ''}` }))}
+                onChange={(k) => { const t = MODEL_TILES.find((x) => x.family === k); if (t) pickModelFromList(t.model.key) }} />
+              <details className="group">
+                <summary className="cursor-pointer list-none text-[12px] text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]">Tutte le varianti del listino <span className="text-[rgb(var(--fg-subtle))]">(menu)</span></summary>
                 <select value={comp.model?.key ?? ''} onChange={(e) => pickModelFromList(e.target.value)} className={SEL}>
                   <option value="">{selected ? `Scelto sulla pagina: ${selected.label}` : 'Scegli un modello…'}</option>
                   {MODEL_GROUPS.map((g) => (
@@ -473,47 +486,46 @@ export default function AlbumCatalogPicker() {
                     </optgroup>
                   ))}
                 </select>
-              </Field>
-              {/* Campionature ritagliate dal catalogo: il cliente sceglie dal campione, non da un nome */}
-              <Field label="Materiale" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page ?? 115} onSee={goToPage}>
+              </details>
+            </Chapter>
+
+            <Chapter n="II" title="Materiale e colore" hint="Le campionature sono quelle stampate sul catalogo, pag. 115–127.">
+              <Voice label="Materiale" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page ?? 115} onSee={goToPage}>
                 <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
                   value={comp.material} onChange={(k) => setComp((c) => ({ ...c, material: k, color: undefined }))} />
-              </Field>
-              <Field label="Colore" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page} onSee={goToPage}>
+              </Voice>
+              <Voice label="Colore" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page} onSee={goToPage}>
                 <SwatchPicker shape="wide" cols={3} options={colorOpts} value={comp.color} disabled={!comp.material} emptyText="Prima scegli il materiale."
                   onChange={(k) => setComp((c) => ({ ...c, color: k }))} maxH="22rem" />
-              </Field>
-              <Field label="Personalizzazione (nomi, loghi)" page={LOGO_OPTIONS.find((o) => o.key === comp.logo)?.page ?? 34} onSee={goToPage}>
-                <SwatchPicker shape="square" cols={4} fit="contain" options={logoTiles()} value={comp.logo ?? 'nessuno'} maxH="24rem"
+              </Voice>
+            </Chapter>
+
+            <Chapter n="III" title="Nomi e loghi" hint="I loghi del catalogo (pag. 34–37) e la tonalità con cui stamparli.">
+              <Voice label="Personalizzazione" page={LOGO_OPTIONS.find((o) => o.key === comp.logo)?.page ?? 34} onSee={goToPage}>
+                <SwatchPicker shape="square" cols={4} fit="contain" options={LOGO_TILES} value={comp.logo ?? 'nessuno'} maxH="24rem"
                   onChange={(k) => { const v = k ?? 'nessuno'; setComp((c) => ({ ...c, logo: v, logoColor: logoNeedsColor(v) ? c.logoColor : undefined })) }} />
-              </Field>
+              </Voice>
               {logoNeedsColor(comp.logo) && (
-                <Field label="Tonalità del logo" page={37} onSee={goToPage}>
-                  <SwatchPicker shape="chip" cols={6} options={logoColorTiles()} value={comp.logoColor}
-                    onChange={(k) => setComp((c) => ({ ...c, logoColor: k }))} />
-                </Field>
+                <Voice label="Tonalità del logo" page={37} onSee={goToPage}>
+                  <SwatchPicker shape="chip" cols={6} options={LOGO_COLOR_TILES} value={comp.logoColor} onChange={(k) => setComp((c) => ({ ...c, logoColor: k }))} />
+                </Voice>
               )}
-              <Field label="Blocco interno" page={128} onSee={goToPage}>
-                <select value={comp.block ?? ''} onChange={(e) => setComp((c) => ({ ...c, block: e.target.value || undefined }))} className={SEL}>
-                  {BLOCK_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-                </select>
-              </Field>
-              <Field label="Box / contenitore" page={97} onSee={goToPage}>
-                <select value={comp.box ?? specs.box ?? 'nessuno'} onChange={(e) => setComp((c) => ({ ...c, box: e.target.value }))} className={SEL}>
-                  {BOX_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}{o.hint ? ` · ${o.hint}` : ''}</option>)}
-                </select>
-              </Field>
-              <Field label="Finitura">
-                <select value={comp.finish ?? 'nessuna'} onChange={(e) => setComp((c) => ({ ...c, finish: e.target.value }))} className={SEL}>
-                  {FINISH_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-                </select>
-              </Field>
-              <Field label="Foto in copertina">
-                <select value={wantPhoto ? 'si' : 'no'} onChange={(e) => { const v = e.target.value === 'si'; setWantPhoto(v); if (!v) setComp((c) => ({ ...c, coverPhoto: null })) }} className={SEL}>
-                  <option value="no">No</option>
-                  <option value="si">Sì, la scelgo dalla galleria</option>
-                </select>
-              </Field>
+            </Chapter>
+
+            <Chapter n="IV" title="Interno, box e finitura">
+              <Voice label="Blocco interno" page={128} onSee={goToPage}>
+                <PillChoice options={BLOCK_OPTIONS.map((o) => ({ ...o, label: o.label.replace(/\s*\(.*\)$/, ''), hint: o.label }))} value={comp.block} onChange={(k) => setComp((c) => ({ ...c, block: k }))} />
+              </Voice>
+              <Voice label="Box / contenitore" page={97} onSee={goToPage}>
+                <PillChoice options={BOX_OPTIONS} value={comp.box ?? specs.box ?? 'nessuno'} onChange={(k) => setComp((c) => ({ ...c, box: k }))} />
+              </Voice>
+              <Voice label="Finitura">
+                <PillChoice options={FINISH_OPTIONS} value={comp.finish ?? 'nessuna'} onChange={(k) => setComp((c) => ({ ...c, finish: k }))} />
+              </Voice>
+              <Voice label="Foto in copertina">
+                <PillChoice options={[{ key: 'no', label: 'No' }, { key: 'si', label: 'Sì, la scelgo dalla galleria' }]} value={wantPhoto ? 'si' : 'no'}
+                  onChange={(k) => { const v = k === 'si'; setWantPhoto(v); if (!v) setComp((c) => ({ ...c, coverPhoto: null })) }} />
+              </Voice>
               {wantPhoto && (
                 <div>
                   <p className="text-[12px] text-[rgb(var(--fg-muted))] mb-1.5 flex items-center gap-1"><ImageIcon size={13} /> Tocca la foto da mettere in copertina (tra quelle scelte per l'album).</p>
@@ -536,8 +548,10 @@ export default function AlbumCatalogPicker() {
                   {comp.coverPhoto && <p className="text-[12px] text-[rgb(var(--gold-700))] mt-1">Foto scelta: {comp.coverPhoto.label ?? 'selezionata'}</p>}
                 </div>
               )}
-              {selected && !compComplete && <p className="text-[12px] text-[rgb(var(--fg-subtle))]">Manca una scelta: completa ogni voce per poter firmare.</p>}
-            </Card>
+            </Chapter>
+
+            <Chapter n="V" title="La tua scheda" hint={selected && !compComplete ? 'Manca una scelta: completa ogni voce per poter firmare.' : 'Controlla: è la copertina che arriva all\'azienda.'}>
+              <ChoiceSheet rows={sheetRows} />
 
             {/* CONTO: nel preventivo / aggiunte (una riga per voce, col ricarico) / differenza */}
             {selected && (
@@ -642,6 +656,9 @@ export default function AlbumCatalogPicker() {
               </div>
             )}
 
+            </Chapter>
+
+            <Chapter n="VI" title="Formato e firma" hint="Formato e pagine vengono dall'impaginato del fotografo, se c'è già; poi nome e firma.">
             <div className={selected ? '' : 'opacity-50 pointer-events-none'}>
               <div className="space-y-4">
                 <div>
@@ -699,6 +716,7 @@ export default function AlbumCatalogPicker() {
               {busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Conferma e firma · scarica commessa
             </Button>
             <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Firmando confermi il modello e le specifiche scelte. Ne esce un PDF commessa inviato all’azienda tramite il tuo fotografo.</p>
+            </Chapter>
           </div>
         </div>
       </div>

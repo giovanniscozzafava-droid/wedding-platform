@@ -12,6 +12,10 @@ shutil.copytree(SRC, DST, ignore=shutil.ignore_patterns('manifest.json'))
 entries = {}
 for group in ('materials', 'logos', 'tones'):
     for k, rel in man[group].items(): entries[k] = '/album-swatches/' + rel
+# tessere dei modelli (crop-models.py) → «model:<famiglia>»
+mp = os.path.join(SRC, 'models', 'manifest.json')
+if os.path.exists(mp):
+    for k, rel in json.load(open(mp)).items(): entries[k] = '/album-swatches/' + rel
 lines = ['// GENERATO da scratchpad/gen-swatches-ts.py: ritagli del catalogo DesignAlbum 2022 (150 dpi).',
          '// Chiavi: «mat:<materiale>» tessera del materiale, «<materiale>:<colore>» campione colore,',
          '// «cod.NN» logo (pag. 34–37), tonalità del logo (pag. 37). Non modificare a mano.',

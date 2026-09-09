@@ -66,7 +66,8 @@ export const FAMILY_PAGES: Record<string, number[]> = {
   // non in indice: panoramiche e pagine ottone (stima della sessione precedente)
   altea: [12], ardesia: [12], artemis: [12], brigit: [12], ashley: [88], azhar: [88],
 }
-const familyOf = (label?: string): string => ((label ?? '').split(' · ')[0] ?? '').trim().toLowerCase()
+/** Famiglia (design base) di un'etichetta del listino: la parte prima di « · », minuscola. */
+export const familyOf = (label?: string): string => ((label ?? '').split(' · ')[0] ?? '').trim().toLowerCase()
 /** Pagina del catalogo in cui si vede un modello (per «vedi a pag. N»). */
 export const modelPage = (label?: string): number | undefined => FAMILY_PAGES[familyOf(label)]?.[0]
 /** Le famiglie di modelli che compaiono su una tavola del PDF (dalla spunta del cliente). */
@@ -78,6 +79,24 @@ export const familiesOnSheet = (sheet: number): string[] => {
 export const familyPageOnSheet = (family: string, sheet: number): number | undefined => {
   const pages = sheetToPages(sheet)
   return FAMILY_PAGES[family]?.find((p) => pages.includes(p))
+}
+/** Tessere dei modelli: una per famiglia (design base), con la foto ritagliata dal catalogo quando c'è
+ *  (crop-models.py → «model:<famiglia>»), la collezione come nota e la pagina del catalogo. */
+export type ModelTile = { family: string; label: string; model: Model; img?: string; page?: number; collection: string }
+export const modelTiles = (): ModelTile[] => {
+  const seen = new Set<string>()
+  const out: ModelTile[] = []
+  for (const g of MODEL_GROUPS) {
+    for (const m of g.models) {
+      const fam = familyOf(m.label)
+      if (!fam || seen.has(fam)) continue
+      seen.add(fam)
+      const rep = modelsOfFamily(fam)[0] ?? m
+      out.push({ family: fam, label: fam.charAt(0).toUpperCase() + fam.slice(1), model: rep, img: swatchUrl(`model:${fam}`), page: FAMILY_PAGES[fam]?.[0], collection: g.label })
+    }
+  }
+  // nell'ordine del catalogo (pagina in cui compaiono); chi non è sulle tavole va in fondo, in ordine alfabetico
+  return out.sort((a, b) => (a.page ?? 999) - (b.page ?? 999) || a.label.localeCompare(b.label, 'it'))
 }
 /** I modelli del listino di una famiglia (una voce per design base, il rappresentante «più bello»). */
 export const modelsOfFamily = (family: string): Model[] => baseModelsByCategory('all').filter((m) => familyOf(m.label) === family)
