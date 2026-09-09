@@ -25,6 +25,7 @@ const GROUPS: Group[] = [
     { to: '/studio', label: 'Studio disegno', desc: 'Disegna a mano libera su tavola grafica a livelli.', icon: Brush, show: (r) => cap(r) || forn(r) },
     { to: '/stili', label: 'Portfolio', desc: 'Cura la vetrina dei tuoi lavori per i clienti.', icon: Images, show: (r) => cap(r) || forn(r) },
     { to: '/album-catalogo', label: 'Catalogo album', desc: 'Carica i PDF dei modelli album e marcali per i clienti.', icon: BookImage, show: (r, _s, p) => forn(r) && p },
+    { to: '/album-opzioni-catalogo', label: 'Opzioni album', desc: 'Colore copertina, logo, box e finiture che il cliente può scegliere.', icon: BookImage, show: (r, _s, p) => forn(r) && p },
     { to: '/prova', label: 'Prova look · Beta', desc: 'Trucco, acconciatura, allestimento floreale o fuochi: l’AI li applica sulla foto e li invii al cliente.', icon: Brush, show: (r, s) => ['parrucchiere', 'make_up', 'fioraio', 'allestimenti', 'fuochista'].includes(s) || r === 'ADMIN' },
   ]},
   { key: 'cucina', title: 'Cucina & sala', tools: [

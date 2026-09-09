@@ -24,6 +24,7 @@ import { PrintOrderSheet } from './PrintOrderSheet'
 import { FunnelSteps } from '@/components/album/FunnelSteps'
 import { AlbumOnboarding } from '@/components/album/AlbumOnboarding'
 import { getAlbumOrderStatus, approveAlbumLayout, reopenAlbumLayout, uploadOrderPdf, saveOrderPdfPath, type AlbumOrderStatus } from '@/hooks/useAlbumOrder'
+import { ClientAlbumChoiceCard } from '@/components/event/ClientAlbumChoiceCard'
 import { buildAlbumOrderPdf, downloadPdfBlob, imageUrlToDataUrl } from '@/components/album/catalog/albumOrderPdf'
 import { getFormat } from '@/lib/albumFormats'
 
@@ -823,8 +824,8 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
             {isOwner && <Button variant="outline" size="sm" disabled title="Configuratore copertina 3D — in arrivo (in attesa del partner di stampa)"><Printer size={14} /> Copertina 3D · presto</Button>}
             {role === 'sposi' && <Link to={`/album-opzioni/${entryId}`}><Button variant="outline" size="sm" title="Colore copertina, logo, box e finiture — un passo alla volta"><Sliders size={14} /> {albumOrder?.confirmed ? 'Cambia le opzioni' : 'Configura le opzioni'}</Button></Link>}
             {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
-            {isOwner && <Link to="/album-catalogo"><Button variant="outline" size="sm" title="Carica il PDF del tuo catalogo e marca i modelli per i clienti"><BookOpen size={14} /> Gestisci catalogo PDF</Button></Link>}
-            {isOwner && <Link to="/album-opzioni-catalogo"><Button variant="outline" size="sm" title="Colore copertina, logo, box e finiture che il cliente può scegliere"><Sliders size={14} /> Gestisci opzioni album</Button></Link>}
+            {/* Il catalogo (PDF, modelli, opzioni, prezzi) è dello studio, non dell'evento: si gestisce da
+                Strumenti. Qui, per il fotografo, c'è solo la scelta di QUESTO cliente (card sotto). */}
             {isOwner && albumOrder?.confirmed && (
               <Button variant="gold" size="sm" disabled={pdfBusy} onClick={() => void downloadOrderSheet()} title="PDF con album, opzioni scelte, nota e foto di copertina — brandizzato con i tuoi dati">
                 {pdfBusy ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} Scarica scheda ordine (PDF)
@@ -834,6 +835,10 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
           </div>
         </Card>
       )}
+
+      {/* SCELTA ALBUM DEL CLIENTE (solo fotografo): la commessa firmata dal catalogo, la composizione,
+          il conto e le puntine di QUESTO evento. Niente catalogo globale qui dentro. */}
+      {isOwner && <ClientAlbumChoiceCard entryId={entryId} />}
 
       {/* GALLERIA SPOSI pubblica: link privato (senza login) per sfogliare e selezionare le foto
           con lo swipe. Le scelte tornano qui come «Preferite degli sposi» (album_choice KEPT). */}
