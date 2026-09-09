@@ -470,7 +470,14 @@ function modelText(k?: string): string {
   const m = modelByKey(k)
   return `${m?.key ?? k ?? ''} ${m?.label ?? ''} ${m?.variant ?? ''}`.toUpperCase()
 }
+// Layout 3D per FAMIGLIA (design base), verificato sulle tavole del catalogo 2022: vince su tutto.
+export const FAMILY_LAYOUT: Record<string, Layout> = {
+  adel: 'fascia', personalizzato: 'print', charme: 'photo-full', clouds: 'photo-full', ghost: 'print', ikon: 'photo-full',
+  hera: 'photo-full', julies: 'trilogy', frame: 'photo-full', plaza: 'plate', sirene: 'fascia-ornament', graphic: 'photo-full',
+}
 export function modelLayout(k?: string): Layout {
+  const fam = baseDesignKey(modelByKey(k))
+  if (fam && FAMILY_LAYOUT[fam]) return FAMILY_LAYOUT[fam]!
   if (k && MODEL_LAYOUT[k]) return MODEL_LAYOUT[k]!
   const t = modelText(k)
   if (t.includes('BRAND')) return 'monogram'
