@@ -4,7 +4,8 @@ import { toast } from '@/lib/toast'
 import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Maximize2, Check, ImageIcon } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format, type Cover } from '@/components/album/albumCatalog'
+import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format } from '@/components/album/albumCatalog'
+import type { GlbCover, GlbView } from '@/components/album/glb/AlbumGlbStage'
 import {
   MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
   compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, optLabel, type CoverComposition,
@@ -32,7 +33,9 @@ import {
 // le specifiche, FIRMA → genera la commessa PDF (scaricata) e la mette in coda all'azienda.
 
 // L'album 3D (three.js) è pesante: si carica solo quando serve, in un chunk a parte.
-const AlbumStage = lazy(() => import('@/components/album/configurator/AlbumStage').then((m) => ({ default: m.AlbumStage })))
+const AlbumGlbStage = lazy(() => import('@/components/album/glb/AlbumGlbStage').then((m) => ({ default: m.AlbumGlbStage })))
+
+const hexLum = (h: string) => { const n = parseInt(h.replace('#', ''), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255 }
 
 const MODEL_TILES = modelTiles()
 const LOGO_TILES = logoTiles()
@@ -254,7 +257,8 @@ export default function AlbumCatalogPicker() {
   const albumTotal = pricing.haveQuote ? optioned + pricing.total : pricing.total
   // L'ALBUM 3D si ridisegna a ogni scelta: le voci del catalogo diventano una Cover del mockup
   // (modello → layout della tavola, materiale/colore → superficie e tinta, formato, box, foto, rifiniture).
-  const cover3d = useMemo<Cover>(() => {
+  const [view3d, setView3d] = useState<GlbView>('three-quarter')
+  const cover3d = useMemo<GlbCover>(() => {
     const fin = new Set<string>()
     if (comp.finish && comp.finish !== 'nessuna') fin.add(comp.finish)
     if (comp.logo === 'swarovski') fin.add('swarovski')
@@ -270,6 +274,8 @@ export default function AlbumCatalogPicker() {
       box: comp.box ?? specs.box, finishes: Array.from(fin),
       photo_url: wantPhoto ? comp.coverPhoto?.url ?? null : null,
       title: entryTitle || clientName.trim() || '',
+      logoKey: comp.logo && comp.logo !== 'nessuno' && /^cod\./.test(comp.logo) ? comp.logo : undefined,
+      ink: comp.logoColor === 'bianco' ? 'white' : comp.logoColor?.startsWith('grigio') ? 'silver' : (hex && hexLum(hex) < 0.5) ? 'white' : 'ink',
     }
   }, [comp, selected?.label, specs.format, specs.size, specs.pages, specs.box, wantPhoto, clientName, entryTitle])
   // LA SCHEDA: una riga per caratteristica, con la miniatura del campione scelto
@@ -475,9 +481,21 @@ export default function AlbumCatalogPicker() {
                 <p className="font-display text-lg">Il tuo album in 3D</p>
                 <p className="text-[11px] text-[rgb(var(--fg-subtle))]">si aggiorna a ogni scelta</p>
               </div>
-              <Suspense fallback={<div className="aspect-[4/3] w-full rounded-3xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] grid place-items-center text-[rgb(var(--fg-subtle))]"><Loader2 className="animate-spin" /></div>}>
-                <AlbumStage cover={cover3d} compact />
-              </Suspense>
+              <div className="relative rounded-3xl overflow-hidden border border-[rgb(var(--border))] shadow-[0_18px_50px_rgba(20,18,14,.14)]"
+                style={{ background: 'radial-gradient(120% 90% at 50% 18%, rgb(var(--bg-elev)) 0%, rgb(var(--bg-sunken)) 58%, rgb(var(--gold-100)/.5) 130%)' }}>
+                <div className="aspect-[4/3] w-full">
+                  <Suspense fallback={<div className="h-full w-full grid place-items-center text-[rgb(var(--fg-subtle))]"><Loader2 className="animate-spin" /></div>}>
+                    <AlbumGlbStage cover={cover3d} view={view3d} width={620} />
+                  </Suspense>
+                </div>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))]/90 backdrop-blur px-1.5 py-1 shadow">
+                  {([['front', 'Fronte'], ['three-quarter', '3/4'], ['spine', 'Dorso'], ['top', 'Dall\'alto']] as [GlbView, string][]).map(([k, l]) => (
+                    <button key={k} type="button" onClick={() => setView3d(k)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${view3d === k ? 'bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))]' : 'text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg))]'}`}>{l}</button>
+                  ))}
+                </div>
+                <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-[rgb(var(--fg-subtle))] bg-[rgb(var(--bg-elev))]/70 backdrop-blur rounded-full px-2.5 py-1">trascina per girare · {sizeByKey(specs.size)?.label ?? ''}</span>
+              </div>
             </div>
           </div>
 
