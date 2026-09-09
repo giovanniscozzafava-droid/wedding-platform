@@ -237,11 +237,13 @@ function WeddingCard({ w, uid, unread, onDelete, onLeave, onToggleUrgent }: {
     <Card className={cn('hover:shadow-[var(--shadow-lift)] transition-shadow overflow-hidden', urgent && 'urgent-ring')}
       style={urgent ? { borderColor: 'rgb(var(--lacca))' } : undefined}>
       <div className="p-6 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <Link to={`/weddings/${w.id}`} className="min-w-0 flex-1">
-            <h3 className="font-display text-xl truncate flex items-center gap-2">
+        {/* Su telefono badge e tasti non entrano accanto al nome: il nome tiene almeno 13rem
+            e il gruppo a destra va a capo sotto (flex-wrap), invece di schiacciare il titolo a una lettera. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+          <Link to={`/weddings/${w.id}`} className="min-w-0 flex-1 basis-52">
+            <h3 className="font-display text-xl flex items-center gap-2 min-w-0">
               {urgent && <Siren size={16} className="shrink-0" style={{ color: 'rgb(var(--lacca))' }} aria-label="Urgente" />}
-              {w.title}
+              <span className="truncate">{w.title}</span>
               {unread && <span className="inline-block h-2.5 w-2.5 rounded-full bg-[rgb(var(--rose-500))] shrink-0 animate-pulse" title={`${unread.n ?? ''} novità da leggere`} />}
             </h3>
             <p className="text-sm text-[rgb(var(--fg-muted))]">
@@ -249,7 +251,7 @@ function WeddingCard({ w, uid, unread, onDelete, onLeave, onToggleUrgent }: {
               {new Date(w.date_from).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </Link>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center justify-end gap-1 ml-auto">
             <Badge status={w.status} />
             {urgent && (
               <span className="text-[11px] px-2 py-0.5 rounded-full font-medium"
