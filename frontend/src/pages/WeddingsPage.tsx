@@ -72,6 +72,19 @@ export default function WeddingsPage() {
     }
   }
 
+  // Un tocco sulla card: l'evento diventa urgente (sale in cima, anello lacca, promemoria
+  // periodici) o smette di esserlo. urgent_since e la chiusura del promemoria li fa il trigger DB.
+  async function toggleUrgent(id: string, next: boolean, title: string) {
+    try {
+      const { error } = await (supabase.from('calendar_entries' as never) as any).update({ urgent: next }).eq('id', id)
+      if (error) throw error
+      toast.success(next ? `«${title}» è in cima: urgente da gestire.` : `«${title}» non è più urgente.`)
+      qc.invalidateQueries({ queryKey: ['weddings'] }); qc.invalidateQueries({ queryKey: ['calendar'] }); qc.invalidateQueries({ queryKey: ['wedding', id] })
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
   async function confirmDelete() {
     if (!delTarget) return
     setDelBusy(true)
@@ -169,7 +182,7 @@ export default function WeddingsPage() {
             <motion.div key={w.id}
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}>
-              <WeddingCard w={w} uid={uid} unread={unread[w.id]} onDelete={deleteWedding} onLeave={leaveCircle} />
+              <WeddingCard w={w} uid={uid} unread={unread[w.id]} onDelete={deleteWedding} onLeave={leaveCircle} onToggleUrgent={toggleUrgent} />
             </motion.div>
           ))}
 
@@ -186,7 +199,7 @@ export default function WeddingsPage() {
             <motion.div
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}>
-              <WeddingCard w={w} uid={uid} unread={unread[w.id]} onDelete={deleteWedding} onLeave={leaveCircle} />
+              <WeddingCard w={w} uid={uid} unread={unread[w.id]} onDelete={deleteWedding} onLeave={leaveCircle} onToggleUrgent={toggleUrgent} />
             </motion.div>
             </Fragment>
             )
@@ -207,12 +220,13 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function WeddingCard({ w, uid, unread, onDelete, onLeave }: {
+function WeddingCard({ w, uid, unread, onDelete, onLeave, onToggleUrgent }: {
   w: WeddingRow
   uid: string | null
   unread: UnreadEntry | undefined
   onDelete: (id: string, title: string) => void
   onLeave: (id: string, title: string) => void
+  onToggleUrgent: (id: string, next: boolean, title: string) => void
 }) {
   const urgent = !!(w as WeddingRow & { urgent?: boolean }).urgent
   const urgentSince = (w as WeddingRow & { urgent_since?: string | null }).urgent_since
@@ -249,6 +263,18 @@ function WeddingCard({ w, uid, unread, onDelete, onLeave }: {
                 title={`Opzione data — scade il ${new Date((w as { option_expires_at?: string }).option_expires_at!).toLocaleDateString('it-IT')}`}>
                 scade tra {Math.max(0, Math.ceil((new Date((w as { option_expires_at?: string }).option_expires_at!).getTime() - Date.now()) / 86400000))}g
               </span>
+            )}
+            {uid && w.owner_id === uid && (
+              <Button
+                variant="ghost"
+                size="icon"
+                title={urgent ? 'Togli l’urgenza' : 'Segna urgente: va in cima alla lista'}
+                aria-pressed={urgent}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void onToggleUrgent(w.id, !urgent, w.title) }}
+                className={urgent ? 'text-[rgb(var(--lacca))] hover:opacity-80' : 'text-[rgb(var(--fg-subtle))] hover:text-[rgb(var(--lacca))]'}
+              >
+                <Siren size={15} />
+              </Button>
             )}
             {uid && w.owner_id === uid ? (
               <Button
