@@ -13,6 +13,8 @@
 // ============================================================================
 import { MATERIALS, MODELS, CATEGORIES, BOXES, FINISHES, FORMATS, paletteFor, baseModelsByCategory, type Material, type Model } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
+import { decorOf } from '@/components/album/glb/decor.generated'
+import { decorLabel } from '@/components/album/glb/decorLabel'
 
 export type Opt = { key: string; label: string; page?: number; hint?: string; hex?: string; img?: string }
 
@@ -203,8 +205,10 @@ export function compositionLines(c: CoverComposition): string[] {
   const col = c.material ? paletteFor(c.material).find((x) => x.key === c.color) : undefined
   const bmat = MATERIALS.find((m) => m.key === c.backMaterial)
   const bcol = c.backMaterial ? paletteFor(c.backMaterial).find((x) => x.key === c.backColor) : undefined
+  const decor = c.model ? decorOf(familyOf(c.model.label)) : undefined
   return [
     c.model ? `Modello: ${c.model.label}${c.model.page ? ` (pag. ${c.model.page})` : ''}` : null,
+    decor ? `Decoro del modello: ${decorLabel(decor)}` : null,
     mat ? `Materiale: ${mat.label}` : null,
     col ? `Colore: ${col.label}` : null,
     bmat ? `Retro e dorso: ${bmat.label}${bcol ? ` ${bcol.label}` : ''}` : null,

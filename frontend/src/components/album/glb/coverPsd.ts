@@ -4,6 +4,8 @@
 // Specifiche (testo). Più le guide di Photoshop sui bordi di ogni finestra.
 import { writePsd, type Psd, type Layer } from 'ag-psd'
 import { LAYOUT_SPEC, coverFit, logoToInk, type LayoutSpec } from '@/components/album/glb/layoutSpec'
+import { namePlacements, drawDecor, PLATE_MARGIN } from '@/components/album/glb/decal'
+import type { Decor } from '@/components/album/glb/decor.generated'
 import type { Layout } from '@/components/album/albumCatalog'
 
 export type CoverPsdInput = {
@@ -16,6 +18,8 @@ export type CoverPsdInput = {
   logo?: { image: HTMLImageElement | HTMLCanvasElement; code: string; composed?: boolean } | null
   names?: string
   ink?: string                                  // colore di nomi/logo
+  /** Il decoro proprio del modello (dal catalogo): stampa a tutta copertina + cristalli con i centri. */
+  decor?: { family: string; spec: Decor; print: HTMLImageElement | null; stones: HTMLImageElement | null } | null
   couple?: string; studio?: string; orderRef?: string
 }
 
@@ -67,6 +71,34 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
     positions.push({ label: `Finestra foto ${spec.photos.length > 1 ? i + 1 : ''}`.trim(), x: mm(r.x - r.w / 2, inp.wCm), y: mm(r.y - r.h / 2, inp.hCm), w: mm(r.w, inp.wCm), h: mm(r.h, inp.hCm) })
     guides.push({ location: x, direction: 'vertical' }, { location: x + w, direction: 'vertical' }, { location: y, direction: 'horizontal' }, { location: y + h, direction: 'horizontal' })
   })
+  // 3b) il DECORO del modello: la stampa/laser del catalogo a tutta copertina (tinta nell'inchiostro, o a colori)
+  //     e i cristalli Swarovski, uno per uno, coi centri quotati
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+  if (inp.decor?.print) {
+    const [c, ctx] = canvas(W, H)
+    const d = inp.decor.spec
+    drawDecor(ctx, W, H, d, hexToRgb(ink), { print: inp.decor.print, stones: null }, { inset: 0 })
+    const what = d.kind === 'plate' ? 'piastra Cristalwhite intagliata (bianco = piastra, vuoto = foro col tessuto a vista)'
+      : d.kind === 'strip' ? 'fascia stampata a tutta larghezza' : d.kind === 'panel' ? 'pannello Cristalplex, motivo chiaro'
+      : d.color ? 'stampa a colori' : d.tint === 'white' ? 'tratto chiaro' : 'tratto nel colore scelto'
+    layers.push({ name: `Decoro ${cap(inp.decor.family)} · ${what} · a tutta copertina`, canvas: c })
+    if (d.kind === 'plate') positions.push({ label: 'Piastra Cristalwhite', x: mm(PLATE_MARGIN, inp.wCm), y: mm(PLATE_MARGIN, inp.hCm), w: mm(1 - 2 * PLATE_MARGIN, inp.wCm), h: mm(1 - 2 * PLATE_MARGIN, inp.hCm) })
+  }
+  if (inp.decor?.spec.stonesXY.length) {
+    const [c, ctx] = canvas(W, H)
+    const pts = inp.decor.spec.stonesXY
+    ctx.lineWidth = Math.max(2, Math.round(dpi / 120)); ctx.font = `${Math.round(dpi * 0.07)}px sans-serif`; ctx.textBaseline = 'middle'
+    let minx = 1, miny = 1, maxx = 0, maxy = 0
+    pts.forEach(([fx, fy, fr], i) => {
+      const x = fx * W, y = fy * H, r = Math.max(4, fr * W)
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#e0197a'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(x - r * 1.8, y); ctx.lineTo(x + r * 1.8, y); ctx.moveTo(x, y - r * 1.8); ctx.lineTo(x, y + r * 1.8); ctx.stroke()
+      ctx.fillStyle = '#e0197a'; ctx.textAlign = 'left'; ctx.fillText(`C${i + 1} · ${mm(fx, inp.wCm)},${mm(fy, inp.hCm)} · ø${Math.max(1, Math.round(fr * inp.wCm * 20))}`, x + r * 2, y)
+      minx = Math.min(minx, fx - fr); maxx = Math.max(maxx, fx + fr); miny = Math.min(miny, fy - fr * W / H); maxy = Math.max(maxy, fy + fr * W / H)
+    })
+    layers.push({ name: `Cristalli Swarovski · ${pts.length} pezzi (centri e diametri in mm)`, canvas: c })
+    positions.push({ label: `Cristalli (${pts.length})`, x: mm(minx, inp.wCm), y: mm(miny, inp.hCm), w: mm(maxx - minx, inp.wCm), h: mm(maxy - miny, inp.hCm) })
+  }
   // 4) logo del catalogo: dal riquadro al solo tratto (luma → alpha), nel colore d'inchiostro
   if (inp.logo) {
     const iw = inp.logo.image instanceof HTMLCanvasElement ? inp.logo.image.width : inp.logo.image.naturalWidth
@@ -79,21 +111,26 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
     layers.push({ name: `Logo ${inp.logo.code} · larghezza ${mm(spec.logo.w, inp.wCm)} mm`, canvas: t, left: x, top: y, right: x + lw, bottom: y + lh })
     positions.push({ label: `Logo ${inp.logo.code}`, x: mm(x / W, inp.wCm), y: mm(y / H, inp.hCm), w: mm(lw / W, inp.wCm), h: mm(lh / H, inp.hCm) })
   }
-  // 5) nomi (se c'è il logo del catalogo, i nomi sono già nel logo: niente riga doppia)
+  // 5) nomi (se c'è il logo del catalogo, i nomi sono già nel logo: niente riga doppia); dove li mette
+  //    il decoro del modello (sotto i fiori, ai lati del tronco…) o il layout
   if (inp.names && !inp.logo) {
-    const size = Math.round(spec.names.size * H)
+    const sizeFr = inp.decor ? 0.045 : spec.names.size
+    const size = Math.round(sizeFr * H)
     const font = `italic 400 ${size}px "Fraunces", "Cormorant Garamond", Georgia, serif`
-    const [mc, mctx] = canvas(8, 8); mctx.font = font
-    const tw = Math.ceil(mctx.measureText(inp.names).width) + size
-    const bw = tw, bh = Math.round(size * 1.4)
-    const bx = Math.round(spec.names.x * W - bw / 2), by = Math.round(spec.names.y * H - bh / 2)
-    const [c, ctx] = canvas(bw, bh)
-    ctx.fillStyle = ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = font
-    ctx.fillText(inp.names, bw / 2, bh / 2)
-    void mc
-    layers.push({ name: `Nomi «${inp.names}» · corpo ${mm(spec.names.size, inp.hCm)} mm`, canvas: c, left: bx, top: by, right: bx + bw, bottom: by + bh })
-    positions.push({ label: 'Nomi', x: mm((spec.names.x * W - tw / 2) / W, inp.wCm), y: mm((spec.names.y * H - size / 2) / H, inp.hCm), w: mm(tw / W, inp.wCm), h: mm(size / H, inp.hCm) })
-    guides.push({ location: Math.round(spec.names.y * H), direction: 'horizontal' })
+    const [, mctx] = canvas(8, 8); mctx.font = font
+    const places = namePlacements(inp.names, inp.decor?.spec, spec.names)
+    places.forEach((pl, i) => {
+      const tw = Math.ceil(mctx.measureText(pl.text).width) + Math.round(size * 0.4)
+      const bw = tw, bh = Math.round(size * 1.4)
+      const ax = pl.x * W
+      const bx = Math.round(pl.align === 'left' ? ax - size * 0.2 : pl.align === 'right' ? ax - bw + size * 0.2 : ax - bw / 2), by = Math.round(pl.y * H - bh / 2)
+      const [c, ctx] = canvas(bw, bh)
+      ctx.fillStyle = ink; ctx.textAlign = pl.align; ctx.textBaseline = 'middle'; ctx.font = font
+      ctx.fillText(pl.text, pl.align === 'left' ? size * 0.2 : pl.align === 'right' ? bw - size * 0.2 : bw / 2, bh / 2)
+      layers.push({ name: `Nomi «${pl.text}»${places.length > 1 ? ` (${i === 0 ? 'sinistra' : 'destra'})` : ''} · corpo ${mm(sizeFr, inp.hCm)} mm`, canvas: c, left: bx, top: by, right: bx + bw, bottom: by + bh })
+      positions.push({ label: places.length > 1 ? `Nomi ${i + 1}` : 'Nomi', x: mm(bx / W, inp.wCm), y: mm((pl.y * H - size / 2) / H, inp.hCm), w: mm(bw / W, inp.wCm), h: mm(size / H, inp.hCm) })
+      guides.push({ location: Math.round(pl.y * H), direction: 'horizontal' })
+    })
   }
   // 6) guide disegnate con le quote (per chi non usa le guide di Photoshop)
   {
@@ -117,6 +154,7 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
     const rows = [
       `Modello: ${inp.modelLabel}`, `Materiale: ${inp.materialLabel ?? '—'} · Colore: ${inp.colorLabel ?? '—'}`,
       `Foto: ${spec.photos.length ? `${spec.photos.length} finestra/e` : 'nessuna'} · Logo: ${inp.logo?.code ?? 'nessuno'} · Nomi: ${inp.names ?? '—'}`,
+      ...(inp.decor ? [`Decoro del modello: ${inp.decor.family} · ${inp.decor.spec.color ? 'stampa a colori' : 'tratto monocromo'}${inp.decor.spec.stonesXY.length ? ` · ${inp.decor.spec.stonesXY.length} cristalli Swarovski (vedi livello)` : ''}`] : []),
       `${inp.couple ?? ''} · ${inp.studio ?? ''} · ${inp.orderRef ?? ''}`.replace(/^ · | · $/g, ''),
     ]
     rows.forEach((r, i) => ctx.fillText(r, 16, 16 + i * Math.round(dpi * 0.16)))

@@ -10,7 +10,8 @@ import { buildCoverPsd } from '@/components/album/glb/coverPsd'
 import { LAYOUT_SPEC, inkRgb } from '@/components/album/glb/layoutSpec'
 import { hasLogoTemplate } from '@/components/album/glb/logoTemplates'
 import { composeLogo, fontsOf, loadLogoFont } from '@/components/album/glb/logoCompose'
-import { dateIt } from '@/components/album/glb/decal'
+import { dateIt, decorFor, decorFamily } from '@/components/album/glb/decal'
+import { decorLabel } from '@/components/album/glb/decorLabel'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { modelLayout } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
@@ -309,8 +310,11 @@ export default function AlbumCatalogPicker() {
   const sheetRows = useMemo<SheetRow[]>(() => {
     const col = colorOpts.find((o) => o.key === comp.color)
     const logo = LOGO_TILES.find((o) => o.key === comp.logo)
+    const decor = decorFor(comp.model?.key)
     const rows: SheetRow[] = [
       { label: 'Modello', value: comp.model?.label ?? selected?.label, img: swatchUrl(`model:${familyOf(comp.model?.label ?? selected?.label)}`), missing: true },
+      // il decoro proprio del modello (fiori, mandala, piastra intagliata…), ritagliato dal catalogo
+      ...(decor ? [{ label: 'Decoro del modello', value: decorLabel(decor), img: decor.print, fit: 'contain' as const }] : []),
       { label: 'Materiale', value: comp.material ? materialLabel(comp.material) : undefined, img: swatchUrl(`mat:${comp.material}`), missing: true },
       { label: 'Colore', value: col?.label, img: col?.img, hex: col?.hex, missing: true },
       ...(backDiff ? [{ label: 'Retro e dorso', value: comp.backMaterial ? `${materialLabel(comp.backMaterial)}${backColorOpts.find((o) => o.key === comp.backColor)?.label ? ` · ${backColorOpts.find((o) => o.key === comp.backColor)!.label}` : ''}` : undefined, img: backColorOpts.find((o) => o.key === comp.backColor)?.img ?? swatchUrl(`mat:${comp.backMaterial}`), hex: backColorOpts.find((o) => o.key === comp.backColor)?.hex, missing: true } as SheetRow] : []),
@@ -355,7 +359,8 @@ export default function AlbumCatalogPicker() {
     const page = modelPage(m.label)
     setSelected({ page: page ? catalogPageToSheet(page) : 1, x: 0, y: 0, w: 0, h: 0, label: m.label })
     setComp((c) => ({ ...c, model: { key: m.key, label: m.label, page } }))
-    setSpecs((p) => ({ ...p, format: m.format }))
+    // il formato dell'impaginato (se c'è già) vince sul formato di listino del modello
+    if (!lockedFmt) setSpecs((p) => ({ ...p, format: m.format }))
     goToPage(page)
   }
   // Il modello si IMPORTA dalla spunta: dalla tavola della puntina/hotspot risalgo, con l'indice
@@ -371,7 +376,7 @@ export default function AlbumCatalogPicker() {
   function applyFamily(fam: FamilyPick) {
     const page = selected ? (familyPageOnSheet(fam.family, selected.page) ?? modelPage(fam.model.label)) : modelPage(fam.model.label)
     setComp((c) => ({ ...c, model: { key: fam.model.key, label: fam.model.label, page } }))
-    setSpecs((p) => ({ ...p, format: fam.model.format as Format }))
+    if (!lockedFmt) setSpecs((p) => ({ ...p, format: fam.model.format as Format }))
   }
   useEffect(() => {
     // modello scelto cliccando (hotspot/puntina): entra nella composizione con la sua pagina
@@ -386,7 +391,7 @@ export default function AlbumCatalogPicker() {
     setSelected(h)
     setSpecs((p) => ({
       ...p,
-      format: (h.default_format as string) || p.format,
+      format: lockedFmt ? p.format : ((h.default_format as string) || p.format),
       pages: h.default_pages ?? p.pages,
     }))
   }
@@ -458,10 +463,13 @@ export default function AlbumCatalogPicker() {
         if (cv) logoForPsd = { image: cv, code: cover3d.logoKey, composed: true }
       }
       if (!logoForPsd && cover3d.logoKey) { const im = await loadImg(swatchUrl(cover3d.logoKey)); if (im) logoForPsd = { image: im, code: cover3d.logoKey } }
+      // il decoro proprio del modello (fiori, mandala, ninfee, sposini, albero…): stampa + cristalli nel PSD
+      const decorSpec = decorFor(cover3d.model)
+      const decorForPsd = decorSpec ? { family: decorFamily(cover3d.model), spec: decorSpec, print: await loadImg(decorSpec.print), stones: decorSpec.stones ? await loadImg(decorSpec.stones) : null } : null
       const psd = sizeDef ? buildCoverPsd({
         layout, wCm: sizeDef.w, hCm: sizeDef.h, dpi: 300, modelLabel: comp.model?.label ?? selected.label,
         materialLabel: comp.material ? materialLabel(comp.material) : undefined, colorLabel: colorOpts.find((o) => o.key === comp.color)?.label, colorHex: cover3d.color,
-        photos: LAYOUT_SPEC[layout].photos.map(() => photoImg), logo: logoForPsd,
+        photos: LAYOUT_SPEC[layout].photos.map(() => photoImg), logo: logoForPsd, decor: decorForPsd,
         names: cover3d.title, ink: cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e',
         couple: clientName.trim(), studio: catalog.studio, orderRef,
       }) : null

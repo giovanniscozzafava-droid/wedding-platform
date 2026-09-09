@@ -9,7 +9,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { modelLayout, paletteFor, sizeByKey, type Cover } from '@/components/album/albumCatalog'
 import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
-import { drawDecal, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
+import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 
 export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string }
@@ -230,4 +230,39 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
     else if (base === 'Photo') { m.material = photoMat }
     else if (base === 'Decal') { m.material = decalMat; m.castShadow = false }
   })
+  // I CRISTALLI DEL DECORO: i Swarovski del modello (centri ritagliati dal catalogo) come piccole gemme 3D
+  // sul piatto, in coordinate della copertina (x → larghezza, y → dall'alto della copertina verso chi guarda).
+  const oldC = root.getObjectByName('DecorCrystals'); if (oldC) root.remove(oldC)
+  const decor = decorFor(cover.model)
+  const decal = root.getObjectByName('Decal') as THREE.Mesh | undefined
+  const front = (root.getObjectByName('CoverFront') as THREE.Mesh | undefined) ?? decal
+  // LA PIASTRA INTAGLIATA (Betulla/Dream, layout «laser»): la mesh Band diventa Cristalwhite lucida coi fori veri
+  // del catalogo (alphaMap), e il piano dei nomi sale sopra la piastra
+  const band = root.getObjectByName('Band') as THREE.Mesh | undefined
+  if (decor?.kind === 'plate' && band) {
+    const holes = decorImages(decor).print
+    if (holes) {
+      const a = new THREE.CanvasTexture(plateAlphaCanvas(holes)); a.flipY = false
+      // la piastra copre la copertina meno il bordo: le UV 0..1 della piastra ↔ [margine, 1−margine] della copertina
+      a.offset.set(PLATE_MARGIN, PLATE_MARGIN); a.repeat.set(1 - 2 * PLATE_MARGIN, 1 - 2 * PLATE_MARGIN); a.wrapS = a.wrapT = THREE.ClampToEdgeWrapping
+      band.material = new THREE.MeshPhysicalMaterial({ color: 0xf7f5f0, roughness: 0.26, clearcoat: 0.7, clearcoatRoughness: 0.15, transparent: true, alphaMap: a, alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: 1.1 })
+    }
+    if (decal) {
+      const bt = new THREE.Box3().setFromObject(band).max.y, dt = new THREE.Box3().setFromObject(decal).max.y
+      if (dt <= bt) decal.position.y += (bt - dt + 0.0004) / (root.scale.y || 1)
+    }
+  }
+  if (decor?.stonesXY.length && front) {
+    const bb = new THREE.Box3().setFromObject(front)
+    const g = new THREE.Group(); g.name = 'DecorCrystals'
+    const wUnits = bb.max.x - bb.min.x, hUnits = bb.max.z - bb.min.z
+    for (const [fx, fy, fr] of decor.stonesXY) {
+      const r = Math.max(0.0012, fr * wUnits)
+      const gem = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), crystalMat)   // calotta (chaton)
+      gem.scale.set(1, 0.65, 1); gem.castShadow = true
+      gem.position.copy(root.worldToLocal(new THREE.Vector3(bb.min.x + fx * wUnits, bb.max.y + r * 0.05, bb.min.z + fy * hUnits)))
+      g.add(gem)
+    }
+    root.add(g)
+  }
 }

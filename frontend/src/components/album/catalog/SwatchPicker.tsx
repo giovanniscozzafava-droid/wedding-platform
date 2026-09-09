@@ -55,11 +55,12 @@ export function SwatchPicker({ options, value, onChange, shape = 'wide', cols, d
                 </span>
               )}
             </span>
+            {/* i nomi del catalogo (modelli, materiali, colori, cod. dei loghi) sono nomi propri: l'auto-traduzione non li tocca */}
             {shape !== 'chip' && (
-              <span className="mt-1 block truncate text-[11px] leading-tight text-[rgb(var(--fg))]">{o.label}</span>
+              <span data-notranslate className="mt-1 block truncate text-[11px] leading-tight text-[rgb(var(--fg))]">{o.label}</span>
             )}
             {shape === 'chip' && (
-              <span className="mt-0.5 block truncate text-[9px] leading-tight text-[rgb(var(--fg-muted))]">{o.label}</span>
+              <span data-notranslate className="mt-0.5 block truncate text-[9px] leading-tight text-[rgb(var(--fg-muted))]">{o.label}</span>
             )}
             {o.hint && shape !== 'chip' && <span className="block truncate text-[10px] text-[rgb(var(--fg-subtle))]">{o.hint}</span>}
           </button>

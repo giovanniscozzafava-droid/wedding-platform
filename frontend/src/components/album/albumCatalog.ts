@@ -453,7 +453,7 @@ export const MODELS: Model[] = [
 export type Layout =
   | 'plate' | 'plain' | 'monogram' | 'fascia' | 'fascia-ornament' | 'oblique'
   | 'swarovski-line' | 'swarovski-cluster' | 'photo-vertical' | 'photo-panoramic'
-  | 'photo-small' | 'photo-full' | 'trilogy' | 'print' | 'laser'
+  | 'photo-small' | 'photo-full' | 'photo-side' | 'trilogy' | 'print' | 'laser'
 export const MODEL_LAYOUT: Record<string, Layout> = {
   rimboccato: 'plate',
   brand: 'monogram', trilogy: 'trilogy', almond: 'oblique', claire: 'fascia', thea: 'fascia-ornament', adel: 'plate', elsie: 'photo-small', 'elsie-gold': 'photo-small',
@@ -473,7 +473,11 @@ function modelText(k?: string): string {
 // Layout 3D per FAMIGLIA (design base), verificato sulle tavole del catalogo 2022: vince su tutto.
 export const FAMILY_LAYOUT: Record<string, Layout> = {
   adel: 'fascia', personalizzato: 'print', charme: 'photo-full', clouds: 'photo-full', ghost: 'print', ikon: 'photo-full',
-  hera: 'photo-full', julies: 'trilogy', frame: 'photo-full', plaza: 'plate', sirene: 'fascia-ornament', graphic: 'photo-full',
+  hera: 'photo-full', julies: 'trilogy', frame: 'photo-full', plaza: 'plate', graphic: 'photo-full',
+  // famiglie col DECORO proprio ritagliato dal catalogo (public/album-decor): piatto liscio + decal + cristalli 3D ai loro posti;
+  // betulla/dream = piastra Cristalwhite intagliata (layout laser, fori veri); azulejo = pannello a sinistra + foto a destra
+  bouquet: 'print', xante: 'print', ninfea: 'print', amelie: 'print', darling: 'print',
+  sirene: 'print', frejus: 'print', dhyana: 'print', betulla: 'laser', dream: 'laser', azulejo: 'photo-side',
 }
 export function modelLayout(k?: string): Layout {
   const fam = baseDesignKey(modelByKey(k))

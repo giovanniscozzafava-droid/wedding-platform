@@ -30,6 +30,8 @@ export const LAYOUT_SPEC: Record<Layout, LayoutSpec> = {
   'photo-panoramic': { photos: [{ x: 0.5, y: 0.42, w: 0.76, h: 0.28 }], names: { x: 0.5, y: 0.7, size: 0.055 }, logo: { x: 0.5, y: 0.6, w: 0.3 } },
   'photo-small': { photos: [{ x: 0.6, y: 0.42, w: 0.3, h: 0.24 }], names: { x: 0.6, y: 0.64, size: 0.042 }, logo: { x: 0.3, y: 0.38, w: 0.3 } },
   'photo-full': { photos: [{ x: 0.5, y: 0.5, w: 0.94, h: 0.94 }], names: { x: 0.5, y: 0.88, size: 0.05 }, logo: { x: 0.5, y: 0.72, w: 0.3 } },
+  // Azulejo: pannello Cristalplex sul 45% sinistro (decoro), foto a tutta altezza sul 55% destro
+  'photo-side': { photos: [{ x: 0.725, y: 0.5, w: 0.55, h: 0.96 }], names: { x: 0.225, y: 0.44, size: 0.045 }, logo: { x: 0.225, y: 0.28, w: 0.3 } },
   trilogy: { photos: [{ x: 0.26, y: 0.45, w: 0.2, h: 0.2 }, { x: 0.5, y: 0.45, w: 0.2, h: 0.2 }, { x: 0.74, y: 0.45, w: 0.2, h: 0.2 }], names: { x: 0.5, y: 0.74, size: 0.048 }, logo: { x: 0.5, y: 0.6, w: 0.3 } },
   print: { photos: [], names: { x: 0.5, y: 0.82, size: 0.05 }, logo: { x: 0.5, y: 0.42, w: 0.36 } },
   laser: { photos: [], band: { x: 0.5, y: 0.5, w: 0.92, h: 0.92 }, names: { x: 0.5, y: 0.5, size: 0.06 }, logo: { x: 0.5, y: 0.34, w: 0.36 } },
