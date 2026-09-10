@@ -182,6 +182,11 @@ export const BOX_OPTIONS: Opt[] = BOXES.map((b) => ({ key: b.key, label: b.label
 export const FINISH_OPTIONS: Opt[] = [{ key: 'nessuna', label: 'Nessuna' }, ...FINISHES.map((f) => ({ key: f.key, label: f.label }))]
 /** LA FINITURA DELLA BOX: come è trattata la superficie del contenitore (il legno del catalogo è
  *  naturale; laccature e satinature si ordinano a parte). Il prezzo lo conferma il fotografo. */
+/** La box può avere le cerniere o no: senza, il coperchio è un tappo che si sfila. */
+export const BOX_HINGE_OPTIONS: Opt[] = [
+  { key: 'cerniera', label: 'Con cerniere', hint: 'si apre di lato' },
+  { key: 'sfilabile', label: 'Coperchio sfilabile', hint: 'tappo che si solleva' },
+]
 export const BOX_FINISH_OPTIONS: Opt[] = [
   { key: 'naturale', label: 'Naturale', hint: 'come da catalogo' },
   { key: 'opaca', label: 'Laccata opaca' },
@@ -214,6 +219,8 @@ export type CoverComposition = {
   boxColor?: string
   /** finitura della superficie della box (naturale, laccata, satinata) */
   boxFinish?: string
+  /** con cerniere (si apre di lato) o col coperchio sfilabile */
+  boxHinge?: string
   /** impaginazione della copertina scelta dalla coppia: ritaglio di ogni foto (per finestra) e posizione/misura del blocco nomi-logo */
   photoCrops?: Record<number, PhotoCrop>
   /** il riquadro di ogni foto, quando la coppia sceglie una posizione diversa da quella del modello */
@@ -331,6 +338,7 @@ export function compositionLines(c: CoverComposition): string[] {
     c.block ? `Blocco interno: ${optLabel(BLOCK_OPTIONS, c.block) ?? c.block}` : null,
     c.box ? `Box: ${optLabel(BOX_OPTIONS, c.box) ?? c.box}${c.box !== 'nessuno' ? (bxmat ? ` · rivestimento ${bxmat.label}${bxcol ? ` ${bxcol.label}` : ''}` : ' · rivestimento come la copertina') : ''}` : null,
     c.boxFinish && c.boxFinish !== 'naturale' ? `Finitura della box: ${optLabel(BOX_FINISH_OPTIONS, c.boxFinish) ?? c.boxFinish}` : null,
+    c.box && c.box !== 'nessuno' ? `Apertura della box: ${optLabel(BOX_HINGE_OPTIONS, c.boxHinge ?? 'cerniera')}` : null,
     c.logoPlace ? `Nomi/logo posizionati dalla coppia: centro x ${Math.round(c.logoPlace.x * 100)}%, dall'alto ${Math.round(c.logoPlace.y * 100)}%, larghezza ${Math.round(c.logoPlace.w * 100)}% della copertina` : null,
     c.photoCrops && Object.values(c.photoCrops).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01) ? `Ritaglio foto scelto dalla coppia (${Object.keys(c.photoCrops).length} finestre): vedi PSD` : null,
     c.coverPhotos && c.coverPhotos.length > 1

@@ -15,7 +15,7 @@ import { buildBox, isBoxKind } from '@/components/album/glb/boxScene'
 import { MATERIAL_SWATCH, MATERIAL_RELIEF } from '@/components/album/glb/materialSwatch.generated'
 import { LAYOUT_SPEC, cropRect, frameOf, type PhotoCrop, type PhotoFrame, type LogoPlace, type TextPlace, type Rect } from '@/components/album/glb/layoutSpec'
 
-export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
+export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; boxHinge?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
 
 export type GlbView = 'front' | 'three-quarter' | 'spine' | 'top'
 export type AlbumGlbStageHandle = { setView: (v: GlbView) => void; snapshot: () => string | null }
@@ -208,7 +208,7 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
   // la misura cambia (arriva l'impaginato, o la coppia sceglie un'altra misura dello stesso formato): si riscala l'album
   useEffect(() => { const s = sceneRef.current; if (s?.album) { fitToSize(s, s.album, cover.sizeKey); applyBox(s, cover); setViewRef.current(view, false) } }, [cover.sizeKey]) // eslint-disable-line react-hooks/exhaustive-deps
   // il box contenitore (quale, e di che rivestimento) si ricostruisce attorno all'album
-  useEffect(() => { const s = sceneRef.current; if (s?.album) { applyBox(s, cover); setViewRef.current(view, false) } }, [cover.box, cover.boxFabric, cover.boxColorKey, cover.boxColor, cover.fabric, cover.colorKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const s = sceneRef.current; if (s?.album) { applyBox(s, cover); setViewRef.current(view, false) } }, [cover.box, cover.boxHinge, cover.boxFabric, cover.boxColorKey, cover.boxColor, cover.fabric, cover.colorKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
@@ -253,7 +253,7 @@ function applyBox(st: { scene: THREE.Scene; album: THREE.Group | null; size: num
   const glass = new THREE.MeshPhysicalMaterial({ color: 0xf4f8fb, metalness: 0, roughness: 0.05, transparent: true, opacity: 0.32, envMapIntensity: 1.4, clearcoat: 1, clearcoatRoughness: 0.05, depthWrite: false })
   const brass = new THREE.MeshPhysicalMaterial({ color: 0xd9b46a, metalness: 1, roughness: 0.25, envMapIntensity: 1.3 })
   const albumMat = surfaceMaterial(cover.fabric, cover.color ?? undefined, cover.fabric === 'wood', undefined, cover.colorKey)
-  const b = buildBox(cover.box, sz.x, sz.z, sz.y, { outer, inner, glass, brass, album: albumMat })
+  const b = buildBox(cover.box, sz.x, sz.z, sz.y, { outer, inner, glass, brass, album: albumMat }, cover.boxHinge !== 'sfilabile')
   st.scene.add(b.group)
   album.position.y += b.albumLift
   st.size = b.footprint

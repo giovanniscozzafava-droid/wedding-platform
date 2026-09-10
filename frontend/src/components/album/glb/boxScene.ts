@@ -19,7 +19,7 @@ const box = (w: number, h: number, d: number, m: THREE.Material, x = 0, y = 0, z
 
 /** Costruisce il box attorno a un album di larghezza w, profondità h (verso chi guarda) e spessore t (metri).
  *  L'album va appoggiato sul fondo del vano principale, centrato in (0, albumLift, 0). */
-export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxMats): BoxBuild {
+export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxMats, hinged = true): BoxBuild {
   const g = new THREE.Group(); g.name = 'BoxScene'
   const wall = 0.012, floor = 0.008, gap = 0.006, lidT = 0.012
   const clear = t + 0.012                                   // altezza interna del vano
@@ -54,15 +54,32 @@ export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxM
     g.add(box(W, 0.006, wall, M.outer, ox, H + 0.003, -D / 2 + wall / 2)); g.add(box(W, 0.006, wall, M.outer, ox, H + 0.003, D / 2 - wall / 2))
     g.add(box(wall, 0.006, D, M.outer, ox - W / 2 + wall / 2, H + 0.003, 0)); g.add(box(wall, 0.006, D, M.outer, ox + W / 2 - wall / 2, H + 0.003, 0))
   } else {
-    // COPERCHIO A CERNIERA SUL FIANCO, aperto (~105°): le box del catalogo si aprono di lato, come
-    // un libro, non sollevando il coperchio dall'alto. La fodera interna resta a vista.
-    const hinge = new THREE.Group(); hinge.position.set(ox - W / 2, H, 0)
-    const lid = box(W, lidT, D, M.outer, W / 2, lidT / 2, 0)
-    const lining = box(W - 2 * wall, 0.001, D - 2 * wall, M.inner, W / 2, -0.0005, 0)
-    hinge.add(lid); hinge.add(lining)
-    hinge.rotation.z = Math.PI * (105 / 180)
-    g.add(hinge)
-    for (const hz of [-D * 0.3, D * 0.3]) g.add(box(0.006, 0.006, 0.03, M.brass, ox - W / 2, H, hz))   // cerniere sul fianco
+    if (hinged) {
+      // COPERCHIO A CERNIERA SUL FIANCO, aperto (~105°): le box del catalogo si aprono di lato, come
+      // un libro, non sollevando il coperchio dall'alto. La fodera interna resta a vista.
+      const hinge = new THREE.Group(); hinge.position.set(ox - W / 2, H, 0)
+      const lid = box(W, lidT, D, M.outer, W / 2, lidT / 2, 0)
+      const lining = box(W - 2 * wall, 0.001, D - 2 * wall, M.inner, W / 2, -0.0005, 0)
+      hinge.add(lid); hinge.add(lining)
+      hinge.rotation.z = Math.PI * (105 / 180)
+      g.add(hinge)
+      for (const hz of [-D * 0.3, D * 0.3]) g.add(box(0.006, 0.006, 0.03, M.brass, ox - W / 2, H, hz))   // cerniere sul fianco
+    } else {
+      // SENZA CERNIERE: il coperchio è un tappo che si solleva. Si mostra sfilato di lato, appoggiato
+      // e appena inclinato, come quando lo si toglie per prendere l'album.
+      const tappo = new THREE.Group()
+      tappo.add(box(W, lidT, D, M.outer, 0, lidT / 2, 0))
+      tappo.add(box(W - 2 * wall, 0.001, D - 2 * wall, M.inner, 0, -0.0005, 0))
+      // il bordo del tappo, che scende sulle pareti della base
+      const bordo = wall * 0.9, hb = H * 0.34
+      for (const [bw, bd, bx, bz] of [[W, bordo, 0, -D / 2 + bordo / 2], [W, bordo, 0, D / 2 - bordo / 2],
+        [bordo, D, -W / 2 + bordo / 2, 0], [bordo, D, W / 2 - bordo / 2, 0]] as [number, number, number, number][]) {
+        tappo.add(box(bw, hb, bd, M.outer, bx, -hb / 2, bz))
+      }
+      tappo.position.set(ox - W * 1.02, hb * 0.5, D * 0.06)
+      tappo.rotation.set(0, 0.10, 0)
+      g.add(tappo)
+    }
     if (kind === 'valigetta') {
       // maniglia sul fronte
       const handle = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.005, 10, 24, Math.PI), M.brass)
@@ -71,6 +88,6 @@ export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxM
       for (const hz of [-D * 0.32, D * 0.32]) g.add(box(0.004, 0.012, 0.018, M.brass, ox + W / 2 + 0.002, H * 0.6, hz))
     }
   }
-  // il coperchio ora si apre di lato: l'ingombro cresce in larghezza, non in profondità
-  return { group: g, albumLift: floor + 0.001, footprint: Math.max(W + (kind === 'wood-case' ? 0 : W * 0.55), D) }
+  // il coperchio si apre (o si sfila) di lato: l'ingombro cresce in larghezza, non in profondità
+  return { group: g, albumLift: floor + 0.001, footprint: Math.max(W + (kind === 'wood-case' ? 0 : W * (hinged ? 0.55 : 1.15)), D) }
 }

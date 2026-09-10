@@ -160,11 +160,27 @@ export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; 
     ctx.font = `500 ${Math.round(H * 0.22)}px "Bodoni Moda", "Playfair Display", Georgia, serif`
     ctx.fillText(initialsOf(names), 0, 0); ctx.restore(); drew = true
   }
+  // 2b) LA TARGHETTA D'OTTONE porta i nomi: è fatta per quello. Se la coppia ha scelto la
+  //     targhetta e ha scritto qualcosa, i nomi vengono incisi dentro la placca del layout.
+  const plate = spec0.plate
+  if (cover.logoKey === 'ottone-targhetta' && plate && (names || (cover.dateText ?? '').trim())) {
+    const dateP = (cover.dateText ?? '').trim()
+    const pw = plate.w * W * 0.8 / (1 - 2 * DI)
+    const px = dx(plate.x) * W, py = dy(plate.y) * H
+    // l'altezza del blocco si conosce dalle misure, senza disegnare due volte
+    const m = coverTextMetrics(names, dateP)
+    const hBlocco = (m.h / m.w) * pw / aspect
+    const inciso = 'rgba(74,56,26,0.88)'          // inciso nell'ottone: bruno scuro, non nero
+    drawCoverText(ctx, { names, date: dateP }, px, py - hBlocco / 2, pw, inciso, aspect)
+    drew = true
+  }
+
   // 3) LA SCRITTA (nomi e data), scelta dalla coppia. Se il logo del catalogo ha il template, i nomi
   //    sono già dentro il logo e non si ripetono; col ritaglio del catalogo, invece, la scritta ci vuole.
   const dateTxt = (cover.dateText ?? '').trim()
   const tp = cover.textPlace
-  if ((names || dateTxt) && !composed && (cover.textLayout ?? 'model') === 'model') {
+  const suTarghetta = cover.logoKey === 'ottone-targhetta' && !!spec0.plate
+  if ((names || dateTxt) && !composed && !suTarghetta && (cover.textLayout ?? 'model') === 'model') {
     if (tp) {
       // dove l'ha messa la coppia: coordinate copertina → decal
       drawCoverText(ctx, { names, date: dateTxt }, W * toD(tp.x), H * toD(tp.y), (tp.w / (1 - 2 * DI)) * W, ink, aspect)

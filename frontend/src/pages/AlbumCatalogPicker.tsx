@@ -16,7 +16,7 @@ import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { modelLayout } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import {
-  MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, BOX_FINISH_OPTIONS,
+  MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, BOX_FINISH_OPTIONS, BOX_HINGE_OPTIONS,
   compositionLines, modelPage, familyLogo, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, familyDefaults, FAMILY_PAGES, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
@@ -312,6 +312,7 @@ export default function AlbumCatalogPicker() {
       // rivestimento diverso dalla copertina: voce a sé (il prezzo lo conferma il fotografo)
       if (comp.boxMaterial) lines.push({ label: `Rivestimento box · ${materialLabel(comp.boxMaterial)}`, amount: 0, hint: 'prezzo da confermare col fotografo' })
       if (comp.boxFinish && comp.boxFinish !== 'naturale') lines.push({ label: `Finitura box · ${optLabel(BOX_FINISH_OPTIONS, comp.boxFinish)}`, amount: 0, hint: 'prezzo da confermare col fotografo' })
+      if (comp.boxHinge === 'sfilabile') lines.push({ label: 'Box col coperchio sfilabile', amount: 0, hint: 'prezzo da confermare col fotografo' })
     }
     // finitura
     const fin = FINISHES.find((f) => f.key === comp.finish)
@@ -340,8 +341,12 @@ export default function AlbumCatalogPicker() {
   const stageRef = useRef<AlbumGlbStageHandle>(null)
   // CHE COSA C'È SCRITTO IN COPERTINA: lo decide la coppia. Di partenza i nomi dell'evento e la sua
   // data; se cancella il campo, quella riga non si stampa.
-  const coverNames = (comp.coverNames ?? (entryTitle || clientName.trim() || '')).trim()
-  const coverDate = (comp.coverDate ?? dateIt(entryDate) ?? '').trim()
+  // NIENTE SCRITTE DI DEFAULT: in copertina non esce nulla finché la coppia non sceglie che cosa
+  // scrivere (e dove). I nomi dell'evento restano a portata di mano, con un tocco.
+  const coverNames = (comp.coverNames ?? '').trim()
+  const coverDate = (comp.coverDate ?? '').trim()
+  const nomiEvento = (entryTitle || clientName.trim() || '').trim()
+  const dataEvento = dateIt(entryDate) ?? ''
   // il logo del catalogo con template porta già dentro nomi e data: la scritta non si ripete
   const logoHasText = !!(comp.logo && /^cod\./.test(comp.logo) && hasLogoTemplate(comp.logo))
   const cover3d = useMemo<GlbCover>(() => {
@@ -361,7 +366,7 @@ export default function AlbumCatalogPicker() {
       photo_urls: wantPhoto ? chosenPhotos.map((p) => p.url) : [],
       backFabric: comp.backMaterial, backColorKey: comp.backColor,
       backColor: comp.backMaterial ? paletteFor(comp.backMaterial).find((c) => c.key === comp.backColor)?.hex : undefined,
-      boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor,
+      boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor, boxHinge: comp.boxHinge ?? 'cerniera',
       boxColor: comp.boxMaterial ? paletteFor(comp.boxMaterial).find((c) => c.key === comp.boxColor)?.hex : undefined,
       photoCrops: comp.photoCrops, photoFrames: comp.photoFrames, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
       title: coverNames,
@@ -401,7 +406,8 @@ export default function AlbumCatalogPicker() {
       { label: 'Blocco', value: optLabel(BLOCK_OPTIONS, comp.block)?.replace(/\s*\(.*\)$/, ''), missing: true },
       { label: 'Box', value: `${optLabel(BOX_OPTIONS, comp.box ?? specs.box ?? 'nessuno')}${(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' ? (comp.boxMaterial ? ` · ${materialLabel(comp.boxMaterial)}${boxColorOpts.find((o) => o.key === comp.boxColor)?.label ? ` ${boxColorOpts.find((o) => o.key === comp.boxColor)!.label}` : ''}` : ' · come la copertina') : ''}`, img: comp.boxMaterial ? (boxColorOpts.find((o) => o.key === comp.boxColor)?.img ?? swatchUrl(`mat:${comp.boxMaterial}`)) : undefined, hex: boxColorOpts.find((o) => o.key === comp.boxColor)?.hex },
       ...((comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno'
-        ? [{ label: 'Finitura della box', value: optLabel(BOX_FINISH_OPTIONS, comp.boxFinish ?? 'naturale') } as SheetRow] : []),
+        ? [{ label: 'Apertura della box', value: optLabel(BOX_HINGE_OPTIONS, comp.boxHinge ?? 'cerniera') } as SheetRow,
+           { label: 'Finitura della box', value: optLabel(BOX_FINISH_OPTIONS, comp.boxFinish ?? 'naturale') } as SheetRow] : []),
       { label: photoWindows > 1 ? `Foto in copertina (${photoWindows} finestre)` : 'Foto in copertina', value: wantPhoto ? (chosenPhotos.length ? (photoWindows > 1 ? `${chosenPhotos.length} di ${photoWindows}, in ordine: ${chosenPhotos.map((p) => p.label ?? 'dalla galleria').join(' · ')}` : (comp.coverPhoto?.label ?? 'scelta dalla galleria')) : undefined) : 'No', img: wantPhoto ? chosenPhotos[0]?.url : undefined, missing: wantPhoto },
     )
     return rows
@@ -832,8 +838,12 @@ export default function AlbumCatalogPicker() {
                   </label>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {!!(dateIt(entryDate) ?? '') && coverDate !== dateIt(entryDate) && (
-                    <button type="button" onClick={() => setComp((c) => ({ ...c, coverDate: dateIt(entryDate) ?? '' }))}
+                  {!!nomiEvento && coverNames !== nomiEvento && (
+                    <button type="button" onClick={() => setComp((c) => ({ ...c, coverNames: nomiEvento }))}
+                      className="rounded-full border border-[rgb(var(--border))] px-3 py-1 text-[12px] text-[rgb(var(--fg-muted))]">Usa «{nomiEvento}»</button>
+                  )}
+                  {!!dataEvento && coverDate !== dataEvento && (
+                    <button type="button" onClick={() => setComp((c) => ({ ...c, coverDate: dataEvento }))}
                       className="rounded-full border border-[rgb(var(--border))] px-3 py-1 text-[12px] text-[rgb(var(--fg-muted))]">La data dell'evento</button>
                   )}
                   {!!coverDate && (
@@ -846,9 +856,11 @@ export default function AlbumCatalogPicker() {
                   )}
                 </div>
                 <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">
-                  {logoHasText
-                    ? 'Il logo che hai scelto porta dentro nomi e data: quello che scrivi qui finisce dentro il logo.'
-                    : 'Nel passo «Copertina» decidi dove metterli e quanto grandi. Lascia vuoto per non stamparli.'}
+                  {comp.logo === 'ottone-targhetta'
+                    ? 'La targhetta d\'ottone serve proprio a portare i nomi: quello che scrivi qui viene inciso sulla targhetta.'
+                    : logoHasText
+                      ? 'Il logo che hai scelto porta dentro nomi e data: quello che scrivi qui finisce dentro il logo.'
+                      : 'Finché lasci vuoto, sulla copertina non viene stampato niente. Nel passo «Copertina» decidi dove mettere la scritta e quanto grande.'}
                 </p>
               </Voice>
             </Chapter>
@@ -879,6 +891,9 @@ export default function AlbumCatalogPicker() {
                       </Voice>
                     </>
                   )}
+                  <Voice label="Apertura della box">
+                    <PillChoice options={BOX_HINGE_OPTIONS} value={comp.boxHinge ?? 'cerniera'} onChange={(k) => setComp((c) => ({ ...c, boxHinge: k }))} />
+                  </Voice>
                   <Voice label="Finitura della box">
                     <PillChoice options={BOX_FINISH_OPTIONS} value={comp.boxFinish ?? 'naturale'} onChange={(k) => setComp((c) => ({ ...c, boxFinish: k }))} />
                     <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Naturale è come sul catalogo. Le laccature e la satinatura si ordinano a parte: il prezzo lo conferma il tuo fotografo.</p>
