@@ -23,6 +23,8 @@ export type Cover = {
   parents?: boolean        // album genitori (2 mini)
   finishes?: string[]      // rifiniture: swarovski|targhetta|iniziali|data|logo
   photo_url?: string | null
+  /** una foto per finestra, in ordine (Julies/Trilogy ne hanno tre); photo_url resta la prima */
+  photo_urls?: string[]
   title?: string
   subtitle?: string
   monogram?: string

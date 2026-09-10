@@ -127,6 +127,10 @@ export default function AlbumCatalogPicker() {
           setLockedFmt(`${cm(f.w)}×${cm(f.h)} cm · ${fmt === 'landscape' ? 'orizzontale' : fmt === 'portrait' ? 'verticale' : 'quadrato'}`)
           setLockedPages(pages)
           setSpecs((p) => ({ ...p, format: fmt, size: sizeKey, pages }))
+          // il tipo di blocco, se il fotografo l'ha opzionato dall'impaginatore (price_config.block / layout.block_type)
+          const bt = String((proj?.price_config as { block?: string } | null)?.block ?? (proj?.layout as { block_type?: string } | null)?.block_type ?? '')
+          if (/book.?flat/i.test(bt)) setComp((c) => ({ ...c, block: 'book-flat' }))
+          else if (/tradiz/i.test(bt)) setComp((c) => ({ ...c, block: 'tradizionale' }))
         }
       } catch { /* nessun impaginato */ }
     })()
@@ -197,6 +201,14 @@ export default function AlbumCatalogPicker() {
   const [comp, setComp] = useState<CoverComposition>({ logo: 'nessuno', block: 'digitale', finish: 'nessuna' })
   const [wantPhoto, setWantPhoto] = useState(false)
   const [candidates, setCandidates] = useState<CoverPhotoCandidate[]>([])
+  // QUANTE FOTO in copertina: tante quante le finestre del modello (Julies Cristalwhite e Trilogy ne hanno tre,
+  // in ordine da sinistra a destra); i modelli senza finestra ne accettano una (stampa)
+  const modelLayoutKey = modelLayout(comp.model?.key)
+  const photoWindows = Math.max(1, LAYOUT_SPEC[modelLayoutKey].photos.length)
+  const chosenPhotos = useMemo(() => (comp.coverPhotos?.length ? comp.coverPhotos : comp.coverPhoto ? [comp.coverPhoto] : []).slice(0, photoWindows), [comp.coverPhotos, comp.coverPhoto, photoWindows])
+  const photosOk = !wantPhoto || chosenPhotos.length >= photoWindows
+  // un modello con le finestre foto è fatto per le foto: la scelta si accende da sola
+  useEffect(() => { if (LAYOUT_SPEC[modelLayoutKey].photos.length > 0) setWantPhoto(true) }, [modelLayoutKey])
   useEffect(() => {
     if (!wantPhoto || candidates.length) return
     void getCoverPhotoCandidates(entryId).then(setCandidates).catch(() => {})
@@ -250,10 +262,12 @@ export default function AlbumCatalogPicker() {
     const logoAmt = logoAmount(comp.logo)
     if (logoAmt > 0) lines.push({ label: optLabel(LOGO_OPTIONS, comp.logo) ?? 'Personalizzazione', amount: mk(logoAmt) })
     // foto in copertina: dal listino accessori del fotografo (se c'è), altrimenti da confermare
-    if (wantPhoto && comp.coverPhoto) {
+    // (ogni foto segna il suo costo: i modelli a tre finestre ne contano tre)
+    if (wantPhoto && chosenPhotos.length) {
+      const n = chosenPhotos.length
       const acc = listino.accessories.find((a) => /foto/i.test(a.label))
-      if (acc) lines.push({ label: 'Foto in copertina', amount: acc.included ? 0 : mk(Number(acc.price) || 0), hint: acc.included ? 'inclusa' : undefined })
-      else lines.push({ label: 'Foto in copertina', amount: 0, hint: 'prezzo da confermare col fotografo' })
+      if (acc) lines.push({ label: `Foto in copertina${n > 1 ? ` × ${n}` : ''}`, amount: acc.included ? 0 : mk((Number(acc.price) || 0) * n), hint: acc.included ? 'inclusa' : (n > 1 ? `${euroA(mk(Number(acc.price) || 0))} a foto` : undefined) })
+      else lines.push({ label: `Foto in copertina${n > 1 ? ` × ${n}` : ''}`, amount: 0, hint: 'prezzo da confermare col fotografo' })
     }
     // box: incluso se già nel preventivo, altrimenti listino accessori o riferimento DesignAlbum
     const boxKey = comp.box ?? specs.box
@@ -305,6 +319,7 @@ export default function AlbumCatalogPicker() {
       blockType: comp.block === 'book-flat' ? 'bookflat' : 'photo',
       box: comp.box ?? specs.box, finishes: Array.from(fin),
       photo_url: wantPhoto ? comp.coverPhoto?.url ?? null : null,
+      photo_urls: wantPhoto ? chosenPhotos.map((p) => p.url) : [],
       backFabric: comp.backMaterial, backColorKey: comp.backColor,
       backColor: comp.backMaterial ? paletteFor(comp.backMaterial).find((c) => c.key === comp.backColor)?.hex : undefined,
       title: entryTitle || clientName.trim() || '',
@@ -332,7 +347,7 @@ export default function AlbumCatalogPicker() {
       { label: 'Blocco', value: optLabel(BLOCK_OPTIONS, comp.block)?.replace(/\s*\(.*\)$/, ''), missing: true },
       { label: 'Box', value: optLabel(BOX_OPTIONS, comp.box ?? specs.box ?? 'nessuno') },
       { label: 'Finitura', value: optLabel(FINISH_OPTIONS, comp.finish ?? 'nessuna') },
-      { label: 'Foto in copertina', value: wantPhoto ? (comp.coverPhoto ? (comp.coverPhoto.label ?? 'scelta dalla galleria') : undefined) : 'No', img: wantPhoto ? comp.coverPhoto?.url : undefined, missing: wantPhoto },
+      { label: photoWindows > 1 ? `Foto in copertina (${photoWindows} finestre)` : 'Foto in copertina', value: wantPhoto ? (chosenPhotos.length ? (photoWindows > 1 ? `${chosenPhotos.length} di ${photoWindows}, in ordine: ${chosenPhotos.map((p) => p.label ?? 'dalla galleria').join(' · ')}` : (comp.coverPhoto?.label ?? 'scelta dalla galleria')) : undefined) : 'No', img: wantPhoto ? chosenPhotos[0]?.url : undefined, missing: wantPhoto },
     )
     return rows
   }, [comp, selected, colorOpts, backColorOpts, backDiff, specs.box, wantPhoto])
@@ -342,11 +357,11 @@ export default function AlbumCatalogPicker() {
   const stepOk = step === 0 ? !!(comp.model?.key || selected)
     : step === 1 ? !!comp.material && !!comp.color && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
     : step === 2 ? !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
-    : step === 3 ? !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && (!wantPhoto || !!comp.coverPhoto)
+    : step === 3 ? !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && photosOk
     : true
-  const stepHint = step === 0 ? 'Tocca un modello (o spunta una tavola)' : step === 1 ? 'Materiale e colore, poi Avanti' : step === 2 ? 'Un logo o nessuna personalizzazione' : step === 3 ? (wantPhoto && !comp.coverPhoto ? 'Scegli la foto in copertina' : 'Interno, box, finitura, foto') : ''
+  const stepHint = step === 0 ? 'Tocca un modello (o spunta una tavola)' : step === 1 ? 'Materiale e colore, poi Avanti' : step === 2 ? 'Un logo o nessuna personalizzazione' : step === 3 ? (!photosOk ? (photoWindows > 1 ? `Scegli le ${photoWindows} foto in copertina` : 'Scegli la foto in copertina') : 'Interno, box, finitura, foto') : ''
   const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor) && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
-    && !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && (!wantPhoto || !!comp.coverPhoto)
+    && !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && photosOk
   const goToPage = (page?: number) => { if (page) setDeepPage(catalogPageToSheet(page)) }
   async function openPhotoSheet() {
     setPhotoSheet(true)
@@ -449,19 +464,21 @@ export default function AlbumCatalogPicker() {
         : `Album ${euroA(albumTotal)}${shipping > 0 ? ` (incl. spedizione ${euroA(shipping)})` : ''}`
       // la composizione da catalogo, una riga per caratteristica: va nel PDF, nella nota
       // (leggibile ovunque) e come oggetto strutturato nella commessa
-      const lines = compositionLines({ ...comp, coverPhoto: wantPhoto ? comp.coverPhoto : null })
+      const lines = compositionLines({ ...comp, coverPhoto: wantPhoto ? comp.coverPhoto : null, coverPhotos: wantPhoto ? chosenPhotos : [] })
       // (le righe della composizione NON vanno anche nella nota: viaggiano a parte, strutturate)
       const composed = [chosen, priceLine, pinNote.trim() || undefined].filter(Boolean).join('\n')
       const fullSpecs = { ...specs, size: sizeLabel, note: composed || undefined }
       const dateLabel = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
       // la foto scelta, in alta risoluzione e con CORS (Drive passa dal proxy): serve al PDF e al PSD a 300 dpi
-      const coverPhotoDataUrl = wantPhoto && comp.coverPhoto?.url ? await toDataUrl(corsImageUrl(comp.coverPhoto.url, 2400) ?? comp.coverPhoto.url) : null
+      // una per finestra (Julies/Trilogy: tre), in ordine; la prima va anche nel PDF
+      const coverPhotoDataUrls: (string | null)[] = wantPhoto ? await Promise.all(chosenPhotos.map((p) => toDataUrl(corsImageUrl(p.url, 2400) ?? p.url))) : []
+      const coverPhotoDataUrl = coverPhotoDataUrls[0] ?? null
       // TAVOLA DI LAVORAZIONE: PSD a livelli a misura reale (300 dpi), mockup 3D, tavola 2D, posizioni in mm
       const orderRef = `${clientName.trim()} · ${new Date().toISOString().slice(0, 10)}`
       const sizeDef = sizeByKey(specs.size)
       const layout = modelLayout(cover3d.model)
       const loadImg = (url?: string | null) => new Promise<HTMLImageElement | null>((res) => { if (!url) return res(null); const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = url })
-      const photoImg = await loadImg(coverPhotoDataUrl)
+      const photoImgs = await Promise.all(coverPhotoDataUrls.map((u) => loadImg(u)))
       // il logo: ricostruito con i nomi veri (font caricati) se c'è il template, altrimenti il ritaglio del catalogo
       let logoForPsd: { image: HTMLImageElement | HTMLCanvasElement; code: string; composed?: boolean } | null = null
       if (cover3d.logoKey && hasLogoTemplate(cover3d.logoKey)) {
@@ -476,7 +493,7 @@ export default function AlbumCatalogPicker() {
       const psd = sizeDef ? buildCoverPsd({
         layout, wCm: sizeDef.w, hCm: sizeDef.h, dpi: 300, modelLabel: comp.model?.label ?? selected.label,
         materialLabel: comp.material ? materialLabel(comp.material) : undefined, colorLabel: colorOpts.find((o) => o.key === comp.color)?.label, colorHex: cover3d.color,
-        photos: LAYOUT_SPEC[layout].photos.map(() => photoImg), logo: logoForPsd, decor: decorForPsd,
+        photos: LAYOUT_SPEC[layout].photos.map((_, i) => photoImgs[i] ?? photoImgs[0] ?? null), logo: logoForPsd, decor: decorForPsd,
         names: cover3d.title, ink: cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e',
         couple: clientName.trim(), studio: catalog.studio, orderRef,
       }) : null
@@ -705,39 +722,44 @@ export default function AlbumCatalogPicker() {
             )}
 
             {step === 3 && (
-            <Chapter n="IV" title="Interno, box e finitura">
-              <Voice label="Blocco interno" page={128} onSee={goToPage}>
-                <PillChoice options={BLOCK_OPTIONS.map((o) => ({ ...o, label: o.label.replace(/\s*\(.*\)$/, ''), hint: o.label }))} value={comp.block} onChange={(k) => setComp((c) => ({ ...c, block: k }))} />
-              </Voice>
+            <Chapter n="IV" title="Box e finitura" hint="Il blocco interno è digitale (lo decide il fotografo dall'impaginatore, non si sceglie qui).">
+              {/* il blocco interno NON si sceglie qui: di default digitale; il fotografo può opzionarlo dall'impaginatore */}
               <Voice label="Box / contenitore" page={97} onSee={goToPage}>
                 <PillChoice options={BOX_OPTIONS} value={comp.box ?? specs.box ?? 'nessuno'} onChange={(k) => setComp((c) => ({ ...c, box: k }))} />
               </Voice>
               <Voice label="Finitura">
                 <PillChoice options={FINISH_OPTIONS} value={comp.finish ?? 'nessuna'} onChange={(k) => setComp((c) => ({ ...c, finish: k }))} />
               </Voice>
-              <Voice label="Foto in copertina">
-                <PillChoice options={[{ key: 'no', label: 'No' }, { key: 'si', label: 'Sì, la scelgo dalla galleria' }]} value={wantPhoto ? 'si' : 'no'}
-                  onChange={(k) => { const v = k === 'si'; setWantPhoto(v); if (!v) setComp((c) => ({ ...c, coverPhoto: null })) }} />
+              <Voice label={photoWindows > 1 ? `Foto in copertina · ${photoWindows} finestre` : 'Foto in copertina'}>
+                <PillChoice options={[{ key: 'no', label: 'No' }, { key: 'si', label: photoWindows > 1 ? `Sì, le scelgo dalla galleria (${photoWindows})` : 'Sì, la scelgo dalla galleria' }]} value={wantPhoto ? 'si' : 'no'}
+                  onChange={(k) => { const v = k === 'si'; setWantPhoto(v); if (!v) setComp((c) => ({ ...c, coverPhoto: null, coverPhotos: [] })) }} />
+                {photoWindows > 1 && <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Questo modello ha {photoWindows} finestre sulla copertina: servono {photoWindows} foto, nell'ordine da sinistra a destra.</p>}
               </Voice>
               {wantPhoto && (
                 <div className="flex items-center gap-3">
-                  {/* la foto scelta, grande; il foglio a schermo intero per sceglierla o cambiarla */}
-                  <button type="button" onClick={() => void openPhotoSheet()}
-                    className={`relative h-24 w-32 shrink-0 overflow-hidden rounded-xl border-2 ${comp.coverPhoto ? 'border-[rgb(var(--gold-500))]' : 'border-dashed border-[rgb(var(--border))]'} bg-[rgb(var(--bg-sunken))] grid place-items-center`}>
-                    {comp.coverPhoto ? <img src={comp.coverPhoto.url} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <ImageIcon size={22} className="text-[rgb(var(--fg-subtle))]" />}
-                  </button>
+                  {/* le foto scelte, una per finestra; il foglio a schermo intero per sceglierle o cambiarle */}
+                  <div className="flex gap-1.5 shrink-0">
+                    {Array.from({ length: photoWindows }, (_, i) => chosenPhotos[i]).map((p, i) => (
+                      <button key={i} type="button" onClick={() => void openPhotoSheet()}
+                        className={`relative h-24 ${photoWindows > 1 ? 'w-20' : 'w-32'} overflow-hidden rounded-xl border-2 ${p ? 'border-[rgb(var(--gold-500))]' : 'border-dashed border-[rgb(var(--border))]'} bg-[rgb(var(--bg-sunken))] grid place-items-center`}>
+                        {p ? <img src={p.url} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <ImageIcon size={22} className="text-[rgb(var(--fg-subtle))]" />}
+                        {photoWindows > 1 && <span className="absolute top-1 left-1 h-5 w-5 grid place-items-center rounded-full bg-[rgb(var(--fg))] text-[rgb(var(--bg-elev))] text-[11px]">{i + 1}</span>}
+                      </button>
+                    ))}
+                  </div>
                   <div className="min-w-0">
-                    <p className="text-sm">{comp.coverPhoto ? (comp.coverPhoto.label ?? 'Foto scelta') : 'Nessuna foto ancora'}</p>
+                    <p className="text-sm">{chosenPhotos.length ? (photoWindows > 1 ? `${chosenPhotos.length} di ${photoWindows} scelte` : (comp.coverPhoto?.label ?? 'Foto scelta')) : (photoWindows > 1 ? 'Nessuna foto ancora' : 'Nessuna foto ancora')}</p>
                     <button type="button" onClick={() => void openPhotoSheet()} className="mt-1 rounded-full border border-[rgb(var(--gold-600))] text-[rgb(var(--gold-700))] px-3 py-1.5 text-[13px]">
-                      {comp.coverPhoto ? 'Cambia foto' : 'Scegli la foto'}
+                      {chosenPhotos.length ? (photoWindows > 1 ? 'Cambia le foto' : 'Cambia foto') : (photoWindows > 1 ? 'Scegli le foto' : 'Scegli la foto')}
                     </button>
                     <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Tra quelle scelte per l'album.</p>
                   </div>
                 </div>
               )}
               {photoSheet && (
-                <CoverPhotoPicker photos={candidates} value={comp.coverPhoto?.mediaId} loading={photosLoading} onClose={() => setPhotoSheet(false)}
-                  onPick={(c) => setComp((x) => ({ ...x, coverPhoto: { mediaId: c.id, url: c.thumb, label: c.label } }))} />
+                <CoverPhotoPicker photos={candidates} value={comp.coverPhoto?.mediaId} values={chosenPhotos.map((p) => p.mediaId)} max={photoWindows} loading={photosLoading} onClose={() => setPhotoSheet(false)}
+                  onPick={(c) => setComp((x) => ({ ...x, coverPhoto: { mediaId: c.id, url: c.thumb, label: c.label }, coverPhotos: [{ mediaId: c.id, url: c.thumb, label: c.label }] }))}
+                  onPickMany={(cs) => setComp((x) => { const ps = cs.map((c) => ({ mediaId: c.id, url: c.thumb, label: c.label })); return { ...x, coverPhoto: ps[0] ?? null, coverPhotos: ps } })} />
               )}
             </Chapter>
             )}

@@ -198,6 +198,8 @@ export type CoverComposition = {
   box?: string
   finish?: string
   coverPhoto?: { mediaId: string; url: string; label: string | null } | null
+  /** tutte le foto in copertina, una per finestra e in ordine (modelli a più finestre: Julies, Trilogy); coverPhoto = la prima */
+  coverPhotos?: { mediaId: string; url: string; label: string | null }[]
 }
 
 export function compositionLines(c: CoverComposition): string[] {
@@ -217,6 +219,8 @@ export function compositionLines(c: CoverComposition): string[] {
     c.block ? `Blocco interno: ${optLabel(BLOCK_OPTIONS, c.block) ?? c.block}` : null,
     c.box ? `Box: ${optLabel(BOX_OPTIONS, c.box) ?? c.box}` : null,
     c.finish ? `Finitura: ${optLabel(FINISH_OPTIONS, c.finish) ?? c.finish}` : null,
-    c.coverPhoto ? `Foto in copertina: ${c.coverPhoto.label ?? 'scelta dalla galleria'}` : null,
+    c.coverPhotos && c.coverPhotos.length > 1
+      ? `Foto in copertina (${c.coverPhotos.length} finestre, in ordine): ${c.coverPhotos.map((p, i) => `${i + 1}. ${p.label ?? 'dalla galleria'}`).join(' · ')}`
+      : c.coverPhoto ? `Foto in copertina: ${c.coverPhoto.label ?? 'scelta dalla galleria'}` : null,
   ].filter((x): x is string => !!x)
 }

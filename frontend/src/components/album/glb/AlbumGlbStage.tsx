@@ -180,7 +180,7 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
-    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey]) // eslint-disable-line react-hooks/exhaustive-deps
+    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.photo_urls?.join('|'), cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey]) // eslint-disable-line react-hooks/exhaustive-deps
   // le immagini del decal (logo del catalogo) arrivano dopo: ridisegno
   useEffect(() => { onDecalImagesReady(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, coverRef.current) }) }, [])
 
@@ -215,14 +215,21 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   const plateMat = new THREE.MeshPhysicalMaterial({ color: brass ? 0xd9b46a : 0xd8d8d8, metalness: 1, roughness: 0.22, envMapIntensity: 1.4, clearcoat: 0.3 })
   const crystalMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.02, transmission: 0.55, ior: 1.9, thickness: 0.002, envMapIntensity: 2.2, clearcoat: 1 })
   const pagesMat = new THREE.MeshStandardMaterial({ color: 0xf4efe6, roughness: 0.92 })
-  const photoMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.2 })
-  const photoSrc = corsImageUrl(cover.photo_url, 1200)
-  if (photoSrc) {
-    // la foto passa dal proxy CORS quando serve (Drive): altrimenti WebGL la rifiuta e il piatto resta nero
-    const t = texLoader.load(photoSrc, undefined, undefined, () => { photoMat.map = null; photoMat.color.set(0xe9e4dc); photoMat.needsUpdate = true })
-    t.colorSpace = THREE.SRGBColorSpace; t.flipY = false
-    photoMat.map = t
-  } else { photoMat.color.set(0xe9e4dc) }
+  // UNA FOTO PER FINESTRA: i modelli a più finestre (Julies/Trilogy: Photo1, Photo2, Photo3 da sinistra) prendono
+  // le foto scelte in ordine; a una finestra sola vale photo_url. La foto passa dal proxy CORS quando serve
+  // (Drive): altrimenti WebGL la rifiuta e il piatto resta nero
+  const urls = (cover.photo_urls?.length ? cover.photo_urls : [cover.photo_url ?? '']).filter(Boolean)
+  const photoMatFor = (i: number) => {
+    const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.2 })
+    const src = corsImageUrl(urls[i] ?? urls[0], 1200)
+    if (src) {
+      const t = texLoader.load(src, undefined, undefined, () => { m.map = null; m.color.set(0xe9e4dc); m.needsUpdate = true })
+      t.colorSpace = THREE.SRGBColorSpace; t.flipY = false
+      m.map = t
+    } else { m.color.set(0xe9e4dc) }
+    return m
+  }
+  const photoOrder = (name: string) => { const n = name.match(/(\d+)$/); return n ? Number(n[1]) - 1 : 0 }
   const decalMat = new THREE.MeshPhysicalMaterial({ transparent: true, roughness: 0.6, metalness: 0.15, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
   const decalTex = drawDecal(cover); if (decalTex) { decalMat.map = decalTex; decalMat.opacity = 1 } else decalMat.opacity = 0
 
@@ -238,7 +245,7 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
     else if (base === 'Plate') m.material = plateMat
     else if (base === 'Crystal') m.material = crystalMat
     else if (base === 'Pages') m.material = pagesMat
-    else if (base === 'Photo') { m.material = photoMat }
+    else if (base === 'Photo') { m.material = photoMatFor(photoOrder(m.name)) }
     else if (base === 'Decal') { m.material = decalMat; m.castShadow = false }
   })
   // I CRISTALLI DEL DECORO: i Swarovski del modello (centri ritagliati dal catalogo) come piccole gemme 3D

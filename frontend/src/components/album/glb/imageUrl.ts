@@ -14,8 +14,10 @@ export function corsImageUrl(url: string | null | undefined, size?: number): str
     if (parsed.hostname === 'drive.google.com' && parsed.pathname === '/thumbnail' && size) {
       parsed.searchParams.set('sz', `w${size}`); u = parsed.toString()
     }
-    // lo storage Supabase ha già CORS: diretto
+    // lo storage Supabase ha già CORS: diretto; così le foto d'archivio (Pexels/Unsplash, gallerie demo),
+    // che il proxy non ammette e che mandano già le intestazioni CORS
     if (parsed.hostname.endsWith('.supabase.co') || parsed.hostname.endsWith('.supabase.in')) return u
+    if (/(^|\.)pexels\.com$|(^|\.)unsplash\.com$/.test(parsed.hostname)) return u
   } catch { return url }
   return PROXY + encodeURIComponent(u)
 }
