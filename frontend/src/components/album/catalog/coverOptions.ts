@@ -207,6 +207,11 @@ export type CoverComposition = {
   /** impaginazione della copertina scelta dalla coppia: ritaglio di ogni foto (per finestra) e posizione/misura del blocco nomi-logo */
   photoCrops?: Record<number, PhotoCrop>
   logoPlace?: LogoPlace
+  /** che cosa c'è scritto in copertina: nomi e data li decide la coppia (vuoti = niente scritta) */
+  coverNames?: string
+  coverDate?: string
+  /** dove sta la scritta, quando la coppia la sposta: indipendente dal logo */
+  textPlace?: LogoPlace
 }
 
 // IL DEFAULT DI OGNI FAMIGLIA: il modello parte col materiale e il colore con cui il catalogo lo mostra

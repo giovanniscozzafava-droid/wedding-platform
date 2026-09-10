@@ -3,7 +3,7 @@
 // copertura nella sua finestra) · Logo cod.NN · Nomi · Guide (rettangoli con quote in mm) ·
 // Specifiche (testo). Più le guide di Photoshop sui bordi di ogni finestra.
 import { writePsd, type Psd, type Layer } from 'ag-psd'
-import { LAYOUT_SPEC, cropRect, logoToInk, type LayoutSpec, type PhotoCrop, type LogoPlace } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, cropRect, logoToInk, drawCoverText, coverTextMetrics, type LayoutSpec, type PhotoCrop, type LogoPlace, type TextPlace } from '@/components/album/glb/layoutSpec'
 import { namePlacements, drawDecor, PLATE_MARGIN } from '@/components/album/glb/decal'
 import type { Decor } from '@/components/album/glb/decor.generated'
 import type { Layout } from '@/components/album/albumCatalog'
@@ -17,6 +17,9 @@ export type CoverPsdInput = {
   photos: (HTMLImageElement | null)[]          // una per finestra (in ordine)
   logo?: { image: HTMLImageElement | HTMLCanvasElement; code: string; composed?: boolean } | null
   names?: string
+  /** la data scritta in copertina, come l'ha voluta la coppia */
+  dateText?: string
+  textPlace?: TextPlace
   ink?: string                                  // colore di nomi/logo
   /** Il decoro proprio del modello (dal catalogo): stampa a tutta copertina + cristalli con i centri. */
   decor?: { family: string; spec: Decor; print: HTMLImageElement | null; stones: HTMLImageElement | null } | null
@@ -117,9 +120,22 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
     layers.push({ name: `Logo ${inp.logo.code} · larghezza ${mm(spec.logo.w, inp.wCm)} mm`, canvas: t, left: x, top: y, right: x + lw, bottom: y + lh })
     positions.push({ label: `Logo ${inp.logo.code}`, x: mm(x / W, inp.wCm), y: mm(y / H, inp.hCm), w: mm(lw / W, inp.wCm), h: mm(lh / H, inp.hCm) })
   }
-  // 5) nomi (se c'è il logo del catalogo, i nomi sono già nel logo: niente riga doppia); dove li mette
-  //    il decoro del modello (sotto i fiori, ai lati del tronco…) o il layout
-  if (inp.names && !inp.logo) {
+  // 5) LA SCRITTA (nomi e data) dove l'ha messa la coppia nell'editor: un livello solo, alla sua misura
+  if (inp.textPlace && (inp.names || inp.dateText)) {
+    const tp = inp.textPlace
+    const m = coverTextMetrics(inp.names, inp.dateText)
+    const bw = Math.round(tp.w * W), bh = Math.max(1, Math.round((m.h / m.w) * bw))
+    const [tc, tctx] = canvas(bw, bh)
+    drawCoverText(tctx, { names: inp.names, date: inp.dateText }, bw / 2, 0, bw, ink)
+    const bx = Math.round(tp.x * W - bw / 2), by = Math.round(tp.y * H)
+    const what = [inp.names, inp.dateText].filter(Boolean).join(' · ')
+    layers.push({ name: `Scritta «${what}» · larga ${mm(tp.w, inp.wCm)} mm`, canvas: tc, left: bx, top: by, right: bx + bw, bottom: by + bh })
+    positions.push({ label: 'Scritta (nomi e data)', x: mm(bx / W, inp.wCm), y: mm(by / H, inp.hCm), w: mm(bw / W, inp.wCm), h: mm(bh / H, inp.hCm) })
+    guides.push({ location: by, direction: 'horizontal' })
+  }
+  // 5b) senza posizionamento della coppia: i nomi dove li mette il decoro del modello (sotto i fiori,
+  //     ai lati del tronco…) o il layout; col logo del catalogo i nomi sono già dentro il logo
+  else if (inp.names && !inp.logo) {
     const sizeFr = inp.decor ? 0.045 : spec.names.size
     const size = Math.round(sizeFr * H)
     const font = `italic 400 ${size}px "Fraunces", "Cormorant Garamond", Georgia, serif`

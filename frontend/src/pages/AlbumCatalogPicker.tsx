@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format } from '@/components/album/albumCatalog'
 import type { GlbCover, GlbView, AlbumGlbStageHandle } from '@/components/album/glb/AlbumGlbStage'
 import { buildCoverPsd } from '@/components/album/glb/coverPsd'
-import { LAYOUT_SPEC, inkRgb, logoToInk } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, inkRgb, logoToInk, coverTextMetrics } from '@/components/album/glb/layoutSpec'
 import { hasLogoTemplate } from '@/components/album/glb/logoTemplates'
 import { composeLogo, fontsOf, loadLogoFont } from '@/components/album/glb/logoCompose'
 import { dateIt, decorFor, decorFamily } from '@/components/album/glb/decal'
@@ -326,6 +326,12 @@ export default function AlbumCatalogPicker() {
   const [photoSheet, setPhotoSheet] = useState(false)      // foglio a schermo intero per scegliere la foto in copertina
   const [photosLoading, setPhotosLoading] = useState(false)
   const stageRef = useRef<AlbumGlbStageHandle>(null)
+  // CHE COSA C'È SCRITTO IN COPERTINA: lo decide la coppia. Di partenza i nomi dell'evento e la sua
+  // data; se cancella il campo, quella riga non si stampa.
+  const coverNames = (comp.coverNames ?? (entryTitle || clientName.trim() || '')).trim()
+  const coverDate = (comp.coverDate ?? dateIt(entryDate) ?? '').trim()
+  // il logo del catalogo con template porta già dentro nomi e data: la scritta non si ripete
+  const logoHasText = !!(comp.logo && /^cod\./.test(comp.logo) && hasLogoTemplate(comp.logo))
   const cover3d = useMemo<GlbCover>(() => {
     const fin = new Set<string>()
     if (comp.finish && comp.finish !== 'nessuna') fin.add(comp.finish)
@@ -346,13 +352,14 @@ export default function AlbumCatalogPicker() {
       backColor: comp.backMaterial ? paletteFor(comp.backMaterial).find((c) => c.key === comp.backColor)?.hex : undefined,
       boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor,
       boxColor: comp.boxMaterial ? paletteFor(comp.boxMaterial).find((c) => c.key === comp.boxColor)?.hex : undefined,
-      photoCrops: comp.photoCrops, logoPlace: comp.logoPlace,
-      title: entryTitle || clientName.trim() || '',
+      photoCrops: comp.photoCrops, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
+      title: coverNames,
+      dateText: coverDate,
       logoKey: comp.logo && comp.logo !== 'nessuno' && /^cod\./.test(comp.logo) ? comp.logo : undefined,
       eventDate: entryDate,
       ink: comp.logoColor === 'bianco' ? 'white' : comp.logoColor?.startsWith('grigio') ? 'silver' : (hex && hexLum(hex) < 0.5) ? 'white' : 'ink',
     }
-  }, [comp, selected?.label, specs.format, specs.size, specs.pages, specs.box, wantPhoto, clientName, entryTitle, entryDate])
+  }, [comp, selected?.label, specs.format, specs.size, specs.pages, specs.box, wantPhoto, coverNames, coverDate, entryDate])
   // LA SCHEDA: una riga per caratteristica, con la miniatura del campione scelto
   const sheetRows = useMemo<SheetRow[]>(() => {
     const col = colorOpts.find((o) => o.key === comp.color)
@@ -370,7 +377,12 @@ export default function AlbumCatalogPicker() {
     if (logoNeedsColor(comp.logo)) rows.push({ label: 'Tonalità', value: optLabel(LOGO_COLOR_TILES, comp.logoColor), img: swatchUrl(comp.logoColor), missing: true })
     // l'impaginazione della copertina fatta dalla coppia (editor): dove stanno nomi/logo e se le foto sono state ritagliate
     const cropped = Object.values(comp.photoCrops ?? {}).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01)
-    if (comp.logoPlace || cropped) rows.push({ label: 'Impaginazione copertina', value: [comp.logoPlace ? `nomi/logo al ${Math.round(comp.logoPlace.x * 100)}% da sinistra, ${Math.round(comp.logoPlace.y * 100)}% dall'alto, larghi il ${Math.round(comp.logoPlace.w * 100)}%` : null, cropped ? 'foto ritagliate a mano' : null].filter(Boolean).join(' · ') })
+    rows.push({ label: 'Scritta in copertina', value: [coverNames || null, coverDate || null].filter(Boolean).join(' · ') || 'Nessuna scritta' })
+    if (comp.logoPlace || comp.textPlace || cropped) rows.push({ label: 'Impaginazione copertina', value: [
+      comp.logoPlace ? `logo al ${Math.round(comp.logoPlace.x * 100)}% da sinistra, ${Math.round(comp.logoPlace.y * 100)}% dall'alto, largo il ${Math.round(comp.logoPlace.w * 100)}%` : null,
+      comp.textPlace ? `scritta al ${Math.round(comp.textPlace.x * 100)}% da sinistra, ${Math.round(comp.textPlace.y * 100)}% dall'alto, larga il ${Math.round(comp.textPlace.w * 100)}%` : null,
+      cropped ? 'foto ritagliate a mano' : null,
+    ].filter(Boolean).join(' · ') })
     rows.push(
       { label: 'Blocco', value: optLabel(BLOCK_OPTIONS, comp.block)?.replace(/\s*\(.*\)$/, ''), missing: true },
       { label: 'Box', value: `${optLabel(BOX_OPTIONS, comp.box ?? specs.box ?? 'nessuno')}${(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' ? (comp.boxMaterial ? ` · ${materialLabel(comp.boxMaterial)}${boxColorOpts.find((o) => o.key === comp.boxColor)?.label ? ` ${boxColorOpts.find((o) => o.key === comp.boxColor)!.label}` : ''}` : ' · come la copertina') : ''}`, img: comp.boxMaterial ? (boxColorOpts.find((o) => o.key === comp.boxColor)?.img ?? swatchUrl(`mat:${comp.boxMaterial}`)) : undefined, hex: boxColorOpts.find((o) => o.key === comp.boxColor)?.hex },
@@ -378,7 +390,7 @@ export default function AlbumCatalogPicker() {
       { label: photoWindows > 1 ? `Foto in copertina (${photoWindows} finestre)` : 'Foto in copertina', value: wantPhoto ? (chosenPhotos.length ? (photoWindows > 1 ? `${chosenPhotos.length} di ${photoWindows}, in ordine: ${chosenPhotos.map((p) => p.label ?? 'dalla galleria').join(' · ')}` : (comp.coverPhoto?.label ?? 'scelta dalla galleria')) : undefined) : 'No', img: wantPhoto ? chosenPhotos[0]?.url : undefined, missing: wantPhoto },
     )
     return rows
-  }, [comp, selected, colorOpts, backColorOpts, backDiff, specs.box, wantPhoto])
+  }, [comp, selected, colorOpts, backColorOpts, backDiff, specs.box, wantPhoto, coverNames, coverDate])
   // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + differenza album
   const rimanenza = residuo + pricing.total
   const STEPS = ['Modello', 'Materiale e colore', 'Nomi e loghi', 'Box e finitura', 'Copertina', 'La scheda', 'Firma']
@@ -392,7 +404,7 @@ export default function AlbumCatalogPicker() {
       if (!key) { setLogoImg(null); return }
       if (hasLogoTemplate(key)) {
         await Promise.all(fontsOf(key).map(loadLogoFont))
-        const cv = composeLogo({ code: key, names: cover3d.title, date: dateIt(entryDate), ink: inkRgb(cover3d.ink) }, 900)
+        const cv = composeLogo({ code: key, names: cover3d.title, date: cover3d.dateText || undefined, ink: inkRgb(cover3d.ink) }, 900)
         if (alive && cv) { setLogoImg({ url: cv.toDataURL('image/png'), aspect: cv.height / cv.width }); return }
       }
       const im = new Image(); im.crossOrigin = 'anonymous'
@@ -401,8 +413,18 @@ export default function AlbumCatalogPicker() {
       im.src = swatchUrl(key) ?? ''
     })()
     return () => { alive = false }
-  }, [cover3d.logoKey, cover3d.title, cover3d.ink, entryDate])
+  }, [cover3d.logoKey, cover3d.title, cover3d.dateText, cover3d.ink])
   const defaultPlace = { x: LAYOUT_SPEC[modelLayoutKey].logo.x, y: LAYOUT_SPEC[modelLayoutKey].logo.y, w: LAYOUT_SPEC[modelLayoutKey].logo.w }
+  // DOVE PARTE LA SCRITTA: l'ancora dei nomi del modello (che è il CENTRO della riga) diventa il bordo
+  // superiore del blocco, alla larghezza che il testo ha davvero a quel corpo.
+  const defaultTextPlace = useMemo(() => {
+    const sd = sizeByKey(specs.size); const wCm = sd?.w ?? 30, hCm = sd?.h ?? 30
+    const sp = LAYOUT_SPEC[modelLayoutKey].names
+    const m = coverTextMetrics(coverNames, coverDate)
+    const w = Math.min(0.8, Math.max(0.12, sp.size * (m.w / 100) * (hCm / wCm)))
+    const h = (m.h / m.w) * w * (wCm / hCm)
+    return { x: sp.x, y: Math.min(Math.max(sp.y - h / 2, 0.02), 0.98 - h), w }
+  }, [modelLayoutKey, specs.size, coverNames, coverDate])
   const stepOk = step === 0 ? !!(comp.model?.key || selected)
     : step === 1 ? !!comp.material && !!comp.color && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
     : step === 2 ? !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
@@ -532,7 +554,7 @@ export default function AlbumCatalogPicker() {
       let logoForPsd: { image: HTMLImageElement | HTMLCanvasElement; code: string; composed?: boolean } | null = null
       if (cover3d.logoKey && hasLogoTemplate(cover3d.logoKey)) {
         await Promise.all(fontsOf(cover3d.logoKey).map(loadLogoFont))
-        const cv = composeLogo({ code: cover3d.logoKey, names: cover3d.title, date: dateIt(entryDate), ink: inkRgb(cover3d.ink) }, 2400)
+        const cv = composeLogo({ code: cover3d.logoKey, names: cover3d.title, date: cover3d.dateText || undefined, ink: inkRgb(cover3d.ink) }, 2400)
         if (cv) logoForPsd = { image: cv, code: cover3d.logoKey, composed: true }
       }
       if (!logoForPsd && cover3d.logoKey) { const im = await loadImg(swatchUrl(cover3d.logoKey)); if (im) logoForPsd = { image: im, code: cover3d.logoKey } }
@@ -543,8 +565,8 @@ export default function AlbumCatalogPicker() {
         layout, wCm: sizeDef.w, hCm: sizeDef.h, dpi: 300, modelLabel: comp.model?.label ?? selected.label,
         materialLabel: comp.material ? materialLabel(comp.material) : undefined, colorLabel: colorOpts.find((o) => o.key === comp.color)?.label, colorHex: cover3d.color,
         photos: LAYOUT_SPEC[layout].photos.map((_, i) => photoImgs[i] ?? photoImgs[0] ?? null), logo: logoForPsd, decor: decorForPsd,
-        photoCrops: comp.photoCrops, logoPlace: comp.logoPlace,
-        names: cover3d.title, ink: cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e',
+        photoCrops: comp.photoCrops, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
+        names: cover3d.title, dateText: cover3d.dateText || undefined, ink: cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e',
         couple: clientName.trim(), studio: catalog.studio, orderRef,
       }) : null
       const fileBase = `copertina-${clientName.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${(comp.model?.label ?? selected.label).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`
@@ -778,6 +800,42 @@ export default function AlbumCatalogPicker() {
                   <SwatchPicker shape="chip" cols={6} options={LOGO_COLOR_TILES} value={comp.logoColor} onChange={(k) => setComp((c) => ({ ...c, logoColor: k }))} />
                 </Voice>
               )}
+              {/* COSA SCRIVERE: nomi e data li sceglie la coppia (parola per parola). Vuoto = non si stampa. */}
+              <Voice label="Cosa scrivere">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">I nomi</span>
+                    <input type="text" value={coverNames} maxLength={48} placeholder="Es. Marco e Giulia" aria-label="I nomi in copertina"
+                      onChange={(e) => setComp((c) => ({ ...c, coverNames: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))] px-3 py-2 text-[15px]" />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] uppercase tracking-wider text-[rgb(var(--fg-subtle))]">La data</span>
+                    <input type="text" value={coverDate} maxLength={40} placeholder="Es. 12 giugno 2027" aria-label="La data in copertina"
+                      onChange={(e) => setComp((c) => ({ ...c, coverDate: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-elev))] px-3 py-2 text-[15px]" />
+                  </label>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {!!(dateIt(entryDate) ?? '') && coverDate !== dateIt(entryDate) && (
+                    <button type="button" onClick={() => setComp((c) => ({ ...c, coverDate: dateIt(entryDate) ?? '' }))}
+                      className="rounded-full border border-[rgb(var(--border))] px-3 py-1 text-[12px] text-[rgb(var(--fg-muted))]">La data dell'evento</button>
+                  )}
+                  {!!coverDate && (
+                    <button type="button" onClick={() => setComp((c) => ({ ...c, coverDate: '' }))}
+                      className="rounded-full border border-[rgb(var(--border))] px-3 py-1 text-[12px] text-[rgb(var(--fg-muted))]">Senza data</button>
+                  )}
+                  {!!coverNames && (
+                    <button type="button" onClick={() => setComp((c) => ({ ...c, coverNames: '' }))}
+                      className="rounded-full border border-[rgb(var(--border))] px-3 py-1 text-[12px] text-[rgb(var(--fg-muted))]">Senza nomi</button>
+                  )}
+                </div>
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-2">
+                  {logoHasText
+                    ? 'Il logo che hai scelto porta dentro nomi e data: quello che scrivi qui finisce dentro il logo.'
+                    : 'Nel passo «Copertina» decidi dove metterli e quanto grandi. Lascia vuoto per non stamparli.'}
+                </p>
+              </Voice>
             </Chapter>
             )}
 
@@ -846,7 +904,7 @@ export default function AlbumCatalogPicker() {
             )}
 
             {step === 4 && (
-            <Chapter n="V" title="Foto e nomi al loro posto" hint="Sistema le foto nelle finestre (trascina e ingrandisci) e metti nomi o logo dove li vuoi, grandi quanto vuoi.">
+            <Chapter n="V" title="Foto, scritta e logo al loro posto" hint="Trascina la foto dentro la finestra per scegliere il ritaglio; sposta la scritta e il logo dove li vuoi, grandi quanto vuoi.">
               {(() => {
                 const sd = sizeByKey(specs.size); const spec = LAYOUT_SPEC[modelLayoutKey]
                 const decor = decorFor(cover3d.model)
@@ -854,8 +912,10 @@ export default function AlbumCatalogPicker() {
                   <CoverLayoutEditor wCm={sd?.w ?? 30} hCm={sd?.h ?? 30} bgHex={cover3d.color} decorPrint={decor?.print} decorInvert={!decor?.color && cover3d.ink === 'white'}
                     photos={wantPhoto ? chosenPhotos.map((p) => p.url) : []} windows={wantPhoto ? spec.photos : []}
                     crops={comp.photoCrops ?? {}} onCrops={(c) => setComp((x) => ({ ...x, photoCrops: c }))}
-                    logoImage={logoImg?.url ?? null} logoAspect={logoImg?.aspect} namesText={logoImg ? undefined : (cover3d.title || undefined)} ink={cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e'}
-                    place={comp.logoPlace ?? defaultPlace} defaultPlace={defaultPlace} onPlace={(p) => setComp((x) => ({ ...x, logoPlace: p ?? undefined }))} />
+                    logoImage={logoImg?.url ?? null} logoAspect={logoImg?.aspect} ink={cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e'}
+                    place={comp.logoPlace ?? defaultPlace} defaultPlace={defaultPlace} onPlace={(p) => setComp((x) => ({ ...x, logoPlace: p ?? undefined }))}
+                    names={coverNames} dateText={coverDate} textInsideLogo={logoHasText}
+                    textPlace={comp.textPlace ?? defaultTextPlace} defaultTextPlace={defaultTextPlace} onTextPlace={(p) => setComp((x) => ({ ...x, textPlace: p ?? undefined }))} />
                 )
               })()}
             </Chapter>

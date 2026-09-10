@@ -5,7 +5,7 @@
 import * as THREE from 'three'
 import { baseDesignKey, modelByKey, modelLayout, sizeByKey, type Cover } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
-import { LAYOUT_SPEC, logoToInk, inkRgb, type LogoPlace } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, logoToInk, inkRgb, drawCoverText, coverTextMetrics, type LogoPlace, type TextPlace } from '@/components/album/glb/layoutSpec'
 import { hasLogoTemplate, LOGO_TEMPLATES } from '@/components/album/glb/logoTemplates'
 import { composeLogo, fontsOf, loadLogoFont, onLogoAssetsReady } from '@/components/album/glb/logoCompose'
 import { decorOf, type Decor } from '@/components/album/glb/decor.generated'
@@ -110,7 +110,7 @@ export function plateAlphaCanvas(holes: HTMLImageElement, size = 1024): HTMLCanv
 }
 
 export type DecalInk = 'ink' | 'white' | 'gold' | 'silver'
-export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; ink?: DecalInk; eventDate?: string | null; logoPlace?: LogoPlace }): THREE.CanvasTexture | null {
+export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; ink?: DecalInk; eventDate?: string | null; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }): THREE.CanvasTexture | null {
   const W = 2048, H = 2048
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d'); if (!ctx) return null
@@ -141,7 +141,8 @@ export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; 
     const code = cover.logoKey
     for (const f of fontsOf(code)) if (!fontsRequested.has(f)) { fontsRequested.add(f); void loadLogoFont(f).then(() => onReady?.()) }
     onLogoAssetsReady(() => onReady?.())
-    composed = composeLogo({ code, names, date: dateIt(cover.eventDate), ink: inkRgb(cover.ink) }, Math.round(spec.logo.w * W))
+    // il logo ricomposto porta dentro i nomi e la data SCELTI dalla coppia (non più solo quelli dell'evento)
+    composed = composeLogo({ code, names, date: (cover.dateText ?? '').trim() || dateIt(cover.eventDate), ink: inkRgb(cover.ink) }, Math.round(spec.logo.w * W))
   }
   if (composed) {
     const lw = composed.width, lh = Math.round(composed.height * aspect)
@@ -159,16 +160,37 @@ export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; 
     ctx.font = `500 ${Math.round(H * 0.22)}px "Bodoni Moda", "Playfair Display", Georgia, serif`
     ctx.fillText(initialsOf(names), 0, 0); ctx.restore(); drew = true
   }
-  // 3) i nomi: dove li mette il decoro del modello (Bouquet sotto i fiori, Darling ai lati del tronco…) o il layout
-  if (names && !logo && !composed && (cover.textLayout ?? 'model') === 'model') {
-    ctx.save(); ctx.fillStyle = ink; ctx.textBaseline = 'middle'
-    ctx.font = `italic 400 ${Math.round(H * (decor ? 0.045 : p.size))}px "Fraunces", "Cormorant Garamond", Georgia, serif`
-    for (const pl of namePlacements(names, lp ? undefined : decor, p)) {
-      // le ancore del decoro sono in coordinate copertina (→ decal); quelle del layout (o della coppia) sono già sul decal
-      const px = decor && !lp ? dx(pl.x) : pl.x, py = decor && !lp ? dy(pl.y) : pl.y
-      ctx.save(); ctx.translate(W * px, H * py); ctx.scale(1 / aspect, 1); ctx.textAlign = pl.align; ctx.fillText(pl.text, 0, 0); ctx.restore()
+  // 3) LA SCRITTA (nomi e data), scelta dalla coppia. Se il logo del catalogo ha il template, i nomi
+  //    sono già dentro il logo e non si ripetono; col ritaglio del catalogo, invece, la scritta ci vuole.
+  const dateTxt = (cover.dateText ?? '').trim()
+  const tp = cover.textPlace
+  if ((names || dateTxt) && !composed && (cover.textLayout ?? 'model') === 'model') {
+    if (tp) {
+      // dove l'ha messa la coppia: coordinate copertina → decal
+      drawCoverText(ctx, { names, date: dateTxt }, W * toD(tp.x), H * toD(tp.y), (tp.w / (1 - 2 * DI)) * W, ink, aspect)
+      drew = true
+    } else if (names) {
+      // dove li mette il decoro del modello (Bouquet sotto i fiori, Darling ai lati del tronco…) o il layout
+      ctx.save(); ctx.fillStyle = ink; ctx.textBaseline = 'middle'
+      ctx.font = `italic 400 ${Math.round(H * (decor ? 0.045 : p.size))}px "Fraunces", "Cormorant Garamond", Georgia, serif`
+      let lastY = p.y
+      for (const pl of namePlacements(names, lp ? undefined : decor, p)) {
+        // le ancore del decoro sono in coordinate copertina (→ decal); quelle del layout (o della coppia) sono già sul decal
+        const px = decor && !lp ? dx(pl.x) : pl.x, py = decor && !lp ? dy(pl.y) : pl.y
+        ctx.save(); ctx.translate(W * px, H * py); ctx.scale(1 / aspect, 1); ctx.textAlign = pl.align; ctx.fillText(pl.text, 0, 0); ctx.restore()
+        lastY = py
+      }
+      ctx.restore(); drew = true
+      if (dateTxt) {
+        // la data sotto i nomi, alla stessa larghezza della riga più lunga
+        const m = coverTextMetrics(names, undefined)
+        const nameW = (m.w / 100) * H * (decor ? 0.045 : p.size) / aspect
+        drawCoverText(ctx, { date: dateTxt }, W * (decor && !lp ? dx(p.x) : p.x), H * lastY + H * (decor ? 0.045 : p.size) * 0.75, nameW, ink, aspect)
+      }
+    } else if (dateTxt) {
+      drawCoverText(ctx, { date: dateTxt }, W * p.x, H * p.y, 0.3 * W, ink, aspect)
+      drew = true
     }
-    ctx.restore(); drew = true
   }
   if (!drew) return null
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.flipY = false

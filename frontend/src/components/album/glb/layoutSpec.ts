@@ -67,7 +67,56 @@ export function coverFit(iw: number, ih: number, w: number, h: number): { sx: nu
 export type PhotoCrop = { ox: number; oy: number; zoom: number }
 /** Dove sta il blocco nomi/logo: centro x, BORDO SUPERIORE y, larghezza (frazioni della copertina). */
 export type LogoPlace = { x: number; y: number; w: number }
+/** stessa forma del logo, ma per la scritta (nomi e data): la coppia la muove e la ingrandisce a parte */
+export type TextPlace = LogoPlace
 export const DEFAULT_CROP: PhotoCrop = { ox: 0, oy: 0, zoom: 1 }
+
+// LA SCRITTA DELLA COPERTINA (nomi + data): misure e disegno stanno qui una volta sola, così
+// l'editor della coppia, il 3D e la tavola PSD per l'azienda scrivono identico.
+export const COVER_TEXT_FONT = '"Fraunces", "Cormorant Garamond", Georgia, serif'
+export const DATE_RATIO = 0.52            // la data è poco più della metà dei nomi
+const LINE_NAMES = 1.15, LINE_DATE = 1.5  // interlinee, in corpi
+let measureCtx: CanvasRenderingContext2D | null = null
+/** Larghezza e altezza del blocco misurate a CORPO 100 (senza compressione orizzontale):
+ *  corpo = 100 · larghezzaVoluta / w (per il decal quadrato, moltiplicato per la compressione). */
+export function coverTextMetrics(names?: string, date?: string): { w: number; h: number } {
+  const n = (names ?? '').trim(), d = (date ?? '').trim()
+  if (!n && !d) return { w: 1, h: 0 }
+  if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')
+  const ctx = measureCtx
+  let wn = 0, wd = 0
+  if (ctx) {
+    if (n) { ctx.font = `italic 400 100px ${COVER_TEXT_FONT}`; wn = ctx.measureText(n).width }
+    if (d) { ctx.font = `italic 400 ${Math.round(100 * DATE_RATIO)}px ${COVER_TEXT_FONT}`; wd = ctx.measureText(d).width }
+  } else { wn = n.length * 42; wd = d.length * 42 * DATE_RATIO }      // senza canvas: stima
+  return { w: Math.max(wn, wd, 1), h: (n ? 100 * LINE_NAMES : 0) + (d ? 100 * DATE_RATIO * LINE_DATE : 0) }
+}
+/** Scrive nomi e data larghi `wPx`, col BORDO SUPERIORE in `topPx`, centrati su `xPx`; `squeeze`
+ *  comprime in orizzontale (il decal è quadrato anche quando l'album non lo è). Torna l'altezza scritta. */
+export function drawCoverText(
+  ctx: CanvasRenderingContext2D, text: { names?: string; date?: string },
+  xPx: number, topPx: number, wPx: number, fill: string, squeeze = 1,
+): number {
+  const n = (text.names ?? '').trim(), d = (text.date ?? '').trim()
+  if (!n && !d) return 0
+  const m = coverTextMetrics(n, d)
+  const f = (100 * wPx * squeeze) / m.w
+  ctx.save(); ctx.fillStyle = fill; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  let y = topPx
+  if (n) {
+    ctx.save(); ctx.translate(xPx, y + (f * LINE_NAMES) / 2); ctx.scale(1 / squeeze, 1)
+    ctx.font = `italic 400 ${Math.round(f)}px ${COVER_TEXT_FONT}`; ctx.fillText(n, 0, 0); ctx.restore()
+    y += f * LINE_NAMES
+  }
+  if (d) {
+    const fd = f * DATE_RATIO
+    ctx.save(); ctx.translate(xPx, y + (fd * LINE_DATE) / 2); ctx.scale(1 / squeeze, 1)
+    ctx.font = `italic 400 ${Math.round(fd)}px ${COVER_TEXT_FONT}`; ctx.fillText(d, 0, 0); ctx.restore()
+    y += fd * LINE_DATE
+  }
+  ctx.restore()
+  return y - topPx
+}
 
 /** Il rettangolo SORGENTE (px dell'immagine) che riempie una finestra w×h col ritaglio scelto: stessa
  *  geometria del CSS `object-fit: cover` + `translate(ox, oy) scale(zoom)` dell'editor, così 3D, PSD e
