@@ -208,8 +208,9 @@ export default function AlbumCatalogPicker() {
   const photoWindows = Math.max(1, LAYOUT_SPEC[modelLayoutKey].photos.length)
   const chosenPhotos = useMemo(() => (comp.coverPhotos?.length ? comp.coverPhotos : comp.coverPhoto ? [comp.coverPhoto] : []).slice(0, photoWindows), [comp.coverPhotos, comp.coverPhoto, photoWindows])
   const photosOk = !wantPhoto || chosenPhotos.length >= photoWindows
-  // un modello con le finestre foto è fatto per le foto: la scelta si accende da sola
-  useEffect(() => { if (LAYOUT_SPEC[modelLayoutKey].photos.length > 0) setWantPhoto(true) }, [modelLayoutKey])
+  // un modello con le finestre foto è fatto per le foto: la scelta si accende da sola; passando a un modello senza
+  // finestre si spegne (altrimenti resterebbe «Sì» senza foto e bloccherebbe il passo), la coppia può riaccenderla
+  useEffect(() => { setWantPhoto(LAYOUT_SPEC[modelLayoutKey].photos.length > 0) }, [modelLayoutKey])
   useEffect(() => {
     if (!wantPhoto || candidates.length) return
     void getCoverPhotoCandidates(entryId).then(setCandidates).catch(() => {})
