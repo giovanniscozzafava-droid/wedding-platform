@@ -12,9 +12,9 @@ import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { buildBox, isBoxKind } from '@/components/album/glb/boxScene'
-import { LAYOUT_SPEC, cropRect, type PhotoCrop, type LogoPlace, type TextPlace } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, cropRect, frameOf, type PhotoCrop, type PhotoFrame, type LogoPlace, type TextPlace, type Rect } from '@/components/album/glb/layoutSpec'
 
-export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; photoCrops?: Record<number, PhotoCrop>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
+export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
 
 export type GlbView = 'front' | 'three-quarter' | 'spine' | 'top'
 export type AlbumGlbStageHandle = { setView: (v: GlbView) => void; snapshot: () => string | null }
@@ -187,7 +187,7 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
-    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.photo_urls?.join('|'), cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey, JSON.stringify(cover.photoCrops ?? null), JSON.stringify(cover.logoPlace ?? null), cover.dateText, JSON.stringify(cover.textPlace ?? null)]) // eslint-disable-line react-hooks/exhaustive-deps
+    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.photo_urls?.join('|'), cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey, JSON.stringify(cover.photoCrops ?? null), JSON.stringify(cover.photoFrames ?? null), JSON.stringify(cover.logoPlace ?? null), cover.dateText, JSON.stringify(cover.textPlace ?? null)]) // eslint-disable-line react-hooks/exhaustive-deps
   // le immagini del decal (logo del catalogo) arrivano dopo: ridisegno
   useEffect(() => { onDecalImagesReady(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, coverRef.current) }) }, [])
 
@@ -234,6 +234,53 @@ function applyBox(st: { scene: THREE.Scene; album: THREE.Group | null; size: num
   st.size = b.footprint
 }
 
+/** «Photo», «Photo1», «Photo2»… → indice della finestra (da sinistra) */
+const photoOrder = (name: string) => { const n = name.match(/(\d+)$/); return n ? Number(n[1]) - 1 : 0 }
+
+/** IL RIQUADRO DELLE FOTO dove lo vuole la coppia. La finestra del modello (mesh «Photo», «Photo1»…)
+ *  viene spostata, ridimensionata e inclinata sul piatto. Le coordinate si leggono dal piatto vero
+ *  (mesh «CoverFront»): X = larghezza, Z = altezza dall'alto, Y = spessore (la normale della copertina).
+ *  La trasformazione di partenza si tiene da parte, così ogni cambio riparte dal modello. */
+function applyPhotoFrames(root: THREE.Object3D, meshes: THREE.Mesh[], windows: Rect[], frames?: Record<number, PhotoFrame>) {
+  if (!meshes.length) return
+  const front = root.getObjectByName('CoverFront') ?? root.getObjectByName('Cover')
+  if (!front) return
+  root.updateWorldMatrix(true, true)
+  const cb = new THREE.Box3().setFromObject(front)
+  const cw = cb.max.x - cb.min.x, ch = cb.max.z - cb.min.z
+  if (!(cw > 0 && ch > 0)) return
+  const box = new THREE.Box3(), size = new THREE.Vector3(), center = new THREE.Vector3()
+  for (const m of meshes) {
+    const i = photoOrder(m.name)
+    const win = windows[i] ?? windows[0]; if (!win) continue
+    // la posa originale del modello: la ripristino a ogni applicazione
+    const o = (m.userData.pose ??= { p: m.position.clone(), q: m.quaternion.clone(), s: m.scale.clone() }) as { p: THREE.Vector3; q: THREE.Quaternion; s: THREE.Vector3 }
+    m.position.copy(o.p); m.quaternion.copy(o.q); m.scale.copy(o.s)
+    const f = frames?.[i]
+    if (!f) continue
+    m.updateWorldMatrix(true, false)
+    box.setFromObject(m); box.getSize(size); box.getCenter(center)
+    if (!(size.x > 0 && size.z > 0)) continue
+    // 1) misura: quanto deve crescere/stringere rispetto alla finestra del modello
+    m.scale.set(o.s.x * (f.w / win.w), o.s.y, o.s.z * (f.h / win.h))
+    // 2) inclinazione attorno alla normale del piatto
+    if (f.rot) m.rotateY(THREE.MathUtils.degToRad(f.rot))
+    // 3) posizione: il centro del riquadro sul piatto (x da sinistra, y dall'alto)
+    m.updateWorldMatrix(true, false)
+    const after = new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3())
+    const target = new THREE.Vector3(cb.min.x + f.x * cw, center.y, cb.min.z + f.y * ch)
+    const delta = target.sub(after)
+    const parentScale = new THREE.Vector3(); (m.parent ?? root).getWorldScale(parentScale)
+    m.position.add(new THREE.Vector3(delta.x / (parentScale.x || 1), delta.y / (parentScale.y || 1), delta.z / (parentScale.z || 1)))
+    // 4) fuori dall'incasso del modello la foto sparirebbe dietro il piatto: la si posa SOPRA la
+    //    copertina, come fa l'artigiano applicando la stampa
+    m.updateWorldMatrix(true, false)
+    const nb = new THREE.Box3().setFromObject(m)
+    const lift = cb.max.y + (cb.max.y - cb.min.y) * 0.02 - nb.max.y
+    if (lift > 0) m.position.y += lift / (parentScale.y || 1)
+  }
+}
+
 /** Applica i materiali del catalogo alle mesh nominate del GLB. */
 function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   const isWood = cover.fabric === 'wood'
@@ -261,7 +308,7 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
       const t = texLoader.load(src, (tex) => {
         // la foto riempie la finestra «a copertura» col ritaglio scelto dalla coppia (stessa geometria di editor e PSD)
         const im = tex.image as { width?: number; height?: number } | undefined
-        const win = windows[i] ?? windows[0]
+        const win = frameOf(windows, i, cover.photoFrames)
         if (im?.width && im?.height && win) {
           const r = cropRect(im.width, im.height, win.w, win.h, cover.photoCrops?.[i])
           tex.offset.set(r.sx / im.width, r.sy / im.height); tex.repeat.set(r.sw / im.width, r.sh / im.height)
@@ -273,10 +320,10 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
     } else { m.color.set(0xe9e4dc) }
     return m
   }
-  const photoOrder = (name: string) => { const n = name.match(/(\d+)$/); return n ? Number(n[1]) - 1 : 0 }
   const decalMat = new THREE.MeshPhysicalMaterial({ transparent: true, roughness: 0.6, metalness: 0.15, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
   const decalTex = drawDecal(cover); if (decalTex) { decalMat.map = decalTex; decalMat.opacity = 1 } else decalMat.opacity = 0
 
+  const photoMeshes: THREE.Mesh[] = []
   root.traverse((o) => {
     const m = o as THREE.Mesh
     if (!m.isMesh) return
@@ -289,9 +336,14 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
     else if (base === 'Plate') m.material = plateMat
     else if (base === 'Crystal') m.material = crystalMat
     else if (base === 'Pages') m.material = pagesMat
-    else if (base === 'Photo') { m.material = photoMatFor(photoOrder(m.name)) }
+    else if (base === 'Photo') { m.material = photoMatFor(photoOrder(m.name)); photoMeshes.push(m) }
     else if (base === 'Decal') { m.material = decalMat; m.castShadow = false }
   })
+  // IL RIQUADRO DELLA FOTO dove l'ha voluto la coppia: la finestra del modello viene spostata,
+  // ridimensionata e inclinata sul piatto (l'artigiano poi la monta a mano seguendo la tavola).
+  // Le coordinate si ricavano dal piatto vero (CoverFront): x = larghezza, z = altezza dall'alto.
+  applyPhotoFrames(root, photoMeshes, windows, cover.photoFrames)
+
   // I CRISTALLI DEL DECORO: i Swarovski del modello (centri ritagliati dal catalogo) come piccole gemme 3D
   // sul piatto, in coordinate della copertina (x → larghezza, y → dall'alto della copertina verso chi guarda).
   const oldC = root.getObjectByName('DecorCrystals'); if (oldC) root.remove(oldC)

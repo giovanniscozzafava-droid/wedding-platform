@@ -3,7 +3,7 @@
 // copertura nella sua finestra) · Logo cod.NN · Nomi · Guide (rettangoli con quote in mm) ·
 // Specifiche (testo). Più le guide di Photoshop sui bordi di ogni finestra.
 import { writePsd, type Psd, type Layer } from 'ag-psd'
-import { LAYOUT_SPEC, cropRect, logoToInk, drawCoverText, coverTextMetrics, type LayoutSpec, type PhotoCrop, type LogoPlace, type TextPlace } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, cropRect, logoToInk, drawCoverText, coverTextMetrics, frameOf, type LayoutSpec, type PhotoCrop, type PhotoFrame, type LogoPlace, type TextPlace } from '@/components/album/glb/layoutSpec'
 import { namePlacements, drawDecor, PLATE_MARGIN } from '@/components/album/glb/decal'
 import type { Decor } from '@/components/album/glb/decor.generated'
 import type { Layout } from '@/components/album/albumCatalog'
@@ -25,6 +25,8 @@ export type CoverPsdInput = {
   decor?: { family: string; spec: Decor; print: HTMLImageElement | null; stones: HTMLImageElement | null } | null
   /** impaginazione scelta dalla coppia: ritaglio per finestra e posizione/misura del blocco nomi-logo */
   photoCrops?: Record<number, PhotoCrop>
+  /** il riquadro di ogni foto quando la coppia lo sposta/allarga/inclina */
+  photoFrames?: Record<number, PhotoFrame>
   logoPlace?: LogoPlace
   couple?: string; studio?: string; orderRef?: string
 }
@@ -63,22 +65,35 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
     layers.push({ name: 'Fascia / lastra (riferimento)', canvas: c })
     positions.push({ label: 'Fascia / lastra', x: mm(r.x - r.w / 2, inp.wCm), y: mm(r.y - r.h / 2, inp.hCm), w: mm(r.w, inp.wCm), h: mm(r.h, inp.hCm) })
   }
-  // 3) finestre foto: la foto ritagliata a copertura, alle dimensioni esatte
-  spec.photos.forEach((r, i) => {
+  // 3) finestre foto: la foto ritagliata a copertura, alle dimensioni esatte. Il riquadro è quello del
+  //    modello, oppure quello che la coppia ha spostato/allargato/inclinato (l'artigiano monta a mano).
+  spec.photos.forEach((win, i) => {
+    const r: PhotoFrame = frameOf(spec.photos, i, inp.photoFrames) ?? { ...win, rot: 0 }
+    const rot = r.rot ?? 0
     const x = Math.round((r.x - r.w / 2) * W), y = Math.round((r.y - r.h / 2) * H), w = Math.round(r.w * W), h = Math.round(r.h * H)
     const img = inp.photos[i]
-    const [c, ctx] = canvas(w, h)
+    // la foto ritagliata nel suo riquadro
+    const [inner, ictx] = canvas(Math.max(1, w), Math.max(1, h))
     if (img) {
       // ritaglio «a copertura» col ritaglio scelto dalla coppia nell'editor (stessa geometria del 3D)
       const f = cropRect(img.naturalWidth, img.naturalHeight, w, h, inp.photoCrops?.[i])
-      ctx.drawImage(img, f.sx, f.sy, f.sw, f.sh, 0, 0, w, h)
+      ictx.drawImage(img, f.sx, f.sy, f.sw, f.sh, 0, 0, w, h)
     } else {
-      ctx.fillStyle = 'rgba(200,200,200,0.5)'; ctx.fillRect(0, 0, w, h)
-      ctx.fillStyle = '#555'; ctx.font = `${Math.round(h * 0.12)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('FOTO', w / 2, h / 2)
+      ictx.fillStyle = 'rgba(200,200,200,0.5)'; ictx.fillRect(0, 0, w, h)
+      ictx.fillStyle = '#555'; ictx.font = `${Math.round(h * 0.12)}px sans-serif`; ictx.textAlign = 'center'; ictx.fillText('FOTO', w / 2, h / 2)
     }
-    layers.push({ name: `Finestra foto ${spec.photos.length > 1 ? i + 1 : ''} · ${mm(r.w, inp.wCm)}×${mm(r.h, inp.hCm)} mm`.replace('  ', ' '), canvas: c, left: x, top: y, right: x + w, bottom: y + h })
-    positions.push({ label: `Finestra foto ${spec.photos.length > 1 ? i + 1 : ''}`.trim(), x: mm(r.x - r.w / 2, inp.wCm), y: mm(r.y - r.h / 2, inp.hCm), w: mm(r.w, inp.wCm), h: mm(r.h, inp.hCm) })
-    guides.push({ location: x, direction: 'vertical' }, { location: x + w, direction: 'vertical' }, { location: y, direction: 'horizontal' }, { location: y + h, direction: 'horizontal' })
+    const nome = `Finestra foto ${spec.photos.length > 1 ? i + 1 : ''} · ${mm(r.w, inp.wCm)}×${mm(r.h, inp.hCm)} mm${rot ? ` · inclinata ${rot}°` : ''}${inp.photoFrames?.[i] ? ' · riquadro scelto dalla coppia' : ''}`.replace('  ', ' ')
+    if (rot) {
+      // inclinata: il livello copre tutta la copertina, la foto è ruotata attorno al centro del riquadro
+      const [c, ctx] = canvas(W, H)
+      ctx.save(); ctx.translate(r.x * W, r.y * H); ctx.rotate((rot * Math.PI) / 180)
+      ctx.drawImage(inner, -w / 2, -h / 2); ctx.restore()
+      layers.push({ name: nome, canvas: c })
+    } else {
+      layers.push({ name: nome, canvas: inner, left: x, top: y, right: x + w, bottom: y + h })
+      guides.push({ location: x, direction: 'vertical' }, { location: x + w, direction: 'vertical' }, { location: y, direction: 'horizontal' }, { location: y + h, direction: 'horizontal' })
+    }
+    positions.push({ label: `Finestra foto ${spec.photos.length > 1 ? i + 1 : ''}${rot ? ` (inclinata ${rot}°)` : ''}`.trim(), x: mm(r.x - r.w / 2, inp.wCm), y: mm(r.y - r.h / 2, inp.hCm), w: mm(r.w, inp.wCm), h: mm(r.h, inp.hCm) })
   })
   // 3b) il DECORO del modello: la stampa/laser del catalogo a tutta copertina (tinta nell'inchiostro, o a colori)
   //     e i cristalli Swarovski, uno per uno, coi centri quotati

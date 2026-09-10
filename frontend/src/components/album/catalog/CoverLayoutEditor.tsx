@@ -4,8 +4,8 @@
 // spostano e si ridimensionano OGNUNO PER CONTO SUO. Stessa geometria del 3D e del PSD
 // (cropRect / LogoPlace / TextPlace + drawCoverText).
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Move, RotateCcw, ZoomIn } from '@/components/icons/lucide'
-import { coverTextMetrics, cropSlack, DEFAULT_CROP, type LogoPlace, type PhotoCrop, type Rect, type TextPlace } from '@/components/album/glb/layoutSpec'
+import { ChevronLeft, ChevronRight, Move, RotateCcw, ZoomIn } from '@/components/icons/lucide'
+import { coverTextMetrics, cropSlack, DEFAULT_CROP, frameOf, type LogoPlace, type PhotoCrop, type PhotoFrame, type Rect, type TextPlace } from '@/components/album/glb/layoutSpec'
 
 type Sel = { kind: 'photo' | 'logo' | 'text'; i: number }
 
@@ -18,6 +18,9 @@ type Props = {
   windows: Rect[]
   crops: Record<number, PhotoCrop>
   onCrops: (c: Record<number, PhotoCrop>) => void
+  /** i riquadri spostati dalla coppia (assenti = quelli del modello) */
+  frames: Record<number, PhotoFrame>
+  onFrames: (f: Record<number, PhotoFrame>) => void
   /** il logo: immagine composta (data URL) del ritaglio del catalogo, tinta */
   logoImage?: string | null
   logoAspect?: number             // altezza/larghezza dell'immagine del logo
@@ -36,7 +39,7 @@ type Props = {
 }
 
 export function CoverLayoutEditor({
-  wCm, hCm, bgHex, decorPrint, decorInvert, photos, windows, crops, onCrops,
+  wCm, hCm, bgHex, decorPrint, decorInvert, photos, windows, crops, onCrops, frames, onFrames,
   logoImage, logoAspect, place, defaultPlace, onPlace,
   names, dateText, textInsideLogo, textPlace, defaultTextPlace, onTextPlace, ink,
 }: Props) {
@@ -58,10 +61,14 @@ export function CoverLayoutEditor({
     return () => ro.disconnect()
   }, [])
 
+  /** il riquadro in uso: quello scelto dalla coppia, se c'è, altrimenti quello del modello */
+  const rect = (i: number): PhotoFrame => frameOf(windows, i, frames) ?? { x: 0.5, y: 0.5, w: 0.5, h: 0.5, rot: 0 }
+  const setFrame = (i: number, f: PhotoFrame) => { setMoved(true); onFrames({ ...frames, [i]: f }) }
+  const resetFrame = (i: number) => { const { [i]: _drop, ...rest } = frames; setMoved(true); onFrames(rest) }
   const crop = (i: number): PhotoCrop => crops[i] ?? DEFAULT_CROP
   const setCrop = (i: number, c: PhotoCrop) => { setMoved(true); onCrops({ ...crops, [i]: c }) }
   const clampCrop = (i: number, c: PhotoCrop): PhotoCrop => {
-    const d = dims[i]; const win = windows[i]
+    const d = dims[i]; const win = rect(i)
     if (!d || !win) return c
     const s = cropSlack(d.w, d.h, win.w * wCm, win.h * hCm, c.zoom)
     return { ...c, ox: Math.min(Math.max(c.ox, -s.x), s.x), oy: Math.min(Math.max(c.oy, -s.y), s.y) }
@@ -82,7 +89,7 @@ export function CoverLayoutEditor({
     const d = drag.current; if (!d) return
     const dx = e.clientX - d.x0, dy = e.clientY - d.y0
     if (d.kind === 'photo') {
-      const win = windows[d.i]; if (!win) return
+      const win = rect(d.i); if (!win) return
       const s = d.start as PhotoCrop
       setCrop(d.i, clampCrop(d.i, { ...s, ox: s.ox + dx / (box.w * win.w), oy: s.oy + dy / (box.h * win.h) }))
       return
@@ -119,12 +126,13 @@ export function CoverLayoutEditor({
         style={{ aspectRatio: `${wCm} / ${hCm}`, background: bgHex ?? '#e9e2d6' }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         {decorPrint && <img src={decorPrint} alt="" className="absolute inset-0 h-full w-full pointer-events-none" style={{ opacity: 0.9, filter: decorInvert ? 'invert(1)' : undefined }} draggable={false} />}
 
-        {windows.map((win, i) => {
+        {windows.map((_win, i) => {
+          const win = rect(i)
           const c = crop(i); const on = sel.kind === 'photo' && sel.i === i; const src = photos[i] ?? photos[0]
           return (
             <div key={i} onPointerDown={onDown('photo', i)}
               className={`absolute overflow-hidden bg-[rgb(var(--bg-sunken))] ${on ? 'ring-2 ring-[rgb(var(--gold-500))]' : 'ring-1 ring-black/10'} cursor-grab active:cursor-grabbing`}
-              style={{ left: `${(win.x - win.w / 2) * 100}%`, top: `${(win.y - win.h / 2) * 100}%`, width: `${win.w * 100}%`, height: `${win.h * 100}%` }}>
+              style={{ left: `${(win.x - win.w / 2) * 100}%`, top: `${(win.y - win.h / 2) * 100}%`, width: `${win.w * 100}%`, height: `${win.h * 100}%`, transform: win.rot ? `rotate(${win.rot}deg)` : undefined }}>
               {src ? (
                 <img src={src} alt="" draggable={false} onLoad={(e) => { const im = e.currentTarget; setDims((d) => ({ ...d, [i]: { w: im.naturalWidth, h: im.naturalHeight } })) }}
                   className="h-full w-full object-cover pointer-events-none" style={{ transform: `translate(${c.ox * 100}%, ${c.oy * 100}%) scale(${c.zoom})` }} />
@@ -181,7 +189,7 @@ export function CoverLayoutEditor({
         </div>
       )}
 
-      {/* la barra del pezzo scelto */}
+      {/* LO SCATTO dentro la finestra: si trascina col dito, la barra ingrandisce */}
       {curCrop && (
         <div className="flex items-center gap-3">
           <ZoomIn size={15} className="text-[rgb(var(--fg-subtle))] shrink-0" />
@@ -190,6 +198,28 @@ export function CoverLayoutEditor({
           <button type="button" onClick={() => setCrop(sel.i, DEFAULT_CROP)} className="inline-flex items-center gap-1 text-[12px] text-[rgb(var(--fg-muted))]"><RotateCcw size={13} /> Centra</button>
         </div>
       )}
+      {/* IL RIQUADRO: poche posizioni pronte, si sfogliano con le frecce (niente misure da regolare) */}
+      {sel.kind === 'photo' && windows[sel.i] && (() => {
+        const list = framePresets(windows[sel.i]!)
+        const cur = Math.max(0, list.findIndex((p) => sameFrame(p.frame, rect(sel.i))))
+        const go = (d: number) => {
+          const n = (cur + d + list.length) % list.length
+          const p = list[n]!
+          if (p.key === 'catalogo') resetFrame(sel.i); else setFrame(sel.i, p.frame)
+        }
+        return (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border))] px-2 py-1.5">
+            <button type="button" onClick={() => go(-1)} aria-label="Posizione precedente" className="grid h-8 w-8 place-items-center rounded-full text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]"><ChevronLeft size={16} /></button>
+            <div className="min-w-0 text-center">
+              <p className="truncate text-[13px] font-medium">{list[cur]?.label ?? 'Come da catalogo'}</p>
+              <div className="mt-1 flex items-center justify-center gap-1">
+                {list.map((p, k) => <span key={p.key} className={`h-1.5 rounded-full transition-all ${k === cur ? 'w-4 bg-[rgb(var(--gold-600))]' : 'w-1.5 bg-[rgb(var(--border))]'}`} />)}
+              </div>
+            </div>
+            <button type="button" onClick={() => go(1)} aria-label="Posizione successiva" className="grid h-8 w-8 place-items-center rounded-full text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-sunken))]"><ChevronRight size={16} /></button>
+          </div>
+        )
+      })()}
       {sel.kind === 'logo' && hasLogo && (
         <div className="flex items-center gap-3">
           <ZoomIn size={15} className="text-[rgb(var(--fg-subtle))] shrink-0" />
@@ -214,3 +244,20 @@ export function CoverLayoutEditor({
     </div>
   )
 }
+
+/** LE POSIZIONI PRONTE della foto sulla copertina: poche e chiare, si sfogliano con le frecce.
+ *  Partono sempre dalla finestra del modello (quella stampata sul catalogo). */
+export function framePresets(win: Rect): { key: string; label: string; frame: PhotoFrame }[] {
+  const big = Math.min(1, Math.max(win.w, win.h) * 1.35)
+  return [
+    { key: 'catalogo', label: 'Come da catalogo', frame: { x: win.x, y: win.y, w: win.w, h: win.h, rot: 0 } },
+    { key: 'grande', label: 'Più grande', frame: { x: win.x, y: win.y, w: Math.min(1, win.w * 1.25), h: Math.min(1, win.h * 1.25), rot: 0 } },
+    { key: 'piena', label: 'Tutta la copertina', frame: { x: 0.5, y: 0.5, w: 1, h: 1, rot: 0 } },
+    { key: 'fascia', label: 'Fascia intera', frame: { x: 0.5, y: win.y, w: 1, h: win.h, rot: 0 } },
+    { key: 'alto', label: 'In alto', frame: { x: win.x, y: win.h / 2 + 0.04, w: win.w, h: win.h, rot: 0 } },
+    { key: 'basso', label: 'In basso', frame: { x: win.x, y: 1 - win.h / 2 - 0.04, w: win.w, h: win.h, rot: 0 } },
+    { key: 'inclinata', label: 'Leggermente inclinata', frame: { x: win.x, y: win.y, w: big, h: win.h * (big / win.w), rot: -4 } },
+  ]
+}
+const sameFrame = (a: PhotoFrame, b: PhotoFrame) =>
+  Math.abs(a.x - b.x) < 0.005 && Math.abs(a.y - b.y) < 0.005 && Math.abs(a.w - b.w) < 0.005 && Math.abs(a.h - b.h) < 0.005 && Math.abs((a.rot ?? 0) - (b.rot ?? 0)) < 0.1

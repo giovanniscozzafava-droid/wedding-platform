@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format } from '@/components/album/albumCatalog'
 import type { GlbCover, GlbView, AlbumGlbStageHandle } from '@/components/album/glb/AlbumGlbStage'
 import { buildCoverPsd } from '@/components/album/glb/coverPsd'
-import { LAYOUT_SPEC, inkRgb, logoToInk, coverTextMetrics } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, inkRgb, logoToInk, coverTextMetrics, type PhotoFrame } from '@/components/album/glb/layoutSpec'
 import { hasLogoTemplate } from '@/components/album/glb/logoTemplates'
 import { composeLogo, fontsOf, loadLogoFont } from '@/components/album/glb/logoCompose'
 import { dateIt, decorFor, decorFamily } from '@/components/album/glb/decal'
@@ -352,7 +352,7 @@ export default function AlbumCatalogPicker() {
       backColor: comp.backMaterial ? paletteFor(comp.backMaterial).find((c) => c.key === comp.backColor)?.hex : undefined,
       boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor,
       boxColor: comp.boxMaterial ? paletteFor(comp.boxMaterial).find((c) => c.key === comp.boxColor)?.hex : undefined,
-      photoCrops: comp.photoCrops, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
+      photoCrops: comp.photoCrops, photoFrames: comp.photoFrames, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
       title: coverNames,
       dateText: coverDate,
       logoKey: comp.logo && comp.logo !== 'nessuno' && /^cod\./.test(comp.logo) ? comp.logo : undefined,
@@ -377,6 +377,8 @@ export default function AlbumCatalogPicker() {
     if (logoNeedsColor(comp.logo)) rows.push({ label: 'Tonalità', value: optLabel(LOGO_COLOR_TILES, comp.logoColor), img: swatchUrl(comp.logoColor), missing: true })
     // l'impaginazione della copertina fatta dalla coppia (editor): dove stanno nomi/logo e se le foto sono state ritagliate
     const cropped = Object.values(comp.photoCrops ?? {}).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01)
+    const nFrames = Object.keys(comp.photoFrames ?? {}).length
+    if (nFrames) rows.push({ label: 'Riquadro della foto', value: Object.entries(comp.photoFrames ?? {}).map(([k, f]: [string, PhotoFrame]) => `${Number(k) + 1}: ${Math.round(f.w * 100)}%×${Math.round(f.h * 100)}% al ${Math.round(f.x * 100)}%/${Math.round(f.y * 100)}%${f.rot ? `, inclinato ${Math.round(f.rot)}°` : ''}`).join(' · ') })
     rows.push({ label: 'Scritta in copertina', value: [coverNames || null, coverDate || null].filter(Boolean).join(' · ') || 'Nessuna scritta' })
     if (comp.logoPlace || comp.textPlace || cropped) rows.push({ label: 'Impaginazione copertina', value: [
       comp.logoPlace ? `logo al ${Math.round(comp.logoPlace.x * 100)}% da sinistra, ${Math.round(comp.logoPlace.y * 100)}% dall'alto, largo il ${Math.round(comp.logoPlace.w * 100)}%` : null,
@@ -565,7 +567,7 @@ export default function AlbumCatalogPicker() {
         layout, wCm: sizeDef.w, hCm: sizeDef.h, dpi: 300, modelLabel: comp.model?.label ?? selected.label,
         materialLabel: comp.material ? materialLabel(comp.material) : undefined, colorLabel: colorOpts.find((o) => o.key === comp.color)?.label, colorHex: cover3d.color,
         photos: LAYOUT_SPEC[layout].photos.map((_, i) => photoImgs[i] ?? photoImgs[0] ?? null), logo: logoForPsd, decor: decorForPsd,
-        photoCrops: comp.photoCrops, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
+        photoCrops: comp.photoCrops, photoFrames: comp.photoFrames, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
         names: cover3d.title, dateText: cover3d.dateText || undefined, ink: cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e',
         couple: clientName.trim(), studio: catalog.studio, orderRef,
       }) : null
@@ -912,6 +914,7 @@ export default function AlbumCatalogPicker() {
                   <CoverLayoutEditor wCm={sd?.w ?? 30} hCm={sd?.h ?? 30} bgHex={cover3d.color} decorPrint={decor?.print} decorInvert={!decor?.color && cover3d.ink === 'white'}
                     photos={wantPhoto ? chosenPhotos.map((p) => p.url) : []} windows={wantPhoto ? spec.photos : []}
                     crops={comp.photoCrops ?? {}} onCrops={(c) => setComp((x) => ({ ...x, photoCrops: c }))}
+                    frames={comp.photoFrames ?? {}} onFrames={(f) => setComp((x) => ({ ...x, photoFrames: f }))}
                     logoImage={logoImg?.url ?? null} logoAspect={logoImg?.aspect} ink={cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e'}
                     place={comp.logoPlace ?? defaultPlace} defaultPlace={defaultPlace} onPlace={(p) => setComp((x) => ({ ...x, logoPlace: p ?? undefined }))}
                     names={coverNames} dateText={coverDate} textInsideLogo={logoHasText}

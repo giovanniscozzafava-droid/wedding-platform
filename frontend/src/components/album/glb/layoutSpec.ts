@@ -23,7 +23,7 @@ export const LAYOUT_SPEC: Record<Layout, LayoutSpec> = {
     names: { x: 0.74, y: 0.5, size: 0.03 }, logo: { x: 0.5, y: 0.66, w: 0.28 } },
   'fascia-ornament': { photos: [], band: { x: 0.5, y: 0.46, w: 0.96, h: 0.22 }, crystals: [{ x1: 0.16, y1: 0.36, x2: 0.84, y2: 0.36 }, { x1: 0.16, y1: 0.56, x2: 0.84, y2: 0.56 }],
     names: { x: 0.5, y: 0.46, size: 0.06 }, logo: { x: 0.5, y: 0.37, w: 0.3 } },
-  oblique: { photos: [], band: { x: 0.5, y: 0.81, w: 1, h: 0.38 }, crystals: [{ x1: 0, y1: 0.66, x2: 1, y2: 0.49 }], names: { x: 0.62, y: 0.86, size: 0.055 }, logo: { x: 0.62, y: 0.72, w: 0.3 } },
+  oblique: { photos: [], band: { x: 0.5, y: 0.692, w: 0.989, h: 0.605 }, crystals: [{ x1: 0, y1: 0.66, x2: 1, y2: 0.49 }], names: { x: 0.62, y: 0.86, size: 0.055 }, logo: { x: 0.62, y: 0.72, w: 0.3 } },
   'swarovski-line': { photos: [], plate: { x: 0.34, y: 0.5, w: 0.36, h: 0.11 }, crystals: [{ x1: 0.6, y1: 0.12, x2: 0.6, y2: 0.88 }], names: { x: 0.34, y: 0.5, size: 0.03 }, logo: { x: 0.34, y: 0.6, w: 0.28 } },
   'swarovski-cluster': { photos: [], names: { x: 0.5, y: 0.72, size: 0.055 }, logo: { x: 0.5, y: 0.56, w: 0.32 } },
   'photo-vertical': { photos: [{ x: 0.58, y: 0.5, w: 0.38, h: 0.58 }], names: { x: 0.29, y: 0.78, size: 0.05 }, logo: { x: 0.29, y: 0.5, w: 0.3 } },
@@ -65,6 +65,17 @@ export function coverFit(iw: number, ih: number, w: number, h: number): { sx: nu
 /** Il RITAGLIO scelto dalla coppia per una finestra: spostamento (ox, oy) in frazioni della finestra
  *  (positivo = la foto scivola a destra/in basso, come nel CSS translate) e ingrandimento zoom ≥ 1. */
 export type PhotoCrop = { ox: number; oy: number; zoom: number }
+/** IL RIQUADRO di una foto quando la coppia lo sposta: centro x/y, misure w/h (frazioni della
+ *  copertina) e inclinazione in gradi. Assente = quello del modello (LAYOUT_SPEC). L'artigiano
+ *  monta a mano: la tavola PSD riporta il riquadro con le sue misure in millimetri. */
+export type PhotoFrame = { x: number; y: number; w: number; h: number; rot?: number }
+/** Il riquadro buono per la finestra i: quello scelto dalla coppia, se c'è, altrimenti il modello. */
+export function frameOf(windows: Rect[], i: number, frames?: Record<number, PhotoFrame> | null): PhotoFrame | null {
+  const f = frames?.[i]
+  const w = windows[i] ?? windows[0]
+  if (f) return f
+  return w ? { x: w.x, y: w.y, w: w.w, h: w.h, rot: 0 } : null
+}
 /** Dove sta il blocco nomi/logo: centro x, BORDO SUPERIORE y, larghezza (frazioni della copertina). */
 export type LogoPlace = { x: number; y: number; w: number }
 /** stessa forma del logo, ma per la scritta (nomi e data): la coppia la muove e la ingrandisce a parte */

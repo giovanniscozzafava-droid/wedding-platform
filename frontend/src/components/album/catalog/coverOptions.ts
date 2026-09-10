@@ -14,7 +14,7 @@
 import { MATERIALS, MODELS, CATEGORIES, BOXES, FINISHES, FORMATS, paletteFor, baseModelsByCategory, type Material, type Model } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import { decorOf } from '@/components/album/glb/decor.generated'
-import type { PhotoCrop, LogoPlace } from '@/components/album/glb/layoutSpec'
+import type { PhotoCrop, PhotoFrame, LogoPlace } from '@/components/album/glb/layoutSpec'
 import { decorLabel } from '@/components/album/glb/decorLabel'
 
 export type Opt = { key: string; label: string; page?: number; hint?: string; hex?: string; img?: string }
@@ -206,6 +206,8 @@ export type CoverComposition = {
   boxColor?: string
   /** impaginazione della copertina scelta dalla coppia: ritaglio di ogni foto (per finestra) e posizione/misura del blocco nomi-logo */
   photoCrops?: Record<number, PhotoCrop>
+  /** il riquadro di ogni foto, quando la coppia sceglie una posizione diversa da quella del modello */
+  photoFrames?: Record<number, PhotoFrame>
   logoPlace?: LogoPlace
   /** che cosa c'è scritto in copertina: nomi e data li decide la coppia (vuoti = niente scritta) */
   coverNames?: string
