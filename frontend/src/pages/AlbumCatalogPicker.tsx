@@ -16,7 +16,7 @@ import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { modelLayout } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import {
-  MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
+  MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, BOX_FINISH_OPTIONS,
   compositionLines, modelPage, familyLogo, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, familyDefaults, FAMILY_PAGES, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
@@ -204,7 +204,7 @@ export default function AlbumCatalogPicker() {
   // COMPOSIZIONE DA CATALOGO: menu a tendina letti dal PDF DesignAlbum (materiali e colori
   // pag. 115–127, personalizzazioni pag. 34–37, blocchi pag. 128, packaging pag. 97). UNA
   // scelta per caratteristica; la foto di copertina si pesca dalla galleria dell'evento.
-  const [comp, setComp] = useState<CoverComposition>({ logo: 'nessuno', block: 'digitale', finish: 'nessuna' })
+  const [comp, setComp] = useState<CoverComposition>({ logo: 'nessuno', block: 'digitale', boxFinish: 'naturale' })
   const [wantPhoto, setWantPhoto] = useState(false)
   const [candidates, setCandidates] = useState<CoverPhotoCandidate[]>([])
   // QUANTE FOTO in copertina: tante quante le finestre del modello (Julies Cristalwhite e Trilogy ne hanno tre,
@@ -225,9 +225,11 @@ export default function AlbumCatalogPicker() {
     setSpecs((p) => ({
       ...p,
       box: comp.box ?? p.box,
-      finishes: comp.finish && comp.finish !== 'nessuna' ? [comp.finish] : [],
+      finishes: comp.logo === 'swarovski' ? ['swarovski'] : comp.logo === 'ottone-targhetta' ? ['targhetta']
+        : comp.logo === 'ottone-iniziali' || comp.logo === 'alluminio-lettere' ? ['iniziali']
+        : comp.logo && comp.logo !== 'nessuno' ? ['logo'] : [],
     }))
-  }, [comp.box, comp.finish])
+  }, [comp.box, comp.logo])
   const colorOpts = useMemo(() => colorOptionsFor(comp.material), [comp.material])
   const backColorOpts = useMemo(() => colorOptionsFor(comp.backMaterial), [comp.backMaterial])
   const boxColorOpts = useMemo(() => colorOptionsFor(comp.boxMaterial), [comp.boxMaterial])
@@ -309,6 +311,7 @@ export default function AlbumCatalogPicker() {
       else lines.push({ label: `Box ${optLabel(BOX_OPTIONS, boxKey)}`, amount: mk(ref), hint: 'listino DesignAlbum' })
       // rivestimento diverso dalla copertina: voce a sé (il prezzo lo conferma il fotografo)
       if (comp.boxMaterial) lines.push({ label: `Rivestimento box · ${materialLabel(comp.boxMaterial)}`, amount: 0, hint: 'prezzo da confermare col fotografo' })
+      if (comp.boxFinish && comp.boxFinish !== 'naturale') lines.push({ label: `Finitura box · ${optLabel(BOX_FINISH_OPTIONS, comp.boxFinish)}`, amount: 0, hint: 'prezzo da confermare col fotografo' })
     }
     // finitura
     const fin = FINISHES.find((f) => f.key === comp.finish)
@@ -343,7 +346,6 @@ export default function AlbumCatalogPicker() {
   const logoHasText = !!(comp.logo && /^cod\./.test(comp.logo) && hasLogoTemplate(comp.logo))
   const cover3d = useMemo<GlbCover>(() => {
     const fin = new Set<string>()
-    if (comp.finish && comp.finish !== 'nessuna') fin.add(comp.finish)
     if (comp.logo === 'swarovski') fin.add('swarovski')
     else if (comp.logo === 'ottone-targhetta') fin.add('targhetta')
     else if (comp.logo === 'ottone-iniziali' || comp.logo === 'alluminio-lettere') fin.add('iniziali')
@@ -398,7 +400,8 @@ export default function AlbumCatalogPicker() {
     rows.push(
       { label: 'Blocco', value: optLabel(BLOCK_OPTIONS, comp.block)?.replace(/\s*\(.*\)$/, ''), missing: true },
       { label: 'Box', value: `${optLabel(BOX_OPTIONS, comp.box ?? specs.box ?? 'nessuno')}${(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' ? (comp.boxMaterial ? ` · ${materialLabel(comp.boxMaterial)}${boxColorOpts.find((o) => o.key === comp.boxColor)?.label ? ` ${boxColorOpts.find((o) => o.key === comp.boxColor)!.label}` : ''}` : ' · come la copertina') : ''}`, img: comp.boxMaterial ? (boxColorOpts.find((o) => o.key === comp.boxColor)?.img ?? swatchUrl(`mat:${comp.boxMaterial}`)) : undefined, hex: boxColorOpts.find((o) => o.key === comp.boxColor)?.hex },
-      { label: 'Finitura', value: optLabel(FINISH_OPTIONS, comp.finish ?? 'nessuna') },
+      ...((comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno'
+        ? [{ label: 'Finitura della box', value: optLabel(BOX_FINISH_OPTIONS, comp.boxFinish ?? 'naturale') } as SheetRow] : []),
       { label: photoWindows > 1 ? `Foto in copertina (${photoWindows} finestre)` : 'Foto in copertina', value: wantPhoto ? (chosenPhotos.length ? (photoWindows > 1 ? `${chosenPhotos.length} di ${photoWindows}, in ordine: ${chosenPhotos.map((p) => p.label ?? 'dalla galleria').join(' · ')}` : (comp.coverPhoto?.label ?? 'scelta dalla galleria')) : undefined) : 'No', img: wantPhoto ? chosenPhotos[0]?.url : undefined, missing: wantPhoto },
     )
     return rows
@@ -440,11 +443,11 @@ export default function AlbumCatalogPicker() {
   const stepOk = step === 0 ? !!(comp.model?.key || selected)
     : step === 1 ? !!comp.material && !!comp.color && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
     : step === 2 ? !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
-    : step === 3 ? !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && photosOk && (!boxDiff || (!!comp.boxMaterial && !!comp.boxColor))
+    : step === 3 ? !!comp.block && !!(comp.box ?? specs.box) && photosOk && (!boxDiff || (!!comp.boxMaterial && !!comp.boxColor))
     : true
-  const stepHint = step === 0 ? 'Tocca un modello (o spunta una tavola)' : step === 1 ? 'Materiale e colore, poi Avanti' : step === 2 ? 'Un logo o nessuna personalizzazione' : step === 3 ? (!photosOk ? (photoWindows > 1 ? `Scegli le ${photoWindows} foto in copertina` : 'Scegli la foto in copertina') : 'Interno, box, finitura, foto') : ''
+  const stepHint = step === 0 ? 'Tocca un modello (o spunta una tavola)' : step === 1 ? 'Materiale e colore, poi Avanti' : step === 2 ? 'Un logo o nessuna personalizzazione' : step === 3 ? (!photosOk ? (photoWindows > 1 ? `Scegli le ${photoWindows} foto in copertina` : 'Scegli la foto in copertina') : 'Box, rivestimento e foto') : ''
   const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor) && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
-    && !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && photosOk
+    && !!comp.block && !!(comp.box ?? specs.box) && photosOk
   const goToPage = (page?: number) => { if (page) setDeepPage(catalogPageToSheet(page)) }
   async function openPhotoSheet() {
     setPhotoSheet(true)
@@ -876,11 +879,12 @@ export default function AlbumCatalogPicker() {
                       </Voice>
                     </>
                   )}
+                  <Voice label="Finitura della box">
+                    <PillChoice options={BOX_FINISH_OPTIONS} value={comp.boxFinish ?? 'naturale'} onChange={(k) => setComp((c) => ({ ...c, boxFinish: k }))} />
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Naturale è come sul catalogo. Le laccature e la satinatura si ordinano a parte: il prezzo lo conferma il tuo fotografo.</p>
+                  </Voice>
                 </>
               )}
-              <Voice label="Finitura">
-                <PillChoice options={FINISH_OPTIONS} value={comp.finish ?? 'nessuna'} onChange={(k) => setComp((c) => ({ ...c, finish: k }))} />
-              </Voice>
               <Voice label={photoWindows > 1 ? `Foto in copertina · ${photoWindows} finestre` : 'Foto in copertina'}>
                 <PillChoice options={[{ key: 'no', label: 'No' }, { key: 'si', label: photoWindows > 1 ? `Sì, le scelgo dalla galleria (${photoWindows})` : 'Sì, la scelgo dalla galleria' }]} value={wantPhoto ? 'si' : 'no'}
                   onChange={(k) => { const v = k === 'si'; setWantPhoto(v); if (!v) setComp((c) => ({ ...c, coverPhoto: null, coverPhotos: [] })) }} />

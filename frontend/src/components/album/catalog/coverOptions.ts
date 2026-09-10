@@ -180,6 +180,14 @@ export const BLOCK_OPTIONS: Opt[] = [
 // ---- Box e finiture (riuso del catalogo statico) -----------------------------
 export const BOX_OPTIONS: Opt[] = BOXES.map((b) => ({ key: b.key, label: b.label, hint: b.blurb, page: b.key === 'nessuno' ? undefined : 97 }))
 export const FINISH_OPTIONS: Opt[] = [{ key: 'nessuna', label: 'Nessuna' }, ...FINISHES.map((f) => ({ key: f.key, label: f.label }))]
+/** LA FINITURA DELLA BOX: come è trattata la superficie del contenitore (il legno del catalogo è
+ *  naturale; laccature e satinature si ordinano a parte). Il prezzo lo conferma il fotografo. */
+export const BOX_FINISH_OPTIONS: Opt[] = [
+  { key: 'naturale', label: 'Naturale', hint: 'come da catalogo' },
+  { key: 'opaca', label: 'Laccata opaca' },
+  { key: 'lucida', label: 'Laccata lucida' },
+  { key: 'satinata', label: 'Satinata' },
+]
 export const FORMAT_OPTIONS = FORMATS
 
 /** Etichetta di una chiave, per riepilogo/PDF/commessa. */
@@ -204,6 +212,8 @@ export type CoverComposition = {
   /** rivestimento del box, se diverso dalla copertina */
   boxMaterial?: string
   boxColor?: string
+  /** finitura della superficie della box (naturale, laccata, satinata) */
+  boxFinish?: string
   /** impaginazione della copertina scelta dalla coppia: ritaglio di ogni foto (per finestra) e posizione/misura del blocco nomi-logo */
   photoCrops?: Record<number, PhotoCrop>
   /** il riquadro di ogni foto, quando la coppia sceglie una posizione diversa da quella del modello */
@@ -277,7 +287,7 @@ export function compositionLines(c: CoverComposition): string[] {
     c.logo && logoNeedsColor(c.logo) && c.logoColor ? `Tonalità logo: ${optLabel(LOGO_COLOR_OPTIONS, c.logoColor) ?? c.logoColor}` : null,
     c.block ? `Blocco interno: ${optLabel(BLOCK_OPTIONS, c.block) ?? c.block}` : null,
     c.box ? `Box: ${optLabel(BOX_OPTIONS, c.box) ?? c.box}${c.box !== 'nessuno' ? (bxmat ? ` · rivestimento ${bxmat.label}${bxcol ? ` ${bxcol.label}` : ''}` : ' · rivestimento come la copertina') : ''}` : null,
-    c.finish ? `Finitura: ${optLabel(FINISH_OPTIONS, c.finish) ?? c.finish}` : null,
+    c.boxFinish && c.boxFinish !== 'naturale' ? `Finitura della box: ${optLabel(BOX_FINISH_OPTIONS, c.boxFinish) ?? c.boxFinish}` : null,
     c.logoPlace ? `Nomi/logo posizionati dalla coppia: centro x ${Math.round(c.logoPlace.x * 100)}%, dall'alto ${Math.round(c.logoPlace.y * 100)}%, larghezza ${Math.round(c.logoPlace.w * 100)}% della copertina` : null,
     c.photoCrops && Object.values(c.photoCrops).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01) ? `Ritaglio foto scelto dalla coppia (${Object.keys(c.photoCrops).length} finestre): vedi PSD` : null,
     c.coverPhotos && c.coverPhotos.length > 1

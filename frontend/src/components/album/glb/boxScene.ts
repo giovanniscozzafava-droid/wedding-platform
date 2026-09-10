@@ -1,5 +1,6 @@
 // IL BOX CONTENITORE IN 3D, costruito al volo attorno all'album (misure vere): si deve capire QUALE box è
-// e di che materiale/colore. Wood Clak = cofanetto con coperchio a cerniera aperto; Wood Duo = due vani
+// e di che materiale/colore. Le box del catalogo si aprono SEMPRE DI LATO (cerniera sul fianco),
+// mai dall'alto. Wood Clak = cofanetto con coperchio a cerniera aperto; Wood Duo = due vani
 // (album + album genitori); Wood Case = custodia col coperchio trasparente chiuso; Twin Box = due vani
 // (album + chiavetta USB); Valigetta = coperchio aperto, spigoli tondi e maniglia.
 import * as THREE from 'three'
@@ -53,21 +54,23 @@ export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxM
     g.add(box(W, 0.006, wall, M.outer, ox, H + 0.003, -D / 2 + wall / 2)); g.add(box(W, 0.006, wall, M.outer, ox, H + 0.003, D / 2 - wall / 2))
     g.add(box(wall, 0.006, D, M.outer, ox - W / 2 + wall / 2, H + 0.003, 0)); g.add(box(wall, 0.006, D, M.outer, ox + W / 2 - wall / 2, H + 0.003, 0))
   } else {
-    // coperchio a cerniera sul retro, aperto (~105°): la fodera interna resta a vista
-    const hinge = new THREE.Group(); hinge.position.set(ox, H, -D / 2)
-    const lid = box(W, lidT, D, M.outer, 0, lidT / 2, D / 2)
-    const lining = box(W - 2 * wall, 0.001, D - 2 * wall, M.inner, 0, -0.0005, D / 2)
+    // COPERCHIO A CERNIERA SUL FIANCO, aperto (~105°): le box del catalogo si aprono di lato, come
+    // un libro, non sollevando il coperchio dall'alto. La fodera interna resta a vista.
+    const hinge = new THREE.Group(); hinge.position.set(ox - W / 2, H, 0)
+    const lid = box(W, lidT, D, M.outer, W / 2, lidT / 2, 0)
+    const lining = box(W - 2 * wall, 0.001, D - 2 * wall, M.inner, W / 2, -0.0005, 0)
     hinge.add(lid); hinge.add(lining)
-    hinge.rotation.x = -Math.PI * (105 / 180)
+    hinge.rotation.z = Math.PI * (105 / 180)
     g.add(hinge)
-    for (const hx of [-W * 0.3, W * 0.3]) g.add(box(0.03, 0.006, 0.006, M.brass, ox + hx, H, -D / 2))   // cerniere
+    for (const hz of [-D * 0.3, D * 0.3]) g.add(box(0.006, 0.006, 0.03, M.brass, ox - W / 2, H, hz))   // cerniere sul fianco
     if (kind === 'valigetta') {
       // maniglia sul fronte
       const handle = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.005, 10, 24, Math.PI), M.brass)
-      handle.position.set(ox, H * 0.55, D / 2 + 0.006); handle.rotation.set(0, 0, 0); g.add(handle)
+      handle.position.set(ox + W / 2 + 0.006, H * 0.55, 0); handle.rotation.set(0, Math.PI / 2, 0); g.add(handle)
       // chiusure
-      for (const hx of [-W * 0.32, W * 0.32]) g.add(box(0.018, 0.012, 0.004, M.brass, ox + hx, H * 0.6, D / 2 + 0.002))
+      for (const hz of [-D * 0.32, D * 0.32]) g.add(box(0.004, 0.012, 0.018, M.brass, ox + W / 2 + 0.002, H * 0.6, hz))
     }
   }
-  return { group: g, albumLift: floor + 0.001, footprint: Math.max(W, D + (kind === 'wood-case' ? 0 : D * 0.35)) }
+  // il coperchio ora si apre di lato: l'ingombro cresce in larghezza, non in profondità
+  return { group: g, albumLift: floor + 0.001, footprint: Math.max(W + (kind === 'wood-case' ? 0 : W * 0.55), D) }
 }

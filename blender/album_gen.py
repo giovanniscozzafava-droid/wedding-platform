@@ -164,17 +164,35 @@ def build_album(layout, fmt):
     back = rounded_box('CoverBack', w, h, bt, pad, M['Cover'], (oh / 2, 0, -zf))
     # blocco pagine (leggermente più piccolo dei piatti), con il taglio a vista
     block = rounded_box('Pages', w - oh - cm(0.2), h - 2 * oh, blk, cm(0.05), M['Pages'], (oh / 2 + cm(0.1) - 0, 0, 0), segs=2)
-    # dorso tondo: mezzo cilindro avvolgente lungo -X, alto quanto il piatto
+    # DORSO: un guscio VERO, con il suo spessore, che avvolge il blocco e si innesta nei piatti.
+    # Prima era un foglio curvo senza spessore: da fuori sembrava una linguetta staccata.
     sp = bpy.data.meshes.new('Spine'); bm = bmesh.new()
-    R = total / 2
-    segs = 24
-    prof = [(-w / 2 + oh / 2 - R * 0.02 + 0 + (R * math.cos(math.pi / 2 + math.pi * i / segs)), R * math.sin(math.pi / 2 + math.pi * i / segs)) for i in range(segs + 1)]
-    verts_top = [bm.verts.new((x, h / 2 - pad * 0.2, z)) for x, z in prof]
-    verts_bot = [bm.verts.new((x, -h / 2 + pad * 0.2, z)) for x, z in prof]
-    for i in range(segs):
-        bm.faces.new((verts_top[i], verts_top[i + 1], verts_bot[i + 1], verts_bot[i]))
+    R = total / 2                                  # raggio interno: il dorso abbraccia il blocco
+    R_out = R + bt * 0.9                           # spessore del cartone + rivestimento
+    segs = 28
+    x0 = -w / 2 + oh / 2 + bt * 0.15               # dove il dorso si innesta nei piatti
+    ang = [math.pi / 2 + math.pi * i / segs for i in range(segs + 1)]
+    prof = [(x0 + R_out * math.cos(a), R_out * math.sin(a)) for a in ang]
+    prof += [(x0 + R * math.cos(a), R * math.sin(a)) for a in reversed(ang)]
+    y0, y1 = -h / 2 + pad * 0.15, h / 2 - pad * 0.15
+    bot = [bm.verts.new((x, y0, z)) for x, z in prof]
+    top = [bm.verts.new((x, y1, z)) for x, z in prof]
+    n = len(prof)
+    for i in range(n):                             # parete laterale del guscio
+        j = (i + 1) % n
+        bm.faces.new((bot[i], bot[j], top[j], top[i]))
+    bm.faces.new(list(reversed(bot)))              # testa e piede del dorso
+    bm.faces.new(top)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bmesh.ops.bevel(bm, geom=list(bm.edges) + list(bm.verts), offset=bt * 0.18, segments=3, profile=0.6, affect='EDGES')
     bm.to_mesh(sp); bm.free()
     spine = new_object('Spine', sp, M['Cover']); smooth(spine); uv_box(spine)
+    # CERNIERA: la scanalatura dove il piatto si piega sul dorso — su ogni album vero c'è, ed è
+    # quella che fa leggere la rilegatura. Una per piatto, lungo tutta l'altezza.
+    hinge_w, hinge_d = cm(0.38), cm(0.12)
+    hinge_x = -w / 2 + oh / 2 + bt * 0.15 + R_out * 0.06 + hinge_w
+    recess(front, hinge_w, h - pad * 0.3, hinge_d, (hinge_x, 0, zf + bt / 2))
+    recess(back, hinge_w, h - pad * 0.3, hinge_d, (hinge_x, 0, -zf - bt / 2))
     # piano decal sopra il piatto frontale (nomi/logo a runtime)
     decal = rounded_box('Decal', w * 0.96, h * 0.96, cm(0.01), cm(0.001), M['Decal'], (oh / 2, 0, zf + bt / 2 + cm(0.02)), segs=1)
     front_uv(decal, w * 0.96, h * 0.96)
