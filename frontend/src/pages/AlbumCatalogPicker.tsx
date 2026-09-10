@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format } from '@/components/album/albumCatalog'
 import type { GlbCover, GlbView, AlbumGlbStageHandle } from '@/components/album/glb/AlbumGlbStage'
 import { buildCoverPsd } from '@/components/album/glb/coverPsd'
-import { LAYOUT_SPEC, inkRgb } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, inkRgb, logoToInk } from '@/components/album/glb/layoutSpec'
 import { hasLogoTemplate } from '@/components/album/glb/logoTemplates'
 import { composeLogo, fontsOf, loadLogoFont } from '@/components/album/glb/logoCompose'
 import { dateIt, decorFor, decorFamily } from '@/components/album/glb/decal'
@@ -21,6 +21,7 @@ import {
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
 import { CoverPhotoPicker } from '@/components/album/catalog/CoverPhotoPicker'
+import { CoverLayoutEditor } from '@/components/album/catalog/CoverLayoutEditor'
 import { Chapter, Voice, PillChoice, ChoiceSheet, type SheetRow } from '@/components/album/catalog/CatalogUi'
 import { getCoverPhotoCandidates, type CoverPhotoCandidate } from '@/hooks/useAlbumOrder'
 import { getFormat } from '@/lib/albumFormats'
@@ -328,6 +329,7 @@ export default function AlbumCatalogPicker() {
       backColor: comp.backMaterial ? paletteFor(comp.backMaterial).find((c) => c.key === comp.backColor)?.hex : undefined,
       boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor,
       boxColor: comp.boxMaterial ? paletteFor(comp.boxMaterial).find((c) => c.key === comp.boxColor)?.hex : undefined,
+      photoCrops: comp.photoCrops, logoPlace: comp.logoPlace,
       title: entryTitle || clientName.trim() || '',
       logoKey: comp.logo && comp.logo !== 'nessuno' && /^cod\./.test(comp.logo) ? comp.logo : undefined,
       eventDate: entryDate,
@@ -349,6 +351,9 @@ export default function AlbumCatalogPicker() {
       { label: 'Nomi e loghi', value: comp.logo && comp.logo !== 'nessuno' ? optLabel(LOGO_OPTIONS, comp.logo) : 'Nessuna', img: logo?.img, fit: 'contain' },
     ]
     if (logoNeedsColor(comp.logo)) rows.push({ label: 'Tonalità', value: optLabel(LOGO_COLOR_TILES, comp.logoColor), img: swatchUrl(comp.logoColor), missing: true })
+    // l'impaginazione della copertina fatta dalla coppia (editor): dove stanno nomi/logo e se le foto sono state ritagliate
+    const cropped = Object.values(comp.photoCrops ?? {}).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01)
+    if (comp.logoPlace || cropped) rows.push({ label: 'Impaginazione copertina', value: [comp.logoPlace ? `nomi/logo al ${Math.round(comp.logoPlace.x * 100)}% da sinistra, ${Math.round(comp.logoPlace.y * 100)}% dall'alto, larghi il ${Math.round(comp.logoPlace.w * 100)}%` : null, cropped ? 'foto ritagliate a mano' : null].filter(Boolean).join(' · ') })
     rows.push(
       { label: 'Blocco', value: optLabel(BLOCK_OPTIONS, comp.block)?.replace(/\s*\(.*\)$/, ''), missing: true },
       { label: 'Box', value: `${optLabel(BOX_OPTIONS, comp.box ?? specs.box ?? 'nessuno')}${(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' ? (comp.boxMaterial ? ` · ${materialLabel(comp.boxMaterial)}${boxColorOpts.find((o) => o.key === comp.boxColor)?.label ? ` ${boxColorOpts.find((o) => o.key === comp.boxColor)!.label}` : ''}` : ' · come la copertina') : ''}`, img: comp.boxMaterial ? (boxColorOpts.find((o) => o.key === comp.boxColor)?.img ?? swatchUrl(`mat:${comp.boxMaterial}`)) : undefined, hex: boxColorOpts.find((o) => o.key === comp.boxColor)?.hex },
@@ -359,7 +364,28 @@ export default function AlbumCatalogPicker() {
   }, [comp, selected, colorOpts, backColorOpts, backDiff, specs.box, wantPhoto])
   // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + differenza album
   const rimanenza = residuo + pricing.total
-  const STEPS = ['Modello', 'Materiale e colore', 'Nomi e loghi', 'Interno e box', 'La scheda', 'Firma']
+  const STEPS = ['Modello', 'Materiale e colore', 'Nomi e loghi', 'Box e finitura', 'Copertina', 'La scheda', 'Firma']
+  // IL BLOCCO NOMI/LOGO per l'editor della copertina: il logo ricomposto coi nomi veri (o il ritaglio del
+  // catalogo tinto), come immagine; senza logo restano i nomi
+  const [logoImg, setLogoImg] = useState<{ url: string; aspect: number } | null>(null)
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const key = cover3d.logoKey
+      if (!key) { setLogoImg(null); return }
+      if (hasLogoTemplate(key)) {
+        await Promise.all(fontsOf(key).map(loadLogoFont))
+        const cv = composeLogo({ code: key, names: cover3d.title, date: dateIt(entryDate), ink: inkRgb(cover3d.ink) }, 900)
+        if (alive && cv) { setLogoImg({ url: cv.toDataURL('image/png'), aspect: cv.height / cv.width }); return }
+      }
+      const im = new Image(); im.crossOrigin = 'anonymous'
+      im.onload = () => { if (!alive) return; const c = logoToInk(im, 900, Math.round(900 * im.naturalHeight / im.naturalWidth), inkRgb(cover3d.ink)); setLogoImg({ url: c.toDataURL('image/png'), aspect: c.height / c.width }) }
+      im.onerror = () => alive && setLogoImg(null)
+      im.src = swatchUrl(key) ?? ''
+    })()
+    return () => { alive = false }
+  }, [cover3d.logoKey, cover3d.title, cover3d.ink, entryDate])
+  const defaultPlace = { x: LAYOUT_SPEC[modelLayoutKey].logo.x, y: LAYOUT_SPEC[modelLayoutKey].logo.y, w: LAYOUT_SPEC[modelLayoutKey].logo.w }
   const stepOk = step === 0 ? !!(comp.model?.key || selected)
     : step === 1 ? !!comp.material && !!comp.color && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
     : step === 2 ? !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
@@ -500,6 +526,7 @@ export default function AlbumCatalogPicker() {
         layout, wCm: sizeDef.w, hCm: sizeDef.h, dpi: 300, modelLabel: comp.model?.label ?? selected.label,
         materialLabel: comp.material ? materialLabel(comp.material) : undefined, colorLabel: colorOpts.find((o) => o.key === comp.color)?.label, colorHex: cover3d.color,
         photos: LAYOUT_SPEC[layout].photos.map((_, i) => photoImgs[i] ?? photoImgs[0] ?? null), logo: logoForPsd, decor: decorForPsd,
+        photoCrops: comp.photoCrops, logoPlace: comp.logoPlace,
         names: cover3d.title, ink: cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e',
         couple: clientName.trim(), studio: catalog.studio, orderRef,
       }) : null
@@ -792,7 +819,23 @@ export default function AlbumCatalogPicker() {
             )}
 
             {step === 4 && (
-            <Chapter n="V" title="La tua scheda" hint={selected && !compComplete ? 'Manca una scelta: completa ogni voce per poter firmare.' : 'Controlla: è la copertina che arriva all\'azienda.'}>
+            <Chapter n="V" title="Foto e nomi al loro posto" hint="Sistema le foto nelle finestre (trascina e ingrandisci) e metti nomi o logo dove li vuoi, grandi quanto vuoi.">
+              {(() => {
+                const sd = sizeByKey(specs.size); const spec = LAYOUT_SPEC[modelLayoutKey]
+                const decor = decorFor(cover3d.model)
+                return (
+                  <CoverLayoutEditor wCm={sd?.w ?? 30} hCm={sd?.h ?? 30} bgHex={cover3d.color} decorPrint={decor?.print} decorInvert={!decor?.color && cover3d.ink === 'white'}
+                    photos={wantPhoto ? chosenPhotos.map((p) => p.url) : []} windows={wantPhoto ? spec.photos : []}
+                    crops={comp.photoCrops ?? {}} onCrops={(c) => setComp((x) => ({ ...x, photoCrops: c }))}
+                    logoImage={logoImg?.url ?? null} logoAspect={logoImg?.aspect} namesText={logoImg ? undefined : (cover3d.title || undefined)} ink={cover3d.ink === 'white' ? '#f6f1e8' : cover3d.ink === 'gold' ? '#d4b060' : cover3d.ink === 'silver' ? '#d7d7dc' : '#3a2c1e'}
+                    place={comp.logoPlace ?? defaultPlace} defaultPlace={defaultPlace} onPlace={(p) => setComp((x) => ({ ...x, logoPlace: p ?? undefined }))} />
+                )
+              })()}
+            </Chapter>
+            )}
+
+            {step === 5 && (
+            <Chapter n="VI" title="La tua scheda" hint={selected && !compComplete ? 'Manca una scelta: completa ogni voce per poter firmare.' : 'Controlla: è la copertina che arriva all\'azienda.'}>
               <ChoiceSheet rows={sheetRows} />
 
             {/* CONTO: nel preventivo / aggiunte (una riga per voce, col ricarico) / differenza */}
@@ -901,8 +944,8 @@ export default function AlbumCatalogPicker() {
             </Chapter>
             )}
 
-            {step === 5 && (
-            <Chapter n="VI" title="Formato e firma" hint="Formato e pagine vengono dall'impaginato del fotografo, se c'è già; poi nome e firma.">
+            {step === 6 && (
+            <Chapter n="VII" title="Formato e firma" hint="Formato e pagine vengono dall'impaginato del fotografo, se c'è già; poi nome e firma.">
             <div className={selected ? '' : 'opacity-50 pointer-events-none'}>
               <div className="space-y-4">
                 <div>
@@ -972,7 +1015,7 @@ export default function AlbumCatalogPicker() {
               <div className="flex items-center justify-between gap-3 pt-2">
                 <button type="button" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))} className="rounded-full border border-[rgb(var(--border))] px-4 py-2 text-sm disabled:opacity-40">Indietro</button>
                 <p className="text-[11px] text-[rgb(var(--fg-subtle))] text-center">{stepHint}</p>
-                <button type="button" disabled={!stepOk} onClick={() => setStep((s) => Math.min(5, s + 1))} className="rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] px-5 py-2 text-sm font-medium disabled:opacity-40">Avanti</button>
+                <button type="button" disabled={!stepOk} onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))} className="rounded-full bg-[rgb(var(--gold-500))] text-[rgb(var(--bg))] px-5 py-2 text-sm font-medium disabled:opacity-40">Avanti</button>
               </div>
             )}
           </div>

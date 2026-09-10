@@ -14,6 +14,7 @@
 import { MATERIALS, MODELS, CATEGORIES, BOXES, FINISHES, FORMATS, paletteFor, baseModelsByCategory, type Material, type Model } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import { decorOf } from '@/components/album/glb/decor.generated'
+import type { PhotoCrop, LogoPlace } from '@/components/album/glb/layoutSpec'
 import { decorLabel } from '@/components/album/glb/decorLabel'
 
 export type Opt = { key: string; label: string; page?: number; hint?: string; hex?: string; img?: string }
@@ -203,6 +204,9 @@ export type CoverComposition = {
   /** rivestimento del box, se diverso dalla copertina */
   boxMaterial?: string
   boxColor?: string
+  /** impaginazione della copertina scelta dalla coppia: ritaglio di ogni foto (per finestra) e posizione/misura del blocco nomi-logo */
+  photoCrops?: Record<number, PhotoCrop>
+  logoPlace?: LogoPlace
 }
 
 export function compositionLines(c: CoverComposition): string[] {
@@ -224,6 +228,8 @@ export function compositionLines(c: CoverComposition): string[] {
     c.block ? `Blocco interno: ${optLabel(BLOCK_OPTIONS, c.block) ?? c.block}` : null,
     c.box ? `Box: ${optLabel(BOX_OPTIONS, c.box) ?? c.box}${c.box !== 'nessuno' ? (bxmat ? ` · rivestimento ${bxmat.label}${bxcol ? ` ${bxcol.label}` : ''}` : ' · rivestimento come la copertina') : ''}` : null,
     c.finish ? `Finitura: ${optLabel(FINISH_OPTIONS, c.finish) ?? c.finish}` : null,
+    c.logoPlace ? `Nomi/logo posizionati dalla coppia: centro x ${Math.round(c.logoPlace.x * 100)}%, dall'alto ${Math.round(c.logoPlace.y * 100)}%, larghezza ${Math.round(c.logoPlace.w * 100)}% della copertina` : null,
+    c.photoCrops && Object.values(c.photoCrops).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01) ? `Ritaglio foto scelto dalla coppia (${Object.keys(c.photoCrops).length} finestre): vedi PSD` : null,
     c.coverPhotos && c.coverPhotos.length > 1
       ? `Foto in copertina (${c.coverPhotos.length} finestre, in ordine): ${c.coverPhotos.map((p, i) => `${i + 1}. ${p.label ?? 'dalla galleria'}`).join(' · ')}`
       : c.coverPhoto ? `Foto in copertina: ${c.coverPhoto.label ?? 'scelta dalla galleria'}` : null,

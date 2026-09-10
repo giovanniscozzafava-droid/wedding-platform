@@ -61,3 +61,30 @@ export function coverFit(iw: number, ih: number, w: number, h: number): { sx: nu
   const sw = w / s, sh = h / s
   return { sx: (iw - sw) / 2, sy: (ih - sh) / 2, sw, sh }
 }
+
+/** Il RITAGLIO scelto dalla coppia per una finestra: spostamento (ox, oy) in frazioni della finestra
+ *  (positivo = la foto scivola a destra/in basso, come nel CSS translate) e ingrandimento zoom ≥ 1. */
+export type PhotoCrop = { ox: number; oy: number; zoom: number }
+/** Dove sta il blocco nomi/logo: centro x, BORDO SUPERIORE y, larghezza (frazioni della copertina). */
+export type LogoPlace = { x: number; y: number; w: number }
+export const DEFAULT_CROP: PhotoCrop = { ox: 0, oy: 0, zoom: 1 }
+
+/** Il rettangolo SORGENTE (px dell'immagine) che riempie una finestra w×h col ritaglio scelto: stessa
+ *  geometria del CSS `object-fit: cover` + `translate(ox, oy) scale(zoom)` dell'editor, così 3D, PSD e
+ *  anteprima combaciano. Il rettangolo resta dentro l'immagine. */
+export function cropRect(iw: number, ih: number, w: number, h: number, crop?: PhotoCrop | null): { sx: number; sy: number; sw: number; sh: number } {
+  const base = coverFit(iw, ih, w, h)
+  const z = Math.max(1, crop?.zoom ?? 1)
+  const sw = base.sw / z, sh = base.sh / z
+  // lo scorrimento della foto a destra di ox·w (schermo) sposta il centro visibile a sinistra di ox·sw/z (sorgente)
+  let cx = base.sx + base.sw / 2 - (crop?.ox ?? 0) * base.sw / z
+  let cy = base.sy + base.sh / 2 - (crop?.oy ?? 0) * base.sh / z
+  cx = Math.min(Math.max(cx, sw / 2), iw - sw / 2); cy = Math.min(Math.max(cy, sh / 2), ih - sh / 2)
+  return { sx: cx - sw / 2, sy: cy - sh / 2, sw, sh }
+}
+/** Quanto si può far scorrere la foto (frazioni della finestra) senza scoprire il fondo. */
+export function cropSlack(iw: number, ih: number, w: number, h: number, zoom: number): { x: number; y: number } {
+  const s = Math.max(w / iw, h / ih)
+  const rw = iw * s / w, rh = ih * s / h      // misura resa / finestra (≥ 1)
+  return { x: Math.max(0, (rw * zoom - 1) / 2), y: Math.max(0, (rh * zoom - 1) / 2) }
+}

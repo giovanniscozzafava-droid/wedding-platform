@@ -12,8 +12,9 @@ import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { buildBox, isBoxKind } from '@/components/album/glb/boxScene'
+import { LAYOUT_SPEC, cropRect, type PhotoCrop, type LogoPlace } from '@/components/album/glb/layoutSpec'
 
-export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string }
+export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; photoCrops?: Record<number, PhotoCrop>; logoPlace?: LogoPlace }
 
 export type GlbView = 'front' | 'three-quarter' | 'spine' | 'top'
 export type AlbumGlbStageHandle = { setView: (v: GlbView) => void; snapshot: () => string | null }
@@ -184,7 +185,7 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
-    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.photo_urls?.join('|'), cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey]) // eslint-disable-line react-hooks/exhaustive-deps
+    [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.photo_urls?.join('|'), cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey, JSON.stringify(cover.photoCrops ?? null), JSON.stringify(cover.logoPlace ?? null)]) // eslint-disable-line react-hooks/exhaustive-deps
   // le immagini del decal (logo del catalogo) arrivano dopo: ridisegno
   useEffect(() => { onDecalImagesReady(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, coverRef.current) }) }, [])
 
@@ -248,11 +249,21 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   // le foto scelte in ordine; a una finestra sola vale photo_url. La foto passa dal proxy CORS quando serve
   // (Drive): altrimenti WebGL la rifiuta e il piatto resta nero
   const urls = (cover.photo_urls?.length ? cover.photo_urls : [cover.photo_url ?? '']).filter(Boolean)
+  const windows = LAYOUT_SPEC[modelLayout(cover.model)].photos
   const photoMatFor = (i: number) => {
     const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.2 })
     const src = corsImageUrl(urls[i] ?? urls[0], 1200)
     if (src) {
-      const t = texLoader.load(src, undefined, undefined, () => { m.map = null; m.color.set(0xe9e4dc); m.needsUpdate = true })
+      const t = texLoader.load(src, (tex) => {
+        // la foto riempie la finestra «a copertura» col ritaglio scelto dalla coppia (stessa geometria di editor e PSD)
+        const im = tex.image as { width?: number; height?: number } | undefined
+        const win = windows[i] ?? windows[0]
+        if (im?.width && im?.height && win) {
+          const r = cropRect(im.width, im.height, win.w, win.h, cover.photoCrops?.[i])
+          tex.offset.set(r.sx / im.width, r.sy / im.height); tex.repeat.set(r.sw / im.width, r.sh / im.height)
+          tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.needsUpdate = true
+        }
+      }, undefined, () => { m.map = null; m.color.set(0xe9e4dc); m.needsUpdate = true })
       t.colorSpace = THREE.SRGBColorSpace; t.flipY = false
       m.map = t
     } else { m.color.set(0xe9e4dc) }

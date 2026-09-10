@@ -3,7 +3,7 @@
 // copertura nella sua finestra) · Logo cod.NN · Nomi · Guide (rettangoli con quote in mm) ·
 // Specifiche (testo). Più le guide di Photoshop sui bordi di ogni finestra.
 import { writePsd, type Psd, type Layer } from 'ag-psd'
-import { LAYOUT_SPEC, coverFit, logoToInk, type LayoutSpec } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, cropRect, logoToInk, type LayoutSpec, type PhotoCrop, type LogoPlace } from '@/components/album/glb/layoutSpec'
 import { namePlacements, drawDecor, PLATE_MARGIN } from '@/components/album/glb/decal'
 import type { Decor } from '@/components/album/glb/decor.generated'
 import type { Layout } from '@/components/album/albumCatalog'
@@ -20,6 +20,9 @@ export type CoverPsdInput = {
   ink?: string                                  // colore di nomi/logo
   /** Il decoro proprio del modello (dal catalogo): stampa a tutta copertina + cristalli con i centri. */
   decor?: { family: string; spec: Decor; print: HTMLImageElement | null; stones: HTMLImageElement | null } | null
+  /** impaginazione scelta dalla coppia: ritaglio per finestra e posizione/misura del blocco nomi-logo */
+  photoCrops?: Record<number, PhotoCrop>
+  logoPlace?: LogoPlace
   couple?: string; studio?: string; orderRef?: string
 }
 
@@ -34,7 +37,9 @@ function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContex
 export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { label: string; x: number; y: number; w: number; h: number }[]; tavolaDataUrl: string } {
   const dpi = inp.dpi ?? 300
   const W = Math.round(inp.wCm / 2.54 * dpi), H = Math.round(inp.hCm / 2.54 * dpi)
-  const spec: LayoutSpec = LAYOUT_SPEC[inp.layout]
+  const spec0: LayoutSpec = LAYOUT_SPEC[inp.layout]
+  // il blocco nomi/logo dove l'ha messo la coppia (editor), altrimenti dove lo mette il layout
+  const spec: LayoutSpec = inp.logoPlace ? { ...spec0, logo: { x: inp.logoPlace.x, y: inp.logoPlace.y, w: inp.logoPlace.w }, names: { ...spec0.names, x: inp.logoPlace.x, y: inp.logoPlace.y + 0.03, align: 'center' } } : spec0
   const ink = inp.ink ?? '#3a2c1e'
   const layers: Layer[] = []
   const positions: { label: string; x: number; y: number; w: number; h: number }[] = []
@@ -61,7 +66,8 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
     const img = inp.photos[i]
     const [c, ctx] = canvas(w, h)
     if (img) {
-      const f = coverFit(img.naturalWidth, img.naturalHeight, w, h)
+      // ritaglio «a copertura» col ritaglio scelto dalla coppia nell'editor (stessa geometria del 3D)
+      const f = cropRect(img.naturalWidth, img.naturalHeight, w, h, inp.photoCrops?.[i])
       ctx.drawImage(img, f.sx, f.sy, f.sw, f.sh, 0, 0, w, h)
     } else {
       ctx.fillStyle = 'rgba(200,200,200,0.5)'; ctx.fillRect(0, 0, w, h)
@@ -118,7 +124,7 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
     const size = Math.round(sizeFr * H)
     const font = `italic 400 ${size}px "Fraunces", "Cormorant Garamond", Georgia, serif`
     const [, mctx] = canvas(8, 8); mctx.font = font
-    const places = namePlacements(inp.names, inp.decor?.spec, spec.names)
+    const places = namePlacements(inp.names, inp.logoPlace ? undefined : inp.decor?.spec, spec.names)
     places.forEach((pl, i) => {
       const tw = Math.ceil(mctx.measureText(pl.text).width) + Math.round(size * 0.4)
       const bw = tw, bh = Math.round(size * 1.4)

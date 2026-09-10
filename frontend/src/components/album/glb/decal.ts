@@ -5,7 +5,7 @@
 import * as THREE from 'three'
 import { baseDesignKey, modelByKey, modelLayout, sizeByKey, type Cover } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
-import { LAYOUT_SPEC, logoToInk, inkRgb } from '@/components/album/glb/layoutSpec'
+import { LAYOUT_SPEC, logoToInk, inkRgb, type LogoPlace } from '@/components/album/glb/layoutSpec'
 import { hasLogoTemplate, LOGO_TEMPLATES } from '@/components/album/glb/logoTemplates'
 import { composeLogo, fontsOf, loadLogoFont, onLogoAssetsReady } from '@/components/album/glb/logoCompose'
 import { decorOf, type Decor } from '@/components/album/glb/decor.generated'
@@ -110,7 +110,7 @@ export function plateAlphaCanvas(holes: HTMLImageElement, size = 1024): HTMLCanv
 }
 
 export type DecalInk = 'ink' | 'white' | 'gold' | 'silver'
-export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; ink?: DecalInk; eventDate?: string | null }): THREE.CanvasTexture | null {
+export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; ink?: DecalInk; eventDate?: string | null; logoPlace?: LogoPlace }): THREE.CanvasTexture | null {
   const W = 2048, H = 2048
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d'); if (!ctx) return null
@@ -119,7 +119,11 @@ export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; 
   void LOGO_TEMPLATES
   const ink = cover.ink === 'white' ? 'rgba(250,246,238,0.96)' : cover.ink === 'gold' ? 'rgba(212,176,96,0.98)' : cover.ink === 'silver' ? 'rgba(215,215,220,0.98)' : 'rgba(58,44,30,0.94)'
   let drew = false
-  const spec = LAYOUT_SPEC[layout]
+  const spec0 = LAYOUT_SPEC[layout]
+  // se la coppia ha posizionato il blocco nomi/logo nell'editor, vince la sua posizione (coordinate copertina → decal)
+  const DI = 0.02, toD = (v: number) => (v - DI) / (1 - 2 * DI)
+  const lp = cover.logoPlace
+  const spec = lp ? { ...spec0, logo: { x: toD(lp.x), y: toD(lp.y), w: lp.w / (1 - 2 * DI) }, names: { ...spec0.names, x: toD(lp.x), y: toD(lp.y + 0.03), align: 'center' as const } } : spec0
   const p = spec.names
   // il canvas è quadrato ma la copertina no: testi e loghi vanno compressi in orizzontale del rapporto
   // larghezza/altezza, altrimenti sull'album orizzontale escono allargati
@@ -159,9 +163,9 @@ export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; 
   if (names && !logo && !composed && (cover.textLayout ?? 'model') === 'model') {
     ctx.save(); ctx.fillStyle = ink; ctx.textBaseline = 'middle'
     ctx.font = `italic 400 ${Math.round(H * (decor ? 0.045 : p.size))}px "Fraunces", "Cormorant Garamond", Georgia, serif`
-    for (const pl of namePlacements(names, decor, p)) {
-      // le ancore del decoro sono in coordinate copertina (→ decal); quelle del layout sono già sul decal
-      const px = decor ? dx(pl.x) : pl.x, py = decor ? dy(pl.y) : pl.y
+    for (const pl of namePlacements(names, lp ? undefined : decor, p)) {
+      // le ancore del decoro sono in coordinate copertina (→ decal); quelle del layout (o della coppia) sono già sul decal
+      const px = decor && !lp ? dx(pl.x) : pl.x, py = decor && !lp ? dy(pl.y) : pl.y
       ctx.save(); ctx.translate(W * px, H * py); ctx.scale(1 / aspect, 1); ctx.textAlign = pl.align; ctx.fillText(pl.text, 0, 0); ctx.restore()
     }
     ctx.restore(); drew = true
