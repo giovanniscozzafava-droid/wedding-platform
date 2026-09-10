@@ -223,6 +223,8 @@ export default function AlbumCatalogPicker() {
   }, [comp.box, comp.finish])
   const colorOpts = useMemo(() => colorOptionsFor(comp.material), [comp.material])
   const backColorOpts = useMemo(() => colorOptionsFor(comp.backMaterial), [comp.backMaterial])
+  const boxColorOpts = useMemo(() => colorOptionsFor(comp.boxMaterial), [comp.boxMaterial])
+  const [boxDiff, setBoxDiff] = useState(false)            // rivestimento del box diverso dalla copertina
   // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
   const coverPick = listino.covers.find((c) => c.id === selCover)
   const coverExtra = coverPick && !coverPick.included ? Number(coverPick.price) || 0 : 0
@@ -278,6 +280,8 @@ export default function AlbumCatalogPicker() {
       if (inQuote) lines.push({ label: `Box ${optLabel(BOX_OPTIONS, boxKey)}`, amount: 0, hint: 'già nel preventivo' })
       else if (acc) lines.push({ label: `Box ${optLabel(BOX_OPTIONS, boxKey)}`, amount: acc.included ? 0 : mk(Number(acc.price) || 0) })
       else lines.push({ label: `Box ${optLabel(BOX_OPTIONS, boxKey)}`, amount: mk(ref), hint: 'listino DesignAlbum' })
+      // rivestimento diverso dalla copertina: voce a sé (il prezzo lo conferma il fotografo)
+      if (comp.boxMaterial) lines.push({ label: `Rivestimento box · ${materialLabel(comp.boxMaterial)}`, amount: 0, hint: 'prezzo da confermare col fotografo' })
     }
     // finitura
     const fin = FINISHES.find((f) => f.key === comp.finish)
@@ -322,6 +326,8 @@ export default function AlbumCatalogPicker() {
       photo_urls: wantPhoto ? chosenPhotos.map((p) => p.url) : [],
       backFabric: comp.backMaterial, backColorKey: comp.backColor,
       backColor: comp.backMaterial ? paletteFor(comp.backMaterial).find((c) => c.key === comp.backColor)?.hex : undefined,
+      boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor,
+      boxColor: comp.boxMaterial ? paletteFor(comp.boxMaterial).find((c) => c.key === comp.boxColor)?.hex : undefined,
       title: entryTitle || clientName.trim() || '',
       logoKey: comp.logo && comp.logo !== 'nessuno' && /^cod\./.test(comp.logo) ? comp.logo : undefined,
       eventDate: entryDate,
@@ -345,7 +351,7 @@ export default function AlbumCatalogPicker() {
     if (logoNeedsColor(comp.logo)) rows.push({ label: 'Tonalità', value: optLabel(LOGO_COLOR_TILES, comp.logoColor), img: swatchUrl(comp.logoColor), missing: true })
     rows.push(
       { label: 'Blocco', value: optLabel(BLOCK_OPTIONS, comp.block)?.replace(/\s*\(.*\)$/, ''), missing: true },
-      { label: 'Box', value: optLabel(BOX_OPTIONS, comp.box ?? specs.box ?? 'nessuno') },
+      { label: 'Box', value: `${optLabel(BOX_OPTIONS, comp.box ?? specs.box ?? 'nessuno')}${(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' ? (comp.boxMaterial ? ` · ${materialLabel(comp.boxMaterial)}${boxColorOpts.find((o) => o.key === comp.boxColor)?.label ? ` ${boxColorOpts.find((o) => o.key === comp.boxColor)!.label}` : ''}` : ' · come la copertina') : ''}`, img: comp.boxMaterial ? (boxColorOpts.find((o) => o.key === comp.boxColor)?.img ?? swatchUrl(`mat:${comp.boxMaterial}`)) : undefined, hex: boxColorOpts.find((o) => o.key === comp.boxColor)?.hex },
       { label: 'Finitura', value: optLabel(FINISH_OPTIONS, comp.finish ?? 'nessuna') },
       { label: photoWindows > 1 ? `Foto in copertina (${photoWindows} finestre)` : 'Foto in copertina', value: wantPhoto ? (chosenPhotos.length ? (photoWindows > 1 ? `${chosenPhotos.length} di ${photoWindows}, in ordine: ${chosenPhotos.map((p) => p.label ?? 'dalla galleria').join(' · ')}` : (comp.coverPhoto?.label ?? 'scelta dalla galleria')) : undefined) : 'No', img: wantPhoto ? chosenPhotos[0]?.url : undefined, missing: wantPhoto },
     )
@@ -357,7 +363,7 @@ export default function AlbumCatalogPicker() {
   const stepOk = step === 0 ? !!(comp.model?.key || selected)
     : step === 1 ? !!comp.material && !!comp.color && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
     : step === 2 ? !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor)
-    : step === 3 ? !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && photosOk
+    : step === 3 ? !!comp.block && !!(comp.box ?? specs.box) && !!comp.finish && photosOk && (!boxDiff || (!!comp.boxMaterial && !!comp.boxColor))
     : true
   const stepHint = step === 0 ? 'Tocca un modello (o spunta una tavola)' : step === 1 ? 'Materiale e colore, poi Avanti' : step === 2 ? 'Un logo o nessuna personalizzazione' : step === 3 ? (!photosOk ? (photoWindows > 1 ? `Scegli le ${photoWindows} foto in copertina` : 'Scegli la foto in copertina') : 'Interno, box, finitura, foto') : ''
   const compComplete = !!comp.material && !!comp.color && !!comp.logo && (!logoNeedsColor(comp.logo) || !!comp.logoColor) && (!backDiff || (!!comp.backMaterial && !!comp.backColor))
@@ -726,7 +732,28 @@ export default function AlbumCatalogPicker() {
               {/* il blocco interno NON si sceglie qui: di default digitale; il fotografo può opzionarlo dall'impaginatore */}
               <Voice label="Box / contenitore" page={97} onSee={goToPage}>
                 <PillChoice options={BOX_OPTIONS} value={comp.box ?? specs.box ?? 'nessuno'} onChange={(k) => setComp((c) => ({ ...c, box: k }))} />
+                {(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' && <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Lo vedi nel 3D qui sopra, attorno all'album, con la sua forma e il suo rivestimento.</p>}
               </Voice>
+              {(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' && (
+                <>
+                  <Voice label="Rivestimento del box">
+                    <PillChoice options={[{ key: 'uguale', label: 'Come la copertina' }, { key: 'diverso', label: 'Un altro materiale o colore' }]} value={boxDiff ? 'diverso' : 'uguale'}
+                      onChange={(k) => { const d = k === 'diverso'; setBoxDiff(d); if (!d) setComp((c) => ({ ...c, boxMaterial: undefined, boxColor: undefined })) }} />
+                  </Voice>
+                  {boxDiff && (
+                    <>
+                      <Voice label="Materiale del box" page={MATERIAL_OPTIONS.find((o) => o.key === comp.boxMaterial)?.page ?? 115} onSee={goToPage}>
+                        <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
+                          value={comp.boxMaterial} onChange={(k) => setComp((c) => ({ ...c, boxMaterial: k, boxColor: undefined }))} />
+                      </Voice>
+                      <Voice label="Colore del box">
+                        <SwatchPicker shape="wide" cols={3} options={boxColorOpts} value={comp.boxColor} disabled={!comp.boxMaterial} emptyText="Prima scegli il materiale del box."
+                          onChange={(k) => setComp((c) => ({ ...c, boxColor: k }))} maxH="22rem" />
+                      </Voice>
+                    </>
+                  )}
+                </>
+              )}
               <Voice label="Finitura">
                 <PillChoice options={FINISH_OPTIONS} value={comp.finish ?? 'nessuna'} onChange={(k) => setComp((c) => ({ ...c, finish: k }))} />
               </Voice>

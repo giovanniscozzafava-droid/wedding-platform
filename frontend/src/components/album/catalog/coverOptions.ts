@@ -200,6 +200,9 @@ export type CoverComposition = {
   coverPhoto?: { mediaId: string; url: string; label: string | null } | null
   /** tutte le foto in copertina, una per finestra e in ordine (modelli a più finestre: Julies, Trilogy); coverPhoto = la prima */
   coverPhotos?: { mediaId: string; url: string; label: string | null }[]
+  /** rivestimento del box, se diverso dalla copertina */
+  boxMaterial?: string
+  boxColor?: string
 }
 
 export function compositionLines(c: CoverComposition): string[] {
@@ -207,6 +210,8 @@ export function compositionLines(c: CoverComposition): string[] {
   const col = c.material ? paletteFor(c.material).find((x) => x.key === c.color) : undefined
   const bmat = MATERIALS.find((m) => m.key === c.backMaterial)
   const bcol = c.backMaterial ? paletteFor(c.backMaterial).find((x) => x.key === c.backColor) : undefined
+  const bxmat = MATERIALS.find((m) => m.key === c.boxMaterial)
+  const bxcol = c.boxMaterial ? paletteFor(c.boxMaterial).find((x) => x.key === c.boxColor) : undefined
   const decor = c.model ? decorOf(familyOf(c.model.label)) : undefined
   return [
     c.model ? `Modello: ${c.model.label}${c.model.page ? ` (pag. ${c.model.page})` : ''}` : null,
@@ -217,7 +222,7 @@ export function compositionLines(c: CoverComposition): string[] {
     c.logo ? `Personalizzazione: ${optLabel(LOGO_OPTIONS, c.logo) ?? c.logo}` : null,
     c.logo && logoNeedsColor(c.logo) && c.logoColor ? `Tonalità logo: ${optLabel(LOGO_COLOR_OPTIONS, c.logoColor) ?? c.logoColor}` : null,
     c.block ? `Blocco interno: ${optLabel(BLOCK_OPTIONS, c.block) ?? c.block}` : null,
-    c.box ? `Box: ${optLabel(BOX_OPTIONS, c.box) ?? c.box}` : null,
+    c.box ? `Box: ${optLabel(BOX_OPTIONS, c.box) ?? c.box}${c.box !== 'nessuno' ? (bxmat ? ` · rivestimento ${bxmat.label}${bxcol ? ` ${bxcol.label}` : ''}` : ' · rivestimento come la copertina') : ''}` : null,
     c.finish ? `Finitura: ${optLabel(FINISH_OPTIONS, c.finish) ?? c.finish}` : null,
     c.coverPhotos && c.coverPhotos.length > 1
       ? `Foto in copertina (${c.coverPhotos.length} finestre, in ordine): ${c.coverPhotos.map((p, i) => `${i + 1}. ${p.label ?? 'dalla galleria'}`).join(' · ')}`

@@ -11,8 +11,9 @@ import { modelLayout, paletteFor, sizeByKey, type Cover } from '@/components/alb
 import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
+import { buildBox, isBoxKind } from '@/components/album/glb/boxScene'
 
-export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string }
+export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string }
 
 export type GlbView = 'front' | 'three-quarter' | 'spine' | 'top'
 export type AlbumGlbStageHandle = { setView: (v: GlbView) => void; snapshot: () => string | null }
@@ -171,12 +172,15 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
       st.scene.add(obj); st.album = obj
       fitToSize(st, obj, coverRef.current.sizeKey)
       applyMaterials(obj, coverRef.current)
+      applyBox(st, coverRef.current)
       setViewRef.current(view, false)
     }, undefined, () => setFailed(true))
     return () => { cancelled = true }
   }, [glbUrl]) // eslint-disable-line react-hooks/exhaustive-deps
   // la misura cambia (arriva l'impaginato, o la coppia sceglie un'altra misura dello stesso formato): si riscala l'album
-  useEffect(() => { const s = sceneRef.current; if (s?.album) { fitToSize(s, s.album, cover.sizeKey); setViewRef.current(view, false) } }, [cover.sizeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const s = sceneRef.current; if (s?.album) { fitToSize(s, s.album, cover.sizeKey); applyBox(s, cover); setViewRef.current(view, false) } }, [cover.sizeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // il box contenitore (quale, e di che rivestimento) si ricostruisce attorno all'album
+  useEffect(() => { const s = sceneRef.current; if (s?.album) { applyBox(s, cover); setViewRef.current(view, false) } }, [cover.box, cover.boxFabric, cover.boxColorKey, cover.boxColor, cover.fabric, cover.colorKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
@@ -198,6 +202,31 @@ function fitToSize(st: { album: THREE.Group | null; size: number; baseSize?: THR
   const box = new THREE.Box3().setFromObject(obj); const c = box.getCenter(new THREE.Vector3())
   obj.position.set(-c.x, -box.min.y, -c.z)
   st.size = Math.max(base.x * sx, base.z * szz)
+}
+
+/** IL BOX attorno all'album: costruito sulle misure vere dell'album, col rivestimento scelto (di default come la
+ *  copertina); l'album si alza sul fondo del vano e l'inquadratura si allarga al box. */
+function applyBox(st: { scene: THREE.Scene; album: THREE.Group | null; size: number; baseSize?: THREE.Vector3 }, cover: GlbCover) {
+  const old = st.scene.getObjectByName('BoxScene'); if (old) st.scene.remove(old)
+  const album = st.album; if (!album || !st.baseSize) return
+  // l'album torna appoggiato a terra (fitToSize lo mette a y = 0), poi eventualmente sale sul fondo del box
+  const bb0 = new THREE.Box3().setFromObject(album)
+  album.position.y -= bb0.min.y
+  if (!isBoxKind(cover.box)) { st.size = Math.max(st.baseSize.x * album.scale.x, st.baseSize.z * album.scale.z); return }
+  const bb = new THREE.Box3().setFromObject(album); const sz = bb.getSize(new THREE.Vector3())
+  const fabric = cover.boxFabric ?? cover.fabric
+  const isWood = fabric === 'wood'
+  const col = fabric ? paletteFor(fabric).find((c) => c.key === (cover.boxFabric ? cover.boxColorKey : cover.colorKey)) : undefined
+  const hex = cover.boxFabric ? (cover.boxColor ?? col?.hex) : (cover.color ?? col?.hex)
+  const outer = surfaceMaterial(fabric, hex, isWood, isWood ? col?.tex : undefined)
+  const inner = surfaceMaterial('alcantara', '#efe9dc', false)
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.04, transmission: 0.92, ior: 1.5, thickness: 0.003, transparent: true, opacity: 1, envMapIntensity: 1.2, clearcoat: 1 })
+  const brass = new THREE.MeshPhysicalMaterial({ color: 0xd9b46a, metalness: 1, roughness: 0.25, envMapIntensity: 1.3 })
+  const albumMat = surfaceMaterial(cover.fabric, cover.color ?? undefined, cover.fabric === 'wood')
+  const b = buildBox(cover.box, sz.x, sz.z, sz.y, { outer, inner, glass, brass, album: albumMat })
+  st.scene.add(b.group)
+  album.position.y += b.albumLift
+  st.size = b.footprint
 }
 
 /** Applica i materiali del catalogo alle mesh nominate del GLB. */
