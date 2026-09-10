@@ -56,6 +56,7 @@ export type AlbumPriceConfig = {
   box: boolean
   boxPrice: number
   boxIncluded?: boolean      // box compreso nel pacchetto → non si paga
+  block?: 'digitale' | 'book-flat' | 'tradizionale'   // tipo di blocco interno deciso dal fotografo (la coppia non lo sceglie; default digitale)
   shipping?: number          // spedizione (deciso dal fotografo) — si somma al totale
   modelKey?: string          // modello scelto dal catalogo DesignAlbum (legacy)
   modelLabel?: string        // etichetta leggibile della scelta
