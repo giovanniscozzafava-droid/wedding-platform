@@ -87,11 +87,13 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
     let renderer: THREE.WebGLRenderer
     try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }) } catch { setFailed(true); return }
     const H = Math.round(width * 0.75)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // modalità LEGGERA (?lite, o dispositivi con pochi core / senza GPU vera): niente ombre, un pixel per pixel
+    const lite = (() => { try { return new URLSearchParams(window.location.search).has('lite') || (navigator.hardwareConcurrency ?? 8) <= 2 } catch { return false } })()
+    renderer.setPixelRatio(lite ? 1 : Math.min(window.devicePixelRatio, 2))
     renderer.setSize(width, H, false)
     renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%'; renderer.domElement.style.display = 'block'
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.VSMShadowMap
+    renderer.shadowMap.enabled = !lite; renderer.shadowMap.type = THREE.VSMShadowMap
     mount.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
@@ -221,7 +223,9 @@ function applyBox(st: { scene: THREE.Scene; album: THREE.Group | null; size: num
   const hex = cover.boxFabric ? (cover.boxColor ?? col?.hex) : (cover.color ?? col?.hex)
   const outer = surfaceMaterial(fabric, hex, isWood, isWood ? col?.tex : undefined)
   const inner = surfaceMaterial('alcantara', '#efe9dc', false)
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.04, transmission: 0.92, ior: 1.5, thickness: 0.003, transparent: true, opacity: 1, envMapIntensity: 1.2, clearcoat: 1 })
+  // plexiglass: trasparenza semplice (niente `transmission`: costringe three.js a un passaggio di rendering in più
+  // per fotogramma e sui dispositivi senza GPU vera blocca tutto)
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0xf4f8fb, metalness: 0, roughness: 0.05, transparent: true, opacity: 0.32, envMapIntensity: 1.4, clearcoat: 1, clearcoatRoughness: 0.05, depthWrite: false })
   const brass = new THREE.MeshPhysicalMaterial({ color: 0xd9b46a, metalness: 1, roughness: 0.25, envMapIntensity: 1.3 })
   const albumMat = surfaceMaterial(cover.fabric, cover.color ?? undefined, cover.fabric === 'wood')
   const b = buildBox(cover.box, sz.x, sz.z, sz.y, { outer, inner, glass, brass, album: albumMat })
