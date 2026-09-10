@@ -12,6 +12,7 @@ import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { buildBox, isBoxKind } from '@/components/album/glb/boxScene'
+import { MATERIAL_SWATCH } from '@/components/album/glb/materialSwatch.generated'
 import { LAYOUT_SPEC, cropRect, frameOf, type PhotoCrop, type PhotoFrame, type LogoPlace, type TextPlace, type Rect } from '@/components/album/glb/layoutSpec'
 
 export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
@@ -25,6 +26,13 @@ const VIEW: Record<GlbView, { az: number; el: number; dist: number }> = {
   'three-quarter': { az: 0.2, el: 0.24, dist: 1.05 },
   spine: { az: -0.44, el: 0.16, dist: 1.05 },
   top: { az: 0.0, el: 0.47, dist: 0.98 },
+}
+
+// QUANTE VOLTE si ripete il campione sulla copertina: il ritaglio del catalogo inquadra circa 4–6 cm
+// di materiale, quindi su un piatto da 30 cm la grana deve ripetersi 5–7 volte per avere la scala giusta.
+const SWATCH_REPEAT: Record<string, number> = {
+  alcantara: 6, sequoia: 6, acero: 5, pelle: 5, 'velu-arte': 6, 'soft-touch': 6, suade: 6,
+  safir: 5, crazy: 4, juta: 7, metal: 5, skill: 5, wood: 2, cristalwhite: 3, cristalplex: 3,
 }
 
 const texLoader = new THREE.TextureLoader()
@@ -43,14 +51,20 @@ function tex(url: string, srgb: boolean, repeat: number): THREE.Texture {
   return t
 }
 
-/** Il materiale three.js della superficie di copertina per un materiale del catalogo e un colore. */
-function surfaceMaterial(fabric: string | undefined, hex: string | undefined, isWood: boolean, essenceTex?: string): THREE.MeshPhysicalMaterial {
+/** Il materiale three.js della superficie di copertina per un materiale del catalogo e un colore.
+ *  L'ALBEDO viene dal CAMPIONE VERO del catalogo quando c'è (grana e tinta fotografate sulle tavole
+ *  115–127, rese ripetibili da gen-material-textures.py): niente più texture di libreria tinta a
+ *  mano, che è ciò che dava l'aria da videogioco. Rilievo e lucentezza restano dal set PBR. */
+function surfaceMaterial(fabric: string | undefined, hex: string | undefined, isWood: boolean, essenceTex?: string, colorKey?: string): THREE.MeshPhysicalMaterial {
   const set: PbrSet | undefined = PBR[fabric ?? ''] ?? PBR['alcantara']
+  const vero = colorKey ? MATERIAL_SWATCH[colorKey] : undefined
   const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0 })
   if (set) {
     const rep = set.repeat
     if (set.color) m.map = tex(set.color, true, rep)
     if (isWood && essenceTex) m.map = tex(essenceTex, true, 1)      // foto dell'essenza (noce, rovere…)
+    // il campione del catalogo vince su tutto: è la superficie vera di quella tinta
+    if (vero) m.map = tex(vero.tex, true, SWATCH_REPEAT[fabric ?? ''] ?? 5)
     if (set.normal) { m.normalMap = tex(set.normal, false, rep); m.normalScale.set(set.normalScale ?? 1, set.normalScale ?? 1) }
     if (set.rough) m.roughnessMap = tex(set.rough, false, rep)
     m.roughness = set.roughness ?? 0.85
@@ -58,9 +72,11 @@ function surfaceMaterial(fabric: string | undefined, hex: string | undefined, is
     if (set.sheen) { m.sheen = set.sheen; m.sheenRoughness = 0.6 }
     if (set.clearcoat) { m.clearcoat = set.clearcoat; m.clearcoatRoughness = set.clearcoatRoughness ?? 0.25 }
   }
-  // tinta: sul legno l'albedo è la foto dell'essenza (non si tinge); sui tessuti il colore moltiplica la grana
-  if (!isWood && hex) m.color.set(hex)
-  if (isWood && set?.tint === false && hex) m.color.set(hex)
+  // tinta: col campione vero la grana PORTA GIÀ il colore (niente moltiplicazione, o si scurirebbe);
+  // sul legno l'albedo è la foto dell'essenza; altrimenti il colore moltiplica la grana di libreria
+  if (vero) m.color.set(0xffffff)
+  else if (!isWood && hex) m.color.set(hex)
+  else if (isWood && set?.tint === false && hex) m.color.set(hex)
   m.envMapIntensity = set?.envMapIntensity ?? 0.9
   return m
 }
@@ -221,13 +237,13 @@ function applyBox(st: { scene: THREE.Scene; album: THREE.Group | null; size: num
   const isWood = fabric === 'wood'
   const col = fabric ? paletteFor(fabric).find((c) => c.key === (cover.boxFabric ? cover.boxColorKey : cover.colorKey)) : undefined
   const hex = cover.boxFabric ? (cover.boxColor ?? col?.hex) : (cover.color ?? col?.hex)
-  const outer = surfaceMaterial(fabric, hex, isWood, isWood ? col?.tex : undefined)
+  const outer = surfaceMaterial(fabric, hex, isWood, isWood ? col?.tex : undefined, cover.boxFabric ? cover.boxColorKey : cover.colorKey)
   const inner = surfaceMaterial('alcantara', '#efe9dc', false)
   // plexiglass: trasparenza semplice (niente `transmission`: costringe three.js a un passaggio di rendering in più
   // per fotogramma e sui dispositivi senza GPU vera blocca tutto)
   const glass = new THREE.MeshPhysicalMaterial({ color: 0xf4f8fb, metalness: 0, roughness: 0.05, transparent: true, opacity: 0.32, envMapIntensity: 1.4, clearcoat: 1, clearcoatRoughness: 0.05, depthWrite: false })
   const brass = new THREE.MeshPhysicalMaterial({ color: 0xd9b46a, metalness: 1, roughness: 0.25, envMapIntensity: 1.3 })
-  const albumMat = surfaceMaterial(cover.fabric, cover.color ?? undefined, cover.fabric === 'wood')
+  const albumMat = surfaceMaterial(cover.fabric, cover.color ?? undefined, cover.fabric === 'wood', undefined, cover.colorKey)
   const b = buildBox(cover.box, sz.x, sz.z, sz.y, { outer, inner, glass, brass, album: albumMat })
   st.scene.add(b.group)
   album.position.y += b.albumLift
@@ -298,11 +314,11 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   const isWood = cover.fabric === 'wood'
   const col = cover.fabric ? paletteFor(cover.fabric).find((c) => c.key === cover.colorKey) : undefined
   const hex = cover.color ?? col?.hex
-  const coverMat = surfaceMaterial(cover.fabric, hex, isWood, isWood ? col?.tex : undefined)
+  const coverMat = surfaceMaterial(cover.fabric, hex, isWood, isWood ? col?.tex : undefined, cover.colorKey)
   // retro e dorso: se la coppia ha scelto un altro materiale/colore, le mesh CoverBack e Spine lo indossano
   const bIsWood = cover.backFabric === 'wood'
   const bcol = cover.backFabric ? paletteFor(cover.backFabric).find((c) => c.key === cover.backColorKey) : undefined
-  const backMat = cover.backFabric ? surfaceMaterial(cover.backFabric, cover.backColor ?? bcol?.hex, bIsWood, bIsWood ? bcol?.tex : undefined) : coverMat
+  const backMat = cover.backFabric ? surfaceMaterial(cover.backFabric, cover.backColor ?? bcol?.hex, bIsWood, bIsWood ? bcol?.tex : undefined, cover.backColorKey) : coverMat
   const bandMat = surfaceMaterial('alcantara', '#efe9dc', false)
   const brass = (cover.finishes ?? []).includes('targhetta') || true
   const plateMat = new THREE.MeshPhysicalMaterial({ color: brass ? 0xd9b46a : 0xd8d8d8, metalness: 1, roughness: 0.22, envMapIntensity: 1.4, clearcoat: 0.3 })
@@ -314,7 +330,7 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   const urls = (cover.photo_urls?.length ? cover.photo_urls : [cover.photo_url ?? '']).filter(Boolean)
   const windows = LAYOUT_SPEC[modelLayout(cover.model)].photos
   const photoMatFor = (i: number) => {
-    const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.2 })
+    const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.34, clearcoat: 0.35, clearcoatRoughness: 0.22, envMapIntensity: 0.75 })
     const src = corsImageUrl(urls[i] ?? urls[0], 1200)
     if (src) {
       const t = texLoader.load(src, (tex) => {

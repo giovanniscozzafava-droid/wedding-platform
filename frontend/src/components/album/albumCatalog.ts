@@ -9,6 +9,8 @@
 // Backward-compat: Cover.fabric = chiave MATERIALE.
 // ============================================================================
 
+import { MATERIAL_SWATCH } from '@/components/album/glb/materialSwatch.generated'
+
 export type Cover = {
   model?: string
   fabric?: string          // = chiave MATERIALE (Tessuto copertina)
@@ -628,7 +630,13 @@ export function materialsForModel(modelKey?: string): Material[] {
   return MATERIALS.filter((x) => m.materials!.includes(x.key))
 }
 export function paletteFor(materialKey?: string): ColorDef[] {
-  return materialByKey(materialKey)?.colors ?? []
+  // IL COLORE VERO È QUELLO DEL CAMPIONE fotografato sul catalogo (materialSwatch.generated),
+  // non l'elenco scritto a mano: quello era sfalsato (la Moka del Safir usciva bianca, il Rosa
+  // del Metal blu notte). Dove il campione non c'è (legno, Cristalwhite, Cristalplex) resta l'elenco.
+  return (materialByKey(materialKey)?.colors ?? []).map((c) => {
+    const s = MATERIAL_SWATCH[c.key]
+    return s ? { ...c, hex: s.hex, tex: c.tex ?? s.tex } : c
+  })
 }
 export const modelsByCategory = (cat: string): Model[] => cat === 'all' ? MODELS : MODELS.filter((m) => m.category === cat)
 

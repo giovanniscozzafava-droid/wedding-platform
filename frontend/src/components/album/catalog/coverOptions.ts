@@ -11,7 +11,7 @@
 // «nomi e loghi» (pag. 34–37), le tonalità del logo (pag. 37) e i blocchi
 // interni (pag. 128).
 // ============================================================================
-import { MATERIALS, MODELS, CATEGORIES, BOXES, FINISHES, FORMATS, paletteFor, baseModelsByCategory, type Material, type Model } from '@/components/album/albumCatalog'
+import { MATERIALS, MODELS, CATEGORIES, BOXES, FINISHES, FORMATS, paletteFor, baseModelsByCategory, modelLayout, type Material, type Model } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import { decorOf } from '@/components/album/glb/decor.generated'
 import type { PhotoCrop, PhotoFrame, LogoPlace } from '@/components/album/glb/layoutSpec'
@@ -239,6 +239,24 @@ export const FAMILY_DEFAULTS: Record<string, FamilyDefault> = {
   julies: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro' },
   plaza: { material: 'pelle', color: 'pelle:dark-blue' },
 }
+// IL LOGO CHE IL MODELLO PORTA GIÀ: sulle tavole certi modelli si vedono con una personalizzazione
+// precisa — le iniziali sui monogramma, la targhetta d'ottone su chi ha la placca, la linea o il
+// grappolo Swarovski sui modelli Swarovski. Scegliendo quel modello la personalizzazione si
+// accende da sola; resta cambiabile (o si toglie con «Nessuna personalizzazione»). Gli altri
+// modelli partono SENZA logo: non deve uscire da solo.
+const LOGO_DEL_LAYOUT: Record<string, string> = {
+  monogram: 'ottone-iniziali',
+  plate: 'ottone-targhetta',
+  'swarovski-line': 'swarovski',
+  'swarovski-cluster': 'swarovski',
+  fascia: 'ottone-targhetta',
+}
+/** La personalizzazione con cui il catalogo mostra quel modello (o niente). */
+export function familyLogo(label?: string): string | undefined {
+  const m = MODELS.find((x) => familyOf(x.label) === familyOf(label))
+  return m ? LOGO_DEL_LAYOUT[modelLayout(m.key)] : undefined
+}
+
 export const familyDefaults = (label?: string): FamilyDefault | undefined => FAMILY_DEFAULTS[familyOf(label)]
 
 export function compositionLines(c: CoverComposition): string[] {

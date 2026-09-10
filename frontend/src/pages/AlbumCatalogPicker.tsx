@@ -17,7 +17,7 @@ import { modelLayout } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import {
   MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
-  compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, familyDefaults, FAMILY_PAGES, optLabel, type CoverComposition,
+  compositionLines, modelPage, familyLogo, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, familyDefaults, FAMILY_PAGES, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
 import { CoverPhotoPicker } from '@/components/album/catalog/CoverPhotoPicker'
@@ -242,6 +242,15 @@ export default function AlbumCatalogPicker() {
     autoMat.current = true
     setComp((c) => ({ ...c, material: d.material, color: d.color, backMaterial: d.backMaterial, backColor: d.backColor }))
     setBackDiff(!!d.backMaterial)
+  }, [comp.model?.key]) // eslint-disable-line react-hooks/exhaustive-deps
+  // IL LOGO CHE IL MODELLO PORTA GIÀ (iniziali sui monogramma, targhetta d'ottone su chi ha la placca,
+  // Swarovski sui modelli Swarovski): si accende scegliendo il modello, e resta cambiabile. Gli altri
+  // modelli restano senza logo: non deve uscirne uno da solo.
+  const autoLogo = useRef(true)
+  useEffect(() => {
+    if (!comp.model?.label || !autoLogo.current) return
+    const l = familyLogo(comp.model.label)
+    setComp((c) => ({ ...c, logo: l ?? 'nessuno', logoColor: l && logoNeedsColor(l) ? c.logoColor : undefined }))
   }, [comp.model?.key]) // eslint-disable-line react-hooks/exhaustive-deps
   // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
   const coverPick = listino.covers.find((c) => c.id === selCover)
@@ -796,7 +805,7 @@ export default function AlbumCatalogPicker() {
             <Chapter n="III" title="Nomi e loghi" hint="I loghi del catalogo (pag. 34–37) e la tonalità con cui stamparli.">
               <Voice label="Personalizzazione" page={LOGO_OPTIONS.find((o) => o.key === comp.logo)?.page ?? 34} onSee={goToPage}>
                 <SwatchPicker shape="square" cols={4} fit="contain" options={LOGO_TILES} value={comp.logo ?? 'nessuno'} maxH="24rem"
-                  onChange={(k) => { const v = k ?? 'nessuno'; setComp((c) => ({ ...c, logo: v, logoColor: logoNeedsColor(v) ? c.logoColor : undefined })) }} />
+                  onChange={(k) => { const v = k ?? 'nessuno'; autoLogo.current = false; setComp((c) => ({ ...c, logo: v, logoColor: logoNeedsColor(v) ? c.logoColor : undefined })) }} />
               </Voice>
               {logoNeedsColor(comp.logo) && (
                 <Voice label="Tonalità del logo" page={37} onSee={goToPage}>
