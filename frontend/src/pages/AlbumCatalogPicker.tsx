@@ -73,6 +73,7 @@ export default function AlbumCatalogPicker() {
   const [openPin, setOpenPin] = useState<AlbumPin | null>(null)
   const [isPro, setIsPro] = useState(false)
   const [lockedFmt, setLockedFmt] = useState<string | null>(null)  // formato bloccato (se già impaginato)
+  const [lockedPages, setLockedPages] = useState<number | null>(null)  // pagine dell'impaginato (non modificabili)
   const [optioned, setOptioned] = useState(0)                       // importo album già opzionato nel preventivo
   const [quotePages, setQuotePages] = useState<number | null>(null)  // pagine del blocco incluse nel preventivo
   const [familyFromQuote, setFamilyFromQuote] = useState(false)     // album famiglia già nel preventivo
@@ -117,11 +118,15 @@ export default function AlbumCatalogPicker() {
         const { data: proj } = await (supabase.from as any)('album_projects').select('format_key, layout').eq('entry_id', entryId).maybeSingle()
         const pages = (proj?.layout as { pages?: unknown[] } | null)?.pages?.length ?? 0
         if (proj?.format_key && pages > 0) {
+          // formato E pagine vengono dall'impaginato: l'album 3D ha le proporzioni vere (40×30, 30×40, 25×25…)
+          // e la coppia non li sceglie più
           const f = getFormat(proj.format_key as string)
           const fmt: Format = f.w > f.h ? 'landscape' : f.w < f.h ? 'portrait' : 'square'
-          const sizeKey = `${fmt}:${Math.round(f.w / 10)}x${Math.round(f.h / 10)}`
-          setLockedFmt(f.label.replace(/ ·.*/, ''))
-          setSpecs((p) => ({ ...p, format: fmt, size: sizeKey }))
+          const cm = (mm: number) => Math.round(mm / 5) / 2   // al mezzo centimetro (12.5, 22.5…)
+          const sizeKey = `${fmt}:${cm(f.w)}x${cm(f.h)}`
+          setLockedFmt(`${cm(f.w)}×${cm(f.h)} cm · ${fmt === 'landscape' ? 'orizzontale' : fmt === 'portrait' ? 'verticale' : 'quadrato'}`)
+          setLockedPages(pages)
+          setSpecs((p) => ({ ...p, format: fmt, size: sizeKey, pages }))
         }
       } catch { /* nessun impaginato */ }
     })()
@@ -162,7 +167,9 @@ export default function AlbumCatalogPicker() {
   }, [sp, pins])
 
   const sizes = useMemo(() => sizesForFormat(specs.format as Format), [specs.format])
-  useEffect(() => { if (sizes.length && !sizes.find((s) => s.key === specs.size)) setSpecs((p) => ({ ...p, size: sizes[0]!.key })) }, [sizes]) // eslint-disable-line react-hooks/exhaustive-deps
+  // se la coppia cambia formato, la misura passa alla prima di quel formato; la misura dell'impaginato (anche fuori
+  // tabella, es. 28×21) non va mai sovrascritta
+  useEffect(() => { if (lockedFmt) return; if (sizes.length && !(specs.size ?? '').startsWith(`${specs.format}:`)) setSpecs((p) => ({ ...p, size: sizes[0]!.key })) }, [sizes, lockedFmt]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // COMPOSIZIONE: le opzioni del modello scelte dalla coppia (materiale/colore/logo/foto copertina).
   const [sel, setSel] = useState<{ material?: string; color?: string; logos: string[]; cover: boolean }>({ logos: [], cover: false })
@@ -879,9 +886,15 @@ export default function AlbumCatalogPicker() {
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">
-                  <label className="text-xs text-[rgb(var(--fg-muted))]">Pagine (fogli)
-                    <Input type="number" min={10} max={120} step={2} value={specs.pages}
-                      onChange={(e) => setSpecs((p) => ({ ...p, pages: Math.max(10, Math.min(120, Number(e.target.value) || 40)) }))} className="mt-1 w-24" /></label>
+                  {lockedPages ? (
+                    <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-sunken))] px-3 py-2 text-sm">
+                      <strong>{lockedPages} pagine</strong> <span className="text-[rgb(var(--fg-muted))]">· dall'impaginato del fotografo (non modificabile)</span>
+                    </div>
+                  ) : (
+                    <label className="text-xs text-[rgb(var(--fg-muted))]">Pagine
+                      <Input type="number" min={10} max={120} step={2} value={specs.pages}
+                        onChange={(e) => setSpecs((p) => ({ ...p, pages: Math.max(10, Math.min(120, Number(e.target.value) || 40)) }))} className="mt-1 w-24" /></label>
+                  )}
                 </div>
 
                 {(familyFromQuote || (specs.box && specs.box !== 'nessuno')) && (

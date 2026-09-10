@@ -578,6 +578,9 @@ export const FORMATS: FormatDef[] = [
 ]
 export const sizeByKey = (k?: string): SizeDef | undefined => {
   for (const f of FORMATS) { const s = f.sizes.find((x) => x.key === k); if (s) return s }
+  // misura fuori tabella (impaginato su misura, es. «landscape:28x21»): vale così com'è, a proporzioni vere
+  const m = k?.match(/^(?:portrait|landscape|square):(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/)
+  if (m) { const w = Number(m[1]), h = Number(m[2]); return { key: k!, label: `${w}×${h} cm`, w, h } }
   return undefined
 }
 export const sizesForFormat = (f?: Format, modelKey?: string): SizeDef[] => {

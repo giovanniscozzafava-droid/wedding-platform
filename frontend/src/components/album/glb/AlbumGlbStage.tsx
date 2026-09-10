@@ -69,7 +69,7 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
   layout?: string
 }>(function AlbumGlbStage({ cover, view = 'three-quarter', width = 620, interactive = true, layout }, ref) {
   const mountRef = useRef<HTMLDivElement | null>(null)
-  const sceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; controls: OrbitControls; album: THREE.Group | null; size: number } | null>(null)
+  const sceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; controls: OrbitControls; album: THREE.Group | null; size: number; baseSize?: THREE.Vector3 } | null>(null)
   const setViewRef = useRef<(v: GlbView, animate?: boolean) => void>(() => {})
   const [failed, setFailed] = useState(false)
   const coverRef = useRef(cover); coverRef.current = cover     // sempre l'ultima composizione (anche nei callback asincroni)
@@ -164,20 +164,19 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
       if (st.album) { st.scene.remove(st.album) }
       const obj = g.scene
       obj.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true } })
-      // appoggia l'album sul piano (y = 0) e centralo; la misura reale scala la geometria di base
-      const sz = sizeByKey(cover.sizeKey)
-      const box = new THREE.Box3().setFromObject(obj); const size = box.getSize(new THREE.Vector3())
-      const scale = sz ? Math.max(sz.w, sz.h) / 100 / Math.max(size.x, size.y) : 1
-      obj.scale.setScalar(scale)
-      const box2 = new THREE.Box3().setFromObject(obj); const c = box2.getCenter(new THREE.Vector3())
-      obj.position.set(-c.x, -box2.min.y, -c.z)
+      // appoggia l'album sul piano (y = 0) e centralo; la MISURA REALE dell'impaginato scala la geometria di base
+      // per asse: larghezza (x) e altezza (z, verso chi guarda) ognuna sulla sua, così un 40×30, un 30×40 o un
+      // 28×21 su misura hanno le proporzioni esatte, non quelle del GLB di riferimento
+      st.baseSize = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3())
       st.scene.add(obj); st.album = obj
-      st.size = Math.max(size.x, size.y) * scale
+      fitToSize(st, obj, coverRef.current.sizeKey)
       applyMaterials(obj, coverRef.current)
       setViewRef.current(view, false)
     }, undefined, () => setFailed(true))
     return () => { cancelled = true }
   }, [glbUrl]) // eslint-disable-line react-hooks/exhaustive-deps
+  // la misura cambia (arriva l'impaginato, o la coppia sceglie un'altra misura dello stesso formato): si riscala l'album
+  useEffect(() => { const s = sceneRef.current; if (s?.album) { fitToSize(s, s.album, cover.sizeKey); setViewRef.current(view, false) } }, [cover.sizeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
@@ -188,6 +187,18 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
   if (failed) return <div className="grid place-items-center h-full text-sm text-[rgb(var(--fg-subtle))] p-6 text-center">Anteprima 3D non disponibile su questo dispositivo.</div>
   return <div ref={mountRef} style={{ width: '100%', height: '100%', minHeight: Math.round(width * 0.75), cursor: interactive ? 'grab' : 'default', touchAction: 'none' }} className="select-none" />
 })
+
+/** Scala l'album alla MISURA REALE per asse (larghezza x, altezza z verso chi guarda), lo appoggia sul piano e lo centra:
+ *  un 40×30, un 30×40 o un 28×21 su misura hanno le proporzioni esatte, non quelle del GLB di riferimento. */
+function fitToSize(st: { album: THREE.Group | null; size: number; baseSize?: THREE.Vector3 }, obj: THREE.Object3D, sizeKey?: string) {
+  const base = st.baseSize; if (!base) return
+  const sz = sizeByKey(sizeKey)
+  const sx = sz ? sz.w / 100 / base.x : 1, szz = sz ? sz.h / 100 / base.z : 1
+  obj.scale.set(sx, Math.max(sx, szz), szz)
+  const box = new THREE.Box3().setFromObject(obj); const c = box.getCenter(new THREE.Vector3())
+  obj.position.set(-c.x, -box.min.y, -c.z)
+  st.size = Math.max(base.x * sx, base.z * szz)
+}
 
 /** Applica i materiali del catalogo alle mesh nominate del GLB. */
 function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
