@@ -249,6 +249,39 @@ export const FAMILY_DEFAULTS: Record<string, FamilyDefault> = {
   julies: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro' },
   plaza: { material: 'pelle', color: 'pelle:dark-blue' },
 }
+
+// ============================================================================
+// LA RICETTA DEL CATALOGO, famiglia per famiglia — trascritta dalle didascalie
+// delle tavole («Brand/Pelle di legno Noce - Safir tabacco · Wood Clak - Safir
+// tabacco»): materiale e colore del PIATTO, materiale e colore di DORSO E RETRO
+// quando il catalogo li mostra diversi, e la personalizzazione con cui quel
+// modello è fotografato (le iniziali in ottone, la targhetta, il logo cod.NN).
+// Scegliendo il modello, il 3D esce esattamente così; poi la coppia cambia ciò
+// che vuole.  Fonte: tavole 4–11 (linea Pelle di legno). Le altre linee si
+// aggiungono man mano che si trascrivono le tavole.
+// ============================================================================
+export type RicettaCatalogo = {
+  material: string; color: string          // il piatto
+  backMaterial?: string; backColor?: string // dorso e retro, se diversi
+  logo?: string                             // la personalizzazione fotografata
+  page?: number                             // la tavola da cui è presa
+}
+export const FAMILY_CATALOG: Record<string, RicettaCatalogo> = {
+  // Pelle di legno (tavole 4–11): piatto in legno, dorso e retro in tessuto
+  brand: { material: 'wood', color: 'wood:noce', backMaterial: 'safir', backColor: 'safir:tabacco', page: 4 },
+  trilogy: { material: 'wood', color: 'wood:okum-', backMaterial: 'sequoia', backColor: 'sequoia:nuage', page: 6 },
+  diez: { material: 'wood', color: 'wood:noce', backMaterial: 'sequoia', backColor: 'sequoia:camel', logo: 'ottone-targhetta', page: 6 },
+  vega: { material: 'wood', color: 'wood:ciliegio', backMaterial: 'sequoia', backColor: 'sequoia:cuoio', logo: 'ottone-iniziali', page: 6 },
+  cassiopea: { material: 'wood', color: 'wood:noce', backMaterial: 'safir', backColor: 'safir:moka', page: 7 },
+  elsie: { material: 'wood', color: 'wood:ulivo', backMaterial: 'sequoia', backColor: 'sequoia:cuoio', page: 7 },
+  andromeda: { material: 'wood', color: 'wood:noce', backMaterial: 'safir', backColor: 'safir:moka', page: 7 },
+  almond: { material: 'wood', color: 'wood:noce', backMaterial: 'sequoia', backColor: 'sequoia:terra', logo: 'cod.06', page: 8 },
+  comete: { material: 'wood', color: 'wood:noce', backMaterial: 'sequoia', backColor: 'sequoia:aloe', page: 8 },
+  claire: { material: 'wood', color: 'wood:noce', backMaterial: 'sequoia', backColor: 'sequoia:tormalina', logo: 'ottone-targhetta', page: 9 },
+  thea: { material: 'wood', color: 'wood:rovere', backMaterial: 'sequoia', backColor: 'sequoia:aloe', logo: 'cod.07', page: 10 },
+  adel: { material: 'wood', color: 'wood:noce', backMaterial: 'sequoia', backColor: 'sequoia:terra', logo: 'cod.04', page: 11 },
+}
+
 // IL LOGO CHE IL MODELLO PORTA GIÀ: sulle tavole certi modelli si vedono con una personalizzazione
 // precisa — le iniziali sui monogramma, la targhetta d'ottone su chi ha la placca, la linea o il
 // grappolo Swarovski sui modelli Swarovski. Scegliendo quel modello la personalizzazione si
@@ -263,11 +296,21 @@ const LOGO_DEL_LAYOUT: Record<string, string> = {
 }
 /** La personalizzazione con cui il catalogo mostra quel modello (o niente). */
 export function familyLogo(label?: string): string | undefined {
+  const ric = FAMILY_CATALOG[familyOf(label)]
+  if (ric) return ric.logo                      // quello che si vede sulla tavola (anche «nessuno»)
   const m = MODELS.find((x) => familyOf(x.label) === familyOf(label))
   return m ? LOGO_DEL_LAYOUT[modelLayout(m.key)] : undefined
 }
 
-export const familyDefaults = (label?: string): FamilyDefault | undefined => FAMILY_DEFAULTS[familyOf(label)]
+/** Come parte il modello: la RICETTA DEL CATALOGO se l'abbiamo trascritta (piatto, dorso e retro
+ *  esattamente come sulla tavola), altrimenti il default della famiglia. */
+export const familyDefaults = (label?: string): FamilyDefault | undefined => {
+  const r = FAMILY_CATALOG[familyOf(label)]
+  if (r) return { material: r.material, color: r.color, backMaterial: r.backMaterial, backColor: r.backColor }
+  return FAMILY_DEFAULTS[familyOf(label)]
+}
+/** La tavola del catalogo da cui viene la ricetta (per il rimando «vedi a pag. N»). */
+export const familyCatalogPage = (label?: string): number | undefined => FAMILY_CATALOG[familyOf(label)]?.page
 
 export function compositionLines(c: CoverComposition): string[] {
   const mat = MATERIALS.find((m) => m.key === c.material)
