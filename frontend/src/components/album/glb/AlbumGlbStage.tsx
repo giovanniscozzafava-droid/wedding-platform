@@ -12,7 +12,7 @@ import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { buildBox, isBoxKind } from '@/components/album/glb/boxScene'
-import { MATERIAL_SWATCH } from '@/components/album/glb/materialSwatch.generated'
+import { MATERIAL_SWATCH, MATERIAL_RELIEF } from '@/components/album/glb/materialSwatch.generated'
 import { LAYOUT_SPEC, cropRect, frameOf, type PhotoCrop, type PhotoFrame, type LogoPlace, type TextPlace, type Rect } from '@/components/album/glb/layoutSpec'
 
 export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
@@ -31,8 +31,8 @@ const VIEW: Record<GlbView, { az: number; el: number; dist: number }> = {
 // QUANTE VOLTE si ripete il campione sulla copertina: il ritaglio del catalogo inquadra circa 4–6 cm
 // di materiale, quindi su un piatto da 30 cm la grana deve ripetersi 5–7 volte per avere la scala giusta.
 const SWATCH_REPEAT: Record<string, number> = {
-  alcantara: 6, sequoia: 6, acero: 5, pelle: 5, 'velu-arte': 6, 'soft-touch': 6, suade: 6,
-  safir: 5, crazy: 4, juta: 7, metal: 5, skill: 5, wood: 2, cristalwhite: 3, cristalplex: 3,
+  alcantara: 4, sequoia: 4, acero: 4, pelle: 3.5, 'velu-arte': 4, 'soft-touch': 4, suade: 4,
+  safir: 3.5, crazy: 3, juta: 4, metal: 3.5, skill: 3.5, wood: 2, cristalwhite: 2.5, cristalplex: 2.5,
 }
 
 const texLoader = new THREE.TextureLoader()
@@ -63,8 +63,17 @@ function surfaceMaterial(fabric: string | undefined, hex: string | undefined, is
     const rep = set.repeat
     if (set.color) m.map = tex(set.color, true, rep)
     if (isWood && essenceTex) m.map = tex(essenceTex, true, 1)      // foto dell'essenza (noce, rovere…)
-    // il campione del catalogo vince su tutto: è la superficie vera di quella tinta
-    if (vero) m.map = tex(vero.tex, true, SWATCH_REPEAT[fabric ?? ''] ?? 5)
+    // il campione del catalogo vince su tutto: è la superficie vera di quella tinta, col SUO rilievo
+    // (ricavato dalla grana del campione, non dalla libreria)
+    if (vero) {
+      const rep = SWATCH_REPEAT[fabric ?? ''] ?? 5
+      m.map = tex(vero.tex, true, rep)
+      const rel = MATERIAL_RELIEF[fabric ?? '']
+      if (rel) {
+        m.normalMap = tex(rel.normal, false, rep); m.normalScale.set(set.normalScale ?? 1, set.normalScale ?? 1)
+        m.roughnessMap = tex(rel.rough, false, rep)
+      }
+    }
     if (set.normal) { m.normalMap = tex(set.normal, false, rep); m.normalScale.set(set.normalScale ?? 1, set.normalScale ?? 1) }
     if (set.rough) m.roughnessMap = tex(set.rough, false, rep)
     m.roughness = set.roughness ?? 0.85

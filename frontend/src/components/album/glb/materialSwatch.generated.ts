@@ -5,59 +5,59 @@
 export type MaterialSwatch = { hex: string; tex: string }
 export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
  "acero:_materiale": {
-  "hex": "#b68e51",
+  "hex": "#d7d6bd",
   "tex": "/textures/album-swatch/acero/_materiale.jpg"
  },
  "acero:arancio": {
-  "hex": "#f48658",
+  "hex": "#f58657",
   "tex": "/textures/album-swatch/acero/arancio.jpg"
  },
  "acero:azzurro": {
-  "hex": "#078ca0",
+  "hex": "#068ca0",
   "tex": "/textures/album-swatch/acero/azzurro.jpg"
  },
  "acero:beige": {
-  "hex": "#cabcac",
+  "hex": "#cabdad",
   "tex": "/textures/album-swatch/acero/beige.jpg"
  },
  "acero:blu": {
-  "hex": "#2b3c4c",
+  "hex": "#2b3b4b",
   "tex": "/textures/album-swatch/acero/blu.jpg"
  },
  "acero:brown": {
-  "hex": "#80685e",
+  "hex": "#7d675c",
   "tex": "/textures/album-swatch/acero/brown.jpg"
  },
  "acero:celeste": {
-  "hex": "#a4c5ee",
+  "hex": "#a5c6ed",
   "tex": "/textures/album-swatch/acero/celeste.jpg"
  },
  "acero:chocolate": {
-  "hex": "#694b41",
+  "hex": "#664a40",
   "tex": "/textures/album-swatch/acero/chocolate.jpg"
  },
  "acero:ciliegio": {
-  "hex": "#c7885d",
+  "hex": "#c8895d",
   "tex": "/textures/album-swatch/acero/ciliegio.jpg"
  },
  "acero:cobalto": {
-  "hex": "#0868b3",
+  "hex": "#0869b3",
   "tex": "/textures/album-swatch/acero/cobalto.jpg"
  },
  "acero:giallo": {
-  "hex": "#fdc355",
+  "hex": "#fdc254",
   "tex": "/textures/album-swatch/acero/giallo.jpg"
  },
  "acero:glicine": {
-  "hex": "#8682b7",
+  "hex": "#8782b7",
   "tex": "/textures/album-swatch/acero/glicine.jpg"
  },
  "acero:grigio": {
-  "hex": "#d3d3ce",
+  "hex": "#d2d3ce",
   "tex": "/textures/album-swatch/acero/grigio.jpg"
  },
  "acero:naturale": {
-  "hex": "#d9b28a",
+  "hex": "#d9b289",
   "tex": "/textures/album-swatch/acero/naturale.jpg"
  },
  "acero:nero": {
@@ -65,7 +65,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/acero/nero.jpg"
  },
  "acero:nocciola": {
-  "hex": "#c4aa9d",
+  "hex": "#c2a99d",
   "tex": "/textures/album-swatch/acero/nocciola.jpg"
  },
  "acero:pink": {
@@ -73,27 +73,27 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/acero/pink.jpg"
  },
  "acero:rosa": {
-  "hex": "#fdbab2",
+  "hex": "#fdbbb3",
   "tex": "/textures/album-swatch/acero/rosa.jpg"
  },
  "acero:taupe": {
-  "hex": "#91847b",
+  "hex": "#93867d",
   "tex": "/textures/album-swatch/acero/taupe.jpg"
  },
  "acero:verde": {
-  "hex": "#c9c559",
+  "hex": "#c8c459",
   "tex": "/textures/album-swatch/acero/verde.jpg"
  },
  "alcantara:_materiale": {
-  "hex": "#9a977b",
+  "hex": "#a7a68e",
   "tex": "/textures/album-swatch/alcantara/_materiale.jpg"
  },
  "alcantara:albicocca": {
-  "hex": "#dca06e",
+  "hex": "#dc9f6d",
   "tex": "/textures/album-swatch/alcantara/albicocca.jpg"
  },
  "alcantara:arancio": {
-  "hex": "#d97125",
+  "hex": "#d66f23",
   "tex": "/textures/album-swatch/alcantara/arancio.jpg"
  },
  "alcantara:beige": {
@@ -101,7 +101,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/alcantara/beige.jpg"
  },
  "alcantara:bluette": {
-  "hex": "#327082",
+  "hex": "#316e81",
   "tex": "/textures/album-swatch/alcantara/bluette.jpg"
  },
  "alcantara:cipria": {
@@ -109,143 +109,143 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/alcantara/cipria.jpg"
  },
  "alcantara:crema": {
-  "hex": "#f1e1c8",
+  "hex": "#f0e1c8",
   "tex": "/textures/album-swatch/alcantara/crema.jpg"
  },
  "alcantara:geranio": {
-  "hex": "#d45c41",
+  "hex": "#d1593f",
   "tex": "/textures/album-swatch/alcantara/geranio.jpg"
  },
  "alcantara:giallo-ocra": {
-  "hex": "#e0b161",
+  "hex": "#deaf5f",
   "tex": "/textures/album-swatch/alcantara/giallo-ocra.jpg"
  },
  "alcantara:grigio-perla": {
-  "hex": "#e8dbcc",
+  "hex": "#e7dacb",
   "tex": "/textures/album-swatch/alcantara/grigio-perla.jpg"
  },
  "alcantara:grigio": {
-  "hex": "#ada9a8",
+  "hex": "#aca8a7",
   "tex": "/textures/album-swatch/alcantara/grigio.jpg"
  },
  "alcantara:lime": {
-  "hex": "#e6e080",
+  "hex": "#e5df7f",
   "tex": "/textures/album-swatch/alcantara/lime.jpg"
  },
  "alcantara:malva": {
-  "hex": "#d66980",
+  "hex": "#d3677d",
   "tex": "/textures/album-swatch/alcantara/malva.jpg"
  },
  "alcantara:mogano": {
-  "hex": "#c29067",
+  "hex": "#c28f66",
   "tex": "/textures/album-swatch/alcantara/mogano.jpg"
  },
  "alcantara:orchidea": {
-  "hex": "#dd5c8e",
+  "hex": "#dc5b8d",
   "tex": "/textures/album-swatch/alcantara/orchidea.jpg"
  },
  "alcantara:pesca": {
-  "hex": "#c28669",
+  "hex": "#c3876b",
   "tex": "/textures/album-swatch/alcantara/pesca.jpg"
  },
  "alcantara:rosso": {
-  "hex": "#d72e44",
+  "hex": "#d82d43",
   "tex": "/textures/album-swatch/alcantara/rosso.jpg"
  },
  "alcantara:siena": {
-  "hex": "#865d49",
+  "hex": "#865c48",
   "tex": "/textures/album-swatch/alcantara/siena.jpg"
  },
  "alcantara:smoke": {
-  "hex": "#ebddc6",
+  "hex": "#ebdec7",
   "tex": "/textures/album-swatch/alcantara/smoke.jpg"
  },
  "alcantara:verde-acqua": {
-  "hex": "#769e7c",
+  "hex": "#749d7b",
   "tex": "/textures/album-swatch/alcantara/verde-acqua.jpg"
  },
  "crazy:_materiale": {
-  "hex": "#acb5ad",
+  "hex": "#aab3ab",
   "tex": "/textures/album-swatch/crazy/_materiale.jpg"
  },
  "crazy:bianco": {
-  "hex": "#ecece7",
+  "hex": "#ebebe7",
   "tex": "/textures/album-swatch/crazy/bianco.jpg"
  },
  "crazy:blu": {
-  "hex": "#2e2d3d",
+  "hex": "#2c2b3b",
   "tex": "/textures/album-swatch/crazy/blu.jpg"
  },
  "crazy:camel": {
-  "hex": "#d7b590",
+  "hex": "#d6b48f",
   "tex": "/textures/album-swatch/crazy/camel.jpg"
  },
  "crazy:cioccolato": {
-  "hex": "#5b3f2a",
+  "hex": "#5a3e29",
   "tex": "/textures/album-swatch/crazy/cioccolato.jpg"
  },
  "crazy:cuoio": {
-  "hex": "#946348",
+  "hex": "#936146",
   "tex": "/textures/album-swatch/crazy/cuoio.jpg"
  },
  "crazy:grigio": {
-  "hex": "#c9c9c9",
+  "hex": "#c8c8c8",
   "tex": "/textures/album-swatch/crazy/grigio.jpg"
  },
  "crazy:naturale": {
-  "hex": "#d4b699",
+  "hex": "#d2b597",
   "tex": "/textures/album-swatch/crazy/naturale.jpg"
  },
  "crazy:nero": {
-  "hex": "#353535",
+  "hex": "#343434",
   "tex": "/textures/album-swatch/crazy/nero.jpg"
  },
  "crazy:tortora": {
-  "hex": "#7d5940",
+  "hex": "#7c573f",
   "tex": "/textures/album-swatch/crazy/tortora.jpg"
  },
  "crazy:verde": {
-  "hex": "#726245",
+  "hex": "#716144",
   "tex": "/textures/album-swatch/crazy/verde.jpg"
  },
  "cristalplex:_materiale": {
-  "hex": "#b79f7d",
+  "hex": "#c3ab90",
   "tex": "/textures/album-swatch/cristalplex/_materiale.jpg"
  },
  "cristalwhite:_materiale": {
-  "hex": "#dcd9cd",
+  "hex": "#d4d5ca",
   "tex": "/textures/album-swatch/cristalwhite/_materiale.jpg"
  },
  "juta:_materiale": {
-  "hex": "#9bbfaf",
+  "hex": "#a4c9ba",
   "tex": "/textures/album-swatch/juta/_materiale.jpg"
  },
  "juta:calendula": {
-  "hex": "#c0693e",
+  "hex": "#c36b41",
   "tex": "/textures/album-swatch/juta/calendula.jpg"
  },
  "juta:canapa": {
-  "hex": "#9f937f",
+  "hex": "#9b907c",
   "tex": "/textures/album-swatch/juta/canapa.jpg"
  },
  "juta:castano": {
-  "hex": "#645749",
+  "hex": "#635548",
   "tex": "/textures/album-swatch/juta/castano.jpg"
  },
  "juta:ciliegia": {
-  "hex": "#8d242d",
+  "hex": "#8e242d",
   "tex": "/textures/album-swatch/juta/ciliegia.jpg"
  },
  "juta:denim": {
-  "hex": "#42505b",
+  "hex": "#404e59",
   "tex": "/textures/album-swatch/juta/denim.jpg"
  },
  "juta:neve": {
-  "hex": "#ced0bb",
+  "hex": "#cfd1bc",
   "tex": "/textures/album-swatch/juta/neve.jpg"
  },
  "juta:platino": {
-  "hex": "#bbbdb2",
+  "hex": "#bcbeb2",
   "tex": "/textures/album-swatch/juta/platino.jpg"
  },
  "juta:tiffany": {
@@ -253,15 +253,15 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/juta/tiffany.jpg"
  },
  "juta:trifoglio": {
-  "hex": "#706c30",
+  "hex": "#6f6b2e",
   "tex": "/textures/album-swatch/juta/trifoglio.jpg"
  },
  "juta:turchese": {
-  "hex": "#34797a",
+  "hex": "#317677",
   "tex": "/textures/album-swatch/juta/turchese.jpg"
  },
  "metal:_materiale": {
-  "hex": "#154b6c",
+  "hex": "#22658d",
   "tex": "/textures/album-swatch/metal/_materiale.jpg"
  },
  "metal:celeste": {
@@ -269,7 +269,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/metal/celeste.jpg"
  },
  "metal:corteccia": {
-  "hex": "#503428",
+  "hex": "#4f3326",
   "tex": "/textures/album-swatch/metal/corteccia.jpg"
  },
  "metal:crema": {
@@ -285,11 +285,11 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/metal/lavanda.jpg"
  },
  "metal:oceano": {
-  "hex": "#315168",
+  "hex": "#2f5067",
   "tex": "/textures/album-swatch/metal/oceano.jpg"
  },
  "metal:orchidea": {
-  "hex": "#e1bfd0",
+  "hex": "#e1bfcf",
   "tex": "/textures/album-swatch/metal/orchidea.jpg"
  },
  "metal:rosa": {
@@ -305,23 +305,23 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/metal/silver.jpg"
  },
  "pelle:_materiale": {
-  "hex": "#15274a",
+  "hex": "#101e3e",
   "tex": "/textures/album-swatch/pelle/_materiale.jpg"
  },
  "pelle:bianco-neve": {
-  "hex": "#dbd2c9",
+  "hex": "#dad3c9",
   "tex": "/textures/album-swatch/pelle/bianco-neve.jpg"
  },
  "pelle:confetto": {
-  "hex": "#d6b4b2",
+  "hex": "#d5b3b1",
   "tex": "/textures/album-swatch/pelle/confetto.jpg"
  },
  "pelle:dark-blue": {
-  "hex": "#050a1d",
+  "hex": "#040a1c",
   "tex": "/textures/album-swatch/pelle/dark-blue.jpg"
  },
  "pelle:ecru": {
-  "hex": "#9c8a76",
+  "hex": "#9d8b77",
   "tex": "/textures/album-swatch/pelle/ecru.jpg"
  },
  "pelle:gesso": {
@@ -329,7 +329,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/pelle/gesso.jpg"
  },
  "pelle:gray": {
-  "hex": "#bbb2a1",
+  "hex": "#bbb2a2",
   "tex": "/textures/album-swatch/pelle/gray.jpg"
  },
  "pelle:nero": {
@@ -337,31 +337,31 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/pelle/nero.jpg"
  },
  "pelle:orchidea": {
-  "hex": "#674561",
+  "hex": "#674661",
   "tex": "/textures/album-swatch/pelle/orchidea.jpg"
  },
  "pelle:rosso": {
-  "hex": "#930030",
+  "hex": "#91002f",
   "tex": "/textures/album-swatch/pelle/rosso.jpg"
  },
  "pelle:tortora": {
-  "hex": "#675345",
+  "hex": "#675446",
   "tex": "/textures/album-swatch/pelle/tortora.jpg"
  },
  "safir:_materiale": {
-  "hex": "#768f7f",
+  "hex": "#5c6d5e",
   "tex": "/textures/album-swatch/safir/_materiale.jpg"
  },
  "safir:acquamarina": {
-  "hex": "#1e6650",
+  "hex": "#1e644f",
   "tex": "/textures/album-swatch/safir/acquamarina.jpg"
  },
  "safir:bluette": {
-  "hex": "#08293b",
+  "hex": "#082a3b",
   "tex": "/textures/album-swatch/safir/bluette.jpg"
  },
  "safir:carta-da-zucchero": {
-  "hex": "#749da0",
+  "hex": "#759d9f",
   "tex": "/textures/album-swatch/safir/carta-da-zucchero.jpg"
  },
  "safir:celeste": {
@@ -369,11 +369,11 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/safir/celeste.jpg"
  },
  "safir:corda": {
-  "hex": "#bba187",
+  "hex": "#ba9f86",
   "tex": "/textures/album-swatch/safir/corda.jpg"
  },
  "safir:grano": {
-  "hex": "#af8056",
+  "hex": "#ad7e54",
   "tex": "/textures/album-swatch/safir/grano.jpg"
  },
  "safir:grigio": {
@@ -381,7 +381,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/safir/grigio.jpg"
  },
  "safir:mele": {
-  "hex": "#604d3b",
+  "hex": "#5e4b38",
   "tex": "/textures/album-swatch/safir/mele.jpg"
  },
  "safir:miele": {
@@ -389,35 +389,35 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/safir/miele.jpg"
  },
  "safir:moka": {
-  "hex": "#322323",
+  "hex": "#302122",
   "tex": "/textures/album-swatch/safir/moka.jpg"
  },
  "safir:petra": {
-  "hex": "#cdbdb7",
+  "hex": "#cabbb4",
   "tex": "/textures/album-swatch/safir/petra.jpg"
  },
  "safir:pietra": {
-  "hex": "#cdbdb7",
+  "hex": "#cabbb4",
   "tex": "/textures/album-swatch/safir/pietra.jpg"
  },
  "safir:rosa": {
-  "hex": "#d6c3c2",
+  "hex": "#d7c3c2",
   "tex": "/textures/album-swatch/safir/rosa.jpg"
  },
  "safir:sabbia": {
-  "hex": "#8b6e58",
+  "hex": "#876a55",
   "tex": "/textures/album-swatch/safir/sabbia.jpg"
  },
  "safir:tabacco": {
-  "hex": "#59392f",
+  "hex": "#58382e",
   "tex": "/textures/album-swatch/safir/tabacco.jpg"
  },
  "safir:terra": {
-  "hex": "#c3b0a3",
+  "hex": "#c4b1a4",
   "tex": "/textures/album-swatch/safir/terra.jpg"
  },
  "safir:tortora": {
-  "hex": "#604d3b",
+  "hex": "#5e4b38",
   "tex": "/textures/album-swatch/safir/tortora.jpg"
  },
  "safir:verde": {
@@ -425,27 +425,27 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/safir/verde.jpg"
  },
  "sequoia:_materiale": {
-  "hex": "#c79850",
+  "hex": "#c6954e",
   "tex": "/textures/album-swatch/sequoia/_materiale.jpg"
  },
  "sequoia:aloe": {
-  "hex": "#b6ba7f",
+  "hex": "#b6b97e",
   "tex": "/textures/album-swatch/sequoia/aloe.jpg"
  },
  "sequoia:camel": {
-  "hex": "#e3d2b7",
+  "hex": "#e3d2b6",
   "tex": "/textures/album-swatch/sequoia/camel.jpg"
  },
  "sequoia:cielo": {
-  "hex": "#adc2c7",
+  "hex": "#adc2c6",
   "tex": "/textures/album-swatch/sequoia/cielo.jpg"
  },
  "sequoia:cioccolato": {
-  "hex": "#664a3f",
+  "hex": "#65493e",
   "tex": "/textures/album-swatch/sequoia/cioccolato.jpg"
  },
  "sequoia:cuoio": {
-  "hex": "#bc875e",
+  "hex": "#bb865d",
   "tex": "/textures/album-swatch/sequoia/cuoio.jpg"
  },
  "sequoia:mango": {
@@ -461,7 +461,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/sequoia/pietra.jpg"
  },
  "sequoia:terra": {
-  "hex": "#b9a698",
+  "hex": "#b9a697",
   "tex": "/textures/album-swatch/sequoia/terra.jpg"
  },
  "sequoia:tormalina": {
@@ -469,11 +469,11 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/sequoia/tormalina.jpg"
  },
  "skill:_materiale": {
-  "hex": "#d0c9ac",
+  "hex": "#edf0ea",
   "tex": "/textures/album-swatch/skill/_materiale.jpg"
  },
  "skill:aloe": {
-  "hex": "#485328",
+  "hex": "#495429",
   "tex": "/textures/album-swatch/skill/aloe.jpg"
  },
  "skill:bianco": {
@@ -485,7 +485,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/skill/dark-blue.jpg"
  },
  "skill:ecru": {
-  "hex": "#a29788",
+  "hex": "#a29688",
   "tex": "/textures/album-swatch/skill/ecru.jpg"
  },
  "skill:gesso": {
@@ -493,11 +493,11 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/skill/gesso.jpg"
  },
  "skill:grigio": {
-  "hex": "#998e92",
+  "hex": "#9a8f93",
   "tex": "/textures/album-swatch/skill/grigio.jpg"
  },
  "skill:nero": {
-  "hex": "#0b0b0b",
+  "hex": "#0a0a0a",
   "tex": "/textures/album-swatch/skill/nero.jpg"
  },
  "skill:rosso": {
@@ -513,15 +513,15 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/skill/tortora.jpg"
  },
  "soft-touch:_materiale": {
-  "hex": "#c4c3a1",
+  "hex": "#aeab8a",
   "tex": "/textures/album-swatch/soft-touch/_materiale.jpg"
  },
  "soft-touch:bianco": {
-  "hex": "#e0dbd0",
+  "hex": "#dfdbd0",
   "tex": "/textures/album-swatch/soft-touch/bianco.jpg"
  },
  "soft-touch:celeste": {
-  "hex": "#b2d6f0",
+  "hex": "#b0d5ef",
   "tex": "/textures/album-swatch/soft-touch/celeste.jpg"
  },
  "soft-touch:grigio": {
@@ -537,7 +537,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/soft-touch/nero.jpg"
  },
  "soft-touch:rosa": {
-  "hex": "#ebc4e0",
+  "hex": "#ebc4df",
   "tex": "/textures/album-swatch/soft-touch/rosa.jpg"
  },
  "soft-touch:sabbia": {
@@ -549,7 +549,7 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/soft-touch/tortora.jpg"
  },
  "suade:_materiale": {
-  "hex": "#3b3d36",
+  "hex": "#6f6947",
   "tex": "/textures/album-swatch/suade/_materiale.jpg"
  },
  "suade:bianco": {
@@ -557,11 +557,11 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/suade/bianco.jpg"
  },
  "suade:bronzo": {
-  "hex": "#746557",
+  "hex": "#726356",
   "tex": "/textures/album-swatch/suade/bronzo.jpg"
  },
  "suade:chocolate": {
-  "hex": "#463830",
+  "hex": "#42352d",
   "tex": "/textures/album-swatch/suade/chocolate.jpg"
  },
  "suade:crema": {
@@ -569,63 +569,128 @@ export const MATERIAL_SWATCH: Record<string, MaterialSwatch> = {
   "tex": "/textures/album-swatch/suade/crema.jpg"
  },
  "suade:grafite": {
-  "hex": "#89817c",
+  "hex": "#857e79",
   "tex": "/textures/album-swatch/suade/grafite.jpg"
  },
  "suade:grigio": {
-  "hex": "#353432",
+  "hex": "#333230",
   "tex": "/textures/album-swatch/suade/grigio.jpg"
  },
  "suade:nero": {
-  "hex": "#292929",
+  "hex": "#282828",
   "tex": "/textures/album-swatch/suade/nero.jpg"
  },
  "velu-arte:_materiale": {
-  "hex": "#9abbbe",
+  "hex": "#a3c4c5",
   "tex": "/textures/album-swatch/velu-arte/_materiale.jpg"
  },
  "velu-arte:aloe": {
-  "hex": "#076a40",
+  "hex": "#06633b",
   "tex": "/textures/album-swatch/velu-arte/aloe.jpg"
  },
  "velu-arte:blue": {
-  "hex": "#1d4875",
+  "hex": "#1b4472",
   "tex": "/textures/album-swatch/velu-arte/blue.jpg"
  },
  "velu-arte:cielo": {
-  "hex": "#a3ada7",
+  "hex": "#a2aca5",
   "tex": "/textures/album-swatch/velu-arte/cielo.jpg"
  },
  "velu-arte:grigio": {
-  "hex": "#9a9a92",
+  "hex": "#92928b",
   "tex": "/textures/album-swatch/velu-arte/grigio.jpg"
  },
  "velu-arte:panna": {
-  "hex": "#dddaca",
+  "hex": "#dfdccc",
   "tex": "/textures/album-swatch/velu-arte/panna.jpg"
  },
  "velu-arte:pavone": {
-  "hex": "#056055",
+  "hex": "#045c51",
   "tex": "/textures/album-swatch/velu-arte/pavone.jpg"
  },
  "velu-arte:polvere": {
-  "hex": "#b2a595",
+  "hex": "#ad9f91",
   "tex": "/textures/album-swatch/velu-arte/polvere.jpg"
  },
  "velu-arte:rosa-antico": {
-  "hex": "#bb9a90",
+  "hex": "#b6958c",
   "tex": "/textures/album-swatch/velu-arte/rosa-antico.jpg"
  },
  "velu-arte:smeraldo": {
-  "hex": "#043629",
+  "hex": "#032d22",
   "tex": "/textures/album-swatch/velu-arte/smeraldo.jpg"
  },
  "velu-arte:tortora": {
-  "hex": "#5d5341",
+  "hex": "#5b5140",
   "tex": "/textures/album-swatch/velu-arte/tortora.jpg"
  },
  "wood:_materiale": {
-  "hex": "#bb6c41",
+  "hex": "#c27245",
   "tex": "/textures/album-swatch/wood/_materiale.jpg"
+ }
+} as const
+
+// Il RILIEVO vero della grana, ricavato dal campione: uno per materiale (la trama non
+// cambia con la tinta). Sostituisce le mappe generiche di libreria.
+export const MATERIAL_RELIEF: Record<string, { normal: string; rough: string }> = {
+ "acero": {
+  "normal": "/textures/album-swatch/acero/_normal.jpg",
+  "rough": "/textures/album-swatch/acero/_rough.jpg"
+ },
+ "alcantara": {
+  "normal": "/textures/album-swatch/alcantara/_normal.jpg",
+  "rough": "/textures/album-swatch/alcantara/_rough.jpg"
+ },
+ "crazy": {
+  "normal": "/textures/album-swatch/crazy/_normal.jpg",
+  "rough": "/textures/album-swatch/crazy/_rough.jpg"
+ },
+ "cristalplex": {
+  "normal": "/textures/album-swatch/cristalplex/_normal.jpg",
+  "rough": "/textures/album-swatch/cristalplex/_rough.jpg"
+ },
+ "cristalwhite": {
+  "normal": "/textures/album-swatch/cristalwhite/_normal.jpg",
+  "rough": "/textures/album-swatch/cristalwhite/_rough.jpg"
+ },
+ "juta": {
+  "normal": "/textures/album-swatch/juta/_normal.jpg",
+  "rough": "/textures/album-swatch/juta/_rough.jpg"
+ },
+ "metal": {
+  "normal": "/textures/album-swatch/metal/_normal.jpg",
+  "rough": "/textures/album-swatch/metal/_rough.jpg"
+ },
+ "pelle": {
+  "normal": "/textures/album-swatch/pelle/_normal.jpg",
+  "rough": "/textures/album-swatch/pelle/_rough.jpg"
+ },
+ "safir": {
+  "normal": "/textures/album-swatch/safir/_normal.jpg",
+  "rough": "/textures/album-swatch/safir/_rough.jpg"
+ },
+ "sequoia": {
+  "normal": "/textures/album-swatch/sequoia/_normal.jpg",
+  "rough": "/textures/album-swatch/sequoia/_rough.jpg"
+ },
+ "skill": {
+  "normal": "/textures/album-swatch/skill/_normal.jpg",
+  "rough": "/textures/album-swatch/skill/_rough.jpg"
+ },
+ "soft-touch": {
+  "normal": "/textures/album-swatch/soft-touch/_normal.jpg",
+  "rough": "/textures/album-swatch/soft-touch/_rough.jpg"
+ },
+ "suade": {
+  "normal": "/textures/album-swatch/suade/_normal.jpg",
+  "rough": "/textures/album-swatch/suade/_rough.jpg"
+ },
+ "velu-arte": {
+  "normal": "/textures/album-swatch/velu-arte/_normal.jpg",
+  "rough": "/textures/album-swatch/velu-arte/_rough.jpg"
+ },
+ "wood": {
+  "normal": "/textures/album-swatch/wood/_normal.jpg",
+  "rough": "/textures/album-swatch/wood/_rough.jpg"
  }
 } as const
