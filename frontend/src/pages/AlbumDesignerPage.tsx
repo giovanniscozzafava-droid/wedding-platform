@@ -3270,6 +3270,13 @@ function AlbumDesignerInner() {
                     {pc.box && <label className={`flex items-center gap-2 text-sm ${pc.boxIncluded ? 'opacity-45' : ''}`}>{num(pc.boxPrice, (n) => set({ boxPrice: n }), { step: 5 })} €</label>}
                     {pc.box && <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={!!pc.boxIncluded} onChange={(e) => set({ boxIncluded: e.target.checked })} className="accent-[rgb(var(--gold-500))]" /> inclusa nel pacchetto</label>}
                     <label className="flex items-center gap-2 text-sm">Spedizione {num(pc.shipping ?? 0, (n) => set({ shipping: n }), { step: 5 })} €</label>
+                    {/* chi stampa: con un'altra azienda la coppia non passa dalla scelta della copertina DesignAlbum */}
+                    <label className="flex items-center gap-2 text-sm">Stampa
+                      <select value={pc.printer ?? 'designalbum'} onChange={(e) => set({ printer: e.target.value as AlbumPriceConfig['printer'] })} className="rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1 text-sm">
+                        <option value="designalbum">DesignAlbum tramite Planfully (la coppia sceglie la copertina)</option>
+                        <option value="altro">Un'altra azienda, stampo io (la coppia non sceglie la copertina)</option>
+                      </select>
+                    </label>
                     {/* il blocco interno lo decide il fotografo qui: la coppia nel configuratore non lo sceglie (default digitale) */}
                     <label className="flex items-center gap-2 text-sm">Blocco interno
                       <select value={pc.block ?? 'digitale'} onChange={(e) => set({ block: e.target.value as AlbumPriceConfig['block'] })} className="rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2 py-1 text-sm">

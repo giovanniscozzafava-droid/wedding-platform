@@ -209,6 +209,31 @@ export type CoverComposition = {
   logoPlace?: LogoPlace
 }
 
+// IL DEFAULT DI OGNI FAMIGLIA: il modello parte col materiale e il colore con cui il catalogo lo mostra
+// (la linea «Pelle di legno» parte in legno; Ghost con fronte Cristalplex e dorso colorato; Graphic nero;
+// Amelie celeste…), poi la coppia cambia quel che vuole. Chiavi: `${materiale}:${colore}` di albumCatalog.
+export type FamilyDefault = { material: string; color: string; backMaterial?: string; backColor?: string }
+const WOOD: FamilyDefault = { material: 'wood', color: 'wood:noce' }
+export const FAMILY_DEFAULTS: Record<string, FamilyDefault> = {
+  brand: WOOD, trilogy: WOOD, vega: WOOD, diez: WOOD, cassiopea: WOOD, elsie: WOOD, almond: WOOD, comete: WOOD, claire: WOOD, thea: WOOD, adel: WOOD, andromeda: WOOD, chloe: WOOD,
+  ghost: { material: 'cristalplex', color: 'cristalplex:latteo', backMaterial: 'alcantara', backColor: 'alcantara:grigio' },
+  graphic: { material: 'soft-touch', color: 'soft-touch:nero' },
+  amelie: { material: 'safir', color: 'safir:celeste' },
+  darling: { material: 'suade', color: 'suade:crema' },
+  bouquet: { material: 'sequoia', color: 'sequoia:nuage' },
+  xante: { material: 'alcantara', color: 'alcantara:grigio' },
+  ninfea: { material: 'sequoia', color: 'sequoia:cielo' },
+  betulla: { material: 'sequoia', color: 'sequoia:aloe' },
+  dream: { material: 'safir', color: 'safir:tortora' },
+  sirene: { material: 'alcantara', color: 'alcantara:grigio' },
+  frejus: { material: 'alcantara', color: 'alcantara:beige' },
+  dhyana: { material: 'sequoia', color: 'sequoia:terra' },
+  azulejo: { material: 'sequoia', color: 'sequoia:aloe' },
+  julies: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro' },
+  plaza: { material: 'pelle', color: 'pelle:dark-blue' },
+}
+export const familyDefaults = (label?: string): FamilyDefault | undefined => FAMILY_DEFAULTS[familyOf(label)]
+
 export function compositionLines(c: CoverComposition): string[] {
   const mat = MATERIALS.find((m) => m.key === c.material)
   const col = c.material ? paletteFor(c.material).find((x) => x.key === c.color) : undefined

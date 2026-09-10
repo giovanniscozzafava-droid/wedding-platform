@@ -57,6 +57,7 @@ export type AlbumPriceConfig = {
   boxPrice: number
   boxIncluded?: boolean      // box compreso nel pacchetto → non si paga
   block?: 'digitale' | 'book-flat' | 'tradizionale'   // tipo di blocco interno deciso dal fotografo (la coppia non lo sceglie; default digitale)
+  printer?: 'designalbum' | 'altro'   // chi stampa: DesignAlbum tramite Planfully (la coppia sceglie la copertina) o un'altra azienda (la coppia non sceglie nulla)
   shipping?: number          // spedizione (deciso dal fotografo) — si somma al totale
   modelKey?: string          // modello scelto dal catalogo DesignAlbum (legacy)
   modelLabel?: string        // etichetta leggibile della scelta

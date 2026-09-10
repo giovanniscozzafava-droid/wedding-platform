@@ -17,7 +17,7 @@ import { modelLayout } from '@/components/album/albumCatalog'
 import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import {
   MATERIAL_OPTIONS, colorOptionsFor, MODEL_GROUPS, LOGO_OPTIONS, logoNeedsColor, logoAmount, BLOCK_OPTIONS, BOX_OPTIONS, FINISH_OPTIONS,
-  compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, FAMILY_PAGES, optLabel, type CoverComposition,
+  compositionLines, modelPage, catalogPageToSheet, sheetToPages, familiesOnSheet, familyPageOnSheet, modelsOfFamily, logoTiles, logoColorTiles, modelTiles, familyOf, familyDefaults, FAMILY_PAGES, optLabel, type CoverComposition,
 } from '@/components/album/catalog/coverOptions'
 import { SwatchPicker } from '@/components/album/catalog/SwatchPicker'
 import { CoverPhotoPicker } from '@/components/album/catalog/CoverPhotoPicker'
@@ -75,6 +75,8 @@ export default function AlbumCatalogPicker() {
   const [isPro, setIsPro] = useState(false)
   const [lockedFmt, setLockedFmt] = useState<string | null>(null)  // formato bloccato (se già impaginato)
   const [lockedPages, setLockedPages] = useState<number | null>(null)  // pagine dell'impaginato (non modificabili)
+  const [otherPrinter, setOtherPrinter] = useState(false)   // il fotografo stampa con un'altra azienda: niente scelta copertina
+  const [eventKind, setEventKind] = useState<string | null>(null)   // matrimonio, battesimo, compleanno…: lo dice l'evento
   const [optioned, setOptioned] = useState(0)                       // importo album già opzionato nel preventivo
   const [quotePages, setQuotePages] = useState<number | null>(null)  // pagine del blocco incluse nel preventivo
   const [familyFromQuote, setFamilyFromQuote] = useState(false)     // album famiglia già nel preventivo
@@ -109,15 +111,18 @@ export default function AlbumCatalogPicker() {
       const me = (await supabase.auth.getUser()).data.user?.id
       const { data: gal } = await (supabase.from as any)('event_galleries').select('owner_id').eq('entry_id', entryId).maybeSingle()
       setIsPro(!!me && gal?.owner_id === me)
-      const { data: ent } = await (supabase.from as any)('calendar_entries').select('title, date_from').eq('id', entryId).maybeSingle()
+      const { data: ent } = await (supabase.from as any)('calendar_entries').select('title, date_from, event_kind').eq('id', entryId).maybeSingle()
       if (ent?.title) setEntryTitle(String(ent.title).replace(/^matrimonio\s+/i, '').replace(/\s*[—–-]\s*preventivo$/i, '').trim())
       if (ent?.date_from) setEntryDate(String(ent.date_from))
+      if (ent?.event_kind) setEventKind(String(ent.event_kind))
     })()
     // FORMATO BLOCCATO: se il fotografo ha già impaginato, la coppia non sceglie il formato.
     void (async () => {
       try {
-        const { data: proj } = await (supabase.from as any)('album_projects').select('format_key, layout').eq('entry_id', entryId).maybeSingle()
+        const { data: proj } = await (supabase.from as any)('album_projects').select('format_key, layout, price_config').eq('entry_id', entryId).maybeSingle()
         const pages = (proj?.layout as { pages?: unknown[] } | null)?.pages?.length ?? 0
+        // il fotografo stampa con un'altra azienda: qui la coppia non sceglie nulla
+        if ((proj?.price_config as { printer?: string } | null)?.printer === 'altro') setOtherPrinter(true)
         if (proj?.format_key && pages > 0) {
           // formato E pagine vengono dall'impaginato: l'album 3D ha le proporzioni vere (40×30, 30×40, 25×25…)
           // e la coppia non li sceglie più
@@ -227,6 +232,17 @@ export default function AlbumCatalogPicker() {
   const backColorOpts = useMemo(() => colorOptionsFor(comp.backMaterial), [comp.backMaterial])
   const boxColorOpts = useMemo(() => colorOptionsFor(comp.boxMaterial), [comp.boxMaterial])
   const [boxDiff, setBoxDiff] = useState(false)            // rivestimento del box diverso dalla copertina
+  // IL MODELLO PARTE COM'È SUL CATALOGO: materiale e colore di default della famiglia (Pelle di legno in legno,
+  // Ghost fronte Cristalplex e dorso colorato, Graphic nero, Amelie celeste…); finché la coppia non tocca il
+  // materiale, cambiare modello ri-applica il default del nuovo modello
+  const autoMat = useRef(true)
+  useEffect(() => {
+    const d = familyDefaults(comp.model?.label)
+    if (!d || !(autoMat.current || !comp.material)) return
+    autoMat.current = true
+    setComp((c) => ({ ...c, material: d.material, color: d.color, backMaterial: d.backMaterial, backColor: d.backColor }))
+    setBackDiff(!!d.backMaterial)
+  }, [comp.model?.key]) // eslint-disable-line react-hooks/exhaustive-deps
   // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
   const coverPick = listino.covers.find((c) => c.id === selCover)
   const coverExtra = coverPick && !coverPick.included ? Number(coverPick.price) || 0 : 0
@@ -583,6 +599,16 @@ export default function AlbumCatalogPicker() {
     </div>
   )
 
+  // il fotografo stampa con un'altra azienda: la copertina non si sceglie qui
+  if (otherPrinter && !isPro) return (
+    <div className="max-w-xl mx-auto px-6 py-16 text-center">
+      <BookOpenCheck size={40} className="mx-auto text-[rgb(var(--gold-500))] mb-3" strokeWidth={1.3} />
+      <h1 className="font-display text-2xl mb-2">L'album lo stampa il tuo fotografo</h1>
+      <p className="text-[rgb(var(--fg-muted))]">Per questo album la copertina e la rilegatura le concorda direttamente con voi il fotografo, con la sua azienda di stampa: qui non c'è nulla da scegliere.</p>
+      <button onClick={() => navigate(-1)} className="mt-5 text-sm text-[rgb(var(--gold-600))]">Torna indietro</button>
+    </div>
+  )
+
   if (doneId) return (
     <div className="max-w-xl mx-auto px-6 py-16 text-center">
       <CheckCircle2 size={48} className="mx-auto text-[rgb(var(--gold-600))] mb-3" />
@@ -604,7 +630,7 @@ export default function AlbumCatalogPicker() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-[rgb(var(--border))] pb-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--gold-700))]">Catalogo album · {catalog.studio}</p>
-            <h1 className="font-display text-3xl sm:text-4xl mt-1">Il tuo album</h1>
+            <h1 className="font-display text-3xl sm:text-4xl mt-1">Il tuo album{eventKind && !/matrimon|wedding|nozze/i.test(eventKind) ? <span className="text-[rgb(var(--fg-muted))]"> · {eventKind}</span> : null}</h1>
             <p className="text-[rgb(var(--fg-muted))] mt-1 max-w-xl">Sfoglia le tavole, spunta ciò che ti piace e componi la copertina con le campionature vere del catalogo. Alla fine firmi: la scheda va all'azienda tramite il tuo fotografo.</p>
           </div>
           <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Tavole DesignAlbum 2022 · una scelta per voce</p>
@@ -716,7 +742,7 @@ export default function AlbumCatalogPicker() {
             <Chapter n="II" title="Materiale e colore" hint="Le campionature sono quelle stampate sul catalogo, pag. 115–127.">
               <Voice label="Materiale" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page ?? 115} onSee={goToPage}>
                 <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
-                  value={comp.material} onChange={(k) => setComp((c) => ({ ...c, material: k, color: undefined }))} />
+                  value={comp.material} onChange={(k) => { autoMat.current = false; setComp((c) => ({ ...c, material: k, color: undefined })) }} />
               </Voice>
               <Voice label="Colore" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page} onSee={goToPage}>
                 <SwatchPicker shape="wide" cols={3} options={colorOpts} value={comp.color} disabled={!comp.material} emptyText="Prima scegli il materiale."

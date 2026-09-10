@@ -150,6 +150,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const isOwner = !!gallery && gallery.owner_id === me
   const [showcase, setShowcase] = useState(false)
   const [eventKind, setEventKind] = useState<string | null>(null)
+  const [otherPrinter, setOtherPrinter] = useState(false)   // il fotografo stampa con un'altra azienda: niente scelta copertina
 
   // "Album: dal PDF a un dunque" — stato dell'approvazione layout + della conferma opzioni
   // (album_layout_approval / album_orders). Serve sia agli sposi (per approvare/riaprire) sia
@@ -164,9 +165,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     setApproveBusy(true)
     try {
       await approveAlbumLayout(entryId); loadAlbumOrder()
-      // FUNNEL: impaginazione accettata → si passa subito alla scelta della copertina
-      toast.success('Album approvato — ora scegliete la copertina')
-      setTimeout(() => navigate(`/scegli-album/${entryId}?da=impaginato`), 700)
+      // FUNNEL: impaginazione accettata → si passa subito alla scelta della copertina (salvo stampa con un'altra azienda)
+      if (otherPrinter) { toast.success('Album approvato: la stampa la segue il tuo fotografo') }
+      else { toast.success('Album approvato — ora scegliete la copertina'); setTimeout(() => navigate(`/scegli-album/${entryId}?da=impaginato`), 700) }
     }
     catch (e) { toast.error((e as Error).message) } finally { setApproveBusy(false) }
   }
@@ -303,6 +304,9 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     // Serve alla presentazione: la musica di sottofondo cambia col tipo di evento.
     const { data: ek } = await (supabase.from as any)('calendar_entries').select('event_kind').eq('id', entryId).maybeSingle()
     setEventKind((ek?.event_kind as string) ?? null)
+    // chi stampa l'album: con un'altra azienda la coppia non passa dalla scelta della copertina
+    const { data: ap } = await (supabase.from as any)('album_projects').select('price_config').eq('entry_id', entryId).maybeSingle()
+    setOtherPrinter((ap?.price_config as { printer?: string } | null)?.printer === 'altro')
     if (gal) {
       const { data: gs } = await (supabase.from as any)('gallery_settings').select('*').eq('gallery_id', (gal as Gallery).id).maybeSingle()
       if (gs) setGsettings({ ...DEFAULT_GALLERY_SETTINGS, ...gs })
@@ -827,7 +831,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
               ? <Button variant="ghost" size="sm" onClick={() => void revokeApproval()}><RotateCcw size={14} /> Riapri e modifica</Button>
               : <Button variant="outline" size="sm" disabled={approveBusy} onClick={() => void approveLayout()}>{approveBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Confermo questo album</Button>)}
             {role === 'sposi' && <Link to={`/album-opzioni/${entryId}`}><Button variant="outline" size="sm" title="Colore copertina, logo, box e finiture — un passo alla volta"><Sliders size={14} /> {albumOrder?.confirmed ? 'Cambia le opzioni' : 'Configura le opzioni'}</Button></Link>}
-            {role === 'sposi' && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
+            {role === 'sposi' && !otherPrinter && <Link to={`/scegli-album/${entryId}`}><Button variant="outline" size="sm" title="Sfoglia il catalogo PDF del fotografo, scegli il modello e firma la commessa"><BookOpen size={14} /> Scegli dal catalogo</Button></Link>}
             {/* Il catalogo (PDF, modelli, opzioni, prezzi) è dello studio, non dell'evento: si gestisce da
                 Strumenti. Qui, per il fotografo, c'è solo la scelta di QUESTO cliente (card sotto). */}
             {isOwner && albumOrder?.confirmed && (
