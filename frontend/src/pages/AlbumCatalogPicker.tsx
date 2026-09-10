@@ -636,8 +636,8 @@ export default function AlbumCatalogPicker() {
           <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Tavole DesignAlbum 2022 · una scelta per voce</p>
         </div>
 
-        <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-9 items-start">
-          <div className="lg:sticky lg:top-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-9 items-start">
+          <div className="min-w-0 lg:sticky lg:top-5">
             {/* L'ALBUM IN 3D, per primo: si aggiorna a ogni scelta fatta nei capitoli */}
             <div className="mb-5 max-w-[520px] mx-auto">
               <div className="flex items-baseline justify-between border-b border-[rgb(var(--border))] pb-1.5 mb-3">
@@ -682,7 +682,7 @@ export default function AlbumCatalogPicker() {
             <PdfFlipbook pdfUrl={catalogPublicUrl(catalog.pdf_path)} hotspots={hotspots} selected={selected} onPick={pick} onDropPin={dropPin} pins={pins} onOpenPin={setOpenPin} initialPage={deepPage ?? undefined} />
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-5 min-w-0">
             {/* IL PERCORSO: un passo alla volta, col 3D sempre in vista */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
               {STEPS.map((s, i) => (
