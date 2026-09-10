@@ -378,7 +378,8 @@ export default function AlbumCatalogPicker() {
     // l'impaginazione della copertina fatta dalla coppia (editor): dove stanno nomi/logo e se le foto sono state ritagliate
     const cropped = Object.values(comp.photoCrops ?? {}).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01)
     const nFrames = Object.keys(comp.photoFrames ?? {}).length
-    if (nFrames) rows.push({ label: 'Riquadro della foto', value: Object.entries(comp.photoFrames ?? {}).map(([k, f]: [string, PhotoFrame]) => `${Number(k) + 1}: ${Math.round(f.w * 100)}%×${Math.round(f.h * 100)}% al ${Math.round(f.x * 100)}%/${Math.round(f.y * 100)}%${f.rot ? `, inclinato ${Math.round(f.rot)}°` : ''}`).join(' · ') })
+    // il riquadro tiene la misura della tavola (fustella): nella scheda si dice solo DOVE è stato spostato
+    if (nFrames) rows.push({ label: 'Posizione della finestra', value: Object.entries(comp.photoFrames ?? {}).map(([k, f]: [string, PhotoFrame]) => `${nFrames > 1 ? `${Number(k) + 1}: ` : ''}centro al ${Math.round(f.x * 100)}% da sinistra, ${Math.round(f.y * 100)}% dall'alto (misura da catalogo)`).join(' · ') })
     rows.push({ label: 'Scritta in copertina', value: [coverNames || null, coverDate || null].filter(Boolean).join(' · ') || 'Nessuna scritta' })
     if (comp.logoPlace || comp.textPlace || cropped) rows.push({ label: 'Impaginazione copertina', value: [
       comp.logoPlace ? `logo al ${Math.round(comp.logoPlace.x * 100)}% da sinistra, ${Math.round(comp.logoPlace.y * 100)}% dall'alto, largo il ${Math.round(comp.logoPlace.w * 100)}%` : null,

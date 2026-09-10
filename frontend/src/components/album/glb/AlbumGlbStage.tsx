@@ -241,7 +241,9 @@ const photoOrder = (name: string) => { const n = name.match(/(\d+)$/); return n 
  *  viene spostata, ridimensionata e inclinata sul piatto. Le coordinate si leggono dal piatto vero
  *  (mesh «CoverFront»): X = larghezza, Z = altezza dall'alto, Y = spessore (la normale della copertina).
  *  La trasformazione di partenza si tiene da parte, così ogni cambio riparte dal modello. */
-function applyPhotoFrames(root: THREE.Object3D, meshes: THREE.Mesh[], windows: Rect[], frames?: Record<number, PhotoFrame>) {
+function applyPhotoFrames(root: THREE.Object3D, meshes: THREE.Mesh[], windows: Rect[], coverMat: THREE.Material, frames?: Record<number, PhotoFrame>) {
+  // le toppe della volta prima: via
+  for (const old of root.children.filter((c) => c.name.startsWith('PhotoPatch'))) root.remove(old)
   if (!meshes.length) return
   const front = root.getObjectByName('CoverFront') ?? root.getObjectByName('Cover')
   if (!front) return
@@ -278,6 +280,16 @@ function applyPhotoFrames(root: THREE.Object3D, meshes: THREE.Mesh[], windows: R
     const nb = new THREE.Box3().setFromObject(m)
     const lift = cb.max.y + (cb.max.y - cb.min.y) * 0.02 - nb.max.y
     if (lift > 0) m.position.y += lift / (parentScale.y || 1)
+    // 5) l'incasso rimasto vuoto (la finestra del modello) si chiude con una toppa del materiale
+    //    della copertina, altrimenti nel 3D resterebbe un buco dove la foto non c'è più
+    if (Math.abs(f.x - win.x) > 0.002 || Math.abs(f.y - win.y) > 0.002) {
+      const patch = new THREE.Mesh(new THREE.PlaneGeometry(win.w * cw, win.h * ch), coverMat)
+      patch.name = `PhotoPatch${i}`
+      patch.rotation.x = -Math.PI / 2
+      patch.position.copy(root.worldToLocal(new THREE.Vector3(cb.min.x + win.x * cw, cb.max.y + (cb.max.y - cb.min.y) * 0.004, cb.min.z + win.y * ch)))
+      patch.receiveShadow = true
+      root.add(patch)
+    }
   }
 }
 
@@ -342,7 +354,7 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   // IL RIQUADRO DELLA FOTO dove l'ha voluto la coppia: la finestra del modello viene spostata,
   // ridimensionata e inclinata sul piatto (l'artigiano poi la monta a mano seguendo la tavola).
   // Le coordinate si ricavano dal piatto vero (CoverFront): x = larghezza, z = altezza dall'alto.
-  applyPhotoFrames(root, photoMeshes, windows, cover.photoFrames)
+  applyPhotoFrames(root, photoMeshes, windows, coverMat, cover.photoFrames)
 
   // I CRISTALLI DEL DECORO: i Swarovski del modello (centri ritagliati dal catalogo) come piccole gemme 3D
   // sul piatto, in coordinate della copertina (x → larghezza, y → dall'alto della copertina verso chi guarda).

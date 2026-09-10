@@ -199,7 +199,7 @@ export function CoverLayoutEditor({
         </div>
       )}
       {/* IL RIQUADRO: poche posizioni pronte, si sfogliano con le frecce (niente misure da regolare) */}
-      {sel.kind === 'photo' && windows[sel.i] && (() => {
+      {sel.kind === 'photo' && windows.length === 1 && windows[sel.i] && (() => {
         const list = framePresets(windows[sel.i]!)
         const cur = Math.max(0, list.findIndex((p) => sameFrame(p.frame, rect(sel.i))))
         const go = (d: number) => {
@@ -240,23 +240,26 @@ export function CoverLayoutEditor({
         {textInsideLogo
           ? 'Trascina la foto dentro la sua finestra e il logo dove lo vuoi: nomi e data sono già scritti dentro il logo che hai scelto. Il 3D e la tavola per l\'azienda seguono al millimetro.'
           : 'Trascina la foto dentro la sua finestra, e la scritta (o il logo) dove la vuoi; la barra ingrandisce. Il 3D e la tavola per l\'azienda seguono al millimetro.'}
+        {windows.length === 1 && ' La finestra tiene la misura del catalogo: si può solo spostare.'}
+        {windows.length > 1 && ' Le tre finestre di questo modello sono fisse come sulla tavola: si sposta solo la foto dentro ognuna.'}
       </p>
     </div>
   )
 }
 
-/** LE POSIZIONI PRONTE della foto sulla copertina: poche e chiare, si sfogliano con le frecce.
- *  Partono sempre dalla finestra del modello (quella stampata sul catalogo). */
+/** LE POSIZIONI PRONTE della foto sulla copertina: la MISURA resta quella della tavola (la finestra
+ *  è una fustella: l'azienda non la cambia), si sposta soltanto. Poche e chiare, si sfogliano con le
+ *  frecce. I modelli a più finestre (Julies, Trilogy) non si toccano: la loro disposizione è fissa. */
 export function framePresets(win: Rect): { key: string; label: string; frame: PhotoFrame }[] {
-  const big = Math.min(1, Math.max(win.w, win.h) * 1.35)
+  const mx = win.w / 2 + 0.03, my = win.h / 2 + 0.03      // il riquadro resta dentro la copertina
+  const at = (x: number, y: number) => ({ x: Math.min(Math.max(x, mx), 1 - mx), y: Math.min(Math.max(y, my), 1 - my), w: win.w, h: win.h, rot: 0 })
   return [
-    { key: 'catalogo', label: 'Come da catalogo', frame: { x: win.x, y: win.y, w: win.w, h: win.h, rot: 0 } },
-    { key: 'grande', label: 'Più grande', frame: { x: win.x, y: win.y, w: Math.min(1, win.w * 1.25), h: Math.min(1, win.h * 1.25), rot: 0 } },
-    { key: 'piena', label: 'Tutta la copertina', frame: { x: 0.5, y: 0.5, w: 1, h: 1, rot: 0 } },
-    { key: 'fascia', label: 'Fascia intera', frame: { x: 0.5, y: win.y, w: 1, h: win.h, rot: 0 } },
-    { key: 'alto', label: 'In alto', frame: { x: win.x, y: win.h / 2 + 0.04, w: win.w, h: win.h, rot: 0 } },
-    { key: 'basso', label: 'In basso', frame: { x: win.x, y: 1 - win.h / 2 - 0.04, w: win.w, h: win.h, rot: 0 } },
-    { key: 'inclinata', label: 'Leggermente inclinata', frame: { x: win.x, y: win.y, w: big, h: win.h * (big / win.w), rot: -4 } },
+    { key: 'catalogo', label: 'Come da catalogo', frame: at(win.x, win.y) },
+    { key: 'alto', label: 'Più in alto', frame: at(win.x, my) },
+    { key: 'basso', label: 'Più in basso', frame: at(win.x, 1 - my) },
+    { key: 'sinistra', label: 'Più a sinistra', frame: at(mx, win.y) },
+    { key: 'destra', label: 'Più a destra', frame: at(1 - mx, win.y) },
+    { key: 'centro', label: 'Al centro', frame: at(0.5, 0.5) },
   ]
 }
 const sameFrame = (a: PhotoFrame, b: PhotoFrame) =>

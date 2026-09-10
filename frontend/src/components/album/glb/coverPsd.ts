@@ -82,7 +82,7 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
       ictx.fillStyle = 'rgba(200,200,200,0.5)'; ictx.fillRect(0, 0, w, h)
       ictx.fillStyle = '#555'; ictx.font = `${Math.round(h * 0.12)}px sans-serif`; ictx.textAlign = 'center'; ictx.fillText('FOTO', w / 2, h / 2)
     }
-    const nome = `Finestra foto ${spec.photos.length > 1 ? i + 1 : ''} · ${mm(r.w, inp.wCm)}×${mm(r.h, inp.hCm)} mm${rot ? ` · inclinata ${rot}°` : ''}${inp.photoFrames?.[i] ? ' · riquadro scelto dalla coppia' : ''}`.replace('  ', ' ')
+    const nome = `Finestra foto ${spec.photos.length > 1 ? i + 1 : ''} · ${mm(r.w, inp.wCm)}×${mm(r.h, inp.hCm)} mm${rot ? ` · inclinata ${rot}°` : ''}${inp.photoFrames?.[i] ? ' · spostata dalla coppia (misura da catalogo)' : ''}`.replace('  ', ' ')
     if (rot) {
       // inclinata: il livello copre tutta la copertina, la foto è ruotata attorno al centro del riquadro
       const [c, ctx] = canvas(W, H)
