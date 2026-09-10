@@ -1012,7 +1012,7 @@ export default function AlbumCatalogPicker() {
             <p className="text-[11px] text-[rgb(var(--fg-subtle))]">Firmando confermi il modello e le specifiche scelte. Ne esce un PDF commessa inviato all’azienda tramite il tuo fotografo.</p>
             </Chapter>
             )}
-            {step < 5 && (
+            {step < STEPS.length - 1 && (
               <div className="flex items-center justify-between gap-3 pt-2">
                 <button type="button" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))} className="rounded-full border border-[rgb(var(--border))] px-4 py-2 text-sm disabled:opacity-40">Indietro</button>
                 <p className="text-[11px] text-[rgb(var(--fg-subtle))] text-center">{stepHint}</p>
