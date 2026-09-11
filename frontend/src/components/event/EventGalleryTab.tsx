@@ -103,28 +103,53 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const [zipOpen, setZipOpen] = useState(false)
   const [zipBusy, setZipBusy] = useState<'web' | 'original' | null>(null)
 
-  // Scarica TUTTA la galleria in un unico .zip (formato web leggero o originali piena
-  // risoluzione). Lo zip lo compone l'edge album-zip lato server (scope 'all').
-  async function downloadGalleryZip(size: 'web' | 'original') {
-    setZipBusy(size)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { toast.error('Sessione scaduta, riaccedi'); return }
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/album-zip`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, 'content-type': 'application/json' },
-        body: JSON.stringify({ entry_id: entryId, size, scope: 'all' }),
-      })
+  // Scarica la galleria (o la selezione) in ZIP. Le gallerie grandi escono in PIÙ PARTI: l'edge
+  // non può tenere in memoria centinaia di foto, quindi prima si chiede quante parti servono
+  // (`probe`) e poi si scaricano una dopo l'altra. Prima falliva in silenzio sulle gallerie oltre
+  // le ~300 foto, e quando andava portava a casa solo 500 file a caso.
+  async function chiediZip(body: Record<string, unknown>) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Sessione scaduta, riaccedi')
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/album-zip`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return res
+  }
+  async function scaricaZip(opts: { size: 'web' | 'original'; scope: 'all' | 'selection'; folderId?: string; stem: string }) {
+    const base = { entry_id: entryId, size: opts.size, scope: opts.scope, folder_id: opts.folderId }
+    const pr = await chiediZip({ ...base, probe: true })
+    if (!pr.ok) {
+      const e = await pr.json().catch(() => ({} as { error?: string; detail?: string }))
+      throw new Error(e?.detail || (e?.error === 'empty' || e?.error === 'no_selection' ? 'Non ci sono foto da scaricare in questa galleria.' : 'Download .zip non riuscito'))
+    }
+    const info = await pr.json() as { files: number; parts: number; excluded?: string[]; total?: number }
+    if (info.excluded?.length) toast.info(`Escluse dal download: ${info.excluded.join(', ')}`)
+    if (info.parts > 1) toast.info(`${info.files} file: arrivano in ${info.parts} archivi, uno dopo l'altro.`)
+    for (let p = 1; p <= info.parts; p++) {
+      const res = await chiediZip({ ...base, part: p })
       if (!res.ok) {
-        const e = await res.json().catch(() => ({} as { error?: string; detail?: string }))
-        toast.error(e?.detail || (e?.error === 'empty' ? 'Nessuna foto da scaricare' : 'Download .zip non riuscito'))
-        return
+        const e = await res.json().catch(() => ({} as { detail?: string }))
+        throw new Error(e?.detail || `Parte ${p} non riuscita`)
       }
       const url = URL.createObjectURL(await res.blob())
-      const a = document.createElement('a'); a.href = url; a.download = size === 'web' ? 'galleria-web.zip' : 'galleria-originali.zip'; a.click(); URL.revokeObjectURL(url)
-      setZipOpen(false)
-    } catch { toast.error('Download .zip non riuscito') } finally { setZipBusy(null) }
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${opts.stem}${opts.size === 'web' ? '-web' : '-originali'}${info.parts > 1 ? `-parte-${p}-di-${info.parts}` : ''}.zip`
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 4000)
+      if (p < info.parts) { toast.info(`Parte ${p} di ${info.parts} scaricata`); await new Promise((r) => setTimeout(r, 1200)) }
+    }
+    toast.success(info.parts > 1 ? `Scaricati ${info.parts} archivi` : 'ZIP pronto')
   }
+
+  async function downloadGalleryZip(size: 'web' | 'original') {
+    setZipBusy(size)
+    try { await scaricaZip({ size, scope: 'all', stem: 'galleria' }); setZipOpen(false) }
+    catch (e) { toast.error((e as Error).message) } finally { setZipBusy(null) }
+  }
+
   // Sito personale del professionista: l'interruttore compare solo a chi ne ha uno
   // collegato, e vale per QUESTO evento — non per tutto l'archivio.
   const [siteSyncOn, setSiteSyncOn] = useState(false)
@@ -500,29 +525,12 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
     await load()
   }
 
-  // Scarica in ZIP SOLO le foto/video selezionati per l'album (album_choice='KEPT').
-  // Lato server (edge album-zip) col token Drive dell'owner → lo possono fare anche gli sposi.
+  // Scarica in ZIP le foto scelte per l'album (o tutta la galleria se non è stato scelto niente).
   async function downloadSelectedZip(size: 'web' | 'original' = 'original') {
     setBusy(true)
     try {
-      // Se la coppia non ha ancora selezionato foto per l'album, lo ZIP deve dare
-      // comunque la galleria (prima restituiva 'no_selection' = errore fuorviante).
       const scope = chosenCount > 0 ? 'selection' : 'all'
-      const { data, error } = await supabase.functions.invoke('album-zip', { body: { entry_id: entryId, size, scope } })
-      if (error) {
-        let msg = (error as Error).message
-        try { const b = await (error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (b?.error) msg = b.error === 'empty' || b.error === 'no_selection' ? 'Non ci sono foto da scaricare in questa galleria.'
-          : b.error === 'download_disabled' ? 'Il fotografo non ha abilitato questo download.'
-          : b.error === 'too_many_originals' ? (b as { detail?: string }).detail ?? 'Troppi file a piena risoluzione per un unico zip.'
-          : b.error } catch { /* ignore */ }
-        throw new Error(msg)
-      }
-      if (!(data instanceof Blob)) throw new Error('ZIP non riuscito')
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(data); a.download = size === 'web' ? 'album-selezione-web.zip' : 'album-selezione-originale.zip'
-      document.body.appendChild(a); a.click(); a.remove()
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000)
-      toast.success(size === 'web' ? 'ZIP web pronto' : 'ZIP originale pronto')
+      await scaricaZip({ size, scope, stem: scope === 'selection' ? 'album-selezione' : 'galleria' })
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
   }
 

@@ -1,18 +1,48 @@
-// Scarica in UN unico ZIP le foto/video selezionati per l'album (album_choice='KEPT').
-// Lo possono fare il fotografo (owner) E gli sposi: il server usa il token Drive
-// dell'owner per scaricare i file Drive (gli sposi non hanno il token).
+// Scarica in ZIP le foto/video di una galleria: tutta la galleria, la selezione per l'album
+// (album_choice='KEPT') o una singola cartella. Lo possono fare il fotografo (owner) E gli sposi:
+// il server usa il token Drive dell'owner per scaricare i file Drive (gli sposi non hanno il token).
+//
+// PERCHÉ ERA ROTTO sulle gallerie grandi (Danila e Antonio, 1.304 foto): si scaricavano fino a 500
+// file tenendoli TUTTI in memoria e poi JSZip ne faceva una seconda copia. In formato web pesano
+// ~370 KB l'uno: 500 file = ~185 MB × 2, oltre il limite di memoria della edge, e il worker moriva
+// senza risposta — la coppia vedeva solo «Download .zip non riuscito». In più il limite di 500 era
+// senza ordinamento: ci si portava a casa 500 foto a caso su 1.304, senza saperlo.
+//
+// Ora: ordine deterministico, archivio scritto A FLUSSO (in memoria resta un pugno di file) e
+// galleria divisa in PARTI numerate. Con `probe: true` si sa quante sono prima di cominciare.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { decryptToken } from '../_shared/drive-crypto.ts'
-import JSZip from 'https://esm.sh/jszip@3.10.1'
+import { ZipWriter } from '../_shared/zip-stream.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
 const CLIENT_ID = Deno.env.get('GOOGLE_DRIVE_CLIENT_ID') ?? ''
 const CLIENT_SECRET = Deno.env.get('GOOGLE_DRIVE_CLIENT_SECRET') ?? ''
-const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Expose-Headers': 'X-Zip-Part, X-Zip-Parts, X-Zip-Files, Content-Disposition',
+}
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
 const isDrive = (id: string) => !!id && !id.startsWith('demo-') && !id.startsWith('guest:')
+
+// Quanti file per parte: in formato web ci stanno larghi, gli originali (6–10 MB l'uno) molto meno.
+// Il tetto in byte chiude la parte prima, se le foto sono pesanti.
+const PER_PART = { web: 200, original: 40 }
+const BUDGET = 220 * 1024 * 1024
+
+type Media = {
+  id: string
+  drive_file_id: string
+  thumbnail_link: string | null
+  media_type: string | null
+  guest_tag_name: string | null
+  source_name: string | null
+  edited_url: string | null
+  folder_id: string | null
+  created_at: string | null
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
@@ -20,13 +50,13 @@ Deno.serve(async (req) => {
   const { data: { user } } = await userClient.auth.getUser()
   if (!user) return json({ error: 'auth_required' }, 401)
 
-  const body = (await req.json().catch(() => ({}))) as { entry_id?: string; size?: string; scope?: string; folder_id?: string }
+  const body = (await req.json().catch(() => ({}))) as
+    { entry_id?: string; size?: string; scope?: string; folder_id?: string; part?: number; probe?: boolean }
   const entry_id = body.entry_id
-  // "dimensione" dell'export: 'web' (leggera, ~1600px) o 'original' (piena risoluzione).
   const size: 'web' | 'original' = body.size === 'web' ? 'web' : 'original'
-  // scope: 'selection' (solo album_choice=KEPT, default, retrocompatibile) o 'all' (tutta la galleria).
   const scope: 'selection' | 'all' = body.scope === 'all' ? 'all' : 'selection'
   const folderId = body.folder_id
+  const part = Math.max(1, Math.floor(Number(body.part) || 1))
   if (!entry_id) return json({ error: 'no_entry' }, 400)
 
   const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } })
@@ -40,104 +70,141 @@ Deno.serve(async (req) => {
   const isLab = !!prof?.is_album_lab || prof?.role === 'FOTOLAB'
   if (!isOwner && !cm && prof?.role !== 'ADMIN' && !isLab) return json({ error: 'forbidden' }, 403)
 
-  // Una stamperia può scaricare gli originali SOLO se per quell'evento esiste un
-  // ordine album (commessa). Senza, un lab globale potrebbe esfiltrare gli
-  // originali a piena risoluzione di eventi mai inviati in stampa.
+  // Una stamperia può scaricare gli originali SOLO se per quell'evento esiste un ordine album.
   if (isLab && !isOwner && !cm && prof?.role !== 'ADMIN') {
     const { data: ord } = await admin.from('album_orders').select('id').eq('entry_id', entry_id).limit(1).maybeSingle()
     if (!ord) return json({ error: 'no_order' }, 403)
   }
 
+  // ORDINE DETERMINISTICO: senza, le parti si sovrappongono e qualche file non arriva mai.
   let mq = admin.from('gallery_media')
-    .select('drive_file_id, thumbnail_link, media_type, guest_tag_name, edited_url, folder_id')
+    .select('id, drive_file_id, thumbnail_link, media_type, guest_tag_name, source_name, edited_url, folder_id, created_at')
     .eq('entry_id', entry_id)
+    .order('created_at', { ascending: true, nullsFirst: false })
+    .order('id', { ascending: true })
   if (scope === 'selection') mq = mq.eq('album_choice', 'KEPT')
   if (folderId) mq = mq.eq('folder_id', folderId)
-  let { data: media } = await mq.limit(500)
-  if (!media || media.length === 0) return json({ error: scope === 'all' ? 'empty' : 'no_selection', detail: 'nessuna foto da scaricare' }, 400)
+  const { data: tutte } = await mq.limit(5000)
+  let media = (tutte ?? []) as Media[]
+  if (media.length === 0) return json({ error: scope === 'all' ? 'empty' : 'no_selection', detail: 'nessuna foto da scaricare' }, 400)
 
-  // Enforcement per-cartella: il fotografo (owner) scarica sempre tutto; sposi/ospiti
-  // solo dalle cartelle in cui il fotografo ha abilitato quel formato.
+  // Enforcement per-cartella: l'owner scarica sempre tutto; sposi/ospiti solo dalle cartelle in cui
+  // il fotografo ha abilitato QUEL formato. Se qualcosa resta fuori si dice quale e perché.
+  const escluse: string[] = []
   if (!isOwner) {
     const { data: folders } = await admin.from('gallery_folders')
-      .select('id, allow_dl_web, allow_dl_full').eq('entry_id', entry_id)
-    const allowed = new Set((folders ?? [])
-      .filter((f: { allow_dl_web?: boolean; allow_dl_full?: boolean }) => (size === 'web' ? f.allow_dl_web !== false : f.allow_dl_full !== false))
-      .map((f: { id: string }) => f.id))
-    media = media.filter((m: { folder_id?: string | null }) => !!m.folder_id && allowed.has(m.folder_id))
-    if (media.length === 0) return json({ error: 'download_disabled', detail: 'Il fotografo non ha abilitato questo download per le cartelle selezionate.' }, 403)
+      .select('id, name, allow_dl_web, allow_dl_full').eq('entry_id', entry_id)
+    const ok = new Set<string>()
+    for (const f of (folders ?? []) as { id: string; name: string | null; allow_dl_web?: boolean; allow_dl_full?: boolean }[]) {
+      const consentito = size === 'web' ? f.allow_dl_web !== false : f.allow_dl_full !== false
+      if (consentito) ok.add(f.id)
+      else escluse.push(f.name || 'una cartella')
+    }
+    media = media.filter((m) => !!m.folder_id && ok.has(m.folder_id))
+    if (media.length === 0) {
+      const dove = escluse.length ? ` (${escluse.join(', ')})` : ''
+      return json({
+        error: 'download_disabled',
+        detail: size === 'original'
+          ? `Il fotografo non ha abilitato il download a piena risoluzione${dove}. Il formato web resta disponibile.`
+          : `Il fotografo non ha abilitato questo download${dove}.`,
+      }, 403)
+    }
   }
+
+  // LE PARTI: quante ne servono per questa galleria e questo formato.
+  const per = PER_PART[size]
+  const parti = Math.max(1, Math.ceil(media.length / per))
+  if (body.probe) {
+    return json({ files: media.length, parts: parti, per, size, scope, excluded: escluse, total: (tutte ?? []).length })
+  }
+  if (part > parti) return json({ error: 'no_part', detail: `Questa galleria è divisa in ${parti} parti.` }, 400)
+  const fetta = media.slice((part - 1) * per, part * per)
 
   // token Drive dell'owner (per i file su Drive)
   let token: string | null = null
-  if (media.some((m) => isDrive(m.drive_file_id))) {
+  if (fetta.some((m) => isDrive(m.drive_file_id))) {
     const { data: conn } = await admin.from('drive_connections').select('refresh_token_enc').eq('professional_id', gal.owner_id).maybeSingle()
     if (conn?.refresh_token_enc) {
       try {
         const refresh = await decryptToken(Uint8Array.from(atob(conn.refresh_token_enc as string), (c) => c.charCodeAt(0)))
         const form = new URLSearchParams({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, refresh_token: refresh, grant_type: 'refresh_token' })
         const tr = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: form })
-        const td = await tr.json()
-        token = td.access_token ?? null
+        token = (await tr.json()).access_token ?? null
       } catch { token = null }
     }
   }
-
-  // Gli ORIGINALI di una galleria enorme non stanno in memoria: meglio un errore
-  // chiaro che un crash opaco. (Il formato web resta disponibile.)
-  if (size === 'original' && media.length > 150) {
-    return json({ error: 'too_many_originals', detail: `Sono ${media.length} file a piena risoluzione: troppi per un unico zip. Usa il formato web, oppure scarica per cartella.` }, 413)
+  if (size === 'original' && !token && fetta.some((m) => isDrive(m.drive_file_id) && !m.edited_url)) {
+    return json({ error: 'no_drive', detail: 'Il fotografo deve ricollegare Google Drive: senza, gli originali non sono scaricabili.' }, 502)
   }
 
-  // Memoria: una galleria molto grande a w1600 non ci sta nella edge. Sopra i 250 file
-  // scendo a w1200 (peso ~ -40%) così anche le gallerie da centinaia di foto passano.
-  const webPx = media.length > 250 ? 1200 : 1600
-  const zip = new JSZip()
-  // Scarico in PARALLELO a concorrenza limitata: in sequenza 400+ file da Drive
-  // superavano il tempo massimo della edge (galleria da 449 foto non scaricabile).
-  const CONC = 12
-  let ok = 0
-  const grab = async (m: any, i: number) => {
+  // In formato web il lato lungo scende se la galleria è enorme: meno byte da spostare.
+  const webPx = media.length > 600 ? 1200 : 1600
+  const scarica = async (m: Media): Promise<Uint8Array | null> => {
     try {
-      let bytes: ArrayBuffer
-      // I video si esportano sempre a piena risoluzione (il "web" vale per le foto).
       const wantWeb = size === 'web' && m.media_type !== 'VIDEO'
-      const edited = m.edited_url as string | null | undefined
-      if (edited) {
-        // Versione MODIFICATA (crop/ruota): è quella canonica → prevale su Drive/originale.
-        const r = await fetch(edited); if (!r.ok) return; bytes = await r.arrayBuffer()
-      } else if (isDrive(m.drive_file_id)) {
+      if (m.edited_url) {
+        const r = await fetch(m.edited_url); if (!r.ok) return null
+        return new Uint8Array(await r.arrayBuffer())
+      }
+      if (isDrive(m.drive_file_id)) {
         if (wantWeb) {
           const r = await fetch(`https://drive.google.com/thumbnail?id=${m.drive_file_id}&sz=w${webPx}`)
-          if (!r.ok) return; bytes = await r.arrayBuffer()
-        } else {
-          if (!token) return
-          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${m.drive_file_id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } })
-          if (!r.ok) return; bytes = await r.arrayBuffer()
+          if (!r.ok) return null
+          return new Uint8Array(await r.arrayBuffer())
         }
-      } else {
-        if (!m.thumbnail_link) return
-        const r = await fetch(m.thumbnail_link); if (!r.ok) return; bytes = await r.arrayBuffer()
+        if (!token) return null
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${m.drive_file_id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } })
+        if (!r.ok) return null
+        return new Uint8Array(await r.arrayBuffer())
       }
-      const ext = m.media_type === 'VIDEO' ? 'mp4' : 'jpg'
-      const base = (m.guest_tag_name || 'foto').replace(/[^\w\- ]+/g, '') || 'foto'
-      zip.file(`${String(i + 1).padStart(3, '0')}-${base}.${ext}`, bytes)
-      ok++
-    } catch { /* salto il file */ }
+      if (!m.thumbnail_link) return null
+      const r = await fetch(m.thumbnail_link); if (!r.ok) return null
+      return new Uint8Array(await r.arrayBuffer())
+    } catch { return null }
   }
-  let cursor = 0
-  await Promise.all(Array.from({ length: Math.min(CONC, media.length) }, async () => {
-    for (;;) {
-      const idx = cursor++
-      if (idx >= media.length) break
-      await grab(media[idx], idx)
-    }
-  }))
 
-  if (ok === 0) return json({ error: 'empty', detail: 'nessun file scaricabile (Drive non collegato?)' }, 502)
+  // A FLUSSO: si scaricano pochi file in anticipo (per non aspettare la rete uno alla volta) ma si
+  // scrive in ordine, e ogni file esce subito. In memoria resta solo il pugno di file in volo.
+  const AVANTI = 6
+  const zip = new ZipWriter()
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        let byte = 0
+        const coda: Promise<Uint8Array | null>[] = []
+        for (let i = 0; i < Math.min(AVANTI, fetta.length); i++) coda.push(scarica(fetta[i]!))
+        for (let i = 0; i < fetta.length; i++) {
+          const bytes = await coda[i]!
+          if (i + AVANTI < fetta.length) coda.push(scarica(fetta[i + AVANTI]!))
+          if (!bytes) continue
+          const m = fetta[i]!
+          const ext = m.media_type === 'VIDEO' ? 'mp4' : 'jpg'
+          const nome = (m.source_name || m.guest_tag_name || 'foto').replace(/\.[a-z0-9]+$/i, '').replace(/[^\w\- ]+/g, '').trim() || 'foto'
+          const n = (part - 1) * per + i + 1
+          controller.enqueue(zip.file(`${String(n).padStart(4, '0')}-${nome}.${ext}`, bytes))
+          byte += bytes.length
+          if (byte > BUDGET) break         // parte già piena: si chiude qui
+        }
+        controller.enqueue(zip.end())
+        controller.close()
+      } catch (e) {
+        controller.error(e)
+      }
+    },
+  })
 
-  const out = await zip.generateAsync({ type: 'uint8array' })
-  const stem = scope === 'all' ? 'galleria' : 'album-selezione'
-  const fname = size === 'web' ? `${stem}-web.zip` : `${stem}-originali.zip`
-  return new Response(out, { headers: { ...cors, 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${fname}"` } })
+  const stem = scope === 'all' ? 'galleria' : folderId ? 'cartella' : 'album-selezione'
+  const suffisso = parti > 1 ? `-parte-${part}-di-${parti}` : ''
+  const fname = `${stem}${size === 'web' ? '-web' : '-originali'}${suffisso}.zip`
+  return new Response(stream, {
+    headers: {
+      ...cors,
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${fname}"`,
+      'X-Zip-Part': String(part),
+      'X-Zip-Parts': String(parti),
+      'X-Zip-Files': String(fetta.length),
+    },
+  })
 })
