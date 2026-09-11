@@ -17,14 +17,14 @@ export type LayoutSpec = {
 // y_qui = 0.5 − y_3d/h.
 export const LAYOUT_SPEC: Record<Layout, LayoutSpec> = {
   plain: { photos: [], names: { x: 0.5, y: 0.84, size: 0.05 }, logo: { x: 0.5, y: 0.4, w: 0.34 } },
-  plate: { photos: [], plate: { x: 0.5, y: 0.5, w: 0.32, h: 0.16 }, names: { x: 0.5, y: 0.74, size: 0.05 }, logo: { x: 0.5, y: 0.62, w: 0.26 } },
+  plate: { photos: [], plate: { x: 0.5, y: 0.5, w: 0.30, h: 0.07 }, names: { x: 0.5, y: 0.74, size: 0.05 }, logo: { x: 0.5, y: 0.62, w: 0.26 } },
   monogram: { photos: [], names: { x: 0.5, y: 0.66, size: 0.045 }, logo: { x: 0.5, y: 0.3, w: 0.36 } },
-  fascia: { photos: [], band: { x: 0.5, y: 0.5, w: 0.96, h: 0.2 }, plate: { x: 0.74, y: 0.5, w: 0.34, h: 0.11 }, crystals: [{ x1: 0.08, y1: 0.5, x2: 0.62, y2: 0.5 }],
+  fascia: { photos: [], band: { x: 0.5, y: 0.5, w: 0.96, h: 0.2 }, plate: { x: 0.74, y: 0.5, w: 0.30, h: 0.055 }, crystals: [{ x1: 0.08, y1: 0.5, x2: 0.62, y2: 0.5 }],
     names: { x: 0.74, y: 0.5, size: 0.03 }, logo: { x: 0.5, y: 0.66, w: 0.28 } },
   'fascia-ornament': { photos: [], band: { x: 0.5, y: 0.46, w: 0.96, h: 0.22 }, crystals: [{ x1: 0.16, y1: 0.36, x2: 0.84, y2: 0.36 }, { x1: 0.16, y1: 0.56, x2: 0.84, y2: 0.56 }],
     names: { x: 0.5, y: 0.46, size: 0.06 }, logo: { x: 0.5, y: 0.37, w: 0.3 } },
   oblique: { photos: [], band: { x: 0.5, y: 0.692, w: 0.989, h: 0.605 }, crystals: [{ x1: 0, y1: 0.66, x2: 1, y2: 0.49 }], names: { x: 0.62, y: 0.86, size: 0.055 }, logo: { x: 0.62, y: 0.72, w: 0.3 } },
-  'swarovski-line': { photos: [], plate: { x: 0.34, y: 0.5, w: 0.36, h: 0.11 }, crystals: [{ x1: 0.6, y1: 0.12, x2: 0.6, y2: 0.88 }], names: { x: 0.34, y: 0.5, size: 0.03 }, logo: { x: 0.34, y: 0.6, w: 0.28 } },
+  'swarovski-line': { photos: [], plate: { x: 0.34, y: 0.5, w: 0.30, h: 0.055 }, crystals: [{ x1: 0.6, y1: 0.12, x2: 0.6, y2: 0.88 }], names: { x: 0.34, y: 0.5, size: 0.03 }, logo: { x: 0.34, y: 0.6, w: 0.28 } },
   'swarovski-cluster': { photos: [], names: { x: 0.5, y: 0.72, size: 0.055 }, logo: { x: 0.5, y: 0.56, w: 0.32 } },
   'photo-vertical': { photos: [{ x: 0.58, y: 0.5, w: 0.38, h: 0.58 }], names: { x: 0.29, y: 0.78, size: 0.05 }, logo: { x: 0.29, y: 0.5, w: 0.3 } },
   'photo-panoramic': { photos: [{ x: 0.5, y: 0.42, w: 0.76, h: 0.28 }], names: { x: 0.5, y: 0.7, size: 0.055 }, logo: { x: 0.5, y: 0.6, w: 0.3 } },

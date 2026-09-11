@@ -215,11 +215,11 @@ def build_album(layout, fmt):
         stones('Crystal', pts, r, M['Crystal'])
 
     if layout == 'plate':
-        metal_plate(0, 0, w * 0.32, h * 0.16)
+        metal_plate(0, 0, w * 0.30, h * 0.07)
     elif layout == 'fascia':                     # fascia orizzontale + linea pietre + targhetta (Claire/Plaza)
         band(-w / 2 + pad, w / 2 - pad, 0, h * 0.2)
         stone_line(-w * 0.42, 0, w * 0.12, 0)
-        metal_plate(w * 0.24, 0, w * 0.34, h * 0.11)
+        metal_plate(w * 0.24, 0, w * 0.30, h * 0.055)
     elif layout == 'fascia-ornament':            # fascia larga + doppia linea pietre (Thea/Comete)
         band(-w / 2 + pad, w / 2 - pad, h * 0.04, h * 0.22)
         stone_line(-w * 0.34, h * 0.14, w * 0.34, h * 0.14)
@@ -250,7 +250,7 @@ def build_album(layout, fmt):
         stone_line(-w * 0.5 + pad, -h * 0.5 + pad + (h * 0.12 + h * 0.5 - pad) * 0.0 + cm(0.0), w * 0.5 - pad, h * 0.11, n=int(w / cm(0.55)))
     elif layout == 'swarovski-line':             # linea verticale di pietre + targhetta (Diez)
         stone_line(w * 0.1, -h * 0.38, w * 0.1, h * 0.38)
-        metal_plate(-w * 0.16, 0, w * 0.36, h * 0.11)
+        metal_plate(-w * 0.16, 0, w * 0.30, h * 0.055)
     elif layout == 'swarovski-cluster':          # grappolo di pietre (Bouquet/Ninfea/Xante)
         import random
         random.seed(7)

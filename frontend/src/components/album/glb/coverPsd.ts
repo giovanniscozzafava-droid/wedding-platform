@@ -4,7 +4,7 @@
 // Specifiche (testo). Più le guide di Photoshop sui bordi di ogni finestra.
 import { writePsd, type Psd, type Layer } from 'ag-psd'
 import { LAYOUT_SPEC, cropRect, logoToInk, drawCoverText, coverTextMetrics, frameOf, type LayoutSpec, type PhotoCrop, type PhotoFrame, type LogoPlace, type TextPlace } from '@/components/album/glb/layoutSpec'
-import { namePlacements, drawDecor, PLATE_MARGIN } from '@/components/album/glb/decal'
+import { namePlacements, drawDecor, PLATE_MARGIN, decorMap, decorBBox } from '@/components/album/glb/decal'
 import type { Decor } from '@/components/album/glb/decor.generated'
 import type { Layout } from '@/components/album/albumCatalog'
 
@@ -101,7 +101,7 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
   if (inp.decor?.print) {
     const [c, ctx] = canvas(W, H)
     const d = inp.decor.spec
-    drawDecor(ctx, W, H, d, hexToRgb(ink), { print: inp.decor.print, stones: null }, { inset: 0 })
+    drawDecor(ctx, W, H, d, hexToRgb(ink), { print: inp.decor.print, stones: null }, { inset: 0, aspect: inp.wCm / inp.hCm })
     const what = d.kind === 'plate' ? 'piastra Cristalwhite intagliata (bianco = piastra, vuoto = foro col tessuto a vista)'
       : d.kind === 'strip' ? 'fascia stampata a tutta larghezza' : d.kind === 'panel' ? 'pannello Cristalplex, motivo chiaro'
       : d.color ? 'stampa a colori' : d.tint === 'white' ? 'tratto chiaro' : 'tratto nel colore scelto'
@@ -113,7 +113,9 @@ export function buildCoverPsd(inp: CoverPsdInput): { blob: Blob; positions: { la
     const pts = inp.decor.spec.stonesXY
     ctx.lineWidth = Math.max(2, Math.round(dpi / 120)); ctx.font = `${Math.round(dpi * 0.07)}px sans-serif`; ctx.textBaseline = 'middle'
     let minx = 1, miny = 1, maxx = 0, maxy = 0
-    pts.forEach(([fx, fy, fr], i) => {
+    const dm = inp.decor.print ? decorMap(inp.decor.spec, inp.wCm / inp.hCm, decorBBox(inp.decor.print)) : null
+    pts.forEach(([fx0, fy0, fr], i) => {
+      const fx = dm ? dm.toX(fx0) : fx0, fy = dm ? dm.toY(fy0) : fy0
       const x = fx * W, y = fy * H, r = Math.max(4, fr * W)
       ctx.fillStyle = '#fff'; ctx.strokeStyle = '#e0197a'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke()
       ctx.beginPath(); ctx.moveTo(x - r * 1.8, y); ctx.lineTo(x + r * 1.8, y); ctx.moveTo(x, y - r * 1.8); ctx.lineTo(x, y + r * 1.8); ctx.stroke()

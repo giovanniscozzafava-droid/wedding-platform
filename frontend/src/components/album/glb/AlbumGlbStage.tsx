@@ -9,7 +9,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { modelLayout, paletteFor, sizeByKey, type Cover } from '@/components/album/albumCatalog'
 import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
-import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, type DecalInk } from '@/components/album/glb/decal'
+import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, decorMap, decorBBox, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { buildBox, isBoxKind } from '@/components/album/glb/boxScene'
 import { MATERIAL_SWATCH, MATERIAL_RELIEF } from '@/components/album/glb/materialSwatch.generated'
@@ -394,8 +394,9 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
   const bcol = cover.backFabric ? paletteFor(cover.backFabric).find((c) => c.key === cover.backColorKey) : undefined
   const backMat = cover.backFabric ? surfaceMaterial(cover.backFabric, cover.backColor ?? bcol?.hex, bIsWood, bIsWood ? bcol?.tex : undefined, cover.backColorKey) : coverMat
   const bandMat = surfaceMaterial('alcantara', '#efe9dc', false)
-  const brass = (cover.finishes ?? []).includes('targhetta') || true
-  const plateMat = new THREE.MeshPhysicalMaterial({ color: brass ? 0xd9b46a : 0xd8d8d8, metalness: 1, roughness: 0.22, envMapIntensity: 1.4, clearcoat: 0.3 })
+  // LA TARGHETTA: sul catalogo è ottone NICHELATO (sezione «Ottone nichelato e alluminio»), cioè
+  // argentata, satinata; non oro
+  const plateMat = new THREE.MeshPhysicalMaterial({ color: 0xd9dadc, metalness: 1, roughness: 0.28, envMapIntensity: 1.2, clearcoat: 0.2 })
   const crystalMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.02, transmission: 0.55, ior: 1.9, thickness: 0.002, envMapIntensity: 2.2, clearcoat: 1 })
   const pagesMat = new THREE.MeshStandardMaterial({ color: 0xf4efe6, roughness: 0.92 })
   // UNA FOTO PER FINESTRA: i modelli a più finestre (Julies/Trilogy: Photo1, Photo2, Photo3 da sinistra) prendono
@@ -468,11 +469,23 @@ function applyMaterials(root: THREE.Object3D, cover: GlbCover) {
       if (dt <= bt) decal.position.y += (bt - dt + 0.0004) / (root.scale.y || 1)
     }
   }
+  // LA TARGHETTA porta i nomi: il piano dei nomi (Decal) deve stare SOPRA la placca, altrimenti
+  // l'incisione resta nascosta sotto il metallo
+  const plate = root.getObjectByName('Plate') as THREE.Mesh | undefined
+  if (plate && decal && cover.logoKey === 'ottone-targhetta') {
+    const pt = new THREE.Box3().setFromObject(plate).max.y, dt = new THREE.Box3().setFromObject(decal).max.y
+    if (dt <= pt) decal.position.y += (pt - dt + 0.0004) / (root.scale.y || 1)
+  }
   if (decor?.stonesXY.length && front) {
     const bb = new THREE.Box3().setFromObject(front)
     const g = new THREE.Group(); g.name = 'DecorCrystals'
     const wUnits = bb.max.x - bb.min.x, hUnits = bb.max.z - bb.min.z
-    for (const [fx, fy, fr] of decor.stonesXY) {
+    // le pietre sono in coordinate della tavola: la mappa del decoro le porta sulla copertina vera
+    const szc = sizeByKey(cover.sizeKey); const aspectC = szc && szc.h > 0 ? szc.w / szc.h : 1
+    const dimg = decorImages(decor).print
+    const dmap = dimg ? decorMap(decor, aspectC, decorBBox(dimg)) : null
+    for (const [fx0, fy0, fr] of decor.stonesXY) {
+      const fx = dmap ? dmap.toX(fx0) : fx0, fy = dmap ? dmap.toY(fy0) : fy0
       const r = Math.max(0.0012, fr * wUnits)
       const gem = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), crystalMat)   // calotta (chaton)
       gem.scale.set(1, 0.65, 1); gem.castShadow = true

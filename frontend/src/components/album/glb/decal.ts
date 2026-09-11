@@ -71,13 +71,57 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath()
 }
 export const PLATE_MARGIN = 0.035     // bordo della piastra Cristalwhite rispetto alla copertina (frazione)
+// ---------- il decoro a misura reale, su qualunque formato ----------
+// I PNG dei decori sono ritagli di copertine FOTOGRAFATE sul catalogo, quasi sempre orizzontali
+// (1200×850). Stirarli sulla copertina dell'album deformava tutto: su un 30×40 il ramo di Darling
+// diventava alto e storto, gli sposini di Amelie schiacciati. Qui il decoro si tratta come un
+// OGGETTO: si trova il suo riquadro dentro il PNG, se ne conserva la misura in rapporto al lato
+// corto della copertina, e lo si ancora al bordo a cui sta vicino sulla tavola (in basso, a
+// sinistra…). Stessa mappa per i cristalli e per l'ancora dei nomi.
+const bboxCache = new Map<string, [number, number, number, number]>()
+/** Il riquadro del disegno nel PNG (frazioni x0,y0,x1,y1), letto dall'alpha una volta sola. */
+export function decorBBox(img: HTMLImageElement): [number, number, number, number] {
+  const k = img.src
+  const hit = bboxCache.get(k); if (hit) return hit
+  const c = document.createElement('canvas'); const sw = 300, sh = Math.max(1, Math.round(300 * img.naturalHeight / img.naturalWidth))
+  c.width = sw; c.height = sh
+  const x = c.getContext('2d')!; x.drawImage(img, 0, 0, sw, sh)
+  const d = x.getImageData(0, 0, sw, sh).data
+  let x0 = sw, y0 = sh, x1 = -1, y1 = -1
+  for (let j = 0; j < sh; j++) for (let i = 0; i < sw; i++) if (d[(j * sw + i) * 4 + 3]! > 24) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j }
+  const bb: [number, number, number, number] = x1 < 0 ? [0, 0, 1, 1] : [x0 / sw, y0 / sh, (x1 + 1) / sw, (y1 + 1) / sh]
+  bboxCache.set(k, bb); return bb
+}
+export type DecorMap = { toX: (fx: number) => number; toY: (fy: number) => number; k: number }
+/** La mappa dalle frazioni della tavola (PNG) alle frazioni della copertina di destinazione.
+ *  `aspect` = larghezza/altezza della copertina. Le misure si conservano in rapporto al lato corto;
+ *  l'ancoraggio segue il bordo più vicino al disegno. */
+export function decorMap(decor: Decor, aspect: number, bbox?: [number, number, number, number]): DecorMap {
+  const As = decor.size[0] / decor.size[1]                    // la copertina della tavola
+  const Sw = As >= 1 ? As : 1, Sh = As >= 1 ? 1 : 1 / As     // in unità di lato corto
+  const Tw = aspect >= 1 ? aspect : 1, Th = aspect >= 1 ? 1 : 1 / aspect
+  const [bx0, by0, bx1, by1] = bbox ?? [0, 0, 1, 1]
+  const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2
+  // spostamenti in unità: si tiene il margine dal bordo di ancoraggio
+  let dx: number
+  if (cx < 0.35) dx = 0                                        // ancorato a sinistra: stesso margine
+  else if (cx > 0.65) dx = Tw - Sw                             // a destra
+  else dx = (Tw - Sw) / 2                                      // al centro
+  let dy: number
+  if (cy > 0.5) dy = Th - Sh                                   // in basso
+  else if (cy < 0.35) dy = 0                                   // in alto
+  else dy = (Th - Sh) / 2
+  return { toX: (fx) => (fx * Sw + dx) / Tw, toY: (fy) => (fy * Sh + dy) / Th, k: 1 }
+}
+
 /** Disegna il decoro del modello a tutta copertina: stampa (tinta o a colori), fascia, pannello, piastra intagliata, cristalli.
  *  I PNG sono in coordinate della COPERTINA (0..1); `inset` è il bordo che il canvas non copre (decal 3D = 0.02).
  *  true se ha disegnato qualcosa. */
 export function drawDecor(ctx: CanvasRenderingContext2D, W: number, H: number, decor: Decor, ink: [number, number, number],
-  images: { print: HTMLImageElement | null; stones: HTMLImageElement | null }, opts: { stoneAlpha?: number; inset?: number; skipPlate?: boolean } = {}): boolean {
+  images: { print: HTMLImageElement | null; stones: HTMLImageElement | null }, opts: { stoneAlpha?: number; inset?: number; skipPlate?: boolean; aspect?: number } = {}): boolean {
   const inset = opts.inset ?? 0
   const sc = 1 / (1 - 2 * inset); const ox = -inset * sc * W, oy = -inset * sc * H, dw = W * sc, dh = H * sc
+  const aspect = opts.aspect ?? 1
   const rgb: [number, number, number] = decor.tint === 'white' ? [246, 243, 236] : ink
   let drew = false
   if (decor.kind === 'plate') {
@@ -90,14 +134,24 @@ export function drawDecor(ctx: CanvasRenderingContext2D, W: number, H: number, d
     if (images.print) { x.globalCompositeOperation = 'destination-out'; x.drawImage(images.print, ox, oy, dw, dh) }
     ctx.drawImage(c, 0, 0); return true
   }
+  // fascia e pannello coprono la copertina per costruzione: si stirano (sono geometria, non disegno)
+  const stira = decor.kind === 'strip' || decor.kind === 'panel'
+  const dest = (img: HTMLImageElement): [number, number, number, number] => {
+    if (stira) return [ox, oy, dw, dh]
+    const bb = decorBBox(img); const m = decorMap(decor, aspect, bb)
+    const x0 = m.toX(0), y0 = m.toY(0), x1 = m.toX(1), y1 = m.toY(1)   // la tavola intera, riposizionata
+    return [ox + x0 * dw, oy + y0 * dh, (x1 - x0) * dw, (y1 - y0) * dh]
+  }
   if (images.print) {
-    if (decor.color) ctx.drawImage(images.print, ox, oy, dw, dh)
-    else ctx.drawImage(tintAlpha(images.print, Math.round(dw), Math.round(dh), rgb), ox, oy)
+    const [px, py, pw, ph] = dest(images.print)
+    if (decor.color) ctx.drawImage(images.print, px, py, pw, ph)
+    else ctx.drawImage(tintAlpha(images.print, Math.max(1, Math.round(pw)), Math.max(1, Math.round(ph)), rgb), px, py)
     drew = true
   }
   if (images.stones) {
+    const [px, py, pw, ph] = images.print ? dest(images.print) : dest(images.stones)
     ctx.save(); ctx.globalAlpha = opts.stoneAlpha ?? 1; ctx.shadowColor = 'rgba(255,255,255,0.85)'; ctx.shadowBlur = Math.round(W * 0.004)
-    ctx.drawImage(images.stones, ox, oy, dw, dh); ctx.restore(); drew = true
+    ctx.drawImage(images.stones, px, py, pw, ph); ctx.restore(); drew = true
   }
   return drew
 }
@@ -132,7 +186,10 @@ export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; 
   //    Il piano Decal copre la copertina meno un bordo del 2%: i PNG (in coordinate copertina) si allargano di conseguenza.
   const DECAL_INSET = 0.02
   const decor = decorFor(cover.model)
-  if (decor && drawDecor(ctx, W, H, decor, inkRgb(cover.ink), decorImages(decor), { stoneAlpha: 0.7, inset: DECAL_INSET, skipPlate: layout === 'laser' })) drew = true
+  if (decor && drawDecor(ctx, W, H, decor, inkRgb(cover.ink), decorImages(decor), { stoneAlpha: 0.7, inset: DECAL_INSET, skipPlate: layout === 'laser', aspect })) drew = true
+  // la stessa mappa per l'ancora dei nomi del decoro (in basso ai lati del tronco, sotto i fiori…)
+  const dimg = decor ? decorImages(decor).print : null
+  const dmap = decor && dimg ? decorMap(decor, aspect, decorBBox(dimg)) : null
   const dx = (x: number) => (x - DECAL_INSET) / (1 - 2 * DECAL_INSET), dy = (y: number) => (y - DECAL_INSET) / (1 - 2 * DECAL_INSET)
   // 2) il logo del catalogo RICOSTRUITO con i nomi veri (template: ornamento estratto + font identificato);
   //    se il template non c'è ancora, il ritaglio del catalogo tinto
@@ -191,8 +248,10 @@ export function drawDecal(cover: Cover & { logoKey?: string; logoTone?: string; 
       ctx.font = `italic 400 ${Math.round(H * (decor ? 0.045 : p.size))}px "Fraunces", "Cormorant Garamond", Georgia, serif`
       let lastY = p.y
       for (const pl of namePlacements(names, lp ? undefined : decor, p)) {
-        // le ancore del decoro sono in coordinate copertina (→ decal); quelle del layout (o della coppia) sono già sul decal
-        const px = decor && !lp ? dx(pl.x) : pl.x, py = decor && !lp ? dy(pl.y) : pl.y
+        // le ancore del decoro sono in coordinate della tavola: passano dalla mappa del decoro e poi al decal;
+        // quelle del layout (o della coppia) sono già sul decal
+        const mx = dmap && !lp ? dmap.toX(pl.x) : pl.x, my = dmap && !lp ? dmap.toY(pl.y) : pl.y
+        const px = decor && !lp ? dx(mx) : mx, py = decor && !lp ? dy(my) : my
         ctx.save(); ctx.translate(W * px, H * py); ctx.scale(1 / aspect, 1); ctx.textAlign = pl.align; ctx.fillText(pl.text, 0, 0); ctx.restore()
         lastY = py
       }

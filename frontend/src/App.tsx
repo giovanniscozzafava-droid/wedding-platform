@@ -54,6 +54,7 @@ const InsurancePage = lazyWithRetry(() => import('@/pages/InsurancePage'))
 const BrandSettingsPage = lazyWithRetry(() => import('@/pages/BrandSettingsPage'))
 const AlbumPricingSettingsPage = lazyWithRetry(() => import('@/pages/AlbumPricingSettingsPage'))
 const ProvaLookPage = lazyWithRetry(() => import('@/pages/ProvaLookPage'))
+const Album3dProvaPage = lazyWithRetry(() => import('@/pages/dev/Album3dProvaPage'))
 const ProvaLookClientPage = lazyWithRetry(() => import('@/pages/public/ProvaLookClientPage'))
 const IncassiSettingsPage = lazyWithRetry(() => import('@/pages/IncassiSettingsPage'))
 const BillingPage = lazyWithRetry(() => import('@/pages/BillingPage'))
@@ -194,6 +195,7 @@ export default function App() {
           />
           <Route path="/food-cost" element={<FrozenGate><RequireAuth roles={['LOCATION', 'ADMIN']}><FoodCostPage /></RequireAuth></FrozenGate>} />
           <Route path="/prova" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><ProvaLookPage /></RequireAuth>} />
+          <Route path="/dev/album-3d" element={<RequireAuth roles={['FORNITORE', 'ADMIN']}><Album3dProvaPage /></RequireAuth>} />
           <Route path="/prove-menu" element={<FrozenGate><RequireAuth roles={['LOCATION', 'WEDDING_PLANNER', 'ADMIN']}><TastingSessionsPage /></RequireAuth></FrozenGate>} />
           <Route path="/magazzino" element={<FrozenGate><RequireAuth roles={['LOCATION', 'ADMIN']}><MagazzinoPage /></RequireAuth></FrozenGate>} />
           <Route path="/ragioniere" element={<FrozenGate><RequireAuth roles={['LOCATION', 'ADMIN']}><RagionierePage /></RequireAuth></FrozenGate>} />
