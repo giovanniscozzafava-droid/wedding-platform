@@ -234,25 +234,32 @@ export default function AlbumCatalogPicker() {
   const backColorOpts = useMemo(() => colorOptionsFor(comp.backMaterial), [comp.backMaterial])
   const boxColorOpts = useMemo(() => colorOptionsFor(comp.boxMaterial), [comp.boxMaterial])
   const [boxDiff, setBoxDiff] = useState(false)            // rivestimento del box diverso dalla copertina
-  // IL MODELLO PARTE COM'È SUL CATALOGO: materiale e colore di default della famiglia (Pelle di legno in legno,
-  // Ghost fronte Cristalplex e dorso colorato, Graphic nero, Amelie celeste…); finché la coppia non tocca il
-  // materiale, cambiare modello ri-applica il default del nuovo modello
-  const autoMat = useRef(true)
+  // COPERTINA CON LA FOTO A TUTTA PAGINA: non c'è spazio di stampa per un logo. Se la coppia ne
+  // sceglie uno, un avviso lo spiega e propone di metterlo sulla box.
+  const fotoPiena = LAYOUT_SPEC[modelLayoutKey].photos.some((p) => p.w >= 0.9 && p.h >= 0.9)
+  const [logoBloccato, setLogoBloccato] = useState(false)
+  useEffect(() => { setLogoBloccato(false) }, [modelLayoutKey])
+  // IL MODELLO PARTE COM'È SUL CATALOGO, OGNI VOLTA. Cliccando un modello, materiali, colori (piatto e
+  // dorso) e personalizzazione diventano quelli con cui quel modello è fotografato sulla tavola:
+  // anche se la coppia aveva cambiato materiale o logo su un modello precedente, il nuovo modello
+  // riparte dalla sua ricetta, senza sovrapposizioni. Restano invece i nomi e la data scritti dalla
+  // coppia: il nuovo logo li importa. Da lì, ogni voce si cambia a piacere.
   useEffect(() => {
-    const d = familyDefaults(comp.model?.label)
-    if (!d || !(autoMat.current || !comp.material)) return
-    autoMat.current = true
-    setComp((c) => ({ ...c, material: d.material, color: d.color, backMaterial: d.backMaterial, backColor: d.backColor }))
-    setBackDiff(!!d.backMaterial)
-  }, [comp.model?.key]) // eslint-disable-line react-hooks/exhaustive-deps
-  // IL LOGO CHE IL MODELLO PORTA GIÀ (iniziali sui monogramma, targhetta d'ottone su chi ha la placca,
-  // Swarovski sui modelli Swarovski): si accende scegliendo il modello, e resta cambiabile. Gli altri
-  // modelli restano senza logo: non deve uscirne uno da solo.
-  const autoLogo = useRef(true)
-  useEffect(() => {
-    if (!comp.model?.label || !autoLogo.current) return
+    if (!comp.model?.label) return
+    const d = familyDefaults(comp.model.label)
     const l = familyLogo(comp.model.label)
-    setComp((c) => ({ ...c, logo: l ?? 'nessuno', logoColor: l && logoNeedsColor(l) ? c.logoColor : undefined }))
+    // sulle copertine con la foto a tutta pagina non c'è spazio di stampa: niente logo di partenza
+    const pieno = LAYOUT_SPEC[modelLayoutKey].photos.some((p) => p.w >= 0.9 && p.h >= 0.9)
+    setComp((c) => ({
+      ...c,
+      material: d?.material ?? c.material, color: d?.color ?? c.color,
+      backMaterial: d?.backMaterial, backColor: d?.backColor,
+      boxMaterial: undefined, boxColor: undefined,
+      logo: pieno ? 'nessuno' : (l ?? 'nessuno'), logoColor: undefined,
+      logoPlace: undefined, textPlace: undefined, photoFrames: undefined, photoCrops: undefined,
+    }))
+    setBackDiff(!!d?.backMaterial)
+    setBoxDiff(false)
   }, [comp.model?.key]) // eslint-disable-line react-hooks/exhaustive-deps
   // COMPONENTI del listino (copertina + accessori) — 'inclusa' vale 0
   const coverPick = listino.covers.find((c) => c.id === selCover)
@@ -292,6 +299,7 @@ export default function AlbumCatalogPicker() {
     // personalizzazione nomi/loghi
     const logoAmt = logoAmount(comp.logo)
     if (logoAmt > 0) lines.push({ label: optLabel(LOGO_OPTIONS, comp.logo) ?? 'Personalizzazione', amount: mk(logoAmt) })
+    if (comp.logoOnBox) { const a = logoAmount(comp.logoOnBox); lines.push({ label: `Logo sulla box · ${optLabel(LOGO_OPTIONS, comp.logoOnBox) ?? comp.logoOnBox}`, amount: mk(a), hint: a ? undefined : 'incluso' }) }
     // foto in copertina: dal listino accessori del fotografo (se c'è), altrimenti da confermare
     // (ogni foto segna il suo costo: i modelli a tre finestre ne contano tre)
     if (wantPhoto && chosenPhotos.length) {
@@ -366,7 +374,7 @@ export default function AlbumCatalogPicker() {
       photo_urls: wantPhoto ? chosenPhotos.map((p) => p.url) : [],
       backFabric: comp.backMaterial, backColorKey: comp.backColor,
       backColor: comp.backMaterial ? paletteFor(comp.backMaterial).find((c) => c.key === comp.backColor)?.hex : undefined,
-      boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor, boxHinge: comp.boxHinge ?? 'cerniera',
+      boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor, boxHinge: comp.boxHinge ?? 'cerniera', boxLogoKey: comp.logoOnBox,
       boxColor: comp.boxMaterial ? paletteFor(comp.boxMaterial).find((c) => c.key === comp.boxColor)?.hex : undefined,
       photoCrops: comp.photoCrops, photoFrames: comp.photoFrames, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
       title: coverNames,
@@ -391,6 +399,7 @@ export default function AlbumCatalogPicker() {
       { label: 'Nomi e loghi', value: comp.logo && comp.logo !== 'nessuno' ? optLabel(LOGO_OPTIONS, comp.logo) : 'Nessuna', img: logo?.img, fit: 'contain' },
     ]
     if (logoNeedsColor(comp.logo)) rows.push({ label: 'Tonalità', value: optLabel(LOGO_COLOR_TILES, comp.logoColor), img: swatchUrl(comp.logoColor), missing: true })
+    if (comp.logoOnBox) rows.push({ label: 'Logo sulla box', value: optLabel(LOGO_OPTIONS, comp.logoOnBox) ?? comp.logoOnBox, img: LOGO_TILES.find((o) => o.key === comp.logoOnBox)?.img, fit: 'contain' })
     // l'impaginazione della copertina fatta dalla coppia (editor): dove stanno nomi/logo e se le foto sono state ritagliate
     const cropped = Object.values(comp.photoCrops ?? {}).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01)
     const nFrames = Object.keys(comp.photoFrames ?? {}).length
@@ -414,7 +423,7 @@ export default function AlbumCatalogPicker() {
   }, [comp, selected, colorOpts, backColorOpts, backDiff, specs.box, wantPhoto, coverNames, coverDate])
   // RIMANENZA ALLA CONSEGNA = residuo preventivo (totale − pagato) + differenza album
   const rimanenza = residuo + pricing.total
-  const STEPS = ['Modello', 'Materiale e colore', 'Nomi e loghi', 'Box e finitura', 'Copertina', 'La scheda', 'Firma']
+  const STEPS = ['Modello', 'Materiale e colore', 'Nomi e loghi', 'Foto e box', 'Copertina', 'La scheda', 'Firma']
   // IL BLOCCO NOMI/LOGO per l'editor della copertina: il logo ricomposto coi nomi veri (o il ritaglio del
   // catalogo tinto), come immagine; senza logo restano i nomi
   const [logoImg, setLogoImg] = useState<{ url: string; aspect: number } | null>(null)
@@ -785,7 +794,7 @@ export default function AlbumCatalogPicker() {
             <Chapter n="II" title="Materiale e colore" hint="Le campionature sono quelle stampate sul catalogo, pag. 115–127.">
               <Voice label="Materiale" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page ?? 115} onSee={goToPage}>
                 <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
-                  value={comp.material} onChange={(k) => { autoMat.current = false; setComp((c) => ({ ...c, material: k, color: undefined })) }} />
+                  value={comp.material} onChange={(k) => setComp((c) => ({ ...c, material: k, color: undefined }))} />
               </Voice>
               <Voice label="Colore" page={MATERIAL_OPTIONS.find((o) => o.key === comp.material)?.page} onSee={goToPage}>
                 <SwatchPicker shape="wide" cols={3} options={colorOpts} value={comp.color} disabled={!comp.material} emptyText="Prima scegli il materiale."
@@ -814,8 +823,27 @@ export default function AlbumCatalogPicker() {
             <Chapter n="III" title="Nomi e loghi" hint="I loghi del catalogo (pag. 34–37) e la tonalità con cui stamparli.">
               <Voice label="Personalizzazione" page={LOGO_OPTIONS.find((o) => o.key === comp.logo)?.page ?? 34} onSee={goToPage}>
                 <SwatchPicker shape="square" cols={4} fit="contain" options={LOGO_TILES} value={comp.logo ?? 'nessuno'} maxH="24rem"
-                  onChange={(k) => { const v = k ?? 'nessuno'; autoLogo.current = false; setComp((c) => ({ ...c, logo: v, logoColor: logoNeedsColor(v) ? c.logoColor : undefined })) }} />
+                  onChange={(k) => { const v = k ?? 'nessuno'; if (v !== 'nessuno' && fotoPiena) { setLogoBloccato(true); return } setComp((c) => ({ ...c, logo: v, logoColor: logoNeedsColor(v) ? c.logoColor : undefined })) }} />
               </Voice>
+              {fotoPiena && (
+                <div role="alert" className="mt-2 rounded-xl border border-[rgb(var(--gold-500))]/50 bg-[rgb(var(--gold-50))] px-4 py-3 text-[13px]">
+                  <p className="font-medium">Su questa copertina la foto occupa tutto il piatto: non c'è spazio di stampa per il logo.</p>
+                  <p className="text-[rgb(var(--fg-muted))] mt-1">{logoBloccato ? 'Il logo che hai toccato non si può mettere in copertina. ' : ''}Puoi metterlo sulla box, che lo porta sul coperchio.</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {LOGO_TILES.filter((t) => t.key !== 'nessuno').slice(0, 1).length > 0 && (
+                      <button type="button" onClick={() => setComp((c) => ({ ...c, logoOnBox: c.logoOnBox ?? 'cod.03', box: c.box && c.box !== 'nessuno' ? c.box : 'wood-clak' }))}
+                        className="rounded-full bg-[rgb(var(--gold-600))] px-3 py-1 text-[12px] text-white">Metti il logo sulla box</button>
+                    )}
+                    {comp.logoOnBox && <button type="button" onClick={() => setComp((c) => ({ ...c, logoOnBox: undefined }))} className="rounded-full border border-[rgb(var(--border))] px-3 py-1 text-[12px] text-[rgb(var(--fg-muted))]">Niente logo sulla box</button>}
+                  </div>
+                </div>
+              )}
+              {fotoPiena && comp.logoOnBox && (
+                <Voice label="Il logo sulla box" page={34} onSee={goToPage}>
+                  <SwatchPicker shape="square" cols={4} fit="contain" options={LOGO_TILES.filter((t) => t.key !== 'nessuno')} value={comp.logoOnBox} maxH="18rem"
+                    onChange={(k) => setComp((c) => ({ ...c, logoOnBox: k ?? undefined }))} />
+                </Voice>
+              )}
               {logoNeedsColor(comp.logo) && (
                 <Voice label="Tonalità del logo" page={37} onSee={goToPage}>
                   <SwatchPicker shape="chip" cols={6} options={LOGO_COLOR_TILES} value={comp.logoColor} onChange={(k) => setComp((c) => ({ ...c, logoColor: k }))} />
@@ -867,39 +895,9 @@ export default function AlbumCatalogPicker() {
             )}
 
             {step === 3 && (
-            <Chapter n="IV" title="Box e finitura" hint="Il blocco interno è digitale (lo decide il fotografo dall'impaginatore, non si sceglie qui).">
-              {/* il blocco interno NON si sceglie qui: di default digitale; il fotografo può opzionarlo dall'impaginatore */}
-              <Voice label="Box / contenitore" page={97} onSee={goToPage}>
-                <PillChoice options={BOX_OPTIONS} value={comp.box ?? specs.box ?? 'nessuno'} onChange={(k) => setComp((c) => ({ ...c, box: k }))} />
-                {(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' && <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Lo vedi nel 3D qui sopra, attorno all'album, con la sua forma e il suo rivestimento.</p>}
-              </Voice>
-              {(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' && (
-                <>
-                  <Voice label="Rivestimento del box">
-                    <PillChoice options={[{ key: 'uguale', label: 'Come la copertina' }, { key: 'diverso', label: 'Un altro materiale o colore' }]} value={boxDiff ? 'diverso' : 'uguale'}
-                      onChange={(k) => { const d = k === 'diverso'; setBoxDiff(d); if (!d) setComp((c) => ({ ...c, boxMaterial: undefined, boxColor: undefined })) }} />
-                  </Voice>
-                  {boxDiff && (
-                    <>
-                      <Voice label="Materiale del box" page={MATERIAL_OPTIONS.find((o) => o.key === comp.boxMaterial)?.page ?? 115} onSee={goToPage}>
-                        <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
-                          value={comp.boxMaterial} onChange={(k) => setComp((c) => ({ ...c, boxMaterial: k, boxColor: undefined }))} />
-                      </Voice>
-                      <Voice label="Colore del box">
-                        <SwatchPicker shape="wide" cols={3} options={boxColorOpts} value={comp.boxColor} disabled={!comp.boxMaterial} emptyText="Prima scegli il materiale del box."
-                          onChange={(k) => setComp((c) => ({ ...c, boxColor: k }))} maxH="22rem" />
-                      </Voice>
-                    </>
-                  )}
-                  <Voice label="Apertura della box">
-                    <PillChoice options={BOX_HINGE_OPTIONS} value={comp.boxHinge ?? 'cerniera'} onChange={(k) => setComp((c) => ({ ...c, boxHinge: k }))} />
-                  </Voice>
-                  <Voice label="Finitura della box">
-                    <PillChoice options={BOX_FINISH_OPTIONS} value={comp.boxFinish ?? 'naturale'} onChange={(k) => setComp((c) => ({ ...c, boxFinish: k }))} />
-                    <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Naturale è come sul catalogo. Le laccature e la satinatura si ordinano a parte: il prezzo lo conferma il tuo fotografo.</p>
-                  </Voice>
-                </>
-              )}
+            <Chapter n="IV" title="Foto e box" hint="Prima la foto in copertina, poi il contenitore. Il blocco interno è digitale (lo decide il fotografo dall'impaginatore).">
+              {/* PRIMA LA FOTO (è la copertina), POI LA BOX. Il blocco interno non si sceglie qui:
+                  di default digitale; il fotografo può opzionarlo dall'impaginatore */}
               <Voice label={photoWindows > 1 ? `Foto in copertina · ${photoWindows} finestre` : 'Foto in copertina'}>
                 <PillChoice options={[{ key: 'no', label: 'No' }, { key: 'si', label: photoWindows > 1 ? `Sì, le scelgo dalla galleria (${photoWindows})` : 'Sì, la scelgo dalla galleria' }]} value={wantPhoto ? 'si' : 'no'}
                   onChange={(k) => { const v = k === 'si'; setWantPhoto(v); if (!v) setComp((c) => ({ ...c, coverPhoto: null, coverPhotos: [] })) }} />
@@ -930,6 +928,39 @@ export default function AlbumCatalogPicker() {
                 <CoverPhotoPicker photos={candidates} value={comp.coverPhoto?.mediaId} values={chosenPhotos.map((p) => p.mediaId)} max={photoWindows} loading={photosLoading} onClose={() => setPhotoSheet(false)}
                   onPick={(c) => setComp((x) => ({ ...x, coverPhoto: { mediaId: c.id, url: c.thumb, label: c.label }, coverPhotos: [{ mediaId: c.id, url: c.thumb, label: c.label }] }))}
                   onPickMany={(cs) => setComp((x) => { const ps = cs.map((c) => ({ mediaId: c.id, url: c.thumb, label: c.label })); return { ...x, coverPhoto: ps[0] ?? null, coverPhotos: ps } })} />
+              )}
+
+              <div className="border-t border-[rgb(var(--border))] my-2" />
+              <Voice label="Box / contenitore" page={97} onSee={goToPage}>
+                <PillChoice options={BOX_OPTIONS} value={comp.box ?? specs.box ?? 'nessuno'} onChange={(k) => setComp((c) => ({ ...c, box: k }))} />
+                {(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' && <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Lo vedi nel 3D qui sopra, attorno all'album, con la sua forma e il suo rivestimento.</p>}
+              </Voice>
+              {(comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno' && (
+                <>
+                  <Voice label="Rivestimento del box">
+                    <PillChoice options={[{ key: 'uguale', label: 'Come la copertina' }, { key: 'diverso', label: 'Un altro materiale o colore' }]} value={boxDiff ? 'diverso' : 'uguale'}
+                      onChange={(k) => { const d = k === 'diverso'; setBoxDiff(d); if (!d) setComp((c) => ({ ...c, boxMaterial: undefined, boxColor: undefined })) }} />
+                  </Voice>
+                  {boxDiff && (
+                    <>
+                      <Voice label="Materiale del box" page={MATERIAL_OPTIONS.find((o) => o.key === comp.boxMaterial)?.page ?? 115} onSee={goToPage}>
+                        <SwatchPicker shape="wide" cols={3} options={MATERIAL_OPTIONS.map((o) => ({ key: o.key, label: o.label, img: o.img, hint: o.page ? `pag. ${o.page}` : undefined }))}
+                          value={comp.boxMaterial} onChange={(k) => setComp((c) => ({ ...c, boxMaterial: k, boxColor: undefined }))} />
+                      </Voice>
+                      <Voice label="Colore del box">
+                        <SwatchPicker shape="wide" cols={3} options={boxColorOpts} value={comp.boxColor} disabled={!comp.boxMaterial} emptyText="Prima scegli il materiale del box."
+                          onChange={(k) => setComp((c) => ({ ...c, boxColor: k }))} maxH="22rem" />
+                      </Voice>
+                    </>
+                  )}
+                  <Voice label="Apertura della box">
+                    <PillChoice options={BOX_HINGE_OPTIONS} value={comp.boxHinge ?? 'cerniera'} onChange={(k) => setComp((c) => ({ ...c, boxHinge: k }))} />
+                  </Voice>
+                  <Voice label="Finitura della box">
+                    <PillChoice options={BOX_FINISH_OPTIONS} value={comp.boxFinish ?? 'naturale'} onChange={(k) => setComp((c) => ({ ...c, boxFinish: k }))} />
+                    <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Naturale è come sul catalogo. Le laccature e la satinatura si ordinano a parte: il prezzo lo conferma il tuo fotografo.</p>
+                  </Voice>
+                </>
               )}
             </Chapter>
             )}

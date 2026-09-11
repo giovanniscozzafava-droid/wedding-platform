@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader2, Check, MapPin } from '@/components/icons/lucide'
 import { loadPdf, renderPdfPageDataUrl, pdfPageAspect, type PdfDoc } from '@/lib/pdf'
+
+const LENS = 220   // diametro della lente (px)
+const ZOOM = 3     // ingrandimento
 import type { Hotspot } from '@/hooks/useAlbumCatalog'
 import type { AlbumPin } from './PinThreadPanel'
 import { RotateScreenGate } from '@/components/ui/RotateScreenGate'
@@ -16,6 +19,7 @@ export function PdfFlipbook({
   const [page, setPage] = useState(initialPage ?? 1)
   // Deep-link: salta alla pagina della puntina arrivata dalla notifica (?pin=).
   useEffect(() => { if (initialPage && initialPage >= 1) setPage(initialPage) }, [initialPage])
+  const [lens, setLens] = useState<{ x: number; y: number; w: number; h: number } | null>(null)   // la lente d'ingrandimento sulla tavola
   const [imgs, setImgs] = useState<Record<number, string>>({})
   const [err, setErr] = useState<string | null>(null)
   const [wide, setWide] = useState(false)
@@ -64,6 +68,17 @@ export function PdfFlipbook({
         <RotateScreenGate inline when={wide} title="Gira il telefono" subtitle="Le tavole sono orizzontali: in orizzontale si sfogliano meglio." />
         {imgs[page] ? (
           <div className="relative cursor-crosshair"
+            onPointerMove={(e) => {
+              // LA LENTE: le didascalie della tavola sono minuscole; passando il mouse (o il dito)
+              // si apre un ingrandimento 3× di quel punto, così le specifiche si leggono
+              if (e.pointerType === 'mouse' || e.pointerType === 'pen' || e.pointerType === 'touch') {
+                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+                const x = (e.clientX - rect.left) / rect.width, y = (e.clientY - rect.top) / rect.height
+                if (x < 0 || x > 1 || y < 0 || y > 1) { setLens(null); return }
+                setLens({ x, y, w: rect.width, h: rect.height })
+              }
+            }}
+            onPointerLeave={() => setLens(null)}
             onClick={(e) => {
               if (!onDropPin) return
               const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
@@ -73,6 +88,13 @@ export function PdfFlipbook({
               onDropPin(page, x, y)
             }}>
             <img src={imgs[page]} alt={`Pagina ${page}`} className="block w-full h-auto" draggable={false} />
+            {lens && (
+              <div className="pointer-events-none absolute z-20 overflow-hidden rounded-full border-2 border-[rgb(var(--gold-500))] shadow-[0_10px_30px_rgba(0,0,0,.35)] bg-white"
+                style={{ width: LENS, height: LENS, left: Math.min(Math.max(lens.x * lens.w - LENS / 2, 0), lens.w - LENS), top: lens.y * lens.h - LENS - 18 < 0 ? lens.y * lens.h + 18 : lens.y * lens.h - LENS - 18 }}>
+                <img src={imgs[page]} alt="" draggable={false} className="absolute max-w-none"
+                  style={{ width: lens.w * ZOOM, height: lens.h * ZOOM, left: -(lens.x * lens.w * ZOOM) + LENS / 2, top: -(lens.y * lens.h * ZOOM) + LENS / 2 }} />
+              </div>
+            )}
             {pageHotspots.map((h) => {
               const on = selected?.id && h.id === selected.id
               return (

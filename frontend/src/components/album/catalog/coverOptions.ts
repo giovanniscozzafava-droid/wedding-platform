@@ -221,6 +221,8 @@ export type CoverComposition = {
   boxFinish?: string
   /** con cerniere (si apre di lato) o col coperchio sfilabile */
   boxHinge?: string
+  /** il logo stampato sul coperchio della box (per le copertine con la foto a tutta pagina) */
+  logoOnBox?: string
   /** impaginazione della copertina scelta dalla coppia: ritaglio di ogni foto (per finestra) e posizione/misura del blocco nomi-logo */
   photoCrops?: Record<number, PhotoCrop>
   /** il riquadro di ogni foto, quando la coppia sceglie una posizione diversa da quella del modello */
@@ -339,6 +341,7 @@ export function compositionLines(c: CoverComposition): string[] {
     c.box ? `Box: ${optLabel(BOX_OPTIONS, c.box) ?? c.box}${c.box !== 'nessuno' ? (bxmat ? ` · rivestimento ${bxmat.label}${bxcol ? ` ${bxcol.label}` : ''}` : ' · rivestimento come la copertina') : ''}` : null,
     c.boxFinish && c.boxFinish !== 'naturale' ? `Finitura della box: ${optLabel(BOX_FINISH_OPTIONS, c.boxFinish) ?? c.boxFinish}` : null,
     c.box && c.box !== 'nessuno' ? `Apertura della box: ${optLabel(BOX_HINGE_OPTIONS, c.boxHinge ?? 'cerniera')}` : null,
+    c.logoOnBox ? `Logo sulla box: ${optLabel(LOGO_OPTIONS, c.logoOnBox) ?? c.logoOnBox}` : null,
     c.logoPlace ? `Nomi/logo posizionati dalla coppia: centro x ${Math.round(c.logoPlace.x * 100)}%, dall'alto ${Math.round(c.logoPlace.y * 100)}%, larghezza ${Math.round(c.logoPlace.w * 100)}% della copertina` : null,
     c.photoCrops && Object.values(c.photoCrops).some((k) => k.zoom > 1.01 || Math.abs(k.ox) > 0.01 || Math.abs(k.oy) > 0.01) ? `Ritaglio foto scelto dalla coppia (${Object.keys(c.photoCrops).length} finestre): vedi PSD` : null,
     c.coverPhotos && c.coverPhotos.length > 1

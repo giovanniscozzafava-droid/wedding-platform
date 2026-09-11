@@ -19,7 +19,20 @@ const box = (w: number, h: number, d: number, m: THREE.Material, x = 0, y = 0, z
 
 /** Costruisce il box attorno a un album di larghezza w, profondità h (verso chi guarda) e spessore t (metri).
  *  L'album va appoggiato sul fondo del vano principale, centrato in (0, albumLift, 0). */
-export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxMats, hinged = true): BoxBuild {
+/** Il logo stampato sul coperchio: un piano sottile appoggiato sulla faccia esterna, con la texture
+ *  del logo (canvas trasparente). `w`/`d` sono le misure del coperchio. */
+function logoSulCoperchio(tex: THREE.Texture, w: number, d: number, lidT: number): THREE.Mesh {
+  const lw = Math.min(w, d) * 0.42
+  const img = tex.image as { width?: number; height?: number } | undefined
+  const ratio = img?.width && img?.height ? img.height / img.width : 0.4
+  const m = new THREE.MeshPhysicalMaterial({ map: tex, transparent: true, roughness: 0.55, metalness: 0.2, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(lw, lw * ratio), m)
+  p.rotation.x = -Math.PI / 2
+  p.position.set(0, lidT + 0.0006, 0)
+  return p
+}
+
+export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxMats, hinged = true, lidLogo?: THREE.Texture): BoxBuild {
   const g = new THREE.Group(); g.name = 'BoxScene'
   const wall = 0.012, floor = 0.008, gap = 0.006, lidT = 0.012
   const clear = t + 0.012                                   // altezza interna del vano
@@ -61,7 +74,12 @@ export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxM
       const lid = box(W, lidT, D, M.outer, W / 2, lidT / 2, 0)
       const lining = box(W - 2 * wall, 0.001, D - 2 * wall, M.inner, W / 2, -0.0005, 0)
       hinge.add(lid); hinge.add(lining)
+      if (lidLogo) { const l = logoSulCoperchio(lidLogo, W, D, lidT); l.position.x = W / 2; hinge.add(l) }
       hinge.rotation.z = Math.PI * (105 / 180)
+      hinge.name = 'BoxLid'
+      // la posa aperta e quella chiusa: il 3D le interpola quando il cliente tocca la box
+      hinge.userData.open = { rz: Math.PI * (105 / 180), x: hinge.position.x, y: hinge.position.y, z: hinge.position.z }
+      hinge.userData.closed = { rz: 0, x: hinge.position.x, y: hinge.position.y, z: hinge.position.z }
       g.add(hinge)
       for (const hz of [-D * 0.3, D * 0.3]) g.add(box(0.006, 0.006, 0.03, M.brass, ox - W / 2, H, hz))   // cerniere sul fianco
     } else {
@@ -69,6 +87,7 @@ export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxM
       // e appena inclinato, come quando lo si toglie per prendere l'album.
       const tappo = new THREE.Group()
       tappo.add(box(W, lidT, D, M.outer, 0, lidT / 2, 0))
+      if (lidLogo) tappo.add(logoSulCoperchio(lidLogo, W, D, lidT))
       tappo.add(box(W - 2 * wall, 0.001, D - 2 * wall, M.inner, 0, -0.0005, 0))
       // il bordo del tappo, che scende sulle pareti della base
       const bordo = wall * 0.9, hb = H * 0.34
@@ -78,6 +97,9 @@ export function buildBox(kind: BoxKind, w: number, h: number, t: number, M: BoxM
       }
       tappo.position.set(ox - W * 1.02, hb * 0.5, D * 0.06)
       tappo.rotation.set(0, 0.10, 0)
+      tappo.name = 'BoxLid'
+      tappo.userData.open = { rz: 0, ry: 0.10, x: ox - W * 1.02, y: hb * 0.5, z: D * 0.06 }
+      tappo.userData.closed = { rz: 0, ry: 0, x: ox, y: H, z: 0 }   // calzato sulla base
       g.add(tappo)
     }
     if (kind === 'valigetta') {

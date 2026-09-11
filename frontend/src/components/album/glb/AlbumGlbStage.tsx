@@ -13,9 +13,11 @@ import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDec
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
 import { buildBox, isBoxKind } from '@/components/album/glb/boxScene'
 import { MATERIAL_SWATCH, MATERIAL_RELIEF } from '@/components/album/glb/materialSwatch.generated'
+import { swatchUrl } from '@/components/album/catalog/swatches.generated'
+import { logoToInk, inkRgb } from '@/components/album/glb/layoutSpec'
 import { LAYOUT_SPEC, cropRect, frameOf, type PhotoCrop, type PhotoFrame, type LogoPlace, type TextPlace, type Rect } from '@/components/album/glb/layoutSpec'
 
-export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; boxHinge?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
+export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; boxHinge?: string; boxLogoKey?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
 
 export type GlbView = 'front' | 'three-quarter' | 'spine' | 'top'
 export type AlbumGlbStageHandle = { setView: (v: GlbView) => void; snapshot: () => string | null }
@@ -33,6 +35,18 @@ const VIEW: Record<GlbView, { az: number; el: number; dist: number }> = {
 const SWATCH_REPEAT: Record<string, number> = {
   alcantara: 4, sequoia: 4, acero: 4, pelle: 3.5, 'velu-arte': 4, 'soft-touch': 4, suade: 4,
   safir: 3.5, crazy: 3, juta: 4, metal: 3.5, skill: 3.5, wood: 2, cristalwhite: 2.5, cristalplex: 2.5,
+}
+
+// immagini del catalogo (loghi) per la box: cache, e al primo caricamento si ridisegna
+const imgCache = new Map<string, HTMLImageElement | null>()
+let onImgReady: (() => void) | null = null
+function cachedImage(url?: string | null): HTMLImageElement | null {
+  if (!url) return null
+  if (imgCache.has(url)) return imgCache.get(url) ?? null
+  const el = new Image(); el.crossOrigin = 'anonymous'; imgCache.set(url, null)
+  el.onload = () => { imgCache.set(url, el); onImgReady?.() }
+  el.src = url
+  return null
 }
 
 const texLoader = new THREE.TextureLoader()
@@ -141,6 +155,26 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
     controls.minPolarAngle = Math.PI * 0.12; controls.maxPolarAngle = Math.PI * 0.55; controls.enabled = interactive
 
     let tween: { from: THREE.Vector3; to: THREE.Vector3; t0: number } | null = null
+    // LA BOX SI APRE E SI CHIUDE AL TOCCO: un click sulla box (non un trascinamento) porta il
+    // coperchio dalla posa aperta a quella chiusa, e viceversa, con una molla morbida
+    let lidTarget = 1   // 1 = aperta, 0 = chiusa
+    let lidNow = 1
+    const ray = new THREE.Raycaster(); const ndc = new THREE.Vector2()
+    let downAt: { x: number; y: number; t: number } | null = null
+    const onDown = (e: PointerEvent) => { downAt = { x: e.clientX, y: e.clientY, t: performance.now() } }
+    const onUp = (e: PointerEvent) => {
+      if (!downAt) return
+      const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || performance.now() - downAt.t > 400
+      downAt = null
+      if (moved) return
+      const boxScene = scene.getObjectByName('BoxScene'); if (!boxScene) return
+      const r = renderer.domElement.getBoundingClientRect()
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1)
+      ray.setFromCamera(ndc, camera)
+      if (ray.intersectObject(boxScene, true).length) lidTarget = lidTarget === 1 ? 0 : 1
+    }
+    renderer.domElement.addEventListener('pointerdown', onDown)
+    renderer.domElement.addEventListener('pointerup', onUp)
     const camPos = (v: GlbView) => {
       const s = sceneRef.current?.size ?? 0.3
       const a = VIEW[v]; const d = s * 2.6 * a.dist
@@ -157,6 +191,21 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
 
     let raf = 0
     const loop = () => {
+      // il coperchio: interpolazione morbida tra aperto e chiuso
+      {
+        // si applica sempre: se la box viene ricostruita (cambio materiale) il coperchio riparte
+        // dalla posa in cui l'aveva lasciata il cliente
+        if (Math.abs(lidNow - lidTarget) > 0.001) lidNow += (lidTarget - lidNow) * 0.12
+        const lid = scene.getObjectByName('BoxLid')
+        const o = lid?.userData.open as { rz: number; ry?: number; x: number; y: number; z: number } | undefined
+        const c = lid?.userData.closed as { rz: number; ry?: number; x: number; y: number; z: number } | undefined
+        if (lid && o && c) {
+          const k = lidNow
+          lid.rotation.z = c.rz + (o.rz - c.rz) * k
+          lid.rotation.y = (c.ry ?? 0) + ((o.ry ?? 0) - (c.ry ?? 0)) * k
+          lid.position.set(c.x + (o.x - c.x) * k, c.y + (o.y - c.y) * k, c.z + (o.z - c.z) * k)
+        }
+      }
       if (tween) {
         const t = Math.min(1, (performance.now() - tween.t0) / 650); const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
         camera.position.lerpVectors(tween.from, tween.to, e); camera.lookAt(0, 0, 0)
@@ -171,6 +220,7 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
     })
     ro.observe(mount)
     return () => {
+      renderer.domElement.removeEventListener('pointerdown', onDown); renderer.domElement.removeEventListener('pointerup', onUp)
       cancelAnimationFrame(raf); ro.disconnect(); controls.dispose(); pmrem.dispose(); renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
       sceneRef.current = null
@@ -208,13 +258,14 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
   // la misura cambia (arriva l'impaginato, o la coppia sceglie un'altra misura dello stesso formato): si riscala l'album
   useEffect(() => { const s = sceneRef.current; if (s?.album) { fitToSize(s, s.album, cover.sizeKey); applyBox(s, cover); setViewRef.current(view, false) } }, [cover.sizeKey]) // eslint-disable-line react-hooks/exhaustive-deps
   // il box contenitore (quale, e di che rivestimento) si ricostruisce attorno all'album
-  useEffect(() => { const s = sceneRef.current; if (s?.album) { applyBox(s, cover); setViewRef.current(view, false) } }, [cover.box, cover.boxHinge, cover.boxFabric, cover.boxColorKey, cover.boxColor, cover.fabric, cover.colorKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const s = sceneRef.current; if (s?.album) { applyBox(s, cover); setViewRef.current(view, false) } }, [cover.box, cover.boxHinge, cover.boxLogoKey, cover.boxFabric, cover.boxColorKey, cover.boxColor, cover.fabric, cover.colorKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- materiali: ad ogni scelta ----
   useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
     [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.photo_urls?.join('|'), cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey, JSON.stringify(cover.photoCrops ?? null), JSON.stringify(cover.photoFrames ?? null), JSON.stringify(cover.logoPlace ?? null), cover.dateText, JSON.stringify(cover.textPlace ?? null)]) // eslint-disable-line react-hooks/exhaustive-deps
   // le immagini del decal (logo del catalogo) arrivano dopo: ridisegno
   useEffect(() => { onDecalImagesReady(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, coverRef.current) }) }, [])
+  useEffect(() => { onImgReady = () => { const s = sceneRef.current; if (s?.album) { applyBox(s, coverRef.current); setViewRef.current(view, false) } }; return () => { onImgReady = null } }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (failed) return <div className="grid place-items-center h-full text-sm text-[rgb(var(--fg-subtle))] p-6 text-center">Anteprima 3D non disponibile su questo dispositivo.</div>
   return <div ref={mountRef} style={{ width: '100%', height: '100%', minHeight: Math.round(width * 0.75), cursor: interactive ? 'grab' : 'default', touchAction: 'none' }} className="select-none" />
@@ -253,7 +304,14 @@ function applyBox(st: { scene: THREE.Scene; album: THREE.Group | null; size: num
   const glass = new THREE.MeshPhysicalMaterial({ color: 0xf4f8fb, metalness: 0, roughness: 0.05, transparent: true, opacity: 0.32, envMapIntensity: 1.4, clearcoat: 1, clearcoatRoughness: 0.05, depthWrite: false })
   const brass = new THREE.MeshPhysicalMaterial({ color: 0xd9b46a, metalness: 1, roughness: 0.25, envMapIntensity: 1.3 })
   const albumMat = surfaceMaterial(cover.fabric, cover.color ?? undefined, cover.fabric === 'wood', undefined, cover.colorKey)
-  const b = buildBox(cover.box, sz.x, sz.z, sz.y, { outer, inner, glass, brass, album: albumMat }, cover.boxHinge !== 'sfilabile')
+  // il logo sul coperchio (copertine con la foto a tutta pagina): il ritaglio del catalogo tinto
+  // nell'inchiostro, come sulla copertina, ma appoggiato sulla box
+  let lidLogo: THREE.Texture | undefined
+  if (cover.boxLogoKey) {
+    const im = cachedImage(swatchUrl(cover.boxLogoKey))
+    if (im) { const c = logoToInk(im, 1024, Math.round(1024 * im.naturalHeight / im.naturalWidth), inkRgb('ink')); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; lidLogo = t }
+  }
+  const b = buildBox(cover.box, sz.x, sz.z, sz.y, { outer, inner, glass, brass, album: albumMat }, cover.boxHinge !== 'sfilabile', lidLogo)
   st.scene.add(b.group)
   album.position.y += b.albumLift
   st.size = b.footprint
