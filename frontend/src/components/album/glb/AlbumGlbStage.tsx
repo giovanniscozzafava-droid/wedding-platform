@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { modelLayout, paletteFor, sizeByKey, type Cover } from '@/components/album/albumCatalog'
+import { MINI_SCALE, modelLayout, paletteFor, sizeByKey, type Cover } from '@/components/album/albumCatalog'
 import { PBR, type PbrSet } from '@/components/album/glb/pbr.generated'
 import { drawDecal, decorFor, decorImages, plateAlphaCanvas, PLATE_MARGIN, onDecalImagesReady, decorMap, decorBBox, type DecalInk } from '@/components/album/glb/decal'
 import { corsImageUrl } from '@/components/album/glb/imageUrl'
@@ -17,7 +17,7 @@ import { swatchUrl } from '@/components/album/catalog/swatches.generated'
 import { logoToInk, inkRgb } from '@/components/album/glb/layoutSpec'
 import { LAYOUT_SPEC, cropRect, frameOf, type PhotoCrop, type PhotoFrame, type LogoPlace, type TextPlace, type Rect } from '@/components/album/glb/layoutSpec'
 
-export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; boxHinge?: string; boxLogoKey?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace }
+export type GlbCover = Cover & { logoKey?: string; ink?: DecalInk; eventDate?: string | null; backFabric?: string; backColorKey?: string; backColor?: string; boxFabric?: string; boxColorKey?: string; boxColor?: string; boxHinge?: string; boxLogoKey?: string; photoCrops?: Record<number, PhotoCrop>; photoFrames?: Record<number, PhotoFrame>; logoPlace?: LogoPlace; dateText?: string | null; textPlace?: TextPlace; set?: { genitori: number; testimoni: number } }
 
 export type GlbView = 'front' | 'three-quarter' | 'spine' | 'top'
 export type AlbumGlbStageHandle = { setView: (v: GlbView) => void; snapshot: () => string | null }
@@ -258,21 +258,22 @@ export const AlbumGlbStage = forwardRef<AlbumGlbStageHandle, {
       fitToSize(st, obj, coverRef.current.sizeKey)
       applyMaterials(obj, coverRef.current)
       applyBox(st, coverRef.current)
+      applySet(st, coverRef.current)
       setViewRef.current(view, false)
     }, undefined, () => setFailed(true))
     return () => { cancelled = true }
   }, [glbUrl]) // eslint-disable-line react-hooks/exhaustive-deps
   // la misura cambia (arriva l'impaginato, o la coppia sceglie un'altra misura dello stesso formato): si riscala l'album
-  useEffect(() => { const s = sceneRef.current; if (s?.album) { fitToSize(s, s.album, cover.sizeKey); applyBox(s, cover); setViewRef.current(view, false) } }, [cover.sizeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const s = sceneRef.current; if (s?.album) { fitToSize(s, s.album, cover.sizeKey); applyBox(s, cover); applySet(s, cover); setViewRef.current(view, false) } }, [cover.sizeKey]) // eslint-disable-line react-hooks/exhaustive-deps
   // il box contenitore (quale, e di che rivestimento) si ricostruisce attorno all'album
-  useEffect(() => { const s = sceneRef.current; if (s?.album) { applyBox(s, cover); setViewRef.current(view, false) } }, [cover.box, cover.boxHinge, cover.boxLogoKey, cover.boxFabric, cover.boxColorKey, cover.boxColor, cover.fabric, cover.colorKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const s = sceneRef.current; if (s?.album) { applyBox(s, cover); applySet(s, cover); setViewRef.current(view, false) } }, [cover.box, cover.boxHinge, cover.boxLogoKey, cover.boxFabric, cover.boxColorKey, cover.boxColor, cover.fabric, cover.colorKey, cover.set?.genitori, cover.set?.testimoni]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- materiali: ad ogni scelta ----
-  useEffect(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, cover) },
+  useEffect(() => { const s = sceneRef.current; if (s?.album) { applyMaterials(s.album, cover); applySet(s, cover) } },
     [cover.fabric, cover.color, cover.colorKey, cover.model, cover.title, cover.photo_url, cover.photo_urls?.join('|'), cover.finishes?.join(','), cover.box, cover.logoKey, cover.ink, cover.eventDate, cover.backFabric, cover.backColorKey, JSON.stringify(cover.photoCrops ?? null), JSON.stringify(cover.photoFrames ?? null), JSON.stringify(cover.logoPlace ?? null), cover.dateText, JSON.stringify(cover.textPlace ?? null)]) // eslint-disable-line react-hooks/exhaustive-deps
   // le immagini del decal (logo del catalogo) arrivano dopo: ridisegno
-  useEffect(() => { onDecalImagesReady(() => { const s = sceneRef.current; if (s?.album) applyMaterials(s.album, coverRef.current) }) }, [])
-  useEffect(() => { onImgReady = () => { const s = sceneRef.current; if (s?.album) { applyBox(s, coverRef.current); setViewRef.current(view, false) } }; return () => { onImgReady = null } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onDecalImagesReady(() => { const s = sceneRef.current; if (s?.album) { applyMaterials(s.album, coverRef.current); applySet(s, coverRef.current) } }) }, [])
+  useEffect(() => { onImgReady = () => { const s = sceneRef.current; if (s?.album) { applyBox(s, coverRef.current); applySet(s, coverRef.current); setViewRef.current(view, false) } }; return () => { onImgReady = null } }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (failed) return <div className="grid place-items-center h-full text-sm text-[rgb(var(--fg-subtle))] p-6 text-center">Anteprima 3D non disponibile su questo dispositivo.</div>
   return <div ref={mountRef} style={{ width: '100%', height: '100%', minHeight: Math.round(width * 0.75), cursor: interactive ? 'grab' : 'default', touchAction: 'none' }} className="select-none" />
@@ -322,6 +323,47 @@ function applyBox(st: { scene: THREE.Scene; album: THREE.Group | null; size: num
   st.scene.add(b.group)
   album.position.y += b.albumLift
   st.size = b.footprint
+}
+
+/** IL SET attorno all'album: gli album dei genitori (2 o 3 mini, stessa copertina in formato ridotto) davanti
+ *  a sinistra, le copie identiche per i testimoni impilate dietro a destra. Sono cloni dell'album già vestito
+ *  (stesse geometrie e materiali, decal comprese), rifatti a ogni cambio; l'inquadratura si allarga al set. */
+function applySet(st: { scene: THREE.Scene; album: THREE.Group | null; size: number; baseSize?: THREE.Vector3 }, cover: GlbCover) {
+  const old = st.scene.getObjectByName('SetScene'); if (old) st.scene.remove(old)
+  const album = st.album; if (!album) return
+  const genitori = Math.max(0, Math.min(3, cover.set?.genitori ?? 0))
+  const testimoni = Math.max(0, Math.min(6, cover.set?.testimoni ?? 0))
+  if (!genitori && !testimoni) return
+  const g = new THREE.Group(); g.name = 'SetScene'
+  // l'ingombro di ciò che c'è già (album o box) decide dove si posano gli altri
+  const bb = new THREE.Box3().setFromObject(album)
+  const boxScene = st.scene.getObjectByName('BoxScene'); if (boxScene) bb.union(new THREE.Box3().setFromObject(boxScene))
+  const w = bb.max.x - bb.min.x, d = bb.max.z - bb.min.z, thick = new THREE.Box3().setFromObject(album).getSize(new THREE.Vector3()).y
+  const gap = Math.max(0.02, w * 0.06)
+  const clone = () => { const c = album.clone(true); c.position.set(0, 0, 0); return c }
+  // mini dei genitori: in fila davanti, a sinistra, leggermente ruotati
+  const miniW = w * MINI_SCALE, miniD = d * MINI_SCALE
+  for (let i = 0; i < genitori; i++) {
+    const c = clone(); c.scale.multiplyScalar(MINI_SCALE)
+    const cb = new THREE.Box3().setFromObject(c); const cc = cb.getCenter(new THREE.Vector3())
+    const x = bb.min.x - gap - miniW / 2 - i * (miniW * 0.35), z = bb.max.z - miniD / 2 + i * (miniD * 0.55)
+    c.position.set(x - cc.x, -cb.min.y, z - cc.z)
+    c.rotation.y = -0.18 - i * 0.08
+    g.add(c)
+  }
+  // copie dei testimoni: pila dietro a destra, ogni copia ruotata un filo
+  for (let i = 0; i < testimoni; i++) {
+    const c = clone()
+    const cb = new THREE.Box3().setFromObject(c); const cc = cb.getCenter(new THREE.Vector3())
+    const x = bb.max.x + gap + w / 2, z = bb.min.z + d / 2 - d * 0.15
+    c.position.set(x - cc.x, -cb.min.y + i * thick * 1.02, z - cc.z)
+    c.rotation.y = 0.12 + (i % 2 ? 0.05 : -0.05) * i
+    g.add(c)
+  }
+  st.scene.add(g)
+  const all = new THREE.Box3().setFromObject(g).union(bb)
+  const sz = all.getSize(new THREE.Vector3())
+  st.size = Math.max(st.size, Math.max(sz.x, sz.z) * 0.92)
 }
 
 /** «Photo», «Photo1», «Photo2»… → indice della finestra (da sinistra) */

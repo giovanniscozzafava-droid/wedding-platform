@@ -211,6 +211,9 @@ export type CoverComposition = {
   block?: string
   box?: string
   finish?: string
+  /** il set: album genitori (0, 2 o 3 mini in formato ridotto) e copie identiche per i testimoni */
+  genitori?: 0 | 2 | 3
+  testimoni?: number
   coverPhoto?: { mediaId: string; url: string; label: string | null } | null
   /** tutte le foto in copertina, una per finestra e in ordine (modelli a più finestre: Julies, Trilogy); coverPhoto = la prima */
   coverPhotos?: { mediaId: string; url: string; label: string | null }[]

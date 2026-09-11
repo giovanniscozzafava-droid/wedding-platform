@@ -4,7 +4,7 @@ import { toast } from '@/lib/toast'
 import { ChevronLeft, Loader2, BookOpenCheck, PenLine, CheckCircle2, Maximize2, Check, ImageIcon } from '@/components/icons/lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format } from '@/components/album/albumCatalog'
+import { FORMATS, BOXES, MODELS, FINISHES, sizesForFormat, sizeByKey, designAlbumPriceForLabel, isBaseModelLabel, coverPrice, materialLabel, paletteFor, type Format, setPrice } from '@/components/album/albumCatalog'
 import type { GlbCover, GlbView, AlbumGlbStageHandle } from '@/components/album/glb/AlbumGlbStage'
 import { buildCoverPsd } from '@/components/album/glb/coverPsd'
 import { LAYOUT_SPEC, inkRgb, logoToInk, coverTextMetrics, type PhotoFrame } from '@/components/album/glb/layoutSpec'
@@ -274,6 +274,8 @@ export default function AlbumCatalogPicker() {
   // fotografo, e la somma delle aggiunte è la DIFFERENZA che la coppia paga.
   const markupPct = Number(catalog?.markup_percent ?? 0)
   const mk = (n: number) => applyMarkup(n, markupPct) ?? n
+  // listino del set (senza ricarico): mini dei genitori a coppia, copia identica al 45% di copertina + blocco
+  const setLines = useMemo(() => setPrice({ model: comp.model?.key, fabric: comp.material, sizeKey: specs.size, pages: specs.pages, blockType: comp.block === 'book-flat' ? 'bookflat' : 'photo' }, (comp.genitori ?? 0) as 0 | 2 | 3, comp.testimoni ?? 0), [comp.model?.key, comp.material, specs.size, specs.pages, comp.block, comp.genitori, comp.testimoni])
   const pricing = useMemo(() => {
     type L = { label: string; amount: number; hint?: string }
     const lines: L[] = []
@@ -322,6 +324,9 @@ export default function AlbumCatalogPicker() {
       if (comp.boxFinish && comp.boxFinish !== 'naturale') lines.push({ label: `Finitura box · ${optLabel(BOX_FINISH_OPTIONS, comp.boxFinish)}`, amount: 0, hint: 'prezzo da confermare col fotografo' })
       if (comp.boxHinge === 'sfilabile') lines.push({ label: 'Box col coperchio sfilabile', amount: 0, hint: 'prezzo da confermare col fotografo' })
     }
+    // il set: mini dei genitori e copie dei testimoni
+    if ((comp.genitori ?? 0) > 0) lines.push({ label: `Album genitori · ${comp.genitori} mini`, amount: mk(setLines.genitori), hint: 'stessa copertina, formato ridotto' })
+    if ((comp.testimoni ?? 0) > 0) lines.push({ label: `Copie per i testimoni × ${comp.testimoni}`, amount: mk(setLines.testimoni), hint: `${euroA(mk(setLines.copia))} l'una` })
     // finitura
     const fin = FINISHES.find((f) => f.key === comp.finish)
     if (fin) lines.push({ label: fin.label, amount: mk(fin.amount) })
@@ -332,7 +337,7 @@ export default function AlbumCatalogPicker() {
     if (shipping > 0) lines.push({ label: 'Spedizione', amount: shipping })
     const total = lines.reduce((s, l) => s + l.amount, 0)
     return { lines, total, inclPages, haveQuote }
-  }, [selected, comp, specs.size, specs.pages, specs.box, optioned, quotePages, wantPhoto, listino, familyFromQuote, surcharge, coverExtra, accExtra, shipping, markupPct, coverPick?.label]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected, comp, specs.size, specs.pages, specs.box, optioned, quotePages, wantPhoto, listino, familyFromQuote, surcharge, coverExtra, accExtra, shipping, markupPct, coverPick?.label, setLines]) // eslint-disable-line react-hooks/exhaustive-deps
   const albumTotal = pricing.haveQuote ? optioned + pricing.total : pricing.total
   // L'ALBUM 3D si ridisegna a ogni scelta: le voci del catalogo diventano una Cover del mockup
   // (modello → layout della tavola, materiale/colore → superficie e tinta, formato, box, foto, rifiniture).
@@ -377,6 +382,7 @@ export default function AlbumCatalogPicker() {
       boxFabric: comp.boxMaterial, boxColorKey: comp.boxColor, boxHinge: comp.boxHinge ?? 'cerniera', boxLogoKey: comp.logoOnBox,
       boxColor: comp.boxMaterial ? paletteFor(comp.boxMaterial).find((c) => c.key === comp.boxColor)?.hex : undefined,
       photoCrops: comp.photoCrops, photoFrames: comp.photoFrames, logoPlace: comp.logoPlace, textPlace: comp.textPlace,
+      set: { genitori: comp.genitori ?? 0, testimoni: comp.testimoni ?? 0 },
       title: coverNames,
       dateText: coverDate,
       logoKey: comp.logo && comp.logo !== 'nessuno' && /^cod\./.test(comp.logo) ? comp.logo : undefined,
@@ -417,6 +423,8 @@ export default function AlbumCatalogPicker() {
       ...((comp.box ?? specs.box) && (comp.box ?? specs.box) !== 'nessuno'
         ? [{ label: 'Apertura della box', value: optLabel(BOX_HINGE_OPTIONS, comp.boxHinge ?? 'cerniera') } as SheetRow,
            { label: 'Finitura della box', value: optLabel(BOX_FINISH_OPTIONS, comp.boxFinish ?? 'naturale') } as SheetRow] : []),
+      ...((comp.genitori ?? 0) > 0 ? [{ label: 'Album per i genitori', value: `${comp.genitori} mini, stessa copertina in formato ridotto` } as SheetRow] : []),
+      ...((comp.testimoni ?? 0) > 0 ? [{ label: 'Copie per i testimoni', value: `${comp.testimoni} ${comp.testimoni === 1 ? 'copia identica' : 'copie identiche'}` } as SheetRow] : []),
       { label: photoWindows > 1 ? `Foto in copertina (${photoWindows} finestre)` : 'Foto in copertina', value: wantPhoto ? (chosenPhotos.length ? (photoWindows > 1 ? `${chosenPhotos.length} di ${photoWindows}, in ordine: ${chosenPhotos.map((p) => p.label ?? 'dalla galleria').join(' · ')}` : (comp.coverPhoto?.label ?? 'scelta dalla galleria')) : undefined) : 'No', img: wantPhoto ? chosenPhotos[0]?.url : undefined, missing: wantPhoto },
     )
     return rows
@@ -962,6 +970,20 @@ export default function AlbumCatalogPicker() {
                   </Voice>
                 </>
               )}
+
+              {/* IL SET: gli album dei genitori (mini, stessa copertina) e le copie per i testimoni. Si vedono
+                  nel 3D accanto all'album, e ogni pezzo ha la sua riga nel conto */}
+              <div className="border-t border-[rgb(var(--border))] my-2" />
+              <Voice label="Album per i genitori">
+                <PillChoice options={[{ key: '0', label: 'Nessuno' }, { key: '2', label: '2 mini' }, { key: '3', label: '3 mini' }]} value={String(comp.genitori ?? 0)}
+                  onChange={(k) => setComp((c) => ({ ...c, genitori: Number(k) as 0 | 2 | 3 }))} />
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Stessa copertina e stesse foto, in formato ridotto (circa due terzi). {setLines.genitori > 0 ? `${euroA(mk(setLines.genitori))} per ${comp.genitori} mini.` : ''}</p>
+              </Voice>
+              <Voice label="Copie per i testimoni">
+                <PillChoice options={[0, 1, 2, 3, 4].map((n) => ({ key: String(n), label: n === 0 ? 'Nessuna' : String(n) }))} value={String(comp.testimoni ?? 0)}
+                  onChange={(k) => setComp((c) => ({ ...c, testimoni: Number(k) }))} />
+                <p className="text-[11px] text-[rgb(var(--fg-subtle))] mt-1">Copie identiche all'album, stessa misura. {setLines.copia > 0 ? `${euroA(mk(setLines.copia))} l'una.` : ''}</p>
+              </Voice>
             </Chapter>
             )}
 

@@ -767,6 +767,19 @@ export const FINISHES: { key: string; label: string; amount: number }[] = [
 
 export const PRICING = { extraCopyFactor: 0.45, logoFromCatalog: 20, dataSposo: 10 }
 
+/** IL SET: album genitori (2 o 3 mini, stessa copertina in formato ridotto ~2/3) e copie identiche per i
+ *  testimoni. Prezzi di listino, senza ricarico: i mini a coppia (MINI_SUPP per gruppo materiale, il terzo
+ *  a metà), ogni copia identica al 45% di copertina + blocco (PRICING.extraCopyFactor). */
+export const MINI_SCALE = 0.62
+export function setPrice(cover: Cover | undefined, genitori: 0 | 2 | 3, testimoni: number): { genitori: number; testimoni: number; copia: number } {
+  const group = (cover?.fabric && MATERIAL_GROUP[cover.fabric]) || 'A'
+  const mini = MINI_SUPP[group]
+  const g = genitori === 0 ? 0 : genitori === 2 ? mini : Math.round(mini * 1.5)
+  const bd = coverPrice({ ...cover, box: 'nessuno', parents: false, finishes: [] })
+  const copia = Math.round((bd.lines[0]!.amount + (bd.lines[1]?.amount ?? 0)) * PRICING.extraCopyFactor)
+  return { genitori: g, testimoni: copia * Math.max(0, testimoni), copia }
+}
+
 // Modelli del listino DesignAlbum come voci "da catalogo" (label + prezzo di partenza = grandezza più
 // piccola disponibile). Servono al dropdown "Modello scelto" nei prezzi album: il fotografo sceglie un
 // modello e precarica il costo/sovrapprezzo. Disponibili a tutti di default (oltre al proprio PDF).
