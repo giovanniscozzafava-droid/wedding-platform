@@ -76,7 +76,14 @@ function surfaceMaterial(fabric: string | undefined, hex: string | undefined, is
   if (set) {
     const rep = set.repeat
     if (set.color) m.map = tex(set.color, true, rep)
-    if (isWood && essenceTex) m.map = tex(essenceTex, true, 1)      // foto dell'essenza (noce, rovere…)
+    if (isWood && essenceTex) {
+      // L'ESSENZA VERA (ritagliata dalla tavola del catalogo): la piastrella si ripete ~2 volte sul
+      // piatto, col suo rilievo; niente clearcoat da mobile laccato: la pelle di legno è satinata
+      m.map = tex(essenceTex, true, 2)
+      m.normalMap = tex('/textures/wood/_normal.jpg', false, 2); m.normalScale.set(0.45, 0.45)
+      m.roughnessMap = tex('/textures/wood/_rough.jpg', false, 2)
+      m.roughness = 0.62; m.clearcoat = 0.08; m.clearcoatRoughness = 0.5
+    }
     // il campione del catalogo vince su tutto: è la superficie vera di quella tinta, col SUO rilievo
     // (ricavato dalla grana del campione, non dalla libreria)
     if (vero) {
@@ -97,10 +104,10 @@ function surfaceMaterial(fabric: string | undefined, hex: string | undefined, is
   }
   // tinta: col campione vero la grana PORTA GIÀ il colore (niente moltiplicazione, o si scurirebbe);
   // sul legno l'albedo è la foto dell'essenza; altrimenti il colore moltiplica la grana di libreria
-  if (vero) m.color.set(0xffffff)
+  if (vero || (isWood && essenceTex)) m.color.set(0xffffff)   // la fotografia porta già il colore
   else if (!isWood && hex) m.color.set(hex)
   else if (isWood && set?.tint === false && hex) m.color.set(hex)
-  m.envMapIntensity = set?.envMapIntensity ?? 0.9
+  m.envMapIntensity = isWood && essenceTex ? 0.55 : (set?.envMapIntensity ?? 0.9)
   return m
 }
 
