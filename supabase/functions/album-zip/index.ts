@@ -29,7 +29,10 @@ const isDrive = (id: string) => !!id && !id.startsWith('demo-') && !id.startsWit
 
 // Quanti file per parte: in formato web ci stanno larghi, gli originali (6–10 MB l'uno) molto meno.
 // Il tetto in byte chiude la parte prima, se le foto sono pesanti.
-const PER_PART = { web: 200, original: 40 }
+// Misurato sulla galleria vera (Danila e Antonio): ~360 KB e ~0,5 s a foto con 6 richieste in
+// volo. Con 150 foto per parte e 10 in volo una parte sta abbondantemente dentro il tempo massimo
+// della edge, e 1.300 foto escono in 9 archivi.
+const PER_PART = { web: 150, original: 30 }
 const BUDGET = 220 * 1024 * 1024
 
 type Media = {
@@ -140,7 +143,7 @@ Deno.serve(async (req) => {
 
   // In formato web il lato lungo scende se la galleria è enorme: meno byte da spostare.
   const webPx = media.length > 600 ? 1200 : 1600
-  const scarica = async (m: Media): Promise<Uint8Array | null> => {
+  const prendi = async (m: Media): Promise<Uint8Array | null> => {
     try {
       const wantWeb = size === 'web' && m.media_type !== 'VIDEO'
       if (m.edited_url) {
@@ -163,10 +166,17 @@ Deno.serve(async (req) => {
       return new Uint8Array(await r.arrayBuffer())
     } catch { return null }
   }
+  // Drive ogni tanto rifiuta una richiesta su cinquanta: un secondo tentativo e il file c'è.
+  const scarica = async (m: Media): Promise<Uint8Array | null> => {
+    const a = await prendi(m)
+    if (a) return a
+    await new Promise((r) => setTimeout(r, 400))
+    return prendi(m)
+  }
 
   // A FLUSSO: si scaricano pochi file in anticipo (per non aspettare la rete uno alla volta) ma si
   // scrive in ordine, e ogni file esce subito. In memoria resta solo il pugno di file in volo.
-  const AVANTI = 6
+  const AVANTI = 10
   const zip = new ZipWriter()
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
