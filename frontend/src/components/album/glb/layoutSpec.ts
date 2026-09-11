@@ -17,7 +17,7 @@ export type LayoutSpec = {
 // y_qui = 0.5 − y_3d/h.
 export const LAYOUT_SPEC: Record<Layout, LayoutSpec> = {
   plain: { photos: [], names: { x: 0.5, y: 0.84, size: 0.05 }, logo: { x: 0.5, y: 0.4, w: 0.34 } },
-  plate: { photos: [], plate: { x: 0.5, y: 0.5, w: 0.30, h: 0.07 }, names: { x: 0.5, y: 0.74, size: 0.05 }, logo: { x: 0.5, y: 0.62, w: 0.26 } },
+  plate: { photos: [], plate: { x: 0.5, y: 0.5, w: 0.12, h: 0.12 }, names: { x: 0.5, y: 0.74, size: 0.05 }, logo: { x: 0.5, y: 0.62, w: 0.26 } },
   monogram: { photos: [], names: { x: 0.5, y: 0.66, size: 0.045 }, logo: { x: 0.5, y: 0.3, w: 0.36 } },
   fascia: { photos: [], band: { x: 0.5, y: 0.5, w: 0.96, h: 0.2 }, plate: { x: 0.74, y: 0.5, w: 0.30, h: 0.055 }, crystals: [{ x1: 0.08, y1: 0.5, x2: 0.62, y2: 0.5 }],
     names: { x: 0.74, y: 0.5, size: 0.03 }, logo: { x: 0.5, y: 0.66, w: 0.28 } },

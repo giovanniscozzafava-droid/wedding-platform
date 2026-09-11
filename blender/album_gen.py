@@ -215,7 +215,7 @@ def build_album(layout, fmt):
         stones('Crystal', pts, r, M['Crystal'])
 
     if layout == 'plate':
-        metal_plate(0, 0, w * 0.30, h * 0.07)
+        metal_plate(0, 0, w * 0.12, h * 0.12)     # Plaza: piastrina quadrata (tavola 94)
     elif layout == 'fascia':                     # fascia orizzontale + linea pietre + targhetta (Claire/Plaza)
         band(-w / 2 + pad, w / 2 - pad, 0, h * 0.2)
         stone_line(-w * 0.42, 0, w * 0.12, 0)

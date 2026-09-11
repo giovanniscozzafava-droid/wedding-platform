@@ -289,6 +289,32 @@ export const FAMILY_CATALOG: Record<string, RicettaCatalogo> = {
   claire: { material: 'wood', color: 'wood:noce', backMaterial: 'sequoia', backColor: 'sequoia:tormalina', logo: 'ottone-targhetta', page: 9 },
   thea: { material: 'wood', color: 'wood:rovere', backMaterial: 'sequoia', backColor: 'sequoia:aloe', logo: 'cod.07', page: 10 },
   adel: { material: 'wood', color: 'wood:noce', backMaterial: 'sequoia', backColor: 'sequoia:terra', logo: 'cod.04', page: 11 },
+  // Laserati (tavole 20–23): piastra Cristalwhite intagliata sul piatto, tessuto su dorso e retro
+  betulla: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro', backMaterial: 'sequoia', backColor: 'sequoia:aloe', page: 21 },
+  dream: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro', backMaterial: 'velu-arte', backColor: 'velu-arte:grigio', page: 22 },
+  // Stampati (tavole 38–47)
+  amelie: { material: 'safir', color: 'safir:carta-da-zucchero', page: 38 },
+  darling: { material: 'suade', color: 'suade:crema', page: 41 },
+  sirene: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro', backMaterial: 'alcantara', backColor: 'alcantara:grigio', page: 42 },
+  frejus: { material: 'acero', color: 'acero:beige', backMaterial: 'acero', backColor: 'acero:arancio', page: 45 },
+  dhyana: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro', backMaterial: 'sequoia', backColor: 'sequoia:terra', page: 47 },
+  // Personalizzato sposi e Cristalwhite (tavole 50–75)
+  graphic: { material: 'soft-touch', color: 'soft-touch:marrone', logo: 'cod.05', page: 52 },
+  charme: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro', backMaterial: 'safir', backColor: 'safir:tortora', page: 54 },
+  ghost: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro', backMaterial: 'velu-arte', backColor: 'velu-arte:rosa-antico', page: 55 },
+  clouds: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro', backMaterial: 'velu-arte', backColor: 'velu-arte:polvere', page: 55 },
+  ikon: { material: 'cristalwhite', color: 'cristalwhite:bianco-puro', backMaterial: 'sequoia', backColor: 'sequoia:cioccolato', page: 55 },
+  azulejo: { material: 'cristalplex', color: 'cristalplex:latteo', backMaterial: 'sequoia', backColor: 'sequoia:pietra', page: 56 },
+  hera: { material: 'cristalplex', color: 'cristalplex:trasparente', backMaterial: 'sequoia', backColor: 'sequoia:tormalina', page: 59 },
+  julies: { material: 'acero', color: 'acero:naturale', page: 60 },
+  canvas: { material: 'safir', color: 'safir:moka', page: 63 },
+  frame: { material: 'suade', color: 'suade:bronzo', page: 71 },
+  // Collezione Swarovski (tavole 78–85)
+  xante: { material: 'velu-arte', color: 'velu-arte:cielo', page: 80 },
+  bouquet: { material: 'velu-arte', color: 'velu-arte:polvere', page: 83 },
+  ninfea: { material: 'velu-arte', color: 'velu-arte:polvere', page: 84 },
+  // Ottone nichelato (tavole 94–95): piastrina quadrata coi nomi laserati
+  plaza: { material: 'acero', color: 'acero:taupe', logo: 'ottone-targhetta', page: 94 },
 }
 
 // IL LOGO CHE IL MODELLO PORTA GIÀ: sulle tavole certi modelli si vedono con una personalizzazione
@@ -316,7 +342,8 @@ export function familyLogo(label?: string): string | undefined {
 export const familyDefaults = (label?: string): FamilyDefault | undefined => {
   const r = FAMILY_CATALOG[familyOf(label)]
   if (r) return { material: r.material, color: r.color, backMaterial: r.backMaterial, backColor: r.backColor }
-  return FAMILY_DEFAULTS[familyOf(label)]
+  // fuori catalogo 2022 (nessuna tavola): un tessuto neutro, così il 3D non resta mai senza materiale
+  return FAMILY_DEFAULTS[familyOf(label)] ?? { material: 'sequoia', color: 'sequoia:pietra' }
 }
 /** La tavola del catalogo da cui viene la ricetta (per il rimando «vedi a pag. N»). */
 export const familyCatalogPage = (label?: string): number | undefined => FAMILY_CATALOG[familyOf(label)]?.page
