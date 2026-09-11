@@ -402,13 +402,14 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   const canDl = (m: Media, kind: 'web' | 'full') => {
     if (isOwner) return true
     const fld = folders.find((f) => f.id === m.folder_id)
-    return (kind === 'web' ? fld?.allow_dl_web : fld?.allow_dl_full) !== false
+    // di default si scarica solo il web: l'alta risoluzione la accende il fotografo
+    return kind === 'web' ? fld?.allow_dl_web !== false : fld?.allow_dl_full === true
   }
   // Il CLIENTE non deve nemmeno VEDERE un formato che il fotografo non ha abilitato:
   // se è attivo solo il web, dell'originale non esiste traccia nell'interfaccia.
   const canDlAny = (kind: 'web' | 'full') => {
     if (isOwner) return true
-    return folders.some((f) => (kind === 'web' ? f.allow_dl_web : f.allow_dl_full) !== false)
+    return folders.some((f) => (kind === 'web' ? f.allow_dl_web !== false : f.allow_dl_full === true))
   }
 
   // scarica: prova blob (per forzare il download), fallback ad aprire l'URL (Drive
@@ -474,7 +475,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
   // Abilita/disabilita il DOWNLOAD (web / alta risoluzione) di questa cartella per sposi/ospiti.
   async function toggleDownload(f: Folder, kind: 'web' | 'full') {
     const col = kind === 'web' ? 'allow_dl_web' : 'allow_dl_full'
-    const cur = kind === 'web' ? (f.allow_dl_web ?? true) : (f.allow_dl_full ?? true)
+    const cur = kind === 'web' ? (f.allow_dl_web ?? true) : (f.allow_dl_full === true)
     const next = !cur
     setFolders((fs) => fs.map((x) => (x.id === f.id ? { ...x, [col]: next } : x)))   // ottimistico
     const { error } = await (supabase.from as any)('gallery_folders').update({ [col]: next }).eq('id', f.id)
@@ -1038,7 +1039,7 @@ export function EventGalleryTab({ entryId, role }: { entryId: string; role: 'cap
                   </Button>
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleDownload(f, 'full')}
                     title="Consenti o blocca il download in alta risoluzione (originali) di questa cartella per gli sposi"
-                    style={(f.allow_dl_full ?? true) ? undefined : { opacity: 0.55 }}>
+                    style={f.allow_dl_full === true ? undefined : { opacity: 0.55 }}>
                     <Download size={12} /> Orig. {(f.allow_dl_full ?? true) ? 'ON' : 'OFF'}
                   </Button>
                   <Button variant="gold" size="sm" disabled={busy} onClick={() => { setUploadFolder(f); uploadRef.current?.click() }}><Upload size={12} /> Carica foto</Button>

@@ -99,7 +99,9 @@ Deno.serve(async (req) => {
       .select('id, name, allow_dl_web, allow_dl_full').eq('entry_id', entry_id)
     const ok = new Set<string>()
     for (const f of (folders ?? []) as { id: string; name: string | null; allow_dl_web?: boolean; allow_dl_full?: boolean }[]) {
-      const consentito = size === 'web' ? f.allow_dl_web !== false : f.allow_dl_full !== false
+      // REGOLA: di default si scarica solo il formato web. L'alta risoluzione esce solo se il
+      // fotografo l'ha accesa per quella cartella.
+      const consentito = size === 'web' ? f.allow_dl_web !== false : f.allow_dl_full === true
       if (consentito) ok.add(f.id)
       else escluse.push(f.name || 'una cartella')
     }
