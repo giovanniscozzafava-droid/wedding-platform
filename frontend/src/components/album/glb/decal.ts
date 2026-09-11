@@ -92,26 +92,50 @@ export function decorBBox(img: HTMLImageElement): [number, number, number, numbe
   const bb: [number, number, number, number] = x1 < 0 ? [0, 0, 1, 1] : [x0 / sw, y0 / sh, (x1 + 1) / sw, (y1 + 1) / sh]
   bboxCache.set(k, bb); return bb
 }
-export type DecorMap = { toX: (fx: number) => number; toY: (fy: number) => number; k: number }
+export type DecorMap = {
+  toX: (fx: number, fy?: number) => number
+  toY: (fy: number, fx?: number) => number
+  /** come si disegna: 'tutto' = un pezzo solo; 'angoli' = ogni quarto della tavola ancorato al suo angolo */
+  modo: 'tutto' | 'angoli'
+  /** i pezzi da disegnare: regione della tavola (frazioni) e dove va (frazioni della copertina) */
+  pezzi: { sx: number; sy: number; sw: number; sh: number; dx: number; dy: number; dw: number; dh: number }[]
+}
 /** La mappa dalle frazioni della tavola (PNG) alle frazioni della copertina di destinazione.
- *  `aspect` = larghezza/altezza della copertina. Le misure si conservano in rapporto al lato corto;
- *  l'ancoraggio segue il bordo più vicino al disegno. */
+ *  `aspect` = larghezza/altezza della copertina. Le misure si conservano in rapporto al lato corto.
+ *  - un disegno che tocca un bordo resta attaccato a quel bordo (i fiori di Bouquet partono dal basso);
+ *  - un disegno che tocca sopra E sotto (le liane di Ninfea) si scala per toccarli ancora;
+ *  - un disegno che occupa TUTTA la tavola (gli ornamenti agli angoli di Dhyana e Frejus) si divide
+ *    in quattro e ogni quarto resta attaccato al suo angolo. */
 export function decorMap(decor: Decor, aspect: number, bbox?: [number, number, number, number]): DecorMap {
   const As = decor.size[0] / decor.size[1]                    // la copertina della tavola
-  const Sw = As >= 1 ? As : 1, Sh = As >= 1 ? 1 : 1 / As     // in unità di lato corto
   const Tw = aspect >= 1 ? aspect : 1, Th = aspect >= 1 ? 1 : 1 / aspect
   const [bx0, by0, bx1, by1] = bbox ?? [0, 0, 1, 1]
+  const spanX = bx1 - bx0 >= 0.85, spanY = by1 - by0 >= 0.85
   const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2
-  // spostamenti in unità: si tiene il margine dal bordo di ancoraggio
-  let dx: number
-  if (cx < 0.35) dx = 0                                        // ancorato a sinistra: stesso margine
-  else if (cx > 0.65) dx = Tw - Sw                             // a destra
-  else dx = (Tw - Sw) / 2                                      // al centro
-  let dy: number
-  if (cy > 0.5) dy = Th - Sh                                   // in basso
-  else if (cy < 0.35) dy = 0                                   // in alto
-  else dy = (Th - Sh) / 2
-  return { toX: (fx) => (fx * Sw + dx) / Tw, toY: (fy) => (fy * Sh + dy) / Th, k: 1 }
+  // scala: 1 = misura reale; se il disegno tocca sopra e sotto (o destra e sinistra) si adatta
+  let k = 1
+  const Sw0 = As >= 1 ? As : 1, Sh0 = As >= 1 ? 1 : 1 / As
+  if (spanY && !spanX) k = Th / Sh0
+  else if (spanX && !spanY) k = Tw / Sw0
+  const Sw = Sw0 * k, Sh = Sh0 * k
+  const lato = (): number => (bx0 <= 0.12 && bx1 < 0.88) ? 0 : (bx1 >= 0.88 && bx0 > 0.12) ? Tw - Sw : cx < 0.35 ? 0 : cx > 0.65 ? Tw - Sw : (Tw - Sw) / 2
+  const alto = (): number => (by1 >= 0.88 && by0 > 0.12) ? Th - Sh : (by0 <= 0.12 && by1 < 0.88) ? 0 : cy > 0.5 ? Th - Sh : cy < 0.35 ? 0 : (Th - Sh) / 2
+  if (spanX && spanY) {
+    // ANGOLI: quattro quarti, ognuno col margine dal proprio angolo
+    const q = (sx: number, sy: number) => ({ sx, sy, sw: 0.5, sh: 0.5, dx: (sx * Sw + (sx ? Tw - Sw : 0)) / Tw, dy: (sy * Sh + (sy ? Th - Sh : 0)) / Th, dw: Sw / 2 / Tw, dh: Sh / 2 / Th })
+    const pezzi = [q(0, 0), q(0.5, 0), q(0, 0.5), q(0.5, 0.5)]
+    return {
+      modo: 'angoli', pezzi,
+      toX: (fx) => (fx * Sw + (fx >= 0.5 ? Tw - Sw : 0)) / Tw,
+      toY: (fy) => (fy * Sh + (fy >= 0.5 ? Th - Sh : 0)) / Th,
+    }
+  }
+  const dx = lato(), dy = alto()
+  return {
+    modo: 'tutto', pezzi: [{ sx: 0, sy: 0, sw: 1, sh: 1, dx: dx / Tw, dy: dy / Th, dw: Sw / Tw, dh: Sh / Th }],
+    toX: (fx) => (fx * Sw + dx) / Tw,
+    toY: (fy) => (fy * Sh + dy) / Th,
+  }
 }
 
 /** Disegna il decoro del modello a tutta copertina: stampa (tinta o a colori), fascia, pannello, piastra intagliata, cristalli.
@@ -136,22 +160,21 @@ export function drawDecor(ctx: CanvasRenderingContext2D, W: number, H: number, d
   }
   // fascia e pannello coprono la copertina per costruzione: si stirano (sono geometria, non disegno)
   const stira = decor.kind === 'strip' || decor.kind === 'panel'
-  const dest = (img: HTMLImageElement): [number, number, number, number] => {
-    if (stira) return [ox, oy, dw, dh]
-    const bb = decorBBox(img); const m = decorMap(decor, aspect, bb)
-    const x0 = m.toX(0), y0 = m.toY(0), x1 = m.toX(1), y1 = m.toY(1)   // la tavola intera, riposizionata
-    return [ox + x0 * dw, oy + y0 * dh, (x1 - x0) * dw, (y1 - y0) * dh]
+  const disegna = (img: HTMLImageElement, tinta: boolean) => {
+    const src = tinta ? tintAlpha(img, img.naturalWidth, img.naturalHeight, rgb) : img
+    const iw = img.naturalWidth, ih = img.naturalHeight
+    if (stira) { ctx.drawImage(src, ox, oy, dw, dh); return }
+    const m = decorMap(decor, aspect, decorBBox(img))
+    for (const p of m.pezzi) ctx.drawImage(src, p.sx * iw, p.sy * ih, p.sw * iw, p.sh * ih, ox + p.dx * dw, oy + p.dy * dh, p.dw * dw, p.dh * dh)
   }
-  if (images.print) {
-    const [px, py, pw, ph] = dest(images.print)
-    if (decor.color) ctx.drawImage(images.print, px, py, pw, ph)
-    else ctx.drawImage(tintAlpha(images.print, Math.max(1, Math.round(pw)), Math.max(1, Math.round(ph)), rgb), px, py)
-    drew = true
-  }
+  if (images.print) { disegna(images.print, !decor.color); drew = true }
   if (images.stones) {
-    const [px, py, pw, ph] = images.print ? dest(images.print) : dest(images.stones)
     ctx.save(); ctx.globalAlpha = opts.stoneAlpha ?? 1; ctx.shadowColor = 'rgba(255,255,255,0.85)'; ctx.shadowBlur = Math.round(W * 0.004)
-    ctx.drawImage(images.stones, px, py, pw, ph); ctx.restore(); drew = true
+    // le pietre seguono la stessa mappa del disegno (bbox del disegno, non delle pietre)
+    const iw = images.stones.naturalWidth, ih = images.stones.naturalHeight
+    if (stira) ctx.drawImage(images.stones, ox, oy, dw, dh)
+    else { const m = decorMap(decor, aspect, decorBBox(images.print ?? images.stones)); for (const p of m.pezzi) ctx.drawImage(images.stones, p.sx * iw, p.sy * ih, p.sw * iw, p.sh * ih, ox + p.dx * dw, oy + p.dy * dh, p.dw * dw, p.dh * dh) }
+    ctx.restore(); drew = true
   }
   return drew
 }

@@ -88,13 +88,28 @@ export function PdfFlipbook({
               onDropPin(page, x, y)
             }}>
             <img src={imgs[page]} alt={`Pagina ${page}`} className="block w-full h-auto" draggable={false} />
-            {lens && (
-              <div className="pointer-events-none absolute z-20 overflow-hidden rounded-full border-2 border-[rgb(var(--gold-500))] shadow-[0_10px_30px_rgba(0,0,0,.35)] bg-white"
-                style={{ width: LENS, height: LENS, left: Math.min(Math.max(lens.x * lens.w - LENS / 2, 0), lens.w - LENS), top: lens.y * lens.h - LENS - 18 < 0 ? lens.y * lens.h + 18 : lens.y * lens.h - LENS - 18 }}>
-                <img src={imgs[page]} alt="" draggable={false} className="absolute max-w-none"
-                  style={{ width: lens.w * ZOOM, height: lens.h * ZOOM, left: -(lens.x * lens.w * ZOOM) + LENS / 2, top: -(lens.y * lens.h * ZOOM) + LENS / 2 }} />
-              </div>
-            )}
+            {lens && (() => {
+              // la lente sta SEMPRE dentro la tavola (se sotto il 3D la tavola è bassa, la lente si
+              // rimpicciolisce): sopra il mouse se c'è posto, altrimenti sotto, mai fuori dai bordi
+              const d = Math.min(LENS, Math.floor(lens.h * 0.9))
+              const left = Math.min(Math.max(lens.x * lens.w - d / 2, 0), lens.w - d)
+              let top = lens.y * lens.h - d - 14
+              if (top < 0) top = lens.y * lens.h + 14
+              top = Math.min(Math.max(top, 0), lens.h - d)
+              return (
+                <div className="pointer-events-none absolute z-50 rounded-full border-2 border-[rgb(var(--gold-500))] shadow-[0_10px_30px_rgba(0,0,0,.35)]"
+                  style={{
+                    width: d, height: d, left, top,
+                    // la stessa tavola, ingrandita ZOOM volte, fatta scorrere in modo che il punto sotto il
+                    // mouse cada al centro della lente
+                    backgroundImage: `url(${imgs[page]})`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: `${lens.w * ZOOM}px ${lens.h * ZOOM}px`,
+                    backgroundPosition: `${-(lens.x * lens.w * ZOOM) + d / 2}px ${-(lens.y * lens.h * ZOOM) + d / 2}px`,
+                    backgroundColor: '#fff',
+                  }} />
+              )
+            })()}
             {pageHotspots.map((h) => {
               const on = selected?.id && h.id === selected.id
               return (
